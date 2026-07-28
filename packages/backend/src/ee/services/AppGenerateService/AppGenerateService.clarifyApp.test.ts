@@ -168,12 +168,14 @@ describe('AppGenerateService.clarifyApp for the data app viz template', () => {
             DATA_APP_VIZ_TEMPLATE,
             [{ uuid: 'chart-1', includeSampleData: false, linkLive: false }],
             undefined,
-            ['image-1', 'image-2'],
+            ['file-1', 'file-2'],
         );
 
         const { userMessage } = sentMessages();
         expect(userMessage).toContain('Chart: "Revenue by month"');
-        expect(userMessage).toContain('2 images attached as design reference');
+        expect(userMessage).toContain(
+            '2 files attached (design references or documents)',
+        );
     });
 
     it('routes to the viz system prompt, not the app one', async () => {

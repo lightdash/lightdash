@@ -31,6 +31,7 @@ import {
     getVisibleDataAppClaudeModels,
     isDashboardChartTileType,
     isExploreError,
+    MAX_APP_FILES_PER_VERSION,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -53,6 +54,7 @@ import {
     type AppVersionDependencies,
     type AppVersionDependencyEntry,
     type AppVersionExternalConnectionResource,
+    type AppVersionFileResource,
     type AppVersionResources,
     type AppVersionStatusHistoryEntry,
     type AppVersionStatusHistoryEntryKind,
@@ -282,6 +284,21 @@ type GenerateAppResult = {
     appUuid: string;
     version: number;
 };
+
+/**
+ * A staged attachment resolved from its S3 object at version-creation /
+ * sandbox-write time. ContentType and metadata on the staged object are the
+ * source of truth for type and filename — the client only ever sends ids.
+ */
+type StagedAppFile = {
+    fileId: string;
+    mimeType: string;
+    filename: string;
+    isImage: boolean;
+    isScreenshot: boolean;
+};
+
+type NamedStagedFile = StagedAppFile & { sandboxFilename: string };
 
 type DataAppVersionFailureTelemetry = {
     wasResumed?: boolean;
@@ -1020,11 +1037,12 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Deterministic staging path for uploaded images.
-     * No file extension — the MIME type is stored as the S3 object's ContentType.
+     * Deterministic staging path for uploaded files.
+     * No file extension — the MIME type is stored as the S3 object's
+     * ContentType and the original filename in its metadata.
      */
-    private static imageStagingKey(appUuid: string, imageId: string): string {
-        return `apps/${appUuid}/uploads/${imageId}`;
+    private static fileStagingKey(appUuid: string, fileId: string): string {
+        return `apps/${appUuid}/uploads/${fileId}`;
     }
 
     private static appThumbnailKey(appUuid: string): string {
@@ -1037,9 +1055,17 @@ export class AppGenerateService extends BaseService {
             'image/jpeg': 'jpg',
             'image/gif': 'gif',
             'image/webp': 'webp',
+            'application/pdf': 'pdf',
         };
         return extMap[mimeType] ?? 'png';
     }
+
+    private static readonly RASTER_IMAGE_TYPES = [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+    ];
 
     /**
      * Magic-byte signatures for each allowed image MIME type.
@@ -1070,21 +1096,115 @@ export class AppGenerateService extends BaseService {
 
     private static readonly SIGNATURE_PREFIX_SIZE = 12;
 
-    private static readonly MAX_IMAGES_PER_VERSION = 4;
+    private static readonly PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46]; // %PDF
 
-    private static validateImageIds(imageIds: string[]): void {
-        if (imageIds.length > AppGenerateService.MAX_IMAGES_PER_VERSION) {
+    /** Split resolved attachments into the two version-resource arrays. */
+    private static toAttachmentResources(stagedFiles: StagedAppFile[]): {
+        images: AppVersionResources['images'];
+        files: AppVersionFileResource[];
+    } {
+        return {
+            images: stagedFiles
+                .filter((f) => f.isImage)
+                .map((f) => ({ imageId: f.fileId })),
+            files: stagedFiles
+                .filter((f) => !f.isImage)
+                .map(({ fileId, filename, mimeType }) => ({
+                    fileId,
+                    filename,
+                    mimeType,
+                })),
+        };
+    }
+
+    private static validateFileIds(fileIds: string[]): void {
+        if (fileIds.length > MAX_APP_FILES_PER_VERSION) {
             throw new ParameterError(
-                `Too many images: ${imageIds.length}. Maximum: ${AppGenerateService.MAX_IMAGES_PER_VERSION}`,
+                `Too many attachments: ${fileIds.length}. Maximum: ${MAX_APP_FILES_PER_VERSION}`,
             );
         }
-        for (const id of imageIds) {
+        for (const id of fileIds) {
             if (!isValidUuid(id)) {
                 throw new ParameterError(
-                    'Invalid imageId: must be a valid UUID',
+                    'Invalid fileId: must be a valid UUID',
                 );
             }
         }
+    }
+
+    /**
+     * MIME types worth preserving as-is on text uploads. Anything else that
+     * sniffs as text (unknown extensions arrive as application/octet-stream or
+     * vendor types) is normalized to text/plain so downstream consumers never
+     * see a binary-looking ContentType on a text object.
+     */
+    private static isTextLikeMimeType(mimeType: string): boolean {
+        if (mimeType.startsWith('text/')) return true;
+        if (mimeType.endsWith('+json') || mimeType.endsWith('+xml'))
+            return true;
+        return [
+            'application/json',
+            'application/xml',
+            'application/yaml',
+            'application/x-yaml',
+            'application/toml',
+            'application/javascript',
+            'application/typescript',
+            'application/sql',
+            'application/x-ndjson',
+            'application/x-sh',
+            'image/svg+xml',
+        ].includes(mimeType);
+    }
+
+    /**
+     * A file is treated as text when its first bytes contain no NUL and decode
+     * as UTF-8. Streaming decode tolerates a multi-byte sequence cut off at
+     * the sample boundary. UTF-16 (NUL bytes in ASCII range) is deliberately
+     * rejected — the sandbox agent reads files as UTF-8.
+     */
+    private static sniffsAsText(body: Buffer): boolean {
+        const sample = body.subarray(0, 8192);
+        if (sample.includes(0)) return false;
+        try {
+            new TextDecoder('utf-8', { fatal: true }).decode(sample, {
+                stream: true,
+            });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private static matchesSignature(
+        body: Buffer,
+        signature: { offset: number; bytes: number[] }[],
+    ): boolean {
+        return signature.every((sig) =>
+            sig.bytes.every((byte, i) => body[sig.offset + i] === byte),
+        );
+    }
+
+    /**
+     * Sandbox- and metadata-safe version of a user filename: basename only,
+     * conservative character set, bounded length (extension preserved).
+     * Returns null when nothing usable remains — callers fall back to a
+     * generated name.
+     */
+    private static sanitizeFilename(filename: string): string | null {
+        const base = filename.split(/[/\\]/).pop() ?? '';
+        const cleaned = base
+            // eslint-disable-next-line no-control-regex
+            .replace(/[\x00-\x1f\x7f]/g, '')
+            .replace(/[^A-Za-z0-9._ -]/g, '_')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .replace(/^\.+/, '');
+        if (cleaned.length === 0) return null;
+        if (cleaned.length <= 100) return cleaned;
+        const dot = cleaned.lastIndexOf('.');
+        const ext = dot > 0 ? cleaned.slice(dot).slice(0, 20) : '';
+        return `${cleaned.slice(0, 100 - ext.length)}${ext}`;
     }
 
     /**
@@ -1144,19 +1264,12 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Read the first few bytes of a stream, validate image magic bytes,
-     * then return a new Readable that replays those bytes followed by
-     * the rest of the original stream.
+     * Buffer the full upload body (capped at maxBytes). Buffering up-front
+     * avoids stream pause/pipe state-machine pitfalls and gives us a Buffer
+     * ready for signed S3 PutObject.
      */
-    /**
-     * Buffer the full upload body (capped at maxBytes), then validate that
-     * its leading bytes match the declared MIME type. Returns the buffer.
-     * Buffering up-front avoids stream pause/pipe state-machine pitfalls
-     * and gives us a Buffer ready for signed S3 PutObject.
-     */
-    private static async bufferAndValidate(
+    private static async bufferUploadBody(
         stream: Readable,
-        mimeType: string,
         maxBytes: number,
     ): Promise<Buffer> {
         const chunks: Buffer[] = [];
@@ -1166,59 +1279,109 @@ export class AppGenerateService extends BaseService {
             total += buf.length;
             if (total > maxBytes) {
                 throw new ParameterError(
-                    `Image too large: exceeded ${maxBytes} bytes`,
+                    `File too large: exceeded ${maxBytes} bytes`,
                 );
             }
             chunks.push(buf);
         }
         const body = Buffer.concat(chunks);
-
         if (body.length === 0) {
             throw new ParameterError('Upload body is empty');
         }
-        if (body.length < AppGenerateService.SIGNATURE_PREFIX_SIZE) {
-            throw new ParameterError(
-                'Upload body too small to be a valid image',
-            );
-        }
-
-        const signatures = AppGenerateService.IMAGE_SIGNATURES[mimeType];
-        if (signatures) {
-            const matchesAll = signatures.every((sig) =>
-                sig.bytes.every((byte, i) => body[sig.offset + i] === byte),
-            );
-            if (!matchesAll) {
-                throw new ParameterError(
-                    `File content does not match declared Content-Type: ${mimeType}`,
-                );
-            }
-        }
-
         return body;
     }
 
-    async uploadImage(
+    /**
+     * Classify an upload by its declared MIME type and actual content.
+     * Raster images must match their magic bytes; PDFs must start with %PDF;
+     * everything else is accepted only when it sniffs as UTF-8 text. The
+     * returned mimeType is what gets stored as the S3 ContentType — declared
+     * type for images/PDFs and recognized text types, text/plain otherwise.
+     */
+    private static validateUploadContent(
+        body: Buffer,
+        declaredMimeType: string,
+    ): { category: 'image' | 'pdf' | 'text'; mimeType: string } {
+        if (AppGenerateService.RASTER_IMAGE_TYPES.includes(declaredMimeType)) {
+            if (body.length < AppGenerateService.SIGNATURE_PREFIX_SIZE) {
+                throw new ParameterError(
+                    'Upload body too small to be a valid image',
+                );
+            }
+            const signatures =
+                AppGenerateService.IMAGE_SIGNATURES[declaredMimeType];
+            if (
+                signatures &&
+                !AppGenerateService.matchesSignature(body, signatures)
+            ) {
+                throw new ParameterError(
+                    `File content does not match declared Content-Type: ${declaredMimeType}`,
+                );
+            }
+            return { category: 'image', mimeType: declaredMimeType };
+        }
+
+        const isPdfContent = AppGenerateService.matchesSignature(body, [
+            { offset: 0, bytes: AppGenerateService.PDF_SIGNATURE },
+        ]);
+        if (declaredMimeType === 'application/pdf') {
+            if (!isPdfContent) {
+                throw new ParameterError(
+                    'File content does not match declared Content-Type: application/pdf',
+                );
+            }
+            return { category: 'pdf', mimeType: 'application/pdf' };
+        }
+        // Browsers report an empty/generic type for unknown extensions —
+        // classify by content instead of rejecting on the declared type.
+        if (isPdfContent) {
+            return { category: 'pdf', mimeType: 'application/pdf' };
+        }
+
+        if (AppGenerateService.sniffsAsText(body)) {
+            return {
+                category: 'text',
+                mimeType: AppGenerateService.isTextLikeMimeType(
+                    declaredMimeType,
+                )
+                    ? declaredMimeType
+                    : 'text/plain',
+            };
+        }
+
+        throw new ParameterError(
+            `Unsupported file type: ${declaredMimeType}. Supported: images (PNG, JPEG, GIF, WEBP), PDF, and text-based files (JSON, CSV, Markdown, XML/TWB, YAML, code, …)`,
+        );
+    }
+
+    async uploadFile(
         user: SessionUser,
         projectUuid: string,
-        mimeType: string,
+        declaredMimeType: string,
         body: Readable,
         contentLength: number,
         appUuid: string,
+        filename?: string,
         kind?: 'screenshot',
-    ): Promise<{ imageId: string }> {
+    ): Promise<{
+        fileId: string;
+        imageId: string;
+        filename: string;
+        mimeType: string;
+    }> {
         await this.assertDataAppsEnabled(user);
 
         // For iterations the app already exists — use its space + creator
-        // context so a space editor or the creator can attach an image. For
+        // context so a space editor or the creator can attach a file. For
         // initial creation the appUuid is generated client-side and the app
         // row doesn't exist yet, so we authorize against `create:DataApp`
-        // (anyone who can create an app can stage an image for it).
+        // (anyone who can create an app can stage a file for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
         if (app) {
             await this.assertCanManageApp(
                 user,
                 app,
-                'Insufficient permissions to upload app images',
+                'Insufficient permissions to upload app files',
             );
         } else {
             const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -1227,42 +1390,62 @@ export class AppGenerateService extends BaseService {
                 'create',
                 organizationUuid,
                 projectUuid,
-                'Insufficient permissions to upload app images',
-            );
-        }
-
-        const validTypes = [
-            'image/png',
-            'image/jpeg',
-            'image/gif',
-            'image/webp',
-        ];
-        if (!validTypes.includes(mimeType)) {
-            throw new ParameterError(
-                `Invalid image type: ${mimeType}. Allowed: ${validTypes.join(', ')}`,
+                'Insufficient permissions to upload app files',
             );
         }
 
         const maxSize = 10 * 1024 * 1024; // 10 MB
         if (contentLength > maxSize) {
             throw new ParameterError(
-                `Image too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
+                `File too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
             );
         }
 
-        // Buffer the whole body and validate its MIME signature. We need the
-        // full Buffer anyway so the AWS SDK can use standard S3v4 signing —
-        // streaming bodies cause chunked signing which MinIO/GCS reject with
-        // RequestTimeout.
-        const bufferedBody = await AppGenerateService.bufferAndValidate(
+        // Declared types that can never pass content classification are
+        // rejected before the body is buffered, so a 10MB video doesn't cost
+        // memory just to fail. Everything else (incl. octet-stream) is
+        // classified by content after buffering.
+        const [declaredKind] = declaredMimeType.split('/');
+        const cannotPassClassification =
+            ['video', 'audio', 'font'].includes(declaredKind) ||
+            (declaredKind === 'image' &&
+                declaredMimeType !== 'image/svg+xml' &&
+                !AppGenerateService.RASTER_IMAGE_TYPES.includes(
+                    declaredMimeType,
+                ));
+        if (cannotPassClassification) {
+            throw new ParameterError(
+                `Unsupported file type: ${declaredMimeType}. Supported: images (PNG, JPEG, GIF, WEBP), PDF, and text-based files (JSON, CSV, Markdown, XML/TWB, YAML, code, …)`,
+            );
+        }
+
+        // Buffer the whole body, then validate content against the declared
+        // type. We need the full Buffer anyway so the AWS SDK can use standard
+        // S3v4 signing — streaming bodies cause chunked signing which
+        // MinIO/GCS reject with RequestTimeout.
+        const bufferedBody = await AppGenerateService.bufferUploadBody(
             body,
-            mimeType,
             maxSize,
         );
+        const { category, mimeType } = AppGenerateService.validateUploadContent(
+            bufferedBody,
+            declaredMimeType,
+        );
+        if (kind === 'screenshot' && category !== 'image') {
+            throw new ParameterError('Screenshots must be images');
+        }
+
+        const fileId = uuidv4();
+        const storedFilename =
+            (filename ? AppGenerateService.sanitizeFilename(filename) : null) ??
+            `file-${fileId.slice(0, 8)}.${
+                category === 'text'
+                    ? 'txt'
+                    : AppGenerateService.mimeToExt(mimeType)
+            }`;
 
         const { client: s3Client, bucket } = this.getS3Client();
-        const imageId = uuidv4();
-        const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
+        const s3Key = AppGenerateService.fileStagingKey(appUuid, fileId);
 
         await s3Client.send(
             new PutObjectCommand({
@@ -1271,27 +1454,37 @@ export class AppGenerateService extends BaseService {
                 Body: bufferedBody,
                 ContentLength: bufferedBody.length,
                 ContentType: mimeType,
-                // Persist the upload kind on the staged object so
-                // `writeImageToSandbox` can decide the filename prefix later
-                // without needing a separate DB column.
-                ...(kind ? { Metadata: { kind } } : {}),
+                // Persist upload kind + original filename on the staged object
+                // so `writeFileToSandbox` and version creation can use them
+                // later without needing a separate DB column. S3 metadata
+                // values must be ASCII, hence the URI encoding.
+                Metadata: {
+                    filename: encodeURIComponent(storedFilename),
+                    ...(kind ? { kind } : {}),
+                },
             }),
         );
 
         this.analytics.track({
-            event: 'data_app.image_uploaded',
+            event: 'data_app.file_uploaded',
             userId: user.userUuid,
             properties: {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 appUuid,
-                imageId,
+                fileId,
+                category,
                 mimeType,
                 sizeBytes: contentLength,
             },
         });
 
-        return { imageId };
+        return {
+            fileId,
+            imageId: fileId,
+            filename: storedFilename,
+            mimeType,
+        };
     }
 
     async getImageUrl(
@@ -1322,7 +1515,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const { client: s3Client, bucket } = this.getS3Client();
-        const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
+        const s3Key = AppGenerateService.fileStagingKey(appUuid, imageId);
 
         const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
         const imageUrl = await getSignedUrl(
@@ -1362,11 +1555,11 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const bufferedBody = await AppGenerateService.bufferAndValidate(
+        const bufferedBody = await AppGenerateService.bufferUploadBody(
             body,
-            mimeType,
             maxSize,
         );
+        AppGenerateService.validateUploadContent(bufferedBody, mimeType);
 
         const { client: s3Client, bucket } = this.getS3Client();
         await s3Client.send(
@@ -2253,7 +2446,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         projectUuid: string,
         prompt: string,
-        imageIds: string[] | undefined,
+        fileIds: string[] | undefined,
         s3Client: S3Client,
         bucket: string,
         chartReferences: ChartReference[] | undefined,
@@ -2296,7 +2489,7 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
@@ -2362,14 +2555,21 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Resolve images from staging, copy to version paths, and write to sandbox
-        if (imageIds && imageIds.length > 0) {
-            const imagePaths = await Promise.all(
-                imageIds.map((id) =>
-                    this.writeImageToSandbox(
+        // Resolve attachments from staging and write them into the sandbox
+        if (fileIds && fileIds.length > 0) {
+            const staged = await AppGenerateService.resolveStagedFiles(
+                s3Client,
+                bucket,
+                appUuid,
+                fileIds,
+            );
+            const named = AppGenerateService.assignSandboxFilenames(staged);
+            const sandboxPaths = await Promise.all(
+                named.map((file) =>
+                    this.writeFileToSandbox(
                         sandbox,
                         appUuid,
-                        id,
+                        file,
                         s3Client,
                         bucket,
                     ),
@@ -2377,19 +2577,18 @@ export class AppGenerateService extends BaseService {
             );
             // Label screenshots distinctly so the agent treats them as
             // "current state of the built app" rather than design targets.
-            // Filename convention is set in `writeImageToSandbox`.
             let designIndex = 0;
-            const referenceLines = imagePaths
-                .map((p) => {
-                    const isScreenshot = p
-                        .split('/')
-                        .pop()
-                        ?.startsWith('screenshot-');
-                    if (isScreenshot) {
+            const referenceLines = named
+                .map((file, i) => {
+                    const p = sandboxPaths[i];
+                    if (file.isScreenshot) {
                         return `[Screenshot of the current app at ${p} — use the Read tool to view it. This is what the user is looking at right now, not a design to reproduce.]`;
                     }
-                    designIndex += 1;
-                    return `[Design reference image ${designIndex} at ${p} — use the Read tool to view it]`;
+                    if (file.isImage) {
+                        designIndex += 1;
+                        return `[Design reference image ${designIndex} at ${p} — use the Read tool to view it]`;
+                    }
+                    return `[Attached file "${file.filename}" at ${p} — reference material from the user; use the Read tool to view it]`;
                 })
                 .join('\n');
             finalPrompt = `${referenceLines}\n\n${finalPrompt}`;
@@ -2416,28 +2615,133 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Reconstruct the image's staging S3 key from convention, read the object
-     * (which gives us the MIME type from ContentType), and write it into the
-     * sandbox for Claude to read. Returns the sandbox file path.
+     * HEAD each staged attachment to recover its ContentType, original
+     * filename, and screenshot flag from upload-time metadata. Order is
+     * preserved so callers can keep the user's attachment order.
+     */
+    private static async resolveStagedFiles(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        fileIds: string[],
+    ): Promise<StagedAppFile[]> {
+        return Promise.all(
+            fileIds.map(async (fileId) => {
+                let response;
+                try {
+                    response = await s3Client.send(
+                        new HeadObjectCommand({
+                            Bucket: bucket,
+                            Key: AppGenerateService.fileStagingKey(
+                                appUuid,
+                                fileId,
+                            ),
+                        }),
+                    );
+                } catch (error) {
+                    if (
+                        error instanceof S3ServiceException &&
+                        error.$metadata.httpStatusCode === 404
+                    ) {
+                        throw new ParameterError(
+                            `Attached file not found: ${fileId}`,
+                        );
+                    }
+                    throw error;
+                }
+                const mimeType =
+                    response.ContentType ?? 'application/octet-stream';
+                const rawFilename = response.Metadata?.filename;
+                let filename: string | null = null;
+                if (rawFilename) {
+                    try {
+                        filename = AppGenerateService.sanitizeFilename(
+                            decodeURIComponent(rawFilename),
+                        );
+                    } catch {
+                        filename =
+                            AppGenerateService.sanitizeFilename(rawFilename);
+                    }
+                }
+                return {
+                    fileId,
+                    mimeType,
+                    // Objects staged before filenames shipped (images only)
+                    // carry no filename metadata — synthesize one.
+                    filename:
+                        filename ??
+                        `file-${fileId.slice(0, 8)}.${AppGenerateService.mimeToExt(mimeType)}`,
+                    isImage:
+                        AppGenerateService.RASTER_IMAGE_TYPES.includes(
+                            mimeType,
+                        ),
+                    isScreenshot: response.Metadata?.kind === 'screenshot',
+                };
+            }),
+        );
+    }
+
+    /**
+     * Unique sandbox filenames for an attachment batch: images keep the
+     * uuid-based convention (`screenshot-` prefix tells the agent apart from
+     * design references); other files use their original name so the agent
+     * sees `sales.twb`, deduped with a numeric suffix on collision.
+     */
+    private static assignSandboxFilenames(
+        files: StagedAppFile[],
+    ): NamedStagedFile[] {
+        const used = new Set<string>();
+        return files.map((file) => {
+            if (file.isImage) {
+                const ext = AppGenerateService.mimeToExt(file.mimeType);
+                const sandboxFilename = file.isScreenshot
+                    ? `screenshot-${file.fileId}.${ext}`
+                    : `${file.fileId}.${ext}`;
+                return { ...file, sandboxFilename };
+            }
+            const dot = file.filename.lastIndexOf('.');
+            const stem = dot > 0 ? file.filename.slice(0, dot) : file.filename;
+            const ext = dot > 0 ? file.filename.slice(dot) : '';
+            let candidate = file.filename;
+            for (let n = 2; used.has(candidate); n += 1) {
+                candidate = `${stem}-${n}${ext}`;
+            }
+            used.add(candidate);
+            return { ...file, sandboxFilename: candidate };
+        });
+    }
+
+    /**
+     * Read a staged attachment from S3 and write it into the sandbox for
+     * Claude to read. Returns the sandbox file path.
      *
-     * Design references are dual-written: once to `/tmp/images/` (read-only
-     * inspection — picked up by the prompt prepend and the agent's Read
-     * tool), and again to `/app/src/uploads/` so the agent can `import` them
-     * as Vite assets when the image should ship inside the rendered app
+     * Design-reference images are dual-written: once to `/tmp/images/`
+     * (read-only inspection — picked up by the prompt prepend and the agent's
+     * Read tool), and again to `/app/src/uploads/` so the agent can `import`
+     * them as Vite assets when the image should ship inside the rendered app
      * (logo, hero illustration, etc). Screenshots are inspection-only and
      * never end up in the bundle — they describe current state, not target.
+     *
+     * Non-image attachments go to `/tmp/uploads/` only and are deliberately
+     * NOT copied into the app source tree: they are reference material and
+     * may embed secrets or connection details (e.g. Tableau workbooks), which
+     * must not ship to app viewers unless the agent explicitly inlines
+     * something at the user's request.
      */
-    private async writeImageToSandbox(
+    private async writeFileToSandbox(
         sandbox: SandboxHandle,
         appUuid: string,
-        imageId: string,
+        file: NamedStagedFile,
         s3Client: S3Client,
         bucket: string,
     ): Promise<string> {
-        const stagingKey = AppGenerateService.imageStagingKey(appUuid, imageId);
+        const stagingKey = AppGenerateService.fileStagingKey(
+            appUuid,
+            file.fileId,
+        );
 
         this.logger.info(
-            `App ${appUuid}: reading staged image (key=${stagingKey})`,
+            `App ${appUuid}: reading staged file (key=${stagingKey})`,
         );
 
         const response = await s3Client.send(
@@ -2447,18 +2751,9 @@ export class AppGenerateService extends BaseService {
             }),
         );
 
-        const mimeType = response.ContentType ?? 'image/png';
-        const ext = AppGenerateService.mimeToExt(mimeType);
-        // Screenshots get a filename prefix so the agent can tell them apart
-        // from user-provided design references. Stamped on the staging object
-        // at upload time via S3 metadata (see `uploadImage`).
-        const isScreenshot = response.Metadata?.kind === 'screenshot';
-        const filename = isScreenshot
-            ? `screenshot-${imageId}.${ext}`
-            : `${imageId}.${ext}`;
-        const sandboxPath = `/tmp/images/${filename}`;
+        const dir = file.isImage ? '/tmp/images' : '/tmp/uploads';
+        const sandboxPath = `${dir}/${file.sandboxFilename}`;
 
-        // Read the image bytes
         const chunks: Uint8Array[] = [];
         const body = response.Body;
         if (body && typeof (body as NodeJS.ReadableStream).on === 'function') {
@@ -2470,24 +2765,22 @@ export class AppGenerateService extends BaseService {
         }
         const buffer = Buffer.concat(chunks);
 
-        // Write to sandbox
         this.logger.info(
-            `App ${appUuid}: writing image to sandbox (${mimeType}, ${buffer.length} bytes)`,
+            `App ${appUuid}: writing file to sandbox (${file.mimeType}, ${buffer.length} bytes)`,
         );
-        await sandbox.commands.run('mkdir -p /tmp/images', {
+        await sandbox.commands.run(`mkdir -p ${dir}`, {
             timeoutMs: 10_000,
         });
         await sandbox.files.write(sandboxPath, buffer);
 
-        // Design references go into the Vite-bundled source tree so the agent
-        // can `import logo from './uploads/<file>'` and have the URL hashed,
-        // auth-gated, and CSP-clean — same path as theme images. Screenshots
-        // are explicitly inspection-only and skipped to keep the bundle lean.
-        if (!isScreenshot) {
+        if (file.isImage && !file.isScreenshot) {
             await sandbox.commands.run('mkdir -p /app/src/uploads', {
                 timeoutMs: 10_000,
             });
-            await sandbox.files.write(`/app/src/uploads/${filename}`, buffer);
+            await sandbox.files.write(
+                `/app/src/uploads/${file.sandboxFilename}`,
+                buffer,
+            );
         }
 
         return sandboxPath;
@@ -2740,7 +3033,7 @@ export class AppGenerateService extends BaseService {
                         `--model ${claudeModel} ${effortFlag}` +
                         `--thinking-display summarized ` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
-                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/dashboard/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/dashboard/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
+                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/uploads/**),Read(//tmp/metric-queries/**),Read(//tmp/dashboard/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/uploads/**),Glob(//tmp/metric-queries/**),Glob(//tmp/dashboard/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/uploads/**),Grep(//tmp/external-data/**)" ` +
                         `${jsonSchemaFlag}--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
                     {
                         cwd: '/app',
@@ -3455,14 +3748,10 @@ export class AppGenerateService extends BaseService {
         payload: AppGeneratePipelineJobPayload,
         schedulerWaitMs: number,
     ): Promise<void> {
-        const {
-            appUuid,
-            version,
-            projectUuid,
-            imageIds,
-            isIteration,
-            chartReferences,
-        } = payload;
+        const { appUuid, version, projectUuid, isIteration, chartReferences } =
+            payload;
+        // Jobs enqueued before the fileIds rename still carry imageIds.
+        const fileIds = payload.fileIds ?? payload.imageIds;
 
         // Check if version was cancelled while we were dead
         const currentStatus = await this.appModel.getVersionStatus(
@@ -3733,7 +4022,7 @@ export class AppGenerateService extends BaseService {
                         wasResumed,
                         { ...claudeCodeEnv, ...otelEnv },
                         copilot,
-                        imageIds,
+                        fileIds,
                         chartReferences,
                         versionDeps,
                         schedulerWaitMs,
@@ -3757,7 +4046,7 @@ export class AppGenerateService extends BaseService {
         wasResumed: boolean,
         claudeCodeEnv: Record<string, string>,
         copilot: ResolvedCopilotConfig,
-        imageIds: string[] | undefined,
+        fileIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
         versionDeps: AppVersionDependencies | null,
         schedulerWaitMs: number,
@@ -3966,7 +4255,7 @@ export class AppGenerateService extends BaseService {
                     previousPromptCancelled
                         ? `${CANCELLED_PROMPT_NOTICE}\n\n${prompt}`
                         : prompt,
-                    imageIds,
+                    fileIds,
                     s3Client,
                     bucket,
                     chartReferences,
@@ -4703,7 +4992,7 @@ export class AppGenerateService extends BaseService {
         template?: DataAppTemplate,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
-        imageIds?: string[],
+        fileIds?: string[],
     ): Promise<{ questions: string[] }> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -4758,7 +5047,7 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
             ),
         ]);
-        const imageCount = imageIds?.length ?? 0;
+        const fileCount = fileIds?.length ?? 0;
 
         // No `.max()` on the array — Anthropic's structured-output mode
         // rejects `maxItems` in the schema. The prompt already pins the
@@ -4818,7 +5107,7 @@ export class AppGenerateService extends BaseService {
                             `\nResources the user attached:\n${
                                 AppGenerateService.formatAttachedResourcesForClarifier(
                                     attachedResources,
-                                    imageCount,
+                                    fileCount,
                                 ) || '(none)'
                             }`,
                             ...(isVizTemplate
@@ -4929,7 +5218,7 @@ export class AppGenerateService extends BaseService {
             charts: { name: string; exploreName: string }[];
             dashboard: { name: string; structureSummary: string } | null;
         },
-        imageCount: number,
+        fileCount: number,
     ): string {
         const lines: string[] = [];
         if (attached.dashboard) {
@@ -4944,9 +5233,11 @@ export class AppGenerateService extends BaseService {
                 `- Chart: "${chart.name}" (explore: ${chart.exploreName})`,
             );
         }
-        if (imageCount > 0) {
+        if (fileCount > 0) {
+            // The clarifier only sees ids — file types live on the staged S3
+            // objects — so keep the wording type-agnostic.
             lines.push(
-                `- ${imageCount} image${imageCount === 1 ? '' : 's'} attached as design reference`,
+                `- ${fileCount} file${fileCount === 1 ? '' : 's'} attached (design references or documents)`,
             );
         }
         return lines.join('\n');
@@ -5016,7 +5307,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         prompt: string,
-        imageIds: string[],
+        fileIds: string[],
         preGeneratedAppUuid?: string,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
@@ -5060,10 +5351,23 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        AppGenerateService.validateImageIds(imageIds);
+        AppGenerateService.validateFileIds(fileIds);
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
+
+        // Resolve attachment types/filenames from the staged S3 objects so the
+        // version resources can split image chips from file chips in the chat.
+        let stagedFiles: StagedAppFile[] = [];
+        if (fileIds.length > 0) {
+            const { client: s3Client, bucket } = this.getS3Client();
+            stagedFiles = await AppGenerateService.resolveStagedFiles(
+                s3Client,
+                bucket,
+                appUuid,
+                fileIds,
+            );
+        }
 
         // The pipeline gets the augmented prompt so Claude in the sandbox
         // sees the resolved intent. The version row keeps the original
@@ -5140,7 +5444,7 @@ export class AppGenerateService extends BaseService {
 
         // Build resources metadata to persist with the version
         const resources: AppVersionResources = {
-            images: imageIds.map((id) => ({ imageId: id })),
+            ...AppGenerateService.toAttachmentResources(stagedFiles),
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
@@ -5189,7 +5493,8 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 promptLength: prompt.length,
-                imageCount: imageIds.length,
+                imageCount: stagedFiles.filter((f) => f.isImage).length,
+                fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 template: template ?? null,
                 claudeModel,
                 claudeEffort: AppGenerateService.resolveClaudeEffort(version),
@@ -5207,7 +5512,7 @@ export class AppGenerateService extends BaseService {
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
             template,
-            imageIds: imageIds.length > 0 ? imageIds : undefined,
+            fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: false,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
@@ -5224,7 +5529,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
         prompt: string,
-        imageIds: string[],
+        fileIds: string[],
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         claudeModelInput?: DataAppClaudeModel,
@@ -5233,7 +5538,7 @@ export class AppGenerateService extends BaseService {
         const { designUuidInput, externalConnections } = options;
         await this.assertDataAppsEnabled(user);
 
-        AppGenerateService.validateImageIds(imageIds);
+        AppGenerateService.validateFileIds(fileIds);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -5241,6 +5546,19 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to modify data apps',
         );
+
+        // Resolve attachment types/filenames from the staged S3 objects so the
+        // version resources can split image chips from file chips in the chat.
+        let stagedFiles: StagedAppFile[] = [];
+        if (fileIds.length > 0) {
+            const { client: s3Client, bucket } = this.getS3Client();
+            stagedFiles = await AppGenerateService.resolveStagedFiles(
+                s3Client,
+                bucket,
+                appUuid,
+                fileIds,
+            );
+        }
 
         // Resolved after the permission check so an unauthorized caller gets a
         // 403 rather than a model-visibility error. Scoped to the project's
@@ -5333,7 +5651,7 @@ export class AppGenerateService extends BaseService {
             : prompt;
 
         const resources: AppVersionResources = {
-            images: imageIds.map((id) => ({ imageId: id })),
+            ...AppGenerateService.toAttachmentResources(stagedFiles),
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
@@ -5376,7 +5694,8 @@ export class AppGenerateService extends BaseService {
                 version: newVersion,
                 iterationNumber: newVersion - 1,
                 promptLength: prompt.length,
-                imageCount: imageIds.length,
+                imageCount: stagedFiles.filter((f) => f.isImage).length,
+                fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 claudeModel,
                 claudeEffort:
                     AppGenerateService.resolveClaudeEffort(newVersion),
@@ -5398,7 +5717,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
-            imageIds: imageIds.length > 0 ? imageIds : undefined,
+            fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
@@ -7034,6 +7353,7 @@ export class AppGenerateService extends BaseService {
                     v.resources || v.viz_schema
                         ? {
                               images: v.resources?.images ?? [],
+                              files: v.resources?.files ?? [],
                               charts: v.resources?.charts ?? [],
                               externalConnections:
                                   v.resources?.externalConnections,

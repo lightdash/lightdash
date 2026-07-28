@@ -75,9 +75,24 @@ export type ApiGenerateAppResponse = ApiSuccess<{
     version: number;
 }>;
 
-export type ApiAppImageUploadResponse = ApiSuccess<{
+export type ApiAppFileUploadResponse = ApiSuccess<{
+    fileId: string;
+    /** @deprecated Same value as `fileId` — kept while older frontends read it. */
     imageId: string;
+    /** Sanitized original filename, canonicalized server-side. */
+    filename: string;
+    /** Normalized MIME type as stored on the staged S3 object. */
+    mimeType: string;
 }>;
+
+/** @deprecated Use ApiAppFileUploadResponse. */
+export type ApiAppImageUploadResponse = ApiAppFileUploadResponse;
+
+/**
+ * Attachment cap per generation/iteration request. Shared by the frontend
+ * composer and the backend validator so the limits can't drift apart.
+ */
+export const MAX_APP_FILES_PER_VERSION = 10;
 
 /** Starter template for a single-tile renderer that emits a typed viz schema. */
 export const DATA_APP_VIZ_TEMPLATE = 'data_app_viz' as const;
@@ -240,8 +255,12 @@ export const formatPromptWithClarifications = (
 export type GenerateAppRequestBody = {
     prompt: string;
     template?: DataAppTemplate; // starter template selected on app creation; ignored on iteration
+    /** @deprecated Use `fileIds` — kept while older frontends send it. */
     imageIds?: string[];
-    appUuid?: string; // pre-generated UUID so images can be scoped to the app in S3
+    // Staged attachment ids (images, PDFs, text files) in display order.
+    // Uploaded beforehand via the upload-file endpoint.
+    fileIds?: string[];
+    appUuid?: string; // pre-generated UUID so files can be scoped to the app in S3
     charts?: AppChartReference[]; // saved charts to resolve, optionally with sample rows
     dashboard?: AppDashboardReference; // dashboard — resolved server-side to its chart tiles
     clarifications?: AppClarification[]; // pre-build Q&A folded into the prompt server-side
@@ -280,7 +299,9 @@ export type ApiClarifyAppRequest = {
     // question is worth asking.
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
+    /** @deprecated Use `fileIds` — kept while older frontends send it. */
     imageIds?: string[];
+    fileIds?: string[];
 };
 
 export type ApiClarifyAppResponse = ApiSuccess<{
@@ -293,6 +314,18 @@ export type ApiPreviewTokenResponse = ApiSuccess<{
 
 export type AppVersionImageResource = {
     imageId: string;
+};
+
+/**
+ * A non-image file attached to a generation request (JSON, Tableau workbook,
+ * markdown, code, PDF…). Filename and MIME type are canonicalized server-side
+ * from the staged S3 object at version creation, so the chat can render a
+ * named chip without touching S3.
+ */
+export type AppVersionFileResource = {
+    fileId: string;
+    filename: string;
+    mimeType: string;
 };
 
 export type AppVersionChartResource = {
@@ -318,6 +351,9 @@ export type AppVersionDesignSnapshot = {
 
 export type AppVersionResources = {
     images: AppVersionImageResource[];
+    // Non-image attachments. Optional for backwards compatibility — versions
+    // built before file uploads shipped only carry `images`.
+    files?: AppVersionFileResource[];
     charts: AppVersionChartResource[];
     externalConnections?: AppVersionExternalConnectionResource[];
     dashboardName: string | null;

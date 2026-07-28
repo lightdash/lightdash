@@ -6,6 +6,7 @@ import {
     getVisibleDataAppClaudeModels,
     isApiError,
     isAppVersionInProgress,
+    MAX_APP_FILES_PER_VERSION,
     resolveDefaultVisibleDataAppClaudeModel,
     type ApiAppVersionSummary,
     type AppChartReference,
@@ -43,6 +44,7 @@ import {
     IconHammer,
     IconExternalLink,
     IconArrowBackUp,
+    IconFileDescription,
     IconLayoutDashboard,
     IconLink,
     IconPackage,
@@ -98,8 +100,8 @@ import {
     InspectButton,
     ModelPicker,
     ScreenshotButton,
+    SelectedAttachmentSection,
     SelectedDashboardSection,
-    SelectedImageSection,
     SelectedQuerySection,
     type SelectedChart,
     type SelectedConnection,
@@ -117,7 +119,7 @@ import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel
 import LoadingDots from '../features/apps/components/LoadingDots';
 import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
-import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
+import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import type {
@@ -140,6 +142,7 @@ import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { getTemplate } from '../features/apps/templates';
 import {
     mergeChatMessages,
+    type ChatAttachedFile,
     type ChatChart,
     type ChatConnection,
     type ChatMessage,
@@ -558,15 +561,16 @@ const AppGenerate: FC = () => {
         appUuid: string | null; // null = override set from the new-app page
         designUuid: string | null;
     } | null>(null);
-    const [imageAttachments, setImageAttachments] = useState<
+    const [fileAttachments, setFileAttachments] = useState<
         Array<{
+            localId: string;
             file: File;
-            previewUrl: string;
+            /** Object URL for image thumbnails; null for non-image files. */
+            previewUrl: string | null;
             kind?: 'screenshot';
         }>
     >([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const MAX_IMAGES_PER_VERSION = 4;
     const [selectedCharts, setSelectedCharts] = useState<SelectedChart[]>([]);
     const [selectedDashboard, setSelectedDashboard] =
         useState<SelectedDashboard | null>(null);
@@ -676,7 +680,7 @@ const AppGenerate: FC = () => {
         questions: string[];
         prompt: string;
         template: DataAppTemplate | undefined;
-        imageIds: string[] | undefined;
+        fileIds: string[] | undefined;
         appUuid: string;
         charts: AppChartReference[] | undefined;
         dashboard: AppDashboardReference | undefined;
@@ -698,6 +702,8 @@ const AppGenerate: FC = () => {
     // local→server message transition (localMessages get cleared when server
     // version data arrives, but the ref persists).
     const sentImagesByPrompt = useRef(new Map<string, string[]>());
+    // Maps prompt text → non-image attachment chips, same lifecycle as above
+    const sentFilesByPrompt = useRef(new Map<string, ChatAttachedFile[]>());
     // Maps prompt text → chart names so they survive the local→server transition
     const sentChartsByPrompt = useRef(new Map<string, ChatChart[]>());
     // Maps prompt text → connection names so they survive the local→server transition
@@ -740,7 +746,7 @@ const AppGenerate: FC = () => {
         setSelectedCharts([]);
         setSelectedDashboard(null);
         setSelectedConnections([]);
-        setImageAttachments([]);
+        setFileAttachments([]);
         setLocalMessages([]);
         setPin(null);
         clearQueries();
@@ -765,6 +771,7 @@ const AppGenerate: FC = () => {
             urls.forEach((url) => URL.revokeObjectURL(url)),
         );
         sentImagesByPrompt.current.clear();
+        sentFilesByPrompt.current.clear();
     }, [clearQueries, clearExternalRequests]);
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
@@ -803,7 +810,7 @@ const AppGenerate: FC = () => {
     const [restoreTargetVersion, setRestoreTargetVersion] = useState<
         number | null
     >(null);
-    const { mutateAsync: uploadImage } = useAppImageUpload();
+    const { mutateAsync: uploadFile } = useAppFileUpload();
     const { showToastError, showToastSuccess, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
 
@@ -950,6 +957,12 @@ const AppGenerate: FC = () => {
                 v.resources?.images.map((img) => img.imageId) ?? [];
             const imagePreviewUrls =
                 sentImagesByPrompt.current.get(v.prompt) ?? [];
+            // Old rows carry no `files` — fall back to the session map so an
+            // optimistic bubble's chips survive the local→server transition.
+            const files: ChatAttachedFile[] =
+                v.resources?.files?.map((f) => ({ filename: f.filename })) ??
+                sentFilesByPrompt.current.get(v.prompt) ??
+                [];
             const dashboardName =
                 v.resources?.dashboardName ??
                 sentDashboardByPrompt.current.get(v.prompt) ??
@@ -984,6 +997,7 @@ const AppGenerate: FC = () => {
                     content: v.prompt,
                     imagePreviewUrls,
                     imageResourceIds,
+                    files,
                     charts,
                     externalConnections,
                     dashboardName,
@@ -1005,6 +1019,7 @@ const AppGenerate: FC = () => {
                         : (v.statusMessage ?? readyMessage),
                     imagePreviewUrls: [],
                     imageResourceIds: [],
+                    files: [],
                     charts: [],
                     externalConnections: [],
                     dashboardName: null,
@@ -1023,6 +1038,7 @@ const AppGenerate: FC = () => {
                     content: getAppVersionFailureMessage(v),
                     imagePreviewUrls: [],
                     imageResourceIds: [],
+                    files: [],
                     charts: [],
                     externalConnections: [],
                     dashboardName: null,
@@ -1235,6 +1251,7 @@ const AppGenerate: FC = () => {
                     content: prompt,
                     imagePreviewUrls: [],
                     imageResourceIds: [],
+                    files: [],
                     charts: [],
                     externalConnections: [],
                     dashboardName: null,
@@ -1281,6 +1298,7 @@ const AppGenerate: FC = () => {
                                 content: themeErrorMessage,
                                 imagePreviewUrls: [],
                                 imageResourceIds: [],
+                                files: [],
                                 charts: [],
                                 externalConnections: [],
                                 dashboardName: null,
@@ -1510,7 +1528,7 @@ const AppGenerate: FC = () => {
     }, [messages, isLoading, scrollToBottom]);
 
     // Revoke all sent image blob URLs on unmount to prevent memory leaks.
-    // We don't revoke on imageAttachments change because the URLs may have
+    // We don't revoke on fileAttachments change because the URLs may have
     // been transferred to a sent message for display.
     useEffect(() => {
         const ref = sentImagesByPrompt.current;
@@ -1580,7 +1598,7 @@ const AppGenerate: FC = () => {
         return <Box>Missing project UUID</Box>;
     }
 
-    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
     const ACCEPTED_IMAGE_TYPES = [
         'image/png',
         'image/jpeg',
@@ -1588,32 +1606,69 @@ const AppGenerate: FC = () => {
         'image/webp',
     ];
 
-    const handleImageAttach = (file: File, kind?: 'screenshot') => {
-        if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-            showToastError({
-                title: 'Unsupported image type',
-                subtitle: `${file.name}: only PNG, JPEG, GIF, and WEBP are supported.`,
+    // Mirrors the backend's content classification: PDFs by %PDF signature,
+    // everything else accepted only when the first bytes sniff as UTF-8 text
+    // (no NUL, streaming decode tolerates a cut-off multi-byte sequence).
+    // Extension/MIME lists don't work here — browsers report an empty type
+    // for extensions they don't know (.twb, .yml, …).
+    const isSupportedNonImageFile = async (file: File): Promise<boolean> => {
+        try {
+            const sample = new Uint8Array(
+                await file.slice(0, 8192).arrayBuffer(),
+            );
+            if (sample.length === 0) return false;
+            if (
+                sample[0] === 0x25 &&
+                sample[1] === 0x50 &&
+                sample[2] === 0x44 &&
+                sample[3] === 0x46
+            ) {
+                return true; // %PDF
+            }
+            if (sample.includes(0)) return false;
+            new TextDecoder('utf-8', { fatal: true }).decode(sample, {
+                stream: true,
             });
-            return;
+            return true;
+        } catch {
+            // Invalid UTF-8, or the entry isn't readable at all (e.g. a
+            // dropped folder rejects with NotReadableError).
+            return false;
         }
-        if (file.size > MAX_IMAGE_SIZE) {
+    };
+
+    const handleFileAttach = async (file: File, kind?: 'screenshot') => {
+        if (file.size > MAX_FILE_SIZE) {
             showToastError({
-                title: 'Image too large',
+                title: 'File too large',
                 subtitle: `${file.name} exceeds the 10MB limit.`,
             });
             return;
         }
-        setImageAttachments((prev) => {
-            if (prev.length >= MAX_IMAGES_PER_VERSION) {
+        const isImage = ACCEPTED_IMAGE_TYPES.includes(file.type);
+        if (!isImage && !(await isSupportedNonImageFile(file))) {
+            showToastError({
+                title: 'Unsupported file type',
+                subtitle: `${file.name}: attach images (PNG, JPEG, GIF, WEBP), PDFs, or text-based files (JSON, CSV, Markdown, TWB, code, …).`,
+            });
+            return;
+        }
+        setFileAttachments((prev) => {
+            if (prev.length >= MAX_APP_FILES_PER_VERSION) {
                 showToastWarning({
-                    title: `Image limit reached`,
-                    subtitle: `You can attach up to ${MAX_IMAGES_PER_VERSION} images per message.`,
+                    title: `Attachment limit reached`,
+                    subtitle: `You can attach up to ${MAX_APP_FILES_PER_VERSION} files per message.`,
                 });
                 return prev;
             }
             return [
                 ...prev,
-                { file, previewUrl: URL.createObjectURL(file), kind },
+                {
+                    localId: uuid4(),
+                    file,
+                    previewUrl: isImage ? URL.createObjectURL(file) : null,
+                    kind,
+                },
             ];
         });
     };
@@ -1621,29 +1676,25 @@ const AppGenerate: FC = () => {
     const handlePaste = (e: React.ClipboardEvent) => {
         const items = e.clipboardData?.files;
         if (items && items.length > 0) {
-            const imageFiles = Array.from(items).filter((f) =>
-                f.type.startsWith('image/'),
-            );
-            if (imageFiles.length > 0) {
-                e.preventDefault();
-                imageFiles.forEach((file) => handleImageAttach(file));
-            }
+            e.preventDefault();
+            Array.from(items).forEach((file) => void handleFileAttach(file));
         }
     };
 
     const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
-            Array.from(files).forEach((file) => handleImageAttach(file));
+            Array.from(files).forEach((file) => void handleFileAttach(file));
         }
         e.target.value = '';
     };
 
-    const clearImage = (previewUrl: string) => {
-        URL.revokeObjectURL(previewUrl);
-        setImageAttachments((prev) =>
-            prev.filter((img) => img.previewUrl !== previewUrl),
-        );
+    const clearAttachment = (localId: string) => {
+        setFileAttachments((prev) => {
+            const removed = prev.find((att) => att.localId === localId);
+            if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+            return prev.filter((att) => att.localId !== localId);
+        });
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -1652,9 +1703,9 @@ const AppGenerate: FC = () => {
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        Array.from(e.dataTransfer.files)
-            .filter((f) => f.type.startsWith('image/'))
-            .forEach((file) => handleImageAttach(file));
+        Array.from(e.dataTransfer.files).forEach(
+            (file) => void handleFileAttach(file),
+        );
     };
 
     // Header-menu "Capture thumbnail": saves the preview as the app thumbnail
@@ -1710,7 +1761,7 @@ const AppGenerate: FC = () => {
                     });
                 }
             }
-            handleImageAttach(file, 'screenshot');
+            void handleFileAttach(file, 'screenshot');
         } catch (err) {
             showToastError({
                 title: 'Screenshot failed',
@@ -1746,6 +1797,7 @@ const AppGenerate: FC = () => {
                     content: errorMessage,
                     imagePreviewUrls: [],
                     imageResourceIds: [],
+                    files: [],
                     charts: [],
                     externalConnections: [],
                     dashboardName: null,
@@ -1817,28 +1869,28 @@ const AppGenerate: FC = () => {
                 });
             }
 
-            // Upload images sequentially. Two reasons we can't run these in parallel:
+            // Upload files sequentially. Two reasons we can't run these in parallel:
             // 1. The backend buffers each body to avoid AWS SDK chunked signing,
             //    which MinIO/GCS handle unreliably (RequestTimeout).
             // 2. Concurrent PUTs to the same staging prefix
             //    (apps/{appUuid}/uploads/) hit MinIO's per-prefix lock and fail
             //    with "A timeout occurred while trying to lock a resource".
             // Surface individual failures via toast rather than silently dropping them.
-            let imageIds: string[] | undefined;
-            if (imageAttachments.length > 0) {
+            let fileIds: string[] | undefined;
+            if (fileAttachments.length > 0) {
                 const ids: string[] = [];
-                for (const att of imageAttachments) {
+                for (const att of fileAttachments) {
                     try {
-                        const result = await uploadImage({
+                        const result = await uploadFile({
                             projectUuid: projectUuid!,
                             file: att.file,
                             appUuid: targetAppUuid!,
                             kind: att.kind,
                         });
-                        ids.push(result.imageId);
+                        ids.push(result.fileId);
                     } catch (err) {
                         showToastError({
-                            title: 'Image upload failed',
+                            title: 'File upload failed',
                             subtitle:
                                 err instanceof Error
                                     ? err.message
@@ -1846,17 +1898,26 @@ const AppGenerate: FC = () => {
                         });
                     }
                 }
-                imageIds = ids.length > 0 ? ids : undefined;
+                fileIds = ids.length > 0 ? ids : undefined;
                 if (ids.length === 0) {
                     return;
                 }
             }
 
-            // Capture preview URLs before clearing — they stay in the message bubble.
-            // Also store in the ref so they survive the local→server transition.
-            const sentImageUrls = imageAttachments.map((att) => att.previewUrl);
+            // Capture preview URLs / file chips before clearing — they stay in
+            // the message bubble. Also store in the refs so they survive the
+            // local→server transition.
+            const sentImageUrls = fileAttachments.flatMap((att) =>
+                att.previewUrl ? [att.previewUrl] : [],
+            );
             if (sentImageUrls.length > 0) {
                 sentImagesByPrompt.current.set(trimmed, sentImageUrls);
+            }
+            const sentFiles: ChatAttachedFile[] = fileAttachments
+                .filter((att) => att.previewUrl === null)
+                .map((att) => ({ filename: att.file.name || 'attachment' }));
+            if (sentFiles.length > 0) {
+                sentFilesByPrompt.current.set(trimmed, sentFiles);
             }
             const sentCharts: ChatChart[] = selectedCharts.map((c) => ({
                 name: c.name,
@@ -1896,6 +1957,7 @@ const AppGenerate: FC = () => {
                     content: trimmed,
                     imagePreviewUrls: sentImageUrls,
                     imageResourceIds: [],
+                    files: sentFiles,
                     charts: sentCharts,
                     externalConnections: sentConnections,
                     dashboardName: sentDashboardName,
@@ -1920,7 +1982,7 @@ const AppGenerate: FC = () => {
             ]);
             promptEditorRef.current?.clear();
             setIsPromptEmpty(true);
-            setImageAttachments([]);
+            setFileAttachments([]);
             setIsCapturingScreenshot(false);
             setSelectedCharts([]);
             setSelectedDashboard(null);
@@ -1942,14 +2004,14 @@ const AppGenerate: FC = () => {
                         template: starterTemplate,
                         charts,
                         dashboard,
-                        imageIds,
+                        fileIds,
                     });
                     if (questions.length > 0) {
                         setPendingClarification({
                             questions,
                             prompt: trimmed,
                             template: starterTemplate,
-                            imageIds,
+                            fileIds,
                             appUuid: newAppUuid,
                             charts,
                             dashboard,
@@ -1984,7 +2046,7 @@ const AppGenerate: FC = () => {
                         projectUuid,
                         appUuid: activeAppUuid,
                         prompt: trimmed,
-                        imageIds,
+                        fileIds,
                         charts,
                         dashboard,
                         claudeModel: selectedModel,
@@ -1998,7 +2060,7 @@ const AppGenerate: FC = () => {
                         projectUuid,
                         prompt: trimmed,
                         template: starterTemplate,
-                        imageIds,
+                        fileIds,
                         appUuid: newAppUuid,
                         charts,
                         dashboard,
@@ -2066,7 +2128,7 @@ const AppGenerate: FC = () => {
                 projectUuid: projectUuid!,
                 prompt: captured.prompt,
                 template: captured.template,
-                imageIds: captured.imageIds,
+                fileIds: captured.fileIds,
                 appUuid: captured.appUuid,
                 charts: captured.charts,
                 dashboard: captured.dashboard,
@@ -2481,6 +2543,54 @@ const AppGenerate: FC = () => {
                                                                       />
                                                                   ),
                                                               )}
+                                                        {msg.files.length >
+                                                            0 && (
+                                                            <Box
+                                                                mt="xs"
+                                                                className={
+                                                                    classes.bubbleQueryList
+                                                                }
+                                                            >
+                                                                {msg.files.map(
+                                                                    (f, fi) => (
+                                                                        <Box
+                                                                            key={`${f.filename}-${fi}`}
+                                                                            className={
+                                                                                classes.bubbleQueryItem
+                                                                            }
+                                                                        >
+                                                                            <Box
+                                                                                className={
+                                                                                    classes.bubbleQueryItemIcon
+                                                                                }
+                                                                            >
+                                                                                <MantineIcon
+                                                                                    icon={
+                                                                                        IconFileDescription
+                                                                                    }
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                />
+                                                                            </Box>
+                                                                            <Text
+                                                                                fw={
+                                                                                    500
+                                                                                }
+                                                                                truncate
+                                                                                className={
+                                                                                    classes.bubbleQueryItemName
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    f.filename
+                                                                                }
+                                                                            </Text>
+                                                                        </Box>
+                                                                    ),
+                                                                )}
+                                                            </Box>
+                                                        )}
                                                     </Box>
                                                 </Box>
                                             ) : (
@@ -2837,10 +2947,12 @@ const AppGenerate: FC = () => {
 
                         {!isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
+                                {/* No `accept` — any text-based file is
+                                    allowed regardless of extension; validation
+                                    happens in handleFileAttach. */}
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept="image/png,image/jpeg,image/gif,image/webp"
                                     multiple
                                     onChange={handleFileInputChange}
                                     hidden
@@ -2900,8 +3012,7 @@ const AppGenerate: FC = () => {
                                                 selectedDashboard ||
                                                 selectedConnections.length >
                                                     0 ||
-                                                imageAttachments.length >
-                                                    0) && (
+                                                fileAttachments.length > 0) && (
                                                 <Box
                                                     className={
                                                         classes.attachedResources
@@ -3038,21 +3149,21 @@ const AppGenerate: FC = () => {
                                                             }
                                                         />
                                                     )}
-                                                    {imageAttachments.length >
+                                                    {fileAttachments.length >
                                                         0 && (
-                                                        <SelectedImageSection
-                                                            images={imageAttachments.map(
+                                                        <SelectedAttachmentSection
+                                                            attachments={fileAttachments.map(
                                                                 (att) => ({
+                                                                    id: att.localId,
                                                                     previewUrl:
                                                                         att.previewUrl,
+                                                                    filename:
+                                                                        att.file
+                                                                            .name,
                                                                 }),
                                                             )}
-                                                            onRemove={(
-                                                                previewUrl,
-                                                            ) =>
-                                                                clearImage(
-                                                                    previewUrl,
-                                                                )
+                                                            onRemove={
+                                                                clearAttachment
                                                             }
                                                             disabled={
                                                                 isSubmitting
@@ -3132,13 +3243,13 @@ const AppGenerate: FC = () => {
                                                                 ),
                                                         )
                                                     }
-                                                    onAddImages={() =>
+                                                    onAddFiles={() =>
                                                         fileInputRef.current?.click()
                                                     }
                                                     disabled={isSubmitting}
-                                                    imagesDisabled={
-                                                        imageAttachments.length >=
-                                                        MAX_IMAGES_PER_VERSION
+                                                    filesDisabled={
+                                                        fileAttachments.length >=
+                                                        MAX_APP_FILES_PER_VERSION
                                                     }
                                                 />
                                                 {previewApp &&
@@ -3149,8 +3260,8 @@ const AppGenerate: FC = () => {
                                                             }
                                                             disabled={
                                                                 isSubmitting ||
-                                                                imageAttachments.length >=
-                                                                    MAX_IMAGES_PER_VERSION
+                                                                fileAttachments.length >=
+                                                                    MAX_APP_FILES_PER_VERSION
                                                             }
                                                             loading={
                                                                 isCapturingScreenshot

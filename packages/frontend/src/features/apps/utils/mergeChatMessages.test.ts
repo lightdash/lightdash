@@ -6,6 +6,7 @@ const baseMessage: ChatMessage = {
     content: '',
     imagePreviewUrls: [],
     imageResourceIds: [],
+    files: [],
     charts: [],
     externalConnections: [],
     dashboardName: null,

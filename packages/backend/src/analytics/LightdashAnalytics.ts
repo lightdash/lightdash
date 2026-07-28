@@ -1443,6 +1443,7 @@ export type DataAppCreatedEvent = BaseTrack & {
         version: number;
         promptLength: number;
         imageCount: number;
+        fileCount: number;
         template: DataAppTemplate | null;
         claudeModel: DataAppClaudeModel;
         samplesRequested: number;
@@ -1463,6 +1464,7 @@ export type DataAppIteratedEvent = BaseTrack & {
         iterationNumber: number;
         promptLength: number;
         imageCount: number;
+        fileCount: number;
         claudeModel: DataAppClaudeModel;
         themeChanged: boolean;
         designUuid: string | null;
@@ -1610,13 +1612,15 @@ export type DataAppVersionFailedEvent = BaseTrack & {
     };
 };
 
-export type DataAppImageUploadedEvent = BaseTrack & {
-    event: 'data_app.image_uploaded';
+export type DataAppFileUploadedEvent = BaseTrack & {
+    event: 'data_app.file_uploaded';
     userId: string;
     properties: {
         organizationId: string;
         projectId: string;
         appUuid?: string;
+        fileId: string;
+        category: 'image' | 'pdf' | 'text';
         mimeType: string;
         sizeBytes?: number;
     };
@@ -1735,7 +1739,7 @@ export type DataAppEvent =
     | DataAppVersionCancelledEvent
     | DataAppVersionCompletedEvent
     | DataAppVersionFailedEvent
-    | DataAppImageUploadedEvent
+    | DataAppFileUploadedEvent
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
     | DataAppDuplicatedEvent
