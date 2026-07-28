@@ -6,7 +6,7 @@ import knexConfig from './knexfile';
 import Logger from './logging/logger';
 import { getProcessTimezoneWarning } from './utils/processTimezone';
 
-// trigger BE tests
+// Trigger backend preview build.
 
 // Winston (handleExceptions/handleRejections in winston.ts) owns structured logging
 // for both events. Logger uses exitOnError: false so rejections are tolerated.
