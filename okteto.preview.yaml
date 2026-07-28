@@ -46,4 +46,20 @@ deploy:
         # entrypoint always re-runs against the recreated database
         kubectl delete deployment lightdash-preview --ignore-not-found --wait
     - name: Deploying compose...
-      command: okteto deploy -f docker/docker-compose.preview.yml
+      command: |
+        set -e
+        if [ -n "${DB_SNAPSHOT_NAME:-}" ]; then
+          # Divert must never break preview creation: cloning can fail at
+          # deploy time (e.g. GCP throttles disk creation per source snapshot
+          # when several previews deploy at once). Recreate the volume blank
+          # and take the full migrate + seed path instead.
+          if ! okteto deploy -f docker/docker-compose.preview.yml; then
+            echo "Diverted deploy failed: retrying with a blank database volume"
+            kubectl delete statefulset db-preview --ignore-not-found --wait
+            kubectl delete pvc db-data --ignore-not-found --wait
+            export DB_SNAPSHOT_NAME="" DB_SNAPSHOT_NAMESPACE=""
+            okteto deploy -f docker/docker-compose.preview.yml
+          fi
+        else
+          okteto deploy -f docker/docker-compose.preview.yml
+        fi
