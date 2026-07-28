@@ -26,10 +26,24 @@ const extractFieldValuesFromClickEvent = (
         e.dimensionNames.forEach((dimName, index) => {
             if (dimName && index < valueArray.length) {
                 const val = valueArray[index];
+                // Sparse tuple slots (e.g. padded gap rows) carry no value for
+                // this column — skip them instead of building a broken filter
+                if (val === undefined) return;
                 const raw = val === '∅' ? null : val; // convert ∅ values back to null. Echarts doesn't support null formatting https://github.com/apache/echarts/issues/15821
                 fieldValues[dimName] = { raw, formatted: String(val ?? '') };
             }
         });
+        // Stacked bar tuples only carry the plotted columns, so restore the
+        // clicked row's remaining ones (e.g. non-plotted dimensions) from the
+        // dataset row — without them their filters get silently dropped.
+        // Tuple values win: they are the clicked item.
+        if (e.datasetRow) {
+            Object.entries(e.datasetRow).forEach(([key, val]) => {
+                if (fieldValues[key] !== undefined || val === undefined) return;
+                const raw = val === '∅' ? null : val;
+                fieldValues[key] = { raw, formatted: String(val ?? '') };
+            });
+        }
         return fieldValues;
     }
 
