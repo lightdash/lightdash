@@ -11,6 +11,7 @@ import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken
 import { useDataAppVisualization } from '../../features/apps/hooks/useDataAppVisualization';
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
+import { reconcileDataAppVizFieldMapping } from '../../features/apps/utils/autoMapDataAppVizFields';
 import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -31,7 +32,7 @@ const DataAppVizPlaceholder: FC<{ message: string }> = ({ message }) => (
 
 const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { visualizationConfig, resultsData, colorPalette } =
+    const { visualizationConfig, resultsData, colorPalette, itemsMap } =
         useVisualizationContext();
     const previewOrigin = usePreviewOrigin();
     const hasSignaledScreenshotReady = useRef(false);
@@ -71,6 +72,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         dataAppVizUuid || undefined,
     );
     const configOptions = dataAppViz?.schema?.configOptions;
+    const fields = dataAppViz?.schema?.fields;
 
     // Latest READY version of the chosen data app viz drives the preview.
     const readyVersion = useMemo(() => {
@@ -87,9 +89,16 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     );
 
     const dataAppVizContext = useMemo<DataAppVizContext | undefined>(() => {
-        if (!rows || !configOptions) return undefined;
+        if (!rows || !configOptions || !fields) return undefined;
         return {
-            fieldMapping: fieldMapping ?? {},
+            // Reconciled against the contract and columns in force now, so a
+            // rebuilt viz never renders through a binding the panel no longer
+            // shows.
+            fieldMapping: reconcileDataAppVizFieldMapping(
+                fields,
+                itemsMap ?? {},
+                fieldMapping ?? {},
+            ),
             rows,
             options: getEffectiveOptionValues(
                 configOptions,
@@ -99,7 +108,15 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
             // corrected by the visualization context.
             colorPalette,
         };
-    }, [fieldMapping, rows, configOptions, optionValues, colorPalette]);
+    }, [
+        fields,
+        itemsMap,
+        fieldMapping,
+        rows,
+        configOptions,
+        optionValues,
+        colorPalette,
+    ]);
 
     if (!projectUuid || !dataAppVizUuid) {
         return (

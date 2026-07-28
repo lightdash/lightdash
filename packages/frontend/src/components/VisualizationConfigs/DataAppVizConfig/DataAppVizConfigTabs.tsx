@@ -10,7 +10,10 @@ import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
-import { autoMapDataAppVizFields } from '../../../features/apps/utils/autoMapDataAppVizFields';
+import {
+    autoMapDataAppVizFields,
+    reconcileDataAppVizFieldMapping,
+} from '../../../features/apps/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
@@ -67,6 +70,14 @@ export const ConfigTabs: FC = memo(() => {
         configOptions,
         optionValues,
     );
+    // The contract can change under a stable uuid when the viz is rebuilt, so
+    // what the selects show is the saved mapping reconciled against the
+    // contract and columns in force now — the same value the renderer uses.
+    const effectiveMapping = reconcileDataAppVizFieldMapping(
+        fields,
+        itemsMap ?? {},
+        fieldMapping,
+    );
 
     const generalPanel = (
         <Stack>
@@ -100,7 +111,7 @@ export const ConfigTabs: FC = memo(() => {
 
             {fields.map((field) => {
                 const items = fieldItems(field);
-                const selectedId = fieldMapping[field.name];
+                const selectedId = effectiveMapping[field.name];
                 const selectedItem = selectedId
                     ? items.find((i) => getItemId(i) === selectedId)
                     : undefined;

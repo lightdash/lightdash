@@ -63,3 +63,50 @@ export const autoMapDataAppVizFields = (
 
     return mapping;
 };
+
+/**
+ * Reconcile a saved binding against the contract and columns in force now.
+ *
+ * A viz is edited in place: a new build can add, remove or retype slots under
+ * a uuid that never changes, and the query's columns move independently. Both
+ * leave a saved `fieldMapping` describing a world that no longer exists — a
+ * binding to a departed column, or to a column whose slot is now a metric.
+ * Left alone those render wrong while the panel shows an empty select.
+ *
+ * Bindings that are still valid are kept. Required slots left unbound are
+ * filled from what remains. Optional slots are *not* refilled: an unbound
+ * optional slot is indistinguishable from one the user deliberately cleared,
+ * and refilling would undo the clear on every render.
+ *
+ * Pure and derived — never written back to the saved chart, so opening a chart
+ * cannot dirty it.
+ */
+export const reconcileDataAppVizFieldMapping = (
+    fields: DataAppVizField[],
+    itemsMap: ItemsMap,
+    persisted: DataAppVizFieldMapping,
+): DataAppVizFieldMapping => {
+    const pools = poolsFor(itemsMap);
+    const validIds = {
+        metric: new Set(pools.metric.map(getItemId)),
+        dimension: new Set(pools.dimension.map(getItemId)),
+    };
+
+    const mapping: DataAppVizFieldMapping = {};
+    const taken = new Set<string>();
+
+    for (const field of fields) {
+        const bound = persisted[field.name];
+        if (!bound || taken.has(bound)) continue;
+        const pool = isMetricSlot(field) ? validIds.metric : validIds.dimension;
+        if (!pool.has(bound)) continue;
+        mapping[field.name] = bound;
+        taken.add(bound);
+    }
+
+    fields
+        .filter((f) => f.required)
+        .forEach((f) => fill(mapping, taken, pools, f));
+
+    return mapping;
+};

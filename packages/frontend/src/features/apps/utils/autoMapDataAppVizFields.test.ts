@@ -8,7 +8,10 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { autoMapDataAppVizFields } from './autoMapDataAppVizFields';
+import {
+    autoMapDataAppVizFields,
+    reconcileDataAppVizFieldMapping,
+} from './autoMapDataAppVizFields';
 
 const dimension = (name: string, hidden = false): CompiledDimension => ({
     compiledSql: '',
@@ -135,5 +138,108 @@ describe('autoMapDataAppVizFields', () => {
             category: 'orders_status',
             value: 'orders_count',
         });
+    });
+});
+
+describe('reconcileDataAppVizFieldMapping', () => {
+    it('keeps a binding that is still valid', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [field('category', 'dimension'), field('value', 'metric')],
+            itemsMap(dimension('status'), dimension('method'), metric('count')),
+            { category: 'orders_method', value: 'orders_count' },
+        );
+        expect(mapping).toEqual({
+            category: 'orders_method',
+            value: 'orders_count',
+        });
+    });
+
+    it('drops a binding for a slot the contract no longer declares', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [field('category', 'dimension')],
+            itemsMap(dimension('status')),
+            { category: 'orders_status', departed: 'orders_status' },
+        );
+        expect(mapping).toEqual({ category: 'orders_status' });
+        expect(mapping.departed).toBeUndefined();
+    });
+
+    it('rebinds a required slot whose column left the query', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [field('category', 'dimension')],
+            itemsMap(dimension('method')),
+            { category: 'orders_gone' },
+        );
+        expect(mapping).toEqual({ category: 'orders_method' });
+    });
+
+    it('rebinds a required slot that was retyped by a rebuild', () => {
+        // The slot used to be a dimension and the saved mapping still points
+        // at one; the rebuilt contract declares it a metric.
+        const mapping = reconcileDataAppVizFieldMapping(
+            [field('value', 'metric')],
+            itemsMap(dimension('status'), metric('count')),
+            { value: 'orders_status' },
+        );
+        expect(mapping).toEqual({ value: 'orders_count' });
+    });
+
+    it('fills a required slot a rebuild has newly added', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [field('category', 'dimension'), field('value', 'metric')],
+            itemsMap(dimension('status'), metric('count')),
+            { category: 'orders_status' },
+        );
+        expect(mapping).toEqual({
+            category: 'orders_status',
+            value: 'orders_count',
+        });
+    });
+
+    it('leaves a cleared optional slot cleared', () => {
+        // Refilling here would undo the user's clear on every render.
+        const mapping = reconcileDataAppVizFieldMapping(
+            [
+                field('category', 'dimension'),
+                field('breakdown', 'series', false),
+            ],
+            itemsMap(dimension('status'), dimension('method')),
+            { category: 'orders_status' },
+        );
+        expect(mapping).toEqual({ category: 'orders_status' });
+        expect(mapping.breakdown).toBeUndefined();
+    });
+
+    it('never rebinds a required slot onto a column another slot holds', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [field('category', 'dimension'), field('breakdown', 'series')],
+            itemsMap(dimension('status')),
+            { category: 'orders_status' },
+        );
+        expect(mapping).toEqual({ category: 'orders_status' });
+        expect(mapping.breakdown).toBeUndefined();
+    });
+
+    it('drops a duplicated binding rather than pointing two slots at one column', () => {
+        const mapping = reconcileDataAppVizFieldMapping(
+            [field('category', 'dimension'), field('breakdown', 'series')],
+            itemsMap(dimension('status'), dimension('method')),
+            { category: 'orders_status', breakdown: 'orders_status' },
+        );
+        expect(mapping).toEqual({
+            category: 'orders_status',
+            breakdown: 'orders_method',
+        });
+    });
+
+    it('matches a fresh auto-map when nothing is persisted and all slots are required', () => {
+        const fields = [
+            field('category', 'dimension'),
+            field('value', 'metric'),
+        ];
+        const items = itemsMap(dimension('status'), metric('count'));
+        expect(reconcileDataAppVizFieldMapping(fields, items, {})).toEqual(
+            autoMapDataAppVizFields(fields, items),
+        );
     });
 });
