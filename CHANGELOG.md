@@ -1,3 +1,11 @@
+## [1.7.1](https://github.com/lightdash/lightdash/compare/1.7.0...1.7.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **data-apps:** open move-to-space modal when favoriting a space-less app from lists ([#26283](https://github.com/lightdash/lightdash/issues/26283)) ([16a0130](https://github.com/lightdash/lightdash/commit/16a0130cb2a1de3237fe12087586a5bad8417026))
+* scheduled delivery links never end in a dangling ? and edit-modal send-now links to the delivery ([#26190](https://github.com/lightdash/lightdash/issues/26190)) ([9955386](https://github.com/lightdash/lightdash/commit/9955386059bc56c9819e5e97f410733a5b0660bf))
+
 # [1.7.0](https://github.com/lightdash/lightdash/compare/1.6.0...1.7.0) (2026-07-28)
 
 
