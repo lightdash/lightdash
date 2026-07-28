@@ -1,3 +1,16 @@
+# [1.16.0](https://github.com/lightdash/lightdash/compare/1.15.0...1.16.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* **onboarding:** don't attempt to save brand when joining an existing org ([#26326](https://github.com/lightdash/lightdash/issues/26326)) ([029623d](https://github.com/lightdash/lightdash/commit/029623d5ed55a4094106a2f3f6333b7a32f65f03))
+
+
+### Features
+
+* **data-apps:** shard the injected catalog into per-model files ([#26315](https://github.com/lightdash/lightdash/issues/26315)) ([ce5f1e7](https://github.com/lightdash/lightdash/commit/ce5f1e786cb6a43495cc1c0a91cfd54641933f32))
+* **scim:** provision organization custom roles ([#26321](https://github.com/lightdash/lightdash/issues/26321)) ([ee6c3e6](https://github.com/lightdash/lightdash/commit/ee6c3e69cff9ea31bccb683b9e4e3a0cad9de07d))
+
 # [1.15.0](https://github.com/lightdash/lightdash/compare/1.14.0...1.15.0) (2026-07-28)
 
 
