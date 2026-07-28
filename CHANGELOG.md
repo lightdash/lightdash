@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/lightdash/lightdash/compare/1.6.0...1.7.0) (2026-07-28)
+
+
+### Features
+
+* add admin evals view in AI settings ([#26269](https://github.com/lightdash/lightdash/issues/26269)) ([35f479b](https://github.com/lightdash/lightdash/commit/35f479b35728c543f1b79b12aed827800a0a2c96))
+
 # [1.6.0](https://github.com/lightdash/lightdash/compare/1.5.1...1.6.0) (2026-07-28)
 
 

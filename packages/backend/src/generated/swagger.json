@@ -30785,6 +30785,206 @@
                 "type": "string",
                 "enum": ["createdAt", "title"]
             },
+            "Pick_AiAgentEvaluationRunSummary.runUuid-or-status-or-createdAt-or-completedAt_": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "runUuid": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "running", "failed", "completed"]
+                    },
+                    "completedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": ["createdAt", "runUuid", "status", "completedAt"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AiAgentAdminEvalSummary": {
+                "properties": {
+                    "latestRun": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_AiAgentEvaluationRunSummary.runUuid-or-status-or-createdAt-or-completedAt_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "promptCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "agent": {
+                        "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-imageUrl_"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "evalUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "latestRun",
+                    "promptCount",
+                    "project",
+                    "agent",
+                    "updatedAt",
+                    "createdAt",
+                    "description",
+                    "title",
+                    "evalUuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentAdminEvalsSummary": {
+                "properties": {
+                    "evals": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentAdminEvalSummary"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["evals"],
+                "type": "object"
+            },
+            "KnexPaginatedData_AiAgentAdminEvalsSummary_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/AiAgentAdminEvalsSummary"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_AiAgentAdminEvalsSummary__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentAdminEvalsSummary_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentAdminEvalsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentAdminEvalsSummary__"
+            },
+            "AiAgentAdminEvalPrompt": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "threadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "expectedResponse": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "evalPromptUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "threadUuid",
+                    "expectedResponse",
+                    "prompt",
+                    "evalPromptUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess__prompts-AiAgentAdminEvalPrompt-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "prompts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AiAgentAdminEvalPrompt"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["prompts"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentAdminEvalPromptsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__prompts-AiAgentAdminEvalPrompt-Array__"
+            },
             "McpActivityStatus": {
                 "type": "string",
                 "enum": ["success", "error"]
@@ -50447,7 +50647,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.6.0",
+        "version": "1.7.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -62485,6 +62685,143 @@
                         "schema": {
                             "type": "string",
                             "enum": ["asc", "desc"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/evals": {
+            "get": {
+                "operationId": "getAllEvals",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentAdminEvalsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all AI agent evaluations for admin",
+                "summary": "List AI agent evaluations",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "projectUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "agentUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sortField",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/AiAgentAdminSortField"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/evals/{evalUuid}/prompts": {
+            "get": {
+                "operationId": "getAdminEvalPrompts",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentAdminEvalPromptsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the prompts of an AI agent evaluation for admin",
+                "summary": "List AI agent evaluation prompts",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "evalUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
