@@ -363,6 +363,9 @@ importers:
       cronstrue:
         specifier: 2.23.0
         version: 2.23.0
+      csv-parse:
+        specifier: 7.0.1
+        version: 7.0.1
       csv-stringify:
         specifier: 6.5.1
         version: 6.5.1
@@ -9539,6 +9542,9 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
+
+  csv-parse@7.0.1:
+    resolution: {integrity: sha512-+2z7Ar0APQ7Uu6fX4cn+pitRmxjZ1WPBcGmZFKmA74FCyi7Et/XZx8cjNQ5CjbZ4HCOxXCOpRBYvYH08Qa003A==}
 
   csv-stringify@6.5.1:
     resolution: {integrity: sha512-+9lpZfwpLntpTIEpFbwQyWuW/hmI/eHuJZD1XzeZpfZTqkf1fyvBbBLXTJJMsBuuS11uTShMqPwzx4A6ffXgRQ==}
@@ -26747,6 +26753,8 @@ snapshots:
   csstype@3.0.9: {}
 
   csstype@3.2.3: {}
+
+  csv-parse@7.0.1: {}
 
   csv-stringify@6.5.1: {}
 
