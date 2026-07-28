@@ -1,5 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
-import { toDeliveryQuery } from './delivery';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    getDeliveryQueries,
+    publishDeliveryQueries,
+    registerDeliveryQuery,
+    resetDeliveryRegistry,
+    toDeliveryQuery,
+    unregisterDeliveryQuery,
+    type DeliveryQuery,
+} from './delivery';
 import { query } from './query';
 import { savedChart } from './savedChart';
 
@@ -32,5 +40,84 @@ describe('toDeliveryQuery', () => {
         expect(toDeliveryQuery(savedChart('chart-1'))).toBeNull();
         expect(warn).toHaveBeenCalled();
         warn.mockRestore();
+    });
+});
+
+const declaration = (label: string): DeliveryQuery => ({
+    kind: 'query',
+    label,
+    query: query('orders').build(),
+});
+
+/** Let the coalesced publish flush. */
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe('delivery registry', () => {
+    beforeEach(() => resetDeliveryRegistry());
+    afterEach(() => resetDeliveryRegistry());
+
+    it('returns registered declarations in registration order', () => {
+        registerDeliveryQuery('a', declaration('A'));
+        registerDeliveryQuery('b', declaration('B'));
+        expect(getDeliveryQueries().map((d) => d.label)).toEqual(['A', 'B']);
+    });
+
+    it('replaces a declaration re-registered under the same id', () => {
+        registerDeliveryQuery('a', declaration('First'));
+        registerDeliveryQuery('a', declaration('Second'));
+        expect(getDeliveryQueries().map((d) => d.label)).toEqual(['Second']);
+    });
+
+    it('drops a declaration on unregister', () => {
+        registerDeliveryQuery('a', declaration('A'));
+        unregisterDeliveryQuery('a');
+        expect(getDeliveryQueries()).toEqual([]);
+    });
+
+    it('publishes the declarations to the host', async () => {
+        const target = { postMessage: vi.fn() } as unknown as Window;
+        registerDeliveryQuery('a', declaration('A'));
+        publishDeliveryQueries(target);
+        await flush();
+        expect(target.postMessage).toHaveBeenCalledWith(
+            {
+                type: 'lightdash:delivery:available',
+                queries: [declaration('A')],
+            },
+            expect.any(String),
+        );
+    });
+
+    it('does not publish when nothing is registered', async () => {
+        const target = { postMessage: vi.fn() } as unknown as Window;
+        publishDeliveryQueries(target);
+        await flush();
+        expect(target.postMessage).not.toHaveBeenCalled();
+    });
+
+    it('coalesces same-tick publishes into a single message', async () => {
+        const target = { postMessage: vi.fn() } as unknown as Window;
+        registerDeliveryQuery('a', declaration('A'));
+        publishDeliveryQueries(target);
+        registerDeliveryQuery('b', declaration('B'));
+        publishDeliveryQueries(target);
+        await flush();
+        expect(target.postMessage).toHaveBeenCalledTimes(1);
+        expect(target.postMessage).toHaveBeenCalledWith(
+            {
+                type: 'lightdash:delivery:available',
+                queries: [declaration('A'), declaration('B')],
+            },
+            expect.any(String),
+        );
+    });
+
+    it('reads the registry at flush time, not at schedule time', async () => {
+        const target = { postMessage: vi.fn() } as unknown as Window;
+        registerDeliveryQuery('a', declaration('A'));
+        publishDeliveryQueries(target);
+        unregisterDeliveryQuery('a');
+        await flush();
+        expect(target.postMessage).not.toHaveBeenCalled();
     });
 });
