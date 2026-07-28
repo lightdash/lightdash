@@ -49,7 +49,17 @@ Available at `@/components/ui/<name>`:
 
 ## Semantic Layer (dbt models)
 
-The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`**. Read these to discover every model, dimension, metric, join, and parameter available to you. **Never guess field names** — use only what's in the YAML. When a dimension or metric has `ai_hints`, follow that guidance when deciding which field best matches the user's intent; hints supplement names, labels, and descriptions. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
+The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`** — one file per model, plus an index. **Never guess field names** — use only what's in the YAML. When a dimension or metric has `ai_hints`, follow that guidance when deciding which field best matches the user's intent; hints supplement names, labels, and descriptions. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
+
+### Finding the right models
+
+Projects range from a handful of models to well over a thousand, so the directory is indexed rather than inlined:
+
+1. **Read `/tmp/dbt-repo/models/_index.md` first.** It lists every model, most-queried first, with its file name, dimension/metric counts, joined tables, and description.
+2. **Read only the model files the app actually needs**, e.g. `Read /tmp/dbt-repo/models/orders.yml`. Each file holds that model's complete dimensions, metrics, joins, and parameters.
+3. **Grep when the index isn't enough.** If you know a field name but not its model, `Grep` the directory for it. A wide model may be split across `<name>.yml`, `<name>.part2.yml`, … — the last line of each part points at the next.
+
+**Never read every model file, and never page through a file with `offset`/`limit`** — pick the model from the index and read that one file whole.
 
 ### Reading dbt YAML
 
