@@ -1,6 +1,5 @@
 import { type DataAppViz } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
-import { type ReactElement } from 'react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { useDataAppVisualizations } from '../hooks/useDataAppVisualizations';
@@ -40,15 +39,18 @@ const setData = (data: DataAppViz[]) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
-const render = (onSelect: (id: string) => void): ReactElement =>
+const render = (
+    onSelect: (id: string | null) => void,
+    selected: DataAppViz | null = null,
+) =>
     renderWithProviders(
         <DataAppVizLibraryPicker
             projectUuid="project-1"
-            selectedDataAppVizUuid={null}
-            selectedDataAppViz={null}
+            selectedDataAppVizUuid={selected?.dataAppVizUuid ?? null}
+            selectedDataAppViz={selected}
             onSelect={onSelect}
         />,
-    ) as unknown as ReactElement;
+    );
 
 // Options live in the Select dropdown, which only mounts once opened.
 const openDropdown = () =>
@@ -82,6 +84,54 @@ describe('DataAppVizLibraryPicker', () => {
         fireEvent.click(screen.getByText('Pick me'));
 
         expect(onSelect).toHaveBeenCalledWith('picked');
+    });
+
+    it('lists the whole library while the input still holds the selected label', () => {
+        vi.useFakeTimers();
+        try {
+            const selected = makeDataAppViz({
+                dataAppVizUuid: 'a',
+                name: 'Radial gauge',
+            });
+            setData([
+                selected,
+                makeDataAppViz({ dataAppVizUuid: 'b', name: 'Bar race' }),
+            ]);
+            render(vi.fn(), selected);
+            // Mantine fills the input with the selected label on mount; let the
+            // search debounce settle so a real query would have been issued.
+            act(() => {
+                vi.advanceTimersByTime(500);
+            });
+            openDropdown();
+
+            expect(mockedUseDataAppVisualizations).toHaveBeenLastCalledWith(
+                'project-1',
+                '',
+            );
+            expect(screen.getByText('Bar race')).toBeDefined();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('clears the selection with the clear button', () => {
+        const selected = makeDataAppViz({
+            dataAppVizUuid: 'a',
+            name: 'Radial gauge',
+        });
+        setData([selected]);
+        const onSelect = vi.fn();
+        const { container } = render(onSelect, selected);
+
+        // Mantine's clear button is aria-hidden, so it isn't role-queryable.
+        const clearButton = container.querySelector(
+            '.mantine-8-InputClearButton-root',
+        );
+        expect(clearButton).not.toBeNull();
+        fireEvent.click(clearButton!);
+
+        expect(onSelect).toHaveBeenCalledWith(null);
     });
 
     it('shows an empty state when there are no bindable vizs', () => {
