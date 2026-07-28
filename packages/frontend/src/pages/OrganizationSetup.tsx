@@ -492,8 +492,6 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
                 <Box className={classes.rightPane}>
                     <OrganizationSetupPreview
-                        name={form.values.organizationName || null}
-                        logos={detectedBrand?.logos ?? []}
                         colors={previewColors}
                         titleFont={titleFont}
                         bodyFont={bodyFont}

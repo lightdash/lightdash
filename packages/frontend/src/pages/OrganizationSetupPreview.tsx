@@ -1,7 +1,6 @@
 import {
     type OrganizationBrandColor,
     type OrganizationBrandFont,
-    type OrganizationBrandLogo,
 } from '@lightdash/common';
 import { Box, Text } from '@mantine-8/core';
 import { type FC } from 'react';
@@ -9,8 +8,6 @@ import { BrandPreview } from '../components/UserSettings/AppearanceSettingsPanel
 import classes from './OrganizationSetup.module.css';
 
 type OrganizationSetupPreviewProps = {
-    name: string | null;
-    logos: OrganizationBrandLogo[];
     colors: OrganizationBrandColor[];
     titleFont: OrganizationBrandFont | null;
     bodyFont: OrganizationBrandFont | null;
@@ -19,8 +16,6 @@ type OrganizationSetupPreviewProps = {
 };
 
 const OrganizationSetupPreview: FC<OrganizationSetupPreviewProps> = ({
-    name,
-    logos,
     colors,
     titleFont,
     bodyFont,
@@ -48,8 +43,6 @@ const OrganizationSetupPreview: FC<OrganizationSetupPreviewProps> = ({
         )}
 
         <BrandPreview
-            name={name}
-            logos={logos}
             colors={colors}
             titleFont={titleFont}
             bodyFont={bodyFont}

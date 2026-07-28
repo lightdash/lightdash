@@ -1,12 +1,9 @@
 import {
     type OrganizationBrandColor,
     type OrganizationBrandFont,
-    type OrganizationBrandLogo,
 } from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text } from '@mantine-8/core';
-import { IconSearch } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import MantineIcon from '../../common/MantineIcon';
 import classes from './BrandPreview.module.css';
 
 const DEFAULT_PRIMARY = '#5b3df5';
@@ -59,14 +56,6 @@ const pickPrimaryColor = (colors: OrganizationBrandColor[]): string => {
     );
 };
 
-const pickNavLogo = (logos: OrganizationBrandLogo[]): string | null => {
-    // The nav bar has a coloured (usually dark) background, so prefer the
-    // light/white artwork — which Brandfetch labels `theme: 'light'` — falling
-    // back to any available logo.
-    const light = logos.find((logo) => logo.theme === 'light');
-    return light?.url ?? logos[0]?.url ?? null;
-};
-
 const BAR_VALUES = [55, 78, 48, 88, 60, 96, 72];
 
 const linePath = (points: number[]): string => {
@@ -83,23 +72,17 @@ const linePath = (points: number[]): string => {
 };
 
 type BrandPreviewProps = {
-    name: string | null;
-    logos: OrganizationBrandLogo[];
     colors: OrganizationBrandColor[];
     titleFont: OrganizationBrandFont | null;
     bodyFont: OrganizationBrandFont | null;
 };
 
 export const BrandPreview: FC<BrandPreviewProps> = ({
-    name,
-    logos,
     colors,
     titleFont,
     bodyFont,
 }) => {
     const primary = pickPrimaryColor(colors);
-    const navLogo = pickNavLogo(logos);
-    const displayName = name ?? 'Your company';
     const barColors = [primary, `${primary}59`];
 
     // Apply a brand font family only when we can actually load it, otherwise
@@ -124,41 +107,6 @@ export const BrandPreview: FC<BrandPreviewProps> = ({
                     </Text>
                 </Box>
             </Group>
-
-            <Box className={classes.nav} bg={primary}>
-                <Group gap="sm" wrap="nowrap">
-                    {navLogo ? (
-                        <img
-                            src={navLogo}
-                            alt={displayName}
-                            className={classes.navLogo}
-                        />
-                    ) : (
-                        <Box className={classes.navLogoFallback}>
-                            <Text size="xs" fw={700} c={primary}>
-                                {displayName[0]?.toUpperCase() ?? 'A'}
-                            </Text>
-                        </Box>
-                    )}
-                    <Text size="sm" fw={600} c="white" ff={bodyFamily}>
-                        {displayName}
-                    </Text>
-                </Group>
-                <Group gap="lg" wrap="nowrap" visibleFrom="xs">
-                    <Text size="xs" c="white" ff={bodyFamily}>
-                        Dashboards
-                    </Text>
-                    <Text size="xs" c="white" opacity={0.85} ff={bodyFamily}>
-                        Charts
-                    </Text>
-                    <Text size="xs" c="white" opacity={0.85} ff={bodyFamily}>
-                        SQL runner
-                    </Text>
-                </Group>
-                <Box className={classes.navAvatar}>
-                    <MantineIcon icon={IconSearch} color="white" size={14} />
-                </Box>
-            </Box>
 
             <Box className={classes.body}>
                 <Group justify="space-between" align="flex-start" wrap="nowrap">

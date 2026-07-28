@@ -41,42 +41,6 @@
     border: 1px solid var(--mantine-color-ldGray-2);
 }
 
-.nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--mantine-spacing-md);
-    padding: 12px 18px;
-}
-
-.navLogo {
-    max-height: 22px;
-    max-width: 90px;
-    object-fit: contain;
-}
-
-.navLogoFallback {
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    background-color: var(--mantine-color-white);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.navAvatar {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
 .body {
     padding: 20px;
     display: flex;
