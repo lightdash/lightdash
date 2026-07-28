@@ -35,6 +35,9 @@ declare module '@rudderstack/rudder-sdk-node' {
         identify(payload: Identify): void;
         track(payload: Track): void;
         group(payload: Group): void;
+        // Sends at most `flushAt` queued events per call, then resolves.
+        flush(callback?: () => void): Promise<void>;
+        protected queue: unknown[];
     }
 
     export default Analytics;

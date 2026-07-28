@@ -1074,6 +1074,7 @@ export default class App {
                 flushFeatureFlagChecks(),
                 'api',
             );
+            await this.analytics.flushEvents();
         } catch {
             // telemetry must never break shutdown
         }
