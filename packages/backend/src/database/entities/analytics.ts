@@ -34,7 +34,8 @@ export type AnalyticsDashboardViews = Knex.CompositeTableType<
 
 export type AnalyticsChartViews = Knex.CompositeTableType<
     DbAnalyticsChartViews,
-    Pick<DbAnalyticsChartViews, 'chart_uuid' | 'user_uuid'>
+    Pick<DbAnalyticsChartViews, 'chart_uuid' | 'user_uuid'> &
+        Partial<Pick<DbAnalyticsChartViews, 'context'>>
 >;
 
 export type AnalyticsAppViews = Knex.CompositeTableType<

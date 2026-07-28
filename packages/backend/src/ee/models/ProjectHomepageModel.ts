@@ -201,6 +201,19 @@ export class ProjectHomepageModel {
                   AND p.project_uuid = :projectUuid
                   AND sq.deleted_at IS NULL
                   AND s.deleted_at IS NULL
+                  -- Opening a dashboard records a view for every tile on it,
+                  -- which would bury the dashboard the user actually opened.
+                  -- Tiles are tagged where we can, but several code paths
+                  -- write untagged rows, so also drop chart views that land
+                  -- in the moments around one of this user's dashboard views.
+                  AND (acv.context ->> 'source') IS DISTINCT FROM 'dashboard'
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM analytics_dashboard_views tile_dv
+                      WHERE tile_dv.user_uuid = acv.user_uuid
+                        AND acv.timestamp BETWEEN tile_dv.timestamp - interval '2 seconds'
+                                              AND tile_dv.timestamp + interval '15 seconds'
+                  )
                 UNION ALL
                 SELECT 'dashboard' AS content_type,
                        adv.dashboard_uuid AS content_uuid,

@@ -5008,6 +5008,7 @@ export class ProjectService extends BaseService {
         await this.analyticsModel.addChartViewEvent(
             savedChart.uuid,
             account.user.id,
+            dashboardUuid ? { source: 'dashboard', dashboardUuid } : undefined,
         );
 
         const availableFieldIds = getAvailableFilterFieldIds(explore);

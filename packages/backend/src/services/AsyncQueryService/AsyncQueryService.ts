@@ -5294,6 +5294,12 @@ export class AsyncQueryService extends ProjectService {
             .addChartViewEvent(
                 savedChart.uuid,
                 account.isRegisteredUser() ? account.user.id : null,
+                resolvedDashboardUuid
+                    ? {
+                          source: 'dashboard',
+                          dashboardUuid: resolvedDashboardUuid,
+                      }
+                    : undefined,
             )
             .catch((e) =>
                 this.logger.warn('Failed to track chart view event', {
