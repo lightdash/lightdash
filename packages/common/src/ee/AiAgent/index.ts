@@ -376,6 +376,68 @@ export type AiAgentMemory = {
 
 export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
 
+/**
+ * One curated memory as the consolidation curator sees it. Slug is the only
+ * identifier; thread summaries and usage counters are deliberately absent.
+ */
+export type AiAgentMemoryConsolidationInputEntry = {
+    id: string;
+    title: string;
+    memory: string;
+    terms: string[];
+    objects: Array<{
+        object: AiProjectContextTypedObjectRef;
+        resolved: boolean;
+    }>;
+    scope: AiAgentMemoryScope;
+    age_days: number;
+    generated_at: string;
+};
+
+export type AiAgentMemoryConsolidationOperation =
+    | {
+          type: 'merge';
+          source_slugs: string[];
+          slug: string;
+          title: string;
+          memory: string;
+          terms: string[];
+          objects: AiProjectContextTypedObjectRef[];
+          reason: string;
+      }
+    | {
+          type: 'supersede';
+          loser_slug: string;
+          winner_slug: string;
+          reason: string;
+      }
+    | {
+          type: 'retire';
+          slug: string;
+          reason: string;
+      };
+
+/** The operations that are pure status flips — no row is created. */
+export type AiAgentMemoryConsolidationStatusFlipOperation = Extract<
+    AiAgentMemoryConsolidationOperation,
+    { type: 'supersede' | 'retire' }
+>;
+
+export type AiAgentMemoryConsolidationRejectionReason =
+    | 'unknown_slug'
+    | 'duplicate_target'
+    | 'self_supersede'
+    | 'insufficient_sources'
+    | 'unsupported_operation'
+    | 'row_moved';
+
+export type AiAgentMemoryConsolidationRejection = {
+    operation: AiAgentMemoryConsolidationOperation;
+    reason: AiAgentMemoryConsolidationRejectionReason;
+};
+
+export type AiAgentMemoryConsolidationRunStatus = 'succeeded' | 'failed';
+
 export type ApiUpdateAiAgentMemoryStatusRequest = {
     status: AiAgentMemoryEditableStatus;
 };

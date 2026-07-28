@@ -41,6 +41,7 @@ const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const AI_AGENT_MEMORY_LLM_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
 const AI_AGENT_MEMORY_DISTILL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const AI_AGENT_MEMORY_SWEEP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const AI_AGENT_MEMORY_CONSOLIDATE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
 const AGENT_ONBOARDING_TIMEOUT_MS = 60 * 60 * 1000;
@@ -156,6 +157,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 pattern: '0 */3 * * *',
                 options: {
                     backfillPeriod: 6 * 60 * 60 * 1000,
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES,
+                pattern: '30 1 * * *', // 01:30 UTC daily
+                options: {
+                    backfillPeriod: 24 * 60 * 60 * 1000, // 24 hours
                     maxAttempts: 1,
                 },
             },
@@ -696,6 +705,33 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     async (_job, error) => {
                         controller.abort(error);
                         await distillPromise;
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES]: async (
+                payload,
+                helpers,
+            ) => {
+                const controller = new AbortController();
+                const consolidatePromise = SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.aiAgentMemoryService.consolidate(
+                            new Date(),
+                            controller.signal,
+                        );
+                    },
+                );
+                await tryJobOrTimeout(
+                    consolidatePromise,
+                    helpers.job,
+                    AI_AGENT_MEMORY_CONSOLIDATE_TIMEOUT_MS,
+                    async (_job, error) => {
+                        controller.abort(error);
+                        await consolidatePromise;
                     },
                 );
             },

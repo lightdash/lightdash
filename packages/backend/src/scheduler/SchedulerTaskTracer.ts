@@ -264,6 +264,7 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
         'ai_agent_memory.thread_uuid': payload.threadUuid,
     }),
+    [SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
