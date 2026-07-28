@@ -1,3 +1,16 @@
+# [1.18.0](https://github.com/lightdash/lightdash/compare/1.17.1...1.18.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* check Google Sheets permission when updating scheduler format ([#26258](https://github.com/lightdash/lightdash/issues/26258)) ([ede6675](https://github.com/lightdash/lightdash/commit/ede66752935f259e7d384400f8a1276446049290))
+* reject interactive-only Snowflake authentication types when saving project credentials ([#26117](https://github.com/lightdash/lightdash/issues/26117)) ([7a4f91f](https://github.com/lightdash/lightdash/commit/7a4f91fc86c10aefbdd8ad14efdb1c6f7e6aa59b))
+
+
+### Features
+
+* **analytics:** aggregated feature-flag check telemetry ([#26161](https://github.com/lightdash/lightdash/issues/26161)) ([e59c265](https://github.com/lightdash/lightdash/commit/e59c265ffb6e71900ba66ecd54cb0301371a3c7c))
+
 ## [1.17.1](https://github.com/lightdash/lightdash/compare/1.17.0...1.17.1) (2026-07-28)
 
 
