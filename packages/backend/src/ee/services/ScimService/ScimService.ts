@@ -1879,11 +1879,15 @@ export class ScimService extends BaseService {
         // Check for invalid role values
         const invalidRoles = roles
             .map((role) => role.value)
-            .filter(
-                (roleValue) =>
-                    !validRoleValues.includes(roleValue) &&
-                    !roleValue.toLowerCase().endsWith(NO_ROLE_KEYWORD),
-            );
+            .filter((roleValue) => {
+                const { projectUuid, roleUuid } =
+                    ScimService.parseRoleId(roleValue);
+                const isProjectNoRole =
+                    Boolean(projectUuid) &&
+                    roleUuid.toLowerCase() === NO_ROLE_KEYWORD;
+
+                return !validRoleValues.includes(roleValue) && !isProjectNoRole;
+            });
 
         if (invalidRoles.length > 0) {
             throw new ParameterError(

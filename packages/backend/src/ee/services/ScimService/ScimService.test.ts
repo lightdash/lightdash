@@ -25,6 +25,17 @@ describe('ScimService', () => {
         type: 'Organization',
         primary: true,
     };
+    const organizationCustomRoleUser: LightdashUser = {
+        ...mockUser,
+        userId: 1,
+        roleUuid: mockOrganizationCustomRole.roleUuid,
+        isTrackingAnonymized: false,
+        isMarketingOptedIn: false,
+        isSetupComplete: true,
+        createdAt: mockUser.userCreatedAt,
+        updatedAt: mockUser.userUpdatedAt,
+        timezone: null,
+    };
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -300,9 +311,12 @@ describe('ScimService', () => {
         });
 
         test('should create user with an organization-level custom role', async () => {
-            const { rolesModel } = ScimServiceArgumentsMock;
+            const { rolesModel, userModel } = ScimServiceArgumentsMock;
+            vi.mocked(userModel.getUserDetailsByUuid).mockResolvedValueOnce(
+                organizationCustomRoleUser,
+            );
 
-            await service.createUser({
+            const result = await service.createUser({
                 account: mockScimAccount,
                 user: {
                     schemas: [ScimSchemaType.USER],
@@ -330,6 +344,50 @@ describe('ScimService', () => {
                 [],
                 true,
             );
+            expect(result.roles).toContainEqual(organizationCustomScimRole);
+        });
+
+        test('should reject a bare no-role value before creating a user', async () => {
+            const { organizationMemberProfileModel, userModel } =
+                ScimServiceArgumentsMock;
+
+            await expect(
+                service.createUser({
+                    account: mockScimAccount,
+                    user: {
+                        schemas: [ScimSchemaType.USER],
+                        userName: 'new-user@example.com',
+                        name: {
+                            givenName: 'New',
+                            familyName: 'User',
+                        },
+                        active: true,
+                        emails: [
+                            {
+                                value: 'new-user@example.com',
+                                primary: true,
+                            },
+                        ],
+                        roles: [
+                            {
+                                value: 'no-role',
+                                type: 'Organization',
+                                primary: true,
+                            },
+                        ],
+                    },
+                    organizationUuid: 'org-uuid',
+                }),
+            ).rejects.toMatchObject({
+                detail: 'Invalid role values: no-role',
+                status: '400',
+                scimType: 'invalidValue',
+            });
+
+            expect(userModel.createUser).not.toHaveBeenCalled();
+            expect(
+                organizationMemberProfileModel.createOrganizationMembershipByUuid,
+            ).not.toHaveBeenCalled();
         });
 
         test('should adopt orphan user (verified email but no organization) instead of creating', async () => {
@@ -763,6 +821,102 @@ describe('ScimService', () => {
             });
         });
 
+        test.each(['no-role', 'invalid-no-role'])(
+            'should reject invalid bare organization role value %s before updating the user',
+            async (roleValue) => {
+                const { rolesModel, userModel } = ScimServiceArgumentsMock;
+
+                await expect(
+                    service.updateUser({
+                        account: mockScimAccount,
+                        user: {
+                            schemas: [ScimSchemaType.USER],
+                            userName: mockUser.email,
+                            name: {
+                                givenName: mockUser.firstName,
+                                familyName: mockUser.lastName,
+                            },
+                            active: mockUser.isActive,
+                            emails: [
+                                {
+                                    value: mockUser.email,
+                                    primary: true,
+                                },
+                            ],
+                            roles: [
+                                {
+                                    value: roleValue,
+                                    type: 'Organization',
+                                    primary: true,
+                                },
+                            ],
+                        },
+                        userUuid: mockUser.userUuid,
+                        organizationUuid: mockUser.organizationUuid,
+                    }),
+                ).rejects.toMatchObject({
+                    detail: `Invalid role values: ${roleValue}`,
+                    status: '400',
+                    scimType: 'invalidValue',
+                });
+
+                expect(userModel.updateUser).not.toHaveBeenCalled();
+                expect(
+                    rolesModel.setUserOrgAndProjectRoles,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([
+            ['omitted', undefined],
+            ['empty', [] as ScimUserRole[]],
+        ])(
+            'should preserve existing roles when the roles array is %s',
+            async (_case, roles) => {
+                const {
+                    organizationMemberProfileModel,
+                    rolesModel,
+                    userModel,
+                } = ScimServiceArgumentsMock;
+                vi.mocked(
+                    organizationMemberProfileModel.getOrganizationMemberByUuid,
+                ).mockResolvedValueOnce({
+                    ...mockUser,
+                    roleUuid: mockOrganizationCustomRole.roleUuid,
+                });
+                vi.mocked(userModel.getUserDetailsByUuid).mockResolvedValueOnce(
+                    organizationCustomRoleUser,
+                );
+
+                const result = await service.updateUser({
+                    account: mockScimAccount,
+                    user: {
+                        schemas: [ScimSchemaType.USER],
+                        userName: mockUser.email,
+                        name: {
+                            givenName: mockUser.firstName,
+                            familyName: mockUser.lastName,
+                        },
+                        active: mockUser.isActive,
+                        emails: [
+                            {
+                                value: mockUser.email,
+                                primary: true,
+                            },
+                        ],
+                        ...(roles === undefined ? {} : { roles }),
+                    },
+                    userUuid: mockUser.userUuid,
+                    organizationUuid: mockUser.organizationUuid,
+                });
+
+                expect(
+                    rolesModel.setUserOrgAndProjectRoles,
+                ).not.toHaveBeenCalled();
+                expect(result.roles).toContainEqual(organizationCustomScimRole);
+            },
+        );
+
         test('should handle organization-only roles in roles array via unified method', async () => {
             const { organizationMemberProfileModel, rolesModel } =
                 ScimServiceArgumentsMock;
@@ -919,6 +1073,35 @@ describe('ScimService', () => {
                 [],
                 true,
             );
+        });
+
+        test('should reject a bare no-role value in a patch', async () => {
+            const { rolesModel, userModel } = ScimServiceArgumentsMock;
+
+            await expect(
+                service.patchUser({
+                    account: mockScimAccount,
+                    userUuid: mockUser.userUuid,
+                    organizationUuid: mockUser.organizationUuid,
+                    patchOp: {
+                        schemas: [ScimSchemaType.PATCH],
+                        Operations: [
+                            {
+                                op: 'Replace',
+                                path: 'roles[primary eq true].value',
+                                value: 'no-role',
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toMatchObject({
+                detail: 'Invalid role values: no-role',
+                status: '400',
+                scimType: 'invalidValue',
+            });
+
+            expect(userModel.updateUser).not.toHaveBeenCalled();
+            expect(rolesModel.setUserOrgAndProjectRoles).not.toHaveBeenCalled();
         });
     });
 
@@ -1277,7 +1460,7 @@ describe('ScimService', () => {
             );
         });
 
-        test('should allow roles ending with NO_ROLE_KEYWORD', () => {
+        test('should allow the exact project no-role sentinel', () => {
             const roles = [
                 {
                     value: 'admin',
@@ -1297,6 +1480,25 @@ describe('ScimService', () => {
                 ScimService.validateRolesArray(roles, validRoleValues);
             }).not.toThrow();
         });
+
+        test.each(['no-role', 'invalid-no-role', ':no-role'])(
+            'should reject invalid no-role value %s',
+            (roleValue) => {
+                expect(() => {
+                    ScimService.validateRolesArray(
+                        [
+                            {
+                                value: roleValue,
+                                display: 'Invalid no-role value',
+                                type: 'Organization',
+                                primary: true,
+                            },
+                        ],
+                        validRoleValues,
+                    );
+                }).toThrow(`Invalid role values: ${roleValue}`);
+            },
+        );
     });
 
     describe('parseRoleId and generateRoleId integration', () => {
