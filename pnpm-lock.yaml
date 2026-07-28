@@ -1215,27 +1215,15 @@ importers:
       cronstrue:
         specifier: 2.23.0
         version: 2.23.0
-      csv-stringify:
-        specifier: 6.5.1
-        version: 6.5.1
-      d3-geo:
-        specifier: 3.1.1
-        version: 3.1.1
       d3-scale:
         specifier: 4.0.2
         version: 4.0.2
-      d3-time:
-        specifier: 3.1.0
-        version: 3.1.0
       date-fns:
         specifier: 4.1.0
         version: 4.1.0
       dayjs:
         specifier: 1.11.10
         version: 1.11.10
-      dompurify:
-        specifier: 3.4.0
-        version: 3.4.0
       echarts:
         specifier: 5.6.0
         version: 5.6.0
