@@ -146,14 +146,13 @@ describe('useRecommendedActions', () => {
             } as unknown as ReturnType<typeof useProjects>);
         });
 
-        it('keeps connect-warehouse as the only visible action', () => {
+        it('offers no actions so the setup checklist stays hidden', () => {
             const { result } = renderHook(() =>
                 useRecommendedActions('playground-uuid'),
             );
 
-            expect(result.current.visibleActions).toEqual([
-                'connect-warehouse',
-            ]);
+            expect(result.current.visibleActions).toEqual([]);
+            expect(result.current.hasPendingActions).toBe(false);
         });
 
         it('does not count the playground as a connected warehouse', () => {
@@ -164,7 +163,6 @@ describe('useRecommendedActions', () => {
             expect(
                 result.current.statuses['connect-warehouse'].isComplete,
             ).toBe(false);
-            expect(result.current.hasPendingActions).toBe(true);
         });
 
         it('completes connect-warehouse once a real project exists', () => {
