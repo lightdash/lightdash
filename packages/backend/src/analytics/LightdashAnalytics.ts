@@ -867,6 +867,35 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         homepageUuid: string;
+        onboardingFlow: OnboardingFlow;
+    };
+};
+
+export type OnboardingHomepageSkippedReason =
+    | 'new_onboarding_flag_disabled'
+    | 'homepage_builder_flag_disabled'
+    | 'not_first_project'
+    | 'homepage_already_exists';
+
+type OnboardingHomepageSkippedEvent = BaseTrack & {
+    event: 'onboarding_homepage.skipped';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        onboardingFlow: OnboardingFlow;
+        reason: OnboardingHomepageSkippedReason;
+    };
+};
+
+type OnboardingHomepageFailedEvent = BaseTrack & {
+    event: 'onboarding_homepage.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        onboardingFlow: OnboardingFlow;
+        errorType: string;
     };
 };
 
@@ -877,6 +906,39 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         trigger: 'invite_expert';
+        onboardingFlow: OnboardingFlow;
+        catalogIndexErrorType: string | null;
+    };
+};
+
+export type PlaygroundProjectSkippedReason =
+    | 'new_onboarding_flag_disabled'
+    | 'playground_already_exists'
+    | 'organization_has_project'
+    | 'no_project_access'
+    | 'playground_previously_removed';
+
+type PlaygroundProjectSkippedEvent = BaseTrack & {
+    event: 'playground_project.skipped';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        trigger: 'invite_expert';
+        onboardingFlow: OnboardingFlow;
+        reason: PlaygroundProjectSkippedReason;
+    };
+};
+
+type PlaygroundProjectFailedEvent = BaseTrack & {
+    event: 'playground_project.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        trigger: 'invite_expert';
+        onboardingFlow: OnboardingFlow;
+        errorType: string;
     };
 };
 
@@ -2925,7 +2987,11 @@ type TypedEvent =
     | ApiErrorEvent
     | ProjectEvent
     | OnboardingHomepageProvisionedEvent
+    | OnboardingHomepageSkippedEvent
+    | OnboardingHomepageFailedEvent
     | PlaygroundProjectProvisionedEvent
+    | PlaygroundProjectSkippedEvent
+    | PlaygroundProjectFailedEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
     | DbtSourceEvent

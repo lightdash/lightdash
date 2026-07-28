@@ -148,6 +148,16 @@ describe('provisionOnboardingHomepage', () => {
         expect(mocks.listHomepages).not.toHaveBeenCalled();
         expect(mocks.createHomepage).not.toHaveBeenCalled();
         expect(mocks.publishHomepage).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_homepage.skipped',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                onboardingFlow: 'new',
+                reason: 'homepage_builder_flag_disabled',
+            },
+        });
     });
 
     it('skips provisioning when the organization setup page flag is disabled', async () => {
@@ -163,6 +173,16 @@ describe('provisionOnboardingHomepage', () => {
         expect(mocks.listHomepages).not.toHaveBeenCalled();
         expect(mocks.createHomepage).not.toHaveBeenCalled();
         expect(mocks.publishHomepage).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_homepage.skipped',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                onboardingFlow: 'legacy',
+                reason: 'new_onboarding_flag_disabled',
+            },
+        });
     });
 
     it('skips provisioning when the project already has a homepage', async () => {
@@ -173,6 +193,16 @@ describe('provisionOnboardingHomepage', () => {
 
         expect(mocks.createHomepage).not.toHaveBeenCalled();
         expect(mocks.publishHomepage).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_homepage.skipped',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                onboardingFlow: 'new',
+                reason: 'homepage_already_exists',
+            },
+        });
     });
 
     it('skips provisioning when this is not the organization first project', async () => {
@@ -187,6 +217,71 @@ describe('provisionOnboardingHomepage', () => {
         expect(mocks.listHomepages).not.toHaveBeenCalled();
         expect(mocks.createHomepage).not.toHaveBeenCalled();
         expect(mocks.publishHomepage).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_homepage.skipped',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                onboardingFlow: 'new',
+                reason: 'not_first_project',
+            },
+        });
+    });
+
+    it('emits no event for non-default projects', async () => {
+        const mocks = buildArguments();
+
+        await provisionOnboardingHomepage({
+            ...mocks.args,
+            projectType: ProjectType.PREVIEW,
+        });
+
+        expect(mocks.getFeatureFlag).not.toHaveBeenCalled();
+        expect(mocks.track).not.toHaveBeenCalled();
+    });
+
+    it('tracks a failure and rethrows when homepage creation fails', async () => {
+        const mocks = buildArguments();
+        mocks.createHomepage.mockRejectedValue(
+            new Error('Homepage creation failed'),
+        );
+
+        await expect(provisionOnboardingHomepage(mocks.args)).rejects.toThrow(
+            'Homepage creation failed',
+        );
+
+        expect(mocks.publishHomepage).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_homepage.failed',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                onboardingFlow: 'new',
+                errorType: 'Error',
+            },
+        });
+    });
+
+    it('tracks a failure and rethrows when publishing fails', async () => {
+        const mocks = buildArguments();
+        mocks.publishHomepage.mockRejectedValue(new Error('Publish failed'));
+
+        await expect(provisionOnboardingHomepage(mocks.args)).rejects.toThrow(
+            'Publish failed',
+        );
+
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_homepage.failed',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                onboardingFlow: 'new',
+                errorType: 'Error',
+            },
+        });
     });
 
     it('creates and publishes the onboarding homepage for the first project', async () => {
@@ -215,13 +310,14 @@ describe('provisionOnboardingHomepage', () => {
         expect(mocks.publishHomepage).toHaveBeenCalledWith(HOMEPAGE_UUID, {
             type: 'everyone',
         });
-        expect(mocks.track).toHaveBeenCalledWith({
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
             event: 'onboarding_homepage.provisioned',
             userId: USER_UUID,
             properties: {
                 organizationId: ORGANIZATION_UUID,
                 projectId: PROJECT_UUID,
                 homepageUuid: HOMEPAGE_UUID,
+                onboardingFlow: 'new',
             },
         });
     });
