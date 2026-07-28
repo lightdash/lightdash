@@ -7,14 +7,26 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { QueryBuilder } from './query';
 import { savedChartQueryKey, type SavedChartQuery } from './savedChart';
-import type { QueryDefinition } from './types';
+import type {
+    InternalFilterDefinition,
+    ParametersValuesMap,
+    QueryDefinition,
+} from './types';
 
-export type DeliveryQuery = {
-    kind: 'query';
-    /** Tab/file name in the delivery. Null falls back to a positional name. */
-    label: string | null;
-    query: QueryDefinition;
-};
+/**
+ * A query declared for scheduled delivery. `label` is the tab/file name in the
+ * delivery; null falls back to a positional name.
+ */
+export type DeliveryQuery =
+    | { kind: 'query'; label: string | null; query: QueryDefinition }
+    | {
+          kind: 'savedChart';
+          label: string | null;
+          chartUuid: string;
+          limit?: number;
+          parameters?: ParametersValuesMap;
+          filters?: InternalFilterDefinition[];
+      };
 
 export function toDeliveryQuery(
     query: QueryBuilder | SavedChartQuery,
@@ -28,11 +40,21 @@ export function toDeliveryQuery(
             query: built,
         };
     }
+    if (query?.kind === 'savedChart') {
+        return {
+            kind: 'savedChart',
+            label: name ?? query.labelText ?? null,
+            chartUuid: query.chartUuid,
+            limit: query.limitValue,
+            parameters: query.parameterValues,
+            filters: query.filterValues,
+        };
+    }
     // Skip rather than throw: generated apps chain builder methods freely, and
     // a delivery primitive that throws takes the whole app down.
     // eslint-disable-next-line no-console
     console.warn(
-        '[lightdash] useDelivery does not support linked saved charts yet — skipping this query.',
+        '[lightdash] useDelivery expects a query() or savedChart() — skipping this declaration.',
     );
     return null;
 }
