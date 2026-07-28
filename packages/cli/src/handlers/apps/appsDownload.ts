@@ -46,8 +46,17 @@ export const uploadFilterMatches = (
     manifest: DataAppManifest,
 ): boolean =>
     filter === null ||
-    filter.has(manifest.appUuid) ||
+    (manifest.appUuid !== undefined && filter.has(manifest.appUuid)) ||
     (manifest.slug !== undefined && filter.has(manifest.slug));
+
+/**
+ * Shown when the upload response carries no slug even though the bundle sent
+ * one — the server predates slug identity, so it ignored the slug and matched
+ * (or created) by uuid only. A same-slug upload may have just created a
+ * duplicate app instead of appending.
+ */
+export const preSlugServerHint = (folder: string): string =>
+    `This server predates slug-based app identity, so "${folder}" was matched by uuid only. If you expected to update an existing app, verify no duplicate was created, and upgrade the server (or use a matching CLI version).`;
 
 /**
  * Resolves the --apps-limit flag. Commander passes the raw string (or

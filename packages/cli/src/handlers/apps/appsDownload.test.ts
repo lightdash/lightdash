@@ -13,6 +13,7 @@ import {
     ensureDownloadedAppContext,
     getDataAppReference,
     getDataAppUploadFilter,
+    preSlugServerHint,
     preSlugUploadHint,
     resolveAppsLimit,
     selectAppsToDownload,
@@ -101,6 +102,20 @@ describe('uploadFilterMatches', () => {
                 makeManifest({ slug: undefined }),
             ),
         ).toBe(false);
+    });
+
+    it('matches only by slug for uuid-free manifests (slug-aware servers)', () => {
+        const manifest = makeManifest({
+            appUuid: undefined,
+            slug: 'sales-app',
+        });
+        expect(uploadFilterMatches(new Set(['sales-app']), manifest)).toBe(
+            true,
+        );
+        expect(uploadFilterMatches(new Set(['app-uuid-1']), manifest)).toBe(
+            false,
+        );
+        expect(uploadFilterMatches(null, manifest)).toBe(true);
     });
 });
 
@@ -314,6 +329,15 @@ describe('preSlugUploadHint', () => {
         expect(hint).toContain('predates slug identity');
         expect(hint).not.toContain('add `slug:');
         expect(hint).toContain('Uploads keep working via uuid matching');
+    });
+});
+
+describe('preSlugServerHint', () => {
+    it('warns that the server matched by uuid only and to check for duplicates', () => {
+        const hint = preSlugServerHint('my-app');
+        expect(hint).toContain('"my-app"');
+        expect(hint).toContain('predates slug-based app identity');
+        expect(hint).toContain('verify no duplicate was created');
     });
 });
 

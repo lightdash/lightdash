@@ -26,7 +26,6 @@ describe('appCode helpers', () => {
     });
     it('includes the slug in the built manifest alongside the fixed code version', () => {
         const manifest = buildManifest({
-            appUuid: 'app-uuid-1234',
             slug: 'my-app',
             projectUuid: 'project-uuid-5678',
             version: 1,
@@ -38,5 +37,8 @@ describe('appCode helpers', () => {
 
         expect(manifest.slug).toBe('my-app');
         expect(manifest.codeVersion).toBe(1);
+        // Identity is the slug; uuid-free manifests are portable across
+        // projects, so appUuid must never be emitted.
+        expect(manifest.appUuid).toBeUndefined();
     });
 });

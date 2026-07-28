@@ -144,6 +144,9 @@ export const buildImportBody = (
     } else if (opts.app) {
         targetAppUuid = opts.app;
     } else if (targetProjectUuid === code.manifest.projectUuid) {
+        // Pre-slug bundles carry an appUuid (uuid-fallback identity, and
+        // same-project append on pre-slug servers). Slug-only bundles yield
+        // undefined here — slug-aware servers resolve by slug instead.
         targetAppUuid = code.manifest.appUuid;
     }
 
@@ -170,7 +173,14 @@ export const resolveAppFolderName = (
     if (manifest.slug !== undefined && isValidDataAppSlug(manifest.slug)) {
         return manifest.slug;
     }
-    return appFolderName(manifest.name, manifest.appUuid, takenFolders);
+    // The fallback needs a uuid for its collision/untitled suffixes. Real
+    // pre-slug servers always emit appUuid; only a tampered slug-only
+    // manifest lands here without one.
+    return appFolderName(
+        manifest.name,
+        manifest.appUuid ?? 'unknown',
+        takenFolders,
+    );
 };
 
 /**

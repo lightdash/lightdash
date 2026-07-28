@@ -83,6 +83,7 @@ import {
     classifyAppDownloadError,
     ensureDownloadedAppContext,
     getDataAppUploadFilter,
+    preSlugServerHint,
     preSlugUploadHint,
     resolveAppsLimit,
     selectAppsToDownload,
@@ -3309,6 +3310,13 @@ export const uploadHandler = async (
                                     slug,
                                 }),
                             ),
+                        );
+                    } else if (slug === undefined) {
+                        // Bundle sent a slug but the response has none: the
+                        // server predates slug identity and matched by uuid
+                        // only (slug-only bundles may have just duplicated).
+                        GlobalState.log(
+                            styles.warning(preSlugServerHint(subDir.name)),
                         );
                     }
 
