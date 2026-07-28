@@ -46,12 +46,16 @@ const hostPayloadIsAcceptedBySdk: Assert<
 const inboundOptionsRemainOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'options'>
 > = true;
+const inboundPaletteRemainsOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'colorPalette'>
+> = true;
 void [
     messageKeysMatchHost,
     messageTypeMatchesHost,
     optionValueTypesMatchHost,
     hostPayloadIsAcceptedBySdk,
     inboundOptionsRemainOptional,
+    inboundPaletteRemainsOptional,
 ];
 
 const row: VizContextRow = {
@@ -158,6 +162,29 @@ describe('toVizContextState', () => {
         });
     });
 
+    it('carries the host-resolved palette through', () => {
+        expect(
+            toVizContextState(message({ colorPalette: ['#111', '#222'] }))
+                .colorPalette,
+        ).toEqual(['#111', '#222']);
+    });
+
+    it('falls back to an empty palette when the host omits or malforms it', () => {
+        expect(
+            toVizContextState(message({ colorPalette: undefined }))
+                .colorPalette,
+        ).toEqual([]);
+        expect(
+            toVizContextState(message({ colorPalette: 'nope' as never }))
+                .colorPalette,
+        ).toEqual([]);
+        expect(
+            toVizContextState(
+                message({ colorPalette: ['#111', null as never, '#222'] }),
+            ).colorPalette,
+        ).toEqual(['#111', '#222']);
+    });
+
     it('still normalises fieldMapping and rows', () => {
         expect(
             toVizContextState(
@@ -170,6 +197,7 @@ describe('toVizContextState', () => {
             fieldMapping: {},
             rows: [],
             options: {},
+            colorPalette: [],
         });
     });
 });

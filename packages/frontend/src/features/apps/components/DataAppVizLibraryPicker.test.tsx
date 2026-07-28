@@ -21,6 +21,7 @@ const makeDataAppViz = (overrides: Partial<DataAppViz>): DataAppViz => ({
     schema: {
         fields: [{ name: 'v', label: 'V', type: 'metric', required: true }],
         configOptions: [],
+        colorPalette: null,
     },
     createdAt: new Date('2026-06-30'),
     createdByUserUuid: 'user-1',

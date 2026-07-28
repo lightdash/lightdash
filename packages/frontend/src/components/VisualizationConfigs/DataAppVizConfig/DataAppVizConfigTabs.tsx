@@ -14,6 +14,7 @@ import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataApp
 import FieldSelect from '../../common/FieldSelect';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { getVizConfigThemeOverride } from '../mantineTheme';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
@@ -46,6 +47,8 @@ export const ConfigTabs: FC = memo(() => {
         () => dataAppViz?.schema?.configOptions ?? [],
         [dataAppViz],
     );
+    const colorPalette = dataAppViz?.schema?.colorPalette ?? null;
+
     const fieldItems = (field: DataAppVizField): Item[] =>
         field.type === 'metric' ? metrics : dimensions;
 
@@ -127,6 +130,8 @@ export const ConfigTabs: FC = memo(() => {
                 onChange={(name, value) =>
                     setOption(dataAppVizUuid, name, value)
                 }
+                colorPalette={colorPalette}
+                paletteControl={<ColorPaletteSection />}
             />
         </MantineProvider>
     );

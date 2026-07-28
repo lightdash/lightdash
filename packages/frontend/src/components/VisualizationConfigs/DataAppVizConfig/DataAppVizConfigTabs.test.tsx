@@ -9,6 +9,7 @@ import {
     type CompiledMetric,
     type CustomSqlDimension,
     type DataAppVizConfigOption,
+    type DataAppVizPaletteDeclaration,
     type DataAppVizField,
     type Item,
     type TableCalculation,
@@ -37,6 +38,10 @@ vi.mock('../../common/FieldSelect', () => ({
 }));
 vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
     useVisualizationContext: vi.fn(),
+}));
+// Self-wiring against the Explorer store, which this panel test doesn't mount.
+vi.mock('../common/ColorPaletteSection', () => ({
+    ColorPaletteSection: () => <div data-testid="color-palette-section" />,
 }));
 
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
@@ -106,9 +111,14 @@ const declaredOptions: DataAppVizConfigOption[] = [
     { type: 'number', name: 'barWidth', label: 'Bar width', default: 8 },
 ];
 
-const mockSchema = (configOptions: DataAppVizConfigOption[]) => {
+const mockSchema = (
+    configOptions: DataAppVizConfigOption[],
+    colorPalette: DataAppVizPaletteDeclaration | null = null,
+) => {
     vi.mocked(useDataAppVisualization).mockReturnValue({
-        data: { schema: { fields: declaredFields, configOptions } },
+        data: {
+            schema: { fields: declaredFields, configOptions, colorPalette },
+        },
     } as unknown as ReturnType<typeof useDataAppVisualization>);
 };
 
@@ -180,6 +190,16 @@ describe('DataAppVizConfigTabs', () => {
         await user.click(screen.getByRole('tab', { name: 'Display' }));
 
         expect(screen.getByLabelText('Bar width')).toHaveValue('8');
+    });
+
+    it('renders the standard palette picker for a declared palette', async () => {
+        const user = userEvent.setup();
+        mockSchema([], { group: 'Colours' });
+        renderWithProviders(<ConfigTabs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Colours' }));
+
+        expect(screen.getByTestId('color-palette-section')).toBeInTheDocument();
     });
 
     it('fires setOption when a control changes', async () => {

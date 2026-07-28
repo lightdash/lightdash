@@ -1,4 +1,5 @@
 import {
+    ECHARTS_DEFAULT_COLORS,
     getEffectiveOptionValues,
     getErrorMessage,
     getItemId,
@@ -9,9 +10,11 @@ import {
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { Button, Card, Group, Select, Stack, Text } from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import FieldSelect from '../../../components/common/FieldSelect';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
@@ -70,6 +73,16 @@ const DataAppVizTestPanel: FC<Props> = ({
         [schema.configOptions],
     );
 
+    const { colorScheme } = useMantineColorScheme();
+    const { data: projectPalette } = useProjectColorPalette(projectUuid);
+    const colorPalette = useMemo(() => {
+        if (!projectPalette) return ECHARTS_DEFAULT_COLORS;
+        if (colorScheme === 'dark' && projectPalette.darkColors) {
+            return projectPalette.darkColors;
+        }
+        return projectPalette.colors;
+    }, [projectPalette, colorScheme]);
+
     const rows = queryResults.rows;
     // Notify the parent once the run's rows arrive (external async → parent).
     // Only push rows belonging to this run's query — on a re-run the executor
@@ -87,6 +100,7 @@ const DataAppVizTestPanel: FC<Props> = ({
                 fieldMapping: run.mapping,
                 rows,
                 options: effectiveOptions,
+                colorPalette,
             });
         }
     }, [
@@ -95,6 +109,7 @@ const DataAppVizTestPanel: FC<Props> = ({
         runQueryUuid,
         queryResults.queryUuid,
         effectiveOptions,
+        colorPalette,
         onContextChange,
     ]);
     // Clear the preview when this panel unmounts (e.g. a newer version lands).

@@ -19,12 +19,14 @@ import assertUnreachable from '../../utils/assertUnreachable';
 import {
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
+    type DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
 
 export type {
     DataAppVizConfigOption,
     DataAppVizConfigOptionType,
     DataAppVizOptionValue,
+    DataAppVizPaletteDeclaration,
 } from './dataAppVizConfigOptions';
 
 /**
@@ -645,6 +647,8 @@ export type DataAppVizField = {
 export type DataAppVizSchema = {
     fields: DataAppVizField[];
     configOptions: DataAppVizConfigOption[];
+    /** Null when the viz colours nothing from the resolved palette. */
+    colorPalette: DataAppVizPaletteDeclaration | null;
 };
 
 const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
@@ -708,6 +712,10 @@ export const dataAppVizSchema = z.object({
         )
         .default([])
         .refine(uniqueNames, 'duplicate option name'),
+    colorPalette: z
+        .object({ group: z.string().optional() })
+        .nullable()
+        .default(null),
 });
 
 // Compile-time guard: the zod schema's output type must match the explicit
@@ -809,10 +817,14 @@ export const APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE =
     'lightdash:sdk:viz-context-request';
 
 // Host-owned render context pushed into a data app viz: field name → bound query
-// field id, the host-fetched result rows the renderer reads, and the effective
-// config option values (stored value ?? declared default).
+// field id, the host-fetched result rows the renderer reads, the effective
+// config option values (stored value ?? declared default), and the palette
+// resolved for this chart. `colorPalette` is pushed whether or not the viz
+// declared one, so a viz that colours series never has to check first.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string>;
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
+    // Resolved through the same org/project/space/dashboard cascade as native charts.
+    colorPalette: string[];
 };

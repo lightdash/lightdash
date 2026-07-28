@@ -2,6 +2,7 @@ import {
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
+    type DataAppVizPaletteDeclaration,
 } from '@lightdash/common';
 import { Stack, Tabs } from '@mantine-8/core';
 import { useMemo, type FC, type ReactNode } from 'react';
@@ -16,23 +17,34 @@ type Props = {
     /** Effective values: the stored value, or the declared default. */
     values: DataAppVizOptionValues;
     onChange: (name: string, value: DataAppVizOptionValue) => void;
+    /** Null when the viz colours nothing from the resolved palette. */
+    colorPalette: DataAppVizPaletteDeclaration | null;
+    /**
+     * Rendered in the tab the declaration names. Picking the chart's Lightdash
+     * palette differs by surface (Explorer store vs local state), so the caller
+     * owns the control; this component only places it.
+     */
+    paletteControl: ReactNode;
 };
 
 /**
  * Tab shell for a data app viz config form: a fixed `General` tab holding the
  * caller's content, then one tab per declared option `group` (ungrouped options
- * collapsing into `Display`). A viz that declares no options gets no tab strip
- * at all — the general content is the whole form.
+ * collapsing into `Display`), with the palette picker in the tab its
+ * declaration names. A viz that declares neither options nor a palette gets no
+ * tab strip at all — the general content is the whole form.
  */
 const DataAppVizOptionTabs: FC<Props> = ({
     generalContent,
     configOptions,
     values,
     onChange,
+    colorPalette,
+    paletteControl,
 }) => {
     const optionGroups = useMemo(
-        () => groupDataAppVizOptions(configOptions),
-        [configOptions],
+        () => groupDataAppVizOptions(configOptions, colorPalette),
+        [configOptions, colorPalette],
     );
 
     if (optionGroups.length === 0) return <>{generalContent}</>;
@@ -68,6 +80,7 @@ const DataAppVizOptionTabs: FC<Props> = ({
                                 </Config.Section>
                             </Config>
                         ))}
+                        {group.hasPalette && paletteControl}
                     </Stack>
                 </Tabs.Panel>
             ))}
