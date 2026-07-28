@@ -39,6 +39,11 @@
     gap: 6px;
 }
 
+.tbBtn[aria-pressed='true'] {
+    background: var(--mantine-color-blue-light);
+    color: var(--mantine-color-blue-light-color);
+}
+
 .tbBtnLabel {
     display: inline-block;
     max-width: 0;

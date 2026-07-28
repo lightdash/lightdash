@@ -34,6 +34,7 @@ import {
     useProjectAiAgents,
 } from '../aiCopilot/hooks/useProjectAiAgents';
 import { useGetUserAgentPreferences } from '../aiCopilot/hooks/useUserAgentPreferences';
+import homepageControlClasses from './adminHomepageControls.module.css';
 import blockClasses from './blocks/blockStyles.module.css';
 import classes from './DayOneAskInput.module.css';
 
@@ -352,6 +353,11 @@ const DayOneAskInputInner: FC<Props> = ({
                         : undefined
                 }
                 deepResearchControlPlacement="page_header"
+                deepResearchControlVariant="compact"
+                deepResearchControlClassNames={{
+                    root: homepageControlClasses.tbBtn,
+                    label: homepageControlClasses.tbBtnLabel,
+                }}
                 loading={isCreatingThread}
                 showSuggestions={false}
                 fullWidth

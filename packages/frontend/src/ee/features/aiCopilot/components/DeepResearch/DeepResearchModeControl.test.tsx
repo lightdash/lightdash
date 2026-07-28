@@ -78,4 +78,23 @@ describe('DeepResearchModeControl', () => {
             }),
         ).not.toBeInTheDocument();
     });
+
+    it('renders the compact control with reusable toolbar classes', () => {
+        renderWithProviders(
+            <DeepResearchModeControl
+                mode="ask"
+                onModeChange={() => undefined}
+                variant="compact"
+                classNames={{ root: 'toolbar', label: 'toolbar-label' }}
+            />,
+        );
+
+        const control = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        expect(control).toHaveClass('toolbar');
+        expect(control.querySelector('.toolbar-label')).toHaveTextContent(
+            'Deep research',
+        );
+    });
 });

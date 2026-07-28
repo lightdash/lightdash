@@ -124,6 +124,11 @@ interface AgentChatInputProps {
     // Shrinks padding/min-heights for a more compact composer.
     dense?: boolean;
     deepResearchControlPlacement?: 'composer' | 'page_header';
+    deepResearchControlVariant?: 'default' | 'compact';
+    deepResearchControlClassNames?: {
+        root?: string;
+        label?: string;
+    };
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -170,6 +175,8 @@ export const AgentChatInput = ({
     revealAgentSelectorOnFocus = false,
     dense = false,
     deepResearchControlPlacement = 'composer',
+    deepResearchControlVariant = 'default',
+    deepResearchControlClassNames,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -569,6 +576,8 @@ export const AgentChatInput = ({
         <DeepResearchModeControl
             mode={composerMode}
             onModeChange={setComposerMode}
+            variant={deepResearchControlVariant}
+            classNames={deepResearchControlClassNames}
         />
     ) : null;
     const deepResearchControl =
