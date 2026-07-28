@@ -8,14 +8,14 @@ import { useProjectAiAgents } from '../../aiCopilot/hooks/useProjectAiAgents';
  * they can go create one, which would leave day-0 fronted by a composer that
  * can't answer anything.
  */
-export const useHomepageAiState = (projectUuid: string) => {
+export const useHomepageAiState = (projectUuid: string | undefined) => {
     const isAiVisible = useAiAgentButtonVisibility();
     const { isCopilotEnabled, isLoading: isCopilotLoading } =
         useIsCopilotEnabled();
     const agentsQuery = useProjectAiAgents({
         projectUuid,
         redirectOnUnauthorized: false,
-        options: { enabled: isCopilotEnabled },
+        options: { enabled: isCopilotEnabled && !!projectUuid },
     });
 
     const hasAgents = (agentsQuery.data?.length ?? 0) > 0;

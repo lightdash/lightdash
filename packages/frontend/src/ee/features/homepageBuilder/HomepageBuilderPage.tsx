@@ -33,9 +33,8 @@ export const HomepageBuilderPage: FC = () => {
     const { user } = useApp();
     const { isEnabled: isFlagEnabled, isLoading: isFlagLoading } =
         useHomepageBuilderFlag();
-    const { canAskAi, isLoading: isAiStateLoading } = useHomepageAiState(
-        projectUuid ?? '',
-    );
+    const { canAskAi, isLoading: isAiStateLoading } =
+        useHomepageAiState(projectUuid);
     const homepage = useHomepageForBuilder(projectUuid, {
         enabled: isFlagEnabled,
         homepageUuid: selectedHomepageUuid,
