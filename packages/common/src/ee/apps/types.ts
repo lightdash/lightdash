@@ -655,67 +655,140 @@ const uniqueNames = <T extends { name: string }>(arr: T[]): boolean =>
     new Set(arr.map((a) => a.name)).size === arr.length;
 
 const optionBase = {
-    name: z.string().min(1),
-    label: z.string(),
-    group: z.string().optional(),
+    name: z
+        .string()
+        .min(1)
+        .describe(
+            'Key the component reads from `options`. Unique across options, no spaces.',
+        ),
+    label: z
+        .string()
+        .describe('Human label shown next to the control in the config panel.'),
+    group: z
+        .string()
+        .optional()
+        .describe(
+            'Optional tab name. Options sharing a group are rendered in the same config tab; ungrouped options share a default tab.',
+        ),
 };
 
-// Runtime validator for the untrusted generated declaration. Also the source
-// for the JSON Schema embedded in the generation prompt.
+const vizFields = z
+    .array(
+        z.object({
+            name: z
+                .string()
+                .min(1)
+                .describe(
+                    'Key the component reads from `fieldMapping`. Unique across fields, no spaces.',
+                ),
+            label: z
+                .string()
+                .describe('Human label shown in the field-mapping UI.'),
+            type: z
+                .enum(['dimension', 'metric', 'series'])
+                .describe(
+                    'dimension = a category/grouping column, metric = a numeric measure, series = a dimension used to split or colour the chart.',
+                ),
+            required: z
+                .boolean()
+                .describe(
+                    'false only when the chart still renders with this field unmapped.',
+                ),
+        }),
+    )
+    .describe(
+        'Every data column the component reads. Declare exactly what you read — no more, no less.',
+    );
+
+const vizConfigOptions = z.array(
+    z.discriminatedUnion('type', [
+        z.object({
+            ...optionBase,
+            type: z.literal('boolean'),
+            default: z
+                .boolean()
+                .describe('Value used until the viewer changes it.'),
+        }),
+        z.object({
+            ...optionBase,
+            type: z.literal('select'),
+            choices: z
+                .array(
+                    z.object({
+                        value: z
+                            .string()
+                            .describe('Value delivered on `options`.'),
+                        label: z.string().describe('Human label in the list.'),
+                    }),
+                )
+                .min(1)
+                .describe('The selectable choices; at least one.'),
+            default: z
+                .string()
+                .describe('One of the declared choice `value`s.'),
+        }),
+        z.object({
+            ...optionBase,
+            type: z.literal('number'),
+            default: z
+                .number()
+                .describe('Value used until the viewer changes it.'),
+            min: z.number().optional().describe('Optional lower bound.'),
+            max: z.number().optional().describe('Optional upper bound.'),
+        }),
+        z.object({
+            ...optionBase,
+            type: z.literal('text'),
+            default: z
+                .string()
+                .describe('Value used until the viewer changes it.'),
+        }),
+        z.object({
+            ...optionBase,
+            type: z.literal('color'),
+            default: z
+                .string()
+                .describe('Hex colour used until the viewer changes it.'),
+        }),
+    ]),
+);
+
+const vizColorPalette = z
+    .object({
+        group: z
+            .string()
+            .optional()
+            .describe(
+                'Optional tab name, matching a config option `group`. The picker gets its own tab when no option shares it.',
+            ),
+    })
+    .nullable()
+    .describe(
+        'Declare this when the component colours anything from `colorPalette`. It surfaces the standard Lightdash palette picker, so the viz inherits the same colours as the charts around it. Not a config option: the chosen colours arrive on `colorPalette`, never on `options`. Null when the component colours nothing.',
+    );
+
+// Runtime validator for the untrusted generated declaration, and for schemas
+// round-tripped through an app manifest. `configOptions` defaults to `[]` so a
+// declaration persisted before config options existed still parses.
 export const dataAppVizSchema = z.object({
-    fields: z
-        .array(
-            z.object({
-                name: z.string().min(1),
-                label: z.string(),
-                type: z.enum(['dimension', 'metric', 'series']),
-                required: z.boolean(),
-            }),
-        )
-        .refine(uniqueNames, 'duplicate field name'),
-    configOptions: z
-        .array(
-            z.discriminatedUnion('type', [
-                z.object({
-                    ...optionBase,
-                    type: z.literal('boolean'),
-                    default: z.boolean(),
-                }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('select'),
-                    choices: z
-                        .array(
-                            z.object({ value: z.string(), label: z.string() }),
-                        )
-                        .min(1),
-                    default: z.string(),
-                }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('number'),
-                    default: z.number(),
-                    min: z.number().optional(),
-                    max: z.number().optional(),
-                }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('text'),
-                    default: z.string(),
-                }),
-                z.object({
-                    ...optionBase,
-                    type: z.literal('color'),
-                    default: z.string(),
-                }),
-            ]),
-        )
+    fields: vizFields.refine(uniqueNames, 'duplicate field name'),
+    configOptions: vizConfigOptions
         .default([])
         .refine(uniqueNames, 'duplicate option name'),
-    colorPalette: z
-        .object({ group: z.string().optional() })
-        .nullable()
-        .default(null),
+    colorPalette: vizColorPalette.default(null),
+});
+
+// The stricter contract handed to the generator CLI: `configOptions` and
+// `colorPalette` are required, so an empty declaration is a deliberate answer
+// rather than the shape of the schema's defaults.
+export const dataAppVizGenerationSchema = z.object({
+    fields: vizFields.refine(uniqueNames, 'duplicate field name'),
+    configOptions: vizConfigOptions
+        .refine(uniqueNames, 'duplicate option name')
+        .describe(
+            'Every setting the viewer can change from the chart config panel without regenerating the viz — one per literal the component would otherwise hardcode: what it shows or hides, which variant it picked, and the numbers and labels it wrote in. Each `name` must be a key the component reads from `options`. Series colours are not among them: declare `colorPalette` instead. Empty is only right for a component that hardcodes nothing a viewer would want different.',
+        ),
+    colorPalette: vizColorPalette,
 });
 
 // Compile-time guard: the zod schema's output type must match the explicit
@@ -725,16 +798,24 @@ type AssertMutuallyAssignable<A, B> = [A] extends [B]
         ? true
         : never
     : never;
+type AssertAssignable<A, B> = [A] extends [B] ? true : never;
 const dataAppVizSchemaMatchesApiType: AssertMutuallyAssignable<
     z.infer<typeof dataAppVizSchema>,
     DataAppVizSchema
 > = true;
 void dataAppVizSchemaMatchesApiType;
 
-// JSON Schema form of `dataAppVizSchema` for the generator CLI's `--json-schema`
-// flag. Refinements (e.g. unique names) don't survive the conversion and stay
-// enforced by the runtime `safeParse`.
-export const dataAppVizJsonSchema = zodToJsonSchema(dataAppVizSchema);
+// Whatever the generator emits must be persistable without a second shape.
+const dataAppVizGenerationSchemaIsPersistable: AssertAssignable<
+    z.infer<typeof dataAppVizGenerationSchema>,
+    DataAppVizSchema
+> = true;
+void dataAppVizGenerationSchemaIsPersistable;
+
+// JSON Schema form of the generation contract for the generator CLI's
+// `--json-schema` flag. Refinements (e.g. unique names) don't survive the
+// conversion and stay enforced by the runtime `safeParse`.
+export const dataAppVizJsonSchema = zodToJsonSchema(dataAppVizGenerationSchema);
 
 /** Whether a stored value still has the shape the option declares. */
 const matchesDeclaredType = (
@@ -819,12 +900,12 @@ export const APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE =
 // Host-owned render context pushed into a data app viz: field name → bound query
 // field id, the host-fetched result rows the renderer reads, the effective
 // config option values (stored value ?? declared default), and the palette
-// resolved for this chart. `colorPalette` is pushed whether or not the viz
-// declared one, so a viz that colours series never has to check first.
+// resolved for this chart (org → project → space → dashboard → chart, dark-mode
+// corrected). `colorPalette` is pushed whether or not the viz declared one, so a
+// viz that colours series never has to check first.
 export type DataAppVizContext = {
     fieldMapping: Record<string, string>;
     rows: ResultRow[];
     options: Record<string, DataAppVizOptionValue>;
-    // Resolved through the same org/project/space/dashboard cascade as native charts.
     colorPalette: string[];
 };

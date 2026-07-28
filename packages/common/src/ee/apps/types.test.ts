@@ -1,4 +1,6 @@
 import {
+    dataAppVizGenerationSchema,
+    dataAppVizJsonSchema,
     dataAppVizSchema,
     getEffectiveOptionValues,
     getVisibleDataAppClaudeModels,
@@ -355,5 +357,65 @@ describe('resolveDefaultVisibleDataAppClaudeModel', () => {
                 haiku: false,
             }),
         ).toBeNull();
+    });
+});
+
+describe('dataAppVizGenerationSchema', () => {
+    it('requires configOptions and colorPalette, unlike the persistence schema', () => {
+        expect(dataAppVizGenerationSchema.safeParse(validFields).success).toBe(
+            false,
+        );
+        expect(
+            dataAppVizGenerationSchema.safeParse({
+                ...validFields,
+                configOptions: [],
+            }).success,
+        ).toBe(false);
+        expect(
+            dataAppVizGenerationSchema.safeParse({
+                ...validFields,
+                configOptions: [],
+                colorPalette: null,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('accepts the same vocabulary the persistence schema does', () => {
+        const declaration = {
+            ...validFields,
+            configOptions: [
+                {
+                    name: 'accent',
+                    label: 'Accent',
+                    type: 'color',
+                    default: '#7162FF',
+                },
+            ],
+            colorPalette: { group: 'Colours' },
+        };
+        expect(dataAppVizGenerationSchema.safeParse(declaration).success).toBe(
+            true,
+        );
+        expect(dataAppVizSchema.safeParse(declaration).success).toBe(true);
+    });
+});
+
+describe('dataAppVizJsonSchema', () => {
+    // What the generator CLI receives via --json-schema.
+    const jsonSchema = dataAppVizJsonSchema as {
+        required?: string[];
+        properties?: Record<string, { description?: string }>;
+    };
+
+    it('makes fields, configOptions and colorPalette required', () => {
+        expect(jsonSchema.required).toEqual(
+            expect.arrayContaining(['fields', 'configOptions', 'colorPalette']),
+        );
+    });
+
+    it('describes what each top-level property is for', () => {
+        expect(jsonSchema.properties?.fields.description).toBeTruthy();
+        expect(jsonSchema.properties?.configOptions.description).toBeTruthy();
+        expect(jsonSchema.properties?.colorPalette.description).toBeTruthy();
     });
 });

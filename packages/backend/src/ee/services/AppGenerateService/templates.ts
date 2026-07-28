@@ -31,38 +31,20 @@ Build a print-optimized report:
 - \`window.print()\` can be a secondary Print action, but do not rely on it for the Download PDF button.
 - Prefer narrative copy with charts as supporting evidence, not a dense dashboard grid.`;
 
+// The viz build contract (the hook, the declaration, the option vocabulary, the
+// final pass) lives in the sandbox's `reusable-visualization` skill, so it sits alongside
+// the app-focused sandbox skill it overrides instead of competing with it from
+// the user prompt. This prompt only orients the request and loads that skill by
+// path — `Read(//app/**)` is allowlisted for every generation, so reading it
+// does not depend on the Skill tool being permitted.
 const DATA_APP_VIZ_INSTRUCTIONS = `[Data app viz]
 You are building ONE reusable chart component. You do NOT fetch data or run queries: Lightdash runs the query, then gives you the result rows plus a mapping from your field names to the columns in those rows. The same component is reused across many different queries, so never hardcode column names — just render whatever data you are handed.
 
-Three requirements, all mandatory:
+Before you write any code, read \`/app/.claude/skills/reusable-visualization/SKILL.md\` with the Read tool — the \`reusable-visualization\` skill. It is the contract for this build: the \`useVizContext()\` hook you take your data and settings from, the fields and config options you declare as structured output, the exact option vocabulary, the palette rule, and the final pass you run before you finish. Where it and the sandbox skill disagree, it wins. Follow it as written.
 
-1. Build ONE chart visualization component whose job is to make the mapped data easy to read at a glance. Build the chart type the user asked for; only if they didn't specify one, pick what best fits the fields (bars to compare categories, a line for a trend over time, etc.). Either way, get the fundamentals right: clear axes and labels, readable spacing, and a tooltip on hover. This is a single reusable visualization, not an app: no dashboard, navigation, multiple panels, filters, or page chrome. Recharts, echarts, D3, or plain SVG all work.
-   Fill the viewport: give your root element \`height: 100vh\` (or \`position: fixed; inset: 0\`), NOT \`height: 100%\` — that collapses to a 0-height invisible box unless every ancestor also sets a height. This gives auto-sizing charts like recharts \`<ResponsiveContainer>\` a real height to measure. Confirm the chart actually renders and isn't a blank box.
+Build the chart type the user asked for; only if they did not name one, pick what best fits the fields (bars to compare categories, a line for a trend over time).
 
-2. Get your data from the \`useVizContext()\` hook — do not add a message listener or fetch anything yourself:
-
-   import { useVizContext, getFormatted, getRaw } from '@lightdash/query-sdk';
-
-   function Chart() {
-     const { fieldMapping, rows, ready } = useVizContext();
-     if (!ready) return <Placeholder />;            // data hasn't arrived yet
-     const catField = fieldMapping['category'];     // your field name -> column id
-     const valField = fieldMapping['value'];
-     const data = rows.map((row) => ({
-       label: getFormatted(row, catField),          // display text, e.g. "Completed"
-       value: Number(getRaw(row, valField) ?? 0),   // raw number
-     }));
-     // ...render \`data\`
-   }
-
-   Show a clearly visible placeholder (readable, good contrast — never near-white on white) while \`!ready\`, when a field is unmapped, or when there are no rows.
-
-3. Declare the fields your component reads. This is collected as structured output (do NOT write a file); Lightdash uses it to build the field-mapping UI, so the component is unusable without it. For each field:
-   - \`name\`: the key you read from \`fieldMapping\` (unique, no spaces) — must match what you used above.
-   - \`label\`: human label shown in the mapping UI.
-   - \`type\`: \`dimension\` (category/grouping), \`metric\` (number), or \`series\` (a dimension used to split/colour).
-   - \`required\`: false only if the chart still renders without it.
-   Declare exactly what you read — no more, no less. e.g. "category" (dimension, required) + "value" (metric, required).`;
+You are done when the chart renders for real and the declaration you emit is the one that skill describes: every field and every config option the component reads, and nothing a viewer would plausibly want different left hardcoded.`;
 
 export const getTemplateInstructions = (
     template: DataAppTemplate,
