@@ -550,6 +550,9 @@ interface CliArgs {
     lastTag: string | null;
     out: string;
     overrides: string;
+    restBaseSpec: string | null;
+    restNewSpec: string | null;
+    restFromTag: boolean;
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -562,12 +565,24 @@ function parseArgs(argv: string[]): CliArgs {
         throw new Error('--version is required');
     }
     const previousVersion = get('previous-version') || null;
+    const restBaseSpec = get('rest-base-spec') || null;
+    const restNewSpec = get('rest-new-spec') || null;
+    const restFromTag = argv.includes('--rest-from-tag');
+    if (Boolean(restBaseSpec) !== Boolean(restNewSpec)) {
+        throw new Error('--rest-base-spec and --rest-new-spec must be given together');
+    }
+    if (restFromTag && restBaseSpec) {
+        throw new Error('--rest-from-tag cannot be combined with --rest-base-spec/--rest-new-spec');
+    }
     return {
         version,
         previousVersion,
         lastTag: get('last-tag') || previousVersion,
         out: get('out') || 'release-safety.json',
         overrides: get('overrides') || DEFAULT_OVERRIDES_PATH,
+        restBaseSpec,
+        restNewSpec,
+        restFromTag,
     };
 }
 
@@ -640,18 +655,40 @@ async function main(): Promise<void> {
         );
     }
 
-    // P2: deterministic REST API breaking-change diff (oasdiff). Auto-runs when a
-    // previous tag exists and oasdiff is available (OASDIFF_BIN or PATH); the CI
-    // workflow installs it. Soft fail-safe: any problem leaves api.rest unchecked
-    // and never fails the release. Runs BEFORE the AI review so a flagged break can
-    // be handed to the reviewer to validate (does the in-flight frontend break?).
+    // P2: deterministic REST API breaking-change diff (oasdiff). Runs when the
+    // caller named both sides of the comparison and oasdiff is available
+    // (OASDIFF_BIN or PATH); the CI workflows install it. Soft fail-safe: any
+    // problem leaves api.rest unchecked and never fails the release. Runs BEFORE
+    // the AI review so a flagged break can be handed to the reviewer to validate
+    // (does the in-flight frontend break?).
+    //
+    // Which specs to diff is the CALLER's decision, never an inference, because
+    // the committed spec means different things at different call sites. At
+    // RELEASE time it is genuine — the release job regenerates it before this runs
+    // — so --rest-from-tag takes the old side from the previous tag and the new
+    // side from the working tree. On a PR it is a release-time artifact no feature
+    // branch can touch (.husky/pre-commit unstages it), identical on both sides of
+    // the diff, so the caller hands over two freshly generated specs instead.
+    // Neither flag means the REST surface is not checked at all: silence is the
+    // honest answer, where diffing the stale spec against itself would have
+    // reported "no breaking changes" for a break nothing looked for.
     let restApi: ApiSurface | null = null;
-    if (args.lastTag) {
+    if (args.restBaseSpec && args.restNewSpec) {
+        restApi = diffRestApi({
+            baseSpecPath: args.restBaseSpec,
+            newSpecPath: args.restNewSpec,
+            log: (m) => console.warn(`[rest-api-diff] ${m}`),
+        });
+    } else if (args.restFromTag && args.lastTag) {
         restApi = diffRestApi({
             lastTag: args.lastTag,
             newSpecPath: SPEC_PATH,
             log: (m) => console.warn(`[rest-api-diff] ${m}`),
         });
+    } else if (args.restFromTag) {
+        console.warn('[release-safety] --rest-from-tag needs a previous tag; api.rest stays unchecked');
+    } else {
+        console.warn('[release-safety] no REST spec source given; api.rest stays unchecked');
     }
 
     // P3: deterministic MCP tool-surface diff (committed snapshot between tags).

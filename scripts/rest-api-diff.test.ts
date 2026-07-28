@@ -97,6 +97,71 @@ test('uses an explicit working-tree spec as the new side', () => {
     }
 });
 
+test('diffs an explicitly generated spec pair, touching no git ref', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rest-api-diff-test-'));
+    try {
+        const basePath = path.join(dir, 'base.json');
+        const newPath = path.join(dir, 'pr.json');
+        // Echoes the two spec paths it was handed so the test can assert the pair
+        // reached oasdiff; the JSON payload is what diffRestApi parses.
+        const oasdiffPath = path.join(dir, 'oasdiff');
+        const argsLog = path.join(dir, 'args.txt');
+        fs.writeFileSync(basePath, '{"old":true}');
+        fs.writeFileSync(newPath, '{"new":true}');
+        fs.writeFileSync(oasdiffPath, `#!/bin/sh\ncat "$2" "$3" > ${argsLog}\nprintf "[]"\n`);
+        fs.chmodSync(oasdiffPath, 0o755);
+
+        const result = diffRestApi({
+            baseSpecPath: basePath,
+            newSpecPath: newPath,
+            oasdiffBin: oasdiffPath,
+        });
+
+        assert.deepStrictEqual(result, { checked: true, breaking: false, changes: [] });
+        assert.strictEqual(fs.readFileSync(argsLog, 'utf-8'), '{"old":true}{"new":true}');
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test('a missing generated spec stays unchecked rather than reporting no changes', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rest-api-diff-test-'));
+    try {
+        const present = path.join(dir, 'pr.json');
+        const oasdiffPath = path.join(dir, 'oasdiff');
+        fs.writeFileSync(present, '{}');
+        fs.writeFileSync(oasdiffPath, '#!/bin/sh\nprintf "[]"\n');
+        fs.chmodSync(oasdiffPath, 0o755);
+
+        const missingBase = diffRestApi({
+            baseSpecPath: path.join(dir, 'absent.json'),
+            newSpecPath: present,
+            oasdiffBin: oasdiffPath,
+        });
+        assert.deepStrictEqual(missingBase, { checked: false, breaking: false, changes: [] });
+
+        const missingNew = diffRestApi({
+            baseSpecPath: present,
+            newSpecPath: path.join(dir, 'absent.json'),
+            oasdiffBin: oasdiffPath,
+        });
+        assert.deepStrictEqual(missingNew, { checked: false, breaking: false, changes: [] });
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test('the old side must be exactly one of a git ref or a generated spec', () => {
+    assert.throws(
+        () => diffRestApi({ oasdiffBin: '/nonexistent' }),
+        /exactly one of lastTag or baseSpecPath/,
+    );
+    assert.throws(
+        () => diffRestApi({ lastTag: 'HEAD', baseSpecPath: '/tmp/base.json', oasdiffBin: '/nonexistent' }),
+        /exactly one of lastTag or baseSpecPath/,
+    );
+});
+
 if (failures.length > 0) {
     console.error(`\n❌ ${failures.length} failed, ${passed} passed:\n`);
     for (const f of failures) console.error(`  - ${f}`);
