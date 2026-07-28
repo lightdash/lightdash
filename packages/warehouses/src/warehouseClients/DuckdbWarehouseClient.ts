@@ -127,9 +127,6 @@ export type DuckdbS3Credentials = {
 
 export type DuckdbConnectionCredentials = DuckdbS3Credentials;
 
-// Backwards-compatible alias while this API settles.
-export type DuckdbS3ConnectionConfig = DuckdbS3Credentials;
-
 export type DuckdbWarehouseClientOptions = {
     /** Resource-constrained isolated sessions, used for materialization/parquet conversion and embedded databases. */
     resourceLimits?: DuckdbResourceLimits;
@@ -397,11 +394,6 @@ const resolveEmbeddedDatabasePath = (dataset: string): string => {
     }
 
     return realDatabasePath;
-};
-
-export type DuckdbWarehouseClientArgs = {
-    databasePath?: string;
-    s3Config?: DuckdbS3SessionConfig;
 };
 
 export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMotherduckCredentials> {
