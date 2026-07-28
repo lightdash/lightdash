@@ -60,7 +60,9 @@ function buildService() {
             lightdashConfig: {} as never,
             analytics: {} as never,
             analyticsModel: {} as never,
-            catalogModel: {} as never,
+            catalogModel: {
+                getChartUsageByTable: async () => new Map<string, number>(),
+            } as never,
             appModel: {} as never,
             featureFlagModel: featureFlagModel as never,
             organizationDesignModel: {} as never,

@@ -300,6 +300,26 @@ type StagedAppFile = {
 
 type NamedStagedFile = StagedAppFile & { sandboxFilename: string };
 
+/**
+ * A compiled table rendered as dbt-style YAML lines. Header (`- name:` through
+ * `meta:`) and column blocks stay separate so a model can be composed into one
+ * document or split across files without re-parsing.
+ */
+type RenderedModel = {
+    name: string;
+    description: string | null;
+    joinedTables: string[];
+    headerLines: string[];
+    columnBlocks: string[][];
+    dimensionCount: number;
+    metricCount: number;
+};
+
+type ModelFile = {
+    filename: string;
+    contents: string;
+};
+
 type DataAppVersionFailureTelemetry = {
     wasResumed?: boolean;
     claudeProvider?: 'anthropic' | 'bedrock';
@@ -2464,18 +2484,24 @@ export class AppGenerateService extends BaseService {
 
         // Source the synthetic schema from the compiled explore cache (not the
         // flattened catalog summary) so it carries joins, real dimension/metric
-        // types, and parameters. See exploresToYaml.
-        const exploresByUuid =
-            await this.projectModel.getAllExploresFromCache(projectUuid);
+        // types, and parameters. See exploresToModelFiles.
+        const [exploresByUuid, chartUsageByTable] = await Promise.all([
+            this.projectModel.getAllExploresFromCache(projectUuid),
+            this.catalogModel.getChartUsageByTable(projectUuid),
+        ]);
         const explores = Object.values(exploresByUuid).filter(
             (explore): explore is Explore => !isExploreError(explore),
         );
         const {
-            yaml: modelYaml,
+            files: modelFiles,
             tableCount,
             dimensionCount,
             metricCount,
-        } = AppGenerateService.exploresToYaml(explores);
+            totalBytes,
+        } = AppGenerateService.exploresToModelFiles(
+            explores,
+            chartUsageByTable,
+        );
 
         // Project-level parameters are global (not attached to any one explore)
         // and live in lightdash.config.yml — the location skill.md already tells
@@ -2489,11 +2515,20 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
+            'rm -rf /tmp/dbt-repo/models 2>/dev/null; rm -f /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
-        await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
+        // One round trip per model file would cost minutes on a large project,
+        // so ship the whole directory as a single archive and unpack in place.
+        await sandbox.files.write(
+            '/tmp/dbt-repo/models.tar',
+            await AppGenerateService.packModelFiles(modelFiles),
+        );
+        await sandbox.commands.run(
+            'mkdir -p /tmp/dbt-repo/models && tar -xf /tmp/dbt-repo/models.tar -C /tmp/dbt-repo/models && rm -f /tmp/dbt-repo/models.tar',
+            { timeoutMs: 60_000 },
+        );
         if (configYaml) {
             await sandbox.files.write(
                 '/tmp/dbt-repo/lightdash.config.yml',
@@ -2603,15 +2638,45 @@ export class AppGenerateService extends BaseService {
 
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
-            `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${dimensionCount}, metrics=${metricCount}, yamlBytes=${modelYaml.length}, ${durationMs}ms)`,
+            `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${dimensionCount}, metrics=${metricCount}, files=${modelFiles.length}, yamlBytes=${totalBytes}, ${durationMs}ms)`,
         );
         return {
             durationMs,
             tableCount,
             dimensionCount,
             metricCount,
-            yamlBytes: modelYaml.length,
+            yamlBytes: totalBytes,
         };
+    }
+
+    private static packModelFiles(files: ModelFile[]): Promise<Buffer> {
+        return new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+
+            const addNext = (index: number): void => {
+                if (index >= files.length) {
+                    packer.finalize();
+                    return;
+                }
+                const file = files[index];
+                packer.entry(
+                    { name: file.filename },
+                    Buffer.from(file.contents, 'utf-8'),
+                    (err) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        addNext(index + 1);
+                    },
+                );
+            };
+            addNext(0);
+        });
     }
 
     /**
@@ -8284,157 +8349,157 @@ export class AppGenerateService extends BaseService {
         return lines;
     }
 
-    /**
-     * Convert compiled explores into the dbt-style YAML that skill.md expects.
-     * One model per explore, keyed by the explore name (the value passed to
-     * `query()`), carrying real metric/dimension types, join relationships
-     * (`meta.joins`), AI hints, and model-level parameters. Joined tables that
-     * aren't themselves a top-level explore (seeds, aliased joins) are inlined
-     * so their dot-notation fields stay discoverable. Hidden fields are
-     * skipped; descriptions are truncated to keep the prompt bounded.
-     */
-    private static exploresToYaml(explores: Explore[]): {
-        yaml: string;
-        tableCount: number;
-        dimensionCount: number;
-        metricCount: number;
-    } {
-        const DESCRIPTION_MAX_LEN = 200;
-        const truncate = (s: string): string =>
-            s.length > DESCRIPTION_MAX_LEN
-                ? `${s.slice(0, DESCRIPTION_MAX_LEN - 1)}…`
-                : s;
+    private static readonly DESCRIPTION_MAX_LEN = 200;
 
-        const lines: string[] = ['models:'];
-        let tableCount = 0;
-        let dimensionCount = 0;
-        let metricCount = 0;
+    private static truncateDescription(s: string): string {
+        return s.length > AppGenerateService.DESCRIPTION_MAX_LEN
+            ? `${s.slice(0, AppGenerateService.DESCRIPTION_MAX_LEN - 1)}…`
+            : s;
+    }
+
+    /**
+     * Render one compiled table as a dbt-style model, carrying real
+     * metric/dimension types, join relationships (`meta.joins`), AI hints, and
+     * model-level parameters. Joins and parameters live on the explore rather
+     * than the table, so they're passed in explicitly. Hidden fields are
+     * skipped; descriptions are truncated to keep the output bounded.
+     */
+    private static renderTableModel(
+        modelName: string,
+        table: CompiledTable,
+        joins: CompiledExploreJoin[],
+        parameters: Record<string, LightdashProjectParameter> | undefined,
+    ): RenderedModel {
+        const truncate = AppGenerateService.truncateDescription;
+        const headerLines: string[] = [`  - name: ${modelName}`];
+        if (table.description) {
+            headerLines.push(
+                `    description: ${AppGenerateService.yamlQuote(truncate(table.description))}`,
+            );
+        }
+
+        const metrics = Object.values(table.metrics).filter((m) => !m.hidden);
+        const dimensions = Object.values(table.dimensions).filter(
+            (d) => !d.hidden,
+        );
+        const parameterEntries = parameters ? Object.entries(parameters) : [];
+
+        if (
+            metrics.length > 0 ||
+            joins.length > 0 ||
+            parameterEntries.length > 0
+        ) {
+            headerLines.push(`    meta:`);
+            if (metrics.length > 0) {
+                headerLines.push(`      metrics:`);
+                for (const m of metrics) {
+                    headerLines.push(`        ${m.name}:`);
+                    headerLines.push(`          type: ${m.type}`);
+                    if (m.label && m.label !== m.name) {
+                        headerLines.push(
+                            `          label: ${AppGenerateService.yamlQuote(m.label)}`,
+                        );
+                    }
+                    if (m.description) {
+                        headerLines.push(
+                            `          description: ${AppGenerateService.yamlQuote(truncate(m.description))}`,
+                        );
+                    }
+                    const aiHints = getEffectiveFieldAiHints(m, table);
+                    if (aiHints) {
+                        headerLines.push(`          ai_hints:`);
+                        for (const aiHint of aiHints) {
+                            headerLines.push(
+                                `            - ${AppGenerateService.yamlQuote(aiHint)}`,
+                            );
+                        }
+                    }
+                }
+            }
+            if (joins.length > 0) {
+                headerLines.push(`      joins:`);
+                for (const j of joins) {
+                    headerLines.push(`        - join: ${j.table}`);
+                    if (j.relationship) {
+                        headerLines.push(
+                            `          relationship: ${j.relationship}`,
+                        );
+                    }
+                    if (j.sqlOn) {
+                        headerLines.push(
+                            `          sql_on: ${AppGenerateService.yamlQuote(j.sqlOn)}`,
+                        );
+                    }
+                }
+            }
+            if (parameterEntries.length > 0) {
+                headerLines.push(`      parameters:`);
+                for (const [key, param] of parameterEntries) {
+                    headerLines.push(
+                        ...AppGenerateService.renderParameterYaml(
+                            key,
+                            param,
+                            '        ',
+                        ),
+                    );
+                }
+            }
+        }
+
+        const columnBlocks = dimensions.map((d) => {
+            const block: string[] = [`      - name: ${d.name}`];
+            if (d.label && d.label !== d.name) {
+                block.push(
+                    `        label: ${AppGenerateService.yamlQuote(d.label)}`,
+                );
+            }
+            if (d.description) {
+                block.push(
+                    `        description: ${AppGenerateService.yamlQuote(truncate(d.description))}`,
+                );
+            }
+            const aiHints = getEffectiveFieldAiHints(d, table);
+            if (aiHints) {
+                block.push(`        ai_hints:`);
+                for (const aiHint of aiHints) {
+                    block.push(
+                        `          - ${AppGenerateService.yamlQuote(aiHint)}`,
+                    );
+                }
+            }
+            block.push(`        meta:`);
+            block.push(`          dimension:`);
+            block.push(`            type: ${d.type}`);
+            return block;
+        });
+
+        return {
+            name: modelName,
+            description: table.description ? truncate(table.description) : null,
+            joinedTables: joins.map((j) => j.table),
+            headerLines,
+            columnBlocks,
+            dimensionCount: dimensions.length,
+            metricCount: metrics.length,
+        };
+    }
+
+    /**
+     * One model per explore, keyed by the explore name (the value passed to
+     * `query()`). Joined tables that aren't themselves a top-level explore
+     * (seeds, aliased joins) are appended so their dot-notation fields stay
+     * discoverable.
+     */
+    private static exploresToRenderedModels(
+        explores: Explore[],
+    ): RenderedModel[] {
+        const models: RenderedModel[] = [];
 
         // Names already emitted as a standalone model, so the join-target
         // fallback (pass 2) only inlines tables that aren't otherwise visible.
         const emittedModelNames = new Set<string>(
             explores.map((explore) => explore.name),
         );
-
-        // Emit one model from a compiled table. Joins and parameters live on
-        // the explore (not the table), so they're passed in explicitly.
-        const emitTableModel = (
-            modelName: string,
-            table: CompiledTable,
-            joins: CompiledExploreJoin[],
-            parameters: Record<string, LightdashProjectParameter> | undefined,
-        ): void => {
-            tableCount += 1;
-            lines.push(`  - name: ${modelName}`);
-            if (table.description) {
-                lines.push(
-                    `    description: ${AppGenerateService.yamlQuote(truncate(table.description))}`,
-                );
-            }
-
-            const metrics = Object.values(table.metrics).filter(
-                (m) => !m.hidden,
-            );
-            const dimensions = Object.values(table.dimensions).filter(
-                (d) => !d.hidden,
-            );
-            const parameterEntries = parameters
-                ? Object.entries(parameters)
-                : [];
-
-            if (
-                metrics.length > 0 ||
-                joins.length > 0 ||
-                parameterEntries.length > 0
-            ) {
-                lines.push(`    meta:`);
-                if (metrics.length > 0) {
-                    lines.push(`      metrics:`);
-                    for (const m of metrics) {
-                        metricCount += 1;
-                        lines.push(`        ${m.name}:`);
-                        lines.push(`          type: ${m.type}`);
-                        if (m.label && m.label !== m.name) {
-                            lines.push(
-                                `          label: ${AppGenerateService.yamlQuote(m.label)}`,
-                            );
-                        }
-                        if (m.description) {
-                            lines.push(
-                                `          description: ${AppGenerateService.yamlQuote(truncate(m.description))}`,
-                            );
-                        }
-                        const aiHints = getEffectiveFieldAiHints(m, table);
-                        if (aiHints) {
-                            lines.push(`          ai_hints:`);
-                            for (const aiHint of aiHints) {
-                                lines.push(
-                                    `            - ${AppGenerateService.yamlQuote(aiHint)}`,
-                                );
-                            }
-                        }
-                    }
-                }
-                if (joins.length > 0) {
-                    lines.push(`      joins:`);
-                    for (const j of joins) {
-                        lines.push(`        - join: ${j.table}`);
-                        if (j.relationship) {
-                            lines.push(
-                                `          relationship: ${j.relationship}`,
-                            );
-                        }
-                        if (j.sqlOn) {
-                            lines.push(
-                                `          sql_on: ${AppGenerateService.yamlQuote(j.sqlOn)}`,
-                            );
-                        }
-                    }
-                }
-                if (parameterEntries.length > 0) {
-                    lines.push(`      parameters:`);
-                    for (const [key, param] of parameterEntries) {
-                        lines.push(
-                            ...AppGenerateService.renderParameterYaml(
-                                key,
-                                param,
-                                '        ',
-                            ),
-                        );
-                    }
-                }
-            }
-
-            if (dimensions.length > 0) {
-                lines.push(`    columns:`);
-                for (const d of dimensions) {
-                    dimensionCount += 1;
-                    lines.push(`      - name: ${d.name}`);
-                    if (d.label && d.label !== d.name) {
-                        lines.push(
-                            `        label: ${AppGenerateService.yamlQuote(d.label)}`,
-                        );
-                    }
-                    if (d.description) {
-                        lines.push(
-                            `        description: ${AppGenerateService.yamlQuote(truncate(d.description))}`,
-                        );
-                    }
-                    const aiHints = getEffectiveFieldAiHints(d, table);
-                    if (aiHints) {
-                        lines.push(`        ai_hints:`);
-                        for (const aiHint of aiHints) {
-                            lines.push(
-                                `          - ${AppGenerateService.yamlQuote(aiHint)}`,
-                            );
-                        }
-                    }
-                    lines.push(`        meta:`);
-                    lines.push(`          dimension:`);
-                    lines.push(`            type: ${d.type}`);
-                }
-            }
-        };
 
         // Pass 1: every explore becomes a model keyed by its queryable name.
         for (const explore of explores) {
@@ -8443,11 +8508,13 @@ export class AppGenerateService extends BaseService {
                 const joins = (explore.joinedTables ?? []).filter(
                     (j) => !j.hidden,
                 );
-                emitTableModel(
-                    explore.name,
-                    baseTable,
-                    joins,
-                    explore.parameters,
+                models.push(
+                    AppGenerateService.renderTableModel(
+                        explore.name,
+                        baseTable,
+                        joins,
+                        explore.parameters,
+                    ),
                 );
             }
         }
@@ -8466,16 +8533,278 @@ export class AppGenerateService extends BaseService {
                     !inlined.has(key)
                 ) {
                     inlined.add(key);
-                    emitTableModel(key, joinedTable, [], undefined);
+                    models.push(
+                        AppGenerateService.renderTableModel(
+                            key,
+                            joinedTable,
+                            [],
+                            undefined,
+                        ),
+                    );
                 }
             }
         }
 
+        return models;
+    }
+
+    private static renderedModelToLines(model: RenderedModel): string[] {
+        return [
+            ...model.headerLines,
+            ...(model.columnBlocks.length > 0 ? ['    columns:'] : []),
+            ...model.columnBlocks.flat(),
+        ];
+    }
+
+    /**
+     * Convert compiled explores into a single dbt-style YAML document. Used for
+     * the app-code download bundle, where the whole semantic layer is expected
+     * in one file; the build sandbox gets the sharded layout instead.
+     */
+    private static exploresToYaml(explores: Explore[]): {
+        yaml: string;
+        tableCount: number;
+        dimensionCount: number;
+        metricCount: number;
+    } {
+        const models = AppGenerateService.exploresToRenderedModels(explores);
+        const lines = [
+            'models:',
+            ...models.flatMap(AppGenerateService.renderedModelToLines),
+        ];
+
         return {
             yaml: lines.join('\n'),
-            tableCount,
-            dimensionCount,
-            metricCount,
+            tableCount: models.length,
+            dimensionCount: models.reduce((n, m) => n + m.dimensionCount, 0),
+            metricCount: models.reduce((n, m) => n + m.metricCount, 0),
+        };
+    }
+
+    static readonly MODELS_INDEX_FILENAME = '_index.md';
+
+    // Iterations resume the previous Claude session, whose history still points
+    // at the single-file layout this replaced. Leave a signpost so a remembered
+    // read lands on instructions rather than a missing file.
+    private static readonly MODELS_LEGACY_POINTER: ModelFile = {
+        filename: 'schema.yml',
+        contents: [
+            '# This project is sharded across one YAML file per model in this directory.',
+            `# Start with ${AppGenerateService.MODELS_INDEX_FILENAME}, then read only the model files you need.`,
+            '',
+        ].join('\n'),
+    };
+
+    // The agent's Read tool refuses files over 256KB outright, so every file we
+    // write has to stay comfortably under it or it is unreadable in the sandbox.
+    private static readonly MODEL_FILE_MAX_BYTES = 200_000;
+
+    private static readonly INDEX_MAX_BYTES = 200_000;
+
+    // Below this, index entries carry joins and a description; past it they
+    // degrade to name/file/counts so every model still gets listed.
+    private static readonly INDEX_DETAIL_MAX_BYTES = 120_000;
+
+    private static readonly INDEX_DESCRIPTION_MAX_LEN = 120;
+
+    /**
+     * The index carries the resolved filename for every model, so sanitizing a
+     * name here never leaves the agent guessing at the path.
+     */
+    private static modelFilenames(models: RenderedModel[]): string[] {
+        const taken = new Set<string>([
+            AppGenerateService.MODELS_INDEX_FILENAME,
+            AppGenerateService.MODELS_LEGACY_POINTER.filename,
+        ]);
+        return models.map((model) => {
+            const safe = model.name.replace(/[^a-zA-Z0-9_-]/g, '_') || 'model';
+            let filename = `${safe}.yml`;
+            let suffix = 2;
+            while (taken.has(filename)) {
+                filename = `${safe}-${suffix}.yml`;
+                suffix += 1;
+            }
+            taken.add(filename);
+            return filename;
+        });
+    }
+
+    /**
+     * One model as one or more YAML files. A model whose columns push it past
+     * the Read ceiling is split across `<name>.yml`, `<name>.part2.yml`, … —
+     * each a standalone-parseable document for the same model.
+     */
+    private static modelToFiles(
+        model: RenderedModel,
+        filename: string,
+    ): ModelFile[] {
+        const whole = `models:\n${AppGenerateService.renderedModelToLines(
+            model,
+        ).join('\n')}\n`;
+        // Columns are the only split point, so a model with none is written
+        // whole however big its metrics make it — an oversized file is still
+        // greppable, whereas a model the index names but never writes is not.
+        if (
+            Buffer.byteLength(whole) <=
+                AppGenerateService.MODEL_FILE_MAX_BYTES ||
+            model.columnBlocks.length === 0
+        ) {
+            return [{ filename, contents: whole }];
+        }
+
+        const base = filename.replace(/\.yml$/, '');
+        const header = `models:\n${model.headerLines.join('\n')}\n    columns:\n`;
+        const files: ModelFile[] = [];
+        let current: string[] = [];
+        let currentBytes = Buffer.byteLength(header);
+
+        const flush = () => {
+            if (current.length === 0) return;
+            const part = files.length + 1;
+            files.push({
+                filename: part === 1 ? filename : `${base}.part${part}.yml`,
+                contents:
+                    part === 1
+                        ? `${header}${current.join('\n')}\n`
+                        : `models:\n  - name: ${model.name}\n    columns:\n${current.join(
+                              '\n',
+                          )}\n`,
+            });
+            current = [];
+            currentBytes = Buffer.byteLength(header);
+        };
+
+        for (const block of model.columnBlocks) {
+            const text = block.join('\n');
+            const blockBytes = Buffer.byteLength(text) + 1;
+            if (
+                current.length > 0 &&
+                currentBytes + blockBytes >
+                    AppGenerateService.MODEL_FILE_MAX_BYTES
+            ) {
+                flush();
+            }
+            current.push(text);
+            currentBytes += blockBytes;
+        }
+        flush();
+
+        return files.map((file, i) => ({
+            ...file,
+            contents:
+                i < files.length - 1
+                    ? `${file.contents}# ${model.name} continues in ${
+                          files[i + 1].filename
+                      }\n`
+                    : file.contents,
+        }));
+    }
+
+    /**
+     * Shard the compiled explores into one YAML file per model plus an index
+     * listing every model, so full fidelity stays on disk without the whole
+     * catalog having to fit in the context window. `chartUsageByTable` ranks
+     * the index, so any detail it sheds comes off the least-queried models.
+     */
+    private static exploresToModelFiles(
+        explores: Explore[],
+        chartUsageByTable: Map<string, number>,
+    ): {
+        files: ModelFile[];
+        tableCount: number;
+        dimensionCount: number;
+        metricCount: number;
+        totalBytes: number;
+    } {
+        const models = AppGenerateService.exploresToRenderedModels(explores);
+        const filenames = AppGenerateService.modelFilenames(models);
+
+        const files = models.flatMap((model, i) =>
+            AppGenerateService.modelToFiles(model, filenames[i]),
+        );
+
+        const ranked = models
+            .map((model, i) => ({
+                model,
+                filename: filenames[i],
+                chartUsage: chartUsageByTable.get(model.name) ?? 0,
+            }))
+            .sort(
+                (a, b) =>
+                    b.chartUsage - a.chartUsage ||
+                    a.model.name.localeCompare(b.model.name),
+            );
+
+        const header = [
+            `# Semantic layer — ${models.length} model${
+                models.length === 1 ? '' : 's'
+            }`,
+            '',
+            'Every model in this project is listed below, most-queried first. Read',
+            'only the model files you need — never the whole directory. To locate a',
+            'field whose model you do not know, Grep this directory for its name.',
+            '',
+            'name  file  dims/metrics  joins  description',
+            '',
+        ].join('\n');
+
+        const detailLine = (entry: (typeof ranked)[number]): string => {
+            const { model, filename } = entry;
+            const joins =
+                model.joinedTables.length > 0
+                    ? model.joinedTables.join(',')
+                    : '-';
+            const description = model.description
+                ? `  ${model.description
+                      .replace(/\s+/g, ' ')
+                      .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
+                : '';
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${description}`;
+        };
+
+        const compactLine = (entry: (typeof ranked)[number]): string =>
+            `${entry.model.name}  ${entry.filename}  dims=${entry.model.dimensionCount} metrics=${entry.model.metricCount}`;
+
+        const lines: string[] = [];
+        let bytes = Buffer.byteLength(header);
+        let detailed = true;
+        let omitted = 0;
+        for (const entry of ranked) {
+            if (detailed && bytes > AppGenerateService.INDEX_DETAIL_MAX_BYTES) {
+                detailed = false;
+            }
+            const line = detailed ? detailLine(entry) : compactLine(entry);
+            const lineBytes = Buffer.byteLength(line) + 1;
+            if (bytes + lineBytes > AppGenerateService.INDEX_MAX_BYTES) {
+                omitted += 1;
+            } else {
+                lines.push(line);
+                bytes += lineBytes;
+            }
+        }
+        if (omitted > 0) {
+            lines.push(
+                `\n(${omitted} rarely-queried models not listed — Glob this directory for *.yml to see them all)`,
+            );
+        }
+
+        files.push(
+            {
+                filename: AppGenerateService.MODELS_INDEX_FILENAME,
+                contents: `${header}${lines.join('\n')}\n`,
+            },
+            AppGenerateService.MODELS_LEGACY_POINTER,
+        );
+
+        return {
+            files,
+            tableCount: models.length,
+            dimensionCount: models.reduce((n, m) => n + m.dimensionCount, 0),
+            metricCount: models.reduce((n, m) => n + m.metricCount, 0),
+            totalBytes: files.reduce(
+                (n, f) => n + Buffer.byteLength(f.contents),
+                0,
+            ),
         };
     }
 
