@@ -1,5 +1,5 @@
 import { type ApiAppVersionSummary } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { useGetApp } from '../hooks/useGetApp';
@@ -162,6 +162,7 @@ describe('DataAppVizConversation', () => {
                     isBuilding: true,
                     pendingPrompt: 'a donut of orders by status',
                     error: null,
+                    onRetry: null,
                     onSubmit: vi.fn(),
                 }}
             />,
@@ -185,6 +186,7 @@ describe('DataAppVizConversation', () => {
                     isBuilding: false,
                     pendingPrompt: 'a donut of orders by status',
                     error: null,
+                    onRetry: null,
                     onSubmit: vi.fn(),
                 }}
             />,
@@ -194,6 +196,59 @@ describe('DataAppVizConversation', () => {
         expect(screen.getAllByText('a donut of orders by status')).toHaveLength(
             1,
         );
+    });
+
+    it('offers retry on a failed build and leaves the chart alone', () => {
+        setVersions([version()]);
+        const onRetry = vi.fn();
+        renderWithProviders(
+            <DataAppVizConversation
+                projectUuid="project-1"
+                dataAppVizUuid="viz-1"
+                composer={{
+                    itemsMap: {} as never,
+                    placeholder: 'Ask for a change…',
+                    isBuilding: false,
+                    pendingPrompt: null,
+                    error: 'That change could not be built.',
+                    onRetry,
+                    onSubmit: vi.fn(),
+                }}
+            />,
+        );
+
+        expect(
+            screen.getByText('That change could not be built.'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Your query and chart are untouched.'),
+        ).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows no retry when there is nothing to re-send', () => {
+        setVersions([version()]);
+        renderWithProviders(
+            <DataAppVizConversation
+                projectUuid="project-1"
+                dataAppVizUuid="viz-1"
+                composer={{
+                    itemsMap: {} as never,
+                    placeholder: 'Ask for a change…',
+                    isBuilding: false,
+                    pendingPrompt: null,
+                    error: 'Something went wrong.',
+                    onRetry: null,
+                    onSubmit: vi.fn(),
+                }}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Retry' }),
+        ).not.toBeInTheDocument();
     });
 
     it('renders the composer only when one is supplied', () => {

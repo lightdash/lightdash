@@ -14,6 +14,7 @@ import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVi
 import DataAppVizPickOrCreate from '../../../features/apps/components/DataAppVizPickOrCreate';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
 import { useGenerateDataAppViz } from '../../../features/apps/hooks/useGenerateDataAppViz';
+import { useIterateDataAppViz } from '../../../features/apps/hooks/useIterateDataAppViz';
 import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
@@ -75,6 +76,10 @@ export const ConfigTabs: FC = memo(() => {
         itemsMap: itemsMap ?? {},
         onReady: handleGenerated,
     });
+    const revision = useIterateDataAppViz({
+        projectUuid,
+        dataAppVizUuid: dataAppVizUuid || null,
+    });
 
     if (!isDataAppViz) return null;
 
@@ -133,6 +138,7 @@ export const ConfigTabs: FC = memo(() => {
                     isBuilding={generation.isBuilding}
                     pendingPrompt={generation.pendingPrompt}
                     error={generation.error}
+                    onRetry={null}
                     onSubmit={generation.generate}
                 />
             )}
@@ -193,8 +199,15 @@ export const ConfigTabs: FC = memo(() => {
                         <DataAppVizConversation
                             projectUuid={projectUuid}
                             dataAppVizUuid={dataAppVizUuid}
-                            // Iterating on an existing viz lands next.
-                            composer={null}
+                            composer={{
+                                itemsMap: itemsMap ?? {},
+                                placeholder: 'Ask for a change…',
+                                isBuilding: revision.isBuilding,
+                                pendingPrompt: revision.pendingPrompt,
+                                error: revision.error,
+                                onRetry: revision.retry,
+                                onSubmit: revision.iterate,
+                            }}
                         />
                     ) : null
                 }

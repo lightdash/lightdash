@@ -38,6 +38,25 @@ async function pollLoop(url, interval) {
 `;
 
 /**
+ * Fold a poll result into the cached first page.
+ *
+ * The poll asks for `limit=1`, so it carries only the newest version.
+ * Overwriting the page with it would evict the already-loaded ready version,
+ * and surfaces that render straight from this cache (the Explorer's data app
+ * viz chart) would lose their last good render for the length of a build.
+ */
+export const mergePolledVersions = (
+    existing: GetAppResult['versions'],
+    polled: GetAppResult['versions'],
+): GetAppResult['versions'] => {
+    const polledNumbers = new Set(polled.map((v) => v.version));
+    return [
+        ...polled,
+        ...existing.filter((v) => !polledNumbers.has(v.version)),
+    ].sort((a, b) => b.version - a.version);
+};
+
+/**
  * Polls the app versions API via a Web Worker while a version is building.
  * Results are fed into the React Query cache so the UI updates reactively.
  *
@@ -77,20 +96,29 @@ export function useAppBuildPoller(
                                   pageParams: unknown[];
                               }
                             | undefined,
-                    ) => ({
-                        // The poll uses limit=1, so its `hasMore` reflects that
-                        // limit rather than the original page size. Keep the
-                        // first page's `hasMore` so pagination stays accurate.
-                        pages: [
-                            {
-                                ...poll,
-                                hasMore:
-                                    old?.pages?.[0]?.hasMore ?? poll.hasMore,
-                            },
-                            ...(old?.pages?.slice(1) ?? []),
-                        ],
-                        pageParams: old?.pageParams ?? [undefined],
-                    }),
+                    ) => {
+                        const versions = mergePolledVersions(
+                            old?.pages?.[0]?.versions ?? [],
+                            poll.versions ?? [],
+                        );
+                        return {
+                            pages: [
+                                {
+                                    ...poll,
+                                    versions,
+                                    // The poll's `hasMore` reflects limit=1
+                                    // rather than the original page size. Keep
+                                    // the first page's so pagination stays
+                                    // accurate.
+                                    hasMore:
+                                        old?.pages?.[0]?.hasMore ??
+                                        poll.hasMore,
+                                },
+                                ...(old?.pages?.slice(1) ?? []),
+                            ],
+                            pageParams: old?.pageParams ?? [undefined],
+                        };
+                    },
                 );
 
                 const latest = poll.versions?.[0];

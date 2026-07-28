@@ -12,6 +12,7 @@ const render = (props: Partial<Parameters<typeof DataAppVizPickOrCreate>[0]>) =>
             itemsMap={{} as ItemsMap}
             isBuilding={false}
             pendingPrompt={null}
+            onRetry={null}
             error={null}
             onSubmit={vi.fn()}
             {...props}

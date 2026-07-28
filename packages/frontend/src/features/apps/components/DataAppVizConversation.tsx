@@ -33,6 +33,8 @@ export type VizConversationComposer = {
     /** The request that is in flight, shown optimistically before it lands. */
     pendingPrompt: string | null;
     error: string | null;
+    /** Re-send the request that failed; null when there is nothing to retry. */
+    onRetry: (() => void) | null;
     onSubmit: (description: string, columns: VizPromptColumn[]) => void;
 };
 
@@ -142,6 +144,7 @@ const DataAppVizConversation: FC<Props> = ({
     const pendingPrompt = composer?.pendingPrompt ?? null;
     const isBuilding = composer?.isBuilding ?? false;
     const error = composer?.error ?? null;
+    const onRetry = composer?.onRetry ?? null;
     const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
         useGetApp(projectUuid, dataAppVizUuid ?? undefined);
 
@@ -287,9 +290,24 @@ const DataAppVizConversation: FC<Props> = ({
                         size={13}
                         color="red.6"
                     />
-                    <Text size="xs" c="red.7">
-                        {error}
-                    </Text>
+                    <Stack gap={2}>
+                        <Text size="xs" c="red.7">
+                            {error}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                            Your query and chart are untouched.
+                        </Text>
+                        {onRetry && (
+                            <Anchor
+                                component="button"
+                                type="button"
+                                size="xs"
+                                onClick={onRetry}
+                            >
+                                Retry
+                            </Anchor>
+                        )}
+                    </Stack>
                 </Group>
             )}
 

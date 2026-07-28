@@ -14,6 +14,7 @@ type Props = {
     isBuilding: boolean;
     pendingPrompt: string | null;
     error: string | null;
+    onRetry: (() => void) | null;
     onSubmit: (description: string, columns: VizPromptColumn[]) => void;
 };
 
@@ -34,6 +35,7 @@ const DataAppVizPickOrCreate: FC<Props> = ({
     isBuilding,
     pendingPrompt,
     error,
+    onRetry,
     onSubmit,
 }) => {
     const [isCreating, setIsCreating] = useState(false);
@@ -85,6 +87,7 @@ const DataAppVizPickOrCreate: FC<Props> = ({
                     isBuilding,
                     pendingPrompt,
                     error,
+                    onRetry,
                     onSubmit,
                 }}
             />
