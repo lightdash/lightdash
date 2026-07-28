@@ -91,15 +91,34 @@ const memoryRow = (
     ...overrides,
 });
 
-const inputEntry = (id: string): AiAgentMemoryConsolidationInputEntry => ({
+const inputEntry = (
+    id: string,
+    objects: AiAgentMemoryConsolidationInputEntry['objects'] = [],
+): AiAgentMemoryConsolidationInputEntry => ({
     id,
     title: 'A memory',
     memory: 'Body',
     terms: [],
-    objects: [],
+    objects,
     scope: 'user',
     age_days: 1,
     generated_at: '2026-07-27T10:00:00.000Z',
+});
+
+const mergeOperation = (
+    overrides: Partial<
+        Extract<AiAgentMemoryConsolidationOperation, { type: 'merge' }>
+    > = {},
+): AiAgentMemoryConsolidationOperation => ({
+    type: 'merge',
+    source_slugs: ['a', 'b'],
+    slug: 'merged-memory',
+    title: 'Merged',
+    memory: 'Body',
+    terms: [],
+    objects: [],
+    reason: 'One claim.',
+    ...overrides,
 });
 
 describe('consolidation eligibility floor', () => {
@@ -327,7 +346,9 @@ describe('consolidationOutputSchema', () => {
         ).toBe(false);
     });
 
-    it('rejects a merge with fewer than two sources', () => {
+    // Merge arity is a validation rejection, not a parse failure: a one-source
+    // merge must cost itself rather than discard the run's other operations.
+    it('parses a merge with fewer than two sources', () => {
         expect(
             consolidationOutputSchema.safeParse({
                 operations: [
@@ -343,7 +364,7 @@ describe('consolidationOutputSchema', () => {
                     },
                 ],
             }).success,
-        ).toBe(false);
+        ).toBe(true);
     });
 });
 
@@ -386,16 +407,7 @@ describe('validateConsolidationOperations', () => {
 
     it('rejects an operation naming a slug this same run would create', () => {
         const { applied, rejected } = validate([
-            {
-                type: 'merge',
-                source_slugs: ['a', 'b'],
-                slug: 'merged-memory',
-                title: 'Merged',
-                memory: 'Body',
-                terms: [],
-                objects: [],
-                reason: 'One claim.',
-            },
+            mergeOperation(),
             {
                 type: 'retire',
                 slug: 'merged-memory',
@@ -403,11 +415,8 @@ describe('validateConsolidationOperations', () => {
             },
         ]);
 
-        expect(applied).toEqual([]);
-        expect(rejected.map((entry) => entry.reason)).toEqual([
-            'unsupported_operation',
-            'unknown_slug',
-        ]);
+        expect(applied.map((operation) => operation.type)).toEqual(['merge']);
+        expect(rejected.map((entry) => entry.reason)).toEqual(['unknown_slug']);
     });
 
     it('rejects a self-supersede', () => {
@@ -494,42 +503,101 @@ describe('validateConsolidationOperations', () => {
         expect(rejected).toEqual([]);
     });
 
-    it('records a well-formed merge as unsupported without failing the run', () => {
+    it('keeps a well-formed merge alongside a status flip', () => {
         const { applied, rejected } = validate([
-            {
-                type: 'merge',
-                source_slugs: ['a', 'b'],
-                slug: 'merged-memory',
-                title: 'Merged',
-                memory: 'Body',
-                terms: [],
-                objects: [],
-                reason: 'One claim.',
-            },
+            mergeOperation(),
             { type: 'retire', slug: 'c', reason: 'Explore is gone.' },
         ]);
 
-        expect(rejected).toEqual([
-            { operation: expect.anything(), reason: 'unsupported_operation' },
+        expect(rejected).toEqual([]);
+        expect(applied.map((operation) => operation.type)).toEqual([
+            'merge',
+            'retire',
         ]);
-        expect(applied).toHaveLength(1);
     });
 
-    it('rejects a merge with duplicate sources before calling it unsupported', () => {
+    it('rejects a merge naming a single source, keeping the run’s other work', () => {
+        const { applied, rejected } = validate([
+            mergeOperation({ source_slugs: ['a'] }),
+            { type: 'retire', slug: 'c', reason: 'Explore is gone.' },
+        ]);
+
+        expect(applied.map((operation) => operation.type)).toEqual(['retire']);
+        expect(rejected.map((entry) => entry.reason)).toEqual([
+            'insufficient_sources',
+        ]);
+    });
+
+    it('rejects a merge whose sources collapse to fewer than two', () => {
         expect(
             validate([
-                {
-                    type: 'merge',
-                    source_slugs: ['a', 'a'],
-                    slug: 'merged-memory',
-                    title: 'Merged',
-                    memory: 'Body',
-                    terms: [],
-                    objects: [],
-                    reason: 'One claim.',
-                },
+                mergeOperation({ source_slugs: ['a', 'a'] }),
             ]).rejected.map((entry) => entry.reason),
         ).toEqual(['insufficient_sources']);
+    });
+
+    it('de-duplicates a merge’s sources so telemetry is inherited once', () => {
+        const { applied } = validate([
+            mergeOperation({ source_slugs: ['a', 'b', 'a'] }),
+        ]);
+
+        expect(applied[0]).toMatchObject({
+            type: 'merge',
+            source_slugs: ['a', 'b'],
+        });
+    });
+
+    it('narrows merged objects to the union of the sources’ objects', () => {
+        const orders = { type: 'explore' as const, name: 'orders' };
+        const customers = { type: 'explore' as const, name: 'customers' };
+        const status = {
+            type: 'field' as const,
+            explore: 'orders',
+            fieldId: 'orders_status',
+        };
+        const { applied } = validateConsolidationOperations({
+            operations: [
+                mergeOperation({
+                    objects: [
+                        orders,
+                        status,
+                        customers,
+                        { ...orders },
+                        { type: 'explore', name: 'invented' },
+                    ],
+                }),
+            ],
+            input: [
+                inputEntry('a', [{ object: orders, resolved: true }]),
+                inputEntry('b', [{ object: status, resolved: false }]),
+                inputEntry('c', [{ object: customers, resolved: true }]),
+            ],
+        });
+
+        // `customers` belongs to a memory this merge does not name.
+        expect(applied[0]).toMatchObject({ objects: [orders, status] });
+    });
+
+    it('rejects a merge whose source an earlier operation already targets', () => {
+        const { applied, rejected } = validate([
+            { type: 'retire', slug: 'a', reason: 'Explore is gone.' },
+            mergeOperation({ source_slugs: ['a', 'b'] }),
+        ]);
+
+        expect(applied.map((operation) => operation.type)).toEqual(['retire']);
+        expect(rejected.map((entry) => entry.reason)).toEqual([
+            'duplicate_target',
+        ]);
+    });
+
+    it('records the operation as the curator wrote it when rejecting', () => {
+        const { rejected } = validate([
+            mergeOperation({ source_slugs: ['a', 'a'] }),
+        ]);
+
+        expect(rejected[0]!.operation).toMatchObject({
+            source_slugs: ['a', 'a'],
+        });
     });
 });
 

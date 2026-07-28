@@ -1,13 +1,15 @@
 import {
     assertUnreachable,
+    getAiAgentMemoryConsolidationOperationSlugs,
+    getAiProjectContextObjectKey,
     ProjectType,
     type AiAgentAdminMemoriesSummary,
     type AiAgentAdminMemoryFilters,
     type AiAgentAdminMemorySort,
+    type AiAgentMemoryConsolidationMergeOperation,
     type AiAgentMemoryConsolidationOperation,
     type AiAgentMemoryConsolidationRejection,
     type AiAgentMemoryConsolidationRunStatus,
-    type AiAgentMemoryConsolidationStatusFlipOperation,
     type AiAgentMemoryScope,
     type AiProjectContextTypedObjectRef,
     type AiThreadCreatedFrom,
@@ -15,6 +17,7 @@ import {
     type KnexPaginatedData,
     type UUID,
 } from '@lightdash/common';
+import { randomBytes } from 'crypto';
 import { Knex } from 'knex';
 import { EmailTableName } from '../../database/entities/emails';
 import { ProjectTableName } from '../../database/entities/projects';
@@ -171,9 +174,24 @@ export type AiAgentMemoryConsolidationSelectedRow = {
 
 export type AiAgentMemoryConsolidationApplyResult = {
     run: DbAiAgentMemoryConsolidationRun;
-    applied: AiAgentMemoryConsolidationStatusFlipOperation[];
+    applied: AiAgentMemoryConsolidationOperation[];
     rejected: AiAgentMemoryConsolidationRejection[];
 };
+
+/** A source row as the apply transaction re-reads it, inside the lock. */
+type ConsolidationSourceRow = Pick<
+    DbAiAgentMemory,
+    | 'ai_agent_memory_uuid'
+    | 'slug'
+    | 'status'
+    | 'generated_at'
+    | 'agent_uuid'
+    | 'scope'
+    | 'cited_count'
+    | 'last_cited_at'
+    | 'pulled_count'
+    | 'last_pulled_at'
+>;
 
 const CONSOLIDATION_LOCK_CLASS = 4;
 
@@ -1041,7 +1059,110 @@ export class AiAgentMemoryModel {
     }
 
     /**
-     * Applies status flips and writes the run row in one transaction, under a
+     * A merged row is a new row that inherits what its sources earned: summed
+     * counts, the newest telemetry stamps, and the newest `generated_at` — never
+     * the merge time, which would reset the injection fence's staleness read.
+     * It carries no source thread and no thread summary, which is what routes
+     * the memory page to its consolidated-provenance lineage walk.
+     */
+    private static async applyMerge(
+        trx: Knex,
+        args: {
+            operation: AiAgentMemoryConsolidationMergeOperation;
+            organizationUuid: UUID;
+            projectUuid: UUID;
+            ownerUserUuid: UUID;
+            sources: ConsolidationSourceRow[];
+            unresolvedObjectKeys: Set<string>;
+        },
+    ): Promise<AiAgentMemoryConsolidationMergeOperation> {
+        const { sources } = args;
+        const maxTime = (dates: Array<Date | null>): Date | null => {
+            const times = dates.flatMap((date) =>
+                date ? [date.getTime()] : [],
+            );
+            return times.length === 0 ? null : new Date(Math.max(...times));
+        };
+        // Newest source first, slug as the tie-break so the inherited agent is
+        // deterministic; a row with no agent is unreadable on the memory page.
+        const newestFirst = [...sources].sort(
+            (a, b) =>
+                b.generated_at.getTime() - a.generated_at.getTime() ||
+                a.slug.localeCompare(b.slug),
+        );
+        // The curator's handle is not unique across a project; the suffix keeps
+        // a second merge from failing the whole run on the slug constraint.
+        const slug = `${args.operation.slug}-${randomBytes(4).toString('hex')}`;
+
+        const [merged] = await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .insert({
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                agent_uuid:
+                    newestFirst.find((source) => source.agent_uuid !== null)
+                        ?.agent_uuid ?? null,
+                user_uuid: args.ownerUserUuid,
+                source_thread_uuid: null,
+                slug,
+                title: args.operation.title,
+                raw_memory: args.operation.memory,
+                thread_summary: null,
+                terms: JSON.stringify(args.operation.terms),
+                objects: JSON.stringify(args.operation.objects),
+                // This run re-resolved every object against the live catalog, so
+                // the merged row records present fact, not a source's snapshot.
+                unresolved_objects: JSON.stringify(
+                    args.operation.objects.filter((object) =>
+                        args.unresolvedObjectKeys.has(
+                            getAiProjectContextObjectKey(object),
+                        ),
+                    ),
+                ),
+                // Scope never widens: a single `user` source narrows the result.
+                scope: sources.every((source) => source.scope === 'project')
+                    ? 'project'
+                    : 'user',
+                generated_at: new Date(
+                    Math.max(
+                        ...sources.map((source) =>
+                            source.generated_at.getTime(),
+                        ),
+                    ),
+                ),
+                cited_count: sources.reduce(
+                    (total, source) => total + source.cited_count,
+                    0,
+                ),
+                last_cited_at: maxTime(
+                    sources.map((source) => source.last_cited_at),
+                ),
+                pulled_count: sources.reduce(
+                    (total, source) => total + source.pulled_count,
+                    0,
+                ),
+                last_pulled_at: maxTime(
+                    sources.map((source) => source.last_pulled_at),
+                ),
+            })
+            .returning('ai_agent_memory_uuid');
+
+        await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .whereIn(
+                'ai_agent_memory_uuid',
+                sources.map((source) => source.ai_agent_memory_uuid),
+            )
+            .update({
+                status: 'superseded',
+                superseded_by_uuid: merged.ai_agent_memory_uuid,
+                updated_at: trx.fn.now(),
+            });
+
+        // The audit carries the slug the row actually got, not the handle asked for.
+        return { ...args.operation, slug };
+    }
+
+    /**
+     * Applies operations and writes the run row in one transaction, under a
      * per-partition advisory lock. The slug-to-uuid resolution inside the lock
      * doubles as the movement check: a row that is no longer active, or whose
      * body was rewritten since selection, is rejected instead of applied.
@@ -1052,8 +1173,10 @@ export class AiAgentMemoryModel {
             'appliedOperations' | 'rejectedOperations' | 'status'
         >;
         selection: AiAgentMemoryConsolidationSelectedRow[];
-        operations: AiAgentMemoryConsolidationStatusFlipOperation[];
+        operations: AiAgentMemoryConsolidationOperation[];
         rejected: AiAgentMemoryConsolidationRejection[];
+        /** Object keys this run resolved against the live catalog and did not find. */
+        unresolvedObjectKeys: Set<string>;
     }): Promise<AiAgentMemoryConsolidationApplyResult> {
         return this.database.transaction(async (trx) => {
             await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
@@ -1063,10 +1186,8 @@ export class AiAgentMemoryModel {
 
             const namedSlugs = [
                 ...new Set(
-                    args.operations.flatMap((operation) =>
-                        operation.type === 'supersede'
-                            ? [operation.loser_slug, operation.winner_slug]
-                            : [operation.slug],
+                    args.operations.flatMap(
+                        getAiAgentMemoryConsolidationOperationSlugs,
                     ),
                 ),
             ];
@@ -1083,6 +1204,12 @@ export class AiAgentMemoryModel {
                               'slug',
                               'status',
                               'generated_at',
+                              'agent_uuid',
+                              'scope',
+                              'cited_count',
+                              'last_cited_at',
+                              'pulled_count',
+                              'last_pulled_at',
                           );
             const currentBySlug = new Map(
                 currentRows.map((row) => [row.slug, row]),
@@ -1103,22 +1230,38 @@ export class AiAgentMemoryModel {
                 );
             };
 
-            const applied: AiAgentMemoryConsolidationStatusFlipOperation[] = [];
+            const accepted: AiAgentMemoryConsolidationOperation[] = [];
             const rejected = [...args.rejected];
             for (const operation of args.operations) {
-                const slugs =
-                    operation.type === 'supersede'
-                        ? [operation.loser_slug, operation.winner_slug]
-                        : [operation.slug];
-                if (slugs.every(isUnmoved)) {
-                    applied.push(operation);
+                if (
+                    getAiAgentMemoryConsolidationOperationSlugs(
+                        operation,
+                    ).every(isUnmoved)
+                ) {
+                    accepted.push(operation);
                 } else {
                     rejected.push({ operation, reason: 'row_moved' });
                 }
             }
 
-            for (const operation of applied) {
+            const applied: AiAgentMemoryConsolidationOperation[] = [];
+            for (const operation of accepted) {
                 switch (operation.type) {
+                    case 'merge':
+                        applied.push(
+                            // eslint-disable-next-line no-await-in-loop
+                            await AiAgentMemoryModel.applyMerge(trx, {
+                                operation,
+                                organizationUuid: args.run.organizationUuid,
+                                projectUuid: args.run.projectUuid,
+                                ownerUserUuid: args.run.ownerUserUuid,
+                                sources: operation.source_slugs.map(
+                                    (slug) => currentBySlug.get(slug)!,
+                                ),
+                                unresolvedObjectKeys: args.unresolvedObjectKeys,
+                            }),
+                        );
+                        break;
                     case 'supersede':
                         // eslint-disable-next-line no-await-in-loop
                         await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
@@ -1134,6 +1277,7 @@ export class AiAgentMemoryModel {
                                 )!.ai_agent_memory_uuid,
                                 updated_at: this.database.fn.now(),
                             });
+                        applied.push(operation);
                         break;
                     case 'retire':
                         // eslint-disable-next-line no-await-in-loop
@@ -1147,6 +1291,7 @@ export class AiAgentMemoryModel {
                                 status: 'retired',
                                 updated_at: this.database.fn.now(),
                             });
+                        applied.push(operation);
                         break;
                     default:
                         assertUnreachable(

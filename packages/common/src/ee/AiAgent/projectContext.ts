@@ -44,6 +44,23 @@ export const aiProjectContextTypedObjectRefSchema: z.ZodType<AiProjectContextTyp
 export const aiProjectContextObjectRefSchema: z.ZodType<AiProjectContextObjectRef> =
     z.union([z.string().min(1), aiProjectContextTypedObjectRefSchema]);
 
+/** Identity of an object reference, for set membership and de-duplication. */
+export const getAiProjectContextObjectKey = (
+    object: AiProjectContextTypedObjectRef,
+): string => {
+    switch (object.type) {
+        case 'explore':
+            return `explore:${object.name}`;
+        case 'field':
+            return `field:${object.explore}:${object.fieldId}`;
+        default:
+            return assertUnreachable(
+                object,
+                'Unknown AI project context object ref type',
+            );
+    }
+};
+
 const typedProjectContextObjectRefsSchema = z.array(
     aiProjectContextTypedObjectRefSchema,
 );
