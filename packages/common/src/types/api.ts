@@ -1002,6 +1002,7 @@ export type UpdateUserArgs = {
     timezone: string | null;
     /* Explicit gradient placeholder override; null falls back to the deterministic gradient. */
     avatarGradient: UserAvatarColorValue | null;
+    howDidYouHearAboutUs: string;
 };
 
 export type ApiUserAvatarResponse = {
