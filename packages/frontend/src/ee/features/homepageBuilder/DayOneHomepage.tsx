@@ -101,15 +101,10 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
 
             <div className={classes.secondary}>
                 <Stack gap="xl">
-                    {!canAskAi && (
-                        <Box>
-                            <BlockHeader
-                                icon={IconClock}
-                                title="Recently viewed"
-                            />
-                            <RecentList projectUuid={projectUuid} />
-                        </Box>
-                    )}
+                    <Box>
+                        <BlockHeader icon={IconClock} title="Recently viewed" />
+                        <RecentList projectUuid={projectUuid} />
+                    </Box>
                     <PinnedCollection
                         projectUuid={projectUuid}
                         pinnedItems={pinnedItems}

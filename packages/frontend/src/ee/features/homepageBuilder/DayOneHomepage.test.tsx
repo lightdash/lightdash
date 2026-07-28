@@ -64,7 +64,8 @@ describe('DayOneHomepage', () => {
 
         expect(screen.getByTestId('ask-ai-hero')).toBeInTheDocument();
         expect(screen.queryByText(/Good \w+, Ada/)).toBeNull();
-        expect(screen.queryByTestId('recent-list')).toBeNull();
+        // Recently viewed is for everyone, agents or not
+        expect(screen.getByTestId('recent-list')).toBeInTheDocument();
         expect(screen.getByTestId('favorites-bar')).toBeInTheDocument();
         expect(screen.getByTestId('pinned-card')).toBeInTheDocument();
     });
