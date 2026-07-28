@@ -31,6 +31,8 @@ interface ChartCreateModalProps extends Pick<
     redirectOnSuccess?: boolean;
     showViewChartAction?: boolean;
     forcedSpaceUuid?: string;
+    /** Chart-level palette chosen before the first save. */
+    colorPaletteUuid?: string | null;
 }
 
 enum SaveMode {
@@ -50,6 +52,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     redirectOnSuccess = true,
     showViewChartAction = true,
     forcedSpaceUuid,
+    colorPaletteUuid,
 }) => {
     // Store it in the state to avoid losing the param when the user switches between tables
     const [spaceUuid] = useState(defaultSpaceUuid);
@@ -112,6 +115,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     dashboardName={editingDashboardInfo.name}
                     dashboardUuid={editingDashboardInfo.dashboardUuid}
                     savedData={savedData}
+                    colorPaletteUuid={colorPaletteUuid}
                     onClose={onClose}
                     defaults={chartMetadata}
                 />
@@ -121,6 +125,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                 <SaveToSpaceOrDashboard
                     projectUuid={projectUuid}
                     savedData={savedData}
+                    colorPaletteUuid={colorPaletteUuid}
                     onConfirm={onConfirm}
                     onClose={onClose}
                     defaultSpaceUuid={spaceUuid}

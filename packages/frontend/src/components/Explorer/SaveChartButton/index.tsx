@@ -257,6 +257,7 @@ const SaveChartButton: FC<{
                 <ChartCreateModal
                     opened={isQueryModalOpen}
                     savedData={unsavedChartVersionForSave}
+                    colorPaletteUuid={stagedColorPaletteUuid}
                     onClose={() => {
                         setIsQueryModalOpen(false);
                         setIsSaveAsModal(false);

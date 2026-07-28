@@ -994,14 +994,17 @@ type CreateChartBase = Pick<
     | 'parameters'
 >;
 
+// colorPaletteUuid is on each member to avoid an allOf in the OpenAPI schema.
 export type CreateChartInSpace = CreateChartBase & {
     spaceUuid?: string;
     dashboardUuid?: null;
+    colorPaletteUuid?: string | null;
 };
 
 export type CreateChartInDashboard = CreateChartBase & {
     dashboardUuid: string;
     spaceUuid?: null;
+    colorPaletteUuid?: string | null;
 };
 
 export type CreateSavedChart = CreateChartInSpace | CreateChartInDashboard;
