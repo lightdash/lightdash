@@ -241,11 +241,6 @@ import {
     toolRunContentQueryOutputSchema,
 } from './toolRunContentQueryArgs';
 import {
-    TOOL_RUN_METRIC_QUERY_DESCRIPTION,
-    toolRunMetricQueryArgsSchema,
-    toolRunMetricQueryOutputSchema,
-} from './toolRunMetricQueryArgs';
-import {
     TOOL_RENDER_CHART_DESCRIPTION,
     TOOL_RUN_QUERY_DESCRIPTION,
     toolRenderChartArgsSchema,
@@ -547,21 +542,6 @@ export const renderChartToolDefinition: ToolDefinitionWithMcpOutput<
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpRenderChartStructuredOutputSchema,
     },
-});
-
-/** @deprecated Legacy CSV-only metric query tool. */
-export const runMetricQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'runMetricQuery',
-    typeof toolRunMetricQueryArgsSchema,
-    typeof toolRunMetricQueryArgsSchema,
-    typeof toolRunMetricQueryOutputSchema
-> = defineTool({
-    name: 'runMetricQuery',
-    title: 'Run metric query',
-    description: TOOL_RUN_METRIC_QUERY_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolRunMetricQueryArgsSchema,
-    agent: { outputSchema: toolRunMetricQueryOutputSchema },
 });
 
 export const discoverFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<

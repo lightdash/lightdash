@@ -46,7 +46,6 @@ export * from './toolImproveContextArgs';
 export * from './toolListProjectsArgs';
 export * from './toolListWarehouseTablesArgs';
 export * from './toolRunContentQueryArgs';
-export * from './toolRunMetricQueryArgs';
 export * from './toolRunQueryArgs';
 export * from './toolRunSavedChartArgs';
 export * from './toolRunSqlArgs';

@@ -5,11 +5,7 @@ import {
     toolFindFieldsArgsSchemaTransformed,
     type ToolFindFieldsArgs,
 } from './tools/toolFindFieldsArgs';
-import {
-    toolRunMetricQueryArgsSchema,
-    toolRunMetricQueryArgsSchemaTransformed,
-    type ToolRunMetricQueryArgs,
-} from './tools/toolRunMetricQueryArgs';
+import { toolRunQueryArgsSchema } from './tools/toolRunQueryArgs';
 
 const mcpSchemaCompatLayer = new McpSchemaCompatLayer();
 
@@ -399,155 +395,14 @@ describe('McpSchemaCompatLayer', () => {
         });
     });
 
-    describe('runMetricQueryArgs', () => {
-        const schema = toolRunMetricQueryArgsSchema;
-        const schemaTransformed = toolRunMetricQueryArgsSchemaTransformed;
-        const mapped = mapZodSchema<ToolRunMetricQueryArgs>(schema);
-
-        const baseVizConfig = {
-            exploreName: 'test',
-            metrics: [],
-            dimensions: [],
-            sorts: [],
-        };
-
-        const base = {
-            vizConfig: baseVizConfig,
-        };
-
-        test('should handle empty filters', () => {
-            expect(
-                mapped.parse({
-                    ...base,
-                }),
-            ).toEqual({
-                ...base,
-                customMetrics: null,
-                vizConfig: {
-                    ...baseVizConfig,
-                    limit: null,
-                },
-                filters: null,
-                tableCalculations: null,
-            });
-        });
-
-        test('should handle filters', () => {
-            const parsed = mapped.parse({
-                ...base,
-                filters: {
-                    type: 'and',
-                    dimensions: [
-                        {
-                            values: ['2023-01-01'],
-                            fieldId: 'orders_order_date_year',
-                            operator: 'equals',
-                            fieldType: 'date',
-                            fieldFilterType: 'date',
-                        },
-                    ],
-                },
-            });
-
-            expect(parsed).toEqual({
-                ...base,
-                customMetrics: null,
-                vizConfig: {
-                    ...baseVizConfig,
-                    limit: null,
-                },
-                filters: {
-                    type: 'and',
-                    metrics: null,
-                    dimensions: [
-                        {
-                            values: ['2023-01-01'],
-                            fieldId: 'orders_order_date_year',
-                            operator: 'equals',
-                            fieldType: 'date',
-                            fieldFilterType: 'date',
-                        },
-                    ],
-                    tableCalculations: null,
-                },
-                tableCalculations: null,
-            });
-
-            expect(() => schemaTransformed.parse(parsed)).not.toThrow();
-        });
-
-        test('should handle sorts', () => {
-            expect(
-                mapped.parse({
-                    ...base,
-                    customMetrics: [],
-                    vizConfig: {
-                        ...baseVizConfig,
-                        sorts: [
-                            {
-                                fieldId: 'test',
-                                descending: true,
-                                nullsFirst: true,
-                            },
-                        ],
-                    },
-                }),
-            ).toEqual({
-                ...base,
-                customMetrics: [],
-                filters: null,
-                vizConfig: {
-                    ...baseVizConfig,
-                    limit: null,
-                    sorts: [
-                        {
-                            fieldId: 'test',
-                            descending: true,
-                            nullsFirst: true,
-                        },
-                    ],
-                },
-                tableCalculations: null,
-            });
-            expect(
-                mapped.parse({
-                    ...base,
-                    customMetrics: [],
-                    vizConfig: {
-                        ...baseVizConfig,
-                        sorts: [
-                            {
-                                fieldId: 'test',
-                                descending: true,
-                            },
-                        ],
-                    },
-                }),
-            ).toEqual({
-                ...base,
-                customMetrics: [],
-                filters: null,
-                vizConfig: {
-                    ...baseVizConfig,
-                    limit: null,
-                    sorts: [
-                        {
-                            fieldId: 'test',
-                            descending: true,
-                            nullsFirst: null,
-                        },
-                    ],
-                },
-                tableCalculations: null,
-            });
-        });
-    });
-
     describe('JSON Schema $ref generation', () => {
         // Regression test: zodToJsonSchema must not produce $ref pointers in
         // the run_metric_query schema. The MCP Gateway cannot resolve them and
         // returns 500 ERR_INVALID_URL when filters are present.
-        test('toolRunMetricQueryArgsSchema should not produce $ref pointers', () => {
+        // The MCP `run_metric_query` tool is served by runQueryToolDefinition,
+        // so this guards toolRunQueryArgsSchema — it previously pointed at the
+        // legacy runMetricQuery schema, which was never served.
+        test('toolRunQueryArgsSchema should not produce $ref pointers', () => {
             // Use the same zodToJsonSchema that the MCP SDK uses internally
             // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
             const { zodToJsonSchema } = require('zod-to-json-schema') as {
@@ -557,7 +412,7 @@ describe('McpSchemaCompatLayer', () => {
                 ) => Record<string, unknown>;
             };
             const processed = mcpSchemaCompatLayer.processZodType(
-                toolRunMetricQueryArgsSchema,
+                toolRunQueryArgsSchema,
             );
             const jsonSchema = zodToJsonSchema(processed, {
                 strictUnions: true,
