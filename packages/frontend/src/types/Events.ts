@@ -201,6 +201,7 @@ export enum EventName {
     BIGQUERY_SSO_SIGNIN_CLICKED = 'bigquery_sso.signin_clicked',
     BIGQUERY_SSO_SIGNIN_COMPLETED = 'bigquery_sso.signin_completed',
     SNOWFLAKE_CLI_SSO_COMMAND_COPIED = 'snowflake_cli_sso.command_copied',
+    SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED = 'snowflake_cli_sso.connect_completed',
     SETUP_INVITE_SENT = 'setup_invite.sent',
     PLAYGROUND_PROJECT_ENTERED = 'playground_project.entered',
     PLAYGROUND_PROJECT_SETUP_FAILED = 'playground_project.setup_failed',

@@ -77,7 +77,6 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_TREES_EDGE_REMOVED
         | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED
         | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
-        | EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED
         | EventName.AGENT_SETUP_PROMPT_COPIED;
     properties?: {};
 };
@@ -687,6 +686,21 @@ type BigquerySsoSigninCompletedEvent = {
     };
 };
 
+type SnowflakeCliSsoCommandCopiedEvent = {
+    name: EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED;
+    properties: {
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type SnowflakeCliSsoConnectCompletedEvent = {
+    name: EventName.SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED;
+    properties: {
+        success: boolean;
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
 type OnboardingProjectReadyStartExploringClickedEvent = {
     name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED;
     properties: {
@@ -740,6 +754,8 @@ export type EventData =
     | OrganizationBrandDetectedEvent
     | OnboardingWarehouseSelectedEvent
     | BigquerySsoSigninCompletedEvent
+    | SnowflakeCliSsoCommandCopiedEvent
+    | SnowflakeCliSsoConnectCompletedEvent
     | OnboardingProjectReadyStartExploringClickedEvent
     | HomepageAskSubmittedEvent
     | HomepageRecommendedActionImpressionEvent
