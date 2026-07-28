@@ -39,6 +39,7 @@ const UserCompletionModal: FC = () => {
         initialValues: {
             organizationName: '',
             jobTitle: '',
+            howDidYouHearAboutUs: '',
             enableEmailDomainAccess: false,
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
@@ -49,11 +50,15 @@ const UserCompletionModal: FC = () => {
     const { isLoading, mutate, isSuccess } = useUserCompleteMutation();
 
     const handleSubmit = form.onSubmit((data) => {
+        const payload = {
+            ...data,
+            howDidYouHearAboutUs: data.howDidYouHearAboutUs?.trim() ?? '',
+        };
         if (user.data?.organizationName) {
-            const { organizationName, ...rest } = data;
+            const { organizationName, ...rest } = payload;
             mutate(rest);
         } else {
-            mutate(data);
+            mutate(payload);
         }
     });
 
@@ -138,6 +143,13 @@ const UserCompletionModal: FC = () => {
                         required
                         placeholder="Select your role"
                         {...form.getInputProps('jobTitle')}
+                    />
+
+                    <TextInput
+                        label="How did you hear about us?"
+                        placeholder="Google, a colleague, a podcast..."
+                        disabled={isLoading}
+                        {...form.getInputProps('howDidYouHearAboutUs')}
                     />
 
                     <Stack gap="xs">

@@ -355,6 +355,95 @@ describe('UserService', () => {
         });
     });
 
+    describe('completeUserSetup', () => {
+        test('persists and tracks a trimmed answer', async () => {
+            await userService.completeUserSetup(sessionUser, {
+                jobTitle: '',
+                howDidYouHearAboutUs: '  A podcast  ',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(userModel.updateUser)).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                undefined,
+                {
+                    isSetupComplete: true,
+                    isTrackingAnonymized: false,
+                    isMarketingOptedIn: true,
+                    howDidYouHearAboutUs: 'A podcast',
+                },
+            );
+            expect(vi.mocked(analyticsMock.track)).toHaveBeenCalledWith({
+                event: 'hear_about_us.submitted',
+                userId: sessionUser.userUuid,
+                properties: {
+                    organizationId: sessionUser.organizationUuid,
+                    onboardingFlow: 'legacy',
+                    answered: true,
+                    answer: 'A podcast',
+                },
+            });
+        });
+
+        test('persists and tracks a skipped answer', async () => {
+            await userService.completeUserSetup(sessionUser, {
+                jobTitle: '',
+                howDidYouHearAboutUs: '',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(userModel.updateUser)).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                undefined,
+                {
+                    isSetupComplete: true,
+                    isTrackingAnonymized: false,
+                    isMarketingOptedIn: true,
+                    howDidYouHearAboutUs: '',
+                },
+            );
+            expect(vi.mocked(analyticsMock.track)).toHaveBeenCalledWith({
+                event: 'hear_about_us.submitted',
+                userId: sessionUser.userUuid,
+                properties: {
+                    organizationId: sessionUser.organizationUuid,
+                    onboardingFlow: 'legacy',
+                    answered: false,
+                    answer: null,
+                },
+            });
+        });
+
+        test('does not track an absent answer', async () => {
+            await userService.completeUserSetup(sessionUser, {
+                jobTitle: '',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(userModel.updateUser)).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                undefined,
+                {
+                    isSetupComplete: true,
+                    isTrackingAnonymized: false,
+                    isMarketingOptedIn: true,
+                    howDidYouHearAboutUs: undefined,
+                },
+            );
+            expect(vi.mocked(analyticsMock.track)).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'hear_about_us.submitted',
+                }),
+            );
+        });
+    });
+
     describe('delete', () => {
         const orglessActor: SessionUser = {
             ...sessionUser,

@@ -1397,6 +1397,7 @@ export class UserService extends BaseService {
             isTrackingAnonymized,
             isMarketingOptedIn,
             enableEmailDomainAccess,
+            howDidYouHearAboutUs,
         }: CompleteUserArgs,
     ): Promise<LightdashUser> {
         if (!isUserWithOrg(user)) {
@@ -1452,6 +1453,10 @@ export class UserService extends BaseService {
                 );
             }
         }
+        const answer =
+            typeof howDidYouHearAboutUs === 'string'
+                ? howDidYouHearAboutUs.trim().slice(0, 1000)
+                : undefined;
         const completeUser = await this.userModel.updateUser(
             user.userUuid,
             undefined,
@@ -1459,8 +1464,23 @@ export class UserService extends BaseService {
                 isSetupComplete: true,
                 isTrackingAnonymized,
                 isMarketingOptedIn,
+                howDidYouHearAboutUs: answer,
             },
         );
+
+        if (answer !== undefined) {
+            const onboardingFlow = await this.getOnboardingFlow(user);
+            this.analytics.track({
+                event: 'hear_about_us.submitted',
+                userId: completeUser.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid,
+                    onboardingFlow,
+                    answered: answer.length > 0,
+                    answer: answer.length > 0 ? answer : null,
+                },
+            });
+        }
 
         this.identifyUser(completeUser);
         this.analytics.track({

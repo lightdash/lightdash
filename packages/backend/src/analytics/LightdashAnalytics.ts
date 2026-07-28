@@ -173,6 +173,17 @@ export type UpdateUserEvent = BaseTrack & {
     };
 };
 
+type HearAboutUsSubmittedEvent = BaseTrack & {
+    event: 'hear_about_us.submitted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        onboardingFlow: OnboardingFlow;
+        answered: boolean;
+        answer: string | null;
+    };
+};
+
 function isUserUpdatedEvent(event: BaseTrack): event is UpdateUserEvent {
     return event.event === 'user.updated';
 }
@@ -2887,6 +2898,7 @@ type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
     | UpdateUserEvent
+    | HearAboutUsSubmittedEvent
     | DeleteUserEvent
     | VerifiedUserEvent
     | OneTimePasscodeSentEvent

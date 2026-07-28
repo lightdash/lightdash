@@ -529,6 +529,7 @@ export class UserModel {
             isActive,
             timezone,
             avatarGradient,
+            howDidYouHearAboutUs,
         }: Partial<UpdateUserArgs>,
         isEmailVerified: boolean = false,
     ): Promise<LightdashUser> {
@@ -546,6 +547,7 @@ export class UserModel {
                         : false,
                     timezone,
                     avatar_gradient: avatarGradient,
+                    how_did_you_hear_about_us: howDidYouHearAboutUs,
                     updated_at: new Date(),
                 })
                 .returning('*');

@@ -246,6 +246,7 @@ describe('UserCompletionModal', () => {
             .patch('/api/v1/user/me/complete', {
                 organizationName: 'test organization',
                 jobTitle: 'Software Engineer',
+                howDidYouHearAboutUs: '',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: false,
                 isTrackingAnonymized: true,
@@ -301,6 +302,7 @@ describe('UserCompletionModal', () => {
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 jobTitle: 'Software Engineer',
+                howDidYouHearAboutUs: '',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
@@ -311,6 +313,61 @@ describe('UserCompletionModal', () => {
         await user.click(submitButton);
 
         // wait for api call to be made
+        scope.done();
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+    });
+
+    it('should render the how did you hear about us input', async () => {
+        renderModal({
+            user: {
+                isSetupComplete: false,
+                organizationName: 'test organization',
+            },
+        });
+
+        const welcomeModal = await screen.findByRole('dialog');
+        expect(
+            within(welcomeModal).getByLabelText('How did you hear about us?'),
+        ).toBeInTheDocument();
+    });
+
+    it('should submit the trimmed how did you hear about us answer', async () => {
+        const user = userEvent.setup();
+
+        renderModal({
+            user: {
+                isSetupComplete: false,
+                organizationName: 'test organization',
+            },
+        });
+
+        const submitButton = await screen.findByRole('button', {
+            name: 'Next',
+        });
+
+        const roleSelect =
+            await screen.findByPlaceholderText('Select your role');
+        await user.click(roleSelect);
+        const roleOption = await screen.findByText('Software Engineer');
+        await user.click(roleOption);
+
+        const referralInput = await screen.findByLabelText(
+            'How did you hear about us?',
+        );
+        await user.type(referralInput, '  a podcast  ');
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete', {
+                jobTitle: 'Software Engineer',
+                howDidYouHearAboutUs: 'a podcast',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            })
+            .reply(200);
+
+        await user.click(submitButton);
+
         scope.done();
         await waitFor(() => expect(scope.isDone()).toBe(true));
     });
