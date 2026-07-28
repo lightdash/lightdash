@@ -1,5 +1,5 @@
 import { type AiAgentAdminMemoryItem } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -77,7 +77,7 @@ describe('AiAgentAdminMemoriesTable', () => {
         vi.clearAllMocks();
     });
 
-    it('renders a scope badge on every row', () => {
+    it('does not render scope as a table column', () => {
         mockMemories([
             makeMemory(),
             makeMemory({
@@ -90,20 +90,9 @@ describe('AiAgentAdminMemoriesTable', () => {
 
         renderTable();
 
-        const scopeColumnIndex = screen
-            .getAllByRole('columnheader')
-            .findIndex((header) => header.textContent?.includes('Scope'));
-        expect(scopeColumnIndex).toBeGreaterThan(-1);
-
-        const scopeCellText = (title: string) => {
-            const row = screen.getByText(title).closest('tr');
-            expect(row).not.toBeNull();
-            return within(row!).getAllByRole('cell')[scopeColumnIndex]
-                .textContent;
-        };
-
-        expect(scopeCellText('Net revenue convention')).toBe('Personal');
-        expect(scopeCellText('Fiscal year offset')).toBe('Project-wide');
+        expect(
+            screen.queryByRole('columnheader', { name: /Scope/ }),
+        ).not.toBeInTheDocument();
     });
 
     it('filters by scope through the scope facet', async () => {
