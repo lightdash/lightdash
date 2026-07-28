@@ -9791,6 +9791,30 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageGreetingBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "subtitle": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["subtitle"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["greeting"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object",
+                "description": "Day-part greeting (\"Good afternoon, Ada\") with an optional line under it.\nThe AI hero has its own built-in greeting; this is the standalone one for\npages that don't lead with a composer."
+            },
             "HomepageCollectionItemRef": {
                 "properties": {
                     "uuid": {
@@ -9972,7 +9996,7 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
-            "HomepageQuickAction": {
+            "HomepageQuickActionTarget": {
                 "anyOf": [
                     {
                         "properties": {
@@ -10036,6 +10060,22 @@
                         "type": "object"
                     }
                 ]
+            },
+            "HomepageQuickAction": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HomepageQuickActionTarget"
+                    },
+                    {
+                        "properties": {
+                            "primary": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ],
+                "description": "Any quick action can be promoted to the row's primary one, which renders\nas the same chip inverted. Optional so older configs still load."
             },
             "HomepageQuickActionsBlock": {
                 "properties": {
@@ -10116,6 +10156,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageAskAiHeroBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageGreetingBlock"
                     },
                     {
                         "$ref": "#/components/schemas/HomepageCollectionBlock"
@@ -37954,7 +37997,8 @@
                     "cleanExpiredPreviews",
                     "ingestProjectContext",
                     "compactUsageEvents",
-                    "pollEmailWhitelabelVerification"
+                    "pollEmailWhitelabelVerification",
+                    "cleanWarehouseConnectCodes"
                 ]
             },
             "BaseSchedulerLog": {
@@ -50727,7 +50771,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.16.0",
+        "version": "1.17.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -64266,7 +64310,7 @@
                         }
                     }
                 },
-                "description": "Retrieves credentials deposited against a connect code created by the\ncurrent user. Returns them once and deletes the code",
+                "description": "Retrieves credentials deposited against a connect code created by the\ncurrent user. Returns them until the code expires; expired codes are\ndeleted by a scheduled cleanup job",
                 "summary": "Claim connect code",
                 "tags": ["Projects"],
                 "security": [],

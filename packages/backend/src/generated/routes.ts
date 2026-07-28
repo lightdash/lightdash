@@ -9142,6 +9142,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageGreetingBlock: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        subtitle: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                type: { dataType: 'enum', enums: ['greeting'], required: true },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageCollectionItemRef: {
         dataType: 'refAlias',
         type: {
@@ -9333,7 +9352,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    HomepageQuickAction: {
+    HomepageQuickActionTarget: {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
@@ -9389,6 +9408,21 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                     },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageQuickAction: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'HomepageQuickActionTarget' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: { primary: { dataType: 'boolean' } },
                 },
             ],
             validators: {},
@@ -9474,6 +9508,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'HomepageMarkdownBlock' },
                 { ref: 'HomepageAskAiHeroBlock' },
+                { ref: 'HomepageGreetingBlock' },
                 { ref: 'HomepageCollectionBlock' },
                 { ref: 'HomepageResourcesBlock' },
                 { ref: 'HomepageAnnouncementsBlock' },
@@ -37917,6 +37952,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'enum',
                     enums: ['pollEmailWhitelabelVerification'],
                 },
+                { dataType: 'enum', enums: ['cleanWarehouseConnectCodes'] },
             ],
             validators: {},
         },

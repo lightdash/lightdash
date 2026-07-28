@@ -1,3 +1,39 @@
+# [1.17.0](https://github.com/lightdash/lightdash/compare/1.16.0...1.17.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* **analytics:** gate the verified onboarding step on the onboarding context ([#26342](https://github.com/lightdash/lightdash/issues/26342)) ([f53bd44](https://github.com/lightdash/lightdash/commit/f53bd44cb3a9a980a5c5d1e306ad414ae7fb4e8f))
+* bound the diverted preview deploy so the blank-volume retry always runs ([#26348](https://github.com/lightdash/lightdash/issues/26348)) ([ae6ba4a](https://github.com/lightdash/lightdash/commit/ae6ba4a5cb2eabf05eb95ccba75bcce9cb10e671))
+* bump pinned okteto CLI so the snapshot builder parses compose secrets ([#26358](https://github.com/lightdash/lightdash/issues/26358)) ([66a44c6](https://github.com/lightdash/lightdash/commit/66a44c6f9dfb7dc5424d2ed26e7dd8c5cc1ee20d)), closes [#26312](https://github.com/lightdash/lightdash/issues/26312)
+* **cli:** shorten onboarding PAT network-policy bypass window to 60 minutes ([#26146](https://github.com/lightdash/lightdash/issues/26146)) ([379343a](https://github.com/lightdash/lightdash/commit/379343a7986c2e9b1d92881d723241963612221e))
+* delete expired warehouse connect codes via a scheduled cleanup job ([#26120](https://github.com/lightdash/lightdash/issues/26120)) ([e790813](https://github.com/lightdash/lightdash/commit/e790813f9daf5d1b8356c8041492d78107f7e921))
+* don't flash the "Finish setting up" checklist while its status queries load ([#26365](https://github.com/lightdash/lightdash/issues/26365)) ([9ba02e8](https://github.com/lightdash/lightdash/commit/9ba02e8fc6b80080fa5c3c74da6d0519c6d9754e)), closes [/linear.app/lightdash/issue/ZAP-706/flash-in-finish-setting-up-section-before-it-disappears#agent-session-d48612](https://github.com//linear.app/lightdash/issue/ZAP-706/flash-in-finish-setting-up-section-before-it-disappears/issues/agent-session-d48612)
+* enforce invite link expiry in InviteLinkModel.getByCode ([#26165](https://github.com/lightdash/lightdash/issues/26165)) ([962be0c](https://github.com/lightdash/lightdash/commit/962be0c24b9d4dc2129a1cc7c45083b325c18795))
+* enforce org ownership on project role assignments ([#26157](https://github.com/lightdash/lightdash/issues/26157)) ([51de3e7](https://github.com/lightdash/lightdash/commit/51de3e7c975f749cebba079deaf2b2a327e0a657))
+* enforce project view permission on custom metrics endpoint ([#26191](https://github.com/lightdash/lightdash/issues/26191)) ([dc885a4](https://github.com/lightdash/lightdash/commit/dc885a41c6a134d77cc483b0c82a76a3e8bfa62d))
+* **homepage:** keep dashboard tiles out of Recently viewed ([#26353](https://github.com/lightdash/lightdash/issues/26353)) ([f7562a7](https://github.com/lightdash/lightdash/commit/f7562a7774de541bbba706658bf74f5dbb4fcad8)), closes [#1](https://github.com/lightdash/lightdash/issues/1) [#1](https://github.com/lightdash/lightdash/issues/1)
+* keep email one-time passcode attempt counter across re-issue and throttle resend ([#26011](https://github.com/lightdash/lightdash/issues/26011)) ([f709a13](https://github.com/lightdash/lightdash/commit/f709a133be7e2500fc2e0bc7ecc2f3aa75f99a47))
+* **onboarding:** route new-onboarding signups to the data source page without EE ([#26368](https://github.com/lightdash/lightdash/issues/26368)) ([6980a56](https://github.com/lightdash/lightdash/commit/6980a563de503455440294c1e4295cfc7bf6eb9d))
+* sanitize scheduler name and markdown message in notification emails ([#26166](https://github.com/lightdash/lightdash/issues/26166)) ([b688a74](https://github.com/lightdash/lightdash/commit/b688a746411eda83ffddf010e16ef9d72fb73efa))
+* scope sqlRunner download file lookup to the requested project ([#26239](https://github.com/lightdash/lightdash/issues/26239)) ([1adf866](https://github.com/lightdash/lightdash/commit/1adf86673ad4a2b81ccae739d89a4f9fd882bf21))
+* spread preview DB restores across several snapshot copies ([#26343](https://github.com/lightdash/lightdash/issues/26343)) ([353c37d](https://github.com/lightdash/lightdash/commit/353c37d7893be030a0cc0271ee5327161105518b))
+* strip credentials from git stderr on all error branches ([#26279](https://github.com/lightdash/lightdash/issues/26279)) ([6f9b8f4](https://github.com/lightdash/lightdash/commit/6f9b8f4f2485b806cb17b792b7e5f467c13259f6))
+
+
+### Features
+
+* **analytics:** emit skipped/failed outcomes from onboarding provisioning ([#26340](https://github.com/lightdash/lightdash/issues/26340)) ([ef5fcd3](https://github.com/lightdash/lightdash/commit/ef5fcd3053b13b3bbdf9edd0f307624bb730ebcc))
+* **analytics:** instrument the Snowflake CLI SSO connect experience ([#26372](https://github.com/lightdash/lightdash/issues/26372)) ([5bf92b8](https://github.com/lightdash/lightdash/commit/5bf92b841d53c55e0c40123db47f97a48412013c))
+* **analytics:** stamp onboardingFlow on the shared connection-form events ([#26341](https://github.com/lightdash/lightdash/issues/26341)) ([c75ae6e](https://github.com/lightdash/lightdash/commit/c75ae6ee0068e608016d9b12732d96a91671169a))
+* **data-apps:** accept linked saved charts in useDelivery ([#26325](https://github.com/lightdash/lightdash/issues/26325)) ([17bfbc5](https://github.com/lightdash/lightdash/commit/17bfbc5d0a143d3662adc87dc51fc69ca1fe9f23)), closes [#26324](https://github.com/lightdash/lightdash/issues/26324)
+* **data-apps:** declare scheduled-delivery queries with useDelivery ([#26324](https://github.com/lightdash/lightdash/issues/26324)) ([9c769b5](https://github.com/lightdash/lightdash/commit/9c769b565476b0cf882006e7e0386758ab9bfe5f))
+* **homepage:** gate AI surfaces on an agent existing, not on visibility ([#26361](https://github.com/lightdash/lightdash/issues/26361)) ([65708d1](https://github.com/lightdash/lightdash/commit/65708d151c5072c28d238452a169fad4df21482e)), closes [#26360](https://github.com/lightdash/lightdash/issues/26360)
+* **homepage:** greeting block, day-0 starter template, full-width builder ([#26363](https://github.com/lightdash/lightdash/issues/26363)) ([becc900](https://github.com/lightdash/lightdash/commit/becc900a75d372f8d466bccb241f4ab679a29d09)), closes [#26362](https://github.com/lightdash/lightdash/issues/26362)
+* **homepage:** let one quick action be the primary one ([#26364](https://github.com/lightdash/lightdash/issues/26364)) ([697c7ee](https://github.com/lightdash/lightdash/commit/697c7ee44a505c7c5778c529fd90fa0724ce73f2)), closes [#26363](https://github.com/lightdash/lightdash/issues/26363)
+* **homepage:** rework day-0 for projects without an AI hero ([#26362](https://github.com/lightdash/lightdash/issues/26362)) ([ec60685](https://github.com/lightdash/lightdash/commit/ec60685bab0041251c442012f59ec16fadd5e34f)), closes [#26361](https://github.com/lightdash/lightdash/issues/26361)
+* **onboarding:** collect "how did you hear about us" during signup ([#26356](https://github.com/lightdash/lightdash/issues/26356)) ([5234f2b](https://github.com/lightdash/lightdash/commit/5234f2bbe7150b4a887c8f9013920bc02d116ffd))
+
 # [1.16.0](https://github.com/lightdash/lightdash/compare/1.15.0...1.16.0) (2026-07-28)
 
 
