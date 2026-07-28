@@ -10,6 +10,10 @@ volumes:
             class: csi-okteto
             size: 2Gi
 
+secrets:
+    TURBO_TOKEN:
+        environment: TURBO_TOKEN
+
 services:
     # Must be named identically to the preview db service: the seed stores the
     # project's warehouse connection (including this hostname) in the database,
@@ -31,6 +35,10 @@ services:
             target: pr-runner
             context: ..
             dockerfile: dockerfile-prs
+            args:
+                - TURBO_TEAM=$TURBO_TEAM
+            secrets:
+                - TURBO_TOKEN
         restart: always
         depends_on:
             - db-preview

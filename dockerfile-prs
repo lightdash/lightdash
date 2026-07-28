@@ -201,9 +201,9 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 # output: /usr/app/packages/frontend/build
 
 ############################
-# Build: final build
+# Build: deployment payload
 ############################
-FROM prod-builder AS build-final
+FROM prod-builder AS deploy-builder
 
 # Install Sentry CLI and process sourcemaps if environment variables are set
 ARG SENTRY_AUTH_TOKEN=""
@@ -250,15 +250,18 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     sentry-cli releases deploys "${SENTRY_RELEASE_VERSION}" new -e "${SENTRY_ENVIRONMENT}" --project "${SENTRY_BACKEND_PROJECT}"; \
     fi
 
-# Cleanup development dependencies
-RUN rm -rf node_modules \
-    && rm -rf packages/*/node_modules
-
-# Install production dependencies
 ENV NODE_ENV=production
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --prod --frozen-lockfile --prefer-offline
+    pnpm --filter backend --prod deploy /out/app/packages/backend --legacy
+
+FROM scratch AS deployment
+
+COPY --link --from=deploy-builder /out/app/packages/backend /out/app/packages/backend
+COPY --link --from=deploy-builder /usr/app/packages/frontend/build /out/app/packages/frontend/build
+COPY --link ./examples/full-jaffle-shop-demo/dbt /out/app/dbt
+COPY --link ./examples/full-jaffle-shop-demo/profiles /out/app/profiles
+COPY --link --chmod=755 ./examples/full-jaffle-shop-demo/renderDeployHook.sh /out/bin/renderDeployHook.sh
 
 # -----------------------------
 # Stage 3: execution environment for backend
@@ -288,7 +291,7 @@ RUN ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11
 
 # Run backend
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
-COPY --from=build-final /usr/app /usr/app
+COPY --link --from=deployment /out/app /usr/app
 
 EXPOSE 8080
 
@@ -305,9 +308,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy demo dbt project for E2E testing
-COPY ./examples/full-jaffle-shop-demo/renderDeployHook.sh /usr/bin/renderDeployHook.sh
-COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
-COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
-
-RUN chmod +x /usr/bin/renderDeployHook.sh
+COPY --link --from=deployment /out/bin/renderDeployHook.sh /usr/bin/renderDeployHook.sh

@@ -65,6 +65,9 @@ jobs:
 
       - name: Deploy database and seeder
         run: okteto deploy -f docker/docker-compose.db-snapshot.yml --namespace db-snapshot --name db-snapshot --timeout 30m
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
       - name: Snapshot the seeded volume
         run: ./scripts/preview-db-snapshot.sh "${GITHUB_SHA::7}"
