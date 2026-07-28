@@ -16,6 +16,10 @@ import type {
 /**
  * A query declared for scheduled delivery. `label` is the tab/file name in the
  * delivery; null falls back to a positional name.
+ *
+ * Keep in sync with `DeliveryQuery` in
+ * packages/common/src/ee/apps/deliveryQueries.ts — the host and backend read
+ * that copy, because deployment images don't include this package.
  */
 export type DeliveryQuery =
     | { kind: 'query'; label: string | null; query: QueryDefinition }
