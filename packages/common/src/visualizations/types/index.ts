@@ -376,7 +376,7 @@ export type EChartsSeries = {
     data?: unknown[];
     showSymbol?: boolean;
     symbolSize?: number;
-    markLine?: Record<string, unknown>;
+    markLine?: { z?: number; [key: string]: unknown };
     colorBy?: 'series' | 'data';
     itemStyle?: {
         borderRadius?: number | number[];
@@ -404,6 +404,8 @@ export type EChartsSeries = {
         baseFieldId: string;
     };
     clip?: boolean;
+    // Paint order, derived from series-list position by assignSeriesZByOrder
+    z?: number;
 };
 
 /**
