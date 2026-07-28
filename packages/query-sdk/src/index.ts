@@ -81,6 +81,10 @@ export type {
     InspectSelectedMessage,
 } from './inspector';
 
+// Scheduled-delivery declarations (data apps)
+export { useDelivery } from './delivery';
+export type { DeliveryQuery } from './delivery';
+
 // Google Sheets export (data apps)
 export { exportToSheets } from './exportToSheets';
 export type {
