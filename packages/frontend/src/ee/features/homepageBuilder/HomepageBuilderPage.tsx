@@ -3,12 +3,12 @@ import { type ProjectHomepage } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
-import { v4 as uuidv4 } from 'uuid';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import PageSpinner from '../../../components/PageSpinner';
+import { usePinnedItems } from '../../../hooks/pinning/usePinnedItems';
+import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
-import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
 import { useHomepageAiState } from './hooks/useHomepageAiState';
@@ -18,6 +18,7 @@ import {
     useHomepageForBuilder,
     useProjectHomepages,
 } from './hooks/useProjectHomepage';
+import { buildStarterHomepage } from './starterHomepage';
 
 // ts-unused-exports:disable-next-line
 export const HomepageBuilderPage: FC = () => {
@@ -35,6 +36,12 @@ export const HomepageBuilderPage: FC = () => {
         useHomepageBuilderFlag();
     const { canAskAi, isLoading: isAiStateLoading } =
         useHomepageAiState(projectUuid);
+    // The starter homepage mirrors day-0, which shows the project's pins
+    const { data: project } = useProject(projectUuid);
+    const { data: pinnedItems } = usePinnedItems(
+        projectUuid,
+        project?.pinnedListUuid,
+    );
     const homepage = useHomepageForBuilder(projectUuid, {
         enabled: isFlagEnabled,
         homepageUuid: selectedHomepageUuid,
@@ -81,36 +88,23 @@ export const HomepageBuilderPage: FC = () => {
         createFirstHomepage.mutate(
             {
                 name: 'Homepage',
-                draftConfig: {
-                    version: 1,
-                    rows: [
-                        {
-                            id: uuidv4(),
-                            // Without an agent, seed quick actions rather
-                            // than a composer nobody can use.
-                            blocks: [
-                                canAskAi
-                                    ? {
-                                          id: uuidv4(),
-                                          type: 'ask-ai-hero',
-                                          config: { showGreeting: true },
-                                      }
-                                    : {
-                                          id: uuidv4(),
-                                          type: 'quick-actions',
-                                          config: {
-                                              actions:
-                                                  getDefaultQuickActions(false),
-                                          },
-                                      },
-                            ],
-                        },
-                    ],
-                },
+                draftConfig: buildStarterHomepage(
+                    canAskAi,
+                    (pinnedItems ?? []).map((item) => ({
+                        contentType: item.type,
+                        uuid: item.data.uuid,
+                    })),
+                ),
             },
             { onSuccess: openHomepage },
         );
-    }, [shouldAutoCreate, createFirstHomepage, openHomepage, canAskAi]);
+    }, [
+        shouldAutoCreate,
+        createFirstHomepage,
+        openHomepage,
+        canAskAi,
+        pinnedItems,
+    ]);
 
     if (isFlagLoading || isAiStateLoading) {
         return <PageSpinner />;
