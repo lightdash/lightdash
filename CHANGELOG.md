@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/lightdash/lightdash/compare/1.3.0...1.4.0) (2026-07-28)
+
+
+### Features
+
+* enforce project-scoped chart slug uniqueness ([#25891](https://github.com/lightdash/lightdash/issues/25891)) ([bd26fb2](https://github.com/lightdash/lightdash/commit/bd26fb2cc1443d1e9b609048d0a9a5e44377a3ac))
+
 # [1.3.0](https://github.com/lightdash/lightdash/compare/1.2.0...1.3.0) (2026-07-28)
 
 
