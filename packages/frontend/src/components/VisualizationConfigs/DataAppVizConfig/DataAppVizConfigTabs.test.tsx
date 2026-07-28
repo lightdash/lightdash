@@ -8,9 +8,13 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type CustomSqlDimension,
+    type DataAppVizConfigOption,
+    type DataAppVizField,
     type Item,
     type TableCalculation,
 } from '@lightdash/common';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { ConfigTabs } from './DataAppVizConfigTabs';
@@ -79,30 +83,42 @@ const tableCalculation: TableCalculation = {
     sql: '${orders_visible_metric}',
 };
 
+const declaredFields: DataAppVizField[] = [
+    { name: 'source', label: 'Source', type: 'dimension', required: true },
+    { name: 'value', label: 'Value', type: 'metric', required: true },
+];
+
+const declaredOptions: DataAppVizConfigOption[] = [
+    {
+        type: 'boolean',
+        name: 'showLegend',
+        label: 'Show legend',
+        group: 'Style',
+        default: true,
+    },
+    {
+        type: 'text',
+        name: 'title',
+        label: 'Title',
+        group: 'Style',
+        default: 'Sales',
+    },
+    { type: 'number', name: 'barWidth', label: 'Bar width', default: 8 },
+];
+
+const mockSchema = (configOptions: DataAppVizConfigOption[]) => {
+    vi.mocked(useDataAppVisualization).mockReturnValue({
+        data: { schema: { fields: declaredFields, configOptions } },
+    } as unknown as ReturnType<typeof useDataAppVisualization>);
+};
+
 describe('DataAppVizConfigTabs', () => {
+    const setOption = vi.fn();
+
     beforeEach(() => {
         fieldSelectItems.length = 0;
-        vi.mocked(useDataAppVisualization).mockReturnValue({
-            data: {
-                schema: {
-                    fields: [
-                        {
-                            name: 'source',
-                            label: 'Source',
-                            type: 'dimension',
-                            required: true,
-                        },
-                        {
-                            name: 'value',
-                            label: 'Value',
-                            type: 'metric',
-                            required: true,
-                        },
-                    ],
-                    configOptions: [],
-                },
-            },
-        } as unknown as ReturnType<typeof useDataAppVisualization>);
+        setOption.mockClear();
+        mockSchema([]);
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap: {
                 orders_visible: makeDimension('visible', false),
@@ -117,8 +133,10 @@ describe('DataAppVizConfigTabs', () => {
                 chartConfig: {
                     dataAppVizUuid: 'data-app-viz-uuid',
                     fieldMapping: {},
+                    optionValues: {},
                     setDataAppVizUuid: vi.fn(),
                     setField: vi.fn(),
+                    setOption,
                 },
             },
         } as unknown as ReturnType<typeof useVisualizationContext>);
@@ -131,5 +149,51 @@ describe('DataAppVizConfigTabs', () => {
             ['orders_visible', 'custom-dimension'],
             ['orders_visible_metric', 'table_calculation'],
         ]);
+    });
+
+    it('renders no tab strip when the viz declares no options', () => {
+        renderWithProviders(<ConfigTabs />);
+
+        expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    });
+
+    it('builds one tab per declared group, ungrouped options collapsing into Display', () => {
+        mockSchema(declaredOptions);
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(
+            screen.getAllByRole('tab').map((tab) => tab.textContent),
+        ).toEqual(['General', 'Style', 'Display']);
+    });
+
+    it('renders declared defaults when nothing is stored', async () => {
+        const user = userEvent.setup();
+        mockSchema(declaredOptions);
+        renderWithProviders(<ConfigTabs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Style' }));
+
+        expect(screen.getByLabelText('Show legend')).toBeChecked();
+        expect(screen.getByLabelText('Title')).toHaveValue('Sales');
+
+        await user.click(screen.getByRole('tab', { name: 'Display' }));
+
+        expect(screen.getByLabelText('Bar width')).toHaveValue('8');
+    });
+
+    it('fires setOption when a control changes', async () => {
+        const user = userEvent.setup();
+        mockSchema(declaredOptions);
+        renderWithProviders(<ConfigTabs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Style' }));
+        await user.click(screen.getByLabelText('Show legend'));
+
+        expect(setOption).toHaveBeenCalledWith(
+            'data-app-viz-uuid',
+            'showLegend',
+            false,
+        );
     });
 });
