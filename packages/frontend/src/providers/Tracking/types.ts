@@ -604,6 +604,7 @@ type CreateProjectButtonClickedEvent = {
         warehouse: WarehouseTypes;
         authenticationType?: string;
         warehouseOnly?: boolean;
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -613,6 +614,7 @@ type CreateProjectFailedEvent = {
         warehouse: WarehouseTypes;
         errorType: string;
         warehouseOnly?: boolean;
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 

@@ -10,7 +10,7 @@ import { Button } from '@mantine-8/core';
 import { useQueryClient } from '@tanstack/react-query';
 import confetti from 'canvas-confetti';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { getProject, useCreateMutation } from '../../hooks/useProject';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
@@ -45,6 +45,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     celebrateOnSuccess = false,
 }) => {
     const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const onboardingFlow = pathname.startsWith('/onboarding/')
+        ? 'new'
+        : 'legacy';
     const queryClient = useQueryClient();
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
@@ -99,6 +103,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         ? warehouseConnection.authenticationType
                         : undefined,
                 warehouseOnly,
+                onboardingFlow,
             },
         });
         if (selectedWarehouse) {
@@ -222,6 +227,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                     warehouse: selectedWarehouse ?? form.values.warehouse.type,
                     errorType: failedStep?.stepType ?? 'unknown',
                     warehouseOnly,
+                    onboardingFlow,
                 },
             });
         }
@@ -230,6 +236,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         createProjectJobId,
         selectedWarehouse,
         warehouseOnly,
+        onboardingFlow,
         track,
         form.values.warehouse.type,
     ]);
