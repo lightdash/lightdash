@@ -22,10 +22,16 @@ if is_seeded; then
 else
     echo "Database not pre-seeded: running full dbt + migrate + seed"
 
-    # Idempotent dbt commands
-    dbt1.7 deps --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles
-    dbt1.7 seed --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refresh
-    dbt1.7 run --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refresh
+    seed_dbt_version="${LIGHTDASH_SEED_DBT_VERSION:-v1.7}"
+    seed_dbt_command="dbt${seed_dbt_version#v}"
+    if ! command -v "$seed_dbt_command" >/dev/null; then
+        echo "Missing dbt executable: $seed_dbt_command"
+        exit 1
+    fi
+
+    "$seed_dbt_command" deps --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles
+    "$seed_dbt_command" seed --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refresh
+    "$seed_dbt_command" run --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refresh
 
     # Rollback all migrations and seed
     pnpm -F backend rollback-all-production
