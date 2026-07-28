@@ -211,6 +211,12 @@ a .hoverCard:hover,
     white-space: nowrap;
 }
 
+/* Icons are flex children, so a long name squeezed them instead of itself —
+ * the name owns all the shrinking. */
+.favPill > svg {
+    flex-shrink: 0;
+}
+
 .favPillMore {
     display: inline-flex;
     align-items: center;
