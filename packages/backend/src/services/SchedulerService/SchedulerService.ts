@@ -1573,6 +1573,24 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // The body is client-supplied: only trust sourceSchedulerUuid for
+        // delivery links if it resolves to a scheduler on the same resource.
+        if (scheduler.sourceSchedulerUuid) {
+            const sourceScheduler = await this.schedulerModel.getScheduler(
+                scheduler.sourceSchedulerUuid,
+            );
+            if (
+                sourceScheduler.savedChartUuid !== scheduler.savedChartUuid ||
+                sourceScheduler.dashboardUuid !== scheduler.dashboardUuid ||
+                sourceScheduler.savedSqlUuid !== scheduler.savedSqlUuid ||
+                sourceScheduler.appUuid !== scheduler.appUuid
+            ) {
+                throw new ParameterError(
+                    'sourceSchedulerUuid does not belong to the delivery resource',
+                );
+            }
+        }
+
         const slackChannels = scheduler.targets
             .filter(isCreateSchedulerSlackTarget)
             .map((target) => target.channel);

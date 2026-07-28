@@ -2,11 +2,13 @@ import { Ability, RawRuleOf } from '@casl/ability';
 import {
     ForbiddenError,
     OrganizationMemberRole,
+    ParameterError,
     PossibleAbilities,
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
     type ChartScheduler,
+    type CreateSchedulerAndTargets,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -134,6 +136,10 @@ const schedulerClient = {
     addScheduledDeliveryJob: vi.fn(async () => ({})),
 };
 
+const slackClient = {
+    joinChannels: vi.fn(async () => {}),
+};
+
 const buildUser = (
     abilities: RawRuleOf<Ability<PossibleAbilities>>[],
 ): SessionUser =>
@@ -157,7 +163,7 @@ const buildService = () =>
         appModel: {} as AppModel,
         projectModel: {} as ProjectModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
-        slackClient: {} as SlackClient,
+        slackClient: slackClient as unknown as SlackClient,
         emailClient: {} as EmailClient,
         userModel: {} as UserModel,
         googleDriveClient: {} as GoogleDriveClient,
@@ -186,6 +192,81 @@ describe('SchedulerService', () => {
             expect(
                 schedulerClient.addScheduledDeliveryJob,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('sendScheduler', () => {
+        const sendNowPayload = {
+            name: 'send now delivery',
+            format: SchedulerFormat.CSV,
+            cron: '0 0 * * *',
+            options: { formatted: true, limit: 'table' },
+            savedChartUuid,
+            dashboardUuid: null,
+            savedSqlUuid: null,
+            appUuid: null,
+            createdBy: 'userUuid',
+            enabled: true,
+            includeLinks: true,
+            targets: [{ recipient: 'recipient@example.com' }],
+        } as unknown as CreateSchedulerAndTargets;
+
+        const userWhoCanSend = buildUser([
+            { subject: 'ScheduledDeliveries', action: ['create'] },
+            { subject: 'SavedChart', action: ['view'] },
+            { subject: 'Dashboard', action: ['view'] },
+        ]);
+
+        test('passes sourceSchedulerUuid to the delivery job when it matches the saved scheduler resource', async () => {
+            await service.sendScheduler(userWhoCanSend, {
+                ...sendNowPayload,
+                sourceSchedulerUuid: chartSchedulerInPrivateSpace.schedulerUuid,
+            });
+
+            expect(schedulerModel.getScheduler).toHaveBeenCalledWith(
+                chartSchedulerInPrivateSpace.schedulerUuid,
+            );
+            expect(
+                schedulerClient.addScheduledDeliveryJob,
+            ).toHaveBeenCalledWith(
+                expect.any(Date),
+                expect.objectContaining({
+                    sourceSchedulerUuid:
+                        chartSchedulerInPrivateSpace.schedulerUuid,
+                }),
+                undefined,
+            );
+        });
+
+        test('throws ParameterError when sourceSchedulerUuid belongs to a different resource', async () => {
+            await expect(
+                service.sendScheduler(userWhoCanSend, {
+                    ...sendNowPayload,
+                    savedChartUuid: null,
+                    dashboardUuid: 'dashboardUuid',
+                    sourceSchedulerUuid:
+                        chartSchedulerInPrivateSpace.schedulerUuid,
+                }),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(
+                schedulerClient.addScheduledDeliveryJob,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('does not look up a saved scheduler when no sourceSchedulerUuid is given', async () => {
+            await service.sendScheduler(userWhoCanSend, sendNowPayload);
+
+            expect(schedulerModel.getScheduler).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.addScheduledDeliveryJob,
+            ).toHaveBeenCalledWith(
+                expect.any(Date),
+                expect.not.objectContaining({
+                    sourceSchedulerUuid: expect.anything(),
+                }),
+                undefined,
+            );
         });
     });
 
