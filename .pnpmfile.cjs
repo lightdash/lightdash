@@ -5,7 +5,7 @@
 // https://github.com/pnpm/pnpm/issues/4214
 // https://github.com/pnpm/pnpm/issues/5391
 
-// TypeScript 7 has a new API; isolate tools that still require the legacy API.
+// TypeScript 7 omits the legacy compiler API; keep dependent tools on TypeScript 6.
 const LEGACY_TYPESCRIPT_API_PACKAGE = 'npm:@typescript/typescript6@6.0.2';
 
 const legacyTypeScriptApiPackages = new Set([
