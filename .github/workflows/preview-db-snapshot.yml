@@ -42,7 +42,7 @@ jobs:
       # only; the run steps below need the CLI on the runner itself
       - name: Install Okteto CLI
         run: |
-          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.7.0/okteto-Linux-x86_64
+          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
           chmod +x okteto
           sudo mv okteto /usr/local/bin/okteto
 
