@@ -414,7 +414,7 @@ describe('AppGenerateService.getAppCode', () => {
     it('emits app external-connection links as {alias, connectionSlug} in the manifest', async () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
         const appModel = {
-            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn().mockResolvedValue(fakeAppVersion),
         };
         const listAppLinks = vi.fn().mockResolvedValue([
