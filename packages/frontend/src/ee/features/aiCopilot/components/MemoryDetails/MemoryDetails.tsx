@@ -6,7 +6,6 @@ import type {
 import {
     Accordion,
     ActionIcon,
-    Alert,
     Anchor,
     Badge,
     Box,
@@ -25,6 +24,7 @@ import {
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
+import Callout from '../../../../../components/common/Callout';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { parseAiAgentMemorySections } from '../../utils/memory';
 import { MEMORY_SCOPE_LABELS } from '../Admin/memoryScope';
@@ -123,17 +123,23 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
         <Box className={styles.layout}>
             <Stack className={styles.main} gap={0}>
                 {memory.status !== 'active' ? (
-                    <Alert
+                    <Callout
                         mb="xl"
                         color="gray"
-                        variant="light"
+                        variant="info"
                         title={`This memory is ${memory.status}`}
                         icon={<IconHistory size={17} />}
+                        classNames={{
+                            title: styles.statusCalloutText,
+                            message: styles.statusCalloutText,
+                        }}
                     >
                         {replacementPath ? (
                             <Anchor
                                 component={Link}
                                 to={replacementPath}
+                                c="ldGray.8"
+                                fz="xs"
                                 fw={600}
                             >
                                 View the current memory
@@ -141,7 +147,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         ) : (
                             'It remains available for audit history.'
                         )}
-                    </Alert>
+                    </Callout>
                 ) : null}
 
                 <Stack gap="md">
