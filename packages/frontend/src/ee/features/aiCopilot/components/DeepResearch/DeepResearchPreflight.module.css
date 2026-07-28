@@ -41,20 +41,6 @@
     }
 }
 
-.source {
-    padding: rem(3px) rem(6px);
-    border: 1px solid var(--mantine-color-indigo-2);
-    border-radius: var(--mantine-radius-sm);
-
-    @mixin light {
-        background-color: rgba(255, 255, 255, 0.56);
-    }
-
-    &[data-available='false'] {
-        border-style: dashed;
-    }
-}
-
 @media (max-width: 48em) {
     .root {
         padding-right: var(--mantine-spacing-sm);

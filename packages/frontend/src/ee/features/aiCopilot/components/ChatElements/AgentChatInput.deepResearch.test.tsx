@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
@@ -72,7 +72,7 @@ describe('AgentChatInput Deep research mode', () => {
         ).not.toBeInTheDocument();
         expect(
             await screen.findByRole('checkbox', { name: /GitHub/ }),
-        ).toBeChecked();
+        ).not.toBeChecked();
 
         await user.click(screen.getByText('High'));
         await user.click(
@@ -82,7 +82,7 @@ describe('AgentChatInput Deep research mode', () => {
         expect(onStartDeepResearch).toHaveBeenCalledWith({
             question: 'Why did enterprise retention fall in Q2?',
             depth: 'deep',
-            mcpServerUuids: ['mcp-1'],
+            mcpServerUuids: [],
         });
         expect(onSubmit).not.toHaveBeenCalled();
     });
@@ -116,7 +116,7 @@ describe('AgentChatInput Deep research mode', () => {
         expect(onStartDeepResearch).toHaveBeenCalledWith({
             question: 'What changed this month?',
             depth: 'standard',
-            mcpServerUuids: ['mcp-1'],
+            mcpServerUuids: [],
         });
         expect(onSubmit).not.toHaveBeenCalled();
     });
@@ -205,13 +205,13 @@ describe('AgentChatInput Deep research mode', () => {
             name: /GitHub/,
         });
         await user.click(serverCheckbox);
-        expect(serverCheckbox).not.toBeChecked();
+        expect(serverCheckbox).toBeChecked();
         await user.click(
             screen.getByRole('button', { name: 'Start research' }),
         );
 
         expect(onStartDeepResearch).toHaveBeenCalledWith(
-            expect.objectContaining({ mcpServerUuids: [] }),
+            expect.objectContaining({ mcpServerUuids: ['mcp-1'] }),
         );
     });
 
@@ -247,12 +247,15 @@ describe('AgentChatInput Deep research mode', () => {
         );
     });
 
-    it('blocks preflight while a selected MCP server needs reconnection', async () => {
+    it('only shows MCP servers that are available to use', async () => {
         const user = userEvent.setup();
         useAgentAiMcpServersMock.mockReturnValue({
             data: [
+                connectedMcpServer,
                 {
                     ...connectedMcpServer,
+                    uuid: 'mcp-2',
+                    name: 'Attio',
                     connectionStatus: 'not_connected',
                     hasCredentials: false,
                 },
@@ -280,10 +283,71 @@ describe('AgentChatInput Deep research mode', () => {
         await user.click(screen.getByRole('button', { name: 'Deep research' }));
 
         expect(
-            await screen.findByText('connection required'),
-        ).toBeInTheDocument();
+            await screen.findByRole('checkbox', { name: /GitHub/ }),
+        ).not.toBeChecked();
+        expect(
+            screen.queryByRole('checkbox', { name: /Attio/ }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('connection required'),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Start research' }),
-        ).toBeDisabled();
+        ).toBeEnabled();
+    });
+
+    it('removes a selected MCP when it becomes unavailable', async () => {
+        const user = userEvent.setup();
+        const onStartDeepResearch = vi.fn().mockResolvedValue(undefined);
+        const renderInput = () => (
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AgentChatInput
+                        onSubmit={vi.fn()}
+                        onStartDeepResearch={onStartDeepResearch}
+                        projectUuid="project-1"
+                        agentUuid="agent-1"
+                        defaultValue="Investigate churn"
+                        showSuggestions={false}
+                    />
+                </MemoryRouter>
+            </Provider>
+        );
+        const rendered = renderWithProviders(renderInput());
+
+        await user.click(screen.getByRole('button', { name: 'Deep research' }));
+        await user.click(
+            await screen.findByRole('checkbox', { name: /GitHub/ }),
+        );
+
+        useAgentAiMcpServersMock.mockReturnValue({
+            data: [
+                {
+                    ...connectedMcpServer,
+                    connectionStatus: 'not_connected',
+                    hasCredentials: false,
+                },
+            ],
+            isLoading: false,
+            isError: false,
+            error: null,
+        });
+        rendered.rerender(renderInput());
+
+        await waitFor(() => {
+            expect(
+                screen.queryByRole('checkbox', { name: /GitHub/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Start research' }),
+            ).toBeEnabled();
+        });
+
+        await user.click(
+            screen.getByRole('button', { name: 'Start research' }),
+        );
+        expect(onStartDeepResearch).toHaveBeenCalledWith(
+            expect.objectContaining({ mcpServerUuids: [] }),
+        );
     });
 });
