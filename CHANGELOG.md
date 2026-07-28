@@ -1,3 +1,16 @@
+# [1.15.0](https://github.com/lightdash/lightdash/compare/1.14.0...1.15.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* **ai:** avoid loading inline deep research explore ([#26322](https://github.com/lightdash/lightdash/issues/26322)) ([064bd06](https://github.com/lightdash/lightdash/commit/064bd06159f8dfbfa647d6d00ea26f89366cde8a))
+* **data-apps:** link app scheduled deliveries to the app, not /dashboards/null ([#26306](https://github.com/lightdash/lightdash/issues/26306)) ([efd3ec6](https://github.com/lightdash/lightdash/commit/efd3ec66a3281682554593ddb8d2f29c8fe29671))
+
+
+### Features
+
+* **ai:** make deep research reports available to chat ([#26317](https://github.com/lightdash/lightdash/issues/26317)) ([e2258b7](https://github.com/lightdash/lightdash/commit/e2258b763bc966af75ade31b7a8ba8a3aa59e893))
+
 # [1.14.0](https://github.com/lightdash/lightdash/compare/1.13.0...1.14.0) (2026-07-28)
 
 
