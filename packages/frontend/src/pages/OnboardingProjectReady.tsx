@@ -200,7 +200,10 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
                         onClick={() => {
                             track({
                                 name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED,
-                                properties: { projectId: projectUuid },
+                                properties: {
+                                    projectId: projectUuid,
+                                    onboardingFlow: 'new',
+                                },
                             });
                             void navigate(`/projects/${projectUuid}/home`);
                         }}

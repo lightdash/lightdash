@@ -89,6 +89,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                                                           OtherWarehouse.Other
                                                               ? 'other'
                                                               : 'all',
+                                                      onboardingFlow: 'legacy',
                                                   },
                                               });
                                               onSelect(item.key);
