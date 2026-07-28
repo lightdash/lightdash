@@ -655,6 +655,7 @@ type OrganizationBrandDetectedEvent = {
 type OnboardingWarehouseSelectedEvent = {
     name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
     properties: {
+        organizationId: string;
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
     };
