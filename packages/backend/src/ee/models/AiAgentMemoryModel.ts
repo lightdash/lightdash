@@ -795,6 +795,32 @@ export class AiAgentMemoryModel {
             .select(['slug', 'title']);
     }
 
+    async findActiveBySourceThread(
+        sourceThreadUuid: string,
+    ): Promise<Pick<DbAiAgentMemory, 'ai_agent_memory_uuid'> | undefined> {
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('source_thread_uuid', sourceThreadUuid)
+            .where('status', 'active')
+            .first('ai_agent_memory_uuid');
+    }
+
+    async updateStatus(args: {
+        memoryUuid: string;
+        status: 'active' | 'retired';
+    }): Promise<boolean> {
+        const updated = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('ai_agent_memory_uuid', args.memoryUuid)
+            .whereIn('status', ['active', 'retired'])
+            .update({
+                status: args.status,
+                updated_at: this.database.fn.now(),
+            });
+
+        return updated > 0;
+    }
+
     async incrementPulledForActiveMemories(args: {
         projectUuid: string;
         userUuid: string;

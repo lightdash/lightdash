@@ -64,6 +64,8 @@ import {
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
+    ApiUpdateAiAgentMemoryStatusRequest,
+    ApiUpdateAiAgentMemoryStatusResponse,
     ApiUpdateAiMcpServerCredentialBody,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
@@ -516,6 +518,35 @@ export class AiAgentController extends BaseController {
                 slug,
             ),
         };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{agentUuid}/memories/{slug}/status')
+    @OperationId('updateAiAgentMemoryStatus')
+    async updateAiAgentMemoryStatus(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() slug: string,
+        @Body() body: ApiUpdateAiAgentMemoryStatusRequest,
+    ): Promise<ApiUpdateAiAgentMemoryStatusResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        void agentUuid;
+
+        await this.getAiAgentMemoryService().updateMemoryStatus(
+            toSessionUser(req.account),
+            projectUuid,
+            slug,
+            body.status,
+        );
+
+        return { status: 'ok', results: undefined };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

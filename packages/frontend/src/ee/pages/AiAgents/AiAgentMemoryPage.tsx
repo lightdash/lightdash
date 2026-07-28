@@ -12,6 +12,7 @@ import { Link, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import PageSpinner from '../../../components/PageSpinner';
 import { MemoryDetails } from '../../features/aiCopilot/components/MemoryDetails/MemoryDetails';
+import { MemoryStatusAction } from '../../features/aiCopilot/components/MemoryDetails/MemoryStatusControls';
 import { useAiAgentMemory } from '../../features/aiCopilot/hooks/useAiAgentMemory';
 import styles from './AiAgentMemoryPage.module.css';
 
@@ -38,7 +39,11 @@ const AiAgentMemoryPage = () => {
                 </Anchor>
 
                 <Paper withBorder radius="lg" className={styles.surface}>
-                    <Group className={styles.header} wrap="nowrap">
+                    <Group
+                        className={styles.header}
+                        wrap="nowrap"
+                        justify="space-between"
+                    >
                         <Text
                             component="h1"
                             className={styles.title}
@@ -46,6 +51,12 @@ const AiAgentMemoryPage = () => {
                         >
                             {memoryQuery.data.title}
                         </Text>
+                        <MemoryStatusAction
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                            slug={memoryQuery.data.slug}
+                            status={memoryQuery.data.status}
+                        />
                     </Group>
                     <Divider />
                     <Box className={styles.body}>

@@ -347,6 +347,8 @@ export type AiAgentMemorySource = {
 
 export type AiAgentMemoryStatus = 'active' | 'superseded' | 'retired';
 
+export type AiAgentMemoryEditableStatus = 'active' | 'retired';
+
 /**
  * Never affects which memories are recalled: selection, pull, ranking and
  * access all filter on ownership alone. The label IS rendered into the injected
@@ -372,6 +374,12 @@ export type AiAgentMemory = {
 };
 
 export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
+
+export type ApiUpdateAiAgentMemoryStatusRequest = {
+    status: AiAgentMemoryEditableStatus;
+};
+
+export type ApiUpdateAiAgentMemoryStatusResponse = ApiSuccessEmpty;
 
 export type ApiAiAgentAvatarUploadResponse = ApiSuccess<AiAgent>;
 

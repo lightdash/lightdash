@@ -157,6 +157,8 @@ describe('AiAgentMemoryService', () => {
         });
         const upsertThreadDistill = vi.fn();
         const findActiveForProject = vi.fn().mockResolvedValue([]);
+        const findActiveBySourceThread = vi.fn().mockResolvedValue(undefined);
+        const updateStatus = vi.fn().mockResolvedValue(true);
         const aiAgentMemoryDistill = vi.fn();
         const getAgent = vi.fn().mockResolvedValue({
             uuid: 'agent-1',
@@ -189,6 +191,8 @@ describe('AiAgentMemoryService', () => {
                 upsertSourceThreadMemory,
                 upsertThreadDistill,
                 findActiveForProject,
+                findActiveBySourceThread,
+                updateStatus,
             } as AnyType,
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
             groupsModel: { findUserInGroups } as AnyType,
@@ -209,6 +213,8 @@ describe('AiAgentMemoryService', () => {
             upsertSourceThreadMemory,
             upsertThreadDistill,
             findActiveForProject,
+            findActiveBySourceThread,
+            updateStatus,
             aiAgentMemoryDistill,
             getAgent,
             findThreadOwnership,
@@ -356,6 +362,80 @@ describe('AiAgentMemoryService', () => {
                 source: { threadTitle: 'Owner-visible title' },
             },
         });
+    });
+
+    it('lets the owner retire an active memory', async () => {
+        const { service, findByProjectAndSlug, updateStatus } = build();
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({ user_uuid: 'current-user' }),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+                'retired',
+            ),
+        ).resolves.toBeUndefined();
+        expect(updateStatus).toHaveBeenCalledWith({
+            memoryUuid: 'memory-1',
+            status: 'retired',
+        });
+    });
+
+    it('does not reactivate a memory when its source has a newer active memory', async () => {
+        const {
+            service,
+            findByProjectAndSlug,
+            findActiveBySourceThread,
+            updateStatus,
+        } = build();
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({
+                user_uuid: 'current-user',
+                status: 'retired',
+            }),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+        findActiveBySourceThread.mockResolvedValue({
+            ai_agent_memory_uuid: 'newer-memory',
+        });
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+                'active',
+            ),
+        ).rejects.toThrow('A newer memory from this source is already active');
+        expect(updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('keeps superseded memories read-only', async () => {
+        const { service, findByProjectAndSlug, updateStatus } = build();
+        findByProjectAndSlug.mockResolvedValue({
+            memory: memoryRow({
+                user_uuid: 'current-user',
+                status: 'superseded',
+            }),
+            sources: [lineageSource()],
+            replacement: null,
+        });
+
+        await expect(
+            service.updateMemoryStatus(
+                buildUser(true),
+                'project-enabled',
+                'net-revenue-ab12cd34',
+                'active',
+            ),
+        ).rejects.toThrow('Superseded memories are read-only');
+        expect(updateStatus).not.toHaveBeenCalled();
     });
 
     it('decides access from the memory row without loading the source thread', async () => {

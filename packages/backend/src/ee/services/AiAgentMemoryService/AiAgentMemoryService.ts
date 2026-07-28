@@ -8,9 +8,11 @@ import {
     getItemId,
     isExploreError,
     NotFoundError,
+    ParameterError,
     ProjectType,
     type AiAgentMemory,
     type AiAgentMemoryDistillJobPayload,
+    type AiAgentMemoryEditableStatus,
     type AiAgentMemorySource,
     type AiProjectContextTypedObjectRef,
     type Explore,
@@ -39,6 +41,7 @@ import {
     AI_AGENT_MEMORY_THREAD_SOURCES,
     AiAgentMemoryModel,
     type AiAgentMemoryThread,
+    type AiAgentMemoryWithLineage,
 } from '../../models/AiAgentMemoryModel';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import { defaultAgentOptions } from '../ai/agents/agentV2';
@@ -248,11 +251,11 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
-    async getMemory(
+    private async getAccessibleMemory(
         user: SessionUser,
         projectUuid: string,
         slug: string,
-    ): Promise<AiAgentMemory> {
+    ): Promise<AiAgentMemoryWithLineage> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
@@ -291,9 +294,18 @@ export class AiAgentMemoryService extends BaseService {
                 result.memory,
             ))
         ) {
-            // Same error as a missing row so a reader can't probe for existence
             throw new NotFoundError(`Memory not found: ${slug}`);
         }
+
+        return result;
+    }
+
+    async getMemory(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<AiAgentMemory> {
+        const result = await this.getAccessibleMemory(user, projectUuid, slug);
 
         // Reading the memory grants its lineage: the check above already covers
         // the whole row, so there is nothing left to redact per source.
@@ -333,7 +345,7 @@ export class AiAgentMemoryService extends BaseService {
             event: 'ai_agent_memory.viewed',
             userId: user.userUuid,
             properties: {
-                organizationId: organizationUuid,
+                organizationId: result.memory.organization_uuid,
                 projectId: projectUuid,
                 agentId: result.memory.agent_uuid,
                 memoryId: result.memory.ai_agent_memory_uuid,
@@ -345,6 +357,44 @@ export class AiAgentMemoryService extends BaseService {
         });
 
         return response;
+    }
+
+    async updateMemoryStatus(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        status: AiAgentMemoryEditableStatus,
+    ): Promise<void> {
+        const result = await this.getAccessibleMemory(user, projectUuid, slug);
+        const { memory } = result;
+
+        if (memory.status === 'superseded') {
+            throw new ParameterError('Superseded memories are read-only');
+        }
+
+        if (status === 'active' && memory.source_thread_uuid) {
+            const activeMemory =
+                await this.aiAgentMemoryModel.findActiveBySourceThread(
+                    memory.source_thread_uuid,
+                );
+            if (
+                activeMemory &&
+                activeMemory.ai_agent_memory_uuid !==
+                    memory.ai_agent_memory_uuid
+            ) {
+                throw new ParameterError(
+                    'A newer memory from this source is already active',
+                );
+            }
+        }
+
+        const updated = await this.aiAgentMemoryModel.updateStatus({
+            memoryUuid: memory.ai_agent_memory_uuid,
+            status,
+        });
+        if (!updated) {
+            throw new ParameterError('This memory can no longer be changed');
+        }
     }
 
     async sweep(now = new Date()): Promise<number> {

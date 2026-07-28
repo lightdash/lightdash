@@ -32,6 +32,8 @@
 }
 
 .title {
+    min-width: 0;
+    flex: 1;
     margin: 0;
     color: var(--mantine-color-ldGray-9);
     font-size: 18px;

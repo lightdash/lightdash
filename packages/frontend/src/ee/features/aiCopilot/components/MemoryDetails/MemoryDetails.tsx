@@ -10,7 +10,6 @@ import {
     Badge,
     Box,
     Divider,
-    getDefaultZIndex,
     Group,
     Stack,
     Text,
@@ -26,6 +25,7 @@ import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { parseAiAgentMemorySections } from '../../utils/memory';
 import styles from './MemoryDetails.module.css';
+import { MemoryStatusAction, MemoryStatusMenu } from './MemoryStatusControls';
 
 type Memory = ApiAiAgentMemoryResponse['results'];
 
@@ -227,13 +227,12 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
 
             <Stack className={styles.rail} gap={0}>
                 <RailRow label="Status">
-                    <Group gap={8} wrap="nowrap">
-                        <Box
-                            className={styles.statusDot}
-                            data-status={memory.status}
-                        />
-                        <Text className={styles.railText}>{memory.status}</Text>
-                    </Group>
+                    <MemoryStatusMenu
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        slug={memory.slug}
+                        status={memory.status}
+                    />
                 </RailRow>
                 <RailRow label="Saved">
                     <Text className={styles.railText}>
@@ -346,9 +345,16 @@ export const MemoryDetailsModal: FC<MemoryDetailsModalProps> = ({
             </Text>
         }
         cancelLabel={false}
-        modalRootProps={{ zIndex: getDefaultZIndex('overlay') }}
         modalBodyProps={{ py: 'lg' }}
         bodyScrollAreaMaxHeight="calc(85vh - 120px)"
+        headerActions={
+            <MemoryStatusAction
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
+                slug={memory.slug}
+                status={memory.status}
+            />
+        }
     >
         <MemoryDetails
             memory={memory}
