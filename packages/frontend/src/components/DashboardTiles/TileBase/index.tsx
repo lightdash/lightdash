@@ -16,7 +16,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedValue, useHover, useToggle } from '@mantine-8/hooks';
+import {
+    useClipboard,
+    useDebouncedValue,
+    useHover,
+    useToggle,
+} from '@mantine-8/hooks';
 import { clsx } from '@mantine/core';
 import {
     IconArrowAutofitContent,
@@ -24,9 +29,12 @@ import {
     IconDots,
     IconEdit,
     IconGripVertical,
+    IconLink,
     IconTrash,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useTileLinkUrl } from '../../../hooks/dashboard/useHighlightedTile';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
@@ -80,6 +88,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
         delay: 500,
     });
     const [titleHovered, setTitleHovered] = useState(false);
+    const clipboard = useClipboard({ timeout: 500 });
+    const { showToastSuccess } = useToaster();
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
 
     const hideTitle =
@@ -94,7 +104,16 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
-    const hasMenuContent = isEditMode || !!extraMenuItems;
+    const tileLinkUrl = useTileLinkUrl(tile.uuid, tile.tabUuid ?? null);
+    const canCopyTileLink = !minimal && tileLinkUrl !== null;
+
+    const handleCopyTileLink = useCallback(() => {
+        if (!tileLinkUrl) return;
+        clipboard.copy(tileLinkUrl);
+        showToastSuccess({ title: 'Link to tile copied to clipboard!' });
+    }, [clipboard, showToastSuccess, tileLinkUrl]);
+
+    const hasMenuContent = isEditMode || !!extraMenuItems || canCopyTileLink;
     const isVerified = verification !== null && verification !== undefined;
     const hasHeaderContent = hasMenuContent || isVerified;
 
@@ -170,6 +189,21 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     onClose={() => toggleMenu(false)}
                                 >
                                     <Menu.Dropdown>
+                                        {canCopyTileLink && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconLink}
+                                                    />
+                                                }
+                                                onClick={handleCopyTileLink}
+                                            >
+                                                Copy link to tile
+                                            </Menu.Item>
+                                        )}
+                                        {canCopyTileLink &&
+                                            (!!extraMenuItems ||
+                                                isEditMode) && <Menu.Divider />}
                                         {extraMenuItems}
                                         {isEditMode && extraMenuItems && (
                                             <Menu.Divider />

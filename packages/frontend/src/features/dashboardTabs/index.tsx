@@ -19,6 +19,7 @@ import {
     Activity,
     memo,
     useCallback,
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -35,6 +36,7 @@ import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import { useIsLauncherMounted } from '../../ee/features/aiCopilot/components/Launcher/useIsLauncherMounted';
+import { useHighlightedTile } from '../../hooks/dashboard/useHighlightedTile';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -669,63 +671,111 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         isActiveTile(tile),
     );
 
-    const handleChangeTab = (tab: DashboardTab) => {
-        // When tabs are kept in memory, instantly toggle visibility via DOM
-        // manipulation for a snappier UX. When disabled, React handles
-        // the mount/unmount so DOM tweaks are unnecessary.
-        if (keepTabsInMemory) {
-            const container = gridWrapperRef.current;
-            if (container) {
-                for (const child of container.children) {
-                    const panel = child as HTMLElement;
-                    if (panel.dataset.tabUuid === tab.uuid) {
-                        panel.style.contentVisibility = '';
-                        panel.style.containIntrinsicSize = '';
-                        panel.style.position = 'relative';
-                        panel.style.width = '';
-                        panel.style.pointerEvents = '';
-                    } else {
-                        panel.style.contentVisibility = 'hidden';
-                        panel.style.containIntrinsicSize = 'auto 1px auto 1px';
-                        panel.style.position = 'absolute';
-                        panel.style.width = '100%';
-                        panel.style.pointerEvents = 'none';
-                    }
-                }
-
-                // Toggle the active tab indicator via DOM.
-                // Scope to our dashboard tabs root to avoid affecting other Tabs on the page.
-                // Mantine embeds the tab value in the id: "mantine-...-tab-{uuid}"
-                const tabsRoot = document.querySelector(`.${styles.tabsRoot}`);
-                if (tabsRoot) {
-                    const tabButtons =
-                        tabsRoot.querySelectorAll('[role="tab"]');
-                    for (const tabEl of tabButtons) {
-                        if (tabEl.id?.includes(tab.uuid)) {
-                            tabEl.setAttribute('data-active', 'true');
-                            tabEl.setAttribute('aria-selected', 'true');
+    const handleChangeTab = useCallback(
+        (tab: DashboardTab) => {
+            // When tabs are kept in memory, instantly toggle visibility via DOM
+            // manipulation for a snappier UX. When disabled, React handles
+            // the mount/unmount so DOM tweaks are unnecessary.
+            if (keepTabsInMemory) {
+                const container = gridWrapperRef.current;
+                if (container) {
+                    for (const child of container.children) {
+                        const panel = child as HTMLElement;
+                        if (panel.dataset.tabUuid === tab.uuid) {
+                            panel.style.contentVisibility = '';
+                            panel.style.containIntrinsicSize = '';
+                            panel.style.position = 'relative';
+                            panel.style.width = '';
+                            panel.style.pointerEvents = '';
                         } else {
-                            tabEl.removeAttribute('data-active');
-                            tabEl.setAttribute('aria-selected', 'false');
+                            panel.style.contentVisibility = 'hidden';
+                            panel.style.containIntrinsicSize =
+                                'auto 1px auto 1px';
+                            panel.style.position = 'absolute';
+                            panel.style.width = '100%';
+                            panel.style.pointerEvents = 'none';
+                        }
+                    }
+
+                    // Toggle the active tab indicator via DOM.
+                    // Scope to our dashboard tabs root to avoid affecting other Tabs on the page.
+                    // Mantine embeds the tab value in the id: "mantine-...-tab-{uuid}"
+                    const tabsRoot = document.querySelector(
+                        `.${styles.tabsRoot}`,
+                    );
+                    if (tabsRoot) {
+                        const tabButtons =
+                            tabsRoot.querySelectorAll('[role="tab"]');
+                        for (const tabEl of tabButtons) {
+                            if (tabEl.id?.includes(tab.uuid)) {
+                                tabEl.setAttribute('data-active', 'true');
+                                tabEl.setAttribute('aria-selected', 'true');
+                            } else {
+                                tabEl.removeAttribute('data-active');
+                                tabEl.setAttribute('aria-selected', 'false');
+                            }
                         }
                     }
                 }
             }
-        }
 
-        const newParams = new URLSearchParams(search);
-        startTabTransition(() => {
-            void navigate(
-                {
-                    pathname: isEditMode
-                        ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
-                        : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
-                    search: newParams.toString(),
-                },
-                { replace: true },
-            );
-        });
-    };
+            const newParams = new URLSearchParams(search);
+            startTabTransition(() => {
+                void navigate(
+                    {
+                        pathname: isEditMode
+                            ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
+                            : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                        search: newParams.toString(),
+                    },
+                    { replace: true },
+                );
+            });
+        },
+        [
+            keepTabsInMemory,
+            search,
+            isEditMode,
+            projectUuid,
+            dashboardUuid,
+            navigate,
+            startTabTransition,
+        ],
+    );
+
+    const { highlightTileUuid } = useHighlightedTile({
+        enabled: !!hasDashboardTiles,
+    });
+
+    // A shared tile link can point at a tab that isn't the active one (e.g. the
+    // tile was moved since), so activate the tab holding the tile first.
+    const hasSwitchedToHighlightedTabRef = useRef(false);
+    useEffect(() => {
+        if (
+            !highlightTileUuid ||
+            !tabsEnabled ||
+            !activeTab ||
+            hasSwitchedToHighlightedTabRef.current
+        ) {
+            return;
+        }
+        const tabWithTile = visibleTabs.find((tab) =>
+            tilesByTab
+                .get(tab.uuid)
+                ?.some((tile) => tile.uuid === highlightTileUuid),
+        );
+        if (!tabWithTile || tabWithTile.uuid === activeTab.uuid) return;
+
+        hasSwitchedToHighlightedTabRef.current = true;
+        handleChangeTab(tabWithTile);
+    }, [
+        highlightTileUuid,
+        tabsEnabled,
+        activeTab,
+        visibleTabs,
+        tilesByTab,
+        handleChangeTab,
+    ]);
 
     const maxTabsPerDashboard =
         health.data?.dashboard?.maxTabsPerDashboard || 20;
