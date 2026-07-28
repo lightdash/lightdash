@@ -351,6 +351,7 @@ const DayOneAskInputInner: FC<Props> = ({
                         ? handleStartDeepResearch
                         : undefined
                 }
+                deepResearchControlPlacement="page_header"
                 loading={isCreatingThread}
                 showSuggestions={false}
                 fullWidth

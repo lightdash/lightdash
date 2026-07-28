@@ -162,6 +162,9 @@ describe('DayOneAskInput', () => {
 
         expect(agentChatInputProps.current?.agentUuid).toBe('agent-1');
         expect(agentChatInputProps.current?.onStartDeepResearch).toBeDefined();
+        expect(agentChatInputProps.current?.deepResearchControlPlacement).toBe(
+            'page_header',
+        );
 
         await act(async () => {
             await agentChatInputProps.current?.onStartDeepResearch?.({
