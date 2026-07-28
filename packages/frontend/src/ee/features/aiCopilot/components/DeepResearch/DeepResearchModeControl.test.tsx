@@ -58,10 +58,10 @@ describe('DeepResearchModeControl', () => {
         ).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(
-            screen.getByText('Agent context and project data'),
-        ).toBeInTheDocument();
+            screen.queryByText('Agent context and project data'),
+        ).not.toBeInTheDocument();
         expect(
-            screen.getByText('This agent has no MCP servers attached.'),
+            screen.getByText('This agent has no MCP servers available.'),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Start research' }),

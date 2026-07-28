@@ -1,21 +1,8 @@
 import { type AiMcpServer } from '@lightdash/common';
-import {
-    Alert,
-    Checkbox,
-    Group,
-    Loader,
-    Stack,
-    Text,
-    ThemeIcon,
-} from '@mantine-8/core';
-import {
-    IconAlertCircle,
-    IconDatabase,
-    IconPlugConnected,
-} from '@tabler/icons-react';
+import { Alert, Checkbox, Group, Loader, Stack, Text } from '@mantine-8/core';
+import { IconAlertCircle, IconPlugConnected } from '@tabler/icons-react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { isDeepResearchMcpServerReady } from '../../deepResearch/mcpServerReady';
-import styles from './DeepResearchPreflight.module.css';
 
 type Props = {
     mcpServers: AiMcpServer[];
@@ -32,11 +19,7 @@ export const DeepResearchMcpSelector = ({
     isLoading,
     error,
 }: Props) => {
-    const unavailableSelectedServers = mcpServers.filter(
-        (server) =>
-            selectedMcpServerUuids.includes(server.uuid) &&
-            !isDeepResearchMcpServerReady(server),
-    );
+    const availableMcpServers = mcpServers.filter(isDeepResearchMcpServerReady);
 
     const handleServerChange = (serverUuid: string, checked: boolean) => {
         onSelectedMcpServerUuidsChange(
@@ -60,16 +43,6 @@ export const DeepResearchMcpSelector = ({
                     actions, can run unattended.
                 </Text>
             </Stack>
-            <Group gap="xs">
-                <Group gap={6} className={styles.source} data-available>
-                    <ThemeIcon variant="light" color="indigo" size={22}>
-                        <MantineIcon icon={IconDatabase} size={12} />
-                    </ThemeIcon>
-                    <Text size="11px" lh={1.35}>
-                        Agent context and project data
-                    </Text>
-                </Group>
-            </Group>
             {isLoading ? (
                 <Group gap="xs">
                     <Loader size="xs" />
@@ -85,9 +58,9 @@ export const DeepResearchMcpSelector = ({
                 >
                     {error}
                 </Alert>
-            ) : mcpServers.length > 0 ? (
+            ) : availableMcpServers.length > 0 ? (
                 <Stack gap="xs">
-                    {mcpServers.map((server) => (
+                    {availableMcpServers.map((server) => (
                         <Checkbox
                             key={server.uuid}
                             checked={selectedMcpServerUuids.includes(
@@ -108,11 +81,6 @@ export const DeepResearchMcpSelector = ({
                                     <Text span size="11px">
                                         {server.name}
                                     </Text>
-                                    {!isDeepResearchMcpServerReady(server) && (
-                                        <Text span size="10px" c="red">
-                                            connection required
-                                        </Text>
-                                    )}
                                 </Group>
                             }
                         />
@@ -120,21 +88,8 @@ export const DeepResearchMcpSelector = ({
                 </Stack>
             ) : (
                 <Text size="11px" c="dimmed">
-                    This agent has no MCP servers attached.
+                    This agent has no MCP servers available.
                 </Text>
-            )}
-            {unavailableSelectedServers.length > 0 && (
-                <Alert
-                    color="orange"
-                    icon={<MantineIcon icon={IconAlertCircle} />}
-                    p="xs"
-                >
-                    Connect or disable{' '}
-                    {unavailableSelectedServers
-                        .map((server) => server.name)
-                        .join(', ')}{' '}
-                    before starting.
-                </Alert>
             )}
         </Stack>
     );
