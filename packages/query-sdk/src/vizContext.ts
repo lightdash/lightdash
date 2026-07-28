@@ -32,14 +32,23 @@ export type VizContextCell = {
 export type VizContextRow = Record<string, VizContextCell | undefined>;
 
 /**
+ * A config option value. Its shape follows the option's declared type:
+ * `boolean` → boolean, `number` → number, `select`/`text`/`color` → string.
+ */
+export type VizContextOptionValue = boolean | number | string;
+
+/**
  * Pushed by the host into the iframe. `fieldMapping` maps each field name the
  * renderer declared to the query field id it resolves to; `rows` are the
- * host-fetched result rows keyed by field id.
+ * host-fetched result rows keyed by field id; `options` holds the current
+ * value of each config option the renderer declared.
  */
 export type DataAppVizContextMessage = {
     type: 'lightdash:sdk:data-app-viz-context';
     fieldMapping: Record<string, string>;
     rows: VizContextRow[];
+    /** Absent when the installed host predates config-option delivery. */
+    options?: Record<string, VizContextOptionValue>;
 };
 
 /** Posted by the iframe on mount so the host pushes the current context. */
@@ -73,14 +82,59 @@ export type VizContext = {
     fieldMapping: Record<string, string>;
     /** Host-fetched result rows, keyed by query field id. */
     rows: VizContextRow[];
+    /** Config option name → current value (the user's choice, else the declared default). */
+    options: Record<string, VizContextOptionValue>;
     /** False until the first context arrives — render a placeholder while false. */
     ready: boolean;
 };
 
-type VizContextState = {
+type VizContextValue = {
     fieldMapping: Record<string, string>;
     rows: VizContextRow[];
-} | null;
+    options: Record<string, VizContextOptionValue>;
+};
+
+type VizContextState = VizContextValue | null;
+
+const isVizContextOptionValue = (
+    value: unknown,
+): value is VizContextOptionValue =>
+    typeof value === 'string' ||
+    typeof value === 'boolean' ||
+    (typeof value === 'number' && Number.isFinite(value));
+
+const normalizeOptions = (
+    options: unknown,
+): Record<string, VizContextOptionValue> => {
+    if (
+        typeof options !== 'object' ||
+        options === null ||
+        Array.isArray(options)
+    ) {
+        return {};
+    }
+
+    return Object.fromEntries(
+        Object.entries(options).filter((entry) =>
+            isVizContextOptionValue(entry[1]),
+        ),
+    );
+};
+
+/**
+ * Normalises an inbound host message into provider state. The payload crosses a
+ * postMessage boundary so every key is treated as untrusted; `options` is also
+ * absent from hosts predating it, and falls back to `{}`.
+ */
+export function toVizContextState(
+    message: DataAppVizContextMessage,
+): VizContextValue {
+    return {
+        fieldMapping: message.fieldMapping ?? {},
+        rows: Array.isArray(message.rows) ? message.rows : [],
+        options: normalizeOptions(message.options),
+    };
+}
 
 // Distinguishes "no provider mounted" from "provider present, no context yet".
 const NO_PROVIDER = Symbol('viz-context/no-provider');
@@ -103,10 +157,7 @@ function useVizContextSubscription(enabled: boolean): VizContextState {
         const handleMessage = (event: MessageEvent) => {
             const data = event.data as DataAppVizContextMessage | undefined;
             if (!data || data.type !== DATA_APP_VIZ_CONTEXT_MESSAGE) return;
-            setContext({
-                fieldMapping: data.fieldMapping ?? {},
-                rows: Array.isArray(data.rows) ? data.rows : [],
-            });
+            setContext(toVizContextState(data));
         };
 
         window.addEventListener('message', handleMessage);
@@ -145,7 +196,8 @@ export function VizContextProvider({ children }: { children: ReactNode }) {
  * one is mounted (the scaffold default); otherwise self-subscribes so the hook
  * still works standalone. Re-renders whenever the host pushes (on load, on
  * mapping change, on query change). Resolve a declared field to its bound cell
- * with `fieldMapping[name]` then `getFormatted`/`getRaw`.
+ * with `fieldMapping[name]` then `getFormatted`/`getRaw`; read a declared
+ * config option with `options[name]`.
  */
 export function useVizContext(): VizContext {
     const fromProvider = useContext(VizContextContext);
@@ -162,6 +214,7 @@ export function useVizContext(): VizContext {
     return {
         fieldMapping: context?.fieldMapping ?? {},
         rows: context?.rows ?? [],
+        options: context?.options ?? {},
         ready: context !== null,
     };
 }
