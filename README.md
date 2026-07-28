@@ -54,7 +54,7 @@ Define metrics, dimensions, joins, descriptions, caching, and access rules in on
 
 ### Embedded analytics
 
-Embed dashboards, AI agents, and Data Apps in your product with the Lightdash SDK, row-level security, user attributes, and customer-facing permissions.
+Embed dashboards, AI agents, and Data Apps in your product with the Lightdash SDK which supports configurable row-level security, user attributes, and customer-facing permissions.
 
 [Read embedding docs](https://docs.lightdash.com/references/embedding)
 
