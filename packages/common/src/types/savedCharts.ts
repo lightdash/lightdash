@@ -1,3 +1,4 @@
+import { type DataAppVizOptionValue } from '../ee/apps/dataAppVizConfigOptions';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
@@ -785,10 +786,19 @@ export type CustomVis = {
 /** Maps a data app viz's field name → the host query field id bound to it. */
 export type DataAppVizFieldMapping = Record<string, string>;
 
+/** Maps a declared config option's name → the value the user chose for it. */
+export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;
+
 export type DataAppVizChart = {
     /** The reusable data app viz this chart renders with (by reference). */
     dataAppVizUuid: string;
     fieldMapping: DataAppVizFieldMapping;
+    /**
+     * Only options the user explicitly changed — declared defaults are never
+     * seeded here, they're resolved at render time. Absent on charts saved
+     * before config options shipped.
+     */
+    optionValues?: DataAppVizOptionValues;
 };
 
 export type CartesianChart = {
