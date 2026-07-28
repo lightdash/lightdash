@@ -1,3 +1,10 @@
+## [1.17.1](https://github.com/lightdash/lightdash/compare/1.17.0...1.17.1) (2026-07-28)
+
+
+### Performance Improvements
+
+* cache PR preview production dependencies ([#26376](https://github.com/lightdash/lightdash/issues/26376)) ([8eed261](https://github.com/lightdash/lightdash/commit/8eed261a17debfeba5aa5a7b0b2fcd1ba06eec69))
+
 # [1.17.0](https://github.com/lightdash/lightdash/compare/1.16.0...1.17.0) (2026-07-28)
 
 
