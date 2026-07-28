@@ -23,15 +23,18 @@ vi.mock('../ChatElements/AiVisualizationRenderer', () => ({
         headerContent,
         displayFields,
         displayFilters,
+        loadExplore,
     }: {
         headerContent: ReactNode;
         displayFields?: boolean;
         displayFilters?: boolean;
+        loadExplore?: boolean;
     }) => (
         <div
             data-testid="visualization"
             data-display-fields={String(displayFields)}
             data-display-filters={String(displayFilters)}
+            data-load-explore={String(loadExplore)}
         >
             {headerContent}
             <div>Rendered query data</div>
@@ -154,6 +157,10 @@ describe('DeepResearchChartTile', () => {
             'data-display-filters',
             'false',
         );
+        expect(screen.getByTestId('visualization')).toHaveAttribute(
+            'data-load-explore',
+            'true',
+        );
     });
 
     it('shows the applied filters as read-only pills in the header', () => {
@@ -205,6 +212,10 @@ describe('DeepResearchChartTile', () => {
         expect(
             screen.queryByRole('button', { name: 'View live data' }),
         ).not.toBeInTheDocument();
+        expect(screen.getByTestId('visualization')).toHaveAttribute(
+            'data-load-explore',
+            'false',
+        );
     });
 
     it('shows the live error state even while a page fetch is marked in-flight', () => {
