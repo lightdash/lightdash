@@ -63,18 +63,6 @@ export type DbtProjectConfig = {
 
 export type ProjectTypeConfig = LightdashYamlProjectConfig | DbtProjectConfig;
 
-export function isLightdashYamlProject(
-    config: ProjectTypeConfig,
-): config is LightdashYamlProjectConfig {
-    return config.type === CliProjectType.LightdashYaml;
-}
-
-export function isDbtProject(
-    config: ProjectTypeConfig,
-): config is DbtProjectConfig {
-    return config.type === CliProjectType.Dbt;
-}
-
 type DetectProjectTypeOptions = {
     /**
      * Path to the project directory

@@ -6,10 +6,7 @@ import globalState from '../globalState';
 
 // The merge core moved to @lightdash/common (server + CLI share one implementation);
 // re-exported here so existing CLI imports of combineManifests are unchanged.
-export {
-    combineManifests,
-    type CombineManifestsResult,
-} from '@lightdash/common';
+export { combineManifests } from '@lightdash/common';
 
 export type LoadManifestArgs = {
     targetDir: string;
