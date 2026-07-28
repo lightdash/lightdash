@@ -244,21 +244,25 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         });
 
         if (user.organizationName) {
+            // Joining an existing org: no org name to set, and the brand
+            // belongs to the org (which a joiner — often a viewer — has no
+            // rights to change), so don't attempt to save it.
             completeMutation.mutate({
                 jobTitle: values.jobTitle,
                 enableEmailDomainAccess: values.enableEmailDomainAccess,
                 isMarketingOptedIn: values.isMarketingOptedIn,
                 isTrackingAnonymized: values.isTrackingAnonymized,
             });
-        } else {
-            completeMutation.mutate({
-                organizationName: values.organizationName,
-                jobTitle: values.jobTitle,
-                enableEmailDomainAccess: values.enableEmailDomainAccess,
-                isMarketingOptedIn: values.isMarketingOptedIn,
-                isTrackingAnonymized: values.isTrackingAnonymized,
-            });
+            return;
         }
+
+        completeMutation.mutate({
+            organizationName: values.organizationName,
+            jobTitle: values.jobTitle,
+            enableEmailDomainAccess: values.enableEmailDomainAccess,
+            isMarketingOptedIn: values.isMarketingOptedIn,
+            isTrackingAnonymized: values.isTrackingAnonymized,
+        });
 
         const brandDomain =
             detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : null);
