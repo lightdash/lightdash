@@ -2892,6 +2892,39 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('getCustomMetrics', () => {
+        test('returns custom metrics when the user can view the project', async () => {
+            (
+                savedChartModel.find as import('vitest').Mock
+            ).mockResolvedValueOnce([]);
+
+            const result = await service.getCustomMetrics(
+                user,
+                defaultProject.projectUuid,
+            );
+
+            expect(result).toEqual([]);
+            expect(savedChartModel.find).toHaveBeenCalledWith({
+                projectUuid: defaultProject.projectUuid,
+            });
+        });
+
+        test('throws ForbiddenError without querying charts when the user cannot view the project', async () => {
+            const restrictedUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([]),
+            } as unknown as SessionUser;
+
+            await expect(
+                service.getCustomMetrics(
+                    restrictedUser,
+                    defaultProject.projectUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(savedChartModel.find).not.toHaveBeenCalled();
+        });
+    });
+
     describe('getUserAttributes', () => {
         // vi.clearAllMocks() in the outer afterEach does not drain
         // mockImplementationOnce queues — reset the email mock per test so
