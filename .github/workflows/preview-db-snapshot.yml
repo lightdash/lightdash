@@ -58,6 +58,8 @@ jobs:
           # Start from a blank volume so changed seeds and migrations are
           # fully re-applied instead of hitting the entrypoint's seed guard
           kubectl -n db-snapshot delete deployment db-snapshot-seeder --ignore-not-found --wait
+          kubectl -n db-snapshot delete statefulset db-preview --ignore-not-found --wait
+          # Transitional: the db service used to be named db-snapshot
           kubectl -n db-snapshot delete statefulset db-snapshot --ignore-not-found --wait
           kubectl -n db-snapshot delete pvc db-data --ignore-not-found --wait
 
