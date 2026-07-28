@@ -23,11 +23,13 @@ export function announceSdkManifest(targetWindow: Window): () => void {
         sdkVersion: SDK_VERSION,
         features: SDK_FEATURE_KEYS,
     };
-    // Bundles are served from the host page's own origin, and location.origin
-    // is URL-derived so it survives the sandboxed (opaque-origin) iframe.
-    const { origin } = window.location;
-    const targetOrigin = origin && origin !== 'null' ? origin : '*';
-    const post = () => targetWindow.postMessage(message, targetOrigin);
+    // Wildcard on purpose — do NOT "fix" this to an origin. Cloud serves
+    // bundles from {customer}.lightdash.app while the host page runs on
+    // {customer}.lightdash.cloud, so the bundle cannot derive the parent's
+    // origin, and a mismatched targetOrigin silently drops the manifest
+    // (every app then shows as legacy/upgradeable). Matches every other
+    // bridge message; the payload is public constants from this package.
+    const post = () => targetWindow.postMessage(message, '*');
     activeCleanup?.();
     const handler = (event: MessageEvent) => {
         if (event.source !== targetWindow) return;
