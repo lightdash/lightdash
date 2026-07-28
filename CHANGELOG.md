@@ -1,3 +1,31 @@
+# [1.14.0](https://github.com/lightdash/lightdash/compare/1.13.0...1.14.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* **data-apps:** rename New menu item from "App" to "Data App" ([#26303](https://github.com/lightdash/lightdash/issues/26303)) ([0c2f271](https://github.com/lightdash/lightdash/commit/0c2f2717764b6be9e8d614ce110435d500bc8525))
+* fall back to a blank preview DB volume when a diverted deploy fails ([#26318](https://github.com/lightdash/lightdash/issues/26318)) ([2980aac](https://github.com/lightdash/lightdash/commit/2980aacad9b6f401e953cee4ccc2bf1e2247f236))
+* Google Sheets sync on Trino fails with "tag.replace is not a function" ([#26186](https://github.com/lightdash/lightdash/issues/26186)) ([b6c03bf](https://github.com/lightdash/lightdash/commit/b6c03bff0a4fea0b1668ee8f610f8acf3c417e58))
+* reduce memory status callout font size ([#26307](https://github.com/lightdash/lightdash/issues/26307)) ([063751d](https://github.com/lightdash/lightdash/commit/063751dc2e8010a7b892e999cad91ac7e0e3f5da))
+* stacked bar underlying data drops filters for non-plotted dimensions ([#26302](https://github.com/lightdash/lightdash/issues/26302)) ([81236fe](https://github.com/lightdash/lightdash/commit/81236fea00a58ec38a6538d4e0a6aafbd1a6a72e))
+
+
+### Features
+
+* **ai:** add Deep Research to homepage ([#26300](https://github.com/lightdash/lightdash/issues/26300)) ([564afc5](https://github.com/lightdash/lightdash/commit/564afc50b4784fdfef28dbf7e3570bab1b3203e7))
+* **appearance:** generate chart palette from brand colors ([#26311](https://github.com/lightdash/lightdash/issues/26311)) ([af34b01](https://github.com/lightdash/lightdash/commit/af34b016458a391753ee955095284523fdfbdd4b))
+* **data-apps:** ask for config options through a dedicated skill ([#26218](https://github.com/lightdash/lightdash/issues/26218)) ([5956e6a](https://github.com/lightdash/lightdash/commit/5956e6a7aecb53bea1727854d8715047c921ca53))
+* **data-apps:** give the generator preview the same config form ([#26291](https://github.com/lightdash/lightdash/issues/26291)) ([5739497](https://github.com/lightdash/lightdash/commit/5739497e5a98b4483e3969d8d7dab4591bf37368))
+* **deep-research:** show only available MCP sources ([#26301](https://github.com/lightdash/lightdash/issues/26301)) ([7daa6d4](https://github.com/lightdash/lightdash/commit/7daa6d4ee812255e7c94c2e4ab72c59a617b3643))
+* distill skips threads whose memory is no longer active ([#26284](https://github.com/lightdash/lightdash/issues/26284)) ([7ecc6c8](https://github.com/lightdash/lightdash/commit/7ecc6c8bc9291f8d1eb5b84da85ad09a0c6c611e))
+* **onboarding:** celebrate warehouse connect, drop the project-ready screen ([#26308](https://github.com/lightdash/lightdash/issues/26308)) ([57c4ee4](https://github.com/lightdash/lightdash/commit/57c4ee42b5e33a26fb55ad500d3f0dc9666dff65))
+* **onboarding:** declutter the playground home ([#26305](https://github.com/lightdash/lightdash/issues/26305)) ([b02cf9d](https://github.com/lightdash/lightdash/commit/b02cf9df8770c74c27bdd0dd8209e85111f856cd))
+
+
+### Performance Improvements
+
+* optimize project-scoped chart queries ([#26304](https://github.com/lightdash/lightdash/issues/26304)) ([4380185](https://github.com/lightdash/lightdash/commit/4380185e48a1ed2de1e7fa6ab43c76e133b0fdf8))
+
 # [1.13.0](https://github.com/lightdash/lightdash/compare/1.12.0...1.13.0) (2026-07-28)
 
 
