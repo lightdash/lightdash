@@ -4,6 +4,7 @@ import {
     type Dashboard,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import GridTile from './GridTile';
@@ -44,15 +45,19 @@ const chartTile: Dashboard['tiles'][number] = {
 
 const renderLockedTile = () =>
     renderWithProviders(
-        <GridTile
-            tile={chartTile}
-            index={0}
-            isEditMode={false}
-            locked
-            onEdit={vi.fn()}
-            onDelete={vi.fn()}
-            onAddTiles={vi.fn(async () => {})}
-        />,
+        <MemoryRouter
+            initialEntries={['/projects/project-1/dashboards/dashboard-1/view']}
+        >
+            <GridTile
+                tile={chartTile}
+                index={0}
+                isEditMode={false}
+                locked
+                onEdit={vi.fn()}
+                onDelete={vi.fn()}
+                onAddTiles={vi.fn(async () => {})}
+            />
+        </MemoryRouter>,
     );
 
 describe('GridTile (locked)', () => {
