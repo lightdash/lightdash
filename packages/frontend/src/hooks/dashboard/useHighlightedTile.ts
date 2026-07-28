@@ -2,7 +2,7 @@ import { useMantineTheme } from '@mantine-8/core';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 
-export const HIGHLIGHT_TILE_SEARCH_PARAM = 'highlightTile';
+const HIGHLIGHT_TILE_SEARCH_PARAM = 'highlightTile';
 
 /** Give tiles that are still mounting/laying out a chance to appear */
 const WAIT_FOR_TILE_TIMEOUT_MS = 10_000;
