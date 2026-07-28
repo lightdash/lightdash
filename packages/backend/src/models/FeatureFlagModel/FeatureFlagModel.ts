@@ -6,6 +6,7 @@ import {
     FeatureFlagsTableName,
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
+import { record } from './flagCheckAggregator';
 
 const UUID_REGEX =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,31 +54,39 @@ export class FeatureFlagModel {
         args: FeatureFlagLogicArgs,
         options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
+        let result: FeatureFlag;
+
         // 1a. Check env var enable-allowlist (self-hosted escape hatch)
         if (this.lightdashConfig.enabledFeatureFlags.has(args.featureFlagId)) {
-            return { id: args.featureFlagId, enabled: true };
+            result = { id: args.featureFlagId, enabled: true };
+        } else if (
+            this.lightdashConfig.disabledFeatureFlags.has(args.featureFlagId)
+        ) {
+            // 1b. Check env var disable-allowlist (self-hosted kill switch)
+            result = { id: args.featureFlagId, enabled: false };
+        } else {
+            // 2. Check per-flag config handlers
+            const handler = this.featureFlagHandlers[args.featureFlagId];
+            if (handler) {
+                result = await handler(args, options);
+            } else {
+                // 3. Check database (user override > org override > flag default)
+                const dbResult = await this.tryGetFromDatabase(args, options);
+                result = dbResult ?? { id: args.featureFlagId, enabled: false };
+            }
         }
 
-        // 1b. Check env var disable-allowlist (self-hosted kill switch)
-        if (this.lightdashConfig.disabledFeatureFlags.has(args.featureFlagId)) {
-            return { id: args.featureFlagId, enabled: false };
+        try {
+            record(
+                args.featureFlagId,
+                args.user?.organizationUuid ?? null,
+                result.enabled,
+            );
+        } catch {
+            return result;
         }
 
-        // 2. Check per-flag config handlers
-        const handler = this.featureFlagHandlers[args.featureFlagId];
-        if (handler) {
-            return handler(args, options);
-        }
-
-        // 3. Check database (user override > org override > flag default)
-        const dbResult = await this.tryGetFromDatabase(args, options);
-        if (dbResult !== null) {
-            return dbResult;
-        }
-
-        // Unknown flags default to disabled.
-        // See: GLITCH-331
-        return { id: args.featureFlagId, enabled: false };
+        return result;
     }
 
     private async getEditYamlInUiEnabled({

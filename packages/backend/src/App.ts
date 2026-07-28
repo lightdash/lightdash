@@ -68,6 +68,7 @@ import {
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
+import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
@@ -95,6 +96,8 @@ import { VERSION } from './version';
 // the compilation entry point (e.g. knex seed/migrate via sucrase).
 
 initOtelTracing();
+
+const FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS = 15 * 60 * 1000;
 
 const schedulerWorkerFactory = (context: {
     lightdashConfig: LightdashConfig;
@@ -215,6 +218,8 @@ export default class App {
 
     private readonly analyticsEventEmitter: EventEmitter;
 
+    private featureFlagCheckFlushInterval: NodeJS.Timeout | undefined;
+
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
@@ -290,6 +295,18 @@ export default class App {
     }
 
     async start() {
+        this.featureFlagCheckFlushInterval = setInterval(() => {
+            try {
+                this.analytics.trackFeatureFlagChecks(
+                    flushFeatureFlagChecks(),
+                    'api',
+                );
+            } catch {
+                // telemetry must never break the app
+            }
+        }, FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS);
+        this.featureFlagCheckFlushInterval.unref();
+
         this.prometheusMetrics.start();
         setGithubRateLimitObserver((rl) =>
             this.prometheusMetrics.observeGithubRateLimit(rl),
@@ -1048,6 +1065,18 @@ export default class App {
     }
 
     async stop() {
+        if (this.featureFlagCheckFlushInterval) {
+            clearInterval(this.featureFlagCheckFlushInterval);
+            this.featureFlagCheckFlushInterval = undefined;
+        }
+        try {
+            this.analytics.trackFeatureFlagChecks(
+                flushFeatureFlagChecks(),
+                'api',
+            );
+        } catch {
+            // telemetry must never break shutdown
+        }
         if (this.pgWireServer) {
             await this.pgWireServer.close();
             Logger.info('Stopped Postgres wire protocol server');

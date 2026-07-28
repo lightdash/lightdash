@@ -51,6 +51,7 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
+import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
 import type { AiUsageEvent } from './aiUsage';
@@ -2956,6 +2957,24 @@ export type PromptFetchedEvent = BaseTrack & {
     };
 };
 
+export type FeatureFlagCheckProcessType = 'api' | 'scheduler' | null;
+
+export type FeatureFlagCheckedAggregatedEvent = BaseTrack & {
+    event: 'feature_flag.checked_aggregated';
+    properties: {
+        flagId: string;
+        checkCount: number;
+        enabledCount: number;
+        disabledCount: number;
+        uniqueOrgCount: number;
+        orgUuids: string[];
+        orgUuidsTruncated: boolean;
+        windowStartAt: string;
+        windowEndAt: string;
+        processType: FeatureFlagCheckProcessType;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -3117,6 +3136,7 @@ type TypedEvent =
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent
     | PromptFetchedEvent
+    | FeatureFlagCheckedAggregatedEvent
     | PersistentFileGenerationRequestedEvent
     | PersistentFileGenerationCompletedEvent
     | PersistentFileUrlRequestedEvent
@@ -3255,6 +3275,22 @@ export class LightdashAnalytics extends Analytics {
         super.group({
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
+        });
+    }
+
+    trackFeatureFlagChecks(
+        entries: FeatureFlagCheckAggregateEntry[],
+        processType: FeatureFlagCheckProcessType,
+    ) {
+        entries.forEach((entry) => {
+            this.track({
+                event: 'feature_flag.checked_aggregated',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    ...entry,
+                    processType,
+                },
+            });
         });
     }
 
