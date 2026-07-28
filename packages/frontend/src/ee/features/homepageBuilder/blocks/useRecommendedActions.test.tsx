@@ -103,6 +103,27 @@ describe('useRecommendedActions', () => {
         });
     });
 
+    it('reports no pending actions while source control is still loading', () => {
+        vi.mocked(useApp).mockReturnValue({
+            health: { data: { hasGithub: true } },
+            user: {
+                data: {
+                    ability: { can: () => true },
+                },
+            },
+        } as unknown as ReturnType<typeof useApp>);
+        vi.mocked(useGithubConfig).mockReturnValue({
+            data: undefined,
+            isInitialLoading: true,
+        } as ReturnType<typeof useGithubConfig>);
+
+        const { result } = renderHook(() =>
+            useRecommendedActions('project-uuid'),
+        );
+
+        expect(result.current.hasPendingActions).toBe(false);
+    });
+
     it('shows no source-control annotation when nothing is connected', () => {
         vi.mocked(useApp).mockReturnValue({
             health: { data: { hasGitlab: true } },

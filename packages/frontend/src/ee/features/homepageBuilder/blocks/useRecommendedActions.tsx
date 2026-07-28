@@ -36,13 +36,21 @@ export type ActionStatus = {
 
 const useActionStatuses = (
     projectUuid: string | null,
-): Record<HomepageRecommendedActionKey, ActionStatus> => {
+): {
+    statuses: Record<HomepageRecommendedActionKey, ActionStatus>;
+    isLoading: boolean;
+} => {
     const { health } = useApp();
-    const { data: organization } = useOrganization();
-    const { data: project } = useProject(projectUuid ?? undefined);
-    const { data: projects } = useProjects();
-    const { data: githubConfig } = useGithubConfig();
-    const { data: slack, isSuccess: isSlackSuccess } = useGetSlack();
+    const organizationQuery = useOrganization();
+    const projectQuery = useProject(projectUuid ?? undefined);
+    const projectsQuery = useProjects();
+    const githubConfigQuery = useGithubConfig();
+    const slackQuery = useGetSlack();
+    const { data: organization } = organizationQuery;
+    const { data: project } = projectQuery;
+    const { data: projects } = projectsQuery;
+    const { data: githubConfig } = githubConfigQuery;
+    const { data: slack, isSuccess: isSlackSuccess } = slackQuery;
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const codingAgentOnboardingFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
@@ -53,10 +61,22 @@ const useActionStatuses = (
 
     const hasGithub = !!health.data?.hasGithub;
     const hasGitlab = !!health.data?.hasGitlab;
-    const { isSuccess: isGitlabConnected } = useGitlabRepositories({
+    const gitlabQuery = useGitlabRepositories({
         enabled: hasGitlab,
     });
+    const { isSuccess: isGitlabConnected } = gitlabQuery;
     const isGithubConnected = githubConfig?.enabled === true;
+
+    // Every step defaults to incomplete, so rendering before these have
+    // settled flashes steps that are already done
+    const isLoading =
+        health.isInitialLoading ||
+        organizationQuery.isInitialLoading ||
+        projectQuery.isInitialLoading ||
+        projectsQuery.isInitialLoading ||
+        (hasGithub && githubConfigQuery.isInitialLoading) ||
+        (hasGitlab && gitlabQuery.isInitialLoading) ||
+        (!!health.data?.hasSlack && slackQuery.isInitialLoading);
 
     const dbtConnection = project?.dbtConnection;
     const hasSemanticLayer =
@@ -81,50 +101,55 @@ const useActionStatuses = (
             : undefined;
 
     return {
-        'connect-warehouse': {
-            isVisible: true,
-            isComplete: hasRealWarehouseProject,
-            annotation: warehouseType ? getWarehouseLabel(warehouseType) : null,
-            doneIcon: warehouseType
-                ? getWarehouseIcon(warehouseType, 'sm')
-                : null,
-            url: '/onboarding/data-source',
-        },
-        'add-semantic-layer': {
-            isVisible: !!projectUuid,
-            isComplete: hasSemanticLayer,
-            annotation: dbtConnection
-                ? DbtProjectTypeLabels[dbtConnection.type]
-                : null,
-            doneIcon: null,
-            url: hasAgentSemanticLayerEntry
-                ? `/projects/${projectUuid}/onboarding/agent`
-                : `/generalSettings/projectManagement/${projectUuid}/settings`,
-        },
-        'connect-source-control': {
-            isVisible: hasGithub || hasGitlab,
-            isComplete: isGithubConnected || isGitlabConnected,
-            annotation: isGithubConnected
-                ? 'GitHub'
-                : isGitlabConnected
-                  ? 'GitLab'
-                  : null,
-            doneIcon: null,
-            url: '/generalSettings/integrations',
-        },
-        'connect-slack': {
-            isVisible: !!health.data?.hasSlack,
-            isComplete: isSlackConnected,
-            annotation: slack?.slackTeamName ?? 'Connected',
-            doneIcon: null,
-            url: '/generalSettings/integrations',
+        isLoading,
+        statuses: {
+            'connect-warehouse': {
+                isVisible: true,
+                isComplete: hasRealWarehouseProject,
+                annotation: warehouseType
+                    ? getWarehouseLabel(warehouseType)
+                    : null,
+                doneIcon: warehouseType
+                    ? getWarehouseIcon(warehouseType, 'sm')
+                    : null,
+                url: '/onboarding/data-source',
+            },
+            'add-semantic-layer': {
+                isVisible: !!projectUuid,
+                isComplete: hasSemanticLayer,
+                annotation: dbtConnection
+                    ? DbtProjectTypeLabels[dbtConnection.type]
+                    : null,
+                doneIcon: null,
+                url: hasAgentSemanticLayerEntry
+                    ? `/projects/${projectUuid}/onboarding/agent`
+                    : `/generalSettings/projectManagement/${projectUuid}/settings`,
+            },
+            'connect-source-control': {
+                isVisible: hasGithub || hasGitlab,
+                isComplete: isGithubConnected || isGitlabConnected,
+                annotation: isGithubConnected
+                    ? 'GitHub'
+                    : isGitlabConnected
+                      ? 'GitLab'
+                      : null,
+                doneIcon: null,
+                url: '/generalSettings/integrations',
+            },
+            'connect-slack': {
+                isVisible: !!health.data?.hasSlack,
+                isComplete: isSlackConnected,
+                annotation: slack?.slackTeamName ?? 'Connected',
+                doneIcon: null,
+                url: '/generalSettings/integrations',
+            },
         },
     };
 };
 
 export const useRecommendedActions = (projectUuid: string | null) => {
     const { user } = useApp();
-    const statuses = useActionStatuses(projectUuid);
+    const { statuses, isLoading } = useActionStatuses(projectUuid);
     const { data: project } = useProject(projectUuid ?? undefined);
     const isPlaygroundProject = isPlaygroundProvisioningSource(
         project?.provisioningSource,
@@ -152,6 +177,7 @@ export const useRecommendedActions = (projectUuid: string | null) => {
         ? []
         : RECOMMENDED_ACTION_KEYS.filter((key) => statuses[key].isVisible);
     const hasPendingActions =
+        !isLoading &&
         canManageProject &&
         visibleActions.some(
             (key) => !statuses[key].isComplete && !skippedActions.includes(key),
