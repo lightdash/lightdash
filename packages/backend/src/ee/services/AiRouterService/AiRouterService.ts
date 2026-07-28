@@ -300,7 +300,7 @@ export class AiRouterService extends BaseService {
             const projectAgents = await this.aiAgentService.getAvailableAgents(
                 organizationUuid,
                 account.user.userUuid,
-                { aiRequireOAuth: false },
+                { aiRequireOAuth: true },
                 { projectFilter: { projectUuid } },
             );
             const projectAgentUuids = new Set(

@@ -1032,3 +1032,82 @@ describe('AiAgentService MCP support', () => {
         getOauthCredentialByStateSpy.mockRestore();
     });
 });
+
+describe('AiAgentService getAvailableAgents access filtering', () => {
+    let context: IntegrationTestContext;
+
+    beforeAll(() => {
+        context = getTestContext();
+    });
+
+    it('only offers unrestricted agents when per-user identity is not verified', async () => {
+        const services = getServices(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+        const baseAgent = {
+            description: null,
+            projectUuid: SEED_PROJECT.project_uuid,
+            tags: null,
+            integrations: [],
+            instruction: '',
+            groupAccess: [],
+            userAccess: [],
+            spaceAccess: [],
+            mcpServerUuids: [],
+            imageUrl: null,
+            enableDataAccess: true,
+            enableSelfImprovement: false,
+            version: 2,
+        };
+
+        const openAgent = await services.aiAgentService.createAgent(
+            context.testUser,
+            { ...baseAgent, name: `Available Open ${suffix}` },
+        );
+        const userRestrictedAgent = await services.aiAgentService.createAgent(
+            context.testUser,
+            {
+                ...baseAgent,
+                name: `Available User Restricted ${suffix}`,
+                userAccess: [SEED_ORG_1_VIEWER.user_uuid],
+            },
+        );
+        const adminOnlyAgent = await services.aiAgentService.createAgent(
+            context.testUser,
+            {
+                ...baseAgent,
+                name: `Available Admin Only ${suffix}`,
+                adminOnly: true,
+            },
+        );
+
+        const unverifiedAgents =
+            await services.aiAgentService.getAvailableAgents(
+                context.testUser.organizationUuid!,
+                context.testUser.userUuid,
+                { aiRequireOAuth: false },
+            );
+        const unverifiedUuids = unverifiedAgents.map((agent) => agent.uuid);
+        expect(unverifiedUuids).toContain(openAgent.uuid);
+        expect(unverifiedUuids).not.toContain(userRestrictedAgent.uuid);
+        expect(unverifiedUuids).not.toContain(adminOnlyAgent.uuid);
+
+        const viewerAgents = await services.aiAgentService.getAvailableAgents(
+            context.testUser.organizationUuid!,
+            SEED_ORG_1_VIEWER.user_uuid,
+            { aiRequireOAuth: true },
+        );
+        const viewerUuids = viewerAgents.map((agent) => agent.uuid);
+        expect(viewerUuids).toContain(openAgent.uuid);
+        expect(viewerUuids).toContain(userRestrictedAgent.uuid);
+        expect(viewerUuids).not.toContain(adminOnlyAgent.uuid);
+
+        const adminAgents = await services.aiAgentService.getAvailableAgents(
+            context.testUser.organizationUuid!,
+            context.testUser.userUuid,
+            { aiRequireOAuth: true },
+        );
+        expect(adminAgents.map((agent) => agent.uuid)).toContain(
+            adminOnlyAgent.uuid,
+        );
+    });
+});

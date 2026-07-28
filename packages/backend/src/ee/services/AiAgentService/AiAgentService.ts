@@ -11801,7 +11801,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }
 
     /**
-     * Get available agents for a user with their full context, filtered by access if OAuth is required
+     * Get available agents for a user with their full context. With OAuth the
+     * list is filtered by per-user access; without it only unrestricted agents
+     * are returned, since the Slack actor can't be verified per user.
      */
     public async getAvailableAgents(
         organizationUuid: string,
@@ -11843,10 +11845,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         let filteredAgents: AiAgentSummary[];
 
         if (!slackSettings?.aiRequireOAuth) {
-            // Without OAuth there is no per-user enforcement, so exclude
-            // admin-only agents to avoid leaking them to non-admin users.
-            // (With OAuth, checkAgentAccess below handles admin-only correctly.)
-            filteredAgents = allAgents.filter((agent) => !agent.adminOnly);
+            // Without OAuth the Slack actor resolves to the workspace
+            // installer, so per-user access can't be evaluated — only offer
+            // agents with no access restrictions.
+            // (With OAuth, checkAgentAccess below handles this correctly.)
+            filteredAgents = allAgents.filter((agent) =>
+                AiAgentService.isAgentUnrestricted(agent),
+            );
         } else {
             filteredAgents = await Promise.all(
                 allAgents.map(async (agent) => {
@@ -12379,6 +12384,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
+    // True when the agent has no access restrictions, so any org member who
+    // can view the project may use it. Slack without aiRequireOAuth can't
+    // evaluate per-user access, so only unrestricted agents are usable there.
+    private static isAgentUnrestricted(
+        agent: Pick<AiAgent, 'adminOnly' | 'userAccess' | 'groupAccess'>,
+    ): boolean {
+        return (
+            !agent.adminOnly &&
+            agent.userAccess.length === 0 &&
+            agent.groupAccess.length === 0
+        );
+    }
+
     /**
      * Check if user has access to an agent and throw ForbiddenError if not
      */
@@ -12388,6 +12406,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         slackSettings: { aiRequireOAuth?: boolean },
     ): Promise<void> {
         if (!slackSettings?.aiRequireOAuth) {
+            // Without OAuth the Slack actor resolves to the workspace
+            // installer, so per-user access can't be evaluated — refuse
+            // agents with access restrictions.
+            if (!AiAgentService.isAgentUnrestricted(agentConfig)) {
+                throw new ForbiddenError();
+            }
             return;
         }
 
@@ -12901,18 +12925,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
 
                 // Check user access to the agent
-                if (slackSettings?.aiRequireOAuth) {
-                    const user =
-                        await this.userModel.findSessionUserAndOrgByUuid(
-                            userUuid,
-                            agentConfig.organizationUuid,
-                        );
-
-                    const hasAccess = await this.checkAgentAccess(
-                        user,
+                try {
+                    await this.verifyAgentAccess(
                         agentConfig,
+                        userUuid,
+                        slackSettings,
                     );
-                    if (!hasAccess) {
+                } catch (accessError) {
+                    if (accessError instanceof ForbiddenError) {
                         await client.chat.postEphemeral({
                             channel: channelId,
                             user: body.user.id,
@@ -12921,6 +12941,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                         return;
                     }
+                    throw accessError;
                 }
 
                 // Fetch the thread messages to find the original user message
