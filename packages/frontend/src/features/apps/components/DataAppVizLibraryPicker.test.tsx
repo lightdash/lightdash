@@ -40,7 +40,7 @@ const setData = (data: DataAppViz[]) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
-const render = (onSelect: (id: string) => void): ReactElement =>
+const render = (onSelect: (dataAppViz: DataAppViz) => void): ReactElement =>
     renderWithProviders(
         <DataAppVizLibraryPicker
             projectUuid="project-1"
@@ -71,17 +71,21 @@ describe('DataAppVizLibraryPicker', () => {
         expect(screen.getByText('Bar race')).toBeDefined();
     });
 
-    it('returns the selected viz uuid on click', () => {
-        setData([
-            makeDataAppViz({ dataAppVizUuid: 'picked', name: 'Pick me' }),
-        ]);
+    it('returns the whole selected viz on click, contract included', () => {
+        const picked = makeDataAppViz({
+            dataAppVizUuid: 'picked',
+            name: 'Pick me',
+        });
+        setData([picked]);
         const onSelect = vi.fn();
         render(onSelect);
         openDropdown();
 
         fireEvent.click(screen.getByText('Pick me'));
 
-        expect(onSelect).toHaveBeenCalledWith('picked');
+        // The caller binds the contract straight away, so it needs the schema
+        // and not just the uuid.
+        expect(onSelect).toHaveBeenCalledWith(picked);
     });
 
     it('shows an empty state when there are no bindable vizs', () => {

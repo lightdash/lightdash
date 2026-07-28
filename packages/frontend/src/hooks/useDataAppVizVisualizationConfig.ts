@@ -1,5 +1,6 @@
 import {
     type DataAppVizChart,
+    type DataAppVizFieldMapping,
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
 } from '@lightdash/common';
@@ -10,7 +11,15 @@ export interface DataAppVizVisualizationConfigAndData {
     dataAppVizUuid: string;
     fieldMapping: Record<string, string>;
     optionValues: DataAppVizOptionValues;
-    setDataAppVizUuid: (dataAppVizUuid: string) => void;
+    /**
+     * `fieldMapping` is the caller's binding for the newly selected viz —
+     * computed from its contract and the query's result columns. Passed in
+     * rather than derived here so this hook stays free of server state.
+     */
+    setDataAppVizUuid: (
+        dataAppVizUuid: string,
+        fieldMapping: DataAppVizFieldMapping,
+    ) => void;
     setField: (fieldName: string, fieldId: string | null) => void;
     /** `dataAppVizUuid` is the viz the edited control belonged to. */
     setOption: (
@@ -60,12 +69,13 @@ const useDataAppVizVisualizationConfig = (
     }, []);
 
     const setDataAppVizUuid = useCallback(
-        (newDataAppVizUuid: string) => {
-            // Fields and options are viz-specific, so switching viz drops both
-            // rather than carrying over now-meaningless names.
+        (newDataAppVizUuid: string, fieldMapping: DataAppVizFieldMapping) => {
+            // Options are viz-specific, so switching viz drops them rather
+            // than carrying over now-meaningless names. The mapping is
+            // replaced wholesale by the caller's auto-binding.
             commit({
                 dataAppVizUuid: newDataAppVizUuid,
-                fieldMapping: {},
+                fieldMapping,
                 optionValues: {},
             });
         },

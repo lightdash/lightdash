@@ -10,6 +10,7 @@ import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
+import { autoMapDataAppVizFields } from '../../../features/apps/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
@@ -76,7 +77,15 @@ export const ConfigTabs: FC = memo(() => {
                         projectUuid={projectUuid ?? ''}
                         selectedDataAppVizUuid={dataAppVizUuid || null}
                         selectedDataAppViz={dataAppViz ?? null}
-                        onSelect={setDataAppVizUuid}
+                        onSelect={(picked) =>
+                            setDataAppVizUuid(
+                                picked.dataAppVizUuid,
+                                autoMapDataAppVizFields(
+                                    picked.schema?.fields ?? [],
+                                    itemsMap ?? {},
+                                ),
+                            )
+                        }
                     />
                 </Config.Section>
             </Config>

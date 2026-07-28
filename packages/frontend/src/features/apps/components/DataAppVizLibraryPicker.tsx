@@ -10,7 +10,9 @@ type Props = {
     projectUuid: string;
     selectedDataAppVizUuid: string | null;
     selectedDataAppViz: DataAppViz | null;
-    onSelect: (dataAppVizUuid: string) => void;
+    /** Receives the whole viz so the caller can bind its contract straight
+     *  away, without waiting on a fetch for the newly selected uuid. */
+    onSelect: (dataAppViz: DataAppViz) => void;
 };
 
 interface DataAppVizItem extends ComboboxItem {
@@ -43,6 +45,19 @@ const DataAppVizLibraryPicker: FC<Props> = ({
     const { data, isInitialLoading, isFetching, error } =
         useDataAppVisualizations(projectUuid, debouncedSearch);
 
+    // Keep the fetched rows addressable by uuid so `onChange` can hand the
+    // caller the whole viz (contract included), not just its uuid.
+    const dataAppVizsByUuid = useMemo(() => {
+        const byUuid = new Map<string, DataAppViz>();
+        if (selectedDataAppViz) {
+            byUuid.set(selectedDataAppViz.dataAppVizUuid, selectedDataAppViz);
+        }
+        for (const page of data?.pages ?? []) {
+            for (const viz of page.data) byUuid.set(viz.dataAppVizUuid, viz);
+        }
+        return byUuid;
+    }, [data?.pages, selectedDataAppViz]);
+
     const selectData = useMemo(() => {
         const dataAppVizs = data?.pages.flatMap((page) => page.data) ?? [];
         const items = dataAppVizs.map(toItem);
@@ -67,7 +82,8 @@ const DataAppVizLibraryPicker: FC<Props> = ({
             // Search is done server-side, so keep every returned option.
             filter={({ options }) => options}
             onChange={(value) => {
-                if (value) onSelect(value);
+                const picked = value ? dataAppVizsByUuid.get(value) : undefined;
+                if (picked) onSelect(picked);
             }}
             allowDeselect={false}
             placeholder="Select a visualization"
