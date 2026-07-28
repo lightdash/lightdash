@@ -27,7 +27,7 @@ import { Link } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { parseAiAgentMemorySections } from '../../utils/memory';
-import { MEMORY_SCOPE_COLORS, MEMORY_SCOPE_LABELS } from '../Admin/memoryScope';
+import { MEMORY_SCOPE_LABELS } from '../Admin/memoryScope';
 import styles from './MemoryDetails.module.css';
 import { MemoryStatusAction, MemoryStatusMenu } from './MemoryStatusControls';
 
@@ -260,14 +260,9 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         </Group>
                     }
                 >
-                    <Badge
-                        variant="light"
-                        radius="sm"
-                        tt="none"
-                        color={MEMORY_SCOPE_COLORS[memory.scope]}
-                    >
+                    <Text className={styles.railText}>
                         {MEMORY_SCOPE_LABELS[memory.scope]}
-                    </Badge>
+                    </Text>
                 </RailRow>
                 <RailRow label="Saved">
                     <Text className={styles.railText}>

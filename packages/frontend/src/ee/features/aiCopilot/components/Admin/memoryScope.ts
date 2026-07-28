@@ -6,8 +6,3 @@ export const MEMORY_SCOPE_LABELS: Record<AiAgentMemoryScope, string> = {
     user: 'Personal',
     project: 'Project-wide',
 };
-
-export const MEMORY_SCOPE_COLORS: Record<AiAgentMemoryScope, string> = {
-    user: 'gray',
-    project: 'indigo',
-};

@@ -173,7 +173,7 @@ describe('MemoryCitation', () => {
         expect(within(dialog).getByText('Citations')).toBeInTheDocument();
         expect(within(dialog).getByText('3')).toBeInTheDocument();
         expect(within(dialog).getByText('Scope')).toBeInTheDocument();
-        expect(within(dialog).getByText('Personal')).toBeInTheDocument();
+        expect(within(dialog).getByText('Personal').tagName).toBe('P');
         expect(within(dialog).getByText('Open thread')).toBeInTheDocument();
 
         fireEvent.mouseEnter(
