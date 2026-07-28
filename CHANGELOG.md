@@ -1,3 +1,16 @@
+# [1.2.0](https://github.com/lightdash/lightdash/compare/1.1.1...1.2.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* install okteto CLI in preview DB snapshot workflow ([#26251](https://github.com/lightdash/lightdash/issues/26251)) ([2d774da](https://github.com/lightdash/lightdash/commit/2d774da2bd6eb863fd38b38ff91de985559beaab))
+* seed preview DB snapshot against a db-preview hostname ([#26259](https://github.com/lightdash/lightdash/issues/26259)) ([faa8683](https://github.com/lightdash/lightdash/commit/faa8683baafd8b7a8872e8eb8553232bad243f76))
+
+
+### Features
+
+* divert preview envs from a pre-seeded database snapshot ([#26001](https://github.com/lightdash/lightdash/issues/26001)) ([7640e37](https://github.com/lightdash/lightdash/commit/7640e374571a3271a2a6fe74427ee8f80dfa324a))
+
 ## [1.1.1](https://github.com/lightdash/lightdash/compare/1.1.0...1.1.1) (2026-07-27)
 
 
