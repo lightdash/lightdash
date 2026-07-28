@@ -2,15 +2,18 @@ import {
     getEffectiveOptionValues,
     getItemId,
     type DataAppVizField,
+    type DataAppVizFieldMapping,
     type Item,
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine-8/core';
 import { MantineProvider, useMantineColorScheme } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import DataAppVizConversation from '../../../features/apps/components/DataAppVizConversation';
 import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
-import DataAppVizThread from '../../../features/apps/components/DataAppVizThread';
+import DataAppVizPickOrCreate from '../../../features/apps/components/DataAppVizPickOrCreate';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
+import { useGenerateDataAppViz } from '../../../features/apps/hooks/useGenerateDataAppViz';
 import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
@@ -57,6 +60,22 @@ export const ConfigTabs: FC = memo(() => {
     const fieldItems = (field: DataAppVizField): Item[] =>
         field.type === 'metric' ? metrics : dimensions;
 
+    // Held in a ref-free callback so the generator hook can commit straight
+    // into the chart config once a build lands.
+    const setDataAppVizUuidRef = isDataAppViz
+        ? visualizationConfig.chartConfig.setDataAppVizUuid
+        : undefined;
+    const handleGenerated = useCallback(
+        (uuid: string, mapping: DataAppVizFieldMapping) =>
+            setDataAppVizUuidRef?.(uuid, mapping),
+        [setDataAppVizUuidRef],
+    );
+    const generation = useGenerateDataAppViz({
+        projectUuid,
+        itemsMap: itemsMap ?? {},
+        onReady: handleGenerated,
+    });
+
     if (!isDataAppViz) return null;
 
     const {
@@ -80,27 +99,43 @@ export const ConfigTabs: FC = memo(() => {
         fieldMapping,
     );
 
+    const picker = (
+        <Config>
+            <Config.Section>
+                <Config.Heading>Data app visualization</Config.Heading>
+                <DataAppVizLibraryPicker
+                    projectUuid={projectUuid ?? ''}
+                    selectedDataAppVizUuid={dataAppVizUuid || null}
+                    selectedDataAppViz={dataAppViz ?? null}
+                    onSelect={(picked) =>
+                        setDataAppVizUuid(
+                            picked.dataAppVizUuid,
+                            autoMapDataAppVizFields(
+                                picked.schema?.fields ?? [],
+                                itemsMap ?? {},
+                            ),
+                        )
+                    }
+                />
+            </Config.Section>
+        </Config>
+    );
+
     const generalPanel = (
         <Stack>
-            <Config>
-                <Config.Section>
-                    <Config.Heading>Data app visualization</Config.Heading>
-                    <DataAppVizLibraryPicker
-                        projectUuid={projectUuid ?? ''}
-                        selectedDataAppVizUuid={dataAppVizUuid || null}
-                        selectedDataAppViz={dataAppViz ?? null}
-                        onSelect={(picked) =>
-                            setDataAppVizUuid(
-                                picked.dataAppVizUuid,
-                                autoMapDataAppVizFields(
-                                    picked.schema?.fields ?? [],
-                                    itemsMap ?? {},
-                                ),
-                            )
-                        }
-                    />
-                </Config.Section>
-            </Config>
+            {dataAppVizUuid ? (
+                picker
+            ) : (
+                <DataAppVizPickOrCreate
+                    picker={picker}
+                    projectUuid={projectUuid ?? ''}
+                    itemsMap={itemsMap ?? {}}
+                    isBuilding={generation.isBuilding}
+                    pendingPrompt={generation.pendingPrompt}
+                    error={generation.error}
+                    onSubmit={generation.generate}
+                />
+            )}
 
             {dataAppVizUuid && fields.length === 0 && (
                 <Text c="dimmed" size="sm">
@@ -155,9 +190,11 @@ export const ConfigTabs: FC = memo(() => {
                 paletteControl={<ColorPaletteSection />}
                 threadContent={
                     projectUuid && dataAppVizUuid ? (
-                        <DataAppVizThread
+                        <DataAppVizConversation
                             projectUuid={projectUuid}
                             dataAppVizUuid={dataAppVizUuid}
+                            // Iterating on an existing viz lands next.
+                            composer={null}
                         />
                     ) : null
                 }

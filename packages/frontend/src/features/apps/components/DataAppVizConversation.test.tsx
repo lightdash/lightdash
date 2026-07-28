@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { useGetApp } from '../hooks/useGetApp';
-import DataAppVizThread from './DataAppVizThread';
+import DataAppVizConversation from './DataAppVizConversation';
 
 vi.mock('../hooks/useGetApp', () => ({ useGetApp: vi.fn() }));
 
@@ -43,10 +43,14 @@ const setVersions = (
 
 const render = () =>
     renderWithProviders(
-        <DataAppVizThread projectUuid="project-1" dataAppVizUuid="viz-1" />,
+        <DataAppVizConversation
+            projectUuid="project-1"
+            dataAppVizUuid="viz-1"
+            composer={null}
+        />,
     );
 
-describe('DataAppVizThread', () => {
+describe('DataAppVizConversation', () => {
     beforeEach(() => vi.clearAllMocks());
 
     it('shows the request and a receipt for a finished build', () => {
@@ -142,6 +146,62 @@ describe('DataAppVizThread', () => {
         render();
 
         expect(screen.getByText('Uploaded from source')).toBeInTheDocument();
+    });
+
+    it('shows a sent request immediately, before any build lands', () => {
+        // The gap that made the composer feel broken: you sent something and
+        // the panel showed nothing back.
+        setVersions([]);
+        renderWithProviders(
+            <DataAppVizConversation
+                projectUuid="project-1"
+                dataAppVizUuid={null}
+                composer={{
+                    itemsMap: {} as never,
+                    placeholder: 'Describe a new visualization…',
+                    isBuilding: true,
+                    pendingPrompt: 'a donut of orders by status',
+                    error: null,
+                    onSubmit: vi.fn(),
+                }}
+            />,
+        );
+
+        expect(
+            screen.getByText('a donut of orders by status'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Building')).toBeInTheDocument();
+    });
+
+    it('drops the optimistic request once history carries it', () => {
+        setVersions([version({ prompt: 'a donut of orders by status' })]);
+        renderWithProviders(
+            <DataAppVizConversation
+                projectUuid="project-1"
+                dataAppVizUuid="viz-1"
+                composer={{
+                    itemsMap: {} as never,
+                    placeholder: 'Ask for a change…',
+                    isBuilding: false,
+                    pendingPrompt: 'a donut of orders by status',
+                    error: null,
+                    onSubmit: vi.fn(),
+                }}
+            />,
+        );
+
+        // One bubble, not two: the server version supersedes the local one.
+        expect(screen.getAllByText('a donut of orders by status')).toHaveLength(
+            1,
+        );
+    });
+
+    it('renders the composer only when one is supplied', () => {
+        setVersions([version()]);
+        render();
+        expect(
+            screen.queryByRole('button', { name: 'Send' }),
+        ).not.toBeInTheDocument();
     });
 
     it('shows an empty state when the viz has no history', () => {

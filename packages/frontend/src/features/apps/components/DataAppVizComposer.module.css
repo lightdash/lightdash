@@ -1,0 +1,31 @@
+.columnList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--mantine-spacing-xs);
+    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+}
+
+.columnChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-xl);
+    background: transparent;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    line-height: 1.6;
+    cursor: pointer;
+    text-decoration: line-through;
+}
+
+.columnChip:hover {
+    border-color: var(--mantine-color-default-color);
+}
+
+.columnChipIncluded {
+    color: var(--mantine-color-text);
+    background: var(--mantine-color-default-hover);
+    text-decoration: none;
+}
