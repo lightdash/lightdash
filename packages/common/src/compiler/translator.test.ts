@@ -1590,7 +1590,7 @@ describe('explore-scoped additional dimensions', () => {
 
         // Verify the metric with explicit show_underlying_values overrides the default
         expect(table.metrics.average_revenue.showUnderlyingValues).toEqual([
-            'custom_field',
+            'user_name',
         ]);
     });
 

@@ -2219,7 +2219,7 @@ export const MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES: DbtModelNode & {
             average_revenue: {
                 type: MetricType.AVERAGE,
                 sql: '${TABLE}.revenue',
-                show_underlying_values: ['custom_field'], // This should override the default
+                show_underlying_values: ['user_name'], // This should override the default
             },
         },
     },
@@ -2361,7 +2361,7 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_SHOW_UNDERLYING_VALUES: Omit<
             percentile: undefined,
             compact: undefined,
             separator: undefined,
-            showUnderlyingValues: ['custom_field'], // Should use metric-specific override
+            showUnderlyingValues: ['user_name'], // Should use metric-specific override
             groups: [],
             filters: [],
             index: 1,
