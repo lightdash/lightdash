@@ -20,7 +20,7 @@ overrides:
   jws: 4.0.1
   qs: 6.15.2
   hono: 4.12.27
-  tar: 7.5.11
+  tar: 7.5.21
   eslint: 8.57.1
   canvas: 3.2.1
   ssh2: 1.17.0
@@ -15813,8 +15813,8 @@ packages:
   tar-stream@3.1.8:
     resolution: {integrity: sha512-U6QpVRyCGHva435KoNWy9PRoi2IFYCgtEhq9nmrPPpbRacPs9IH4aJ3gbrFC8dPcXvdSZ4XXfXT5Fshbp2MtlQ==}
 
-  tar@7.5.11:
-    resolution: {integrity: sha512-ChjMH33/KetonMTAtpYdgUFr0tbz69Fp2v7zWxQfYZX4g5ZN2nOBXm1R2xyA+lMIKrLKIoKAwFj93jE/avX9cQ==}
+  tar@7.5.21:
+    resolution: {integrity: sha512-XdhtCvlMywwxpCW8YEq3lOXBJpUPTR2OHHcwLPO3HwsJqOHa2Ok/oJ7ruGzp+JrKoRPVCzJwAdEjqLW/vNRPHA==}
     engines: {node: '>=18'}
 
   tarn@3.0.2:
@@ -20781,7 +20781,7 @@ snapshots:
       node-fetch: 2.7.0(encoding@0.1.13)
       nopt: 8.1.0
       semver: 7.8.5
-      tar: 7.5.11
+      tar: 7.5.21
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -25336,7 +25336,7 @@ snapshots:
       prebuild-install: 7.1.3
       resolve: 1.22.11
       stream-meter: 1.0.4
-      tar: 7.5.11
+      tar: 7.5.21
       tinyglobby: 0.2.15
       unzipper: 0.12.3
     transitivePeerDependencies:
@@ -26073,7 +26073,7 @@ snapshots:
       promise-inflight: 1.0.1
       rimraf: 3.0.2
       ssri: 9.0.1
-      tar: 7.5.11
+      tar: 7.5.21
       unique-filename: 2.0.1
     transitivePeerDependencies:
       - bluebird
@@ -27432,7 +27432,7 @@ snapshots:
       glob: 11.1.0
       openapi-fetch: 0.14.1
       platform: 1.3.6
-      tar: 7.5.11
+      tar: 7.5.21
 
   eastasianwidth@0.2.0: {}
 
@@ -31337,7 +31337,7 @@ snapshots:
       npmlog: 6.0.2
       rimraf: 3.0.2
       semver: 7.8.5
-      tar: 7.5.11
+      tar: 7.5.21
       which: 2.0.2
     transitivePeerDependencies:
       - bluebird
@@ -34520,7 +34520,7 @@ snapshots:
       - bare-abort-controller
       - bare-buffer
 
-  tar@7.5.11:
+  tar@7.5.21:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
