@@ -52,14 +52,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && /usr/local/dbt1.11/bin/pip install \
     "dbt-core~=1.11.0" \
     "dbt-postgres~=1.10.0" \
-    "dbt-redshift~=1.10.0" \
     "dbt-snowflake~=1.11.0" \
     "dbt-bigquery~=1.11.0" \
     "dbt-databricks~=1.11.0" \
-    "dbt-trino~=1.10.0" \
-    "dbt-clickhouse~=1.9.0" \
-    "dbt-athena~=1.10.0" \
-    "dbt-duckdb~=1.10.0"
+    "dbt-trino~=1.10.0"
 
 # -----------------------------
 # Stage 1: Development environment
@@ -154,23 +150,9 @@ COPY packages/backend/tsconfig*.json packages/backend/
 COPY packages/backend/tsoa.yml packages/backend/
 COPY packages/backend/src/ packages/backend/src/
 
-ARG SENTRY_AUTH_TOKEN=""
-ARG SENTRY_ORG=""
-ARG SENTRY_RELEASE_VERSION=""
-ARG SENTRY_FRONTEND_PROJECT=""
-ARG SENTRY_BACKEND_PROJECT=""
-ARG SENTRY_ENVIRONMENT=""
-
-# Conditionally build backend with sourcemaps if Sentry environment variables are set
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
-    echo "Building backend with sourcemaps for Sentry"; \
-    turbo build-sourcemaps --filter=backend && turbo postbuild --filter=backend; \
-    else \
-    echo "Building backend without sourcemaps"; \
-    turbo build:fast --filter=backend; \
-    fi
+    turbo build:fast --filter=backend
 
 # output: /usr/app/packages/backend/dist
 
@@ -183,20 +165,10 @@ COPY --from=build-formula /usr/app/packages/formula/ packages/formula/
 
 COPY packages/frontend/ packages/frontend/
 
-ARG SENTRY_AUTH_TOKEN=""
-ARG SENTRY_ORG=""
-ARG SENTRY_RELEASE_VERSION=""
-
-# Build frontend with sourcemaps (Vite generates them by default)
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ]; then \
-    echo "Building frontend with Sentry integration"; \
-    SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN} SENTRY_RELEASE_VERSION=${SENTRY_RELEASE_VERSION} turbo build:fast --filter=@lightdash/frontend; \
-    else \
-    echo "Building frontend without Sentry integration"; \
-    turbo build:fast --filter=@lightdash/frontend; \
-    fi
+    turbo build:fast --filter=@lightdash/frontend && \
+    find packages/frontend/build -type f -name '*.map' -delete
 
 # output: /usr/app/packages/frontend/build
 
@@ -205,50 +177,12 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 ############################
 FROM prod-builder AS deploy-builder
 
-# Install Sentry CLI and process sourcemaps if environment variables are set
-ARG SENTRY_AUTH_TOKEN=""
-ARG SENTRY_ORG=""
-ARG SENTRY_RELEASE_VERSION=""
-ARG SENTRY_FRONTEND_PROJECT=""
-ARG SENTRY_BACKEND_PROJECT=""
-ARG SENTRY_ENVIRONMENT=""
-
 # Copy built artifacts, not sources
 COPY --from=build-backend  /usr/app/packages/backend/dist  packages/backend/dist
 COPY --from=build-frontend /usr/app/packages/frontend/build packages/frontend/build
 COPY --from=build-common   /usr/app/packages/common/dist   packages/common/dist
 COPY --from=build-formula  /usr/app/packages/formula/dist  packages/formula/dist
 COPY --from=build-warehouses /usr/app/packages/warehouses/dist packages/warehouses/dist
-
-# Process and upload sourcemaps to Sentry if environment variables are set
-RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY_RELEASE_VERSION}" ] && [ -n "${SENTRY_FRONTEND_PROJECT}" ] && [ -n "${SENTRY_BACKEND_PROJECT}" ] && [ -n "${SENTRY_ENVIRONMENT}" ]; then \
-    npm install -g @sentry/cli; \
-    echo "Creating Sentry releases and processing sourcemaps"; \
-    # Create releases for both projects \
-    sentry-cli releases new "${SENTRY_RELEASE_VERSION}" --project "${SENTRY_FRONTEND_PROJECT}"; \
-    sentry-cli releases new "${SENTRY_RELEASE_VERSION}" --project "${SENTRY_BACKEND_PROJECT}"; \
-    # Set commits for the releases \
-    sentry-cli releases set-commits "${SENTRY_RELEASE_VERSION}" --auto || echo "Could not determine commits automatically"; \
-    # Inject debug IDs into frontend artifacts \
-    echo "Injecting debug IDs into frontend artifacts"; \
-    sentry-cli sourcemaps inject ./packages/frontend/build/assets/; \
-    # Upload frontend sourcemaps \
-    echo "Uploading frontend sourcemaps"; \
-    sentry-cli sourcemaps upload --release "${SENTRY_RELEASE_VERSION}" \
-    --url-prefix "~/assets" ./packages/frontend/build/assets/ --project "${SENTRY_FRONTEND_PROJECT}"; \
-    # Inject debug IDs into backend artifacts \
-    echo "Injecting debug IDs into backend artifacts"; \
-    sentry-cli sourcemaps inject ./packages/backend/dist/; \
-    # Upload backend sourcemaps \
-    echo "Uploading backend sourcemaps"; \
-    sentry-cli sourcemaps upload --release "${SENTRY_RELEASE_VERSION}" \
-    --url-prefix "~/" ./packages/backend/dist/ --project "${SENTRY_BACKEND_PROJECT}"; \
-    # Finalize releases \
-    sentry-cli releases finalize "${SENTRY_RELEASE_VERSION}"; \
-    # Create deploys for both projects \
-    sentry-cli releases deploys "${SENTRY_RELEASE_VERSION}" new -e "${SENTRY_ENVIRONMENT}" --project "${SENTRY_FRONTEND_PROJECT}"; \
-    sentry-cli releases deploys "${SENTRY_RELEASE_VERSION}" new -e "${SENTRY_ENVIRONMENT}" --project "${SENTRY_BACKEND_PROJECT}"; \
-    fi
 
 ENV NODE_ENV=production
 
@@ -265,10 +199,8 @@ ENV NODE_ENV=production
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
-    python3-psycopg2 \
-    python3-venv \
+    # Required for dbt projects sourced from Git
     git \
-    build-essential \
     # Required by node-canvas prebuilt binaries for font rendering in chart images
     fontconfig \
     # Required so headless chart screenshots can render CJK glyphs
@@ -294,12 +226,6 @@ ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
 CMD ["node", "dist/index.js"]
 
 FROM prod AS pr-runner
-
-# psql is used by renderDeployHook.sh to detect a pre-seeded database
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
 
 COPY ./examples/full-jaffle-shop-demo/dbt /usr/app/dbt
 COPY ./examples/full-jaffle-shop-demo/profiles /usr/app/profiles
