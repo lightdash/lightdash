@@ -14,9 +14,14 @@ import {
     UnexpectedGitError,
 } from '@lightdash/common';
 import { Octokit as OctokitRest } from '@octokit/rest';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { SessionData } from 'express-session';
 import { nanoid } from 'nanoid';
-import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { z } from 'zod';
+import {
+    buildAiWritebackMergedEvent,
+    LightdashAnalytics,
+} from '../../analytics/LightdashAnalytics';
 import {
     createRepository as createGithubRepository,
     getAuthenticatedUser,
@@ -28,6 +33,7 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { GitUserCredentialsModel } from '../../models/GitUserCredentials/GitUserCredentialsModel';
+import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 
@@ -59,10 +65,40 @@ const isRevokedGithubTokenError = (error: unknown): boolean => {
     return status === 401;
 };
 
+const pullRequestMergedWebhookSchema = z.object({
+    action: z.literal('closed'),
+    number: z.number().int().positive(),
+    pull_request: z.object({
+        merged: z.literal(true),
+        merge_commit_sha: z.string().nullable(),
+    }),
+    repository: z.object({
+        name: z.string().min(1),
+        owner: z.object({ login: z.string().min(1) }),
+    }),
+});
+
+const isValidWebhookSignature = (
+    secret: string,
+    rawBody: Buffer,
+    signature: string,
+): boolean => {
+    const expected = `sha256=${createHmac('sha256', secret)
+        .update(rawBody)
+        .digest('hex')}`;
+    const expectedBuffer = Buffer.from(expected, 'utf8');
+    const signatureBuffer = Buffer.from(signature, 'utf8');
+    return (
+        expectedBuffer.length === signatureBuffer.length &&
+        timingSafeEqual(expectedBuffer, signatureBuffer)
+    );
+};
+
 type GithubAppServiceArguments = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitUserCredentialsModel: GitUserCredentialsModel;
     userModel: UserModel;
+    pullRequestsModel: PullRequestsModel;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
 };
@@ -74,6 +110,8 @@ export class GithubAppService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly pullRequestsModel: PullRequestsModel;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -83,8 +121,55 @@ export class GithubAppService extends BaseService {
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
         this.gitUserCredentialsModel = args.gitUserCredentialsModel;
         this.userModel = args.userModel;
+        this.pullRequestsModel = args.pullRequestsModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
+    }
+
+    async handleWebhook(args: {
+        rawBody: Buffer | null;
+        signature: string | null;
+        eventName: string | null;
+        body: unknown;
+    }): Promise<void> {
+        const secret = this.lightdashConfig.github.webhookSecret;
+        if (!secret) {
+            return;
+        }
+        if (
+            !args.rawBody ||
+            !args.signature ||
+            !isValidWebhookSignature(secret, args.rawBody, args.signature)
+        ) {
+            throw new AuthorizationError('Invalid GitHub webhook signature');
+        }
+        if (args.eventName !== 'pull_request') {
+            return;
+        }
+
+        const payload = pullRequestMergedWebhookSchema.safeParse(args.body);
+        if (!payload.success) {
+            return;
+        }
+
+        const context =
+            await this.pullRequestsModel.claimAiWritebackMergedAnalyticsByProvider(
+                PullRequestProvider.GITHUB,
+                payload.data.repository.owner.login,
+                payload.data.repository.name,
+                payload.data.number,
+            );
+        if (!context) {
+            return;
+        }
+
+        this.analytics.track(
+            buildAiWritebackMergedEvent({
+                context,
+                mergeCommitSha: payload.data.pull_request.merge_commit_sha,
+                compileScheduled: false,
+            }),
+        );
     }
 
     async installRedirect(user: SessionUser) {

@@ -1475,6 +1475,7 @@ export type LightdashConfig = {
     github: {
         appName: string;
         redirectDomain: string;
+        webhookSecret: string | undefined;
     };
     gitlab: {
         clientId: string | undefined;
@@ -3024,6 +3025,7 @@ export const parseConfig = (): LightdashConfig => {
             redirectDomain:
                 process.env.GITHUB_REDIRECT_DOMAIN ||
                 siteUrl.split('.')[0].split('//')[1],
+            webhookSecret: process.env.GITHUB_APP_WEBHOOK_SECRET,
         },
         gitlab: {
             clientId: process.env.GITLAB_CLIENT_ID,

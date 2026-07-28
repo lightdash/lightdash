@@ -442,10 +442,11 @@ export default class App {
             '/api/v1/gdrive/upload-gsheet-from-rows',
             express.json({ limit: UPLOAD_GSHEET_FROM_ROWS_MAX_BYTES }),
         );
-        // Capture the raw request body for the dbt Cloud webhook so its HMAC
-        // signature can be verified against the exact bytes that were signed.
         expressApp.use((req, res, next) => {
-            if (req.path.endsWith('/dbt-cloud/webhook')) {
+            if (
+                req.path.endsWith('/dbt-cloud/webhook') ||
+                req.path === '/api/v1/github/webhook'
+            ) {
                 express.json({
                     limit: this.lightdashConfig.maxPayloadSize,
                     verify: (request, _res, buf) => {
@@ -706,6 +707,20 @@ export default class App {
         expressApp.use((req, res, next) => {
             req.services = this.serviceRepository;
             next();
+        });
+
+        expressApp.post('/api/v1/github/webhook', async (req, res, next) => {
+            try {
+                await req.services.getGithubAppService().handleWebhook({
+                    rawBody: req.rawBody ?? null,
+                    signature: req.header('x-hub-signature-256') ?? null,
+                    eventName: req.header('x-github-event') ?? null,
+                    body: req.body,
+                });
+                res.status(200).send({ status: 'ok' });
+            } catch (error) {
+                next(error);
+            }
         });
 
         // Add JWT parsing here so we can get services off the request

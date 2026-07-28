@@ -28,9 +28,10 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import type {
-    AiWritebackFailureStage,
-    LightdashAnalytics,
+import {
+    buildAiWritebackMergedEvent,
+    type AiWritebackFailureStage,
+    type LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import {
     getRepoDefaultBranch,
@@ -140,7 +141,6 @@ import {
     parseGithubConnection,
     parseGitlabConnection,
     parsePullNumber,
-    parsePullRequestUrl,
     progressTextForStage,
     resolvePrMetadataValue,
     resolveSandboxDbtVersion,
@@ -595,7 +595,7 @@ export class AiWritebackService extends BaseService {
                 args.user,
                 args.projectUuid,
             );
-            await this.trackMerged(args.user, args.projectUuid, {
+            await this.trackMerged(args.projectUuid, {
                 prUrl: args.prUrl,
                 mergeCommitSha: result.sha,
                 compileScheduled,
@@ -604,14 +604,7 @@ export class AiWritebackService extends BaseService {
         return result;
     }
 
-    /**
-     * Fire the `ai_writeback.merged` event after a successful merge. Best-effort
-     * and self-contained: a successful merge is irreversible, so analytics never
-     * throws back into the merge flow. Owner/repo/pullNumber are parsed from the
-     * PR URL where possible (github.com links), and left null otherwise.
-     */
     private async trackMerged(
-        user: SessionUser,
         projectUuid: string,
         properties: {
             prUrl: string;
@@ -619,53 +612,29 @@ export class AiWritebackService extends BaseService {
             compileScheduled: boolean;
         },
     ): Promise<void> {
-        let parsed: {
-            owner: string;
-            repo: string;
-            pullNumber: number;
-        } | null = null;
         try {
-            parsed = parsePullRequestUrl(properties.prUrl);
-        } catch {
-            parsed = null;
-        }
-        let threadId: string | null = null;
-        let promptId: string | null = null;
-        let workstream: CodingAgentConfig['mode'] = 'dbt-writeback';
-        try {
-            const thread =
-                await this.aiWritebackThreadModel.findByProjectUuidAndPrUrl(
+            const context =
+                await this.pullRequestsModel.claimAiWritebackMergedAnalyticsByProjectAndUrl(
                     projectUuid,
                     properties.prUrl,
                 );
-            workstream = thread?.workstream ?? workstream;
-            threadId = thread?.ai_thread_uuid ?? null;
-            const run =
-                await this.aiWritebackRunModel.findLatestByProjectUuidAndPrUrl(
-                    projectUuid,
-                    properties.prUrl,
-                );
-            promptId = run?.prompt_uuid ?? null;
-        } catch {
-            workstream = 'dbt-writeback';
+            if (!context) {
+                return;
+            }
+            this.analytics.track(
+                buildAiWritebackMergedEvent({
+                    context,
+                    mergeCommitSha: properties.mergeCommitSha,
+                    compileScheduled: properties.compileScheduled,
+                }),
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to track merged AI writeback pull request: ${getErrorMessage(
+                    error,
+                )}`,
+            );
         }
-        this.analytics.track({
-            event: 'ai_writeback.merged',
-            userId: user.userUuid,
-            properties: {
-                organizationId: user.organizationUuid ?? '',
-                projectId: projectUuid,
-                threadId,
-                promptId,
-                prUrl: properties.prUrl,
-                owner: parsed?.owner ?? null,
-                repo: parsed?.repo ?? null,
-                pullNumber: parsed?.pullNumber ?? null,
-                mergeCommitSha: properties.mergeCommitSha,
-                compileScheduled: properties.compileScheduled,
-                workstream,
-            },
-        });
     }
 
     /**
