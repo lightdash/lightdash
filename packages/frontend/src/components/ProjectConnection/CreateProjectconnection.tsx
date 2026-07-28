@@ -46,7 +46,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const navigate = useNavigate();
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
-    const { activeJobIsRunning, activeJobId, activeJob } = useActiveJob();
+    const { activeJob } = useActiveJob();
     const { isLoading: isSaving, mutateAsync } = useCreateMutation({
         quietJobToast: warehouseOnly,
         warehouseOnly,
@@ -196,11 +196,19 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         form.values.warehouse.type,
     ]);
 
+    const hasThisJobFailed =
+        !!createProjectJobId &&
+        createProjectJobId === activeJob?.jobUuid &&
+        isCreateProjectJob(activeJob) &&
+        activeJob.jobStatus === JobStatusType.ERROR;
+
+    // Stay busy from submit right through the success redirect, so the button
+    // never flips back to its label in the beat between the job finishing and
+    // the navigation (and the confetti). It only becomes clickable again if the
+    // job errors, so the user can fix the details and retry.
     const isSavingProject = useMemo<boolean>(
-        () =>
-            isSaving ||
-            (!!activeJobIsRunning && activeJobId === createProjectJobId),
-        [activeJobId, activeJobIsRunning, createProjectJobId, isSaving],
+        () => isSaving || (!!createProjectJobId && !hasThisJobFailed),
+        [isSaving, createProjectJobId, hasThisJobFailed],
     );
 
     return (
