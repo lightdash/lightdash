@@ -50,7 +50,7 @@ const updateProject = async (uuid: string, data: UpdateProject) =>
         sensitive: true,
     });
 
-const getProject = async (uuid: string) =>
+export const getProject = async (uuid: string) =>
     lightdashApi<Project>({
         url: `/projects/${uuid}`,
         method: 'GET',
