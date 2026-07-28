@@ -67,6 +67,10 @@ const renderAppRoute = () =>
                         path="/createProject"
                         element={<div>create project</div>}
                     />
+                    <Route
+                        path="/onboarding/data-source"
+                        element={<div>data source</div>}
+                    />
                 </Routes>
             </MemoryRouter>
         </MantineProvider>,
@@ -87,8 +91,31 @@ describe('AppRoute', () => {
         expect(screen.getByText('get started')).toBeInTheDocument();
     });
 
-    it('sends a copilot-less organization straight to project creation', () => {
+    it('sends a copilot-less organization to the new data source page', () => {
         state.isCopilotEnabled = false;
+        renderAppRoute();
+
+        expect(screen.getByText('data source')).toBeInTheDocument();
+    });
+
+    it('sends an organization without the homepage builder to the new data source page', () => {
+        state.isHomepageBuilderEnabled = false;
+        renderAppRoute();
+
+        expect(screen.getByText('data source')).toBeInTheDocument();
+    });
+
+    it('sends an organization without new onboarding to legacy project creation', () => {
+        state.isNewOnboardingEnabled = false;
+        state.isHomepageBuilderEnabled = false;
+        state.isCopilotEnabled = false;
+        renderAppRoute();
+
+        expect(screen.getByText('create project')).toBeInTheDocument();
+    });
+
+    it('keeps legacy project creation when only the enterprise surfaces are enabled', () => {
+        state.isNewOnboardingEnabled = false;
         renderAppRoute();
 
         expect(screen.getByText('create project')).toBeInTheDocument();
@@ -101,6 +128,7 @@ describe('AppRoute', () => {
 
         expect(screen.queryByText('create project')).toBeNull();
         expect(screen.queryByText('get started')).toBeNull();
+        expect(screen.queryByText('data source')).toBeNull();
     });
 
     it('renders its children once the organization has a project', () => {
