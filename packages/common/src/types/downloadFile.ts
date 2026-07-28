@@ -14,6 +14,7 @@ export type DownloadFile = {
     path: string;
     createdAt: Date;
     type: DownloadFileType;
+    projectUuid: string | null;
 };
 
 /**
