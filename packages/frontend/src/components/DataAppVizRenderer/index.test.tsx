@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
         current: undefined as
             | {
                   schema: {
+                      fields: Array<never>;
                       configOptions: Array<{
                           type: 'text';
                           name: string;
@@ -83,6 +84,7 @@ describe('DataAppVizRenderer option delivery', () => {
 
         mocks.dataAppViz.current = {
             schema: {
+                fields: [],
                 configOptions: [
                     {
                         type: 'text',
