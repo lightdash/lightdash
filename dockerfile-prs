@@ -152,7 +152,7 @@ COPY packages/backend/src/ packages/backend/src/
 
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    turbo build:fast --filter=backend
+    turbo build:preview --filter=backend
 
 # output: /usr/app/packages/backend/dist
 

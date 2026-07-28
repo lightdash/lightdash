@@ -14,6 +14,36 @@
       "outputs": ["dist/**", "build/**", "src/grammar/parser.js", "src/generated/routes.ts", "src/generated/swagger.json"],
       "cache": true
     },
+    "backend#generate-api:preview": {
+      "dependsOn": ["^build:fast"],
+      "inputs": [
+        "$TURBO_ROOT$/tsconfig.json",
+        "package.json",
+        "tsoa.yml",
+        "tsconfig.json",
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/**/*.json",
+        "!src/generated/**",
+        "!src/**/*.test.ts",
+        "!src/**/*.spec.ts",
+        "!src/**/__tests__/**",
+        "!src/database/migrations/**",
+        "!src/database/seeds/**",
+        "!src/ee/database/migrations/**",
+        "!src/ee/database/seeds/**",
+        "!src/scripts/**",
+        "!src/ee/repl/scripts/**"
+      ],
+      "outputs": ["src/generated/routes.ts", "src/generated/swagger.json"],
+      "cache": true
+    },
+    "backend#build:preview": {
+      "dependsOn": ["^build:fast", "generate-api:preview"],
+      "inputs": ["$TURBO_DEFAULT$", "!src/generated/**"],
+      "outputs": ["dist/**"],
+      "cache": true
+    },
     "typecheck": {
       "dependsOn": ["^build"],
       "cache": true
