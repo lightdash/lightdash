@@ -25,6 +25,7 @@ type HealthServiceArguments = {
 };
 
 export class HealthService extends BaseService {
+    // Mock change for testing preview deployments.
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly licenseService: LicenseService;
