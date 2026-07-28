@@ -3,6 +3,7 @@ import { mergeChatMessages, type ChatMessage } from './mergeChatMessages';
 
 const baseMessage: ChatMessage = {
     role: 'user',
+    status: null,
     content: '',
     imagePreviewUrls: [],
     imageResourceIds: [],

@@ -14,8 +14,6 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type AppVersionDependencyEntry,
-    type AppVersionStatusHistoryEntry,
-    type AppVersionStatusHistoryEntryKind,
     type DataAppClaudeModel,
     type DataAppTemplate,
     type DataAppVizContext,
@@ -117,7 +115,6 @@ import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
-import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -147,6 +144,10 @@ import {
     type ChatConnection,
     type ChatMessage,
 } from '../features/apps/utils/mergeChatMessages';
+import {
+    versionNarrationTexts,
+    versionsToChatMessages,
+} from '../features/apps/utils/versionsToChatMessages';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
@@ -176,19 +177,6 @@ function parseElementRefLabel(label: string): ElementRef | null {
         );
     if (!m) return null;
     return { tag: m[1] ?? '', text: m[2] ?? '', loc: m[3] ?? '' };
-}
-
-// The null guard exists because the poll worker feeds raw fetch JSON into
-// the query cache; the consecutive dedupe because a retry can restart the
-// generation stream and re-emit the same entry.
-function versionNarrationTexts(
-    history: AppVersionStatusHistoryEntry[] | undefined,
-    kind: AppVersionStatusHistoryEntryKind,
-): string[] {
-    return (history ?? [])
-        .filter((entry) => entry.kind === kind)
-        .map((entry) => entry.message)
-        .filter((message, index, all) => message !== all[index - 1]);
 }
 
 // Run a layout-changing state update inside a native View Transition so the
@@ -927,136 +915,17 @@ const AppGenerate: FC = () => {
     }, [serverVersionCount]);
 
     // Convert fetched versions into chat messages (oldest first)
-    const historyMessages = useMemo<ChatMessage[]>(() => {
-        if (allVersions.length === 0) return [];
-        const sorted = [...allVersions].sort((a, b) => a.version - b.version);
-        return sorted.flatMap((v) => {
-            // Prefer server-side resources; fall back to session refs
-            const serverCharts: ChatChart[] =
-                v.resources?.charts.map((c) => ({
-                    name: c.chartName,
-                    uuid: c.chartUuid,
-                    chartKind: undefined,
-                    linkLive: c.linkLive,
-                })) ?? [];
-            const charts =
-                serverCharts.length > 0
-                    ? serverCharts
-                    : (sentChartsByPrompt.current.get(v.prompt) ?? []);
-            const serverConnections: ChatConnection[] =
-                v.resources?.externalConnections?.map((c) => ({
-                    externalConnectionUuid: c.externalConnectionUuid,
-                    name: c.name,
-                    alias: c.alias,
-                })) ?? [];
-            const externalConnections =
-                serverConnections.length > 0
-                    ? serverConnections
-                    : (sentConnectionsByPrompt.current.get(v.prompt) ?? []);
-            const imageResourceIds =
-                v.resources?.images.map((img) => img.imageId) ?? [];
-            const imagePreviewUrls =
-                sentImagesByPrompt.current.get(v.prompt) ?? [];
-            // Old rows carry no `files` — fall back to the session map so an
-            // optimistic bubble's chips survive the local→server transition.
-            const files: ChatAttachedFile[] =
-                v.resources?.files?.map((f) => ({ filename: f.filename })) ??
-                sentFilesByPrompt.current.get(v.prompt) ??
-                [];
-            const dashboardName =
-                v.resources?.dashboardName ??
-                sentDashboardByPrompt.current.get(v.prompt) ??
-                null;
-            const clarifications = v.resources?.clarifications ?? [];
-            const authorName = v.createdByUser
-                ? [v.createdByUser.firstName, v.createdByUser.lastName]
-                      .filter((s) => s.length > 0)
-                      .join(' ') || null
-                : null;
-            // Assistant reply is dated to when the build actually finished;
-            // fall back to createdAt for old rows persisted before the column
-            // started being written, or for rows still mid-build.
-            const replyTimestamp = v.statusUpdatedAt ?? v.createdAt;
-            // Uploaded-from-source versions (`lightdash upload`) are the only
-            // ones created without a prompt. Their build pipeline stores no
-            // completion message either, so derive the assistant bubble from
-            // the version row rather than trusting a leftover statusMessage.
-            const isUploadedVersion = v.prompt === '';
-            const readyMessage =
-                v.version === 1
-                    ? 'Your app is ready!'
-                    : `Version ${v.version} is ready!`;
-            const reasoning = versionNarrationTexts(
-                v.statusHistory,
-                'thinking',
-            );
-            const activity = versionNarrationTexts(v.statusHistory, 'tool');
-            const msgs: ChatMessage[] = [
-                {
-                    role: 'user',
-                    content: v.prompt,
-                    imagePreviewUrls,
-                    imageResourceIds,
-                    files,
-                    charts,
-                    externalConnections,
-                    dashboardName,
-                    clarifications,
-                    appUuid: null,
-                    version: null,
-                    timestamp: new Date(v.createdAt),
-                    userName: authorName,
-                    vizSchema: null,
-                    reasoning: [],
-                    activity: [],
-                },
-            ];
-            if (v.status === 'ready') {
-                msgs.push({
-                    role: 'assistant',
-                    content: isUploadedVersion
-                        ? readyMessage
-                        : (v.statusMessage ?? readyMessage),
-                    imagePreviewUrls: [],
-                    imageResourceIds: [],
-                    files: [],
-                    charts: [],
-                    externalConnections: [],
-                    dashboardName: null,
-                    clarifications: [],
-                    appUuid: activeAppUuid ?? null,
-                    version: v.version,
-                    timestamp: new Date(replyTimestamp),
-                    userName: null,
-                    vizSchema: v.resources?.vizSchema ?? null,
-                    reasoning,
-                    activity,
-                });
-            } else if (v.status === 'error') {
-                msgs.push({
-                    role: 'assistant',
-                    content: getAppVersionFailureMessage(v),
-                    imagePreviewUrls: [],
-                    imageResourceIds: [],
-                    files: [],
-                    charts: [],
-                    externalConnections: [],
-                    dashboardName: null,
-                    clarifications: [],
-                    appUuid: null,
-                    version: null,
-                    timestamp: new Date(replyTimestamp),
-                    userName: null,
-                    vizSchema: null,
-                    reasoning,
-                    activity,
-                });
-            }
-            // 'building' status is not rendered as a history message —
-            // it's shown as a live progress indicator below
-            return msgs;
-        });
-    }, [allVersions, activeAppUuid]);
+    const historyMessages = useMemo<ChatMessage[]>(
+        () =>
+            versionsToChatMessages(allVersions, activeAppUuid, {
+                charts: sentChartsByPrompt.current,
+                connections: sentConnectionsByPrompt.current,
+                imagePreviewUrls: sentImagesByPrompt.current,
+                files: sentFilesByPrompt.current,
+                dashboardName: sentDashboardByPrompt.current,
+            }),
+        [allVersions, activeAppUuid],
+    );
 
     // Lookup table: version number → full version summary. Used to retrieve
     // declared-dependency metadata when rendering assistant bubbles.
@@ -1248,6 +1117,7 @@ const AppGenerate: FC = () => {
                 ...prev,
                 {
                     role: 'user',
+                    status: null,
                     content: prompt,
                     imagePreviewUrls: [],
                     imageResourceIds: [],
@@ -1295,6 +1165,7 @@ const AppGenerate: FC = () => {
                             ...prev,
                             {
                                 role: 'assistant',
+                                status: 'error',
                                 content: themeErrorMessage,
                                 imagePreviewUrls: [],
                                 imageResourceIds: [],
@@ -1794,6 +1665,7 @@ const AppGenerate: FC = () => {
                 ...prev,
                 {
                     role: 'assistant' as const,
+                    status: 'error' as const,
                     content: errorMessage,
                     imagePreviewUrls: [],
                     imageResourceIds: [],
@@ -1954,6 +1826,7 @@ const AppGenerate: FC = () => {
                 ...prev,
                 {
                     role: 'user',
+                    status: null,
                     content: trimmed,
                     imagePreviewUrls: sentImageUrls,
                     imageResourceIds: [],
@@ -2611,7 +2484,8 @@ const AppGenerate: FC = () => {
                                                             }
                                                             userName={null}
                                                             version={
-                                                                msg.appUuid &&
+                                                                msg.status ===
+                                                                    'ready' &&
                                                                 msg.version !==
                                                                     null
                                                                     ? buildBubbleVersionInfo(
@@ -2672,7 +2546,8 @@ const AppGenerate: FC = () => {
                                                                     }
                                                                 />
                                                             )
-                                                        ) : msg.appUuid ? (
+                                                        ) : msg.status !==
+                                                          'error' ? (
                                                             <AiMarkdown>
                                                                 {msg.content}
                                                             </AiMarkdown>

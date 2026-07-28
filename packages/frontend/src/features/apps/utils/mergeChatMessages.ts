@@ -23,6 +23,13 @@ export type ChatAttachedFile = {
 
 export type ChatMessage = {
     role: 'user' | 'assistant';
+    /**
+     * Outcome of an assistant bubble; `null` on user bubbles. Renderers key
+     * success/failure off this rather than off `appUuid` being non-null, so a
+     * successful message is never mistaken for a failure when the app uuid
+     * happens to be absent.
+     */
+    status: 'ready' | 'error' | null;
     content: string;
     imagePreviewUrls: string[];
     imageResourceIds: string[];
