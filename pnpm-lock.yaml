@@ -1468,15 +1468,9 @@ importers:
       '@types/canvas-confetti':
         specifier: 1.6.0
         version: 1.6.0
-      '@types/d3-geo':
-        specifier: 3.1.0
-        version: 3.1.0
       '@types/d3-scale':
         specifier: 4.0.8
         version: 4.0.8
-      '@types/d3-time':
-        specifier: 3.0.4
-        version: 3.0.4
       '@types/hast':
         specifier: 3.0.4
         version: 3.0.4
