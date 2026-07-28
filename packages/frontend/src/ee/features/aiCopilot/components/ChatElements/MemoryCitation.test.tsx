@@ -36,6 +36,7 @@ Use net revenue for future revenue questions.`,
             terms: ['net revenue'],
             objects: [],
             status: 'active',
+            scope: 'user',
             generatedAt: '2026-07-22T00:00:00.000Z',
             citedCount: 3,
             provenance: {
@@ -171,7 +172,20 @@ describe('MemoryCitation', () => {
         );
         expect(within(dialog).getByText('Citations')).toBeInTheDocument();
         expect(within(dialog).getByText('3')).toBeInTheDocument();
+        expect(within(dialog).getByText('Scope')).toBeInTheDocument();
+        expect(within(dialog).getByText('Personal')).toBeInTheDocument();
         expect(within(dialog).getByText('Open thread')).toBeInTheDocument();
+
+        fireEvent.mouseEnter(
+            within(dialog).getByRole('button', {
+                name: 'About memory scope',
+            }),
+        );
+        expect(
+            await screen.findByText(
+                'Scope guides how the agent uses this memory. All memories remain private to the user by default.',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('changes status from the modal menu without closing it', async () => {

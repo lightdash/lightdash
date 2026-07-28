@@ -5,6 +5,7 @@ import type {
 } from '@lightdash/common';
 import {
     Accordion,
+    ActionIcon,
     Alert,
     Anchor,
     Badge,
@@ -13,17 +14,20 @@ import {
     Group,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
 import {
     IconArrowRight,
     IconExternalLink,
     IconHistory,
+    IconInfoCircle,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { parseAiAgentMemorySections } from '../../utils/memory';
+import { MEMORY_SCOPE_COLORS, MEMORY_SCOPE_LABELS } from '../Admin/memoryScope';
 import styles from './MemoryDetails.module.css';
 import { MemoryStatusAction, MemoryStatusMenu } from './MemoryStatusControls';
 
@@ -41,12 +45,12 @@ const getObjectLabel = (object: AiProjectContextTypedObjectRef) =>
 const getObjectExplore = (object: AiProjectContextTypedObjectRef) =>
     object.type === 'explore' ? object.name : object.explore;
 
-const RailRow: FC<{ label: string; children: ReactNode }> = ({
+const RailRow: FC<{ label: ReactNode; children: ReactNode }> = ({
     label,
     children,
 }) => (
     <Group className={styles.railRow} wrap="nowrap" gap="sm">
-        <Text className={styles.railLabel}>{label}</Text>
+        <Box className={styles.railLabel}>{label}</Box>
         <Box className={styles.railValue}>{children}</Box>
     </Group>
 );
@@ -233,6 +237,37 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                         slug={memory.slug}
                         status={memory.status}
                     />
+                </RailRow>
+                <RailRow
+                    label={
+                        <Group gap="two" wrap="nowrap">
+                            Scope
+                            <Tooltip
+                                label="Scope guides how the agent uses this memory. All memories remain private to the user by default."
+                                multiline
+                                w={260}
+                                withinPortal
+                            >
+                                <ActionIcon
+                                    aria-label="About memory scope"
+                                    color="gray"
+                                    size="xs"
+                                    variant="transparent"
+                                >
+                                    <IconInfoCircle size={13} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Group>
+                    }
+                >
+                    <Badge
+                        variant="light"
+                        radius="sm"
+                        tt="none"
+                        color={MEMORY_SCOPE_COLORS[memory.scope]}
+                    >
+                        {MEMORY_SCOPE_LABELS[memory.scope]}
+                    </Badge>
                 </RailRow>
                 <RailRow label="Saved">
                     <Text className={styles.railText}>
