@@ -1,6 +1,6 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
-import { type Table } from '../types/explore';
+import { InlineErrorType, type Table } from '../types/explore';
 import {
     DimensionType,
     FieldType,
@@ -2031,5 +2031,164 @@ describe('absolute timestamp metric filters are recorded for query-time re-rende
             values: [],
         });
         expect(nullCheck.compiledTimestampFilters).toBeUndefined();
+    });
+});
+
+describe('show_underlying_values validation', () => {
+    const makeDimension = (table: string, name: string, index: number) => ({
+        fieldType: FieldType.DIMENSION as const,
+        type: DimensionType.STRING,
+        name,
+        label: friendlyName(name),
+        table,
+        tableLabel: friendlyName(table),
+        sql: `\${TABLE}.${name}`,
+        hidden: false,
+        index,
+    });
+
+    const makeExplores = (
+        showUnderlyingValues: string[],
+        sets?: Table['sets'],
+    ): { standalone: UncompiledExplore; joined: UncompiledExplore } => {
+        const spine: Table = {
+            name: 'spine',
+            label: 'Spine',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.spine',
+            dimensions: {
+                week_number: makeDimension('spine', 'week_number', 0),
+                farm: makeDimension('spine', 'farm', 1),
+                farm_region: makeDimension('spine', 'farm_region', 2),
+            },
+            metrics: {},
+            lineageGraph: {},
+        };
+        const sales: Table = {
+            name: 'sales',
+            label: 'Sales',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.sales',
+            dimensions: {
+                week_number: makeDimension('sales', 'week_number', 0),
+                farm: makeDimension('sales', 'farm', 1),
+            },
+            metrics: {
+                total_sales: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'total_sales',
+                    label: 'Total sales',
+                    table: 'sales',
+                    tableLabel: 'Sales',
+                    sql: '${TABLE}.amount',
+                    hidden: false,
+                    showUnderlyingValues,
+                },
+            },
+            lineageGraph: {},
+            ...(sets ? { sets } : {}),
+        };
+        const base = {
+            label: 'Test',
+            tags: [],
+            groupLabel: undefined,
+            targetDatabase: SupportedDbtAdapter.POSTGRES,
+            meta: {},
+        };
+        return {
+            standalone: {
+                ...base,
+                name: 'sales',
+                baseTable: 'sales',
+                joinedTables: [],
+                tables: { sales },
+            },
+            joined: {
+                ...base,
+                name: 'spine',
+                baseTable: 'spine',
+                joinedTables: [
+                    {
+                        table: 'sales',
+                        sqlOn: '${spine.farm} = ${sales.farm}',
+                    },
+                ],
+                tables: { spine, sales },
+            },
+        };
+    };
+
+    it('warns and drops an unknown own-table ref even when no set ref is present', () => {
+        const { standalone } = makeExplores(['week_number', 'does_not_exist']);
+        const result = compiler.compileExplore(standalone);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('does_not_exist'),
+            },
+        ]);
+    });
+
+    it('keeps cross-table refs where the table is joined and skips them silently elsewhere', () => {
+        const sets = { sales_dims: { fields: ['week_number', 'farm'] } };
+        const { standalone, joined } = makeExplores(
+            ['sales_dims*', 'spine.farm_region'],
+            sets,
+        );
+
+        const joinedResult = compiler.compileExplore(joined);
+        expect(
+            joinedResult.tables.sales.metrics.total_sales.showUnderlyingValues,
+        ).toEqual(['week_number', 'farm', 'spine.farm_region']);
+        expect(joinedResult.warnings).toBeUndefined();
+
+        const standaloneResult = compiler.compileExplore(standalone);
+        const metric = standaloneResult.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number', 'farm']);
+        expect(standaloneResult.warnings).toBeUndefined();
+    });
+
+    it('warns and drops a ref to a missing field on a joined table', () => {
+        const { joined } = makeExplores([
+            'week_number',
+            'spine.does_not_exist',
+        ]);
+        const result = compiler.compileExplore(joined);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('spine.does_not_exist'),
+            },
+        ]);
+    });
+
+    it('warns and drops an unknown set ref but keeps the metric and remaining refs', () => {
+        const { standalone } = makeExplores([
+            'nonexistent_set*',
+            'week_number',
+        ]);
+        const result = compiler.compileExplore(standalone);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('nonexistent_set'),
+            },
+        ]);
     });
 });

@@ -2,6 +2,10 @@ import { type FieldSetDefinition } from '../types/dbt';
 import { CompileError } from '../types/errors';
 import { type Table } from '../types/explore';
 
+// Set expansion only needs the table name (for error messages) and its sets,
+// so callers can expand before the full Table is constructed.
+type SetExpansionTable = Pick<Table, 'name' | 'sets'>;
+
 /**
  * Separates field references into inclusions and exclusions based on '-' prefix
  */
@@ -50,7 +54,7 @@ function applyExclusionsAndDeduplicate(
 function expandSingleSet(
     setName: string,
     setDefinition: FieldSetDefinition,
-    currentTable: Table,
+    currentTable: SetExpansionTable,
     depth = 1,
 ): string[] {
     if (depth > 3) {
@@ -118,7 +122,7 @@ function expandSingleSet(
  */
 function expandSetReferences(
     inclusions: string[],
-    currentTable: Table,
+    currentTable: SetExpansionTable,
 ): string[] {
     const expandedFields: string[] = [];
 
@@ -167,11 +171,52 @@ function expandSetReferences(
  */
 export function expandFieldsWithSets(
     fields: string[],
-    currentTable: Table,
+    currentTable: SetExpansionTable,
 ): string[] {
     const { inclusions, exclusions } = separateInclusionsAndExclusions(fields);
     const expandedFields = expandSetReferences(inclusions, currentTable);
     const result = applyExclusionsAndDeduplicate(expandedFields, exclusions);
 
     return result;
+}
+
+export type LenientSetExpansionResult = {
+    fields: string[];
+    invalidSetRefs: { ref: string; message: string }[];
+};
+
+/**
+ * Like expandFieldsWithSets, but a set reference that fails to expand
+ * (missing set, circular reference, nesting limit) is dropped and reported
+ * instead of aborting the whole expansion.
+ */
+export function expandFieldsWithSetsLenient(
+    fields: string[],
+    currentTable: SetExpansionTable,
+): LenientSetExpansionResult {
+    const { inclusions, exclusions } = separateInclusionsAndExclusions(fields);
+    const invalidSetRefs: LenientSetExpansionResult['invalidSetRefs'] = [];
+
+    const expandedFields = inclusions.flatMap((inclusion) => {
+        if (!inclusion.endsWith('*')) {
+            return [inclusion];
+        }
+        try {
+            return expandSetReferences([inclusion], currentTable);
+        } catch (e) {
+            invalidSetRefs.push({
+                ref: inclusion,
+                message:
+                    e instanceof Error
+                        ? e.message
+                        : `Failed to expand set reference "${inclusion}".`,
+            });
+            return [];
+        }
+    });
+
+    return {
+        fields: applyExclusionsAndDeduplicate(expandedFields, exclusions),
+        invalidSetRefs,
+    };
 }

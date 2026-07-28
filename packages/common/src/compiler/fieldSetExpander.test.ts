@@ -1,6 +1,9 @@
 import { type Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType } from '../types/field';
-import { expandFieldsWithSets } from './fieldSetExpander';
+import {
+    expandFieldsWithSets,
+    expandFieldsWithSetsLenient,
+} from './fieldSetExpander';
 
 const createMockTable = (
     name: string,
@@ -297,5 +300,60 @@ describe('expandFieldsWithSets', () => {
 
             expect(result).toEqual([]);
         });
+    });
+});
+
+describe('expandFieldsWithSetsLenient', () => {
+    it('should expand sets like the strict version when everything resolves', () => {
+        const table = createMockTable(
+            'orders',
+            ['order_id', 'customer_id', 'total'],
+            [],
+            { basic_fields: { fields: ['order_id', 'customer_id'] } },
+        );
+
+        const result = expandFieldsWithSetsLenient(
+            ['basic_fields*', 'total'],
+            table,
+        );
+
+        expect(result.fields).toEqual(['order_id', 'customer_id', 'total']);
+        expect(result.invalidSetRefs).toEqual([]);
+    });
+
+    it('should drop an unknown set ref and report it instead of throwing', () => {
+        const table = createMockTable('orders', ['order_id'], [], {
+            basic_fields: { fields: ['order_id'] },
+        });
+
+        const result = expandFieldsWithSetsLenient(
+            ['nonexistent_set*', 'basic_fields*', 'order_id'],
+            table,
+        );
+
+        expect(result.fields).toEqual(['order_id']);
+        expect(result.invalidSetRefs).toEqual([
+            {
+                ref: 'nonexistent_set*',
+                message: expect.stringContaining('nonexistent_set'),
+            },
+        ]);
+    });
+
+    it('should still apply top-level exclusions', () => {
+        const table = createMockTable(
+            'orders',
+            ['order_id', 'customer_id', 'total'],
+            [],
+            { all_fields: { fields: ['order_id', 'customer_id', 'total'] } },
+        );
+
+        const result = expandFieldsWithSetsLenient(
+            ['all_fields*', '-total'],
+            table,
+        );
+
+        expect(result.fields).toEqual(['order_id', 'customer_id']);
+        expect(result.invalidSetRefs).toEqual([]);
     });
 });

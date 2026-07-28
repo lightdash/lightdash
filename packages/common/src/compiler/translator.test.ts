@@ -1593,6 +1593,54 @@ describe('explore-scoped additional dimensions', () => {
             'custom_field',
         ]);
     });
+
+    it('should expand set refs in default_show_underlying_values on the table', () => {
+        const modelWithSets = {
+            ...MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
+            meta: {
+                ...MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES.meta,
+                sets: { user_fields: { fields: ['user_id', 'user_name'] } },
+                default_show_underlying_values: ['user_fields*', 'revenue'],
+            },
+        };
+
+        const table = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            modelWithSets,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(table.defaultShowUnderlyingValues).toEqual([
+            'user_id',
+            'user_name',
+            'revenue',
+        ]);
+        expect(table.warnings).toBeUndefined();
+    });
+
+    it('should warn and drop an unknown set ref in default_show_underlying_values', () => {
+        const modelWithUnknownSet = {
+            ...MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
+            meta: {
+                ...MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES.meta,
+                default_show_underlying_values: ['nonexistent_set*', 'user_id'],
+            },
+        };
+
+        const table = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            modelWithUnknownSet,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(table.defaultShowUnderlyingValues).toEqual(['user_id']);
+        expect(table.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('nonexistent_set'),
+            },
+        ]);
+    });
 });
 
 describe('required/default filters on hidden dimensions', () => {

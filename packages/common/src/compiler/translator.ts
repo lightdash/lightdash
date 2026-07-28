@@ -62,6 +62,7 @@ import {
     type WeekDay,
 } from '../utils/timeFrames';
 import { ExploreCompiler } from './exploreCompiler';
+import { expandFieldsWithSetsLenient } from './fieldSetExpander';
 import {
     resolveAdditionalTimeIntervals,
     resolveGranularityLabels,
@@ -978,6 +979,22 @@ export const convertTable = (
     if (sqlTable === null || sqlTable === undefined || sqlTable === '') {
         throw new Error(`Model "${model.name}" is missing a table reference.`);
     }
+
+    // Expand set refs here so the query-time fallback (used when drilling from
+    // a non-metric cell) always receives plain field refs.
+    const defaultShowUnderlyingValues = meta.default_show_underlying_values
+        ? expandFieldsWithSetsLenient(meta.default_show_underlying_values, {
+              name: model.name,
+              sets: meta.sets,
+          })
+        : undefined;
+    defaultShowUnderlyingValues?.invalidSetRefs.forEach(({ message }) =>
+        tableWarnings.push({
+            type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+            message: `"default_show_underlying_values" in model "${model.name}": ${message} The reference will be ignored.`,
+        }),
+    );
+
     return {
         name: model.name,
         label: tableLabel,
@@ -1012,10 +1029,10 @@ export const convertTable = (
                   },
               }
             : {}),
-        ...(meta.default_show_underlying_values
+        ...(defaultShowUnderlyingValues
             ? {
                   defaultShowUnderlyingValues:
-                      meta.default_show_underlying_values,
+                      defaultShowUnderlyingValues.fields,
               }
             : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
