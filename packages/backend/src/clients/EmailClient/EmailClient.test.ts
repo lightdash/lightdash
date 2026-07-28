@@ -89,6 +89,56 @@ describe('EmailClient', () => {
             expect(client.transporter?.sendMail).toHaveBeenCalledTimes(1);
         });
 
+        test('should sanitize scheduler name in delivery failure emails', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            await client.sendScheduledDeliveryFailureEmail(
+                'recipient@example.com',
+                'daily <img src=x onerror=alert(1)>',
+                'https://example.com/scheduler',
+                'something went wrong',
+            );
+            expect(
+                vi.mocked(client.transporter!.sendMail),
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: expect.objectContaining({
+                        message: expect.not.stringContaining('<img'),
+                    }),
+                }),
+            );
+        });
+
+        test('should sanitize markdown message in notification emails', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            await client.sendChartCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'title',
+                'description',
+                'Hello **world** <script>alert(1)</script>',
+                'date',
+                'frequency',
+                {
+                    path: 'https://example.com/file.csv',
+                    filename: 'file.csv',
+                    localPath: '',
+                    truncated: false,
+                },
+                'https://example.com/chart',
+                'https://example.com/scheduler',
+                true,
+            );
+            const sentOptions = vi.mocked(client.transporter!.sendMail).mock
+                .calls[0][0] as unknown as { context?: { message?: string } };
+            const sentMessage = sentOptions.context?.message ?? '';
+            expect(sentMessage).not.toContain('<script>');
+            expect(sentMessage).toContain('<strong>world</strong>');
+        });
+
         test('should use the setup invitation template for setup invites', async () => {
             const client = new EmailClient({
                 lightdashConfig: lightdashConfigWithBasicSMTP,
