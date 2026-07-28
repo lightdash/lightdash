@@ -4,7 +4,7 @@
  * section below. */
 
 .page {
-    --homepage-favbar-height: 48px;
+    --homepage-favbar-height: 78px;
     /* Read by anything positioned relative to the hero — see HomepageStars. */
     --homepage-hero-width: 720px;
     --homepage-page-padding-x: 24px;
@@ -55,29 +55,10 @@
 }
 
 .favBar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
     width: 100%;
     max-width: 1000px;
     min-height: var(--homepage-favbar-height);
     margin: 0 auto;
-    overflow-x: auto;
-}
-
-.favBarLabel {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-}
-
-.favBarLabelText {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--mantine-color-ldGray-6);
 }
 
 .hero {
