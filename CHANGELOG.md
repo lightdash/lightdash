@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/lightdash/lightdash/compare/1.10.0...1.11.0) (2026-07-28)
+
+
+### Features
+
+* **data-apps:** accept PDFs and text-based file uploads as attachments ([#26276](https://github.com/lightdash/lightdash/issues/26276)) ([b292b1c](https://github.com/lightdash/lightdash/commit/b292b1c1069ea56cc0a556416aefed8c54d00065))
+
 # [1.10.0](https://github.com/lightdash/lightdash/compare/1.9.0...1.10.0) (2026-07-28)
 
 

@@ -15790,11 +15790,18 @@
                     "appUuid": {
                         "type": "string"
                     },
-                    "imageIds": {
+                    "fileIds": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "imageIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "deprecated": true
                     },
                     "template": {
                         "$ref": "#/components/schemas/DataAppTemplate"
@@ -16184,11 +16191,18 @@
             },
             "ApiClarifyAppRequest": {
                 "properties": {
-                    "imageIds": {
+                    "fileIds": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "imageIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "deprecated": true
                     },
                     "dashboard": {
                         "$ref": "#/components/schemas/AppDashboardReference"
@@ -16209,15 +16223,32 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "ApiSuccess__imageId-string__": {
+            "ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "mimeType": {
+                                "type": "string",
+                                "description": "Normalized MIME type as stored on the staged S3 object."
+                            },
+                            "filename": {
+                                "type": "string",
+                                "description": "Sanitized original filename, canonicalized server-side."
+                            },
                             "imageId": {
+                                "type": "string",
+                                "deprecated": true
+                            },
+                            "fileId": {
                                 "type": "string"
                             }
                         },
-                        "required": ["imageId"],
+                        "required": [
+                            "mimeType",
+                            "filename",
+                            "imageId",
+                            "fileId"
+                        ],
                         "type": "object"
                     },
                     "status": {
@@ -16229,8 +16260,8 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiAppImageUploadResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__imageId-string__"
+            "ApiAppFileUploadResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__"
             },
             "Exclude_DataAppTemplate.custom_": {
                 "type": "string",
@@ -16277,6 +16308,22 @@
                 },
                 "required": ["imageId"],
                 "type": "object"
+            },
+            "AppVersionFileResource": {
+                "properties": {
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "filename": {
+                        "type": "string"
+                    },
+                    "fileId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["mimeType", "filename", "fileId"],
+                "type": "object",
+                "description": "A non-image file attached to a generation request (JSON, Tableau workbook,\nmarkdown, code, PDF…). Filename and MIME type are canonicalized server-side\nfrom the staged S3 object at version creation, so the chat can render a\nnamed chip without touching S3."
             },
             "AppVersionChartResource": {
                 "properties": {
@@ -16373,6 +16420,12 @@
                     "charts": {
                         "items": {
                             "$ref": "#/components/schemas/AppVersionChartResource"
+                        },
+                        "type": "array"
+                    },
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppVersionFileResource"
                         },
                         "type": "array"
                     },
@@ -50655,7 +50708,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.10.0",
+        "version": "1.11.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
