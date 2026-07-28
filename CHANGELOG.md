@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/lightdash/lightdash/compare/1.4.1...1.5.0) (2026-07-28)
+
+
+### Features
+
+* **data-apps:** track upgrades in pipeline analytics ([#26233](https://github.com/lightdash/lightdash/issues/26233)) ([1c828c9](https://github.com/lightdash/lightdash/commit/1c828c94fd0f616c9b6206ed0a1f9f55a6f39dc0))
+
 ## [1.4.1](https://github.com/lightdash/lightdash/compare/1.4.0...1.4.1) (2026-07-28)
 
 
