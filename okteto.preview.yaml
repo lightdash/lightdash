@@ -18,11 +18,19 @@ deploy:
         # (DB_DIVERT=false, computed from changed files in pr.yml).
         SNAPSHOT=""
         if [ "${DB_DIVERT:-true}" = "true" ]; then
-          SNAPSHOT=$(kubectl get volumesnapshots -n db-snapshot \
+          # The refresh workflow publishes several identical copies; pick one
+          # at random so concurrent previews spread their restores across GCP
+          # snapshot resources (GCP rate-limits disk creation per snapshot),
+          # and a retried deploy naturally lands on a different copy
+          CANDIDATES=$(kubectl get volumesnapshots -n db-snapshot \
             -l app.kubernetes.io/part-of=lightdash-preview-db \
             --sort-by=.metadata.creationTimestamp \
             -o jsonpath='{range .items[?(@.status.readyToUse==true)]}{.metadata.name}{"\n"}{end}' \
-            2>/dev/null | tail -n 1 || true)
+            2>/dev/null | tail -n 3 || true)
+          COUNT=$(echo "$CANDIDATES" | grep -c . || true)
+          if [ "$COUNT" -gt 0 ]; then
+            SNAPSHOT=$(echo "$CANDIDATES" | sed -n "$(( $(date +%s) % COUNT + 1 ))p")
+          fi
         fi
         if [ -n "$SNAPSHOT" ]; then
           echo "Diverting preview database to snapshot db-snapshot/$SNAPSHOT"
