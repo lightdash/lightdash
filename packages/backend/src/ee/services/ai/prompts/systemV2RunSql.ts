@@ -1,4 +1,8 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    DEFAULT_RUN_SQL_LIMIT,
+    DEFAULT_RUN_SQL_MAX_LIMIT,
+    WarehouseTypes,
+} from '@lightdash/common';
 
 const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.POSTGRES]:
@@ -21,10 +25,16 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
         'DuckDB SQL dialect (Postgres-compatible). Use generate_series, UNNEST for arrays, quantile_cont for medians, regexp_matches for regex. DuckLake-configured projects expose tables under an attached catalog and follow the project schema.',
 };
 
-export const getRunSqlSection = (
-    warehouseType: WarehouseTypes | null,
-    warehouseSchema: string | null,
-) => {
+export const getRunSqlSection = ({
+    warehouseType,
+    warehouseSchema,
+    // Configurable per instance, so a literal here would contradict the tool schema.
+    runSqlMaxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
+}: {
+    warehouseType: WarehouseTypes | null;
+    warehouseSchema: string | null;
+    runSqlMaxLimit?: number;
+}) => {
     const warehouseLine = warehouseType
         ? `**Warehouse:** ${warehouseType}. ${WAREHOUSE_HINTS[warehouseType] ?? ''}`
         : 'Use the SQL dialect of the connected warehouse.';
@@ -97,7 +107,7 @@ NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQ
 **Operational rules:**
 - SELECT/WITH only. Mutations (INSERT, UPDATE, DELETE, DDL) are rejected server-side.
 - Prefer a concise text summary of the SQL result. If a small table helps the answer, include it in the final response.
-- Default row limit 500, max 5000. Include LIMIT explicitly or rely on the default.
+- Default row limit ${DEFAULT_RUN_SQL_LIMIT}, max ${runSqlMaxLimit}. Include LIMIT explicitly or rely on the default. These two numbers apply to \`runSql\` ONLY — never reuse them as the limit for another tool, each one has its own.
 - ${warehouseLine}
 `;
 };
