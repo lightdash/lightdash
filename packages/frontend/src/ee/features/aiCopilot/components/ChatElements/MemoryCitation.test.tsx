@@ -173,6 +173,7 @@ describe('MemoryCitation', () => {
                         projectUuid="project-uuid"
                         agentUuid="agent-uuid"
                         memory={{
+                            uuid: 'memory-uuid',
                             slug: 'net-revenue',
                             title: 'Net revenue convention',
                             rawMemory: 'Use net revenue.',
