@@ -1,3 +1,11 @@
+# [1.12.0](https://github.com/lightdash/lightdash/compare/1.11.0...1.12.0) (2026-07-28)
+
+
+### Features
+
+* **analytics:** stamp onboardingFlow on webapp onboarding funnel events ([#26298](https://github.com/lightdash/lightdash/issues/26298)) ([410bea6](https://github.com/lightdash/lightdash/commit/410bea675d4ef3e64d4c75974393f1264f5647f0))
+* **data-apps:** deliver config option values into the viz iframe ([#26289](https://github.com/lightdash/lightdash/issues/26289)) ([f2fa154](https://github.com/lightdash/lightdash/commit/f2fa154600715bce49dbdec80d74b8117de8527f))
+
 # [1.11.0](https://github.com/lightdash/lightdash/compare/1.10.0...1.11.0) (2026-07-28)
 
 
