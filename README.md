@@ -11,8 +11,11 @@
   Ship analytics through Git, CI, MCP, and the Lightdash CLI.
 </p>
 
-> [!NOTE]
-> Hero placeholder: add a new product-led image here before merge. It should show Lightdash Cloud, AI agents, BI as code, Data Apps, and the context layer without falling back to a generic chart screenshot.
+<p align="center">
+  <a href="https://youtu.be/LPsHglF_b-E">
+    <img src="https://img.youtube.com/vi/LPsHglF_b-E/maxresdefault.jpg" width="900" alt="Watch Lightdash in action" />
+  </a>
+</p>
 
 ## Why Lightdash
 
