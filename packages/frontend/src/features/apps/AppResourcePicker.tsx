@@ -42,7 +42,13 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useMemo,
+    useState,
+    type ClipboardEvent,
+    type FC,
+} from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
@@ -54,6 +60,16 @@ import { useProject } from '../../hooks/useProject';
 import useApp from '../../providers/App/useApp';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import classes from './AppResourcePicker.module.css';
+import {
+    useAttachResourceLink,
+    type AttachableResourceType,
+    type AttachLinkOutcome,
+} from './hooks/useAttachResourceLink';
+
+type AttachFromLink = (
+    input: string,
+    accepts: AttachableResourceType,
+) => Promise<AttachLinkOutcome>;
 
 export type SelectedChart = {
     uuid: string;
@@ -271,6 +287,26 @@ export const ModelPicker: FC<{
 };
 
 /**
+ * Bound to paste rather than to every keystroke: a half-typed URL is still a
+ * syntactically valid link, so `onChange` would fire lookups for ids that
+ * don't exist yet. Clears the box on success, leaves the text on failure.
+ */
+const useLinkPasteHandler = (
+    attachFromLink: AttachFromLink,
+    accepts: AttachableResourceType,
+    setSearchQuery: (value: string) => void,
+) =>
+    useCallback(
+        async (event: ClipboardEvent<HTMLInputElement>) => {
+            const pasted = event.clipboardData.getData('text');
+            if ((await attachFromLink(pasted, accepts)) === 'attached') {
+                setSearchQuery('');
+            }
+        },
+        [attachFromLink, accepts, setSearchQuery],
+    );
+
+/**
  * Internal: chart list with search. Used inside `AttachButton`'s popover.
  * Selecting a chart adds it to the parent and keeps the picker open so
  * multiple can be added in one flow.
@@ -281,7 +317,17 @@ const QueryPickerView: FC<{
     onDeselect: (uuid: string) => void;
     onDone: () => void;
     enabled: boolean;
-}> = ({ selectedCharts, onSelect, onDeselect, onDone, enabled }) => {
+    attachFromLink: AttachFromLink;
+    isResolvingLink: boolean;
+}> = ({
+    selectedCharts,
+    onSelect,
+    onDeselect,
+    onDone,
+    enabled,
+    attachFromLink,
+    isResolvingLink,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -340,20 +386,27 @@ const QueryPickerView: FC<{
         [onSelect, onDeselect, selectedUuids],
     );
 
+    const handlePasteLink = useLinkPasteHandler(
+        attachFromLink,
+        'chart',
+        setSearchQuery,
+    );
+
     return (
         <>
             <Box px="xs" pb="xs">
                 <TextInput
                     size="xs"
-                    placeholder="Search queries..."
+                    placeholder="Search or paste a link..."
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     rightSection={
-                        isFetching && !isInitialLoading ? (
+                        (isFetching && !isInitialLoading) || isResolvingLink ? (
                             <Loader size={14} />
                         ) : undefined
                     }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    onPaste={(e) => void handlePasteLink(e)}
                     autoFocus
                 />
             </Box>
@@ -687,17 +740,27 @@ export const SelectedQuerySection: FC<{
 };
 
 /**
- * Internal: dashboard list with search. Used inside `AttachButton`'s
- * popover. Single-select: clicking a different dashboard replaces the
- * current one (and tells the parent to close the popover); clicking the
- * already-selected dashboard deselects and keeps the popover open.
+ * Internal: dashboard list with search. Interaction-identical to
+ * `QueryPickerView`; only the selection model differs — single-select, so
+ * picking a different dashboard replaces the current one.
  */
 const DashboardPickerView: FC<{
     selectedDashboard: SelectedDashboard | null;
     onSelect: (dashboard: SelectedDashboard) => void;
     onDeselect: () => void;
+    onDone: () => void;
     enabled: boolean;
-}> = ({ selectedDashboard, onSelect, onDeselect, enabled }) => {
+    attachFromLink: AttachFromLink;
+    isResolvingLink: boolean;
+}> = ({
+    selectedDashboard,
+    onSelect,
+    onDeselect,
+    onDone,
+    enabled,
+    attachFromLink,
+    isResolvingLink,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -728,15 +791,25 @@ const DashboardPickerView: FC<{
         [onSelect, onDeselect, selectedDashboard],
     );
 
+    const handlePasteLink = useLinkPasteHandler(
+        attachFromLink,
+        'dashboard',
+        setSearchQuery,
+    );
+
     return (
         <>
             <Box px="xs" pb="xs">
                 <TextInput
                     size="xs"
-                    placeholder="Search dashboards..."
+                    placeholder="Search or paste a link..."
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
+                    rightSection={
+                        isResolvingLink ? <Loader size={14} /> : undefined
+                    }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    onPaste={(e) => void handlePasteLink(e)}
                     autoFocus
                 />
             </Box>
@@ -785,6 +858,11 @@ const DashboardPickerView: FC<{
                     })
                 )}
             </ScrollArea.Autosize>
+            <Box className={classes.attachPickerFooter}>
+                <Button size="compact-xs" radius="md" onClick={onDone}>
+                    Done
+                </Button>
+            </Box>
         </>
     );
 };
@@ -986,6 +1064,7 @@ export const AttachButton: FC<{
     disabled,
     imagesDisabled,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [opened, setOpened] = useState(false);
     const [view, setView] = useState<AttachView>('menu');
 
@@ -994,14 +1073,11 @@ export const AttachButton: FC<{
         if (!isOpen) setView('menu');
     }, []);
 
-    const handleSelectDashboard = useCallback(
-        (dashboard: SelectedDashboard) => {
-            onSelectDashboard(dashboard);
-            setOpened(false);
-            setView('menu');
-        },
-        [onSelectDashboard],
-    );
+    const { attachFromLink, isResolvingLink } = useAttachResourceLink({
+        projectUuid,
+        onSelectChart,
+        onSelectDashboard,
+    });
 
     const handleImagesClick = useCallback(() => {
         setOpened(false);
@@ -1160,6 +1236,8 @@ export const AttachButton: FC<{
                                     setView('menu');
                                 }}
                                 enabled={opened}
+                                attachFromLink={attachFromLink}
+                                isResolvingLink={isResolvingLink}
                             />
                         ) : view === 'connections' ? (
                             <ConnectionPickerView
@@ -1175,9 +1253,15 @@ export const AttachButton: FC<{
                         ) : (
                             <DashboardPickerView
                                 selectedDashboard={selectedDashboard}
-                                onSelect={handleSelectDashboard}
+                                onSelect={onSelectDashboard}
                                 onDeselect={onDeselectDashboard}
+                                onDone={() => {
+                                    setOpened(false);
+                                    setView('menu');
+                                }}
                                 enabled={opened}
+                                attachFromLink={attachFromLink}
+                                isResolvingLink={isResolvingLink}
                             />
                         )}
                     </>

@@ -4429,8 +4429,9 @@ export class AppGenerateService extends BaseService {
      * itself — tabs, tile layout, filters.
      */
     private async resolveDashboardReference(
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         user: SessionUser,
+        projectUuid: string,
     ): Promise<{
         chartUuids: string[];
         dashboardName: string;
@@ -4438,7 +4439,8 @@ export class AppGenerateService extends BaseService {
     }> {
         const dashboard = await this.dashboardService.getByIdOrSlug(
             user,
-            dashboardUuid,
+            dashboardUuidOrSlug,
+            { projectUuid },
         );
         const chartUuids = dashboard.tiles
             .filter(isDashboardChartTileType)
@@ -4462,6 +4464,7 @@ export class AppGenerateService extends BaseService {
         charts: AppChartReference[] | undefined,
         dashboard: AppDashboardReference | undefined,
         user: SessionUser,
+        projectUuid: string,
     ): Promise<{
         refs: AppChartReference[];
         dashboardName: string | null;
@@ -4487,6 +4490,7 @@ export class AppGenerateService extends BaseService {
             const result = await this.resolveDashboardReference(
                 dashboard.uuid,
                 user,
+                projectUuid,
             );
             dashboardName = result.dashboardName;
             dashboardBlueprint = result.blueprint;
@@ -4569,6 +4573,7 @@ export class AppGenerateService extends BaseService {
     private async resolveChartReferences(
         chartRefs: AppChartReference[],
         user: SessionUser,
+        projectUuid: string,
     ): Promise<{
         references: ChartReference[];
         chartResources: AppVersionChartResource[];
@@ -4598,7 +4603,9 @@ export class AppGenerateService extends BaseService {
         const account = fromSession(user);
 
         const chartResults = await Promise.allSettled(
-            uuids.map((uuid) => this.savedChartService.get(uuid, account)),
+            uuids.map((uuid) =>
+                this.savedChartService.get(uuid, account, { projectUuid }),
+            ),
         );
 
         // Kick off sample fetches in parallel, only for charts that resolved
@@ -4744,7 +4751,12 @@ export class AppGenerateService extends BaseService {
             isVizTemplate
                 ? Promise.resolve(null)
                 : this.buildCatalogSummaryForClarifier(projectUuid),
-            this.buildAttachedResourcesForClarifier(charts, dashboard, user),
+            this.buildAttachedResourcesForClarifier(
+                charts,
+                dashboard,
+                user,
+                projectUuid,
+            ),
         ]);
         const imageCount = imageIds?.length ?? 0;
 
@@ -4855,6 +4867,7 @@ export class AppGenerateService extends BaseService {
         charts: AppChartReference[] | undefined,
         dashboard: AppDashboardReference | undefined,
         user: SessionUser,
+        projectUuid: string,
     ): Promise<{
         charts: { name: string; exploreName: string }[];
         dashboard: { name: string; structureSummary: string } | null;
@@ -4870,6 +4883,7 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resolveDashboardReference(
                     dashboard.uuid,
                     user,
+                    projectUuid,
                 );
                 resolvedDashboard = {
                     name: result.dashboardName,
@@ -4889,7 +4903,9 @@ export class AppGenerateService extends BaseService {
         }
         const account = fromSession(user);
         const chartResults = await Promise.allSettled(
-            [...uuids].map((uuid) => this.savedChartService.get(uuid, account)),
+            [...uuids].map((uuid) =>
+                this.savedChartService.get(uuid, account, { projectUuid }),
+            ),
         );
         const resolvedCharts: { name: string; exploreName: string }[] = [];
         for (const result of chartResults) {
@@ -5065,12 +5081,17 @@ export class AppGenerateService extends BaseService {
         );
 
         const { refs, dashboardName, dashboardBlueprint } =
-            await this.collectChartReferences(charts, dashboard, user);
+            await this.collectChartReferences(
+                charts,
+                dashboard,
+                user,
+                projectUuid,
+            );
         const {
             references: chartReferences,
             chartResources,
             sampleStats,
-        } = await this.resolveChartReferences(refs, user);
+        } = await this.resolveChartReferences(refs, user, projectUuid);
         const externalConnectionResources =
             await this.resolveExternalConnectionResources(
                 user,
@@ -5257,12 +5278,17 @@ export class AppGenerateService extends BaseService {
         );
 
         const { refs, dashboardName, dashboardBlueprint } =
-            await this.collectChartReferences(charts, dashboard, user);
+            await this.collectChartReferences(
+                charts,
+                dashboard,
+                user,
+                projectUuid,
+            );
         const {
             references: chartReferences,
             chartResources,
             sampleStats,
-        } = await this.resolveChartReferences(refs, user);
+        } = await this.resolveChartReferences(refs, user, projectUuid);
 
         // Omitted designUuid means a normal content iteration that inherits
         // the app's current theme. Explicit string/null means "change the
