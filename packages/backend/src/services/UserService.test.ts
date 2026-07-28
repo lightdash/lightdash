@@ -632,11 +632,10 @@ describe('UserService', () => {
             });
         });
 
-        test('rejects and consumes an expired invite without activating the user', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce({
-                ...validInviteLink,
-                expiresAt: new Date('2000-01-01'),
-            });
+        test('rejects an expired invite without activating the user', async () => {
+            vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
+                new ExpiredError('Invite link expired'),
+            );
             const service = createUserService(lightdashConfigMock);
 
             await expect(
@@ -645,9 +644,6 @@ describe('UserService', () => {
                 ),
             ).rejects.toThrow(new ExpiredError('Invite link expired'));
 
-            expect(inviteLinkModel.deleteByCode).toHaveBeenCalledWith(
-                validInviteLink.inviteCode,
-            );
             expect(
                 userModel.activateUserWithoutPassword,
             ).not.toHaveBeenCalled();

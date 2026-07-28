@@ -22,7 +22,6 @@ import {
     DeleteOpenIdentity,
     EmailStatus,
     EmailStatusExpiring,
-    ExpiredError,
     FeatureFlags,
     ForbiddenError,
     getEmailDomain,
@@ -1512,17 +1511,7 @@ export class UserService extends BaseService {
     }
 
     async getInviteLink(inviteCode: string): Promise<InviteLink> {
-        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
-        const now = new Date();
-        if (inviteLink.expiresAt <= now) {
-            try {
-                await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
-            } catch (e) {
-                throw new NotFoundError('Invite link not found');
-            }
-            throw new ExpiredError('Invite link expired');
-        }
-        return inviteLink;
+        return this.inviteLinkModel.getByCode(inviteCode);
     }
 
     async loginWithPassword(
