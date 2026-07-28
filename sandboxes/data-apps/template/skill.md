@@ -2,6 +2,8 @@
 
 You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
+**Building a single reusable chart rather than an app?** Read `.claude/skills/reusable-visualization/SKILL.md` before writing any code. A reusable visualization runs no query of its own — the host hands it rows, a field mapping, config option values and a colour palette — so the data and filter APIs below do not apply to it. That skill is the contract for those builds and overrides this guide wherever the two differ. Everything else here (environment, components, visual design) still applies.
+
 ## Iteration mindset
 
 This pipeline is built for iteration — the user refines the app with follow-up prompts, and you have the full conversation history on every iteration. **Favor a responsive first build over upfront perfection.** Hit the core ask and ship; let the user tell you what to add.

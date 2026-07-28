@@ -42,8 +42,9 @@ RUN npx shadcn@2.3.0 add --overwrite --yes \
 # raw `var(--x)` + complete oklch colors is the single convention.
 COPY template/tailwind.config.js ./tailwind.config.js
 
-# Vendored Claude Code skills (e.g. frontend-design @ Apache-2.0). Auto-discovered
-# from /app/.claude/skills/ when Claude Code starts in the sandbox.
+# Claude Code skills — first-party plus vendored (frontend-design @ Apache-2.0).
+# The whole directory is copied, so a new skill needs no change here. Read from
+# /app/.claude/skills/ inside the sandbox.
 COPY template/.claude/ ./.claude/
 
 # E2B sandbox runs as 'user' — make /app writable
