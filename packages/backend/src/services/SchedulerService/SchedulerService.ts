@@ -813,6 +813,25 @@ export class SchedulerService extends BaseService {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
+        if (updatedScheduler.format === SchedulerFormat.GSHEETS) {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: {
+                            schedulerUuid,
+                            schedulerFormat: updatedScheduler.format,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+
         await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
             organizationUuid,
             projectUuid,
