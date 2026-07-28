@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/lightdash/lightdash/compare/1.4.0...1.4.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **data-apps:** bullet the Now-active section of the upgrade message ([#26232](https://github.com/lightdash/lightdash/issues/26232)) ([26038b0](https://github.com/lightdash/lightdash/commit/26038b05b93b6c16106c042ee1a5360715b2e656))
+
 # [1.4.0](https://github.com/lightdash/lightdash/compare/1.3.0...1.4.0) (2026-07-28)
 
 
