@@ -10,6 +10,7 @@ import {
     Stack,
     Text,
     TextInput,
+    Tooltip,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import {
@@ -19,6 +20,8 @@ import {
     IconLayoutDashboard,
     IconPlus,
     IconSparkles,
+    IconStar,
+    IconStarFilled,
     IconTable,
     IconX,
     type Icon,
@@ -90,7 +93,9 @@ const actionPresentation = (
 export const QuickActionCards: FC<{
     actions: HomepageQuickAction[];
     projectUuid: string;
-}> = ({ actions, projectUuid }) => {
+    // Centred under the composer; left-aligned when it follows a page heading
+    justify?: 'center' | 'flex-start';
+}> = ({ actions, projectUuid, justify = 'center' }) => {
     const { track } = useTracking();
     const { canAskAi } = useHomepageAiState(projectUuid);
     const visibleActions = actions.filter(
@@ -98,28 +103,32 @@ export const QuickActionCards: FC<{
     );
     if (visibleActions.length === 0) return null;
     return (
-        <Group gap={8} justify="center">
+        <Group gap={8} justify={justify}>
             {visibleActions.map((action, index) => {
                 const presentation = actionPresentation(action, projectUuid);
+                const trackClick = () =>
+                    track({
+                        name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED,
+                        properties: { actionType: action.type },
+                    });
+                // The primary action is the same chip, inverted.
                 return (
                     <Anchor
                         key={`${action.type}-${index}`}
                         component={Link}
                         to={presentation.url}
                         underline="never"
-                        c="inherit"
-                        className={classes.quickActionChip}
-                        onClick={() =>
-                            track({
-                                name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED,
-                                properties: { actionType: action.type },
-                            })
-                        }
+                        className={`${classes.quickActionChip}${
+                            action.primary
+                                ? ` ${classes.quickActionChipPrimary}`
+                                : ''
+                        }`}
+                        onClick={trackClick}
                     >
                         <MantineIcon
                             icon={presentation.icon}
                             size={14}
-                            color="ldGray.6"
+                            color={action.primary ? 'inherit' : 'ldGray.6'}
                         />
                         {presentation.title}
                     </Anchor>
@@ -257,6 +266,46 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                             <Text size="sm" fw={500} flex={1}>
                                 {presentation.title}
                             </Text>
+                            <Tooltip
+                                label={
+                                    action.primary
+                                        ? 'Primary action'
+                                        : 'Make primary'
+                                }
+                                withinPortal
+                            >
+                                <ActionIcon
+                                    variant="subtle"
+                                    color={
+                                        action.primary ? 'yellow' : 'ldGray.6'
+                                    }
+                                    size="sm"
+                                    aria-label={`Make ${presentation.title} the primary action`}
+                                    aria-pressed={action.primary === true}
+                                    onClick={() =>
+                                        // Only one primary per row
+                                        setActions(
+                                            block.config.actions.map(
+                                                (item, i) => ({
+                                                    ...item,
+                                                    primary:
+                                                        i === index
+                                                            ? !action.primary
+                                                            : false,
+                                                }),
+                                            ),
+                                        )
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            action.primary
+                                                ? IconStarFilled
+                                                : IconStar
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
                             <ActionIcon
                                 variant="subtle"
                                 color="ldGray.6"

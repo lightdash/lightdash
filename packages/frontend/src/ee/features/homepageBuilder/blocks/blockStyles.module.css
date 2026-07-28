@@ -398,6 +398,21 @@ a .hoverCard:hover,
         border-color 0.15s ease;
 }
 
+/* Primary quick action: same box, inverted. Colours only — no size change, so
+ * it can't introduce a height difference next to its siblings. */
+.quickActionChipPrimary,
+.quickActionChipPrimary:hover {
+    background: light-dark(
+        var(--mantine-color-dark-9),
+        var(--mantine-color-gray-0)
+    );
+    border-color: light-dark(
+        var(--mantine-color-dark-9),
+        var(--mantine-color-gray-0)
+    );
+    color: light-dark(#fff, var(--mantine-color-dark-9));
+}
+
 .quickActionChip:hover {
     text-decoration: none;
     color: inherit;
