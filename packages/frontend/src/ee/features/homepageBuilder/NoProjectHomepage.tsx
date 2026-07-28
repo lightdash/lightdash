@@ -1,7 +1,9 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine-8/core';
+import { Box, Button, Stack, Text } from '@mantine-8/core';
+import { IconDatabase } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Navigate } from 'react-router';
+import { Link, Navigate } from 'react-router';
+import MantineIcon from '../../../components/common/MantineIcon';
 import PageSpinner from '../../../components/PageSpinner';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -37,13 +39,17 @@ const NoProjectHomepage: FC = () => {
         return <Navigate to="/" replace />;
     }
 
-    if (!homepageBuilderFlag.isEnabled || !isCopilotEnabled) {
+    if (!homepageBuilderFlag.isEnabled) {
         return <Navigate to="/" replace />;
     }
 
     if (organization && !organization.needsProject) {
         return <Navigate to="/" replace />;
     }
+
+    // Without copilot the composer would be a teaser for something the org
+    // can't use — connecting a warehouse becomes the headline act instead.
+    const connectWarehouse = actions.statuses['connect-warehouse'];
 
     return (
         <Box className={layout.page}>
@@ -62,12 +68,35 @@ const NoProjectHomepage: FC = () => {
                         >
                             {getGreeting(user.data?.firstName)}.
                         </Text>
-                        <Box w="100%">
-                            <DayOneAskInput
-                                projectUuid={null}
-                                hideSuggestions
-                            />
-                        </Box>
+                        {isCopilotEnabled ? (
+                            <Box w="100%">
+                                <DayOneAskInput
+                                    projectUuid={null}
+                                    hideSuggestions
+                                />
+                            </Box>
+                        ) : (
+                            <Stack gap={14} align="center">
+                                <Text c="dimmed" fz={15} ta="center" maw={420}>
+                                    Connect your data warehouse to start
+                                    exploring and building dashboards.
+                                </Text>
+                                {/* The checklist below already leads with this
+                                    step whenever it renders */}
+                                {!actions.hasPendingActions && (
+                                    <Button
+                                        component={Link}
+                                        to={connectWarehouse.url}
+                                        size="md"
+                                        leftSection={
+                                            <MantineIcon icon={IconDatabase} />
+                                        }
+                                    >
+                                        Connect a data warehouse
+                                    </Button>
+                                )}
+                            </Stack>
+                        )}
                         {actions.hasPendingActions && (
                             <RecommendedActionsChecklist
                                 projectUuid={null}

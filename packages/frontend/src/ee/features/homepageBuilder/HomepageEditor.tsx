@@ -60,7 +60,6 @@ import { Fragment, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
-import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { TIER_CLASS, traitFor } from './blockLayout';
 import { IconSquare } from './blocks/BlockShell';
 import {
@@ -86,6 +85,7 @@ import {
 } from './configOps';
 import classes from './HomepageEditor.module.css';
 import layout from './homepageLayout.module.css';
+import { useHomepageAiState } from './hooks/useHomepageAiState';
 import {
     useDeleteHomepage,
     useDiscardHomepageDraft,
@@ -483,7 +483,9 @@ export const HomepageEditor: FC<Props> = ({
     const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
     const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 
-    const isAiEnabled = useAiAgentButtonVisibility();
+    // Admins of an agent-less project can still *see* AI, so gate the AI
+    // blocks on an agent actually existing.
+    const { canAskAi } = useHomepageAiState(projectUuid);
 
     const [draft, setDraft] = useState<HomepageConfig>(() =>
         migrateHomepageConfig(homepage.draftConfig),
@@ -526,7 +528,7 @@ export const HomepageEditor: FC<Props> = ({
     );
     const availableBlocks = blockLibrary.filter(
         (definition) =>
-            (!definition.requiresAi || isAiEnabled) &&
+            (!definition.requiresAi || canAskAi) &&
             !(definition.singleton && usedSingletonTypes.has(definition.type)),
     );
     // Full-row blocks never appear in into-row (column) menus.
