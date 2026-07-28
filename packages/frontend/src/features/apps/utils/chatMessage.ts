@@ -23,6 +23,11 @@ export type ChatAttachedFile = {
 
 export type ChatMessage = {
     role: 'user' | 'assistant';
+    /**
+     * Outcome of an assistant bubble; `null` on user bubbles. The only signal
+     * renderers use to tell success from failure.
+     */
+    status: 'ready' | 'error' | null;
     content: string;
     imagePreviewUrls: string[];
     imageResourceIds: string[];
@@ -31,7 +36,6 @@ export type ChatMessage = {
     externalConnections: ChatConnection[];
     dashboardName: string | null;
     clarifications: AppClarification[];
-    appUuid: string | null;
     version: number | null;
     timestamp: Date;
     userName: string | null;
@@ -52,6 +56,31 @@ export type ChatMessage = {
     // current latest, so the comparison hasn't tripped yet.
     submittedAtVersion?: number;
 };
+
+/**
+ * Every field a message can carry, at its "nothing here" value, so a literal
+ * only has to state what it actually has. A function rather than a constant so
+ * no two messages share an array.
+ */
+export const emptyChatMessage = (): Omit<
+    ChatMessage,
+    'role' | 'timestamp'
+> => ({
+    status: null,
+    content: '',
+    imagePreviewUrls: [],
+    imageResourceIds: [],
+    files: [],
+    charts: [],
+    externalConnections: [],
+    dashboardName: null,
+    clarifications: [],
+    version: null,
+    userName: null,
+    vizSchema: null,
+    reasoning: [],
+    activity: [],
+});
 
 /**
  * Merge server-side history with the optimistic local message queue, dropping
