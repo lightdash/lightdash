@@ -20081,6 +20081,9 @@
                     },
                     "slug": {
                         "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
@@ -20094,7 +20097,8 @@
                     "terms",
                     "rawMemory",
                     "title",
-                    "slug"
+                    "slug",
+                    "uuid"
                 ],
                 "type": "object"
             },
@@ -30561,6 +30565,22 @@
             },
             "ApiAiDeepResearchEventsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchEventsPage_"
+            },
+            "ApiUpdateAiAgentMemoryStatusResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "AiAgentMemoryEditableStatus": {
+                "type": "string",
+                "enum": ["active", "retired"]
+            },
+            "ApiUpdateAiAgentMemoryStatusRequest": {
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentMemoryEditableStatus"
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -50427,7 +50447,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.5.1",
+        "version": "1.6.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -62269,6 +62289,64 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgentMemories/{memoryUuid}/status": {
+            "patch": {
+                "operationId": "updateAiAgentMemoryStatus",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpdateAiAgentMemoryStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Changes whether a memory is available to the AI agent.",
+                "summary": "Update memory status",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "memoryUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiUpdateAiAgentMemoryStatusRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/aiAgents/admin/threads": {

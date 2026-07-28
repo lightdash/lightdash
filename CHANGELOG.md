@@ -1,3 +1,20 @@
+# [1.6.0](https://github.com/lightdash/lightdash/compare/1.5.1...1.6.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* control mixed-chart series z-order from series list order ([#26134](https://github.com/lightdash/lightdash/issues/26134)) ([4b25978](https://github.com/lightdash/lightdash/commit/4b25978126c62fecc30b85fbbe90a8c0c91896db))
+* **data-apps:** make lineage stamping the default in generation examples ([#26274](https://github.com/lightdash/lightdash/issues/26274)) ([520e8f4](https://github.com/lightdash/lightdash/commit/520e8f4b00185ed7db67827aa3218479017cb3cf))
+* **query-sdk:** post the capability manifest with wildcard targetOrigin ([#26271](https://github.com/lightdash/lightdash/issues/26271)) ([bb1ad35](https://github.com/lightdash/lightdash/commit/bb1ad35c0228c84e6447d192a2cb5440c6652418))
+
+
+### Features
+
+* add UUID-based AI memory status API ([#26267](https://github.com/lightdash/lightdash/issues/26267)) ([4cc151e](https://github.com/lightdash/lightdash/commit/4cc151ec25d035633697ddc761fab9fe118fdf87))
+* **analytics:** add org to warehouse selection ([#26272](https://github.com/lightdash/lightdash/issues/26272)) ([07ba328](https://github.com/lightdash/lightdash/commit/07ba3286ca0a019a7142cc31cb7300c0de534741))
+* improve AI memory scope visibility ([#26264](https://github.com/lightdash/lightdash/issues/26264)) ([7855e2f](https://github.com/lightdash/lightdash/commit/7855e2ffb26e1dca9b524d38b8a5454c2626acbf))
+* manage AI agent memory status ([#26263](https://github.com/lightdash/lightdash/issues/26263)) ([4ae9212](https://github.com/lightdash/lightdash/commit/4ae92129284521c9b54bf518b5aa368e9599a54d))
+
 ## [1.5.1](https://github.com/lightdash/lightdash/compare/1.5.0...1.5.1) (2026-07-28)
 
 
