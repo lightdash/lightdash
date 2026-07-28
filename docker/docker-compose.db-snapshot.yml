@@ -34,6 +34,7 @@ services:
         environment:
             NODE_ENV: production
             DBT_DEMO_DIR: /usr/app
+            LIGHTDASH_SEED_DBT_VERSION: v1.11
             # Must match the preview LIGHTDASH_SECRET in
             # docker-compose.preview.yml: the seed encrypts warehouse
             # credentials with it, and a diverted preview must decrypt them

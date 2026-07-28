@@ -86,7 +86,7 @@ async function createAndRefreshProject(
             type: 'dbt',
             project_dir: process.env.DBT_PROJECT_DIR || '/usr/app/dbt',
         },
-        dbtVersion: 'v1.7',
+        dbtVersion: 'v1.11',
         warehouseConnection: postgresWarehouseConfig,
     });
     expect(projectResp.status).toBe(200);

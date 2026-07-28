@@ -58,6 +58,7 @@ services:
             IS_PULL_REQUEST: true
             LIGHTDASH_MODE: pr
             DBT_DEMO_DIR: /usr/app
+            LIGHTDASH_SEED_DBT_VERSION: v1.11
             INTERNAL_LIGHTDASH_HOST: http://lightdash-preview:8080
 
             # This must be set in the GitHub Actions workflow
