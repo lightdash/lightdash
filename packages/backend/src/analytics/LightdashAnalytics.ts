@@ -1485,6 +1485,10 @@ export type DataAppUpgradeRequestedEvent = BaseTrack & {
         /** What the app's bundle self-reported; null for legacy bundles. */
         reportedSdkVersion: string | null;
         reportedFeatureCount: number | null;
+        /** Feature keys the frontend computed as possibly-new — what this
+         *  upgrade can newly enable. Compare with the app's next
+         *  reportedFeatures to measure adoption. Null for older clients. */
+        candidateFeatureKeys: string[] | null;
     };
 };
 
@@ -1510,6 +1514,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
+        isUpgrade: boolean;
         claudeModel: DataAppClaudeModel;
         claudeProvider: 'anthropic' | 'bedrock';
         schedulerWaitMs: number;
@@ -1563,6 +1568,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         isIteration: boolean;
+        isUpgrade: boolean;
         claudeModel: DataAppClaudeModel;
         claudeProvider?: 'anthropic' | 'bedrock';
         schedulerWaitMs?: number;
