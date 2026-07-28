@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type DeliveryQuery } from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconAppsOff } from '@tabler/icons-react';
@@ -13,6 +13,7 @@ import { type QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { publishDeliveryQueriesToWindow } from './MinimalApp.deliveryQueries';
 
 /**
  * How long the app must be quiet (SDK alive, zero in-flight queries) before
@@ -76,6 +77,14 @@ export default function MinimalApp() {
 
     const handleScreenshotAvailable = useCallback((available: boolean) => {
         setSdkAlive(available);
+    }, []);
+
+    const handleDeliveryQueries = useCallback((queries: DeliveryQuery[]) => {
+        // Written here, not in an effect keyed on readiness: this runs well
+        // before `isReady` flips (debounced APP_QUIET_DEBOUNCE_MS behind the
+        // last query settling), and UnfurlService waits on the ready
+        // indicator — so the global is always in place before it looks.
+        publishDeliveryQueriesToWindow(queries);
     }, []);
 
     const handleQueryEvent = useCallback((event: QueryEvent) => {
@@ -196,6 +205,7 @@ export default function MinimalApp() {
                 identityKey={`${appUuid}:${latestReadyVersion}`}
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}
+                onDeliveryQueries={handleDeliveryQueries}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
                 // Seeds the app from ?state= so scheduled deliveries with a
                 // saved app state screenshot that view, not the default one.
