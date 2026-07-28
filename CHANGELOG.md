@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/lightdash/lightdash/compare/1.12.0...1.13.0) (2026-07-28)
+
+
+### Features
+
+* **data-apps:** let a viz declare that it colours from the chart palette ([#26290](https://github.com/lightdash/lightdash/issues/26290)) ([aeacbd4](https://github.com/lightdash/lightdash/commit/aeacbd4b40d5bedd4279fa1be4d6e249444a6ad4))
+
 # [1.12.0](https://github.com/lightdash/lightdash/compare/1.11.0...1.12.0) (2026-07-28)
 
 

@@ -16017,8 +16017,27 @@
                     }
                 ]
             },
+            "DataAppVizPaletteDeclaration": {
+                "properties": {
+                    "group": {
+                        "type": "string",
+                        "description": "Tab to place the picker in, matching a config option `group`."
+                    }
+                },
+                "type": "object",
+                "description": "Declared by a viz that colours from the resolved Lightdash palette. Not a\nconfig option: it carries no value of its own, it only asks the config panel\nfor the standard palette picker, whose choice is stored as the chart's\npalette and delivered on `colorPalette`. There is one palette per chart, so\na viz either declares this or it does not."
+            },
             "DataAppVizSchema": {
                 "properties": {
+                    "colorPalette": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppVizPaletteDeclaration"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null when the viz colours nothing from the resolved palette."
+                    },
                     "configOptions": {
                         "items": {
                             "$ref": "#/components/schemas/DataAppVizConfigOption"
@@ -16032,7 +16051,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["configOptions", "fields"],
+                "required": ["colorPalette", "configOptions", "fields"],
                 "type": "object",
                 "description": "The full declaration a data app viz emits: data-binding fields + config form."
             },
@@ -50708,7 +50727,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.12.0",
+        "version": "1.13.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

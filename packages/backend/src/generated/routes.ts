@@ -14633,11 +14633,28 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizPaletteDeclaration: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { group: { dataType: 'string' } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppVizSchema: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                colorPalette: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppVizPaletteDeclaration' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 configOptions: {
                     dataType: 'array',
                     array: {
