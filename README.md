@@ -411,6 +411,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/st-lab7"><img src="https://avatars.githubusercontent.com/u/251964580?v=4?s=100" width="100px;" alt="Shota Tsuru"/><br /><sub><b>Shota Tsuru</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=st-lab7" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ricardophantom"><img src="https://avatars.githubusercontent.com/u/118755742?v=4?s=100" width="100px;" alt="Ricardo Pinho"/><br /><sub><b>Ricardo Pinho</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ricardophantom" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://pipesafe.co.uk"><img src="https://avatars.githubusercontent.com/u/54896655?v=4?s=100" width="100px;" alt="Tim Vyas"/><br /><sub><b>Tim Vyas</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=timvyas" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 

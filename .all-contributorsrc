@@ -1780,6 +1780,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "timvyas",
+      "name": "Tim Vyas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/54896655?v=4",
+      "profile": "https://pipesafe.co.uk",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
