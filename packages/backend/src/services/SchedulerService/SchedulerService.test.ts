@@ -9,6 +9,7 @@ import {
     SessionUser,
     type ChartScheduler,
     type CreateSchedulerAndTargets,
+    type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -448,6 +449,118 @@ describe('SchedulerService', () => {
                 [gsheetsScheduler.schedulerUuid],
                 newOwnerWithGoogleSheets.userUuid,
             );
+        });
+    });
+
+    describe('updateScheduler', () => {
+        // The existing scheduler is CSV; the update switches it to GSHEETS
+        const gsheetsUpdate = {
+            name: 'scheduler',
+            cron: '0 0 * * *',
+            timezone: 'UTC',
+            format: SchedulerFormat.GSHEETS,
+            options: { gdriveId: 'gdriveId' },
+            targets: [],
+            savedChartUuid,
+        } as unknown as UpdateSchedulerAndTargetsWithoutId;
+
+        // manage:ScheduledDeliveries but NOT manage:GoogleSheets (custom role)
+        const actorWithoutGoogleSheets = buildUser([
+            {
+                subject: 'ScheduledDeliveries',
+                action: ['manage'],
+                conditions: { organizationUuid },
+            },
+        ]);
+
+        const actorWithGoogleSheets = buildUser([
+            {
+                subject: 'ScheduledDeliveries',
+                action: ['manage'],
+                conditions: { organizationUuid },
+            },
+            {
+                subject: 'GoogleSheets',
+                action: ['manage'],
+                conditions: { organizationUuid },
+            },
+        ]);
+
+        const buildUpdateService = () => {
+            const updateSchedulerModel = {
+                getScheduler: vi.fn(async () => chartSchedulerInPrivateSpace),
+                deleteScheduledLogs: vi.fn(async () => {}),
+                updateScheduler: vi.fn(async () => ({
+                    ...chartSchedulerInPrivateSpace,
+                    format: SchedulerFormat.GSHEETS,
+                    targets: [],
+                    enabled: false,
+                })),
+            };
+            const updateSchedulerClient = {
+                deleteScheduledJobs: vi.fn(async () => {}),
+            };
+
+            const updateService = new SchedulerService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: analyticsMock,
+                schedulerModel:
+                    updateSchedulerModel as unknown as SchedulerModel,
+                dashboardModel: {} as DashboardModel,
+                savedChartModel: savedChartModel as unknown as SavedChartModel,
+                savedSqlModel: {} as SavedSqlModel,
+                appModel: {} as AppModel,
+                projectModel: {} as ProjectModel,
+                schedulerClient:
+                    updateSchedulerClient as unknown as SchedulerClient,
+                slackClient: {
+                    joinChannels: vi.fn(async () => {}),
+                } as unknown as SlackClient,
+                emailClient: {
+                    canSendEmail: vi.fn(() => false),
+                } as unknown as EmailClient,
+                userModel: {} as UserModel,
+                googleDriveClient: {} as GoogleDriveClient,
+                userService: {} as UserService,
+                jobModel: {} as JobModel,
+                spacePermissionService:
+                    spacePermissionService as unknown as SpacePermissionService,
+            });
+
+            return { updateService, updateSchedulerModel };
+        };
+
+        test('should throw ForbiddenError when switching format to GSHEETS without manage:GoogleSheets', async () => {
+            const { updateService, updateSchedulerModel } =
+                buildUpdateService();
+
+            await expect(
+                updateService.updateScheduler(
+                    actorWithoutGoogleSheets,
+                    chartSchedulerInPrivateSpace.schedulerUuid,
+                    gsheetsUpdate,
+                    { validateGoogleSheet: false },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+
+            expect(updateSchedulerModel.updateScheduler).not.toHaveBeenCalled();
+        });
+
+        test('should switch format to GSHEETS when user has manage:GoogleSheets', async () => {
+            const { updateService, updateSchedulerModel } =
+                buildUpdateService();
+
+            await updateService.updateScheduler(
+                actorWithGoogleSheets,
+                chartSchedulerInPrivateSpace.schedulerUuid,
+                gsheetsUpdate,
+                { validateGoogleSheet: false },
+            );
+
+            expect(updateSchedulerModel.updateScheduler).toHaveBeenCalledWith({
+                ...gsheetsUpdate,
+                schedulerUuid: chartSchedulerInPrivateSpace.schedulerUuid,
+            });
         });
     });
 });
