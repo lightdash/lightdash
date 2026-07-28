@@ -238,8 +238,9 @@ const WarehouseConnect: FC<{ selectedWarehouse: WarehouseTypes }> = ({
                     warehouseOnly
                     onBack={() => void navigate('/onboarding/data-source')}
                     successRedirect={(projectUuid) =>
-                        `/onboarding/project-ready/${projectUuid}`
+                        `/projects/${projectUuid}/home`
                     }
+                    celebrateOnSuccess
                 />
             </ProjectFormProvider>
         </Box>
