@@ -179,14 +179,11 @@ export class AiAgentAdminController extends BaseController {
     @OperationId('getAllEvals')
     async getAllEvals(
         @Request() req: express.Request,
-        // Pagination
         @Query() page?: KnexPaginateArgs['page'],
         @Query() pageSize?: KnexPaginateArgs['pageSize'],
-        // Filtering
         @Query() projectUuids?: AiAgentAdminEvalFilters['projectUuids'],
         @Query() agentUuids?: AiAgentAdminEvalFilters['agentUuids'],
         @Query() search?: AiAgentAdminEvalFilters['search'],
-        // Sorting
         @Query() sortField?: AiAgentAdminSort['field'],
         @Query() sortDirection?: AiAgentAdminSort['direction'],
     ): Promise<ApiAiAgentAdminEvalsResponse> {

@@ -578,10 +578,6 @@ export class AiAgentAdminService extends BaseService {
         });
     }
 
-    /**
-     * Org-wide eval audit surface. Same scope rules as threads:
-     * org principals see all, project-scoped principals see their projects.
-     */
     async getAllEvals(
         user: SessionUser,
         paginateArgs?: KnexPaginateArgs,

@@ -1,8 +1,8 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
 import type { DataAppModelVisibility } from '../apps/types';
 import type {
-    AiAgentMemoryScope,
     AiAgentEvaluationRunSummary,
+    AiAgentMemoryScope,
     AiAgentMemoryStatus,
     AiAgentSummary,
     AiAgentThreadSummary,
@@ -69,7 +69,7 @@ export type ApiAiAgentAdminConversationsResponse = ApiSuccess<
 export type AiAgentAdminEvalFilters = {
     projectUuids?: string[];
     agentUuids?: string[];
-    search?: string; // Search by eval title
+    search?: string;
 };
 
 export type AiAgentAdminEvalSummary = {
