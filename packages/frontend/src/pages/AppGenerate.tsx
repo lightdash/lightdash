@@ -3073,10 +3073,17 @@ const AppGenerate: FC = () => {
                                                     }
                                                     onSelectChart={(chart) =>
                                                         setSelectedCharts(
-                                                            (prev) => [
-                                                                ...prev,
-                                                                chart,
-                                                            ],
+                                                            (prev) =>
+                                                                prev.some(
+                                                                    (c) =>
+                                                                        c.uuid ===
+                                                                        chart.uuid,
+                                                                )
+                                                                    ? prev
+                                                                    : [
+                                                                          ...prev,
+                                                                          chart,
+                                                                      ],
                                                         )
                                                     }
                                                     onDeselectChart={(uuid) =>
