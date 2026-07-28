@@ -1,10 +1,14 @@
-import { type DataAppVizContext } from '@lightdash/common';
+import {
+    getEffectiveOptionValues,
+    type DataAppVizContext,
+} from '@lightdash/common';
 import { Stack, Text } from '@mantine-8/core';
 import { IconPuzzle } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useParams } from 'react-router';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
+import { useDataAppVisualization } from '../../features/apps/hooks/useDataAppVisualization';
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import MantineIcon from '../common/MantineIcon';
@@ -50,6 +54,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         : undefined;
     const dataAppVizUuid = config?.dataAppVizUuid ?? '';
     const fieldMapping = config?.fieldMapping;
+    const optionValues = config?.optionValues;
     const rows = resultsData?.rows;
 
     // Hooks run unconditionally; the queries are `enabled`-gated on their args.
@@ -57,6 +62,14 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         projectUuid,
         dataAppVizUuid || undefined,
     );
+
+    // The declaration is the only source of option defaults, so the renderer
+    // fetches it to resolve effective values.
+    const { data: dataAppViz } = useDataAppVisualization(
+        projectUuid,
+        dataAppVizUuid || undefined,
+    );
+    const configOptions = dataAppViz?.schema?.configOptions;
 
     // Latest READY version of the chosen data app viz drives the preview.
     const readyVersion = useMemo(() => {
@@ -73,9 +86,16 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     );
 
     const dataAppVizContext = useMemo<DataAppVizContext | undefined>(() => {
-        if (!rows) return undefined;
-        return { fieldMapping: fieldMapping ?? {}, rows };
-    }, [fieldMapping, rows]);
+        if (!rows || !configOptions) return undefined;
+        return {
+            fieldMapping: fieldMapping ?? {},
+            rows,
+            options: getEffectiveOptionValues(
+                configOptions,
+                optionValues ?? {},
+            ),
+        };
+    }, [fieldMapping, rows, configOptions, optionValues]);
 
     if (!projectUuid || !dataAppVizUuid) {
         return (

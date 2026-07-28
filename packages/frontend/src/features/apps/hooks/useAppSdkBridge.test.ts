@@ -1014,6 +1014,7 @@ describe('data-app-viz-context push', () => {
                 orders_count: { value: { raw: 42, formatted: '42' } },
             },
         ],
+        options: { showLegend: true, barColor: '#ff0000' },
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
@@ -1039,6 +1040,41 @@ describe('data-app-viz-context push', () => {
                 type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
                 fieldMapping: dataAppVizContext.fieldMapping,
                 rows: dataAppVizContext.rows,
+                options: dataAppVizContext.options,
+            }),
+            '*',
+        );
+    });
+
+    it('re-pushes the context when only the option values change', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        const { rerender } = renderHook(
+            ({ ctx }: { ctx: DataAppVizContext }) =>
+                useAppSdkBridge({
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    dataAppVizContext: ctx,
+                }),
+            { initialProps: { ctx: dataAppVizContext } },
+        );
+        // Isolate the options-change push from the on-mount push.
+        postSpy.mockClear();
+
+        rerender({
+            ctx: { ...dataAppVizContext, options: { showLegend: false } },
+        });
+
+        expect(postSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+                fieldMapping: dataAppVizContext.fieldMapping,
+                rows: dataAppVizContext.rows,
+                options: { showLegend: false },
             }),
             '*',
         );

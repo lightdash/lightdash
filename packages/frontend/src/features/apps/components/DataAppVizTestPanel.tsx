@@ -1,4 +1,5 @@
 import {
+    getEffectiveOptionValues,
     getErrorMessage,
     getItemId,
     getItemMap,
@@ -64,6 +65,11 @@ const DataAppVizTestPanel: FC<Props> = ({
         Boolean(run),
     );
 
+    const effectiveOptions = useMemo(
+        () => getEffectiveOptionValues(schema.configOptions, {}),
+        [schema.configOptions],
+    );
+
     const rows = queryResults.rows;
     // Notify the parent once the run's rows arrive (external async → parent).
     // Only push rows belonging to this run's query — on a re-run the executor
@@ -77,9 +83,20 @@ const DataAppVizTestPanel: FC<Props> = ({
             runQueryUuid &&
             queryResults.queryUuid === runQueryUuid
         ) {
-            onContextChange({ fieldMapping: run.mapping, rows });
+            onContextChange({
+                fieldMapping: run.mapping,
+                rows,
+                options: effectiveOptions,
+            });
         }
-    }, [rows, run, runQueryUuid, queryResults.queryUuid, onContextChange]);
+    }, [
+        rows,
+        run,
+        runQueryUuid,
+        queryResults.queryUuid,
+        effectiveOptions,
+        onContextChange,
+    ]);
     // Clear the preview when this panel unmounts (e.g. a newer version lands).
     useEffect(() => () => onContextChange(null), [onContextChange]);
 

@@ -13,6 +13,7 @@ import {
 } from '../../types/knex-paginate';
 import { type MetricQuery } from '../../types/metricQuery';
 import { type DashboardParameters } from '../../types/parameters';
+import { type ResultRow } from '../../types/results';
 import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
 import {
@@ -808,8 +809,10 @@ export const APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE =
     'lightdash:sdk:viz-context-request';
 
 // Host-owned render context pushed into a data app viz: field name → bound query
-// field id, plus the host-fetched result rows the renderer reads.
+// field id, the host-fetched result rows the renderer reads, and the effective
+// config option values (stored value ?? declared default).
 export type DataAppVizContext = {
     fieldMapping: Record<string, string>;
-    rows: Record<string, unknown>[];
+    rows: ResultRow[];
+    options: Record<string, DataAppVizOptionValue>;
 };
