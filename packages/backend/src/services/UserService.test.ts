@@ -1186,6 +1186,83 @@ describe('UserService', () => {
                 });
             });
         });
+
+        describe('onboarding step gating', () => {
+            const verifyEmailAs = async (user: SessionUser) => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                const emailStatus = activeOtp();
+                emailModel.getPrimaryEmailStatusByUserAndOtp.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                emailModel.verifyUserEmailIfExists.mockResolvedValueOnce([
+                    { email: emailStatus.email },
+                ]);
+
+                await service.getPrimaryEmailStatus(user, '123456');
+
+                return emailStatus;
+            };
+
+            test('emits the verified step when verifying during onboarding', async () => {
+                const onboardingUser: SessionUser = {
+                    ...sessionUser,
+                    isSetupComplete: false,
+                };
+
+                const emailStatus = await verifyEmailAs(onboardingUser);
+
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    userId: onboardingUser.userUuid,
+                    event: 'user.verified',
+                    properties: {
+                        email: emailStatus.email,
+                        location: 'onboarding',
+                        isTrackingAnonymized:
+                            onboardingUser.isTrackingAnonymized,
+                        method: 'otp',
+                        onboardingFlow: 'new',
+                    },
+                });
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    userId: onboardingUser.userUuid,
+                    event: 'onboarding.step_completed',
+                    properties: {
+                        step: 'verified',
+                        stepIndex: 2,
+                        onboardingFlow: 'new',
+                        organizationId: onboardingUser.organizationUuid,
+                    },
+                });
+            });
+
+            test('does not emit the verified step when verifying from settings', async () => {
+                const settingsUser: SessionUser = {
+                    ...sessionUser,
+                    isSetupComplete: true,
+                };
+
+                const emailStatus = await verifyEmailAs(settingsUser);
+
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    userId: settingsUser.userUuid,
+                    event: 'user.verified',
+                    properties: {
+                        email: emailStatus.email,
+                        location: 'settings',
+                        isTrackingAnonymized: settingsUser.isTrackingAnonymized,
+                        method: 'otp',
+                        onboardingFlow: 'new',
+                    },
+                });
+                expect(analyticsMock.track).not.toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'onboarding.step_completed',
+                    }),
+                );
+            });
+        });
     });
 
     describe('resetPassword', () => {
