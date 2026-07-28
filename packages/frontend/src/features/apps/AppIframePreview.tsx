@@ -1,6 +1,7 @@
 import {
     type DataAppVizContext,
     type DashboardFilters,
+    type DeliveryQuery,
 } from '@lightdash/common';
 import {
     forwardRef,
@@ -43,6 +44,8 @@ type Props = {
      *  Inspect/Screenshot buttons don't flicker off-then-back-on each time. */
     identityKey: string;
     onQueryEvent?: (event: QueryEvent) => void;
+    /** Fires with the app's declared scheduled-delivery queries. */
+    onDeliveryQueries?: (queries: DeliveryQuery[]) => void;
     /** Reports external-connection fetches for the external-requests inspector
      *  tab. Left undefined by hosts that don't surface the inspector (embed,
      *  dashboard tiles). */
@@ -134,6 +137,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             appUuid,
             identityKey,
             onQueryEvent,
+            onDeliveryQueries,
             onExternalRequestEvent,
             onElementSelected,
             inspectorEnabled,
@@ -192,6 +196,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             projectUuid,
             appUuid,
             onQueryEvent,
+            onDeliveryQueries,
             onElementSelected,
             onInspectorAvailable: handleInspectorAnnounce,
             onScreenshotAvailable: handleScreenshotAnnounce,
