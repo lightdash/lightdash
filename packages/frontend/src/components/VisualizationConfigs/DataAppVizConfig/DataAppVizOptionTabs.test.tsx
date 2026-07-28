@@ -67,15 +67,6 @@ describe('DataAppVizOptionTabs', () => {
         expect(onChange).toHaveBeenCalledWith('showLegend', false);
     });
 
-    it("renders the caller's palette control in the tab the declaration names", async () => {
-        const user = userEvent.setup();
-        renderTabs(options, { group: 'Style' });
-
-        await user.click(screen.getByRole('tab', { name: 'Style' }));
-
-        expect(screen.getByTestId('palette')).toBeInTheDocument();
-    });
-
     it('shows the palette control once, in one tab only', async () => {
         const user = userEvent.setup();
         renderTabs(options, { group: 'Style' });

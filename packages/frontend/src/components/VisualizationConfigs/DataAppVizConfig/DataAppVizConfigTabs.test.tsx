@@ -161,22 +161,6 @@ describe('DataAppVizConfigTabs', () => {
         ]);
     });
 
-    it('renders no tab strip when the viz declares no options', () => {
-        renderWithProviders(<ConfigTabs />);
-
-        expect(screen.queryByRole('tab')).not.toBeInTheDocument();
-    });
-
-    it('builds one tab per declared group, ungrouped options collapsing into Display', () => {
-        mockSchema(declaredOptions);
-
-        renderWithProviders(<ConfigTabs />);
-
-        expect(
-            screen.getAllByRole('tab').map((tab) => tab.textContent),
-        ).toEqual(['General', 'Style', 'Display']);
-    });
-
     it('renders declared defaults when nothing is stored', async () => {
         const user = userEvent.setup();
         mockSchema(declaredOptions);

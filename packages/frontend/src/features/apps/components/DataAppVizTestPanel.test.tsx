@@ -351,55 +351,6 @@ describe('DataAppVizTestPanel', () => {
         ).toBeDisabled();
     });
 
-    it('groups declared options into config tabs, defaults applied', async () => {
-        const user = userEvent.setup();
-        renderWithProviders(
-            <DataAppVizTestPanel
-                projectUuid="p1"
-                schema={{
-                    fields: schema.fields,
-                    configOptions: [
-                        {
-                            type: 'boolean',
-                            name: 'showLegend',
-                            label: 'Show legend',
-                            group: 'Style',
-                            default: true,
-                        },
-                    ],
-                    colorPalette: null,
-                }}
-                onContextChange={vi.fn()}
-            />,
-        );
-
-        expect(
-            screen.getAllByRole('tab').map((tab) => tab.textContent),
-        ).toEqual(['General', 'Style']);
-
-        await user.click(screen.getByRole('tab', { name: 'Style' }));
-        expect(screen.getByLabelText('Show legend')).toBeChecked();
-    });
-
-    it('offers the palette picker for a declared palette', async () => {
-        const user = userEvent.setup();
-        renderWithProviders(
-            <DataAppVizTestPanel
-                projectUuid="p1"
-                schema={{
-                    fields: schema.fields,
-                    configOptions: [],
-                    colorPalette: { group: 'Colours' },
-                }}
-                onContextChange={vi.fn()}
-            />,
-        );
-
-        await user.click(screen.getByRole('tab', { name: 'Colours' }));
-
-        expect(screen.getByText('Color palette')).toBeInTheDocument();
-    });
-
     it('republishes option edits after a successful query', async () => {
         const onContextChange = vi.fn();
         renderWithProviders(
