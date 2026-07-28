@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/lightdash/lightdash/compare/1.9.0...1.10.0) (2026-07-28)
+
+
+### Features
+
+* **data-apps:** render declared config options as chart config tabs ([#26288](https://github.com/lightdash/lightdash/issues/26288)) ([87ba528](https://github.com/lightdash/lightdash/commit/87ba5282a0723ceab3cb90be015787edc05a5b8b))
+
 # [1.9.0](https://github.com/lightdash/lightdash/compare/1.8.0...1.9.0) (2026-07-28)
 
 
