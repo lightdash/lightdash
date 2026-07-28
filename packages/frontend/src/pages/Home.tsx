@@ -144,15 +144,7 @@ const Home: FC = () => {
                     >
                         <DayOneHomepage
                             projectUuid={project.data.projectUuid}
-                            projectName={project.data.name}
                             pinnedItems={pinnedItems.data ?? []}
-                            favoriteItems={favorites.data ?? []}
-                            pinnedIsEnabled={Boolean(
-                                mostPopularAndRecentlyUpdated?.mostPopular
-                                    .length ||
-                                mostPopularAndRecentlyUpdated?.recentlyUpdated
-                                    .length,
-                            )}
                         />
                     </PinnedItemsProvider>
                 </FavoritesProvider>
