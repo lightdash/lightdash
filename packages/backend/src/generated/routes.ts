@@ -1627,11 +1627,40 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_string.string_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizOptionValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'boolean' },
+                { dataType: 'double' },
+                { dataType: 'string' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.DataAppVizOptionValue_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DataAppVizOptionValue' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppVizOptionValues: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.DataAppVizOptionValue_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppVizChart: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                optionValues: { ref: 'DataAppVizOptionValues' },
                 fieldMapping: { ref: 'DataAppVizFieldMapping', required: true },
                 dataAppVizUuid: { dataType: 'string', required: true },
             },
@@ -14594,24 +14623,6 @@ const models: TsoaRoute.Models = {
                         type: {
                             dataType: 'enum',
                             enums: ['color'],
-                            required: true,
-                        },
-                    },
-                },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        default: {
-                            dataType: 'array',
-                            array: { dataType: 'string' },
-                            required: true,
-                        },
-                        group: { dataType: 'string' },
-                        label: { dataType: 'string', required: true },
-                        name: { dataType: 'string', required: true },
-                        type: {
-                            dataType: 'enum',
-                            enums: ['palette'],
                             required: true,
                         },
                     },

@@ -1,3 +1,16 @@
+# [1.9.0](https://github.com/lightdash/lightdash/compare/1.8.0...1.9.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* signal screenshot-ready for custom viz empty states ([#26265](https://github.com/lightdash/lightdash/issues/26265)) ([a002286](https://github.com/lightdash/lightdash/commit/a0022864454028fccdcc17ef208b5deb0293d250))
+
+
+### Features
+
+* **data-apps:** add a typed config-option contract for data app vizzes ([#26286](https://github.com/lightdash/lightdash/issues/26286)) ([0af5c95](https://github.com/lightdash/lightdash/commit/0af5c9515b4f1138bab8af994e1d2fa5a4c8c6fa))
+* **data-apps:** edit and store one data app viz config option ([#26287](https://github.com/lightdash/lightdash/issues/26287)) ([ab31afc](https://github.com/lightdash/lightdash/commit/ab31afcdcdf05b81b201b2c7e8a18c3950e26852))
+
 # [1.8.0](https://github.com/lightdash/lightdash/compare/1.7.1...1.8.0) (2026-07-28)
 
 

@@ -1676,8 +1676,39 @@
                 "$ref": "#/components/schemas/Record_string.string_",
                 "description": "Maps a data app viz's field name → the host query field id bound to it."
             },
+            "DataAppVizOptionValue": {
+                "anyOf": [
+                    {
+                        "type": "boolean"
+                    },
+                    {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    {
+                        "type": "string"
+                    }
+                ],
+                "description": "A persisted config value; its shape is set by the option's declared `type`."
+            },
+            "Record_string.DataAppVizOptionValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DataAppVizOptionValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DataAppVizOptionValues": {
+                "$ref": "#/components/schemas/Record_string.DataAppVizOptionValue_",
+                "description": "Maps a declared config option's name → the value the user chose for it."
+            },
             "DataAppVizChart": {
                 "properties": {
+                    "optionValues": {
+                        "$ref": "#/components/schemas/DataAppVizOptionValues",
+                        "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
+                    },
                     "fieldMapping": {
                         "$ref": "#/components/schemas/DataAppVizFieldMapping"
                     },
@@ -15971,32 +16002,6 @@
                             "type": {
                                 "type": "string",
                                 "enum": ["color"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["default", "label", "name", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "default": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "group": {
-                                "type": "string"
-                            },
-                            "label": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["palette"],
                                 "nullable": false
                             }
                         },
@@ -50650,7 +50655,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.8.0",
+        "version": "1.9.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
