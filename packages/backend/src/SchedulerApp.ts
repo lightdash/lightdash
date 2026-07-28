@@ -341,6 +341,7 @@ export default class SchedulerApp {
                         flushFeatureFlagChecks(),
                         'scheduler',
                     );
+                    await this.analytics.flushEvents();
                 } catch {
                     // telemetry must never break shutdown
                 }
