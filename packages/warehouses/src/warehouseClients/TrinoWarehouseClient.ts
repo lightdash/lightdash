@@ -23,6 +23,7 @@ import {
     Trino,
 } from 'trino-client';
 import { WarehouseCatalog } from '../types';
+import { coerceTagToString, DriftedTagValue } from '../utils/coerceTagToString';
 import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
@@ -34,24 +35,14 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 const TRINO_CLIENT_TAGS_HEADER = 'X-Trino-Client-Tags';
 
 // Trino splits the header on commas and Node rejects non-latin1 header values,
-// so tag keys/values are restricted to a safe charset. Values typed as string
-// can be non-string at runtime (e.g. BigInt scheduler job ids), so coerce
-// instead of crashing the query — mirrors BigqueryWarehouseClient labels.
-const sanitizeClientTag = (tag: unknown): string => {
-    let safeTag: string;
-    if (typeof tag === 'string') {
-        safeTag = tag;
-    } else if (tag === null || tag === undefined) {
-        safeTag = '';
-    } else {
-        console.warn(
-            'TrinoWarehouseClient.sanitizeClientTag: coerced non-string tag',
-            { valueType: typeof tag },
-        );
-        safeTag = String(tag);
-    }
-    return safeTag.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 60);
-};
+// so tag keys/values are restricted to a safe charset
+const sanitizeClientTag = (tag: DriftedTagValue): string =>
+    coerceTagToString(tag, {
+        caller: 'TrinoWarehouseClient.sanitizeClientTag',
+        key: null,
+    })
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .substring(0, 60);
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',

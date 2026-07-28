@@ -44,6 +44,7 @@ import {
     WarehouseExecuteAsyncQueryArgs,
     WarehouseTableSchema,
 } from '../types';
+import { coerceTagToString } from '../utils/coerceTagToString';
 import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
@@ -308,25 +309,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         return Object.fromEntries(
             orderedEntries
                 .slice(0, BigqueryWarehouseClient.MAX_LABELS)
-                .map(([key, value]) => {
-                    const safeKey = typeof key === 'string' ? key : String(key);
-                    let safeValue: string;
-                    if (typeof value === 'string') {
-                        safeValue = value;
-                    } else if (value === null || value === undefined) {
-                        safeValue = '';
-                    } else {
-                        console.warn(
-                            'BigqueryWarehouseClient.sanitizeLabelsWithValues: coerced non-string label value',
-                            { key: safeKey, valueType: typeof value },
-                        );
-                        safeValue = String(value);
-                    }
-                    return [
-                        sanitizeQueryTagKey(safeKey),
-                        sanitizeQueryTagValue(safeValue),
-                    ];
-                }),
+                .map(([key, value]) => [
+                    sanitizeQueryTagKey(key),
+                    sanitizeQueryTagValue(
+                        coerceTagToString(value, {
+                            caller: 'BigqueryWarehouseClient.sanitizeLabelsWithValues',
+                            key,
+                        }),
+                    ),
+                ]),
         );
     }
 

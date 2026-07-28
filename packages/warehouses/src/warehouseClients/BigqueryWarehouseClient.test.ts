@@ -395,7 +395,7 @@ describe('BigqueryWarehouseClient.sanitizeLabelsWithValues', () => {
         });
         expect(result).toEqual({ job_id: '224187' });
         expect(warnSpy).toHaveBeenCalledWith(
-            expect.stringContaining('coerced non-string label value'),
+            expect.stringContaining('coerced non-string tag value'),
             { key: 'job_id', valueType: 'number' },
         );
     });

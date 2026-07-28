@@ -62,11 +62,9 @@ describe('buildSchedulerLogContext', () => {
     });
 
     it('stringifies a jobId that arrives as a BigInt at runtime', () => {
-        // graphile-worker types job.id as string, but the global pg INT8
-        // parser override makes it a BigInt at runtime
         expect(
             buildSchedulerLogContext({
-                jobId: BigInt(4482031) as unknown as string,
+                jobId: BigInt(4482031),
             }),
         ).toEqual({ job_id: '4482031' });
     });
