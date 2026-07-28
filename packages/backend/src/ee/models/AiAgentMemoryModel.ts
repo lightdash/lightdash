@@ -122,6 +122,8 @@ export type AiAgentMemoryLineageSource = Pick<
     thread_title: string | null;
 };
 
+export type AiAgentMemorySourceThreadState = 'none' | 'active' | 'inactive';
+
 export type AiAgentMemoryWithLineage = {
     memory: DbAiAgentMemory;
     sources: AiAgentMemoryLineageSource[];
@@ -812,6 +814,26 @@ export class AiAgentMemoryModel {
             .where('source_thread_uuid', sourceThreadUuid)
             .where('status', 'active')
             .first('ai_agent_memory_uuid');
+    }
+
+    /**
+     * `inactive` means the thread produced memory that is no longer live —
+     * consolidated away or retired. An active row wins over stale siblings,
+     * because the one-active-row index leaves older rows behind.
+     */
+    async resolveSourceThreadMemoryState(
+        sourceThreadUuid: string,
+    ): Promise<AiAgentMemorySourceThreadState> {
+        const rows = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('source_thread_uuid', sourceThreadUuid)
+            .distinct('status');
+
+        if (rows.length === 0) return 'none';
+        return rows.some((row) => row.status === 'active')
+            ? 'active'
+            : 'inactive';
     }
 
     async updateStatus(args: {
