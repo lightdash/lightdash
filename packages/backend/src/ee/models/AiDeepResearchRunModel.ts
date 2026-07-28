@@ -156,6 +156,26 @@ export class AiDeepResearchRunModel {
             .first();
     }
 
+    async findByPromptUuidsScoped(args: {
+        promptUuids: string[];
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<
+        Pick<DbAiDeepResearchRun, 'prompt_uuid' | 'result_markdown'>[]
+    > {
+        if (args.promptUuids.length === 0) {
+            return [];
+        }
+
+        return this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .select('prompt_uuid', 'result_markdown')
+            .whereIn('prompt_uuid', args.promptUuids)
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid);
+    }
+
     async findByThreadScoped(args: {
         aiThreadUuid: string;
         organizationUuid: string;

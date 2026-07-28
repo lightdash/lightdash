@@ -101,6 +101,41 @@ describe('AI context compaction helpers', () => {
         expect(serialized).toContain('[truncated 500 chars]');
     });
 
+    it('includes deep research Markdown in the compaction input', () => {
+        const serialized = Compaction.serializeConversation(
+            [
+                {
+                    role: 'assistant',
+                    status: 'idle',
+                    uuid: 'research-prompt',
+                    threadUuid: 'thread-1',
+                    message: null,
+                    errorMessage: null,
+                    interrupted: false,
+                    createdAt: new Date().toISOString(),
+                    humanScore: null,
+                    toolCalls: [],
+                    toolResults: [],
+                    reasoning: [],
+                    savedQueryUuid: null,
+                    artifacts: null,
+                    referencedArtifacts: null,
+                    modelConfig: null,
+                    tokenUsage: null,
+                },
+            ],
+            {
+                deepResearchReportsByPromptUuid: new Map([
+                    ['research-prompt', '# Retention report'],
+                ]),
+            },
+        );
+
+        expect(serialized).toContain(
+            '[Deep research report]: # Retention report',
+        );
+    });
+
     it('serializes a same-named file and repository as distinct, unambiguous lines', () => {
         const serialized = Compaction.serializeConversation([
             {

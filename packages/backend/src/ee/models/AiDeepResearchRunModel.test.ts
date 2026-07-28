@@ -91,6 +91,41 @@ describe('AiDeepResearchRunModel', () => {
         ]);
     });
 
+    it('loads conversation runs by prompt within the organization and project', async () => {
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
+
+        await model.findByPromptUuidsScoped({
+            promptUuids: ['prompt-1', 'prompt-2'],
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+        });
+
+        expect(tracker.history.select[0].bindings).toEqual([
+            'prompt-1',
+            'prompt-2',
+            'organization-1',
+            'project-1',
+        ]);
+        expect(tracker.history.select[0].sql).toContain(
+            'select "prompt_uuid", "result_markdown"',
+        );
+        expect(tracker.history.select[0].sql).not.toContain(
+            'result_chart_data',
+        );
+    });
+
+    it('does not query for an empty conversation', async () => {
+        await expect(
+            model.findByPromptUuidsScoped({
+                promptUuids: [],
+                organizationUuid: 'organization-1',
+                projectUuid: 'project-1',
+            }),
+        ).resolves.toEqual([]);
+
+        expect(tracker.history.select).toHaveLength(0);
+    });
+
     it('does not overwrite a cancellation request with completion', async () => {
         tracker.on.update(AiDeepResearchRunsTableName).responseOnce([]);
 
