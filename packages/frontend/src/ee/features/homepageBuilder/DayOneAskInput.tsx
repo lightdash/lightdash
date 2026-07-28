@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    FeatureFlags,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -9,10 +10,11 @@ import {
 import { Anchor, Skeleton, Text } from '@mantine-8/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -22,9 +24,11 @@ import {
 } from '../aiCopilot/components/AgentSelector/AgentSelectorUtils';
 import { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatInput';
 import { usePendingPrompt } from '../aiCopilot/components/PendingPromptContext/PendingPromptContext';
+import { type StartDeepResearchArgs } from '../aiCopilot/deepResearch/types';
 import { useAgentSuggestions } from '../aiCopilot/hooks/useAgentSuggestions';
 import { useCanCreateAiAgentThread } from '../aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../aiCopilot/hooks/useAiAgentSqlModeAvailable';
+import { useStartDeepResearchForThreadMutation } from '../aiCopilot/hooks/useDeepResearch';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -143,6 +147,9 @@ const DayOneAskInputInner: FC<Props> = ({
     const routerEnabled = useAiRouterEnabledFromCache();
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid ?? '');
+    const { mutateAsync: startDeepResearch } =
+        useStartDeepResearchForThreadMutation(projectUuid ?? '');
+    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
 
     const showAutoOption = (agents?.length ?? 0) > 1 && routerEnabled === true;
     const validDefaultAgent = agents?.find(
@@ -154,6 +161,8 @@ const DayOneAskInputInner: FC<Props> = ({
     const activeSelection =
         validDefaultAgent ?? (showAutoOption ? 'auto' : agents?.[0]);
     const referenceAgent = validDefaultAgent ?? agents?.[0];
+    const selectedAgent =
+        activeSelection === 'auto' ? undefined : activeSelection;
 
     const { data: project } = useProject(projectUuid ?? undefined);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(
@@ -228,6 +237,28 @@ const DayOneAskInputInner: FC<Props> = ({
         });
         submitPrompt(prompt, toolHints, context, optimisticContext);
     };
+
+    const handleStartDeepResearch = useCallback(
+        async ({ question, depth, mcpServerUuids }: StartDeepResearchArgs) => {
+            if (!projectUuid || !selectedAgent) {
+                return;
+            }
+            const thread = await createAgentThread({
+                agentUuid: selectedAgent.uuid,
+                prompt: question,
+                skipAgentResponse: true,
+            });
+            await startDeepResearch({
+                question,
+                depth,
+                agentUuid: selectedAgent.uuid,
+                threadUuid: thread.uuid,
+                promptUuid: thread.firstMessage.uuid,
+                mcpServerUuids,
+            });
+        },
+        [createAgentThread, projectUuid, selectedAgent, startDeepResearch],
+    );
 
     const handleChipPick = (chip: AgentSuggestion, index: number) => {
         const organizationId = user.data?.organizationUuid;
@@ -304,6 +335,7 @@ const DayOneAskInputInner: FC<Props> = ({
         <div className={classes.composer} inert={preview}>
             <AgentChatInput
                 projectUuid={projectUuid ?? undefined}
+                agentUuid={selectedAgent?.uuid}
                 agents={agents}
                 selectedAgent={activeSelection ?? agents?.[0]}
                 placeholder={
@@ -314,6 +346,11 @@ const DayOneAskInputInner: FC<Props> = ({
                           : 'Ask anything about your data…'
                 }
                 onSubmit={handleSubmit}
+                onStartDeepResearch={
+                    selectedAgent && deepResearchFlag.data?.enabled
+                        ? handleStartDeepResearch
+                        : undefined
+                }
                 loading={isCreatingThread}
                 showSuggestions={false}
                 fullWidth
