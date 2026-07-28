@@ -255,8 +255,6 @@ const DataAppVizTestPanel: FC<Props> = ({
                     values={effectiveOptions}
                     onChange={setOption}
                     colorPalette={schema.colorPalette}
-                    // The generator has no host chart, so no viz thread.
-                    threadContent={null}
                     paletteControl={
                         <PalettePicker
                             label="Color palette"

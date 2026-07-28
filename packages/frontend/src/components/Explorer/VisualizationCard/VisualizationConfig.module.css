@@ -1,0 +1,6 @@
+/* The data app viz panel is a conversation, not a form: it fills the scroll
+   viewport so the composer sits at the bottom rather than under the last
+   message. Opt-in, so the other config panels keep hugging their content. */
+.fillHeight {
+    height: 100%;
+}

@@ -5,13 +5,13 @@ import {
     type DataAppVizFieldMapping,
     type Item,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine-8/core';
+import { Anchor, Button, Group, Stack, Text } from '@mantine-8/core';
 import { MantineProvider, useMantineColorScheme } from '@mantine/core';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { IconPencil, IconSparkles } from '@tabler/icons-react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizConversation from '../../../features/apps/components/DataAppVizConversation';
 import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
-import DataAppVizPickOrCreate from '../../../features/apps/components/DataAppVizPickOrCreate';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
 import { useGenerateDataAppViz } from '../../../features/apps/hooks/useGenerateDataAppViz';
 import { useIterateDataAppViz } from '../../../features/apps/hooks/useIterateDataAppViz';
@@ -21,6 +21,7 @@ import {
 } from '../../../features/apps/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
+import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
@@ -80,6 +81,11 @@ export const ConfigTabs: FC = memo(() => {
         projectUuid,
         dataAppVizUuid: dataAppVizUuid || null,
     });
+    // The panel is either settings or the conversation, never both. A build
+    // in flight holds the conversation open so its progress stays visible.
+    const [isChatMode, setIsChatMode] = useState(false);
+    const inChatMode =
+        isChatMode || generation.isBuilding || revision.isBuilding;
 
     if (!isDataAppViz) return null;
 
@@ -128,20 +134,34 @@ export const ConfigTabs: FC = memo(() => {
 
     const generalPanel = (
         <Stack>
-            {dataAppVizUuid ? (
-                picker
-            ) : (
-                <DataAppVizPickOrCreate
-                    picker={picker}
-                    projectUuid={projectUuid ?? ''}
-                    itemsMap={itemsMap ?? {}}
-                    isBuilding={generation.isBuilding}
-                    pendingPrompt={generation.pendingPrompt}
-                    error={generation.error}
-                    onRetry={null}
-                    onSubmit={generation.generate}
-                />
-            )}
+            {picker}
+
+            <Group gap="xs" grow>
+                {dataAppVizUuid && (
+                    <Button
+                        variant="default"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPencil} />}
+                        onClick={() => setIsChatMode(true)}
+                    >
+                        Edit with AI
+                    </Button>
+                )}
+                <Button
+                    variant="default"
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconSparkles} />}
+                    onClick={() => {
+                        // Starting fresh: clear the selection so the
+                        // conversation opens empty rather than on the current
+                        // visualization's history.
+                        if (dataAppVizUuid) setDataAppVizUuid('', {});
+                        setIsChatMode(true);
+                    }}
+                >
+                    Create new
+                </Button>
+            </Group>
 
             {dataAppVizUuid && fields.length === 0 && (
                 <Text c="dimmed" size="sm">
@@ -180,38 +200,75 @@ export const ConfigTabs: FC = memo(() => {
         </Stack>
     );
 
-    return (
-        <MantineProvider inherit theme={themeOverride}>
-            <DataAppVizOptionTabs
-                // Remount on a viz switch so no control keeps the previous
-                // viz's draft edit.
-                key={dataAppVizUuid}
-                generalContent={generalPanel}
-                configOptions={configOptions}
-                values={effectiveValues}
-                onChange={(name, value) =>
-                    setOption(dataAppVizUuid, name, value)
-                }
-                colorPalette={colorPalette}
-                paletteControl={<ColorPaletteSection />}
-                threadContent={
-                    projectUuid && dataAppVizUuid ? (
-                        <DataAppVizConversation
-                            projectUuid={projectUuid}
-                            dataAppVizUuid={dataAppVizUuid}
-                            composer={{
-                                itemsMap: itemsMap ?? {},
-                                placeholder: 'Ask for a change…',
-                                isBuilding: revision.isBuilding,
-                                pendingPrompt: revision.pendingPrompt,
-                                error: revision.error,
-                                onRetry: revision.retry,
-                                onSubmit: revision.iterate,
-                            }}
-                        />
-                    ) : null
+    const conversation = (
+        <Stack gap="xs" h="100%">
+            <Group justify="space-between" align="center">
+                <Text size="sm" fw={500}>
+                    {dataAppVizUuid
+                        ? 'Edit visualization'
+                        : 'New visualization'}
+                </Text>
+                {!inChatMode ||
+                (!generation.isBuilding && !revision.isBuilding) ? (
+                    <Anchor
+                        component="button"
+                        type="button"
+                        size="xs"
+                        c="dimmed"
+                        onClick={() => setIsChatMode(false)}
+                    >
+                        Done
+                    </Anchor>
+                ) : null}
+            </Group>
+
+            <DataAppVizConversation
+                projectUuid={projectUuid ?? ''}
+                dataAppVizUuid={dataAppVizUuid || null}
+                composer={
+                    dataAppVizUuid
+                        ? {
+                              itemsMap: itemsMap ?? {},
+                              placeholder: 'Ask for a change…',
+                              isBuilding: revision.isBuilding,
+                              pendingPrompt: revision.pendingPrompt,
+                              error: revision.error,
+                              onRetry: revision.retry,
+                              onSubmit: revision.iterate,
+                          }
+                        : {
+                              itemsMap: itemsMap ?? {},
+                              placeholder: 'Describe a new visualization…',
+                              isBuilding: generation.isBuilding,
+                              pendingPrompt: generation.pendingPrompt,
+                              error: generation.error,
+                              onRetry: null,
+                              onSubmit: generation.generate,
+                          }
                 }
             />
+        </Stack>
+    );
+
+    return (
+        <MantineProvider inherit theme={themeOverride}>
+            {inChatMode ? (
+                conversation
+            ) : (
+                <DataAppVizOptionTabs
+                    // Remount on a viz switch so no control keeps the previous
+                    // viz's draft edit.
+                    key={dataAppVizUuid}
+                    generalContent={generalPanel}
+                    configOptions={configOptions}
+                    values={effectiveValues}
+                    onChange={(name, value) =>
+                        setOption(dataAppVizUuid, name, value)
+                    }
+                    colorPalette={colorPalette}
+                    paletteControl={<ColorPaletteSection />}
+                />
+            )}
         </MantineProvider>
     );
 });

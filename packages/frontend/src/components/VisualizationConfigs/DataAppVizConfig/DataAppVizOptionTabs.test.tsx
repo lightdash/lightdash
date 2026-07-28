@@ -35,7 +35,6 @@ const renderTabs = (
             onChange={onChange}
             colorPalette={colorPalette}
             paletteControl={paletteControl}
-            threadContent={null}
         />,
     );
 

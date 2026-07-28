@@ -23,6 +23,7 @@ import {
     versionsToChatMessages,
 } from '../utils/versionsToChatMessages';
 import DataAppVizComposer from './DataAppVizComposer';
+import classes from './DataAppVizConversation.module.css';
 import LoadingDots from './LoadingDots';
 
 /** Everything the composer needs; `null` renders the history read-only. */
@@ -224,108 +225,114 @@ const DataAppVizConversation: FC<Props> = ({
     const isLoadingHistory = dataAppVizUuid !== null && isLoading;
 
     return (
-        <Stack gap="md">
-            {oldestLoaded && (
-                <Provenance
-                    authorName={
-                        oldestLoaded.createdByUser
-                            ? [
-                                  oldestLoaded.createdByUser.firstName,
-                                  oldestLoaded.createdByUser.lastName,
-                              ]
-                                  .filter((s) => s.length > 0)
-                                  .join(' ') || null
-                            : null
-                    }
-                    at={new Date(oldestLoaded.createdAt)}
-                    isOrigin={hasOrigin}
-                />
-            )}
-
-            {hasEarlier && (
-                <Anchor
-                    component="button"
-                    type="button"
-                    size="xs"
-                    disabled={isFetchingNextPage}
-                    onClick={() => void fetchNextPage()}
-                >
-                    {isFetchingNextPage ? 'Loading…' : 'Load earlier messages'}
-                </Anchor>
-            )}
-
-            {isLoadingHistory ? (
-                <Group justify="center" p="md">
-                    <Loader size="sm" />
-                </Group>
-            ) : (
-                messages.map((message, index) =>
-                    message.role === 'user' ? (
-                        <Request
-                            key={`${message.timestamp.getTime()}-${index}`}
-                            message={message}
-                        />
-                    ) : (
-                        <Receipt
-                            key={`${message.timestamp.getTime()}-${index}`}
-                            message={message}
-                        />
-                    ),
-                )
-            )}
-
-            {isBuilding && (
-                <Group gap={6} wrap="nowrap">
-                    <Text size="xs" c="dimmed">
-                        Building
-                    </Text>
-                    <LoadingDots />
-                </Group>
-            )}
-
-            {error && (
-                <Group gap={6} wrap="nowrap" align="flex-start">
-                    <MantineIcon
-                        icon={IconAlertTriangle}
-                        size={13}
-                        color="red.6"
+        <div className={classes.conversation}>
+            <Stack gap="md" className={classes.messages}>
+                {oldestLoaded && (
+                    <Provenance
+                        authorName={
+                            oldestLoaded.createdByUser
+                                ? [
+                                      oldestLoaded.createdByUser.firstName,
+                                      oldestLoaded.createdByUser.lastName,
+                                  ]
+                                      .filter((s) => s.length > 0)
+                                      .join(' ') || null
+                                : null
+                        }
+                        at={new Date(oldestLoaded.createdAt)}
+                        isOrigin={hasOrigin}
                     />
-                    <Stack gap={2}>
-                        <Text size="xs" c="red.7">
-                            {error}
-                        </Text>
+                )}
+
+                {hasEarlier && (
+                    <Anchor
+                        component="button"
+                        type="button"
+                        size="xs"
+                        disabled={isFetchingNextPage}
+                        onClick={() => void fetchNextPage()}
+                    >
+                        {isFetchingNextPage
+                            ? 'Loading…'
+                            : 'Load earlier messages'}
+                    </Anchor>
+                )}
+
+                {isLoadingHistory ? (
+                    <Group justify="center" p="md">
+                        <Loader size="sm" />
+                    </Group>
+                ) : (
+                    messages.map((message, index) =>
+                        message.role === 'user' ? (
+                            <Request
+                                key={`${message.timestamp.getTime()}-${index}`}
+                                message={message}
+                            />
+                        ) : (
+                            <Receipt
+                                key={`${message.timestamp.getTime()}-${index}`}
+                                message={message}
+                            />
+                        ),
+                    )
+                )}
+
+                {isBuilding && (
+                    <Group gap={6} wrap="nowrap">
                         <Text size="xs" c="dimmed">
-                            Your query and chart are untouched.
+                            Building
                         </Text>
-                        {onRetry && (
-                            <Anchor
-                                component="button"
-                                type="button"
-                                size="xs"
-                                onClick={onRetry}
-                            >
-                                Retry
-                            </Anchor>
-                        )}
-                    </Stack>
-                </Group>
-            )}
+                        <LoadingDots />
+                    </Group>
+                )}
+
+                {error && (
+                    <Group gap={6} wrap="nowrap" align="flex-start">
+                        <MantineIcon
+                            icon={IconAlertTriangle}
+                            size={13}
+                            color="red.6"
+                        />
+                        <Stack gap={2}>
+                            <Text size="xs" c="red.7">
+                                {error}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                                Your query and chart are untouched.
+                            </Text>
+                            {onRetry && (
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    size="xs"
+                                    onClick={onRetry}
+                                >
+                                    Retry
+                                </Anchor>
+                            )}
+                        </Stack>
+                    </Group>
+                )}
+
+                {composer === null && messages.length === 0 && (
+                    <Text size="sm" c="dimmed">
+                        This visualization has no history yet.
+                    </Text>
+                )}
+            </Stack>
 
             {composer && (
-                <DataAppVizComposer
-                    itemsMap={composer.itemsMap}
-                    placeholder={composer.placeholder}
-                    isBuilding={composer.isBuilding}
-                    onSubmit={composer.onSubmit}
-                />
+                <div className={classes.composer}>
+                    <DataAppVizComposer
+                        itemsMap={composer.itemsMap}
+                        placeholder={composer.placeholder}
+                        isBuilding={composer.isBuilding}
+                        onSubmit={composer.onSubmit}
+                    />
+                </div>
             )}
-
-            {composer === null && messages.length === 0 && (
-                <Text size="sm" c="dimmed">
-                    This visualization has no history yet.
-                </Text>
-            )}
-        </Stack>
+        </div>
     );
 };
 
