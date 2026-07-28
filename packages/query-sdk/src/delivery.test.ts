@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     getDeliveryQueries,
+    nextDeliveryId,
     publishDeliveryQueries,
     registerDeliveryQuery,
     resetDeliveryRegistry,
@@ -119,5 +120,11 @@ describe('delivery registry', () => {
         unregisterDeliveryQuery('a');
         await flush();
         expect(target.postMessage).not.toHaveBeenCalled();
+    });
+});
+
+describe('nextDeliveryId', () => {
+    it('produces a distinct id per call', () => {
+        expect(nextDeliveryId()).not.toBe(nextDeliveryId());
     });
 });

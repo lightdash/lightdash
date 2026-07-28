@@ -4,8 +4,9 @@
  * filters, period pickers) rather than a static module-scope manifest.
  */
 
+import { useEffect, useMemo, useRef } from 'react';
 import { QueryBuilder } from './query';
-import type { SavedChartQuery } from './savedChart';
+import { savedChartQueryKey, type SavedChartQuery } from './savedChart';
 import type { QueryDefinition } from './types';
 
 export type DeliveryQuery = {
@@ -103,4 +104,49 @@ export function publishDeliveryQueries(target: Window): void {
         };
         target.postMessage(message, targetOrigin);
     }, PUBLISH_COALESCE_MS);
+}
+
+let idCounter = 0;
+
+export function nextDeliveryId(): string {
+    idCounter += 1;
+    return `delivery-${idCounter}`;
+}
+
+/**
+ * Declare that this query's results belong in the app's scheduled deliveries.
+ * Call it alongside the `useLightdash(q)` that renders the same query.
+ */
+export function useDelivery(
+    query: QueryBuilder | SavedChartQuery,
+    options?: { name?: string },
+): void {
+    const idRef = useRef<string | null>(null);
+    if (idRef.current === null) idRef.current = nextDeliveryId();
+    const id = idRef.current;
+    const name = options?.name;
+
+    const queryKey = useMemo(
+        () =>
+            query instanceof QueryBuilder
+                ? JSON.stringify(query.build())
+                : savedChartQueryKey(query),
+        [query],
+    );
+
+    useEffect(() => {
+        const declaration = toDeliveryQuery(query, name);
+        if (declaration) {
+            registerDeliveryQuery(id, declaration);
+        } else {
+            unregisterDeliveryQuery(id);
+        }
+        if (typeof window !== 'undefined' && window.parent !== window) {
+            publishDeliveryQueries(window.parent);
+        }
+        return () => {
+            unregisterDeliveryQuery(id);
+        };
+        // queryKey tracks query identity. query is intentionally omitted.
+    }, [id, queryKey, name]); // eslint-disable-line
 }
