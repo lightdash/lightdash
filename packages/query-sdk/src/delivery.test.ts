@@ -9,7 +9,7 @@ import {
     unregisterDeliveryQuery,
     type DeliveryQuery,
 } from './delivery';
-import { query } from './query';
+import { query, type QueryBuilder } from './query';
 import { savedChart } from './savedChart';
 
 describe('toDeliveryQuery', () => {
@@ -36,9 +36,37 @@ describe('toDeliveryQuery', () => {
         expect(toDeliveryQuery(query('orders'))?.label).toBeNull();
     });
 
-    it('skips a saved chart with a warning rather than throwing', () => {
+    it('builds a declaration from a linked saved chart, carrying run overrides', () => {
+        const chart = savedChart('chart-1', 'Linked revenue')
+            .limit(1000)
+            .parameters({ region: 'EMEA' });
+
+        expect(toDeliveryQuery(chart)).toEqual({
+            kind: 'savedChart',
+            label: 'Linked revenue',
+            chartUuid: 'chart-1',
+            limit: 1000,
+            parameters: { region: 'EMEA' },
+            filters: undefined,
+        });
+    });
+
+    it('prefers an explicit name over a linked chart label', () => {
+        expect(
+            toDeliveryQuery(savedChart('chart-1', 'From chart'), 'From argument')
+                ?.label,
+        ).toBe('From argument');
+    });
+
+    it('falls back to a null label when the linked chart has none', () => {
+        expect(toDeliveryQuery(savedChart('chart-1'))?.label).toBeNull();
+    });
+
+    it('skips an unrecognised query shape with a warning rather than throwing', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        expect(toDeliveryQuery(savedChart('chart-1'))).toBeNull();
+        expect(
+            toDeliveryQuery({ notAQuery: true } as unknown as QueryBuilder),
+        ).toBeNull();
         expect(warn).toHaveBeenCalled();
         warn.mockRestore();
     });
