@@ -7,6 +7,7 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
+import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
 import {
     type CategoryName,
     type EventName,
@@ -77,7 +78,6 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED
         | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
         | EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED
-        | EventName.PLAYGROUND_PROJECT_ENTERED
         | EventName.AGENT_SETUP_PROMPT_COPIED;
     properties?: {};
 };
@@ -86,6 +86,21 @@ type SetupInviteSentEvent = {
     name: EventName.SETUP_INVITE_SENT;
     properties: {
         organizationId: string;
+    };
+};
+
+type PlaygroundProjectEnteredEvent = {
+    name: EventName.PLAYGROUND_PROJECT_ENTERED;
+    properties: {
+        organizationId: string;
+    };
+};
+
+type PlaygroundProjectSetupFailedEvent = {
+    name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED;
+    properties: {
+        organizationId: string;
+        failureType: PlaygroundSetupFailure;
     };
 };
 
@@ -712,6 +727,8 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
 export type EventData =
     | GenericEvent
     | SetupInviteSentEvent
+    | PlaygroundProjectEnteredEvent
+    | PlaygroundProjectSetupFailedEvent
     | CreateProjectButtonClickedEvent
     | CreateProjectFailedEvent
     | SignupFormSubmittedEvent

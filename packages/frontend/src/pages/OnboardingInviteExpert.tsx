@@ -170,10 +170,23 @@ const OnboardingInviteExpert: FC = () => {
     const preparePlayground = async () => {
         try {
             const { projectUuid } = await ensurePlaygroundAsync();
-            track({ name: EventName.PLAYGROUND_PROJECT_ENTERED });
+            track({
+                name: EventName.PLAYGROUND_PROJECT_ENTERED,
+                properties: {
+                    organizationId: organization?.organizationUuid ?? '',
+                },
+            });
             void navigate(`/projects/${projectUuid}/home`);
         } catch (error) {
-            setPlaygroundFailure(getPlaygroundSetupFailure(error));
+            const failureType = getPlaygroundSetupFailure(error);
+            setPlaygroundFailure(failureType);
+            track({
+                name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED,
+                properties: {
+                    organizationId: organization?.organizationUuid ?? '',
+                    failureType,
+                },
+            });
             captureException(error, {
                 tags: { feature: 'playground-onboarding' },
             });
