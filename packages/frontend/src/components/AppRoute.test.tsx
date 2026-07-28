@@ -5,8 +5,6 @@ import AppRoute from './AppRoute';
 
 const state = vi.hoisted(() => ({
     needsProject: true,
-    isCopilotEnabled: true,
-    isCopilotLoading: false,
     isHomepageBuilderEnabled: true,
     isNewOnboardingEnabled: true,
 }));
@@ -29,13 +27,6 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
         data: { enabled: state.isNewOnboardingEnabled },
         isLoading: false,
-    }),
-}));
-
-vi.mock('../ee/features/aiCopilot/hooks/useIsCopilotEnabled', () => ({
-    useIsCopilotEnabled: () => ({
-        isCopilotEnabled: state.isCopilotEnabled,
-        isLoading: state.isCopilotLoading,
     }),
 }));
 
@@ -75,32 +66,28 @@ const renderAppRoute = () =>
 describe('AppRoute', () => {
     beforeEach(() => {
         state.needsProject = true;
-        state.isCopilotEnabled = true;
-        state.isCopilotLoading = false;
         state.isHomepageBuilderEnabled = true;
         state.isNewOnboardingEnabled = true;
     });
 
-    it('sends a copilot-enabled organization to the day one homepage', () => {
+    it('sends an organization with the homepage builder to the get started page', () => {
         renderAppRoute();
 
         expect(screen.getByText('get started')).toBeInTheDocument();
     });
 
-    it('sends a copilot-less organization straight to project creation', () => {
-        state.isCopilotEnabled = false;
+    it('sends an organization without the homepage builder straight to project creation', () => {
+        state.isHomepageBuilderEnabled = false;
         renderAppRoute();
 
         expect(screen.getByText('create project')).toBeInTheDocument();
     });
 
-    it('waits for the copilot signal before routing', () => {
-        state.isCopilotEnabled = false;
-        state.isCopilotLoading = true;
+    it('sends an organization without the new onboarding straight to project creation', () => {
+        state.isNewOnboardingEnabled = false;
         renderAppRoute();
 
-        expect(screen.queryByText('create project')).toBeNull();
-        expect(screen.queryByText('get started')).toBeNull();
+        expect(screen.getByText('create project')).toBeInTheDocument();
     });
 
     it('renders its children once the organization has a project', () => {

@@ -10,7 +10,10 @@ const GRID_COLUMNS = 12;
 
 // Only a single-block leading row of one of these types gets the day-0 style
 // vertically-centred hero treatment.
-const LEADING_HERO_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
+const LEADING_HERO_TYPES: HomepageBlock['type'][] = [
+    'ask-ai-hero',
+    'greeting',
+];
 
 // Chrome-like rows that may sit above the composer without demoting it — they
 // join the hero composition instead (day-0 has its chips above the hero too).
@@ -100,6 +103,7 @@ const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
         // announcements feed), not config — always treat as visible.
         case 'announcements':
         case 'ask-ai-hero':
+        case 'greeting':
         case 'favorites':
         case 'recent':
             return false;
@@ -146,6 +150,7 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
         case 'markdown':
         case 'quick-actions':
         case 'ask-ai-hero':
+        case 'greeting':
             return null;
         default:
             return assertUnreachable(block, 'Unknown homepage block type');
@@ -244,14 +249,12 @@ const resolveRow = (
     const widthTier: BlockWidthTier = (() => {
         if (!single) return 'full';
         const tier = traitFor(row.blocks[0].type).widthTier;
-        // Build cards are editing surfaces and read as one column: a text
-        // block indented to its 680px reading measure beside a full-width
-        // metrics card leaves a ragged left edge, and published widths are
-        // what Preview is for. The composer is the exception — its width is
-        // its design, not a published measure. This changes no card span:
-        // every non-full tier either has no card grid, or (resources)
-        // resolves to the same span at both tiers.
-        if (isBuild && tier !== 'composer') return 'full';
+        // Build cards are editing surfaces and read as one column: a block
+        // indented to its published measure beside a full-width card leaves a
+        // ragged left edge, and published widths are what Preview is for. This
+        // changes no card span: every non-full tier either has no card grid,
+        // or (resources) resolves to the same span at both tiers.
+        if (isBuild) return 'full';
         return tier;
     })();
     const gap: RowGap = (() => {
@@ -303,7 +306,9 @@ const applyRowAlign = (rows: ResolvedRow[]): ResolvedRow[] => {
     );
     return rows.map((row) =>
         TIER_ORDER.indexOf(row.widthTier) < widest &&
-        !row.columns.some((column) => column.block.type === 'ask-ai-hero')
+        !row.columns.some((column) =>
+            LEADING_HERO_TYPES.includes(column.block.type),
+        )
             ? { ...row, align: 'start' as const }
             : row,
     );

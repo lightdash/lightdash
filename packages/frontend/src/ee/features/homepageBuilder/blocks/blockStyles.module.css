@@ -211,6 +211,12 @@ a .hoverCard:hover,
     white-space: nowrap;
 }
 
+/* Icons are flex children, so a long name squeezed them instead of itself —
+ * the name owns all the shrinking. */
+.favPill > svg {
+    flex-shrink: 0;
+}
+
 .favPillMore {
     display: inline-flex;
     align-items: center;
@@ -390,6 +396,21 @@ a .hoverCard:hover,
     transition:
         background 0.15s ease,
         border-color 0.15s ease;
+}
+
+/* Primary quick action: same box, inverted. Colours only — no size change, so
+ * it can't introduce a height difference next to its siblings. */
+.quickActionChipPrimary,
+.quickActionChipPrimary:hover {
+    background: light-dark(
+        var(--mantine-color-dark-9),
+        var(--mantine-color-gray-0)
+    );
+    border-color: light-dark(
+        var(--mantine-color-dark-9),
+        var(--mantine-color-gray-0)
+    );
+    color: light-dark(#fff, var(--mantine-color-dark-9));
 }
 
 .quickActionChip:hover {
@@ -705,3 +726,4 @@ a .hoverCard:hover,
         animation: none;
     }
 }
+

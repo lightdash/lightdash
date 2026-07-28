@@ -37,6 +37,13 @@ export type BlockLayoutTrait = {
 // arrangement an admin builds, so any permutation renders balanced without
 // per-combination hardcoding.
 const blockLayoutTraits: Record<HomepageBlock['type'], BlockLayoutTrait> = {
+    greeting: {
+        widthTier: 'reading',
+        columnWeight: 2,
+        rhythm: 'section',
+        fullRowOnly: true,
+        itemSpan: null,
+    },
     'ask-ai-hero': {
         widthTier: 'composer',
         columnWeight: 2,

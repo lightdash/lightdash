@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import TruncatedText from '../../../../components/common/TruncatedText';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import { useCollectionContent } from '../hooks/useCollectionContent';
 import { BlockHeader } from './BlockShell';
@@ -60,7 +61,11 @@ const RecentRow: FC<{
                 )}
             </div>
             <div className={classes.flexFill}>
-                <div className={classes.rowName}>{content.name}</div>
+                <div className={classes.rowName}>
+                    <TruncatedText maxWidth="100%" inline fz="inherit">
+                        {content.name}
+                    </TruncatedText>
+                </div>
                 <div className={classes.rowMeta}>
                     {isDashboard ? 'Dashboard' : 'Chart'}
                 </div>
@@ -72,7 +77,7 @@ const RecentRow: FC<{
     );
 };
 
-const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: recents, isInitialLoading } = useRecentlyViewed(projectUuid);
     const uuids = (recents ?? [])
         .slice(0, MAX_RECENT_ITEMS)

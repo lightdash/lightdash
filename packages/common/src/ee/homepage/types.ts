@@ -18,6 +18,15 @@ export type HomepageAskAiHeroBlock = {
     };
 };
 
+/** Day-part greeting ("Good afternoon, Ada") with an optional line under it.
+ * The AI hero has its own built-in greeting; this is the standalone one for
+ * pages that don't lead with a composer. */
+export type HomepageGreetingBlock = {
+    id: string;
+    type: 'greeting';
+    config: { subtitle: string };
+};
+
 export type HomepageCollectionItemRef = {
     contentType: 'chart' | 'dashboard' | 'space' | 'data_app';
     uuid: string;
@@ -78,12 +87,18 @@ export type HomepageAnnouncementsBlock = {
     config: { title: string };
 };
 
-export type HomepageQuickAction =
+export type HomepageQuickActionTarget =
     | { type: 'ask-ai' }
     | { type: 'run-query' }
     | { type: 'browse-dashboards' }
     | { type: 'browse-spaces' }
     | { type: 'dashboard'; dashboardUuid: string; label: string };
+
+/** Any quick action can be promoted to the row's primary one, which renders
+ * as the same chip inverted. Optional so older configs still load. */
+export type HomepageQuickAction = HomepageQuickActionTarget & {
+    primary?: boolean;
+};
 
 export type HomepageQuickActionsBlock = {
     id: string;
@@ -124,6 +139,7 @@ export type HomepageRecommendedActionKey =
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageAskAiHeroBlock
+    | HomepageGreetingBlock
     | HomepageCollectionBlock
     | HomepageResourcesBlock
     | HomepageAnnouncementsBlock
