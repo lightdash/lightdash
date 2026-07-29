@@ -335,6 +335,66 @@ the shareable URL it captured; unchecking it sends the app's default view.
   with the box unchecked) have `app_state = NULL` and render defaults, unchanged.
 - The URL display is a v1 — a future improvement is rendering the state's keys/values in a readable form.
 
+### Host light/dark mode
+
+Generated apps render in whatever colour scheme the surrounding Lightdash is in, and follow it live when the viewer
+toggles. There is no per-app appearance setting: the host is the single source of truth.
+
+The SDK owns this end to end. The scheme reaches it two ways, each doing a job the other can't:
+
+- **Initial value (URL hash).** `AppIframePreview` appends `theme=light|dark` to the iframe hash, alongside
+  `transport`/`projectUuid`/`state`. `mountColorScheme` reads it **synchronously** from `createClient()`, which runs
+  in the template's `main.jsx` before React renders — so the app's first rendered frame is already in the right
+  scheme. Only the seed can do that: a message reply lands a tick later, by which point React may already have
+  committed the wrong mode. Like the URL-state seed, the hash is re-latched **only when the iframe `src` changes
+  anyway** (refresh, new version, token refetch); a theme toggle must never reload the iframe and drop app state.
+- **Live changes (postMessage).** `useAppSdkBridge` posts `lightdash:sdk:theme` `{ colorScheme }` on iframe load and
+  on every host change. `mountColorScheme` validates the payload, accepts it only from the host window, and re-stamps
+  `<html>`. `useColorScheme()` exposes the current value to app code for colours CSS can't express.
+
+Delivery is a **handshake**, the same shape as `vizContext`: `mountColorScheme` posts `lightdash:sdk:theme-request`
+once its listener is live, and re-posts it whenever the host announces `lightdash:sdk:ready` (the belt-and-braces
+`manifest` uses). The host answers with the current scheme. Without it the app would depend on `createClient()`
+having run before the host's iframe-`load` push — which the template happens to guarantee, but `main.jsx` ships in
+the app's own `src/`, so any app that moves `createClient()` into a component or behind a lazy import would miss the
+push and silently keep the seed forever, ignoring every later toggle. With the handshake, whichever side mounts
+first, the app ends up on the host's scheme.
+
+Applying is idempotent and runs on **every** accepted message, not only on a change, so a `.dark` class clobbered by
+app code or a hot reload is repaired by the next push. Subscribers are notified only when the value actually changes.
+
+Top-level dev (`lightdash apps preview`, API transport) has no host to talk to, but `createClient()` still applies a
+`?theme=` seed there — otherwise an author has no way to see the dark half of the contract `skill.md` asks them to
+satisfy.
+
+Applying the scheme means toggling `.dark` on `<html>` — Tailwind's `darkMode: ['class']` hook, and the only scope
+Radix portals inherit — plus the CSS `color-scheme` property so form controls and scrollbars follow.
+
+Note that `color-scheme` on the `<iframe>` element is **not** part of this. It does not propagate into the embedded
+document: in Chromium a sandboxed iframe with `color-scheme: dark` still reports `prefers-color-scheme: dark` as
+false and a computed root `color-scheme` of `normal`, and its canvas paints light. Only the embedded document
+declaring its own scheme has any effect — which is exactly what the SDK does. That also rules out the tempting
+shortcut of having apps use `@media (prefers-color-scheme)`; inside the iframe that media query reports the viewer's
+operating system, never the Lightdash mode.
+
+Because every app surface — builder preview, viewer, dashboard tile, dashboard/app embed, data app viz, thumbnails,
+scheduled renders — goes through `AppIframePreview`, the integration is one component deep. Embeds inherit their
+`?theme=` param for free (it already forces the host's Mantine scheme), and `MinimalApp` passes an explicit
+`forceColorScheme="light"` so scheduled screenshots never depend on the rendering browser's stored preference.
+
+Apps must earn this by defining **complete** light tokens on `:root` and **complete** dark tokens on `.dark` — which
+the template does out of the box, and which `skill.md` now requires instead of "commit to one theme". An organization
+theme may still deliberately pin one mode; customer CSS stays authoritative.
+
+Already-built bundles are unaffected: they carry the SDK they were built with, ignore the unknown message, and keep
+whatever scheme they were built with. They also never send the request, so the host simply never answers one — the
+load-time push it already sent is unchanged. Apps pick the behaviour up through the normal upgrade path, and the
+`follow-host-theme` capability entry describes the un-wiring an older app needs (drop a fixed `dark` shell, move dark
+values out of `:root`).
+
+Key files: `packages/query-sdk/src/colorScheme.ts` (SDK side),
+`packages/frontend/src/features/apps/utils/appIframeUrl.ts` + `AppIframePreview.tsx` + `useAppSdkBridge.ts` (host side).
+
 ### Manual app thumbnails
 
 The builder's Screenshot button uses the iframe-side screenshot handler (`screenshotHandler.js`) to rasterize the current

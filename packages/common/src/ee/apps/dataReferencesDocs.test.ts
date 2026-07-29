@@ -38,7 +38,7 @@ const KNOWN_UNPARSEABLE: Record<string, string> = {
     'skill.md#20':
         'bare comment as JSX ternary alternate (loading-states skeleton)',
     'skill.md#25': '`{...}` placeholder in DropdownMenu snippet',
-    'skill.md#28': 'adjacent JSX fragment (dialog snippet)',
+    'skill.md#29': 'adjacent JSX fragment (dialog snippet)',
 };
 
 // Samples whose references legitimately cannot fully resolve.

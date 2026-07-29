@@ -24,6 +24,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | Google Sheets export | `gsheet-export` | app code opt-in |
 | external API data | `external-fetch` | app code opt-in |
 | runs inside a dashboard tile | `viz-context` | required — see below |
+| light/dark mode, "matches my Lightdash theme" | `follow-host-theme` | CSS tokens — see below |
 
 ## Automatic (zero wiring — active on any current-SDK bundle)
 
@@ -61,6 +62,24 @@ template and add the call rather than reimplementing.
 Wrap the app in `VizContextProvider` (see the template `main.jsx`) and read
 the host-supplied query context with `useVizContext`. Only relevant for
 visualization-style apps meant to run inside dashboards.
+
+### `follow-host-theme` — light/dark mode
+
+The SDK puts the `dark` class on `<html>` as the app boots and again
+whenever the viewer toggles their Lightdash theme, so an app that styles
+everything through the theme tokens follows along with no code at all. What an
+older app usually needs is the opposite of wiring — *removing* what pins it to
+one mode:
+
+- drop any `className="dark …"` on the app shell and any
+  `document.documentElement.classList.add('dark')`;
+- move dark values out of `:root` and into `.dark`, leaving a complete set of
+  light values on `:root`;
+- keep both sets complete for every token the app defines.
+
+For colours CSS can't reach (a chart library's theme object, a logo swap), read
+the mode: `const colorScheme = useColorScheme();` — `'light' | 'dark'`,
+re-rendering on every host toggle.
 
 ### App-code opt-ins (call the API where it fits the app)
 
