@@ -1,3 +1,10 @@
+## [1.23.1](https://github.com/lightdash/lightdash/compare/1.23.0...1.23.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* replace dead .eslintrc.js COPY with .oxlintrc.base.json in Dockerfiles ([#26414](https://github.com/lightdash/lightdash/issues/26414)) ([89490ed](https://github.com/lightdash/lightdash/commit/89490ed24a480106d1404dcffd01b0f762cfaa58)), closes [#26250](https://github.com/lightdash/lightdash/issues/26250)
+
 # [1.23.0](https://github.com/lightdash/lightdash/compare/1.22.1...1.23.0) (2026-07-29)
 
 
