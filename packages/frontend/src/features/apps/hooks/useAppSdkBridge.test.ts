@@ -184,6 +184,92 @@ describe('useAppSdkBridge', () => {
         });
     });
 
+    it('drains both POST ids when two POSTs resolve to the same queryUuid', async () => {
+        // Regression: when the backend's results-cache dedupe returns the
+        // SAME queryUuid for two different metric-query POSTs (e.g. two
+        // components firing identical queries), the second POST's mapping
+        // write overwrote the first's, so the first POST's pending/running
+        // entry never reached a terminal status. MinimalApp's in-flight set
+        // never drained, isReady stayed false, and the screenshot indicator
+        // never mounted even though every fetch had completed.
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        const POST_ID_B = '44444444-4444-4444-4444-444444444444';
+
+        // POST A resolves first.
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        postMetricQuery();
+        await vi.waitFor(() =>
+            expect(
+                events.some((e) => e.id === POST_ID && e.status === 'running'),
+            ).toBe(true),
+        );
+
+        // POST B — a second component's identical query — resolves to the
+        // SAME queryUuid (the backend's results-cache dedupe).
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID_B,
+            method: 'POST',
+            path: POST_PATH,
+            body: { query: METRIC_QUERY },
+        });
+        await vi.waitFor(() =>
+            expect(
+                events.some(
+                    (e) => e.id === POST_ID_B && e.status === 'running',
+                ),
+            ).toBe(true),
+        );
+
+        // A single terminal GET poll for the shared queryUuid.
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: QUERY_UUID,
+                status: 'ready',
+                totalResults: 10,
+                metadata: { performance: { initialQueryExecutionMs: 5 } },
+            },
+        });
+        pollQueryResult();
+
+        // Every id that ever entered pending/running must reach a terminal
+        // ready/error status. Wrapping the assertion itself in vi.waitFor
+        // lets it retry until either both ids drain (fixed) or it times out
+        // (bug: POST A's id is never emitted as terminal).
+        await vi.waitFor(
+            () => {
+                const terminalIds = new Set(
+                    events
+                        .filter(
+                            (e) => e.status === 'ready' || e.status === 'error',
+                        )
+                        .map((e) => e.id),
+                );
+                const initiatedIds = new Set(
+                    events
+                        .filter(
+                            (e) =>
+                                e.status === 'pending' ||
+                                e.status === 'running',
+                        )
+                        .map((e) => e.id),
+                );
+                initiatedIds.forEach((id) => expect(terminalIds).toContain(id));
+            },
+            { timeout: 500 },
+        );
+    });
+
     it('attaches the app UUID header to metric-query requests for warehouse attribution', async () => {
         renderBridge(() => undefined);
 
