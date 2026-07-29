@@ -16989,6 +16989,9 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "slug": {
+                        "type": "string"
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -17008,7 +17011,6 @@
                     "name",
                     "version",
                     "projectUuid",
-                    "appUuid",
                     "codeVersion"
                 ],
                 "type": "object"
@@ -17152,7 +17154,11 @@
             "ApiGetAppCodeResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppCodeDownload_"
             },
-            "ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__": {
+            "UuidOrSlug": {
+                "type": "string",
+                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
+            },
+            "ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -17161,6 +17167,9 @@
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            "slug": {
+                                "type": "string"
                             },
                             "action": {
                                 "type": "string",
@@ -17174,7 +17183,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["action", "version", "appUuid"],
+                        "required": ["slug", "action", "version", "appUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -17187,10 +17196,13 @@
                 "type": "object"
             },
             "ApiImportAppCodeResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__"
             },
             "ImportAppCodeRequestBody": {
                 "properties": {
+                    "createNew": {
+                        "type": "boolean"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -46160,10 +46172,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "UuidOrSlug": {
-                "type": "string",
-                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
-            },
             "Pick_UpdatedByUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -50965,7 +50973,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.34.0",
+        "version": "1.35.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

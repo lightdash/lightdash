@@ -1,3 +1,19 @@
+# [1.35.0](https://github.com/lightdash/lightdash/compare/1.34.0...1.35.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **cli:** exit non-zero when data app uploads fail ([#26475](https://github.com/lightdash/lightdash/issues/26475)) ([fa85c2a](https://github.com/lightdash/lightdash/commit/fa85c2af7f34f7844e038c17b0f3e864c7ee45e5))
+* **cli:** stop the progress spinner while prompting ([#26457](https://github.com/lightdash/lightdash/issues/26457)) ([efe3d2a](https://github.com/lightdash/lightdash/commit/efe3d2aa7e3ba6a004843dc2de81f39687196cac))
+* mock analytics outbox inserts in AiDeepResearchRunModel tests ([#26480](https://github.com/lightdash/lightdash/issues/26480)) ([89ed378](https://github.com/lightdash/lightdash/commit/89ed378f4b172d813edc441c73a42825f7a75049))
+
+
+### Features
+
+* **analytics:** track data app upload identity source ([#26456](https://github.com/lightdash/lightdash/issues/26456)) ([0006cd4](https://github.com/lightdash/lightdash/commit/0006cd43cb75b8f4ec4fb4e15866f2cc464341e4))
+* **cli:** prepare data app manifests for id-free identity ([#26323](https://github.com/lightdash/lightdash/issues/26323)) ([0ab082b](https://github.com/lightdash/lightdash/commit/0ab082b736d0ad1875d8375be0384673c3df11f7))
+* identify data apps by project-scoped slug in as-code flows ([#26234](https://github.com/lightdash/lightdash/issues/26234)) ([a94b59b](https://github.com/lightdash/lightdash/commit/a94b59b510866a994ed1160242f437f6b4d8cd92)), closes [#25886](https://github.com/lightdash/lightdash/issues/25886)
+
 # [1.34.0](https://github.com/lightdash/lightdash/compare/1.33.0...1.34.0) (2026-07-29)
 
 

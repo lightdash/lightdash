@@ -15600,8 +15600,9 @@ const models: TsoaRoute.Models = {
                 description: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
                 version: { dataType: 'double', required: true },
+                slug: { dataType: 'string' },
                 projectUuid: { dataType: 'string', required: true },
-                appUuid: { dataType: 'string', required: true },
+                appUuid: { dataType: 'string' },
                 codeVersion: { dataType: 'enum', enums: [1], required: true },
             },
             validators: {},
@@ -15740,7 +15741,12 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_DataAppCodeDownload_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__':
+    UuidOrSlug: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__':
         {
             dataType: 'refAlias',
             type: {
@@ -15753,6 +15759,7 @@ const models: TsoaRoute.Models = {
                                 dataType: 'array',
                                 array: { dataType: 'string' },
                             },
+                            slug: { dataType: 'string', required: true },
                             action: {
                                 dataType: 'union',
                                 subSchemas: [
@@ -15775,7 +15782,7 @@ const models: TsoaRoute.Models = {
     ApiImportAppCodeResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__',
+            ref: 'ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__',
             validators: {},
         },
     },
@@ -15785,6 +15792,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                createNew: { dataType: 'boolean' },
                 spaceUuid: { dataType: 'string' },
                 targetAppUuid: { dataType: 'string' },
                 code: { ref: 'DataAppCode', required: true },
@@ -45995,11 +46003,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UuidOrSlug: {
-        dataType: 'refAlias',
-        type: { dataType: 'string', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_UpdatedByUser.userUuid-or-firstName-or-lastName_': {
         dataType: 'refAlias',
         type: {
@@ -60990,16 +60993,16 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        appUuid: {
+        appUuidOrSlug: {
             in: 'path',
-            name: 'appUuid',
+            name: 'appUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         version: { in: 'query', name: 'version', dataType: 'double' },
     };
     app.get(
-        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/download',
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuidOrSlug/download',
         ...fetchMiddlewares<RequestHandler>(AppGenerateController),
         ...fetchMiddlewares<RequestHandler>(
             AppGenerateController.prototype.getAppCode,
