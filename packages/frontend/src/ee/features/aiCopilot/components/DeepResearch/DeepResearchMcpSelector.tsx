@@ -92,7 +92,7 @@ export const DeepResearchMcpSelector = ({
             })}
         </Stack>
     ) : (
-        <Text size="xs" c="dimmed">
+        <Text className={styles.emptyState} size="xs" c="dimmed">
             No MCP sources available.
         </Text>
     );

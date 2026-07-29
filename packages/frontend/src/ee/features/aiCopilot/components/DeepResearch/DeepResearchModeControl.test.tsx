@@ -56,7 +56,9 @@ describe('DeepResearchModeControl', () => {
         });
         await user.click(modeButton);
 
-        expect(modeButton).toHaveAttribute('aria-pressed', 'true');
+        expect(
+            screen.getByRole('button', { name: 'Deep research' }),
+        ).toHaveAttribute('aria-expanded', 'true');
         expect(await screen.findByRole('dialog')).toBeInTheDocument();
         expect(
             screen.getByRole('region', { name: 'Deep research settings' }),
@@ -66,8 +68,11 @@ describe('DeepResearchModeControl', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryByText('Mode')).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Disable' }),
+            screen.getByRole('button', { name: 'Exit deep research' }),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Disable' }),
+        ).not.toBeInTheDocument();
         expect(screen.getByText('Depth')).toBeInTheDocument();
         expect(screen.getByText('MCP')).toBeInTheDocument();
         expect(
@@ -91,12 +96,41 @@ describe('DeepResearchModeControl', () => {
         expect(mediumDepth).toBeChecked();
         expect(mediumDepth).toHaveFocus();
 
-        await user.click(screen.getByRole('button', { name: 'Disable' }));
-        expect(modeButton).toHaveAttribute('aria-pressed', 'false');
+        await user.click(screen.getByRole('button', { name: 'Deep research' }));
         await waitFor(() => {
             expect(
                 screen.queryByRole('region', {
                     name: 'Deep research settings',
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        expect(
+            screen.getByRole('button', { name: 'Deep research' }),
+        ).toHaveAttribute('aria-expanded', 'false');
+
+        await user.click(screen.getByRole('button', { name: 'Deep research' }));
+        expect(
+            await screen.findByRole('region', {
+                name: 'Deep research settings',
+            }),
+        ).toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Exit deep research' }),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Deep research' }),
+        ).toHaveAttribute('aria-pressed', 'false');
+        await waitFor(() => {
+            expect(
+                screen.queryByRole('region', {
+                    name: 'Deep research settings',
+                }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Exit deep research',
                 }),
             ).not.toBeInTheDocument();
         });

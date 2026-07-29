@@ -80,64 +80,76 @@ export const DeepResearchPreflight = ({
             role="region"
             aria-label="Deep research settings"
         >
-            <Stack gap="xs">
-                <Text size="xs" fw={600} c="dimmed">
-                    Depth
-                </Text>
-                <Stack gap={2} role="radiogroup" aria-label="Research depth">
-                    {DEEP_RESEARCH_DEPTHS.map((option, optionIndex) => {
-                        const optionConfig = DEEP_RESEARCH_DEPTH_CONFIG[option];
-                        const isSelected = option === depth;
-                        return (
-                            <UnstyledButton
-                                key={option}
-                                className={styles.listOption}
-                                onClick={() => onDepthChange(option)}
-                                onKeyDown={(event) =>
-                                    handleDepthKeyDown(event, optionIndex)
-                                }
-                                role="radio"
-                                aria-checked={isSelected}
-                                tabIndex={isSelected ? 0 : -1}
-                            >
-                                <Group justify="space-between" wrap="nowrap">
-                                    <Stack gap={0}>
-                                        <Text size="sm" fw={500}>
-                                            {optionConfig.label}
-                                        </Text>
-                                        <Text size="xs" c="dimmed">
-                                            Up to{' '}
-                                            {optionConfig.warehouseQueries}{' '}
-                                            queries
-                                        </Text>
-                                    </Stack>
-                                    {isSelected && (
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size="sm"
-                                            color="ldGray.7"
-                                        />
-                                    )}
-                                </Group>
-                            </UnstyledButton>
-                        );
-                    })}
+            <Stack gap="md">
+                <Stack gap="xs">
+                    <Text size="xs" fw={600} c="dimmed">
+                        Depth
+                    </Text>
+                    <Stack
+                        gap={2}
+                        role="radiogroup"
+                        aria-label="Research depth"
+                    >
+                        {DEEP_RESEARCH_DEPTHS.map((option, optionIndex) => {
+                            const optionConfig =
+                                DEEP_RESEARCH_DEPTH_CONFIG[option];
+                            const isSelected = option === depth;
+                            return (
+                                <UnstyledButton
+                                    key={option}
+                                    className={styles.listOption}
+                                    onClick={() => onDepthChange(option)}
+                                    onKeyDown={(event) =>
+                                        handleDepthKeyDown(event, optionIndex)
+                                    }
+                                    role="radio"
+                                    aria-checked={isSelected}
+                                    tabIndex={isSelected ? 0 : -1}
+                                >
+                                    <Group
+                                        justify="space-between"
+                                        wrap="nowrap"
+                                    >
+                                        <Stack gap={0}>
+                                            <Text size="sm" fw={500}>
+                                                {optionConfig.label}
+                                            </Text>
+                                            <Text size="xs" c="dimmed">
+                                                Up to{' '}
+                                                {optionConfig.warehouseQueries}{' '}
+                                                queries
+                                            </Text>
+                                        </Stack>
+                                        {isSelected && (
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size="sm"
+                                                color="ldGray.7"
+                                            />
+                                        )}
+                                    </Group>
+                                </UnstyledButton>
+                            );
+                        })}
+                    </Stack>
                 </Stack>
 
-                <Divider my={4} />
+                <Divider />
 
-                <Text size="xs" fw={600} c="dimmed">
-                    MCP
-                </Text>
-                <DeepResearchMcpSelector
-                    mcpServers={mcpServers}
-                    selectedMcpServerUuids={selectedMcpServerUuids}
-                    onSelectedMcpServerUuidsChange={
-                        onSelectedMcpServerUuidsChange
-                    }
-                    isLoading={isLoadingMcpServers}
-                    error={mcpServerError}
-                />
+                <Stack gap="xs">
+                    <Text size="xs" fw={600} c="dimmed">
+                        MCP
+                    </Text>
+                    <DeepResearchMcpSelector
+                        mcpServers={mcpServers}
+                        selectedMcpServerUuids={selectedMcpServerUuids}
+                        onSelectedMcpServerUuidsChange={
+                            onSelectedMcpServerUuidsChange
+                        }
+                        isLoading={isLoadingMcpServers}
+                        error={mcpServerError}
+                    />
+                </Stack>
             </Stack>
         </Box>
     );
