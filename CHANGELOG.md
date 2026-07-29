@@ -1,3 +1,10 @@
+# [1.33.0](https://github.com/lightdash/lightdash/compare/1.32.0...1.33.0) (2026-07-29)
+
+
+### Features
+
+* **onboarding:** remove the invite link screen after inviting an expert ([#26465](https://github.com/lightdash/lightdash/issues/26465)) ([45a266c](https://github.com/lightdash/lightdash/commit/45a266ce0c74d54570f2ee5db6157fad550cef3f))
+
 # [1.32.0](https://github.com/lightdash/lightdash/compare/1.31.1...1.32.0) (2026-07-29)
 
 
