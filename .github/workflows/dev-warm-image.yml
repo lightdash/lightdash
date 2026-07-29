@@ -17,6 +17,7 @@ on:
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "dockerfile-prs"
+      - "docker/okteto-dev-warm-prepull.yaml"
       - ".github/workflows/dev-warm-image.yml"
   workflow_dispatch:
 
@@ -31,7 +32,7 @@ jobs:
   build:
     name: Build and push the dev-warm image
     runs-on: depot-ubuntu-24.04-4
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -57,3 +58,21 @@ jobs:
           okteto build -f dockerfile-prs --target dev-warm \
             -t okteto.global/lightdash-dev-warm:latest .
           echo "Image build took $(( $(date +%s) - start ))s" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Pre-pull image on cluster nodes
+        run: |
+          okteto namespace create db-snapshot || echo "namespace already exists, continuing"
+          okteto kubeconfig
+          kubectl apply -f docker/okteto-dev-warm-prepull.yaml
+          kubectl rollout restart daemonset/lightdash-dev-warm-prepull -n db-snapshot
+          if ! kubectl rollout status daemonset/lightdash-dev-warm-prepull \
+            -n db-snapshot --timeout=15m; then
+            kubectl get daemonset lightdash-dev-warm-prepull -n db-snapshot -o wide || true
+            kubectl get pods -n db-snapshot \
+              -l app.kubernetes.io/name=lightdash-dev-warm-prepull -o wide || true
+            kubectl describe daemonset lightdash-dev-warm-prepull -n db-snapshot || true
+            exit 1
+          fi
+          kubectl get pods -n db-snapshot \
+            -l app.kubernetes.io/name=lightdash-dev-warm-prepull \
+            -o custom-columns='NAME:.metadata.name,NODE:.spec.nodeName,IMAGE_ID:.status.containerStatuses[0].imageID'

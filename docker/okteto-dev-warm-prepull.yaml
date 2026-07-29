@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lightdash-dev-warm-prepull
+  namespace: db-snapshot
+  labels:
+    app.kubernetes.io/name: lightdash-dev-warm-prepull
+    app.kubernetes.io/part-of: lightdash-dev
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lightdash-dev-warm-prepull
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 100%
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lightdash-dev-warm-prepull
+        app.kubernetes.io/part-of: lightdash-dev
+    spec:
+      imagePullSecrets:
+        - name: okteto-regcred
+      containers:
+        - name: warm-image
+          image: registry.lightdash.okteto.dev/okteto/lightdash-dev-warm:latest
+          imagePullPolicy: Always
+          command:
+            - sleep
+            - infinity
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 20m
+              memory: 64Mi
+      terminationGracePeriodSeconds: 0
