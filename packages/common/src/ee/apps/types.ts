@@ -630,6 +630,46 @@ export type ApiMyAppsResponse = ApiSuccess<{
     };
 }>;
 
+// Version 1 creates the app; every later version iterates on it.
+export type DataAppActivityEventType = 'created' | 'iteration';
+
+/**
+ * One data app generation event — a row of the org-wide activity log. Backed by
+ * an `app_versions` row, so it covers both new apps and iterations, and both
+ * successful and failed generations.
+ */
+export type DataAppActivityEvent = {
+    appUuid: string;
+    appName: string;
+    // Activity outlives the app: a deleted app's generations still show, so the
+    // log stays a complete record of what the org spent effort on.
+    appDeleted: boolean;
+    version: number;
+    eventType: DataAppActivityEventType;
+    status: AppVersionStatus;
+    prompt: string;
+    // Versions built before the model picker shipped carry no model on their
+    // resources; they ran on the default, so that is what we report.
+    claudeModel: DataAppClaudeModel;
+    createdAt: Date;
+    projectUuid: string;
+    projectName: string;
+    // Null only when the author's user row is gone (hard-deleted user).
+    user: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+};
+
+export type ApiDataAppActivityResponse = ApiSuccess<{
+    data: DataAppActivityEvent[];
+    pagination?: KnexPaginateArgs & {
+        totalPageCount: number;
+        totalResults: number;
+    };
+}>;
+
 // Data app viz declaration: explicit TS types (for the OpenAPI spec) plus a zod
 // schema (runtime validation of the generated declaration), kept in sync by the
 // compile-time assertion below.

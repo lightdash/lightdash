@@ -10,6 +10,7 @@ import {
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
     type ApiCreateAppSchedulerResponse,
+    type ApiDataAppActivityResponse,
     type ApiDeleteAppResponse,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
@@ -882,6 +883,44 @@ export class UserAppsController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+}
+
+const ACTIVITY_MAX_PAGE_SIZE = 100;
+
+@Route('/api/v1/ee/org/apps')
+@Hidden()
+@Response<ApiErrorPayload>('default', 'Error')
+export class OrgAppsController extends BaseController {
+    /**
+     * List every data app generation across the organization — who built what,
+     * when, and with which model. Org admins only.
+     * @summary Get data app activity
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/activity')
+    @OperationId('getDataAppActivity')
+    async getDataAppActivity(
+        @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiDataAppActivityResponse> {
+        assertRegisteredAccount(req.account);
+        // Always paginate: the log grows without bound and every row carries a
+        // full prompt, so an unpaginated read would pull the org's entire
+        // generation history in one response.
+        const paginateArgs = {
+            page: page ?? 1,
+            pageSize: Math.min(pageSize ?? 50, ACTIVITY_MAX_PAGE_SIZE),
+        };
+        const results = await this.services
+            .getAppGenerateService<AppGenerateService>()
+            .getOrganizationActivity(toSessionUser(req.account), paginateArgs);
+        return {
+            status: 'ok',
+            results,
         };
     }
 }

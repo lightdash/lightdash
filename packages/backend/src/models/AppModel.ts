@@ -20,6 +20,7 @@ import {
     isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
+    type DbAppActivityRow,
     type DbAppVersion,
 } from '../database/entities/apps';
 import {
@@ -1082,6 +1083,71 @@ export class AppModel {
             ),
             pagination: result.pagination,
         };
+    }
+
+    /**
+     * A page of every data app generation across the organization, newest
+     * first. One row per `app_versions` row, so it covers new apps, iterations,
+     * and failed generations alike.
+     *
+     * Deliberately does NOT filter `apps.deleted_at`: this is an audit trail,
+     * and deleting an app must not erase the record of who generated what.
+     */
+    async getOrganizationActivity(
+        organizationUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<DbAppActivityRow[]>> {
+        const query = this.database(AppVersionsTableName)
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppVersionsTableName}.app_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            // LEFT JOIN so a hard-deleted author doesn't drop their generations
+            // from the log; the service collapses the missing row to null.
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AppVersionsTableName}.created_by_user_uuid`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select<DbAppActivityRow[]>(
+                `${AppVersionsTableName}.app_id`,
+                `${AppVersionsTableName}.version`,
+                `${AppVersionsTableName}.prompt`,
+                `${AppVersionsTableName}.status`,
+                `${AppVersionsTableName}.resources`,
+                `${AppVersionsTableName}.created_at`,
+                `${AppVersionsTableName}.created_by_user_uuid`,
+                `${AppsTableName}.name as app_name`,
+                `${AppsTableName}.deleted_at as app_deleted_at`,
+                `${AppsTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${UserTableName}.first_name as created_by_user_first_name`,
+                `${UserTableName}.last_name as created_by_user_last_name`,
+            )
+            // app_id/version tie-break keeps pagination stable when two
+            // generations share a timestamp.
+            .orderBy([
+                { column: `${AppVersionsTableName}.created_at`, order: 'desc' },
+                { column: `${AppVersionsTableName}.app_id`, order: 'asc' },
+                { column: `${AppVersionsTableName}.version`, order: 'desc' },
+            ]);
+
+        return KnexPaginate.paginate(query, paginateArgs);
     }
 
     async softDelete(

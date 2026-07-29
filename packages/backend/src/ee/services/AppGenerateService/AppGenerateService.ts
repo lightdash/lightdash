@@ -64,6 +64,8 @@ import {
     type CompiledExploreJoin,
     type CompiledTable,
     type DashboardBlueprint,
+    type DataAppActivityEvent,
+    type DataAppActivityEventType,
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppCodeDownload,
@@ -115,6 +117,7 @@ import {
     isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
+    type DbAppActivityRow,
     type DbAppVersion,
 } from '../../../database/entities/apps';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
@@ -7632,6 +7635,75 @@ export class AppGenerateService extends BaseService {
                 lastVersionStatus: row.lastVersion?.status ?? null,
             })),
             pagination: result.pagination,
+        };
+    }
+
+    private static toActivityEvent(
+        row: DbAppActivityRow,
+    ): DataAppActivityEvent {
+        const eventType: DataAppActivityEventType =
+            row.version === 1 ? 'created' : 'iteration';
+        return {
+            appUuid: row.app_id,
+            appName: row.app_name,
+            appDeleted: row.app_deleted_at !== null,
+            version: row.version,
+            eventType,
+            status: row.status,
+            prompt: row.prompt,
+            claudeModel:
+                row.resources?.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL,
+            createdAt: row.created_at,
+            projectUuid: row.project_uuid,
+            projectName: row.project_name,
+            // first_name/last_name are non-null on the user row, so a null here
+            // means the join missed entirely (hard-deleted author).
+            user:
+                row.created_by_user_first_name === null ||
+                row.created_by_user_last_name === null
+                    ? null
+                    : {
+                          userUuid: row.created_by_user_uuid,
+                          firstName: row.created_by_user_first_name,
+                          lastName: row.created_by_user_last_name,
+                      },
+        };
+    }
+
+    /**
+     * Org-wide log of every data app generation — who built what, when, and
+     * with which model. Org admins only.
+     */
+    async getOrganizationActivity(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<DataAppActivityEvent[]>> {
+        await this.assertDataAppsEnabled(user);
+
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        const { data, pagination } =
+            await this.appModel.getOrganizationActivity(
+                organizationUuid,
+                paginateArgs,
+            );
+
+        return {
+            data: data.map(AppGenerateService.toActivityEvent),
+            pagination,
         };
     }
 

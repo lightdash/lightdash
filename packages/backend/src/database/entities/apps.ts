@@ -98,6 +98,28 @@ export type DbAppVersion = {
     created_by_user_uuid: string;
 };
 
+/**
+ * One row of the org-wide generation activity log: an `app_versions` row joined
+ * to its app and project, plus the author's name.
+ */
+export type DbAppActivityRow = Pick<
+    DbAppVersion,
+    | 'app_id'
+    | 'version'
+    | 'prompt'
+    | 'status'
+    | 'resources'
+    | 'created_at'
+    | 'created_by_user_uuid'
+> & {
+    app_name: string;
+    app_deleted_at: Date | null;
+    project_uuid: string;
+    project_name: string;
+    created_by_user_first_name: string | null;
+    created_by_user_last_name: string | null;
+};
+
 export type AppVersionsTable = Knex.CompositeTableType<
     DbAppVersion,
     Pick<
