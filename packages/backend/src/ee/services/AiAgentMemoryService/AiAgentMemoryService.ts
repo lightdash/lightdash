@@ -8,6 +8,7 @@ import {
     ParameterError,
     ProjectType,
     type AiAgentMemory,
+    type AiAgentMemoryConsolidatePartitionJobPayload,
     type AiAgentMemoryConsolidationInputEntry,
     type AiAgentMemoryConsolidationRejection,
     type AiAgentMemoryDistillJobPayload,
@@ -111,6 +112,9 @@ export type AiAgentMemoryConsolidateOutcome =
 type MemorySchedulerClient = {
     aiAgentMemoryDistill: (
         payload: AiAgentMemoryDistillJobPayload,
+    ) => Promise<unknown>;
+    aiAgentMemoryConsolidatePartition: (
+        payload: AiAgentMemoryConsolidatePartitionJobPayload,
     ) => Promise<unknown>;
 };
 
@@ -227,6 +231,28 @@ export class AiAgentMemoryService extends BaseService {
             }),
         ]);
         return copilot.enabled && memory.enabled;
+    }
+
+    private async filterByEnabledOrganizations<
+        T extends { organizationUuid: string },
+    >(candidates: T[]): Promise<T[]> {
+        const organizationUuids = [
+            ...new Set(candidates.map((row) => row.organizationUuid)),
+        ];
+        const enabledByOrganization = new Map(
+            await Promise.all(
+                organizationUuids.map(
+                    async (organizationUuid) =>
+                        [
+                            organizationUuid,
+                            await this.isEnabled(organizationUuid),
+                        ] as const,
+                ),
+            ),
+        );
+        return candidates.filter((candidate) =>
+            enabledByOrganization.get(candidate.organizationUuid),
+        );
     }
 
     private async getUnresolvedObjects(
@@ -453,23 +479,7 @@ export class AiAgentMemoryService extends BaseService {
                     now.getTime() - AI_AGENT_MEMORY_ACTIVITY_FLOOR_MS,
                 ),
             });
-        const organizationUuids = [
-            ...new Set(candidates.map((row) => row.organizationUuid)),
-        ];
-        const enabledByOrganization = new Map(
-            await Promise.all(
-                organizationUuids.map(
-                    async (organizationUuid) =>
-                        [
-                            organizationUuid,
-                            await this.isEnabled(organizationUuid),
-                        ] as const,
-                ),
-            ),
-        );
-        const due = candidates.filter((candidate) =>
-            enabledByOrganization.get(candidate.organizationUuid),
-        );
+        const due = await this.filterByEnabledOrganizations(candidates);
 
         await Promise.all(
             due.map((candidate) =>
@@ -487,85 +497,102 @@ export class AiAgentMemoryService extends BaseService {
     }
 
     /**
-     * Daily pass over every eligible `(project, owner)` partition. The flag is
-     * checked per organization here, so a flag-off organization costs nothing
-     * beyond the eligibility query.
+     * Daily sweep over every eligible `(project, owner)` partition: one child
+     * job per partition, mirroring the distill queue. The flag is checked per
+     * organization here, so a flag-off organization costs nothing beyond the
+     * eligibility query.
      */
-    async consolidate(
-        now = new Date(),
-        abortSignal?: AbortSignal,
-    ): Promise<number> {
+    async sweepConsolidationPartitions(): Promise<number> {
         const candidates =
             await this.aiAgentMemoryModel.findConsolidationCandidates(
                 AI_AGENT_MEMORY_CONSOLIDATION_MIN_ACTIVE_ROWS,
             );
-        const organizationUuids = [
-            ...new Set(candidates.map((row) => row.organizationUuid)),
-        ];
-        const enabledByOrganization = new Map(
-            await Promise.all(
-                organizationUuids.map(
-                    async (organizationUuid) =>
-                        [
-                            organizationUuid,
-                            await this.isEnabled(organizationUuid),
-                        ] as const,
-                ),
+        const due = await this.filterByEnabledOrganizations(candidates);
+
+        await Promise.all(
+            due.map((candidate) =>
+                this.schedulerClient.aiAgentMemoryConsolidatePartition({
+                    organizationUuid: candidate.organizationUuid,
+                    projectUuid: candidate.projectUuid,
+                    userUuid: 'system',
+                    ownerUserUuid: candidate.ownerUserUuid,
+                }),
             ),
         );
-        const due = candidates.filter((candidate) =>
-            enabledByOrganization.get(candidate.organizationUuid),
-        );
+        return due.length;
+    }
 
-        // One catalog fetch per project, shared by that project's partitions
-        // but loaded only when one of them survives the input-hash skip check:
-        // the common all-skipped day must not read a single cached_explores blob.
-        const catalogByProject = new Map<
-            string,
-            Promise<Record<string, Explore | ExploreError> | null>
-        >();
-        const loadCatalog = (projectUuid: string) => {
-            const cached = catalogByProject.get(projectUuid);
-            if (cached) return cached;
-            const promise = this.loadConsolidationCatalog(projectUuid);
-            catalogByProject.set(projectUuid, promise);
-            return promise;
+    /**
+     * One enqueued partition. Everything the sweep decided on is rechecked
+     * cheaply here — flag, partition existence, row floor, input hash — because
+     * any of it can go stale between sweep and run; a stale premise is a quiet
+     * skip, never a failure.
+     */
+    async consolidateScheduledPartition(
+        payload: AiAgentMemoryConsolidatePartitionJobPayload,
+        abortSignal?: AbortSignal,
+    ): Promise<AiAgentMemoryConsolidateOutcome> {
+        const partition: AiAgentMemoryConsolidationPartition = {
+            organizationUuid: payload.organizationUuid,
+            projectUuid: payload.projectUuid,
+            ownerUserUuid: payload.ownerUserUuid,
         };
-
-        let consolidated = 0;
-        for (const candidate of due) {
-            // A job timeout must not cascade into the partitions it never
-            // reached: they would each record a failed run carrying their
-            // current hash and never be attempted again.
-            if (abortSignal?.aborted) break;
-
-            try {
-                // eslint-disable-next-line no-await-in-loop
-                const outcome = await this.consolidatePartition({
-                    partition: {
-                        organizationUuid: candidate.organizationUuid,
-                        projectUuid: candidate.projectUuid,
-                        ownerUserUuid: candidate.ownerUserUuid,
-                    },
-                    loadCatalog: () => loadCatalog(candidate.projectUuid),
-                    now,
-                    abortSignal,
-                });
-                if (outcome === 'aborted') break;
-                if (outcome === 'consolidated') consolidated += 1;
-            } catch (error) {
-                // Every other failure here is per-partition; a read that
-                // throws outside the attempt must not cost the whole pass.
-                this.logger.warn(
-                    'Dropping AI agent memory consolidation partition',
-                    {
-                        projectUuid: candidate.projectUuid,
-                        error: getErrorMessage(error),
-                    },
-                );
+        try {
+            if (!(await this.isEnabled(partition.organizationUuid))) {
+                return 'skipped';
             }
+
+            const memories = await this.aiAgentMemoryModel.findActiveForProject(
+                {
+                    projectUuid: partition.projectUuid,
+                    userUuid: partition.ownerUserUuid,
+                    limit: AI_AGENT_MEMORY_CONSOLIDATION_INPUT_LIMIT,
+                },
+            );
+            if (
+                memories.length < AI_AGENT_MEMORY_CONSOLIDATION_MIN_ACTIVE_ROWS
+            ) {
+                return 'skipped';
+            }
+
+            // Same corpus state as the last attempt, whatever that attempt's
+            // status: a partition that reliably trips the pass cannot burn a
+            // call every day forever.
+            const inputHash = computeConsolidationInputHash(memories);
+            const latestRun =
+                await this.aiAgentMemoryModel.findLatestConsolidationRun({
+                    projectUuid: partition.projectUuid,
+                    ownerUserUuid: partition.ownerUserUuid,
+                });
+            if (latestRun?.input_hash === inputHash) return 'skipped';
+
+            // Read only for a partition that will be attempted: the common
+            // all-skipped day must not read a single cached_explores blob.
+            const explores = await this.loadConsolidationCatalog(
+                partition.projectUuid,
+            );
+            if (explores === null) return 'skipped';
+
+            return await this.consolidatePartition({
+                partition,
+                memories,
+                inputHash,
+                explores,
+                now: new Date(),
+                abortSignal,
+            });
+        } catch (error) {
+            // A read that throws before the attempt records no run row, so the
+            // partition is retried on the next sweep.
+            this.logger.warn(
+                'Dropping AI agent memory consolidation partition',
+                {
+                    projectUuid: partition.projectUuid,
+                    error: getErrorMessage(error),
+                },
+            );
+            return 'failed';
         }
-        return consolidated;
     }
 
     /**
@@ -600,33 +627,13 @@ export class AiAgentMemoryService extends BaseService {
 
     private async consolidatePartition(args: {
         partition: AiAgentMemoryConsolidationPartition;
-        loadCatalog: () => Promise<Record<
-            string,
-            Explore | ExploreError
-        > | null>;
+        memories: DbAiAgentMemory[];
+        inputHash: string;
+        explores: Record<string, Explore | ExploreError>;
         now: Date;
         abortSignal?: AbortSignal;
     }): Promise<AiAgentMemoryConsolidateOutcome> {
-        const { partition } = args;
-        const memories = await this.aiAgentMemoryModel.findActiveForProject({
-            projectUuid: partition.projectUuid,
-            userUuid: partition.ownerUserUuid,
-            limit: AI_AGENT_MEMORY_CONSOLIDATION_INPUT_LIMIT,
-        });
-        const inputHash = computeConsolidationInputHash(memories);
-
-        // Same corpus state as the last attempt, whatever that attempt's
-        // status: a partition that reliably trips the pass cannot burn a call
-        // every day forever.
-        const latestRun =
-            await this.aiAgentMemoryModel.findLatestConsolidationRun({
-                projectUuid: partition.projectUuid,
-                ownerUserUuid: partition.ownerUserUuid,
-            });
-        if (latestRun?.input_hash === inputHash) return 'skipped';
-
-        const explores = await args.loadCatalog();
-        if (explores === null) return 'skipped';
+        const { partition, memories, inputHash, explores } = args;
 
         const input = buildConsolidationInput({
             memories,
