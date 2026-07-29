@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/lightdash/lightdash/compare/1.19.0...1.20.0) (2026-07-29)
+
+
+### Features
+
+* add distill transcript policy ([#26296](https://github.com/lightdash/lightdash/issues/26296)) ([8ce6074](https://github.com/lightdash/lightdash/commit/8ce60747398a309a95b2d88323b9ab8837d39170))
+
 # [1.19.0](https://github.com/lightdash/lightdash/compare/1.18.1...1.19.0) (2026-07-29)
 
 
