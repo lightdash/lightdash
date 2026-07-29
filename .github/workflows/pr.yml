@@ -395,6 +395,54 @@ jobs:
           file: okteto.preview.yaml
           variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
 
+      - name: Collect failed preview diagnostics
+        if: ${{ failure() && steps.deploy.outcome == 'failure' }}
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          OKTETO_CONTEXT: ${{ secrets.OKTETO_CONTEXT }}
+          OKTETO_TOKEN: ${{ secrets.OKTETO_TOKEN }}
+          PREVIEW_NAMESPACE: pr-${{ github.event.number }}
+        run: |
+          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
+          echo "f1fc644e2c2d2285a557577eafc6d4494410dce17b36bac6c3c269fc04c573ef  okteto" | sha256sum --check
+          chmod +x okteto
+          sudo mv okteto /usr/local/bin/okteto
+
+          okteto context use "$OKTETO_CONTEXT" --token "$OKTETO_TOKEN" --namespace "$PREVIEW_NAMESPACE"
+          okteto kubeconfig
+
+          echo "::group::Preview pod status"
+          kubectl -n "$PREVIEW_NAMESPACE" get pods -o wide || true
+          echo "::endgroup::"
+
+          echo "::group::Recent warning events"
+          kubectl -n "$PREVIEW_NAMESPACE" get events \
+            --field-selector type=Warning \
+            --sort-by=.lastTimestamp | tail -n 100 || true
+          echo "::endgroup::"
+
+          preview_pods=$(kubectl -n "$PREVIEW_NAMESPACE" get pods \
+            -l stack.okteto.com/service=lightdash-preview \
+            -o name 2>/dev/null || true)
+
+          if [ -z "$preview_pods" ]; then
+            echo "No lightdash-preview pods found"
+            exit 0
+          fi
+
+          while IFS= read -r preview_pod; do
+            echo "::group::Current logs for $preview_pod"
+            kubectl -n "$PREVIEW_NAMESPACE" logs "$preview_pod" \
+              --all-containers=true --tail=300 --timestamps || true
+            echo "::endgroup::"
+
+            echo "::group::Previous logs for $preview_pod"
+            kubectl -n "$PREVIEW_NAMESPACE" logs "$preview_pod" \
+              --all-containers=true --previous --tail=300 --timestamps || true
+            echo "::endgroup::"
+          done <<< "$preview_pods"
+
       - name: Set preview URL output
         run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"
 
