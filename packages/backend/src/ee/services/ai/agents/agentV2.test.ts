@@ -5,10 +5,26 @@ import {
     buildForcedFirstStep,
     buildMessagesWithMemoryBlock,
     getAgentTools,
+    getDeepResearchBudgetInstruction,
     normalizeToolOutput,
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+describe('getDeepResearchBudgetInstruction', () => {
+    it('advertises only enforceable Deep Research limits', () => {
+        const instruction = getDeepResearchBudgetInstruction({
+            maxToolCalls: 20,
+            maxWarehouseQueries: 10,
+            maxResultRows: 1_000,
+        });
+
+        expect(instruction).toContain('20 tool calls');
+        expect(instruction).toContain('10 warehouse queries');
+        expect(instruction).toContain('1000 rows per query result');
+        expect(instruction).not.toContain('token');
+    });
+});
 
 describe('buildForcedFirstStep', () => {
     it('forces the hinted report tool on only the opening step', () => {
@@ -361,7 +377,6 @@ describe('getAgentTools workstream tool gate', () => {
             mode: 'deep_research',
             maxSteps: 30,
             budget: {
-                maxTokens: 10_000,
                 maxToolCalls: 20,
                 maxWarehouseQueries: 10,
                 maxResultRows: 1_000,

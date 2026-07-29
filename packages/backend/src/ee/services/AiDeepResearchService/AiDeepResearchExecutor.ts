@@ -388,17 +388,6 @@ export class AiDeepResearchExecutor {
                     initialTokenUsage: tokens,
                     onStepUsage: (stepTokens) => {
                         tokens += stepTokens;
-                        if (tokens > run.budget_snapshot.maxTokens) {
-                            budgetExceeded = 'maxTokens';
-                            controller.abort(
-                                new Error(
-                                    'Deep Research exceeded its token budget',
-                                ),
-                            );
-                            throw new Error(
-                                'Deep Research exceeded its token budget',
-                            );
-                        }
                     },
                     onWarehouseQuery: () => {
                         warehouseQueries += 1;
