@@ -655,6 +655,13 @@ export enum LightdashPage {
     APP = 'app',
 }
 
+// Info-only delivery notice — never a failure, must not affect run status.
+export type DeliveryNotice = {
+    type: 'limit_reached';
+    label: string;
+    rowCount: number;
+};
+
 export type NotificationPayloadBase = {
     schedulerUuid?: string;
     scheduledTime: Date;
@@ -688,6 +695,7 @@ export type NotificationPayloadBase = {
         };
         pdfPageCount?: number;
         failures?: PartialFailure[];
+        notices?: DeliveryNotice[];
     };
     scheduler: CreateSchedulerAndTargets;
 };

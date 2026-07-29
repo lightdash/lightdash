@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     friendlyName,
     GoogleChatError,
+    MAX_DELIVERY_QUERIES,
     operatorActionValue,
     PartialFailureType,
     sanitizeHtml,
@@ -11,6 +12,32 @@ import {
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
+
+// Builds "2 charts and 1 query failed to export" from the failure kinds present,
+// falling back to a generic "issue(s)" bucket for non-content failure types.
+const buildFailureCountPhrase = (failures: PartialFailure[]): string => {
+    const chartCount = failures.filter(
+        (f) =>
+            f.type === PartialFailureType.DASHBOARD_CHART ||
+            f.type === PartialFailureType.DASHBOARD_SQL_CHART,
+    ).length;
+    const queryCount = failures.filter(
+        (f) => f.type === PartialFailureType.APP_QUERY,
+    ).length;
+    const otherCount = failures.length - chartCount - queryCount;
+
+    const parts: string[] = [];
+    if (chartCount > 0) {
+        parts.push(`${chartCount} chart${chartCount === 1 ? '' : 's'}`);
+    }
+    if (queryCount > 0) {
+        parts.push(`${queryCount} quer${queryCount === 1 ? 'y' : 'ies'}`);
+    }
+    if (otherCount > 0) {
+        parts.push(`${otherCount} issue${otherCount === 1 ? '' : 's'}`);
+    }
+    return parts.join(' and ');
+};
 
 /* eslint-disable class-methods-use-this */
 export class GoogleChatClient {
@@ -279,6 +306,18 @@ export class GoogleChatClient {
                             return `- <b>No targets found for this scheduled delivery</b>`;
                         case PartialFailureType.AI_AUGMENTATION:
                             return `- <b>AI summary could not be generated</b>`;
+                        case PartialFailureType.APP_QUERY:
+                            return `- <b>${f.label}:</b> ${f.error}`;
+                        case PartialFailureType.APP_QUERY_MISSING:
+                            return `- <b>${
+                                f.label
+                            }:</b> did not run in this delivery${
+                                f.identityChanged
+                                    ? ' (query changed since it was selected)'
+                                    : ''
+                            }`;
+                        case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                            return `- <b>${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})</b>`;
                         default:
                             return assertUnreachable(
                                 f,
@@ -297,7 +336,9 @@ export class GoogleChatClient {
             } else {
                 widgets.push({
                     textParagraph: {
-                        text: `⚠️ <b>Warning:</b> ${failures.length} chart(s) failed to export\n${failureLines}`,
+                        text: `⚠️ <b>Warning:</b> ${buildFailureCountPhrase(
+                            failures,
+                        )} failed to export\n${failureLines}`,
                     },
                 });
             }

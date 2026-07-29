@@ -3,9 +3,11 @@ import {
     assertUnreachable,
     friendlyName,
     LightdashPage,
+    MAX_DELIVERY_QUERIES,
     operatorActionValue,
     PartialFailureType,
     ThresholdOptions,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import {
@@ -465,6 +467,32 @@ export const getChartThresholdAlertBlocks = ({
             : undefined,
     ]);
 };
+// Builds "2 charts and 1 query failed to export" from the failure kinds present,
+// falling back to a generic "issue(s)" bucket for non-content failure types.
+const buildFailureCountPhrase = (failures: PartialFailure[]): string => {
+    const chartCount = failures.filter(
+        (f) =>
+            f.type === PartialFailureType.DASHBOARD_CHART ||
+            f.type === PartialFailureType.DASHBOARD_SQL_CHART,
+    ).length;
+    const queryCount = failures.filter(
+        (f) => f.type === PartialFailureType.APP_QUERY,
+    ).length;
+    const otherCount = failures.length - chartCount - queryCount;
+
+    const parts: string[] = [];
+    if (chartCount > 0) {
+        parts.push(`${chartCount} chart${chartCount === 1 ? '' : 's'}`);
+    }
+    if (queryCount > 0) {
+        parts.push(`${queryCount} quer${queryCount === 1 ? 'y' : 'ies'}`);
+    }
+    if (otherCount > 0) {
+        parts.push(`${otherCount} issue${otherCount === 1 ? '' : 's'}`);
+    }
+    return parts.join(' and ');
+};
+
 type GetDashboardCsvResultsBlocksArgs = {
     title: string;
     name: string;
@@ -474,6 +502,7 @@ type GetDashboardCsvResultsBlocksArgs = {
     csvUrls: AttachmentUrl[];
     footerMarkdown?: string;
     failures?: PartialFailure[];
+    notices?: DeliveryNotice[];
 };
 export const getDashboardCsvResultsBlocks = ({
     title,
@@ -484,6 +513,7 @@ export const getDashboardCsvResultsBlocks = ({
     footerMarkdown,
     ctaUrl,
     failures,
+    notices,
 }: GetDashboardCsvResultsBlocksArgs): KnownBlock[] => {
     const getFailureBlock = ():
         | { type: 'section'; text: { type: 'mrkdwn'; text: string } }
@@ -506,6 +536,20 @@ export const getDashboardCsvResultsBlocks = ({
                             return `\t• No targets found for this scheduled delivery`;
                         case PartialFailureType.AI_AUGMENTATION:
                             return `\t• AI summary could not be generated`;
+                        case PartialFailureType.APP_QUERY:
+                            return `\t• *${sanitizeText(
+                                f.label,
+                            )}:* ${sanitizeText(f.error)}`;
+                        case PartialFailureType.APP_QUERY_MISSING:
+                            return `\t• ${sanitizeText(
+                                f.label,
+                            )}: did not run in this delivery${
+                                f.identityChanged
+                                    ? ' (query changed since it was selected)'
+                                    : ''
+                            }`;
+                        case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                            return `\t• ${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`;
                         default:
                             return assertUnreachable(
                                 f,
@@ -538,6 +582,20 @@ export const getDashboardCsvResultsBlocks = ({
                         return `\t• No targets found for this scheduled delivery`;
                     case PartialFailureType.AI_AUGMENTATION:
                         return `\t• AI summary could not be generated`;
+                    case PartialFailureType.APP_QUERY:
+                        return `\t• ${sanitizeText(
+                            f.label,
+                        )}: ${sanitizeText(f.error)}`;
+                    case PartialFailureType.APP_QUERY_MISSING:
+                        return `\t• ${sanitizeText(
+                            f.label,
+                        )}: did not run in this delivery${
+                            f.identityChanged
+                                ? ' (query changed since it was selected)'
+                                : ''
+                        }`;
+                    case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                        return `\t• ${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`;
                     default:
                         return assertUnreachable(
                             f,
@@ -551,7 +609,37 @@ export const getDashboardCsvResultsBlocks = ({
             text: {
                 type: 'mrkdwn',
                 text: truncateText(
-                    `:warning: *Warning:* ${failures.length} chart(s) failed to export:\n${errorText}`,
+                    `:warning: *Warning:* ${buildFailureCountPhrase(
+                        failures,
+                    )} failed to export:\n${errorText}`,
+                    SLACK_LIMITS.SECTION_TEXT,
+                ),
+            },
+        };
+    };
+
+    const getNoticesBlock = ():
+        | { type: 'section'; text: { type: 'mrkdwn'; text: string } }
+        | undefined => {
+        if (!notices || notices.length === 0) {
+            return undefined;
+        }
+        const noticeText = notices
+            .map(
+                (n) =>
+                    `\t• ${sanitizeText(
+                        n.label,
+                    )} reached its query limit; additional rows may exist (${
+                        n.rowCount
+                    } rows delivered)`,
+            )
+            .join('\n');
+        return {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: truncateText(
+                    `:information_source: ${noticeText}`,
                     SLACK_LIMITS.SECTION_TEXT,
                 ),
             },
@@ -717,6 +805,7 @@ export const getDashboardCsvResultsBlocks = ({
         },
         ...csvSections,
         getFailureBlock(),
+        getNoticesBlock(),
         footerMarkdown?.trim()
             ? {
                   type: 'context',

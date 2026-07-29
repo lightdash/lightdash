@@ -2,6 +2,7 @@ import {
     AnyType,
     assertUnreachable,
     friendlyName,
+    MAX_DELIVERY_QUERIES,
     MissingConfigError,
     MsTeamsError,
     operatorActionValue,
@@ -14,6 +15,32 @@ import { createHash } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
+
+// Builds "2 charts and 1 query failed to export" from the failure kinds present,
+// falling back to a generic "issue(s)" bucket for non-content failure types.
+const buildFailureCountPhrase = (failures: PartialFailure[]): string => {
+    const chartCount = failures.filter(
+        (f) =>
+            f.type === PartialFailureType.DASHBOARD_CHART ||
+            f.type === PartialFailureType.DASHBOARD_SQL_CHART,
+    ).length;
+    const queryCount = failures.filter(
+        (f) => f.type === PartialFailureType.APP_QUERY,
+    ).length;
+    const otherCount = failures.length - chartCount - queryCount;
+
+    const parts: string[] = [];
+    if (chartCount > 0) {
+        parts.push(`${chartCount} chart${chartCount === 1 ? '' : 's'}`);
+    }
+    if (queryCount > 0) {
+        parts.push(`${queryCount} quer${queryCount === 1 ? 'y' : 'ies'}`);
+    }
+    if (otherCount > 0) {
+        parts.push(`${otherCount} issue${otherCount === 1 ? '' : 's'}`);
+    }
+    return parts.join(' and ');
+};
 
 export const redactWebhookIdentity = (webhookUrl: string) => {
     try {
@@ -394,6 +421,33 @@ export class MicrosoftTeamsClient {
                                             wrap: true,
                                             spacing: 'None',
                                         };
+                                    case PartialFailureType.APP_QUERY:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **${f.label}:** ${f.error}`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
+                                    case PartialFailureType.APP_QUERY_MISSING:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **${
+                                                f.label
+                                            }:** did not run in this delivery${
+                                                f.identityChanged
+                                                    ? ' (query changed since it was selected)'
+                                                    : ''
+                                            }`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
+                                    case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})**`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
                                     default:
                                         return assertUnreachable(
                                             f,
@@ -413,7 +467,9 @@ export class MicrosoftTeamsClient {
                     items: [
                         {
                             type: 'TextBlock',
-                            text: `⚠️ **Warning:** ${failures.length} chart(s) failed to export`,
+                            text: `⚠️ **Warning:** ${buildFailureCountPhrase(
+                                failures,
+                            )} failed to export`,
                             weight: 'Bolder',
                             color: 'Warning',
                             wrap: true,
@@ -439,6 +495,33 @@ export class MicrosoftTeamsClient {
                                     return {
                                         type: 'TextBlock',
                                         text: `- **AI summary could not be generated**`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
+                                case PartialFailureType.APP_QUERY:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **${f.label}:** ${f.error}`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
+                                case PartialFailureType.APP_QUERY_MISSING:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **${
+                                            f.label
+                                        }:** did not run in this delivery${
+                                            f.identityChanged
+                                                ? ' (query changed since it was selected)'
+                                                : ''
+                                        }`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
+                                case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})**`,
                                         wrap: true,
                                         spacing: 'None',
                                     };
