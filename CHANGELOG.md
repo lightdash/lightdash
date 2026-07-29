@@ -1,3 +1,11 @@
+## [1.31.1](https://github.com/lightdash/lightdash/compare/1.31.0...1.31.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* **docker-dev:** delete instance PM2 processes one name at a time ([#26459](https://github.com/lightdash/lightdash/issues/26459)) ([d518e46](https://github.com/lightdash/lightdash/commit/d518e46643c43844faeea29db34e171058b5ede0))
+* **onboarding:** enable homepage builder flag when provisioning the onboarding homepage ([#26445](https://github.com/lightdash/lightdash/issues/26445)) ([f93ea93](https://github.com/lightdash/lightdash/commit/f93ea93fbf82ff601828eebddd9b8ea0b75c7d1d))
+
 # [1.31.0](https://github.com/lightdash/lightdash/compare/1.30.0...1.31.0) (2026-07-29)
 
 
