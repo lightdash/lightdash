@@ -3243,16 +3243,19 @@ export const uploadHandler = async (
 
                             if (process.stdin.isTTY && process.stdout.isTTY) {
                                 // eslint-disable-next-line no-await-in-loop
-                                const { proceed } = await inquirer.prompt<{
-                                    proceed: boolean;
-                                }>([
-                                    {
-                                        type: 'confirm',
-                                        name: 'proceed',
-                                        message: `Upload "${subDir.name}" with custom dependencies?`,
-                                        default: true,
-                                    },
-                                ]);
+                                const { proceed } =
+                                    await output.promptWhilePaused(() =>
+                                        inquirer.prompt<{
+                                            proceed: boolean;
+                                        }>([
+                                            {
+                                                type: 'confirm',
+                                                name: 'proceed',
+                                                message: `Upload "${subDir.name}" with custom dependencies?`,
+                                                default: true,
+                                            },
+                                        ]),
+                                    );
                                 if (!proceed) {
                                     GlobalState.log(
                                         `Skipped "${subDir.name}" (custom dependency upload declined).`,
