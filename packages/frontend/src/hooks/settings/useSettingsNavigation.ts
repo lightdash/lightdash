@@ -300,6 +300,24 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (ability?.can('manage', 'Organization')) {
+                dataAppChildren.push({
+                    label: 'Activity',
+                    to: '/generalSettings/dataApps/activity',
+                    icon: IconReportAnalytics,
+                    keywords: [
+                        'usage',
+                        'audit',
+                        'log',
+                        'generations',
+                        'who built',
+                        'tokens',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             if (dataAppChildren.length > 0) {
                 organizationItems.push({
                     label: 'Data apps',
