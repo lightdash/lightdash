@@ -4,15 +4,7 @@ import {
     type AiPromptContextItem,
     type AiModelOption,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Badge,
-    Box,
-    Group,
-    Paper,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import {
     IconArrowUp,
     IconPlayerStop,
@@ -549,13 +541,6 @@ export const AgentChatInput = ({
         }
     }, [canStartDeepResearch]);
 
-    const deepResearchControlElement = canStartDeepResearch ? (
-        <DeepResearchModeControl
-            mode={composerMode}
-            onModeChange={setComposerMode}
-        />
-    ) : null;
-    const deepResearchControl = deepResearchControlElement;
     const deepResearchPreflight =
         composerMode === 'deep_research' && canStartDeepResearch ? (
             <DeepResearchPreflight
@@ -568,6 +553,13 @@ export const AgentChatInput = ({
                 mcpServerError={mcpServerError}
             />
         ) : null;
+    const deepResearchControl = canStartDeepResearch ? (
+        <DeepResearchModeControl
+            mode={composerMode}
+            onModeChange={setComposerMode}
+            settings={deepResearchPreflight}
+        />
+    ) : null;
     const chipRow = useMemo(() => {
         if (composerMode === 'deep_research') return null;
         if (!emptyStateMode && !postResponseMode) return null;
@@ -651,36 +643,6 @@ export const AgentChatInput = ({
         );
     };
 
-    const renderComposerHeader = (inline: boolean) => {
-        if (composerMode !== 'deep_research') return null;
-        return inline ? (
-            <Group gap={4} wrap="nowrap" aria-label="Deep research mode">
-                <Box className={styles.minimalResearchIndicator}>
-                    <MantineIcon icon={IconTelescope} size={15} stroke={1.8} />
-                </Box>
-                <Badge
-                    size="xs"
-                    variant="light"
-                    color="blue"
-                    tt="none"
-                    className={styles.minimalResearchBeta}
-                >
-                    Beta
-                </Badge>
-            </Group>
-        ) : (
-            <Group gap={6} aria-label="Deep research mode">
-                <MantineIcon icon={IconTelescope} size={15} stroke={1.8} />
-                <Text size="xs" fw={600}>
-                    Deep research
-                </Text>
-                <Badge size="xs" variant="light" color="blue" tt="none">
-                    Beta
-                </Badge>
-            </Group>
-        );
-    };
-
     const renderComposerAction = (size: 'sm' | 'lg') => {
         if (canSteer && hasValue) {
             return (
@@ -759,11 +721,13 @@ export const AgentChatInput = ({
                     <PromptComposer
                         {...composerCommonProps}
                         variant="inline"
-                        header={renderComposerHeader(true)}
-                        toolbarLeft={deepResearchControl}
-                        toolbarRight={renderComposerAction('sm')}
+                        toolbarRight={
+                            <Group gap={4} align="center" wrap="nowrap">
+                                {deepResearchControl}
+                                {renderComposerAction('sm')}
+                            </Group>
+                        }
                     />
-                    {deepResearchPreflight}
                 </Box>
 
                 {showSqlModeControl && (
@@ -806,19 +770,17 @@ export const AgentChatInput = ({
                 size={dense ? 'sm' : 'lg'}
                 className={styles.agentComposer}
                 onMouseDown={handleInputCardMouseDown}
-                header={renderComposerHeader(false)}
                 toolbarLeft={
-                    <>
-                        {deepResearchControl}
-                        {!isThreadInput &&
-                            renderSqlModeControl({
-                                actionSize: 30,
-                                iconSize: 15,
-                            })}
-                    </>
+                    !isThreadInput &&
+                    renderSqlModeControl({
+                        actionSize: 30,
+                        iconSize: 15,
+                    })
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
+                        {deepResearchControl}
+
                         {showAgentSelector && (
                             <Box
                                 className={styles.agentSelectorReveal}
@@ -856,8 +818,6 @@ export const AgentChatInput = ({
                     </Group>
                 }
             />
-
-            {deepResearchPreflight}
 
             {isThreadInput
                 ? showSqlModeControl && (

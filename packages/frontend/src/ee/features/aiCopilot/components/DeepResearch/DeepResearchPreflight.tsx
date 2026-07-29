@@ -32,6 +32,7 @@ export const DeepResearchPreflight = ({
     return (
         <Box
             className={styles.root}
+            data-variant="popover"
             role="region"
             aria-label="Deep research settings"
         >

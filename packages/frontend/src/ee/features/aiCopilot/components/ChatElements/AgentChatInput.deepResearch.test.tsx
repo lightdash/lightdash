@@ -64,9 +64,11 @@ describe('AgentChatInput Deep research mode', () => {
         await user.click(screen.getByRole('button', { name: 'Deep research' }));
 
         expect(
-            screen.getByRole('region', { name: 'Deep research settings' }),
+            await screen.findByRole('region', {
+                name: 'Deep research settings',
+            }),
         ).toBeInTheDocument();
-        expect(screen.getAllByText('Beta')).toHaveLength(1);
+        expect(screen.queryByText('Beta')).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Send message' }),
         ).not.toBeInTheDocument();
@@ -206,7 +208,7 @@ describe('AgentChatInput Deep research mode', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('keeps the chip inside the card composer action row', () => {
+    it('places the control first in the card composer right actions', () => {
         const agent = {
             uuid: 'agent-1',
             name: 'Data agent',
@@ -233,9 +235,10 @@ describe('AgentChatInput Deep research mode', () => {
             name: 'Deep research',
         });
         expect(control.closest('[data-variant="card"]')).toBeInTheDocument();
+        expect(control.parentElement?.firstElementChild).toBe(control);
     });
 
-    it('keeps the chip inside the inline thread composer action row', () => {
+    it('places the control first in the inline composer right actions', () => {
         renderWithProviders(
             <Provider store={store}>
                 <MemoryRouter>
@@ -256,6 +259,7 @@ describe('AgentChatInput Deep research mode', () => {
             name: 'Deep research',
         });
         expect(control.closest('[data-variant="inline"]')).toBeInTheDocument();
+        expect(control.parentElement?.firstElementChild).toBe(control);
     });
 
     it('submits the exact per-run MCP selection', async () => {
