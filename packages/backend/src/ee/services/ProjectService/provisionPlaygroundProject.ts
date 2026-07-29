@@ -19,7 +19,6 @@ import * as Sentry from '@sentry/node';
 import fs from 'fs/promises';
 import path from 'path';
 import {
-    type CodingAgentOnboardingEnablement,
     type LightdashAnalytics,
     type OnboardingFlow,
     type PlaygroundProjectSkippedReason,
@@ -33,10 +32,7 @@ import { type ProjectService } from '../../../services/ProjectService/ProjectSer
 
 export type ProvisionPlaygroundProjectArguments = {
     user: SessionUser;
-    featureFlagService: Pick<
-        FeatureFlagService,
-        'get' | 'ensureOrganizationOverrideEnabled'
-    >;
+    featureFlagService: Pick<FeatureFlagService, 'get'>;
     projectModel: Pick<
         ProjectModel,
         'getAllByOrganizationUuid' | 'delete' | 'saveExploresToCache'
@@ -200,28 +196,6 @@ export const provisionPlaygroundProject = async ({
                     validatePlaygroundDatabase,
                 );
 
-                let codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
-                try {
-                    codingAgentOnboardingEnablement =
-                        await featureFlagService.ensureOrganizationOverrideEnabled(
-                            {
-                                user,
-                                featureFlagId:
-                                    FeatureFlags.CodingAgentOnboarding,
-                            },
-                        );
-                } catch (error) {
-                    Sentry.captureException(error);
-                    Logger.error(
-                        `Failed to enable coding agent onboarding for organization ${organizationUuid}: ${
-                            error instanceof Error
-                                ? error.message
-                                : String(error)
-                        }`,
-                    );
-                    codingAgentOnboardingEnablement = 'failed';
-                }
-
                 const creation = await projectService.createWithoutCompile(
                     user,
                     {
@@ -290,7 +264,6 @@ export const provisionPlaygroundProject = async ({
                         trigger: 'invite_expert',
                         onboardingFlow,
                         catalogIndexErrorType,
-                        codingAgentOnboardingEnablement,
                     },
                 });
                 return { projectUuid, created: true };

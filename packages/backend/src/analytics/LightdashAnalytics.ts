@@ -882,6 +882,7 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
         homepageUuid: string;
         onboardingFlow: OnboardingFlow;
         homepageBuilderEnablement: HomepageBuilderEnablement | null;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
     };
 };
 
@@ -899,6 +900,7 @@ type OnboardingHomepageSkippedEvent = BaseTrack & {
         projectId: string;
         onboardingFlow: OnboardingFlow;
         homepageBuilderEnablement: HomepageBuilderEnablement | null;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         reason: OnboardingHomepageSkippedReason;
     };
 };
@@ -911,6 +913,7 @@ type OnboardingHomepageFailedEvent = BaseTrack & {
         projectId: string;
         onboardingFlow: OnboardingFlow;
         homepageBuilderEnablement: HomepageBuilderEnablement | null;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         errorType: string;
     };
 };
@@ -932,7 +935,6 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
         trigger: 'invite_expert';
         onboardingFlow: OnboardingFlow;
         catalogIndexErrorType: string | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
     };
 };
 
