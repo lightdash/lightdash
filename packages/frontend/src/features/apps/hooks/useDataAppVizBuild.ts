@@ -11,13 +11,15 @@ import { useAppBuildPoller } from './useAppBuildPoller';
 import { useCancelAppVersion } from './useCancelAppVersion';
 import { useDeleteApp } from './useDeleteApp';
 import { useGenerateApp } from './useGenerateApp';
+import { useIterateApp } from './useIterateApp';
 
 type Args = {
     projectUuid: string | undefined;
     itemsMap: ItemsMap;
-    /** The visualization the chart points at; null while it points at none. */
+    /** The visualization being revised; null while authoring a new one. */
     dataAppVizUuid: string | null;
-    /** Called once a new visualization lands ready, with its contract bound. */
+    /** Called once a new visualization lands ready with the chart still
+     *  pointing at nothing, with its contract bound. */
     onCreated: (
         dataAppVizUuid: string,
         fieldMapping: DataAppVizFieldMapping,
@@ -36,7 +38,7 @@ export type DataAppVizDraft = {
     startedAt: Date;
 };
 
-type RunningBuild = DataAppVizDraft;
+type RunningBuild = DataAppVizDraft & { isNew: boolean };
 
 export type DataAppVizBuildState = {
     /**
@@ -61,12 +63,15 @@ export type DataAppVizBuildState = {
     send: (request: VizBuildRequest) => void;
     /** Re-send the request that failed; null when there is nothing to retry. */
     retry: (() => void) | null;
+    /** Cancels a revision without deleting its app. */
+    cancel: (() => void) | null;
     /** Cancels the build and deletes its draft app. */
     discard: (() => void) | null;
 };
 
 /**
- * Build a visualization for the chart from its own query.
+ * Build the chart's visualization from its own query: generate one when none
+ * is selected, ask the selected one to change when there is.
  *
  * The chart needs no rewiring when the build lands: the poller writes into the
  * same query key the renderer reads, so it picks up the new version by itself,
@@ -89,6 +94,7 @@ export const useDataAppVizBuild = ({
         request: VizBuildRequest | null;
     } | null>(null);
     const { mutate: generateApp } = useGenerateApp();
+    const { mutate: iterateApp } = useIterateApp();
     const { mutate: cancelVersion } = useCancelAppVersion();
     const { mutate: deleteApp } = useDeleteApp();
 
@@ -99,9 +105,8 @@ export const useDataAppVizBuild = ({
             setBuilding(null);
             setInFlight(null);
             if (version.status === 'ready') {
-                // Picking a visualization while creation runs is a newer user
-                // decision, so a late completion must not replace it.
-                if (target && dataAppVizUuid === null) {
+                // Only new visualizations need selecting; later picker choices win.
+                if (target?.isNew && dataAppVizUuid === null) {
                     onCreated(
                         target.appUuid,
                         autoMapDataAppVizFields(
@@ -135,31 +140,47 @@ export const useDataAppVizBuild = ({
             if (!projectUuid || building !== null) return;
             setFailed(null);
             setInFlight(request);
-            generateApp(
+            const prompt = request.description;
+            const onError = (err: unknown) => {
+                setInFlight(null);
+                setFailed({ message: getErrorMessage(err), request });
+            };
+
+            if (dataAppVizUuid === null) {
+                generateApp(
+                    { projectUuid, prompt, template: DATA_APP_VIZ_TEMPLATE },
+                    {
+                        onSuccess: ({ appUuid, version }) =>
+                            setBuilding({
+                                appUuid,
+                                version,
+                                startedAt: new Date(),
+                                isNew: true,
+                            }),
+                        onError,
+                    },
+                );
+                return;
+            }
+            iterateApp(
+                { projectUuid, appUuid: dataAppVizUuid, prompt },
                 {
-                    projectUuid,
-                    prompt: request.description,
-                    template: DATA_APP_VIZ_TEMPLATE,
-                },
-                {
-                    onSuccess: ({ appUuid, version }) =>
+                    onSuccess: ({ version }) =>
                         setBuilding({
-                            appUuid,
+                            appUuid: dataAppVizUuid,
                             version,
                             startedAt: new Date(),
+                            isNew: false,
                         }),
-                    onError: (err) => {
-                        setInFlight(null);
-                        setFailed({ message: getErrorMessage(err), request });
-                    },
+                    onError,
                 },
             );
         },
-        [projectUuid, building, generateApp],
+        [projectUuid, dataAppVizUuid, building, generateApp, iterateApp],
     );
 
     const failedRequest = failed?.request ?? null;
-    const draft = building;
+    const draft = building?.isNew ? building : null;
 
     return {
         appUuid: building?.appUuid ?? null,
@@ -174,6 +195,25 @@ export const useDataAppVizBuild = ({
         error: failed?.message ?? null,
         send,
         retry: failedRequest ? () => send(failedRequest) : null,
+        cancel:
+            projectUuid && building && !building.isNew
+                ? () => {
+                      cancelVersion(
+                          {
+                              projectUuid,
+                              appUuid: building.appUuid,
+                              version: building.version,
+                          },
+                          {
+                              onSuccess: () => {
+                                  setBuilding(null);
+                                  setInFlight(null);
+                                  setFailed(null);
+                              },
+                          },
+                      );
+                  }
+                : null,
         discard:
             projectUuid && draft
                 ? () => {

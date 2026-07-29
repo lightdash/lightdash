@@ -7,13 +7,16 @@ import { useCancelAppVersion } from './useCancelAppVersion';
 import { useDataAppVizBuild } from './useDataAppVizBuild';
 import { useDeleteApp } from './useDeleteApp';
 import { useGenerateApp } from './useGenerateApp';
+import { useIterateApp } from './useIterateApp';
 
 vi.mock('./useGenerateApp', () => ({ useGenerateApp: vi.fn() }));
+vi.mock('./useIterateApp', () => ({ useIterateApp: vi.fn() }));
 vi.mock('./useAppBuildPoller', () => ({ useAppBuildPoller: vi.fn() }));
 vi.mock('./useCancelAppVersion', () => ({ useCancelAppVersion: vi.fn() }));
 vi.mock('./useDeleteApp', () => ({ useDeleteApp: vi.fn() }));
 
 const mockedGenerate = vi.mocked(useGenerateApp);
+const mockedIterate = vi.mocked(useIterateApp);
 const mockedPoller = vi.mocked(useAppBuildPoller);
 const mockedCancel = vi.mocked(useCancelAppVersion);
 const mockedDelete = vi.mocked(useDeleteApp);
@@ -63,12 +66,14 @@ describe('useDataAppVizBuild', () => {
     let generate: ReturnType<typeof vi.fn>;
     let cancelVersion: ReturnType<typeof vi.fn>;
     let deleteApp: ReturnType<typeof vi.fn>;
+    let iterate: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         vi.clearAllMocks();
         generate = vi.fn();
         cancelVersion = vi.fn();
         deleteApp = vi.fn();
+        iterate = vi.fn();
         mockedGenerate.mockReturnValue({
             mutate: generate,
             isLoading: false,
@@ -79,9 +84,16 @@ describe('useDataAppVizBuild', () => {
         mockedDelete.mockReturnValue({
             mutate: deleteApp,
         } as unknown as ReturnType<typeof useDeleteApp>);
+        mockedIterate.mockReturnValue({
+            mutate: iterate,
+            isLoading: false,
+        } as unknown as ReturnType<typeof useIterateApp>);
     });
 
-    const setup = (onCreated = vi.fn()) => {
+    const setup = (
+        initialDataAppVizUuid: string | null = null,
+        onCreated = vi.fn(),
+    ) => {
         const rendered = renderHookWithProviders(
             ({ dataAppVizUuid }: { dataAppVizUuid: string | null }) =>
                 useDataAppVizBuild({
@@ -91,7 +103,7 @@ describe('useDataAppVizBuild', () => {
                     onCreated,
                 }),
             undefined,
-            { initialProps: { dataAppVizUuid: null as string | null } },
+            { initialProps: { dataAppVizUuid: initialDataAppVizUuid } },
         );
         return { ...rendered, onCreated };
     };
@@ -167,6 +179,76 @@ describe('useDataAppVizBuild', () => {
         act(() => result.current.retry?.());
         expect(generate).toHaveBeenCalledTimes(2);
         expect(result.current.pendingPrompt).toBe('a donut');
+    });
+
+    it('revises the selected visualization instead of making another', () => {
+        const { result, onCreated } = setup('viz-1');
+
+        act(() => result.current.send({ description: 'make the bars teal' }));
+
+        expect(generate).not.toHaveBeenCalled();
+        expect(iterate.mock.lastCall?.[0]).toMatchObject({
+            projectUuid: 'project-1',
+            appUuid: 'viz-1',
+        });
+
+        const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 2 }));
+        finishBuild(finishedVersion({ version: 2 }));
+
+        expect(onCreated).not.toHaveBeenCalled();
+        expect(result.current.isBuilding).toBe(false);
+    });
+
+    it('does not offer a revision as a draft', () => {
+        const { result } = setup('viz-1');
+
+        act(() => result.current.send({ description: 'make the bars teal' }));
+        const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 2 }));
+
+        expect(result.current.draft).toBeNull();
+        expect(result.current.discard).toBeNull();
+    });
+
+    it('cancels a revision without deleting its app', () => {
+        const { result } = setup('viz-1');
+
+        act(() => result.current.send({ description: 'make the bars teal' }));
+        const iterateHandlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => iterateHandlers.onSuccess({ appUuid: 'viz-1', version: 2 }));
+        act(() => result.current.cancel?.());
+
+        expect(cancelVersion).toHaveBeenCalledWith(
+            {
+                projectUuid: 'project-1',
+                appUuid: 'viz-1',
+                version: 2,
+            },
+            expect.anything(),
+        );
+        expect(deleteApp).not.toHaveBeenCalled();
+
+        const cancelHandlers = cancelVersion.mock.lastCall?.[1] as {
+            onSuccess: () => void;
+        };
+        act(() => cancelHandlers.onSuccess());
+        expect(result.current.isBuilding).toBe(false);
+    });
+
+    it('retries a revision that failed to build, as it was sent', () => {
+        const { result } = setup('viz-1');
+
+        act(() => result.current.send({ description: 'make the bars teal' }));
+        const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
+        act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 2 }));
+        finishBuild(
+            finishedVersion({ version: 2, status: 'error', error: 'Nope' }),
+        );
+
+        expect(result.current.error).toBe('Nope');
+        act(() => result.current.retry?.());
+        expect(iterate).toHaveBeenCalledTimes(2);
     });
 
     it('refuses a second request while one is in flight', () => {

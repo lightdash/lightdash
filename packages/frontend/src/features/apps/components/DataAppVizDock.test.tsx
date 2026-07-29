@@ -211,7 +211,7 @@ describe('DataAppVizDock', () => {
 
     it('leaves the footer out when the panel supplies none', async () => {
         setVersions([version()]);
-        render();
+        render('viz-1', buildStub(), null);
 
         await userEvent.click(
             screen.getByRole('button', { name: 'Show versions' }),

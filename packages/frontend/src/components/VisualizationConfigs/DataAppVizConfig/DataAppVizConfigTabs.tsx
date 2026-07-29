@@ -171,18 +171,20 @@ export const ConfigTabs: FC = memo(() => {
                         onCancelBuild={
                             build.draft !== null && !dataAppVizUuid
                                 ? build.discard
-                                : null
+                                : build.cancel
                         }
                         footer={
-                            // Asking a saved visualization to change is not
-                            // wired up yet; the composer only authors new ones.
-                            dataAppVizUuid ? null : (
-                                <DataAppVizComposer
-                                    placeholder="Describe a new visualization…"
-                                    isBuilding={build.isBuilding}
-                                    onSubmit={build.send}
-                                />
-                            )
+                            <DataAppVizComposer
+                                // Slate reads its placeholder only on mount.
+                                key={dataAppVizUuid ? 'revise' : 'create'}
+                                placeholder={
+                                    dataAppVizUuid
+                                        ? 'Ask for a change…'
+                                        : 'Describe a new visualization…'
+                                }
+                                isBuilding={build.isBuilding}
+                                onSubmit={build.send}
+                            />
                         }
                     />
                 )}

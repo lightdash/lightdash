@@ -14,6 +14,7 @@ export const buildStub = (
     error: null,
     send: vi.fn(),
     retry: null,
+    cancel: null,
     discard: null,
     ...overrides,
 });
