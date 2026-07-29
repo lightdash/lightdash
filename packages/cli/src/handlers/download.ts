@@ -83,11 +83,13 @@ import {
     classifyAppDownloadError,
     ensureDownloadedAppContext,
     getDataAppUploadFilter,
+    matchedUploadRefs,
     preSlugServerHint,
     preSlugUploadHint,
     resolveAppsLimit,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
+    unmatchedUploadRefsWarning,
     uploadFilterMatches,
     type AppDownloadFailure,
 } from './apps/appsDownload';
@@ -3152,6 +3154,7 @@ export const uploadHandler = async (
                 );
             }
 
+            const matchedRefs = new Set<string>();
             for (const subDir of subDirs) {
                 const folderPath = path.join(appsDir, subDir.name);
                 try {
@@ -3164,6 +3167,11 @@ export const uploadHandler = async (
                         );
                         // eslint-disable-next-line no-continue
                         continue;
+                    }
+                    if (uploadFilter) {
+                        matchedUploadRefs(uploadFilter, code.manifest).forEach(
+                            (ref) => matchedRefs.add(ref),
+                        );
                     }
 
                     // Read declared dependencies from the app folder (optional).
@@ -3342,6 +3350,15 @@ export const uploadHandler = async (
                             }: ${getErrorMessage(appErr)}${hint}`,
                         ),
                     );
+                }
+            }
+
+            if (uploadFilter) {
+                const unmatchedWarning = unmatchedUploadRefsWarning(
+                    [...uploadFilter].filter((ref) => !matchedRefs.has(ref)),
+                );
+                if (unmatchedWarning) {
+                    GlobalState.log(styles.warning(unmatchedWarning));
                 }
             }
 

@@ -13,12 +13,14 @@ import {
     ensureDownloadedAppContext,
     getDataAppReference,
     getDataAppUploadFilter,
+    matchedUploadRefs,
     preSlugServerHint,
     preSlugUploadHint,
     resolveAppsLimit,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
     shouldWarnAllSkipped,
+    unmatchedUploadRefsWarning,
     uploadFilterMatches,
 } from './appsDownload';
 
@@ -329,6 +331,58 @@ describe('preSlugUploadHint', () => {
         expect(hint).toContain('predates slug identity');
         expect(hint).not.toContain('add `slug:');
         expect(hint).toContain('Uploads keep working via uuid matching');
+    });
+});
+
+describe('matchedUploadRefs', () => {
+    const manifest = {
+        codeVersion: 1 as const,
+        appUuid: 'app-uuid-1',
+        projectUuid: 'proj-uuid-1',
+        slug: 'sales-app',
+        version: 3,
+        name: 'My App',
+        description: '',
+        template: null,
+        downloadedAt: '2026-07-29T00:00:00.000Z',
+    };
+
+    it('returns the filter entries the manifest satisfies', () => {
+        expect(
+            matchedUploadRefs(
+                new Set(['app-uuid-1', 'sales-app', 'other']),
+                manifest,
+            ),
+        ).toEqual(['app-uuid-1', 'sales-app']);
+    });
+
+    it('returns only the slug for uuid-free manifests', () => {
+        expect(
+            matchedUploadRefs(new Set(['app-uuid-1', 'sales-app']), {
+                ...manifest,
+                appUuid: undefined,
+            }),
+        ).toEqual(['sales-app']);
+    });
+});
+
+describe('unmatchedUploadRefsWarning', () => {
+    it('returns null when everything matched', () => {
+        expect(unmatchedUploadRefsWarning([])).toBeNull();
+    });
+
+    it('lists unmatched refs', () => {
+        const warning = unmatchedUploadRefsWarning(['sales-ap']);
+        expect(warning).toContain('No local app folder matched: sales-ap.');
+        expect(warning).not.toContain('slug identity');
+    });
+
+    it('adds the slug-identity explanation for uuid-shaped refs', () => {
+        const warning = unmatchedUploadRefsWarning([
+            'd3afc44c-6f0f-4d9f-a267-fb739efa31dd',
+        ]);
+        expect(warning).toContain('carry no uuid');
+        expect(warning).toContain('select them by slug');
     });
 });
 
