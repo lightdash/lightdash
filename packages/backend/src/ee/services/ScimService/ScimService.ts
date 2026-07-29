@@ -1114,6 +1114,10 @@ export class ScimService extends BaseService {
                 );
             }
 
+            const userToDelete = await this.userModel.getUserDetailsByUuid(
+                dbUser.userUuid,
+            );
+
             await this.userModel.delete(dbUser.userUuid);
 
             this.logger.info('SCIM: Successfully deleted user', {
@@ -1133,6 +1137,7 @@ export class ScimService extends BaseService {
                     email: dbUser.email,
                     organizationId: dbUser.organizationUuid,
                     deletedUserId: dbUser.userUuid,
+                    isTrackingAnonymized: userToDelete.isTrackingAnonymized,
                 },
             });
             return undefined;

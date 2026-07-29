@@ -485,6 +485,9 @@ export class OrganizationService extends BaseService {
 
         const userUuids = orgUsers.map((orgUser) => orgUser.userUuid);
 
+        const isTrackingAnonymizedByUserUuid =
+            await this.userModel.getIsTrackingAnonymizedByUserUuids(userUuids);
+
         await this.organizationModel.deleteOrgAndUsers(
             organizationUuid,
             userUuids,
@@ -501,6 +504,9 @@ export class OrganizationService extends BaseService {
                     email: orgUser.email,
                     organizationId: organizationUuid,
                     deletedUserId: orgUser.userUuid,
+                    isTrackingAnonymized:
+                        isTrackingAnonymizedByUserUuid[orgUser.userUuid] ??
+                        false,
                 },
             });
         });
