@@ -146,13 +146,13 @@ runcmd:
       fnm default 24.18
     '
 
-  # -- Install pnpm 10.33.0 ---------------------------------------------------
+  # -- Install pnpm 11.17.0 ---------------------------------------------------
   - |
     su - lightdash -c '
       export PATH="/home/lightdash/.local/share/fnm:$PATH"
       eval "$(fnm env --shell bash)"
       corepack enable
-      corepack prepare pnpm@10.33.0 --activate
+      corepack prepare pnpm@11.17.0 --activate
     '
 
   # -- Install PM2 globally ----------------------------------------------------

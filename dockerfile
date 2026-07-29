@@ -16,7 +16,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 ENV COREPACK_HOME="/usr/local/corepack"
 RUN npm i -g corepack@latest
 RUN corepack enable
-RUN corepack prepare pnpm@10.33.0 --activate && chmod -R a+rX "$COREPACK_HOME"
+RUN corepack prepare pnpm@11.17.0 --activate && chmod -R a+rX "$COREPACK_HOME"
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
