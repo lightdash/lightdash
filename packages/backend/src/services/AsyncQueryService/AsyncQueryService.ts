@@ -321,6 +321,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         return new Promise<void>((resolve, reject) => {
+            // eslint-disable-next-line prefer-const -- assigned below; onAbort closure needs the binding first
             let timeout: ReturnType<typeof setTimeout>;
             const onAbort = () => {
                 clearTimeout(timeout);

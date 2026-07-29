@@ -48,6 +48,21 @@ function isNodemailerSmtpError(
     return error instanceof Error;
 }
 
+function isRetryableSmtpError(error: unknown): boolean {
+    return (
+        isNodemailerSmtpError(error) &&
+        ((error.code &&
+            // Check if the error code is in the list of retryable error codes
+            RETRYABLE_ERROR_CODES.includes(error.code)) ||
+            // Check if the error message contains any of the retryable error codes
+            RETRYABLE_ERROR_CODES.some((code) =>
+                error.message.includes(code),
+            ) ||
+            // It can be either `Connection timeout` or `Timeout`
+            error.message.toLowerCase().includes('timeout'))
+    );
+}
+
 // Timeout configurations based on Nodemailer defaults, adjusted for scheduler compatibility
 export const SMTP_CONNECTION_CONFIG = {
     connectionTimeout: 120000, // 2 minutes - max time to establish connection (default)
@@ -295,17 +310,7 @@ export default class EmailClient {
                     return; // Success, exit retry loop
                 } catch (error) {
                     const isLastAttempt = attempt === maxRetries;
-                    const isRetryableError =
-                        isNodemailerSmtpError(error) &&
-                        ((error.code &&
-                            // Check if the error code is in the list of retryable error codes
-                            RETRYABLE_ERROR_CODES.includes(error.code)) ||
-                            // Check if the error message contains any of the retryable error codes
-                            RETRYABLE_ERROR_CODES.some((code) =>
-                                error.message.includes(code),
-                            ) ||
-                            // It can be either `Connection timeout` or `Timeout`
-                            error.message.toLowerCase().includes('timeout'));
+                    const isRetryableError = isRetryableSmtpError(error);
 
                     if (isLastAttempt || !isRetryableError) {
                         const isFileError =
