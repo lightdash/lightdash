@@ -95,24 +95,15 @@ EXPOSE 8080
 FROM dev AS dev-dependencies
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc .pnpmfile.cjs ./
-COPY packages/api-tests/package.json packages/api-tests/
 COPY packages/backend/package.json packages/backend/
-COPY packages/backend/src/ee/services/McpService/mcp-chart-app/package.json packages/backend/src/ee/services/McpService/mcp-chart-app/
-COPY packages/cli/package.json packages/cli/
 COPY packages/common/package.json packages/common/
-COPY packages/e2e/package.json packages/e2e/
 COPY packages/formula/package.json packages/formula/
-COPY packages/formula-tests/package.json packages/formula-tests/
 COPY packages/frontend/package.json packages/frontend/
-COPY packages/frontend/sdk/package.json packages/frontend/sdk/
-COPY packages/iframe-test-app/package.json packages/iframe-test-app/
-COPY packages/query-sdk/package.json packages/query-sdk/
-COPY packages/sdk-next-test-app/package.json packages/sdk-next-test-app/
-COPY packages/sdk-test-app/package.json packages/sdk-test-app/
 COPY packages/warehouses/package.json packages/warehouses/
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prefer-offline
+    pnpm --filter . --filter backend... --filter @lightdash/frontend... \
+    install --frozen-lockfile --prefer-offline
 
 # -----------------------------
 # Stage 1b: warm development environment

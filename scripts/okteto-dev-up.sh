@@ -15,7 +15,8 @@ if [ ! -e /usr/app/profiles ] && [ ! -L /usr/app/profiles ]; then
 fi
 
 echo "--- Installing dependencies"
-pnpm install --prefer-offline
+pnpm --filter . --filter backend... --filter @lightdash/frontend... \
+    install --prefer-offline
 
 echo "--- Building formula, common, warehouses (incremental)"
 pnpm formula:build:fast
