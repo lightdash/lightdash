@@ -157,6 +157,53 @@ describe('DeepResearchRunCard', () => {
         ).toBeInTheDocument();
     });
 
+    it('renders the executive answer as Markdown', () => {
+        renderWithProviders(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    status: 'completed',
+                    resultMarkdown: `# Executive summary
+
+This has **important context**, a [source](https://example.com), and \`inline code\`.
+
+- First finding
+- Second finding
+
+## Findings
+
+The full report continues here.`,
+                }}
+                projectUuid="project-1"
+            />,
+        );
+
+        expect(
+            screen.getByRole('heading', { name: 'Executive summary' }),
+        ).toBeInTheDocument();
+        expect(
+            screen
+                .getByText('important context')
+                .closest('[data-streamdown="strong"]'),
+        ).not.toBeNull();
+        expect(screen.getByText('source')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'source' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'source' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen
+                .getByText('inline code')
+                .closest('[data-streamdown="inline-code"]'),
+        ).not.toBeNull();
+        expect(screen.getByRole('list')).toBeInTheDocument();
+        expect(
+            screen.queryByText('The full report continues here.'),
+        ).not.toBeInTheDocument();
+    });
+
     it('offers reconnection and continue-without-source recovery', async () => {
         const user = userEvent.setup();
         const onReconnect = vi.fn();

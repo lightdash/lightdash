@@ -10,6 +10,14 @@
     );
 }
 
+.answerPreview {
+    display: -webkit-box;
+    padding-left: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+}
+
 .liveRegion {
     position: absolute;
     width: 1px;
