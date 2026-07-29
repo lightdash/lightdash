@@ -1,3 +1,13 @@
+## [1.38.1](https://github.com/lightdash/lightdash/compare/1.38.0...1.38.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* disable pnpm 11 verifyDepsBeforeRun so the production entrypoint boots ([#26493](https://github.com/lightdash/lightdash/issues/26493)) ([1f28bd8](https://github.com/lightdash/lightdash/commit/1f28bd8f4580790325ba4b3e5a7d108774b690dc))
+* **release:** reinstall after npm version damages the pnpm module tree ([#26495](https://github.com/lightdash/lightdash/issues/26495)) ([ff7525f](https://github.com/lightdash/lightdash/commit/ff7525f09213f2974b89d38ea0c8a46d6966219a))
+* **release:** repair install falls back to the network when the store is short ([#26497](https://github.com/lightdash/lightdash/issues/26497)) ([73b461e](https://github.com/lightdash/lightdash/commit/73b461e32f770016c373726c5f2b8ec48d139f59))
+* **release:** repair install must run offline from the populated store ([#26496](https://github.com/lightdash/lightdash/issues/26496)) ([93ee40a](https://github.com/lightdash/lightdash/commit/93ee40a4d854863950d8de25f2b00d83d36e5967))
+
 # [1.38.0](https://github.com/lightdash/lightdash/compare/1.37.0...1.38.0) (2026-07-29)
 
 
