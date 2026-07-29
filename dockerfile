@@ -1,5 +1,10 @@
 # syntax=docker/dockerfile:1.7
 
+# Extensions are ABI-versioned. Keep this pinned image and the destination path
+# below aligned with @duckdb/node-api; the production stage fails if they drift.
+FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
+RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
+
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
@@ -400,6 +405,19 @@ COPY --from=prod-builder  /usr/local/dbt1.10 /usr/local/dbt1.10
 COPY --from=prod-builder  /usr/local/dbt1.11 /usr/local/dbt1.11
 COPY --from=prod-builder  /usr/local/dbt1.12 /usr/local/dbt1.12
 COPY --from=build-final /usr/app /usr/app
+
+COPY --from=duckdb-extensions \
+    /root/.duckdb/extensions/v1.5.2/*/*.duckdb_extension \
+    /usr/app/packages/warehouses/dist/duckdbExtensions/v1.5.2/
+
+# Never silently restore production runtime downloads after a DuckDB upgrade.
+RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout.write(require('@duckdb/node-api').version())")" \
+    && extension_directory="/usr/app/packages/warehouses/dist/duckdbExtensions/${duckdb_version}" \
+    && if [ ! -r "${extension_directory}/httpfs.duckdb_extension" ] \
+        || [ ! -r "${extension_directory}/aws.duckdb_extension" ]; then \
+        echo >&2 "Bundled extensions do not match @duckdb/node-api ${duckdb_version}"; \
+        exit 1; \
+    fi
 
 RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \

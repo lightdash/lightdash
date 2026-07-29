@@ -1,4 +1,8 @@
-import { DuckDBInstance, DuckDBTypeId } from '@duckdb/node-api';
+import {
+    DuckDBInstance,
+    DuckDBTypeId,
+    version as duckdbVersion,
+} from '@duckdb/node-api';
 import {
     AnyType,
     CreateDuckdbCredentials,
@@ -676,13 +680,56 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return !(s3Config.accessKey && s3Config.secretKey);
     }
 
-    private static async loadAwsExtensionForCredentialChain(
+    private static async getBundledExtensionPath(
+        extension: 'httpfs' | 'aws',
+    ): Promise<string | undefined> {
+        // Production images bundle signed extensions under the embedded DuckDB
+        // version to avoid runtime downloads. Local development has no bundled
+        // files and intentionally falls back to INSTALL/LOAD below.
+        const extensionPath = path.resolve(
+            __dirname,
+            '..',
+            'duckdbExtensions',
+            duckdbVersion(),
+            `${extension}.duckdb_extension`,
+        );
+
+        try {
+            await fs.access(extensionPath, fsSync.constants.R_OK);
+            return extensionPath;
+        } catch {
+            return undefined;
+        }
+    }
+
+    private async loadExtension(
         db: DuckdbConnection,
-        s3Config?: DuckdbS3SessionConfig,
+        extension: 'httpfs' | 'aws',
     ): Promise<void> {
-        if (s3Config && DuckdbWarehouseClient.usesS3CredentialChain(s3Config)) {
-            await db.run('INSTALL aws;');
-            await db.run('LOAD aws;');
+        const extensionPath =
+            await DuckdbWarehouseClient.getBundledExtensionPath(extension);
+        if (!extensionPath) {
+            await db.run(`INSTALL ${extension};`);
+            await db.run(`LOAD ${extension};`);
+            return;
+        }
+
+        // A bundled file should be valid because Docker verifies the version at
+        // build time. Surface load failures instead of hiding corruption or an
+        // ABI mismatch behind a network install.
+        await db.run(
+            `LOAD '${DuckdbWarehouseClient.escapeDuckdbString(extensionPath)}';`,
+        );
+    }
+
+    private async loadAwsExtensionForCredentialChain(
+        db: DuckdbConnection,
+    ): Promise<void> {
+        if (
+            this.s3Config &&
+            DuckdbWarehouseClient.usesS3CredentialChain(this.s3Config)
+        ) {
+            await this.loadExtension(db, 'aws');
         }
     }
 
@@ -695,12 +742,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         if (!client.ducklakeConfig) {
             // For DuckLake mode, httpfs and the ducklake/postgres/mysql/azure
             // extensions are autoloaded by ATTACH — no explicit INSTALL/LOAD.
-            await db.run('INSTALL httpfs;');
-            await db.run('LOAD httpfs;');
-            await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
-                db,
-                client.s3Config,
-            );
+            await client.loadExtension(db, 'httpfs');
+            await client.loadAwsExtensionForCredentialChain(db);
         }
         const httpfsMs = performance.now() - httpfsStart;
 
@@ -1242,12 +1285,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         tempDir: string,
     ): Promise<void> {
         if (!this.ducklakeConfig) {
-            await db.run('INSTALL httpfs;');
-            await db.run('LOAD httpfs;');
-            await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
-                db,
-                this.s3Config,
-            );
+            await this.loadExtension(db, 'httpfs');
+            await this.loadAwsExtensionForCredentialChain(db);
         }
 
         await db.run(`SET temp_directory = '${tempDir}';`);
