@@ -65,7 +65,7 @@ dev:
         # Nightly-baked warm image (see .github/workflows/dev-warm-image.yml):
         # source at main + node_modules + pre-built dists, so a fresh namespace
         # only syncs the branch diff and builds incrementally
-        image: okteto.global/lightdash-dev-warm:latest
+        image: ${DEV_WARM_IMAGE:-okteto.global/lightdash-dev-warm:latest}
         command: bash scripts/okteto-dev-up.sh
         sync:
             - .:/usr/app
