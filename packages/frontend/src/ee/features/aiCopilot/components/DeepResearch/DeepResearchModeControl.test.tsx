@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -12,9 +12,10 @@ const ModeHarness = () => {
     const [depth, setDepth] = useState<DeepResearchDepth>('standard');
 
     return (
-        <>
-            <DeepResearchModeControl mode={mode} onModeChange={setMode} />
-            {mode === 'deep_research' && (
+        <DeepResearchModeControl
+            mode={mode}
+            onModeChange={setMode}
+            settings={
                 <DeepResearchPreflight
                     depth={depth}
                     onDepthChange={setDepth}
@@ -24,8 +25,8 @@ const ModeHarness = () => {
                     isLoadingMcpServers={false}
                     mcpServerError={null}
                 />
-            )}
-        </>
+            }
+        />
     );
 };
 
@@ -33,9 +34,12 @@ describe('DeepResearchModeControl', () => {
     it('keeps Ask as the unchanged default mode', () => {
         renderWithProviders(<ModeHarness />);
 
-        expect(
-            screen.getByRole('button', { name: 'Deep research' }),
-        ).toHaveAttribute('aria-pressed', 'false');
+        const modeButton = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        expect(modeButton).toHaveAttribute('aria-pressed', 'false');
+        expect(modeButton).toHaveAttribute('data-size', 'xs');
+        expect(screen.queryByText('Beta')).not.toBeInTheDocument();
         expect(
             screen.queryByRole('region', {
                 name: 'Deep research settings',
@@ -43,7 +47,7 @@ describe('DeepResearchModeControl', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('shows inline research settings and toggles back to Ask', async () => {
+    it('enables research and opens its configuration sections', async () => {
         const user = userEvent.setup();
         renderWithProviders(<ModeHarness />);
 
@@ -53,48 +57,48 @@ describe('DeepResearchModeControl', () => {
         await user.click(modeButton);
 
         expect(modeButton).toHaveAttribute('aria-pressed', 'true');
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
         expect(
             screen.getByRole('region', { name: 'Deep research settings' }),
         ).toBeInTheDocument();
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(
             screen.queryByText('Agent context and project data'),
         ).not.toBeInTheDocument();
+        expect(screen.queryByText('Mode')).not.toBeInTheDocument();
         expect(
-            screen.getByText('This agent has no MCP servers available.'),
+            screen.getByRole('button', { name: 'Disable' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Depth')).toBeInTheDocument();
+        expect(screen.getByText('MCP')).toBeInTheDocument();
+        expect(
+            screen.getByText('No MCP sources available.'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Start research' }),
+            screen.queryByText(
+                'Runs in the background. You can safely leave this page.',
+            ),
         ).not.toBeInTheDocument();
-
-        await user.click(screen.getByText('Low'));
+        expect(
+            screen.queryByText(/Choose which of this agent/),
+        ).not.toBeInTheDocument();
+        const lowDepth = screen.getByRole('radio', { name: /^Low / });
+        await user.click(lowDepth);
         expect(screen.queryByText(/Up to \d+ minutes/)).not.toBeInTheDocument();
         expect(screen.getByText('Up to 10 queries')).toBeInTheDocument();
 
-        await user.click(modeButton);
-        expect(
-            screen.queryByRole('region', {
-                name: 'Deep research settings',
-            }),
-        ).not.toBeInTheDocument();
-    });
+        await user.keyboard('{ArrowDown}');
+        const mediumDepth = screen.getByRole('radio', { name: /^Medium / });
+        expect(mediumDepth).toBeChecked();
+        expect(mediumDepth).toHaveFocus();
 
-    it('renders the compact control with reusable toolbar classes', () => {
-        renderWithProviders(
-            <DeepResearchModeControl
-                mode="ask"
-                onModeChange={() => undefined}
-                variant="compact"
-                classNames={{ root: 'toolbar', label: 'toolbar-label' }}
-            />,
-        );
-
-        const control = screen.getByRole('button', {
-            name: 'Deep research',
+        await user.click(screen.getByRole('button', { name: 'Disable' }));
+        expect(modeButton).toHaveAttribute('aria-pressed', 'false');
+        await waitFor(() => {
+            expect(
+                screen.queryByRole('region', {
+                    name: 'Deep research settings',
+                }),
+            ).not.toBeInTheDocument();
         });
-        expect(control).toHaveClass('toolbar');
-        expect(control.querySelector('.toolbar-label')).toHaveTextContent(
-            'Deep research',
-        );
     });
 });

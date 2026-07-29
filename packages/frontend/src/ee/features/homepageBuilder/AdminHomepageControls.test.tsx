@@ -12,7 +12,7 @@ vi.mock('../../../providers/Ability', () => ({
 }));
 
 describe('AdminHomepageControls', () => {
-    it('provides a Deep Research target beside the homepage controls', () => {
+    it('only renders homepage curation controls', () => {
         const { container } = render(
             <AdminHomepageControls
                 projectUuid="project-1"
@@ -23,16 +23,11 @@ describe('AdminHomepageControls', () => {
         const customizeButton = screen.getByRole('button', {
             name: 'Customize homepage',
         });
-        const deepResearchTarget = container.querySelector(
-            '[data-deep-research-control-target]',
-        );
 
-        expect(deepResearchTarget).toBeInTheDocument();
-        if (!deepResearchTarget) {
-            throw new Error('Deep Research target was not rendered');
-        }
+        expect(customizeButton).toBeInTheDocument();
+        expect(container).not.toHaveTextContent('Deep research');
         expect(
-            customizeButton.compareDocumentPosition(deepResearchTarget),
-        ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+            container.querySelector('[data-deep-research-control-target]'),
+        ).not.toBeInTheDocument();
     });
 });

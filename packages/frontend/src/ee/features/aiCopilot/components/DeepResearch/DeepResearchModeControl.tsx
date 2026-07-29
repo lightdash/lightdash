@@ -1,5 +1,13 @@
-import { Badge, Button, Group } from '@mantine-8/core';
-import { IconTelescope } from '@tabler/icons-react';
+import {
+    Box,
+    Button,
+    Divider,
+    Group,
+    Popover,
+    ScrollArea,
+} from '@mantine-8/core';
+import { IconChevronDown, IconTelescope } from '@tabler/icons-react';
+import { useState, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 
 export type AgentComposerMode = 'ask' | 'deep_research';
@@ -7,58 +15,87 @@ export type AgentComposerMode = 'ask' | 'deep_research';
 type Props = {
     mode: AgentComposerMode;
     onModeChange: (mode: AgentComposerMode) => void;
-    variant?: 'default' | 'compact';
-    classNames?: {
-        root?: string;
-        label?: string;
-    };
+    settings: ReactNode;
 };
 
 export const DeepResearchModeControl = ({
     mode,
     onModeChange,
-    variant = 'default',
-    classNames,
+    settings,
 }: Props) => {
     const isDeepResearch = mode === 'deep_research';
-    const toggleMode = () =>
-        onModeChange(isDeepResearch ? 'ask' : 'deep_research');
+    const [isOpen, setIsOpen] = useState(false);
 
-    if (variant === 'compact') {
-        return (
-            <button
-                type="button"
-                className={classNames?.root}
-                onClick={toggleMode}
-                aria-label="Deep research"
-                aria-pressed={isDeepResearch}
-            >
-                <MantineIcon icon={IconTelescope} size={15} stroke={1.8} />
-                <span className={classNames?.label} aria-hidden="true">
-                    Deep research
-                </span>
-            </button>
-        );
-    }
+    const handleTargetClick = () => {
+        if (!isDeepResearch) {
+            onModeChange('deep_research');
+        }
+        setIsOpen((current) => !current);
+    };
+
+    const handleDisable = () => {
+        onModeChange('ask');
+        setIsOpen(false);
+    };
 
     return (
-        <Button
-            size="xs"
-            variant={isDeepResearch ? 'light' : 'subtle'}
-            color="blue"
-            leftSection={
-                <MantineIcon icon={IconTelescope} size={14} stroke={1.8} />
-            }
-            onClick={toggleMode}
-            aria-label="Deep research"
-            aria-pressed={isDeepResearch}
+        <Popover
+            opened={isOpen}
+            onChange={setIsOpen}
+            shadow="md"
+            width={280}
+            position="top-end"
+            offset={8}
+            withinPortal
+            hideDetached={false}
         >
-            <Group gap={5} wrap="nowrap">
-                Deep research
-                <Badge size="xs" variant="light" color="blue" tt="none">
-                    Beta
-                </Badge>
-            </Group>
-        </Button>
+            <Popover.Target>
+                <Button
+                    px="xs"
+                    size="xs"
+                    radius="xl"
+                    variant={isDeepResearch ? 'light' : 'subtle'}
+                    color={isDeepResearch ? 'blue' : 'gray'}
+                    leftSection={
+                        <MantineIcon
+                            icon={IconTelescope}
+                            size={14}
+                            stroke={1.8}
+                        />
+                    }
+                    rightSection={
+                        <MantineIcon
+                            icon={IconChevronDown}
+                            size={14}
+                            color={isDeepResearch ? 'blue.6' : 'ldGray.6'}
+                        />
+                    }
+                    onClick={handleTargetClick}
+                    aria-label="Deep research"
+                    aria-pressed={isDeepResearch}
+                >
+                    Deep research
+                </Button>
+            </Popover.Target>
+
+            <Popover.Dropdown p={0}>
+                <ScrollArea.Autosize mah={420} type="auto">
+                    {settings}
+                </ScrollArea.Autosize>
+                <Divider mx="sm" />
+                <Box p="sm">
+                    <Group justify="flex-end">
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            onClick={handleDisable}
+                        >
+                            Disable
+                        </Button>
+                    </Group>
+                </Box>
+            </Popover.Dropdown>
+        </Popover>
     );
 };

@@ -61,18 +61,42 @@ describe('AgentChatInput Deep research mode', () => {
             </Provider>,
         );
 
-        await user.click(screen.getByRole('button', { name: 'Deep research' }));
+        const modeButton = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        const composer = modeButton.closest<HTMLElement>('[data-variant]');
+        expect(composer).not.toBeNull();
+        if (!composer) {
+            throw new Error('Expected Deep research control inside composer');
+        }
+
+        const getStableComposerMarkup = () => {
+            const clone = composer.cloneNode(true) as HTMLElement;
+            clone.querySelector('[aria-label="Deep research"]')?.remove();
+            clone
+                .querySelector(
+                    '[aria-label="Send message"], [aria-label="Start research"]',
+                )
+                ?.setAttribute('aria-label', 'Submit');
+            return clone.innerHTML;
+        };
+        const composerMarkupBefore = getStableComposerMarkup();
+
+        await user.click(modeButton);
 
         expect(
-            screen.getByRole('region', { name: 'Deep research settings' }),
+            await screen.findByRole('region', {
+                name: 'Deep research settings',
+            }),
         ).toBeInTheDocument();
-        expect(screen.getAllByText('Beta')).toHaveLength(2);
+        expect(screen.queryByText('Beta')).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Send message' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('button', { name: 'Start research' }),
+        ).toBeInTheDocument();
         expect(
             await screen.findByRole('checkbox', { name: /GitHub/ }),
         ).not.toBeChecked();
+        expect(getStableComposerMarkup()).toBe(composerMarkupBefore);
 
         await user.click(screen.getByText('High'));
         await user.click(
@@ -179,6 +203,85 @@ describe('AgentChatInput Deep research mode', () => {
         expect(
             screen.queryByRole('button', { name: 'Deep research' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('is unavailable when the feature is disabled', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AgentChatInput
+                        onSubmit={vi.fn()}
+                        projectUuid="project-1"
+                        agentUuid="agent-1"
+                        defaultValue="Investigate churn"
+                        showSuggestions={false}
+                    />
+                </MemoryRouter>
+            </Provider>,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Deep research' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', {
+                name: 'Deep research settings',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('places the control first in the card composer right actions', () => {
+        const agent = {
+            uuid: 'agent-1',
+            name: 'Data agent',
+            imageUrl: null,
+            adminOnly: false,
+        };
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AgentChatInput
+                        onSubmit={vi.fn()}
+                        onStartDeepResearch={vi.fn()}
+                        projectUuid="project-1"
+                        agentUuid="agent-1"
+                        agents={[agent]}
+                        selectedAgent={agent}
+                        showSuggestions={false}
+                    />
+                </MemoryRouter>
+            </Provider>,
+        );
+
+        const control = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        expect(control.closest('[data-variant="card"]')).toBeInTheDocument();
+        expect(control.parentElement?.firstElementChild).toBe(control);
+    });
+
+    it('places the control first in the inline composer right actions', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AgentChatInput
+                        onSubmit={vi.fn()}
+                        onStartDeepResearch={vi.fn()}
+                        projectUuid="project-1"
+                        agentUuid="agent-1"
+                        threadUuid="thread-1"
+                        messageCount={1}
+                        showSuggestions={false}
+                    />
+                </MemoryRouter>
+            </Provider>,
+        );
+
+        const control = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        expect(control.closest('[data-variant="inline"]')).toBeInTheDocument();
+        expect(control.parentElement?.firstElementChild).toBe(control);
     });
 
     it('submits the exact per-run MCP selection', async () => {

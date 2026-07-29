@@ -1,6 +1,14 @@
 import { type AiMcpServer } from '@lightdash/common';
-import { Box, Group, Radio, SimpleGrid, Stack, Text } from '@mantine-8/core';
-import { IconDatabase } from '@tabler/icons-react';
+import {
+    Box,
+    Divider,
+    Group,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine-8/core';
+import { IconCheck } from '@tabler/icons-react';
+import { type KeyboardEvent } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DEEP_RESEARCH_DEPTH_CONFIG } from '../../deepResearch/runProgress';
 import {
@@ -29,78 +37,98 @@ export const DeepResearchPreflight = ({
     isLoadingMcpServers,
     mcpServerError,
 }: Props) => {
+    const handleDepthKeyDown = (
+        event: KeyboardEvent<HTMLButtonElement>,
+        optionIndex: number,
+    ) => {
+        const getNextIndex = () => {
+            switch (event.key) {
+                case 'ArrowDown':
+                case 'ArrowRight':
+                    return (optionIndex + 1) % DEEP_RESEARCH_DEPTHS.length;
+                case 'ArrowUp':
+                case 'ArrowLeft':
+                    return (
+                        (optionIndex - 1 + DEEP_RESEARCH_DEPTHS.length) %
+                        DEEP_RESEARCH_DEPTHS.length
+                    );
+                case 'Home':
+                    return 0;
+                case 'End':
+                    return DEEP_RESEARCH_DEPTHS.length - 1;
+                default:
+                    return null;
+            }
+        };
+
+        const nextIndex = getNextIndex();
+        if (nextIndex === null) {
+            return;
+        }
+
+        event.preventDefault();
+        onDepthChange(DEEP_RESEARCH_DEPTHS[nextIndex]);
+        event.currentTarget
+            .closest('[role="radiogroup"]')
+            ?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
+            [nextIndex]?.focus();
+    };
+
     return (
         <Box
             className={styles.root}
             role="region"
             aria-label="Deep research settings"
         >
-            <Stack gap="md">
-                <Stack gap={2}>
-                    <Text size="13px" fw={600} lh={1.35}>
-                        Research depth
-                    </Text>
-                    <Text size="11px" c="dimmed" lh={1.4}>
-                        Runs in the background. You can safely leave this page.
-                    </Text>
+            <Stack gap="xs">
+                <Text size="xs" fw={600} c="dimmed">
+                    Depth
+                </Text>
+                <Stack gap={2} role="radiogroup" aria-label="Research depth">
+                    {DEEP_RESEARCH_DEPTHS.map((option, optionIndex) => {
+                        const optionConfig = DEEP_RESEARCH_DEPTH_CONFIG[option];
+                        const isSelected = option === depth;
+                        return (
+                            <UnstyledButton
+                                key={option}
+                                className={styles.listOption}
+                                onClick={() => onDepthChange(option)}
+                                onKeyDown={(event) =>
+                                    handleDepthKeyDown(event, optionIndex)
+                                }
+                                role="radio"
+                                aria-checked={isSelected}
+                                tabIndex={isSelected ? 0 : -1}
+                            >
+                                <Group justify="space-between" wrap="nowrap">
+                                    <Stack gap={0}>
+                                        <Text size="sm" fw={500}>
+                                            {optionConfig.label}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                            Up to{' '}
+                                            {optionConfig.warehouseQueries}{' '}
+                                            queries
+                                        </Text>
+                                    </Stack>
+                                    {isSelected && (
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size="sm"
+                                            color="ldGray.7"
+                                        />
+                                    )}
+                                </Group>
+                            </UnstyledButton>
+                        );
+                    })}
                 </Stack>
 
-                <Radio.Group
-                    value={depth}
-                    onChange={(value) =>
-                        onDepthChange(value as DeepResearchDepth)
-                    }
-                    aria-label="Research depth"
-                >
-                    <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs">
-                        {DEEP_RESEARCH_DEPTHS.map((option) => {
-                            const optionConfig =
-                                DEEP_RESEARCH_DEPTH_CONFIG[option];
-                            return (
-                                <Radio.Card
-                                    key={option}
-                                    value={option}
-                                    className={styles.depthCard}
-                                    radius="md"
-                                    p="xs"
-                                >
-                                    <Group
-                                        wrap="nowrap"
-                                        gap="xs"
-                                        align="center"
-                                    >
-                                        <Radio.Indicator size="xs" />
-                                        <Stack gap={0}>
-                                            <Text size="12px" fw={600} lh={1.3}>
-                                                {optionConfig.label}
-                                            </Text>
-                                            <Stack gap={5} mt={6}>
-                                                <Group gap={3} wrap="nowrap">
-                                                    <MantineIcon
-                                                        icon={IconDatabase}
-                                                        size={10}
-                                                    />
-                                                    <Text
-                                                        size="10px"
-                                                        c="dimmed"
-                                                        lh={1.3}
-                                                    >
-                                                        Up to{' '}
-                                                        {
-                                                            optionConfig.warehouseQueries
-                                                        }{' '}
-                                                        queries
-                                                    </Text>
-                                                </Group>
-                                            </Stack>
-                                        </Stack>
-                                    </Group>
-                                </Radio.Card>
-                            );
-                        })}
-                    </SimpleGrid>
-                </Radio.Group>
+                <Divider my={4} />
 
+                <Text size="xs" fw={600} c="dimmed">
+                    MCP
+                </Text>
                 <DeepResearchMcpSelector
                     mcpServers={mcpServers}
                     selectedMcpServerUuids={selectedMcpServerUuids}
