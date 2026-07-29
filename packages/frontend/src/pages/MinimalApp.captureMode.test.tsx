@@ -10,6 +10,7 @@ import { renderWithProviders } from '../testing/testUtils';
 
 type IframePreviewProps = {
     onScreenshotAvailabilityChange?: (available: boolean) => void;
+    onIframeLoad?: () => void;
     deliveryCapture?: unknown;
     invalidateCache?: boolean;
     queryContextOverride?: string;
@@ -83,6 +84,9 @@ const markSdkReady = () => {
 
 const readyIndicatorSelector = `#${SCREENSHOT_READY_INDICATOR_ID}`;
 
+const readGlobal = () =>
+    (window as unknown as Record<string, unknown>)[DELIVERY_CAPTURE_GLOBAL];
+
 describe('MinimalApp capture modes', () => {
     beforeEach(() => {
         mocks.iframePreview.mockClear();
@@ -128,11 +132,17 @@ describe('MinimalApp capture modes', () => {
             await Promise.resolve();
         });
 
-        expect(
-            (window as unknown as Record<string, unknown>)[
-                DELIVERY_CAPTURE_GLOBAL
-            ],
-        ).toBeUndefined();
+        expect(readGlobal()).toBeUndefined();
+    });
+
+    it('mounts the indicator once ready when no capture mode is set', () => {
+        const { container } = renderWithProviders(<MinimalApp />);
+
+        expect(container.querySelector(readyIndicatorSelector)).toBeNull();
+
+        markSdkReady();
+
+        expect(container.querySelector(readyIndicatorSelector)).not.toBeNull();
     });
 
     it('mounts the indicator only after the manifest global is published', async () => {
@@ -143,20 +153,41 @@ describe('MinimalApp capture modes', () => {
         // The publish is async (getManifest awaits pending hashing) — right
         // after the ready signal flips, the indicator must not be mounted yet.
         expect(container.querySelector(readyIndicatorSelector)).toBeNull();
-        expect(
-            (window as unknown as Record<string, unknown>)[
-                DELIVERY_CAPTURE_GLOBAL
-            ],
-        ).toBeUndefined();
+        expect(readGlobal()).toBeUndefined();
 
         await waitFor(() => {
-            expect(
-                (window as unknown as Record<string, unknown>)[
-                    DELIVERY_CAPTURE_GLOBAL
-                ],
-            ).toBeDefined();
+            expect(readGlobal()).toBeDefined();
         });
 
+        expect(container.querySelector(readyIndicatorSelector)).not.toBeNull();
+    });
+
+    it('clears the stale manifest and republishes after an iframe reload', async () => {
+        mocks.searchParams.set('captureMode', 'preview');
+        const { container } = renderWithProviders(<MinimalApp />);
+
+        markSdkReady();
+        await waitFor(() => {
+            expect(readGlobal()).toBeDefined();
+        });
+        expect(container.querySelector(readyIndicatorSelector)).not.toBeNull();
+        const firstManifest = readGlobal();
+
+        // Simulate a mid-render republish: the iframe reloads a new app
+        // version, which resets SDK availability before it re-announces.
+        act(() => {
+            latestIframeProps().onIframeLoad?.();
+            latestIframeProps().onScreenshotAvailabilityChange?.(false);
+        });
+
+        expect(readGlobal()).toBeUndefined();
+        expect(container.querySelector(readyIndicatorSelector)).toBeNull();
+
+        markSdkReady();
+        await waitFor(() => {
+            expect(readGlobal()).toBeDefined();
+        });
+        expect(readGlobal()).not.toBe(firstManifest);
         expect(container.querySelector(readyIndicatorSelector)).not.toBeNull();
     });
 });

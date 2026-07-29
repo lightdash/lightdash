@@ -88,7 +88,13 @@ export default function MinimalApp() {
 
     const handleIframeLoad = useCallback(() => {
         setIframeLoaded(true);
-        deliveryCapture?.reset();
+        if (deliveryCapture) {
+            deliveryCapture.reset();
+            setManifestPublished(false);
+            delete (window as unknown as Record<string, unknown>)[
+                DELIVERY_CAPTURE_GLOBAL
+            ];
+        }
     }, [deliveryCapture]);
 
     const handleScreenshotAvailable = useCallback((available: boolean) => {
