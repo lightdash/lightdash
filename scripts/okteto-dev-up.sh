@@ -19,9 +19,9 @@ pnpm --filter . --filter backend... --filter @lightdash/frontend... \
     install --prefer-offline
 
 echo "--- Building formula, common, warehouses (incremental)"
-pnpm formula:build:fast
-pnpm common-build:fast
-pnpm warehouses-build:fast
+pnpm formula:build
+pnpm common-build
+pnpm warehouses-build
 
 echo "--- Running database migrations"
 # The preview snapshot was migrated from compiled dist ('.js' filenames); dev
@@ -41,7 +41,4 @@ fi
 ALLOW_MISSING_MIGRATIONS=true pnpm -F backend migrate
 
 echo "--- Starting dev servers"
-# dev:fast shares tsconfigs with the build:fast pre-build above; plain `dev`
-# uses the full tsconfigs and would recompile everything in watch mode,
-# restarting the backend on every emitted file
-exec pnpm dev:fast
+exec pnpm dev

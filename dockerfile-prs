@@ -121,9 +121,9 @@ COPY . .
 # Pre-build the packages the backend imports as dist; scripts/okteto-dev-up.sh
 # reuses the emitted dists and *.tsbuildinfo for incremental rebuilds
 RUN export NODE_OPTIONS="--max-old-space-size=4096" \
-    && pnpm formula:build:fast \
-    && pnpm common-build:fast \
-    && pnpm warehouses-build:fast
+    && pnpm formula:build \
+    && pnpm common-build \
+    && pnpm warehouses-build
 
 # -----------------------------
 # Stage 2: continue build for production environment
