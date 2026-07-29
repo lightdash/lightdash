@@ -856,6 +856,7 @@ export type ExportContentPayload = TraceTaskBase & {
     dateZoomGranularity?: DateGranularity | string;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    parameters?: ParametersValuesMap;
 };
 
 export type ExportContentRequest = {
@@ -865,6 +866,7 @@ export type ExportContentRequest = {
     dateZoomGranularity?: DateGranularity | string;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    parameters?: ParametersValuesMap;
 };
 
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {

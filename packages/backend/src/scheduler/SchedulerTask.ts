@@ -601,6 +601,7 @@ export default class SchedulerTask {
         exportOptions?: {
             dashboardFilters?: ExportContentPayload['dashboardFilters'];
             dateZoomGranularity?: ExportContentPayload['dateZoomGranularity'];
+            parameters?: ExportContentPayload['parameters'];
         },
     ): Promise<
         NotificationPayloadBase['page'] & {
@@ -637,9 +638,10 @@ export default class SchedulerTask {
                 : undefined;
 
         const sendNowSchedulerParameters =
-            !schedulerUuid && isDashboardScheduler(scheduler)
+            exportOptions?.parameters ??
+            (!schedulerUuid && isDashboardScheduler(scheduler)
                 ? scheduler.parameters
-                : undefined;
+                : undefined);
 
         const selectedTabs = isDashboardScheduler(scheduler)
             ? scheduler.selectedTabs
@@ -1032,11 +1034,14 @@ export default class SchedulerTask {
                                 ),
                             );
 
-                        // Merge scheduler parameters with dashboard parameters (scheduler parameters override)
-                        const finalParameters: ParametersValuesMap = {
-                            ...convertedDashboardParameters,
-                            ...schedulerParameters,
-                        };
+                        // Ad-hoc exports send the parameter values currently
+                        // applied on the dashboard, which replace the saved
+                        // defaults the same way exported filters do.
+                        const finalParameters: ParametersValuesMap =
+                            exportOptions?.parameters ?? {
+                                ...convertedDashboardParameters,
+                                ...schedulerParameters,
+                            };
 
                         // Sheets are added to the workbook in promise order, so
                         // sort tiles by dashboard layout (tab order, then
@@ -5140,6 +5145,7 @@ export default class SchedulerTask {
                     {
                         dashboardFilters: payload.dashboardFilters,
                         dateZoomGranularity: payload.dateZoomGranularity,
+                        parameters: payload.parameters,
                     },
                 );
 

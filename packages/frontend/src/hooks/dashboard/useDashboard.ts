@@ -13,6 +13,7 @@ import {
     type DashboardVersion,
     type DateGranularity,
     type ExportContentFormat,
+    type ParametersValuesMap,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SchedulerCsvOptions,
     type SchedulerImageOptions,
@@ -218,6 +219,7 @@ const exportDashboardContent = async (
         dateZoomGranularity?: DateGranularity | string;
         customViewportWidth?: number;
         selectedTabs?: string[] | null;
+        parameters?: ParametersValuesMap;
     },
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
@@ -253,6 +255,7 @@ export const useExportDashboardContent = () => {
             dateZoomGranularity?: DateGranularity | string;
             customViewportWidth?: number;
             selectedTabs?: string[] | null;
+            parameters?: ParametersValuesMap;
         }
     >(
         (data) =>
@@ -263,6 +266,7 @@ export const useExportDashboardContent = () => {
                 dateZoomGranularity: data.dateZoomGranularity,
                 customViewportWidth: data.customViewportWidth,
                 selectedTabs: data.selectedTabs,
+                parameters: data.parameters,
             }),
         {
             mutationKey: ['export_dashboard_content'],
@@ -356,6 +360,7 @@ export const useExportDashboardContentPreview = () => {
             dateZoomGranularity?: DateGranularity | string;
             customViewportWidth?: number;
             selectedTabs?: string[] | null;
+            parameters?: ParametersValuesMap;
         }
     >(
         async (data) => {
@@ -366,6 +371,7 @@ export const useExportDashboardContentPreview = () => {
                 dateZoomGranularity: data.dateZoomGranularity,
                 customViewportWidth: data.customViewportWidth,
                 selectedTabs: data.selectedTabs,
+                parameters: data.parameters,
             });
             const details = (await pollJobStatus(
                 job.jobId,
