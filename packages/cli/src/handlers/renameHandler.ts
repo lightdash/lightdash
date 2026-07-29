@@ -223,15 +223,31 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
             );
         }
 
+        let validationStatus: 'skipped' | 'passed' | 'failed' = 'skipped';
+
         if (options.validate && !options.dryRun) {
-            const validationJob = await requestValidation(projectUuid, [], []);
+            try {
+                const validationJob = await requestValidation(
+                    projectUuid,
+                    [],
+                    [],
+                );
 
-            const { jobId } = validationJob;
+                const { jobId } = validationJob;
 
-            await waitUntilValidationFinished(jobId);
+                await waitUntilValidationFinished(jobId);
 
-            const validation = await getValidation(projectUuid, jobId);
-            console.info(validation);
+                const validation = await getValidation(projectUuid, jobId);
+                console.info(validation);
+                validationStatus = 'passed';
+            } catch (e: unknown) {
+                validationStatus = 'failed';
+                console.error(
+                    `Rename completed, but the follow-up validation failed: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
         }
 
         await LightdashAnalytics.track({
@@ -244,6 +260,7 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
                 chartsUpdated: results.charts.length,
                 dashboardsUpdated: results.dashboards.length,
                 durationMs: Date.now() - startTime,
+                validationStatus,
             },
         });
     } catch (e: unknown) {
@@ -266,10 +283,6 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
                         '--model',
                     )} to specify a model to filter on`,
                 );
-        } else if (errorString.includes(`Validation failed`)) {
-            console.error(
-                `Rename completed, but the follow-up validation failed:${errorString}`,
-            );
         } else {
             console.error('Unable to rename, unexpected error:', e);
         }

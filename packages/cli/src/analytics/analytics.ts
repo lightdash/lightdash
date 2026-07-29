@@ -464,6 +464,7 @@ type CliRenameCompleted = BaseTrack & {
         chartsUpdated: number;
         dashboardsUpdated: number;
         durationMs: number;
+        validationStatus: 'skipped' | 'passed' | 'failed';
     };
 };
 type CliRenameError = BaseTrack & {

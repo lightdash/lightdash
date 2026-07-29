@@ -1,4 +1,5 @@
 import { RenameType, SchedulerJobStatus } from '@lightdash/common';
+import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProject } from './dbt/refresh';
@@ -88,6 +89,12 @@ describe('renameHandler follow-up validation', () => {
         vi.restoreAllMocks();
     });
 
+    const trackedEvents = () =>
+        vi.mocked(LightdashAnalytics.track).mock.calls.map(([payload]) => ({
+            event: payload.event,
+            properties: payload.properties,
+        }));
+
     test('reports a failed validation job as a validation failure, not a rename failure', async () => {
         mockApi(VALIDATION_JOB_ID);
 
@@ -100,6 +107,21 @@ describe('renameHandler follow-up validation', () => {
         expect(output).not.toContain('unexpected error');
     });
 
+    test('counts a rename whose follow-up validation failed as completed', async () => {
+        mockApi(VALIDATION_JOB_ID);
+
+        await renameHandler({ ...baseOptions });
+
+        expect(trackedEvents()).toEqual([
+            {
+                event: 'rename.completed',
+                properties: expect.objectContaining({
+                    validationStatus: 'failed',
+                }),
+            },
+        ]);
+    });
+
     test('still reports a failed rename job as a rename failure', async () => {
         mockApi(RENAME_JOB_ID);
 
@@ -108,6 +130,24 @@ describe('renameHandler follow-up validation', () => {
         const output = errorOutput.join('\n');
         expect(output).toContain('Rename failed: job blew up');
         expect(output).not.toContain('Validation failed');
+        expect(trackedEvents()).toEqual([
+            { event: 'rename.error', properties: expect.anything() },
+        ]);
+    });
+
+    test('records a passing validation on the completed event', async () => {
+        mockApi(null);
+
+        await renameHandler({ ...baseOptions });
+
+        expect(trackedEvents()).toEqual([
+            {
+                event: 'rename.completed',
+                properties: expect.objectContaining({
+                    validationStatus: 'passed',
+                }),
+            },
+        ]);
     });
 
     test('does not run the validation job when --validate is not set', async () => {
@@ -123,5 +163,13 @@ describe('renameHandler follow-up validation', () => {
         const output = errorOutput.join('\n');
         expect(output).not.toContain('failed');
         expect(output).not.toContain('unexpected error');
+        expect(trackedEvents()).toEqual([
+            {
+                event: 'rename.completed',
+                properties: expect.objectContaining({
+                    validationStatus: 'skipped',
+                }),
+            },
+        ]);
     });
 });
