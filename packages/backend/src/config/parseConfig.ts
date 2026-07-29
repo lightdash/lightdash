@@ -1612,6 +1612,10 @@ export type LightdashConfig = {
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    ducklake: {
+        /** Allow DuckLake catalog/data paths on the server's local filesystem. Only viable for single-pod deployments, so it defaults to off in cloud mode. */
+        localPathsEnabled: boolean;
+    };
     usageEvents: {
         enabled: boolean;
         flushIntervalMs: number;
@@ -3121,6 +3125,12 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
+        },
+        ducklake: {
+            localPathsEnabled:
+                process.env.DUCKLAKE_LOCAL_PATHS_ENABLED !== undefined
+                    ? process.env.DUCKLAKE_LOCAL_PATHS_ENABLED === 'true'
+                    : mode !== LightdashMode.CLOUD_BETA,
         },
         usageEvents: {
             enabled: usageEventsEnabled,

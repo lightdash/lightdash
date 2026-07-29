@@ -374,6 +374,9 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    ducklake: {
+        localPathsEnabled: true,
+    },
     usageEvents: {
         enabled: false,
         flushIntervalMs: 60000,
