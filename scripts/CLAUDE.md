@@ -4,10 +4,15 @@
 
 ### `agent-okteto-dev.sh <start|wait|url>`
 
-When `LIGHTDASH_OKTETO_TOKEN` is set, creates one Okteto namespace per
-Claude Code session, keeps source changes synchronized through a detached
-`okteto up`, and reports the public test URL. See
+When `LIGHTDASH_OKTETO_TOKEN` is set, atomically claims a ready Okteto namespace
+for the session, keeps source changes synchronized through a detached `okteto
+up`, and reports the public test URL. See
 `docs/agent-okteto.md` for setup.
+
+### `maintain-agent-okteto-pool.sh [minimum_ready]`
+
+Repairs and replenishes the pool of unclaimed agent development environments.
+The hourly `agent-okteto-pool.yml` workflow runs it with a minimum of three.
 
 ## Okteto Preview Environment
 

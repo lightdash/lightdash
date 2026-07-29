@@ -8,6 +8,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OKTETO_CONTEXT_URL="${OKTETO_CONTEXT:-https://lightdash.okteto.dev}"
 OKTETO_MANIFEST="$REPO_ROOT/okteto.dev.yaml"
 OKTETO_SERVICE="lightdash-dev"
+POOL_NAMESPACE_PREFIX="agent-pool-"
+POOL_CLAIM_CONFIGMAP="lightdash-agent-claim"
+POOL_READY_CONFIGMAP="lightdash-agent-ready"
 READY_TIMEOUT_SECONDS="${OKTETO_READY_TIMEOUT_SECONDS:-300}"
 SYNC_START_TIMEOUT_SECONDS="${OKTETO_SYNC_START_TIMEOUT_SECONDS:-600}"
 POLL_INTERVAL_SECONDS="${OKTETO_POLL_INTERVAL_SECONDS:-5}"
@@ -25,7 +28,7 @@ Usage: ./scripts/agent-okteto-dev.sh <start|wait|url>
 
 Requires LIGHTDASH_OKTETO_TOKEN. Commands safely skip when it is unset.
 
-  start  Create or reuse this Claude session's Okteto environment.
+  start  Claim or create this agent session's Okteto environment.
   wait   Wait for file synchronization and application health.
   url    Print the public URL for this Claude session.
 EOF
@@ -37,9 +40,6 @@ require_command() {
         fail "Missing required command '$command_name'. See $SETUP_DOC."
 }
 
-# Reads the SessionStart hook JSON on stdin and prints a validated session_id.
-# Returns non-zero (without exiting) when it is missing or malformed so callers
-# can decide whether that is fatal.
 extract_session_id() {
     local hook_input session_id
 
@@ -70,11 +70,6 @@ capture_session_env() {
     printf 'export LIGHTDASH_AGENT_SESSION_ID=%s\n' "$session_id" >>"$CLAUDE_ENV_FILE"
 }
 
-# Launches `start` as a detached background process so the SessionStart hook
-# returns immediately and never blocks session startup. Best-effort: any problem
-# skips the auto-start rather than breaking the session. The captured session_id
-# is exported so the background start computes the same namespace hash as the
-# model's later `wait`/`url` calls.
 hook_start() {
     local session_id pidfile pid
 
@@ -87,13 +82,10 @@ hook_start() {
     load_session_config
     mkdir -p "$RUN_DIR"
 
-    # Environment already syncing (e.g. on resume) — nothing to launch.
     if tmux_session_exists; then
         return 0
     fi
 
-    # Dedupe near-simultaneous hook fires: skip if a prior background start is
-    # still alive. A stale pidfile fails the liveness check and we proceed.
     pidfile="$RUN_DIR/hook-start.pid"
     if [ -f "$pidfile" ]; then
         pid="$(cat "$pidfile" 2>/dev/null || true)"
@@ -137,29 +129,53 @@ hash_value() {
 }
 
 load_session_config() {
-    local id context_host
+    local id saved_namespace
 
     id="$(agent_session_id)"
     SESSION_HASH="$(hash_value "$id")"
     SESSION_HASH="${SESSION_HASH:0:16}"
-    OKTETO_NAMESPACE="agent-$SESSION_HASH"
     TMUX_SESSION="ld-okteto-$SESSION_HASH"
+    RUN_DIR="${TMPDIR:-/tmp}/lightdash-agent-okteto/$SESSION_HASH"
+    LOG_FILE="$RUN_DIR/okteto-up.log"
+    NAMESPACE_FILE="$RUN_DIR/namespace"
 
+    saved_namespace=""
+    if [ -f "$NAMESPACE_FILE" ]; then
+        saved_namespace="$(cat "$NAMESPACE_FILE" 2>/dev/null || true)"
+    fi
+    if [[ "$saved_namespace" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; then
+        set_active_namespace "$saved_namespace"
+    else
+        set_active_namespace "agent-$SESSION_HASH"
+    fi
+}
+
+set_active_namespace() {
+    local namespace="$1" context_host
+
+    OKTETO_NAMESPACE="$namespace"
     context_host="${OKTETO_CONTEXT_URL#*://}"
     context_host="${context_host%%/*}"
     PUBLIC_URL="https://lightdash-${OKTETO_NAMESPACE}.${context_host}"
-
-    RUN_DIR="${TMPDIR:-/tmp}/lightdash-agent-okteto/$SESSION_HASH"
-    LOG_FILE="$RUN_DIR/okteto-up.log"
 }
 
-require_runtime() {
+save_active_namespace() {
+    mkdir -p "$RUN_DIR"
+    printf '%s\n' "$OKTETO_NAMESPACE" >"$NAMESPACE_FILE"
+}
+
+require_client_runtime() {
     [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] ||
         fail "$TOKEN_ENV_VAR is not set. See $SETUP_DOC."
 
     require_command curl
+    require_command jq
     require_command kubectl
     require_command okteto
+}
+
+require_runtime() {
+    require_client_runtime
     require_command tmux
 }
 
@@ -178,14 +194,29 @@ authenticate() {
     fi
 }
 
-namespace_exists() {
-    local namespaces
+list_namespaces() {
+    okteto namespace list -o json |
+        awk '
+            found || /^[[:space:]]*\[/ || /^[[:space:]]*\{/ {
+                found = 1
+                print
+            }
+        ' |
+        jq -r '
+            if type == "array" then .
+            elif (.items | type) == "array" then .items
+            elif (.namespaces | type) == "array" then .namespaces
+            else []
+            end
+            | .[]
+            | if type == "string" then . else (.namespace // .name // empty) end
+        '
+}
 
-    namespaces="$(okteto namespace list -o json)" ||
-        fail "Unable to list Okteto namespaces."
-    printf '%s' "$namespaces" |
-        tr -d '[:space:]' |
-        grep -Fq "\"namespace\":\"$OKTETO_NAMESPACE\""
+namespace_exists() {
+    local namespace="${1:-$OKTETO_NAMESPACE}"
+
+    list_namespaces | grep -Fxq "$namespace"
 }
 
 ensure_namespace() {
@@ -196,6 +227,73 @@ ensure_namespace() {
 
     echo "Creating Okteto namespace $OKTETO_NAMESPACE..."
     okteto namespace create "$OKTETO_NAMESPACE" --use=false
+}
+
+pool_namespace_is_healthy() {
+    local namespace="$1" context_host
+
+    context_host="${OKTETO_CONTEXT_URL#*://}"
+    context_host="${context_host%%/*}"
+    curl --fail --silent --show-error --max-time 10 \
+        "https://lightdash-${namespace}.${context_host}/api/v1/health" \
+        >/dev/null 2>&1
+}
+
+pool_namespace_is_ready() {
+    local namespace="$1"
+
+    kubectl -n "$namespace" get configmap "$POOL_READY_CONFIGMAP" \
+        >/dev/null 2>&1 &&
+        pool_namespace_is_healthy "$namespace"
+}
+
+claim_owner() {
+    local namespace="$1"
+
+    kubectl -n "$namespace" get configmap "$POOL_CLAIM_CONFIGMAP" \
+        -o jsonpath='{.data.session_hash}' 2>/dev/null || true
+}
+
+use_claimed_namespace() {
+    local namespace="$1"
+
+    set_active_namespace "$namespace"
+    save_active_namespace
+    echo "Using pre-provisioned Okteto namespace $OKTETO_NAMESPACE."
+}
+
+claim_pool_namespace() {
+    local namespace owner
+    local -a pool_namespaces=()
+
+    while IFS= read -r namespace; do
+        pool_namespaces+=("$namespace")
+    done < <(list_namespaces | grep "^${POOL_NAMESPACE_PREFIX}" | sort)
+
+    for namespace in "${pool_namespaces[@]}"; do
+        owner="$(claim_owner "$namespace")"
+        if [ "$owner" = "$SESSION_HASH" ]; then
+            use_claimed_namespace "$namespace"
+            return 0
+        fi
+    done
+
+    for namespace in "${pool_namespaces[@]}"; do
+        [ -z "$(claim_owner "$namespace")" ] || continue
+        pool_namespace_is_ready "$namespace" || continue
+
+        if kubectl -n "$namespace" create configmap "$POOL_CLAIM_CONFIGMAP" \
+            --from-literal="session_hash=$SESSION_HASH" \
+            --from-literal="claimed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            >/dev/null 2>&1; then
+            kubectl -n "$namespace" delete configmap "$POOL_READY_CONFIGMAP" \
+                --ignore-not-found >/dev/null 2>&1 || true
+            use_claimed_namespace "$namespace"
+            return 0
+        fi
+    done
+
+    return 1
 }
 
 tmux_session_exists() {
@@ -267,10 +365,11 @@ start_tmux_session() {
     : >"$LOG_FILE"
 
     printf -v up_command \
-        'exec okteto up %q -f %q -n %q' \
+        'exec okteto up %q -f %q -n %q --env %q' \
         "$OKTETO_SERVICE" \
         "$OKTETO_MANIFEST" \
-        "$OKTETO_NAMESPACE"
+        "$OKTETO_NAMESPACE" \
+        "LIGHTDASH_AGENT_SESSION_HASH=$SESSION_HASH"
     printf -v pipe_command 'cat >> %q' "$LOG_FILE"
 
     echo "Starting Okteto file synchronization..."
@@ -286,7 +385,6 @@ start_environment() {
     require_runtime
     prepare_runtime_dir
     authenticate
-    ensure_namespace
 
     if tmux_session_exists; then
         echo "Reusing the active Okteto sync process."
@@ -294,12 +392,19 @@ start_environment() {
         return
     fi
 
-    echo "Deploying the Lightdash development environment..."
-    okteto deploy \
-        -f "$OKTETO_MANIFEST" \
-        -n "$OKTETO_NAMESPACE" \
-        --wait \
-        --timeout 8m
+    if claim_pool_namespace; then
+        echo "Claimed a ready environment from the shared pool."
+    else
+        set_active_namespace "agent-$SESSION_HASH"
+        save_active_namespace
+        ensure_namespace
+        echo "No ready pooled environment was available; deploying one now..."
+        okteto deploy \
+            -f "$OKTETO_MANIFEST" \
+            -n "$OKTETO_NAMESPACE" \
+            --wait \
+            --timeout 8m
+    fi
 
     start_tmux_session
     wait_until_ready
@@ -312,9 +417,6 @@ wait_for_environment() {
     prepare_runtime_dir
     authenticate
 
-    # The SessionStart hook starts the environment in the background, so the
-    # sync session may not exist yet if `okteto deploy` is still running. Wait
-    # for it to appear before waiting for readiness.
     deadline=$((SECONDS + SYNC_START_TIMEOUT_SECONDS))
     while ! tmux_session_exists; do
         if ((SECONDS >= deadline)); then
@@ -324,6 +426,9 @@ wait_for_environment() {
         sleep "$POLL_INTERVAL_SECONDS"
     done
 
+    if [ -f "$NAMESPACE_FILE" ]; then
+        set_active_namespace "$(cat "$NAMESPACE_FILE")"
+    fi
     wait_until_ready
 }
 

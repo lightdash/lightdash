@@ -6,9 +6,9 @@ agent only starts it when the Lightdash-specific Okteto token variable is
 configured. Engineers without that variable continue using the normal
 development workflow.
 
-Each opted-in agent workspace receives its own namespace, so multiple tasks can
-run at the same time without overwriting one another. The namespace remains
-available after the agent finishes so you can test the result.
+Each opted-in session atomically claims a ready namespace from a shared pool, so
+multiple tasks can run without overwriting one another. The namespace remains
+claimed after the agent finishes so you can test the result.
 
 ## What you need
 
@@ -94,9 +94,9 @@ command -v tmux >/dev/null || {
 }
 ```
 
-Start a new Claude Code session after saving the environment. Claude creates
-the Okteto namespace in a background subagent while its main agent works on
-your task.
+Start a new Claude Code session after saving the environment. Claude claims a
+ready Okteto namespace and starts file synchronization in the background while
+its main agent works on your task.
 
 ### How the Claude hook works
 
@@ -105,18 +105,20 @@ cleared, compacted, and forked Claude sessions. Claude sends session metadata
 to the hook over standard input and provides `CLAUDE_ENV_FILE` for variables
 that should remain available to later shell commands.
 
-The hook calls `agent-okteto-dev.sh hook-env`. When
-`LIGHTDASH_OKTETO_TOKEN` is set, that command copies Claude's `session_id` into
-`LIGHTDASH_AGENT_SESSION_ID` through `CLAUDE_ENV_FILE`. It exits without doing
-anything when the token is absent.
+The first hook calls `agent-okteto-dev.sh hook-env`. When the token is set, it
+copies Claude's `session_id` into `LIGHTDASH_AGENT_SESSION_ID` through
+`CLAUDE_ENV_FILE`. The second hook calls `hook-start`, which launches `start`
+as a detached process and immediately returns. Both hooks do nothing when the
+token is absent.
 
-The hook never creates an Okteto environment. The background subagent described
-in `CLAUDE.md` runs the launcher's `start` command after the first prompt.
+`start` claims an unclaimed, healthy pooled namespace and runs `okteto up`
+against its existing deployment. If the pool is temporarily exhausted, it
+falls back to creating and deploying a session-specific namespace.
 
 ## Other coding agents
 
 Make the same `LIGHTDASH_OKTETO_TOKEN` variable available to the agent process
-and install Okteto, `kubectl`, and `tmux` in its environment. Agents use
+and install Okteto, `kubectl`, `jq`, and `tmux` in its environment. Agents use
 `LIGHTDASH_AGENT_SESSION_ID` when their platform provides one; otherwise the
 launcher derives a stable identity from the current workspace.
 
@@ -125,7 +127,7 @@ launcher derives a stable identity from the current workspace.
 Install the required tools on macOS:
 
 ```bash
-brew install okteto tmux kubectl
+brew install okteto tmux kubectl jq
 ```
 
 Make `LIGHTDASH_OKTETO_TOKEN` available to the process that launches Claude
@@ -158,12 +160,38 @@ The launcher defaults to `https://lightdash.okteto.dev`. Administrators can
 override it for testing with the non-secret `OKTETO_CONTEXT` environment
 variable.
 
+## Ready environment pool
+
+The `Agent Okteto Pool` GitHub Actions workflow runs hourly and can also be
+started manually. It keeps at least three unclaimed namespaces deployed and
+healthy. Configure these GitHub Actions secrets:
+
+```text
+LIGHTDASH_OKTETO_TOKEN=<shared automation token>
+OKTETO_CONTEXT=https://lightdash.okteto.dev
+```
+
+The maintainer marks a namespace ready only after
+`/api/v1/health` succeeds. An agent claims it by atomically creating the
+`lightdash-agent-claim` ConfigMap with its session hash. Kubernetes allows only
+one creation to succeed, preventing two simultaneous sessions from selecting
+the same namespace. Claimed namespaces are excluded when the workflow
+replenishes the pool. The same hash is available inside the development
+container as `LIGHTDASH_AGENT_SESSION_HASH`.
+
+The workflow uses `scripts/maintain-agent-okteto-pool.sh`. Run it manually with
+the desired minimum pool size when testing administrator changes:
+
+```bash
+./scripts/maintain-agent-okteto-pool.sh 3
+```
+
 ## Manual testing
 
 The agent's final response includes a URL like:
 
 ```text
-https://lightdash-agent-<session-hash>.lightdash.okteto.dev
+https://lightdash-agent-pool-<pool-id>.lightdash.okteto.dev
 ```
 
 Use these credentials:
