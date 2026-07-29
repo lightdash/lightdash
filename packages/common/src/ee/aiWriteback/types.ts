@@ -141,7 +141,23 @@ export const AI_WRITEBACK_STAGES = [
 
 export type AiWritebackFailureStage = (typeof AI_WRITEBACK_STAGES)[number];
 
-export const AI_WRITEBACK_RUN_TERMINAL_STATUSES = ['ready', 'error'] as const;
+export const AI_WRITEBACK_RUN_TERMINAL_STATUSES = [
+    'ready',
+    'error',
+    'cancelled',
+] as const;
+
+/**
+ * Once a run's git side effects begin (commit → push → PR), cancellation is
+ * refused: the finalize claim moves the row into 'commit' atomically, and
+ * markCancelled excludes these stages so a cancel can never race an
+ * in-flight push into an unrecorded pull request.
+ */
+export const AI_WRITEBACK_RUN_FINALIZING_STATUSES = [
+    'commit',
+    'push',
+    'pull_request',
+] as const;
 
 export type AiWritebackRunStatus =
     | 'pending'
@@ -162,6 +178,7 @@ How it works:
 - This tool starts the run and returns immediately with an aiWritebackRunUuid — it does NOT wait for the run to finish.
 - In the background: a sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project. If the agent changes any files, a branch is committed, pushed, and a pull request is opened.
 - Call get_ai_writeback_status with the returned aiWritebackRunUuid to check progress and get the pull request URL once the run finishes. The run typically takes a few minutes (cloning, running the agent, opening the PR) — poll every 10-15 seconds rather than immediately looping.
+- Clients that declare the MCP Tasks extension (io.modelcontextprotocol/tasks) in their per-request capabilities instead receive a task handle (resultType: "task", taskId = the run id) and should poll tasks/get / cancel via tasks/cancel rather than calling get_ai_writeback_status.
 
 Requirements:
 - An active project must be set first via set_project (or the X-Lightdash-Project header).
@@ -197,6 +214,28 @@ export const mcpRunAiWritebackStructuredOutputSchema = z.object({
         .describe(
             'Id of the writeback run that just started. Pass this to get_ai_writeback_status to check progress and get the pull request URL.',
         ),
+    // Only present on the final result of a task-augmented call (MCP Tasks
+    // extension): the synchronous response carries just the run id.
+    status: z
+        .string()
+        .optional()
+        .describe(
+            'Final run status. Only present on the completed result of a task-augmented call.',
+        ),
+    prUrl: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+            'URL of the opened pull request, or null when the run made no changes or failed. Only present on the completed result of a task-augmented call.',
+        ),
+    errorMessage: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+            'Why the run failed, or null on success. Only present on the completed result of a task-augmented call.',
+        ),
 });
 
 export type McpRunAiWritebackArgs = z.infer<typeof mcpRunAiWritebackArgsSchema>;
@@ -208,7 +247,7 @@ Check the status of a writeback run started by run_ai_writeback, and get the pul
 
 Important:
 - Poll every 10-15 seconds rather than immediately looping — a run typically takes a few minutes.
-- "status" is either "pending" (not yet picked up), an in-progress pipeline stage (e.g. "sandbox", "agent", "pull_request"), or a terminal value: "ready" (finished — check prUrl) or "error" (finished — check errorMessage; this also covers the "more than one dbt source" case described in run_ai_writeback).
+- "status" is either "pending" (not yet picked up), an in-progress pipeline stage (e.g. "sandbox", "agent", "pull_request"), or a terminal value: "ready" (finished — check prUrl), "error" (finished — check errorMessage; this also covers the "more than one dbt source" case described in run_ai_writeback), or "cancelled" (stopped before finishing).
 
 Parameters:
 - aiWritebackRunUuid: The id returned by run_ai_writeback.
@@ -216,7 +255,7 @@ Parameters:
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<human-readable status summary>" }]
 - structuredContent: {
-    status:       string,        // "pending" | a pipeline stage | "ready" | "error"
+    status:       string,        // "pending" | a pipeline stage | "ready" | "error" | "cancelled"
     prUrl:        string | null, // set once status is "ready" and a PR was opened
     errorMessage: string | null  // set once status is "error"
   }
@@ -233,7 +272,7 @@ export const mcpGetAiWritebackStatusStructuredOutputSchema = z.object({
     status: z
         .string()
         .describe(
-            '"pending" | a pipeline stage (e.g. "sandbox", "agent", "pull_request") | "ready" | "error".',
+            '"pending" | a pipeline stage (e.g. "sandbox", "agent", "pull_request") | "ready" | "error" | "cancelled".',
         ),
     prUrl: z
         .string()

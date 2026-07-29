@@ -109,6 +109,7 @@ describe('AiWritebackRunModel', () => {
             expect(qb.whereNotIn).toHaveBeenCalledWith('status', [
                 'ready',
                 'error',
+                'cancelled',
                 'pending',
             ]);
             // Only touches rows whose last progress predates the threshold.
@@ -148,6 +149,7 @@ describe('AiWritebackRunModel', () => {
             expect(qb.whereNotIn).toHaveBeenCalledWith('status', [
                 'ready',
                 'error',
+                'cancelled',
             ]);
             expect(qb.update).toHaveBeenCalledWith(
                 expect.objectContaining({ status: 'agent' }),
@@ -219,6 +221,80 @@ describe('AiWritebackRunModel', () => {
             const updated = await model.markError('run-1', 'boom');
 
             expect(updated).toBe(false);
+        });
+    });
+
+    describe('markCancelled', () => {
+        it('cancels a non-terminal run and returns true', async () => {
+            const qb = buildQueryBuilder({
+                update: vi.fn().mockResolvedValue(1),
+            });
+            const { model } = buildModel(qb);
+
+            const cancelled = await model.markCancelled('run-1');
+
+            expect(cancelled).toBe(true);
+            expect(qb.where).toHaveBeenCalledWith(
+                'ai_writeback_run_uuid',
+                'run-1',
+            );
+            // Guarded so a finished run can never be flipped to cancelled,
+            // and a finalizing run (git side effects underway) never loses
+            // its push/PR to a late cancel
+            expect(qb.whereNotIn).toHaveBeenCalledWith('status', [
+                'ready',
+                'error',
+                'cancelled',
+                'commit',
+                'push',
+                'pull_request',
+            ]);
+            expect(qb.update).toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'cancelled' }),
+            );
+        });
+
+        it('returns false when the run is already terminal', async () => {
+            const qb = buildQueryBuilder({
+                update: vi.fn().mockResolvedValue(0),
+            });
+            const { model } = buildModel(qb);
+
+            const cancelled = await model.markCancelled('run-1');
+
+            expect(cancelled).toBe(false);
+        });
+    });
+
+    describe('claimForFinalize', () => {
+        it('moves a still-running row into the commit stage and returns true', async () => {
+            const qb = buildQueryBuilder({
+                update: vi.fn().mockResolvedValue(1),
+            });
+            const { model } = buildModel(qb);
+
+            const claimed = await model.claimForFinalize('run-1');
+
+            expect(claimed).toBe(true);
+            expect(qb.whereNotIn).toHaveBeenCalledWith('status', [
+                'ready',
+                'error',
+                'cancelled',
+            ]);
+            expect(qb.update).toHaveBeenCalledWith(
+                expect.objectContaining({ status: 'commit' }),
+            );
+        });
+
+        it('returns false when the run went terminal first', async () => {
+            const qb = buildQueryBuilder({
+                update: vi.fn().mockResolvedValue(0),
+            });
+            const { model } = buildModel(qb);
+
+            const claimed = await model.claimForFinalize('run-1');
+
+            expect(claimed).toBe(false);
         });
     });
 

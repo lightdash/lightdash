@@ -53,6 +53,7 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
             return {
                 server: {
                     registerCapabilities: vi.fn(),
+                    setRequestHandler: vi.fn(),
                 },
                 registerResource: vi.fn(),
                 registerPrompt: vi.fn(
