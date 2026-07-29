@@ -1,4 +1,5 @@
 import {
+    type AiDeepResearchTerminalStatus,
     type CustomFormatType,
     type HomepageRecommendedActionKey,
     type SearchItemType,
@@ -520,6 +521,21 @@ type AiAgentChatMinimizedEvent = {
     };
 };
 
+type AiDeepResearchReportEngagedEvent = {
+    name: EventName.AI_DEEP_RESEARCH_REPORT_ENGAGED;
+    properties: {
+        action: 'opened' | 'copied' | 'shared' | 'follow_up';
+        organizationId: string;
+        projectId: string;
+        userId: string;
+        runUuid: string;
+        threadId: string;
+        aiAgentId: string;
+        runStatus: AiDeepResearchTerminalStatus;
+        timeSinceCompletedMs: number;
+    };
+};
+
 type AiAgentSuggestionImpressionEvent = {
     name: EventName.AI_AGENT_SUGGESTION_IMPRESSION;
     properties: {
@@ -802,6 +818,7 @@ export type EventData =
     | AiAgentChartExploredEvent
     | AiAgentAskClickedEvent
     | AiAgentChatMinimizedEvent
+    | AiDeepResearchReportEngagedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | ThemeToggledEvent

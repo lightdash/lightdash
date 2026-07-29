@@ -6,17 +6,20 @@ import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { DeepResearchRunCard } from './DeepResearchRunCard';
 
 const cancelRun = vi.fn();
+const trackReportEngagement = vi.fn();
 
 vi.mock('../../hooks/useDeepResearch', () => ({
     useCancelDeepResearchMutation: () => ({
         mutate: cancelRun,
         isLoading: false,
     }),
+    useTrackDeepResearchReportEngagement: () => trackReportEngagement,
 }));
 
 describe('DeepResearchRunCard', () => {
     beforeEach(() => {
         cancelRun.mockClear();
+        trackReportEngagement.mockClear();
     });
 
     afterEach(() => {
@@ -155,6 +158,30 @@ describe('DeepResearchRunCard', () => {
         expect(
             screen.getByRole('button', { name: 'Open full report' }),
         ).toBeInTheDocument();
+    });
+
+    it('tracks explicitly opening the full report', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <DeepResearchRunCard
+                run={deepResearchRunFixture}
+                projectUuid="project-1"
+            />,
+        );
+
+        await user.click(
+            screen.getByRole('button', { name: 'Open full report' }),
+        );
+
+        expect(trackReportEngagement).toHaveBeenCalledWith('opened', {
+            aiDeepResearchRunUuid: deepResearchRunFixture.uuid,
+            projectUuid: deepResearchRunFixture.projectUuid,
+            agentUuid: deepResearchRunFixture.agentUuid,
+            aiThreadUuid: deepResearchRunFixture.threadUuid,
+            status: deepResearchRunFixture.status,
+            completedAt: deepResearchRunFixture.completedAt,
+            updatedAt: deepResearchRunFixture.updatedAt,
+        });
     });
 
     it('renders the executive answer as Markdown', () => {

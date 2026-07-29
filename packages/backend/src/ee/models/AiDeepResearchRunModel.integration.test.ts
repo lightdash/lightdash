@@ -18,6 +18,7 @@ import {
     type AiAgentTable,
 } from '../database/entities/aiAgent';
 import {
+    AiDeepResearchAnalyticsOutboxTableName,
     AiDeepResearchEventsTableName,
     AiDeepResearchRunsTableName,
     type DbAiDeepResearchRun,
@@ -162,7 +163,12 @@ describe('AiDeepResearchRunModel integration', () => {
         runUuids.clear();
     });
 
-    const createRun = async (): Promise<DbAiDeepResearchRun> => {
+    const createRun = async (
+        dimensions: {
+            entryPoint?: 'homepage' | 'ask_ai';
+            effort?: 'low' | 'medium' | 'high' | 'xhigh';
+        } = {},
+    ): Promise<DbAiDeepResearchRun> => {
         const run = await model.create({
             organizationUuid: SEED_ORG_1.organization_uuid,
             projectUuid: SEED_PROJECT.project_uuid,
@@ -173,6 +179,8 @@ describe('AiDeepResearchRunModel integration', () => {
             toolCallId: null,
             prompt: `Integration race ${crypto.randomUUID()}`,
             selectedMcpServerUuids: [],
+            entryPoint: dimensions.entryPoint ?? 'ask_ai',
+            effort: dimensions.effort ?? 'medium',
             budget,
             executionContextSnapshot: {
                 ...executionContextSnapshot,
@@ -185,6 +193,12 @@ describe('AiDeepResearchRunModel integration', () => {
         runUuids.add(run.ai_deep_research_run_uuid);
         return run;
     };
+
+    const getAnalyticsOutbox = async (runUuid: string) =>
+        database(AiDeepResearchAnalyticsOutboxTableName)
+            .select('event_type', 'terminal_reason')
+            .where('ai_deep_research_run_uuid', runUuid)
+            .orderBy('created_at', 'asc');
 
     const getEventSequence = async (runUuid: string): Promise<string[]> => {
         const events = await database(AiDeepResearchEventsTableName)
@@ -215,6 +229,37 @@ describe('AiDeepResearchRunModel integration', () => {
             'status_changed:queued',
             'status_changed:running',
         ]);
+    });
+
+    it('round-trips persisted analytics dimensions', async () => {
+        const run = await createRun({
+            entryPoint: 'homepage',
+            effort: 'high',
+        });
+
+        expect(run).toMatchObject({
+            entry_point: 'homepage',
+            effort: 'high',
+        });
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({
+            entry_point: 'homepage',
+            effort: 'high',
+        });
+    });
+
+    it('records one accepted-run outbox event across retries', async () => {
+        const run = await createRun();
+
+        await Promise.all([
+            model.recordRunAccepted(run.ai_deep_research_run_uuid),
+            model.recordRunAccepted(run.ai_deep_research_run_uuid),
+        ]);
+
+        expect(await getAnalyticsOutbox(run.ai_deep_research_run_uuid)).toEqual(
+            [{ event_type: 'run_started', terminal_reason: null }],
+        );
     });
 
     it('does not replay the cursor event when Postgres stores microseconds', async () => {
@@ -290,6 +335,17 @@ describe('AiDeepResearchRunModel integration', () => {
             run.ai_deep_research_run_uuid,
         );
         expect(['completed', 'cancelled']).toContain(terminalRun?.status);
+        expect(await getAnalyticsOutbox(run.ai_deep_research_run_uuid)).toEqual(
+            [
+                {
+                    event_type: 'run_completed',
+                    terminal_reason:
+                        terminalRun?.status === 'completed'
+                            ? null
+                            : 'user_cancellation',
+                },
+            ],
+        );
         expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual(
             terminalRun?.status === 'completed'
                 ? [
@@ -325,5 +381,13 @@ describe('AiDeepResearchRunModel integration', () => {
             'status_changed:running',
             'status_changed:failed',
         ]);
+        expect(await getAnalyticsOutbox(run.ai_deep_research_run_uuid)).toEqual(
+            [
+                {
+                    event_type: 'run_completed',
+                    terminal_reason: 'internal_error',
+                },
+            ],
+        );
     });
 });

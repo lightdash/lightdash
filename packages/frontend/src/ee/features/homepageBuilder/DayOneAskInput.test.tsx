@@ -16,6 +16,7 @@ const {
     agents,
     createAgentThread,
     deepResearchEnabled,
+    deepResearchHookArgs,
     navigate,
     startDeepResearch,
 } = vi.hoisted(() => ({
@@ -32,6 +33,11 @@ const {
     },
     createAgentThread: vi.fn(),
     deepResearchEnabled: { current: true },
+    deepResearchHookArgs: {
+        current: undefined as
+            | [projectUuid: string, entryPoint: string]
+            | undefined,
+    },
     navigate: vi.fn(),
     startDeepResearch: vi.fn(),
 }));
@@ -92,9 +98,15 @@ vi.mock('../aiCopilot/hooks/useAiAgentSqlModeAvailable', () => ({
 }));
 
 vi.mock('../aiCopilot/hooks/useDeepResearch', () => ({
-    useStartDeepResearchForThreadMutation: () => ({
-        mutateAsync: startDeepResearch,
-    }),
+    useStartDeepResearchForThreadMutation: (
+        projectUuid: string,
+        entryPoint: string,
+    ) => {
+        deepResearchHookArgs.current = [projectUuid, entryPoint];
+        return {
+            mutateAsync: startDeepResearch,
+        };
+    },
 }));
 
 vi.mock('../aiCopilot/hooks/useProjectAiAgents', () => ({
@@ -156,6 +168,7 @@ describe('DayOneAskInput', () => {
             firstMessage: { uuid: 'prompt-1' },
         });
         deepResearchEnabled.current = true;
+        deepResearchHookArgs.current = undefined;
         startDeepResearch.mockReset();
         startDeepResearch.mockResolvedValue(undefined);
     });
@@ -164,6 +177,7 @@ describe('DayOneAskInput', () => {
         renderInput();
 
         expect(agentChatInputProps.current?.agentUuid).toBe('agent-1');
+        expect(deepResearchHookArgs.current).toEqual(['project-1', 'homepage']);
         expect(agentChatInputProps.current?.onStartDeepResearch).toBeDefined();
 
         await act(async () => {

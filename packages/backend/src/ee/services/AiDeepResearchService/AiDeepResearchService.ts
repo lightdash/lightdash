@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AiResultType,
     buildInlineChartFields,
     buildInlineChartMetricQuery,
@@ -24,6 +25,7 @@ import {
     type AiDeepResearchChartSnapshot,
     type AiDeepResearchChartSnapshotValue,
     type AiDeepResearchEffort,
+    type AiDeepResearchEntryPoint,
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventsPage,
@@ -32,12 +34,15 @@ import {
     type AiDeepResearchJobPayload,
     type AiDeepResearchProgress,
     type AiDeepResearchRun,
+    type AiDeepResearchTerminalReason,
+    type AiDeepResearchTerminalStatus,
     type AiDeepResearchWarehouseChart,
     type ApiAiAgentThreadMessageVizQuery,
     type SessionUser,
 } from '@lightdash/common';
 import { createInterface } from 'readline';
 import { validate as isValidUuid } from 'uuid';
+import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -45,6 +50,7 @@ import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryH
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import {
+    type DbAiDeepResearchAnalyticsOutbox,
     type DbAiDeepResearchEvent,
     type DbAiDeepResearchRun,
 } from '../../database/entities/aiDeepResearch';
@@ -55,6 +61,7 @@ import {
 } from '../../models/AiDeepResearchRunModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import { isDeepResearchWarehouseTool } from './toolClassification';
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
@@ -67,7 +74,6 @@ const OMITTED_CHARTS_CAVEAT =
     'Some proposed charts were omitted because their query evidence could not be verified.';
 const OMITTED_CHART_REF_REPLACEMENT =
     '*(chart omitted: its query evidence could not be verified)*';
-
 const isChartConfigCompatible = (
     chart: AiDeepResearchWarehouseChart,
     metricQuery: {
@@ -153,14 +159,23 @@ export type AiDeepResearchExecutorResult =
           status: 'completed';
           report: AiDeepResearchSubmittedReport;
           warehouseQueryUuids: string[];
+          terminalReason: null;
       }
     | {
           status: 'partially_completed';
           report: AiDeepResearchSubmittedReport;
           warehouseQueryUuids: string[];
+          terminalReason: AiDeepResearchTerminalReason;
       }
-    | { status: 'failed'; errorMessage: string }
-    | { status: 'cancelled' };
+    | {
+          status: 'failed';
+          errorMessage: string;
+          terminalReason: AiDeepResearchTerminalReason;
+      }
+    | {
+          status: 'cancelled';
+          terminalReason: AiDeepResearchTerminalReason;
+      };
 
 export type AiDeepResearchExecutor = (
     run: DbAiDeepResearchRun,
@@ -168,6 +183,7 @@ export type AiDeepResearchExecutor = (
 ) => Promise<AiDeepResearchExecutorResult>;
 
 type Dependencies = {
+    analytics: LightdashAnalytics;
     aiDeepResearchRunModel: AiDeepResearchRunModel;
     aiAgentModel: Pick<
         AiAgentModel,
@@ -203,6 +219,8 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     aiThreadUuid: row.ai_thread_uuid,
     promptUuid: row.prompt_uuid,
     mcpServerUuids: row.selected_mcp_server_uuids,
+    entryPoint: row.entry_point,
+    effort: row.effort,
     prompt: row.prompt,
     status: row.status,
     resultMarkdown: row.result_markdown,
@@ -359,6 +377,8 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
 };
 
 export class AiDeepResearchService extends BaseService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly aiDeepResearchRunModel: AiDeepResearchRunModel;
 
     private readonly aiAgentModel: Dependencies['aiAgentModel'];
@@ -389,6 +409,7 @@ export class AiDeepResearchService extends BaseService {
     private readonly executor: AiDeepResearchExecutor | undefined;
 
     constructor({
+        analytics,
         aiDeepResearchRunModel,
         aiAgentModel,
         aiAgentService,
@@ -401,6 +422,7 @@ export class AiDeepResearchService extends BaseService {
         executor,
     }: Dependencies) {
         super();
+        this.analytics = analytics;
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
         this.aiAgentModel = aiAgentModel;
         this.aiAgentService = aiAgentService;
@@ -411,6 +433,126 @@ export class AiDeepResearchService extends BaseService {
         this.queryHistoryModel = queryHistoryModel;
         this.resultsFileStorageClient = resultsFileStorageClient;
         this.executor = executor;
+    }
+
+    private getAnalyticsDimensions(run: DbAiDeepResearchRun) {
+        return {
+            organizationId: run.organization_uuid,
+            projectId: run.project_uuid,
+            runUuid: run.ai_deep_research_run_uuid,
+            threadId: run.ai_thread_uuid,
+            aiAgentId: run.agent_uuid,
+            entryPoint: run.entry_point,
+            effort: run.effort,
+            provider: run.execution_context_snapshot.model.provider,
+            model: run.execution_context_snapshot.model.modelName,
+            keyManagement: run.execution_context_snapshot.model.keyManagement,
+            selectedMcpServerCount: run.selected_mcp_server_uuids.length,
+        };
+    }
+
+    private trackRunStarted(
+        run: DbAiDeepResearchRun,
+        event: DbAiDeepResearchAnalyticsOutbox,
+    ): void {
+        this.analytics.track({
+            messageId: event.ai_deep_research_analytics_event_uuid,
+            event: 'ai_deep_research.run_started',
+            userId: run.created_by_user_uuid,
+            properties: this.getAnalyticsDimensions(run),
+        });
+    }
+
+    private async trackRunCompleted(args: {
+        run: DbAiDeepResearchRun;
+        event: DbAiDeepResearchAnalyticsOutbox;
+    }): Promise<boolean> {
+        if (!isAiDeepResearchRunTerminal(args.run.status)) {
+            return false;
+        }
+        const [prompt, provenance] = await Promise.all([
+            this.aiAgentModel.findWebAppPrompt(args.run.prompt_uuid),
+            this.aiAgentModel.getToolCallsAndResultsForPrompt(
+                args.run.prompt_uuid,
+            ),
+        ]);
+        const toolCalls = provenance.filter(
+            ({ toolCall }) =>
+                toolCall.toolName !== AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+        );
+        const promptWithTokenUsage = prompt as
+            | (typeof prompt & {
+                  tokenUsage?: { totalTokens: number } | null;
+              })
+            | undefined;
+
+        this.analytics.track({
+            messageId: args.event.ai_deep_research_analytics_event_uuid,
+            event: 'ai_deep_research.run_completed',
+            userId: args.run.created_by_user_uuid,
+            properties: {
+                ...this.getAnalyticsDimensions(args.run),
+                status: args.run.status,
+                terminalReason: args.event.terminal_reason,
+                durationMs: Math.max(
+                    0,
+                    (args.run.completed_at ?? args.run.updated_at).getTime() -
+                        (args.run.started_at ?? args.run.created_at).getTime(),
+                ),
+                totalTokens: promptWithTokenUsage?.tokenUsage?.totalTokens ?? 0,
+                toolCallCount: toolCalls.length,
+                warehouseQueryCount: toolCalls.filter(({ toolCall }) =>
+                    isDeepResearchWarehouseTool(toolCall.toolName),
+                ).length,
+                mcpToolCallCount: toolCalls.filter(
+                    ({ toolCall }) => toolCall.toolType === 'mcp',
+                ).length,
+                hasReport: args.run.result_markdown !== null,
+                chartCount: args.run.result_chart_data
+                    ? Object.keys(args.run.result_chart_data).length
+                    : 0,
+            },
+        });
+        return true;
+    }
+
+    private async dispatchPendingLifecycleAnalytics(
+        aiDeepResearchRunUuid?: string,
+    ): Promise<void> {
+        const events =
+            await this.aiDeepResearchRunModel.listPendingAnalyticsEvents({
+                aiDeepResearchRunUuid,
+            });
+        await Promise.all(
+            events.map(async (event) => {
+                try {
+                    const run = await this.aiDeepResearchRunModel.findByUuid(
+                        event.ai_deep_research_run_uuid,
+                    );
+                    if (!run) {
+                        return;
+                    }
+                    let delivered = true;
+                    if (event.event_type === 'run_started') {
+                        this.trackRunStarted(run, event);
+                    } else {
+                        delivered = await this.trackRunCompleted({
+                            run,
+                            event,
+                        });
+                    }
+                    if (delivered) {
+                        await this.aiDeepResearchRunModel.markAnalyticsEventDelivered(
+                            event.ai_deep_research_analytics_event_uuid,
+                        );
+                    }
+                } catch (error) {
+                    this.logger.warn(
+                        `Could not deliver ${event.event_type} analytics for Deep Research run ${event.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
+                    );
+                }
+            }),
+        );
     }
 
     private async assertCanCreateRun(
@@ -480,6 +622,9 @@ export class AiDeepResearchService extends BaseService {
             projectUuid: run.project_uuid,
             userUuid: run.created_by_user_uuid,
         });
+        await this.aiDeepResearchRunModel.recordRunAccepted(
+            run.ai_deep_research_run_uuid,
+        );
     }
 
     async createRun(args: {
@@ -492,6 +637,7 @@ export class AiDeepResearchService extends BaseService {
         aiThreadUuid: string;
         promptUuid: string;
         mcpServerUuids: string[];
+        entryPoint: AiDeepResearchEntryPoint;
         toolCallId?: string;
     }): Promise<AiDeepResearchRun> {
         if (!isUserWithOrg(args.user)) {
@@ -505,11 +651,9 @@ export class AiDeepResearchService extends BaseService {
         if (args.prompt.trim().length === 0) {
             throw new ParameterError('Deep Research prompt is required');
         }
+        const effort = args.effort ?? AI_DEEP_RESEARCH_DEFAULT_EFFORT;
         const budget =
-            args.budget ??
-            AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT[
-                args.effort ?? AI_DEEP_RESEARCH_DEFAULT_EFFORT
-            ];
+            args.budget ?? AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT[effort];
         assertValidBudget(budget);
 
         await this.assertCanCreateRun(args.user, args.projectUuid);
@@ -563,6 +707,9 @@ export class AiDeepResearchService extends BaseService {
             if (existingRun.status === 'queued') {
                 await this.enqueueRun(existingRun);
             }
+            await this.dispatchPendingLifecycleAnalytics(
+                existingRun.ai_deep_research_run_uuid,
+            );
             return toRun(existingRun);
         }
 
@@ -604,6 +751,8 @@ export class AiDeepResearchService extends BaseService {
                 toolCallId: args.toolCallId ?? null,
                 prompt: prompt.prompt.trim(),
                 selectedMcpServerUuids: mcpServerUuids,
+                entryPoint: args.entryPoint,
+                effort,
                 budget,
                 executionContextSnapshot,
             });
@@ -620,6 +769,9 @@ export class AiDeepResearchService extends BaseService {
                 if (concurrentRun.status === 'queued') {
                     await this.enqueueRun(concurrentRun);
                 }
+                await this.dispatchPendingLifecycleAnalytics(
+                    concurrentRun.ai_deep_research_run_uuid,
+                );
                 return toRun(concurrentRun);
             }
             throw error;
@@ -634,6 +786,7 @@ export class AiDeepResearchService extends BaseService {
             await this.aiDeepResearchRunModel.markFailed(
                 run.ai_deep_research_run_uuid,
                 FAILED_RUN_ERROR_MESSAGE,
+                'internal_error',
             );
             await this.aiDeepResearchRunModel.deleteUnstartedFailedRun(
                 run.ai_deep_research_run_uuid,
@@ -641,6 +794,9 @@ export class AiDeepResearchService extends BaseService {
             throw error;
         }
 
+        await this.dispatchPendingLifecycleAnalytics(
+            run.ai_deep_research_run_uuid,
+        );
         return toRun(run);
     }
 
@@ -805,6 +961,7 @@ export class AiDeepResearchService extends BaseService {
                 `Deep Research run ${aiDeepResearchRunUuid} not found`,
             );
         }
+        await this.dispatchPendingLifecycleAnalytics(aiDeepResearchRunUuid);
         return {
             ...toRun({
                 ...run,
@@ -819,20 +976,33 @@ export class AiDeepResearchService extends BaseService {
         payload: AiDeepResearchJobPayload,
         signal: AbortSignal = new AbortController().signal,
     ): Promise<void> {
+        await this.aiDeepResearchRunModel.recordRunAccepted(
+            payload.aiDeepResearchRunUuid,
+        );
         const run = await this.aiDeepResearchRunModel.claimQueuedRun(
             payload.aiDeepResearchRunUuid,
         );
         if (!run) {
+            await this.dispatchPendingLifecycleAnalytics(
+                payload.aiDeepResearchRunUuid,
+            );
             this.logger.info(
                 `Deep Research run ${payload.aiDeepResearchRunUuid} was already claimed or is terminal`,
             );
             return;
         }
+        await this.dispatchPendingLifecycleAnalytics(
+            payload.aiDeepResearchRunUuid,
+        );
 
         if (!this.executor) {
             await this.aiDeepResearchRunModel.markFailed(
                 payload.aiDeepResearchRunUuid,
                 'Deep Research executor is not configured',
+                'internal_error',
+            );
+            await this.dispatchPendingLifecycleAnalytics(
+                payload.aiDeepResearchRunUuid,
             );
             throw new Error('Deep Research executor is not configured');
         }
@@ -855,6 +1025,10 @@ export class AiDeepResearchService extends BaseService {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
                     );
+                } else {
+                    await this.dispatchPendingLifecycleAnalytics(
+                        payload.aiDeepResearchRunUuid,
+                    );
                 }
                 return;
             }
@@ -869,9 +1043,14 @@ export class AiDeepResearchService extends BaseService {
                         payload.aiDeepResearchRunUuid,
                         report.markdown,
                         report.chartData,
+                        result.terminalReason,
                     );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
+                        payload.aiDeepResearchRunUuid,
+                    );
+                } else {
+                    await this.dispatchPendingLifecycleAnalytics(
                         payload.aiDeepResearchRunUuid,
                     );
                 }
@@ -884,17 +1063,30 @@ export class AiDeepResearchService extends BaseService {
                 await this.aiDeepResearchRunModel.markFailed(
                     payload.aiDeepResearchRunUuid,
                     FAILED_RUN_ERROR_MESSAGE,
+                    result.terminalReason,
+                );
+                await this.dispatchPendingLifecycleAnalytics(
+                    payload.aiDeepResearchRunUuid,
                 );
                 return;
             }
 
             const cancelled = await this.aiDeepResearchRunModel.markCancelled(
                 payload.aiDeepResearchRunUuid,
+                result.terminalReason,
             );
-            if (!cancelled) {
+            if (cancelled) {
+                await this.dispatchPendingLifecycleAnalytics(
+                    payload.aiDeepResearchRunUuid,
+                );
+            } else {
                 await this.aiDeepResearchRunModel.markFailed(
                     payload.aiDeepResearchRunUuid,
                     'Deep Research stopped without a cancellation request',
+                    'internal_error',
+                );
+                await this.dispatchPendingLifecycleAnalytics(
+                    payload.aiDeepResearchRunUuid,
                 );
             }
         } catch (error) {
@@ -904,6 +1096,10 @@ export class AiDeepResearchService extends BaseService {
             await this.aiDeepResearchRunModel.markFailed(
                 payload.aiDeepResearchRunUuid,
                 FAILED_RUN_ERROR_MESSAGE,
+                'internal_error',
+            );
+            await this.dispatchPendingLifecycleAnalytics(
+                payload.aiDeepResearchRunUuid,
             );
             throw error;
         }
@@ -1084,9 +1280,14 @@ export class AiDeepResearchService extends BaseService {
             !isAiDeepResearchRunTerminal(run.status) &&
             run.cancellation_requested_at
         ) {
-            await this.aiDeepResearchRunModel.markCancelled(
+            const cancelled = await this.aiDeepResearchRunModel.markCancelled(
                 aiDeepResearchRunUuid,
             );
+            if (cancelled) {
+                await this.dispatchPendingLifecycleAnalytics(
+                    aiDeepResearchRunUuid,
+                );
+            }
         }
     }
 
@@ -1114,6 +1315,7 @@ export class AiDeepResearchService extends BaseService {
                 `Swept ${runs.length} stale Deep Research run(s) after ${STALE_RUN_THRESHOLD_MINUTES} minutes`,
             );
         }
+        await this.dispatchPendingLifecycleAnalytics();
         return runs.length;
     }
 }

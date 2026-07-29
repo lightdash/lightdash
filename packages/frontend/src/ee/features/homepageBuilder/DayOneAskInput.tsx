@@ -148,7 +148,7 @@ const DayOneAskInputInner: FC<Props> = ({
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid ?? '');
     const { mutateAsync: startDeepResearch } =
-        useStartDeepResearchForThreadMutation(projectUuid ?? '');
+        useStartDeepResearchForThreadMutation(projectUuid ?? '', 'homepage');
     const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
 
     const showAutoOption = (agents?.length ?? 0) > 1 && routerEnabled === true;

@@ -24,6 +24,23 @@ export const AI_DEEP_RESEARCH_TERMINAL_STATUSES = [
 export type AiDeepResearchTerminalStatus =
     (typeof AI_DEEP_RESEARCH_TERMINAL_STATUSES)[number];
 
+export const AI_DEEP_RESEARCH_ENTRY_POINTS = ['homepage', 'ask_ai'] as const;
+
+export type AiDeepResearchEntryPoint =
+    (typeof AI_DEEP_RESEARCH_ENTRY_POINTS)[number];
+
+export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
+    'user_cancellation',
+    'permission_revoked',
+    'tool_limit',
+    'query_limit',
+    'provider_error',
+    'internal_error',
+] as const;
+
+export type AiDeepResearchTerminalReason =
+    (typeof AI_DEEP_RESEARCH_TERMINAL_REASONS)[number];
+
 export const isAiDeepResearchRunTerminal = (
     status: AiDeepResearchRunStatus,
 ): status is AiDeepResearchTerminalStatus =>
@@ -115,6 +132,8 @@ export type AiDeepResearchRequestBody = {
     promptUuid: string;
     /** Agent-attached MCP servers enabled for this run. */
     mcpServerUuids: string[];
+    /** Product surface that accepted the run. */
+    entryPoint: AiDeepResearchEntryPoint;
 };
 
 export const AI_DEEP_RESEARCH_CONFIDENCE_LEVELS = [
@@ -265,6 +284,8 @@ export type AiDeepResearchRun = {
     aiThreadUuid: string;
     promptUuid: string;
     mcpServerUuids: string[];
+    entryPoint: AiDeepResearchEntryPoint;
+    effort: AiDeepResearchEffort;
     prompt: string;
     status: AiDeepResearchRunStatus;
     /** The report narrative with compact <chart> references. */

@@ -187,7 +187,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getSlackAuthenticationModel(),
                     lightdashConfig: context.lightdashConfig,
                 }),
-            aiDeepResearchService: ({ models, clients, repository }) => {
+            aiDeepResearchService: ({
+                context,
+                models,
+                clients,
+                repository,
+            }) => {
                 const aiDeepResearchRunModel =
                     models.getAiDeepResearchRunModel<AiDeepResearchRunModel>();
                 const executor = new AiDeepResearchExecutor({
@@ -199,6 +204,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 });
 
                 return new AiDeepResearchService({
+                    analytics: context.lightdashAnalytics,
                     aiDeepResearchRunModel,
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     aiAgentService:
