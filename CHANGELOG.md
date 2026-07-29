@@ -1,3 +1,15 @@
+# [1.38.0](https://github.com/lightdash/lightdash/compare/1.37.0...1.38.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **analytics:** actually deliver the flag-check flush on shutdown ([#26384](https://github.com/lightdash/lightdash/issues/26384)) ([9f7553b](https://github.com/lightdash/lightdash/commit/9f7553bca1016a8767e1a22cb96467d6ea45abd5))
+
+
+### Features
+
+* **mcp:** support the MCP Tasks extension for AI writeback runs ([#26487](https://github.com/lightdash/lightdash/issues/26487)) ([0601984](https://github.com/lightdash/lightdash/commit/0601984acb2a2f7cb65848ffc949a94cd6913882))
+
 # [1.37.0](https://github.com/lightdash/lightdash/compare/1.36.0...1.37.0) (2026-07-29)
 
 

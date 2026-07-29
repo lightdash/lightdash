@@ -29284,6 +29284,7 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'enum', enums: ['ready'] },
                         { dataType: 'enum', enums: ['error'] },
+                        { dataType: 'enum', enums: ['cancelled'] },
                     ],
                 },
             ],
