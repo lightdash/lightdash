@@ -8,7 +8,6 @@ import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import {
     IconArrowUp,
     IconPlayerStop,
-    IconTelescope,
     IconTerminal2,
 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
@@ -430,7 +429,6 @@ export const AgentChatInput = ({
         onStartDeepResearch && !isEmbedAiAgentRoute(),
     );
     const {
-        isPreflightReady: isDeepResearchPreflightReady,
         isStarting: isStartingDeepResearch,
         isLoadingMcpServers,
         mcpServerError,
@@ -561,7 +559,6 @@ export const AgentChatInput = ({
         />
     ) : null;
     const chipRow = useMemo(() => {
-        if (composerMode === 'deep_research') return null;
         if (!emptyStateMode && !postResponseMode) return null;
         if (suggestionsQuery.isError) return null;
         const chips = suggestionsQuery.data?.chips ?? [];
@@ -583,10 +580,8 @@ export const AgentChatInput = ({
         handleChipClick,
         handleImpression,
         isThreadInput,
-        composerMode,
     ]);
     const shouldReserveEmptyStateSuggestions =
-        composerMode !== 'deep_research' &&
         !isThreadInput &&
         emptyStateMode &&
         !chipRow &&
@@ -674,15 +669,14 @@ export const AgentChatInput = ({
         const isDeepResearch = composerMode === 'deep_research';
         return (
             <ComposerSubmitButton
-                icon={isDeepResearch ? IconTelescope : IconArrowUp}
+                icon={IconArrowUp}
                 label={isDeepResearch ? 'Start research' : 'Send message'}
                 size={size}
-                accent={isDeepResearch ? 'indigo' : 'none'}
                 disabled={
                     disabled ||
                     !hasValue ||
-                    (isDeepResearch &&
-                        (loading || !isDeepResearchPreflightReady))
+                    loading ||
+                    (isDeepResearch && isStartingDeepResearch)
                 }
                 loading={isDeepResearch ? isStartingDeepResearch : loading}
                 onClick={handleSubmit}
@@ -691,10 +685,6 @@ export const AgentChatInput = ({
     };
 
     const composerCommonProps = {
-        accent:
-            composerMode === 'deep_research'
-                ? ('indigo' as const)
-                : ('none' as const),
         placeholder,
         defaultValue,
         autoFocus: true,

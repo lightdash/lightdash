@@ -2,10 +2,9 @@ import {
     Box,
     Button,
     Divider,
+    Group,
     Popover,
-    SegmentedControl,
-    Text,
-    type PopoverProps,
+    ScrollArea,
 } from '@mantine-8/core';
 import { IconChevronDown, IconTelescope } from '@tabler/icons-react';
 import { useState, type ReactNode } from 'react';
@@ -17,14 +16,12 @@ type Props = {
     mode: AgentComposerMode;
     onModeChange: (mode: AgentComposerMode) => void;
     settings: ReactNode;
-    position?: PopoverProps['position'];
 };
 
 export const DeepResearchModeControl = ({
     mode,
     onModeChange,
     settings,
-    position = 'top-end',
 }: Props) => {
     const isDeepResearch = mode === 'deep_research';
     const [isOpen, setIsOpen] = useState(false);
@@ -36,12 +33,9 @@ export const DeepResearchModeControl = ({
         setIsOpen((current) => !current);
     };
 
-    const handleModeChange = (value: string) => {
-        const nextMode = value as AgentComposerMode;
-        onModeChange(nextMode);
-        if (nextMode === 'ask') {
-            setIsOpen(false);
-        }
+    const handleDisable = () => {
+        onModeChange('ask');
+        setIsOpen(false);
     };
 
     return (
@@ -49,8 +43,8 @@ export const DeepResearchModeControl = ({
             opened={isOpen}
             onChange={setIsOpen}
             shadow="md"
-            width={480}
-            position={position}
+            width={280}
+            position="top-end"
             offset={8}
             withinPortal
             hideDetached={false}
@@ -85,27 +79,22 @@ export const DeepResearchModeControl = ({
             </Popover.Target>
 
             <Popover.Dropdown p={0}>
+                <ScrollArea.Autosize mah={420} type="auto">
+                    {settings}
+                </ScrollArea.Autosize>
+                <Divider mx="sm" />
                 <Box p="sm">
-                    <Text size="xs" fw={600} c="dimmed" mb={6}>
-                        Mode
-                    </Text>
-                    <SegmentedControl
-                        fullWidth
-                        size="xs"
-                        value={mode}
-                        onChange={handleModeChange}
-                        data={[
-                            { value: 'ask', label: 'Ask' },
-                            {
-                                value: 'deep_research',
-                                label: 'Deep research',
-                            },
-                        ]}
-                        aria-label="Research mode"
-                    />
+                    <Group justify="flex-end">
+                        <Button
+                            size="compact-xs"
+                            variant="subtle"
+                            color="gray"
+                            onClick={handleDisable}
+                        >
+                            Disable
+                        </Button>
+                    </Group>
                 </Box>
-                <Divider />
-                {settings}
             </Popover.Dropdown>
         </Popover>
     );

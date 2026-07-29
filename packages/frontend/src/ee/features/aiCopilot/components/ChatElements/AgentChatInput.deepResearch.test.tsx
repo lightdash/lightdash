@@ -61,7 +61,28 @@ describe('AgentChatInput Deep research mode', () => {
             </Provider>,
         );
 
-        await user.click(screen.getByRole('button', { name: 'Deep research' }));
+        const modeButton = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        const composer = modeButton.closest<HTMLElement>('[data-variant]');
+        expect(composer).not.toBeNull();
+        if (!composer) {
+            throw new Error('Expected Deep research control inside composer');
+        }
+
+        const getStableComposerMarkup = () => {
+            const clone = composer.cloneNode(true) as HTMLElement;
+            clone.querySelector('[aria-label="Deep research"]')?.remove();
+            clone
+                .querySelector(
+                    '[aria-label="Send message"], [aria-label="Start research"]',
+                )
+                ?.setAttribute('aria-label', 'Submit');
+            return clone.innerHTML;
+        };
+        const composerMarkupBefore = getStableComposerMarkup();
+
+        await user.click(modeButton);
 
         expect(
             await screen.findByRole('region', {
@@ -70,11 +91,12 @@ describe('AgentChatInput Deep research mode', () => {
         ).toBeInTheDocument();
         expect(screen.queryByText('Beta')).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Send message' }),
-        ).not.toBeInTheDocument();
+            screen.getByRole('button', { name: 'Start research' }),
+        ).toBeInTheDocument();
         expect(
             await screen.findByRole('checkbox', { name: /GitHub/ }),
         ).not.toBeChecked();
+        expect(getStableComposerMarkup()).toBe(composerMarkupBefore);
 
         await user.click(screen.getByText('High'));
         await user.click(

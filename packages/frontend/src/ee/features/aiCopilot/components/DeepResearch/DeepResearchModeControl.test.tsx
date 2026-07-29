@@ -47,7 +47,7 @@ describe('DeepResearchModeControl', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('opens research settings and can switch back to Ask', async () => {
+    it('enables research and opens its configuration sections', async () => {
         const user = userEvent.setup();
         renderWithProviders(<ModeHarness />);
 
@@ -64,18 +64,34 @@ describe('DeepResearchModeControl', () => {
         expect(
             screen.queryByText('Agent context and project data'),
         ).not.toBeInTheDocument();
+        expect(screen.queryByText('Mode')).not.toBeInTheDocument();
         expect(
-            screen.getByText('This agent has no MCP servers available.'),
+            screen.getByRole('button', { name: 'Disable' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Depth')).toBeInTheDocument();
+        expect(screen.getByText('MCP')).toBeInTheDocument();
+        expect(
+            screen.getByText('No MCP sources available.'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Start research' }),
+            screen.queryByText(
+                'Runs in the background. You can safely leave this page.',
+            ),
         ).not.toBeInTheDocument();
-
-        await user.click(screen.getByText('Low'));
+        expect(
+            screen.queryByText(/Choose which of this agent/),
+        ).not.toBeInTheDocument();
+        const lowDepth = screen.getByRole('radio', { name: /^Low / });
+        await user.click(lowDepth);
         expect(screen.queryByText(/Up to \d+ minutes/)).not.toBeInTheDocument();
         expect(screen.getByText('Up to 10 queries')).toBeInTheDocument();
 
-        await user.click(screen.getByText('Ask'));
+        await user.keyboard('{ArrowDown}');
+        const mediumDepth = screen.getByRole('radio', { name: /^Medium / });
+        expect(mediumDepth).toBeChecked();
+        expect(mediumDepth).toHaveFocus();
+
+        await user.click(screen.getByRole('button', { name: 'Disable' }));
         expect(modeButton).toHaveAttribute('aria-pressed', 'false');
         await waitFor(() => {
             expect(
