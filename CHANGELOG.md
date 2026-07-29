@@ -1,3 +1,10 @@
+## [1.29.2](https://github.com/lightdash/lightdash/compare/1.29.1...1.29.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* **ai:** polish deep research composer control ([#26442](https://github.com/lightdash/lightdash/issues/26442)) ([f4ce936](https://github.com/lightdash/lightdash/commit/f4ce936ae2729bd35839e6401e443a4f69b79303))
+
 ## [1.29.1](https://github.com/lightdash/lightdash/compare/1.29.0...1.29.1) (2026-07-29)
 
 
