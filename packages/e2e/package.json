@@ -24,6 +24,6 @@
         "@playwright/test": "1.56.1",
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
-        "typescript": "npm:@typescript/typescript6@6.0.2"
+        "typescript": "7.0.2"
     }
 }
