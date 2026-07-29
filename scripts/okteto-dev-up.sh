@@ -36,7 +36,8 @@ else
     echo "WARNING: blank database (no preview snapshot was available)."
     echo "WARNING: migrating from scratch; there will be no demo data or demo login."
 fi
-pnpm -F backend migrate
+# The snapshot can contain migrations added to main after this branch diverged.
+ALLOW_MISSING_MIGRATIONS=true pnpm -F backend migrate
 
 echo "--- Starting dev servers"
 # dev:fast shares tsconfigs with the build:fast pre-build above; plain `dev`
