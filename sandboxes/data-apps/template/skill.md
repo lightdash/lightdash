@@ -2,7 +2,7 @@
 
 You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
-**Building a single reusable chart rather than an app?** Read `.claude/skills/reusable-visualization/SKILL.md` before writing any code. A reusable visualization runs no query of its own — the host hands it rows, a field mapping, config option values and a colour palette — so the data and filter APIs below do not apply to it. That skill is the contract for those builds and overrides this guide wherever the two differ. Everything else here (environment, components, visual design) still applies.
+**Building a single reusable chart rather than an app?** Use the `reusable-visualization` skill before writing any code. A reusable visualization runs no query of its own — the host hands it rows, a field mapping, config option values and a colour palette — so the data and filter APIs below do not apply to it. That skill is the contract for those builds and overrides this guide wherever the two differ. Everything else here (environment, components, visual design) still applies.
 
 ## Iteration mindset
 
@@ -653,7 +653,7 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 ## Visual Design
 
-**Invoke the `frontend-design` skill before writing any UI code** (auto-loaded from `.claude/skills/frontend-design/`). It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
+**Use the `frontend-design` skill before writing any UI code.** It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
 
 Lightdash-specific constraints that apply on top of `frontend-design`'s direction:
 
