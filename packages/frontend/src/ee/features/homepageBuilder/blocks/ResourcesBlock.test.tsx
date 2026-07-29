@@ -9,8 +9,16 @@ vi.mock('../hooks/useHomepageLinkMetadata', () => ({
     fetchHomepageLinkMetadata: vi.fn(),
 }));
 
+const { thumbnailState } = vi.hoisted(() => ({
+    thumbnailState: {
+        current: { data: null } as {
+            data: { thumbnailUrl: string } | null;
+        },
+    },
+}));
+
 vi.mock('../../../../features/apps/hooks/useAppThumbnail', () => ({
-    useAppThumbnailUrl: vi.fn(() => ({ data: null })),
+    useAppThumbnailUrl: () => thumbnailState.current,
 }));
 
 const mockFetch = vi.mocked(fetchHomepageLinkMetadata);
@@ -84,6 +92,66 @@ describe('ResourcesBlockView', () => {
             'href',
             '/projects/p1/apps/abc-123/view',
         );
+    });
+
+    describe('data app thumbnails', () => {
+        const dataAppItem = {
+            url: '/projects/p1/napp-1',
+            kind: 'data-app' as const,
+            title: 'Orders KPI Snapshot',
+            description: 'Daily orders and revenue',
+            appUuid: 'app-1',
+        };
+
+        afterEach(() => {
+            thumbnailState.current = { data: null };
+        });
+
+        const withThumbnail = (thumbnailUrl: string | undefined) => {
+            thumbnailState.current = {
+                data: thumbnailUrl ? { thumbnailUrl } : null,
+            };
+        };
+
+        it('shows the screenshot when the app has one', () => {
+            withThumbnail('https://example.invalid/shot.png');
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({ layout: 'card', items: [dataAppItem] })}
+                />,
+            );
+            expect(screen.getByRole('img')).toHaveAttribute(
+                'src',
+                'https://example.invalid/shot.png',
+            );
+        });
+
+        it('falls back to an icon rather than an image when there is no screenshot', () => {
+            withThumbnail(undefined);
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({ layout: 'card', items: [dataAppItem] })}
+                />,
+            );
+            expect(screen.queryByRole('img')).not.toBeInTheDocument();
+            expect(screen.getByText('Orders KPI Snapshot')).toBeInTheDocument();
+        });
+
+        it('falls back to an icon in list layout too', () => {
+            withThumbnail(undefined);
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({ layout: 'list', items: [dataAppItem] })}
+                />,
+            );
+            expect(screen.queryByRole('img')).not.toBeInTheDocument();
+        });
     });
 
     it('renders nothing when there are no items', () => {

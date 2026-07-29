@@ -51,9 +51,12 @@ import {
 } from './resourceUrls';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
+// `thumbAccent` is the kind-tinted wash behind a bare favicon: it exists so an
+// external link's kind is legible when there's no image to show. Internal
+// content carries its own icon language and takes no tint — see DataAppCardMedia.
 const KIND_META: Record<
     HomepageResourceKind,
-    { icon: Icon; label: string; thumbAccent: string }
+    { icon: Icon; label: string; thumbAccent?: string }
 > = {
     video: {
         icon: IconVideo,
@@ -72,11 +75,7 @@ const KIND_META: Record<
         label: 'YouTube',
         thumbAccent: classes.resThumbYoutube,
     },
-    'data-app': {
-        icon: IconAppWindow,
-        label: 'Data app',
-        thumbAccent: classes.resThumbDataApp,
-    },
+    'data-app': { icon: IconAppWindow, label: 'Data app' },
 };
 
 // Data apps are added via the picker, not the kind dropdown, so they're
@@ -95,10 +94,12 @@ const isDefaultFavicon = (img: HTMLImageElement) => img.naturalWidth < 32;
 
 // --- Thumbnails -------------------------------------------------------------
 
-// Data app thumbnails are short-lived signed URLs, so they're fetched live
-// from `appUuid` at render time. Missing thumbnail (or no view access) →
-// falls back to the data app glyph on a polished accent background.
-const DataAppCardThumb: FC<{
+// The media slot for a data app card: its screenshot when there is one,
+// otherwise the neutral icon square native content uses (see ContentCard) —
+// never a full-size coloured placeholder. A fallback should be quieter than
+// the real thing, not louder. Kind stays legible in text on the card body.
+// Shared by the published card and the editor canvas so they can't drift.
+const DataAppCardMedia: FC<{
     item: HomepageResourceItem;
     projectUuid: string;
 }> = ({ item, projectUuid }) => {
@@ -108,24 +109,22 @@ const DataAppCardThumb: FC<{
         item.appUuid,
         !!item.appUuid,
     );
-    const thumbnailUrl = data?.thumbnailUrl;
-    if (thumbnailUrl && !failed) {
+    const thumbnailUrl = failed ? undefined : data?.thumbnailUrl;
+    if (!thumbnailUrl) {
         return (
-            <div className={classes.resThumb}>
-                <img
-                    src={thumbnailUrl}
-                    alt={item.title}
-                    loading="lazy"
-                    onError={() => setFailed(true)}
-                />
+            <div className={classes.mediaIcon}>
+                <IconSquare icon={IconAppWindow} />
             </div>
         );
     }
     return (
-        <div className={`${classes.resThumbTile} ${classes.resThumbDataApp}`}>
-            <div className={classes.resGlyphTile}>
-                <MantineIcon icon={IconAppWindow} size={22} />
-            </div>
+        <div className={classes.resThumb}>
+            <img
+                src={thumbnailUrl}
+                alt={item.title}
+                loading="lazy"
+                onError={() => setFailed(true)}
+            />
         </div>
     );
 };
@@ -153,13 +152,8 @@ const DataAppRowThumb: FC<{
             </div>
         );
     }
-    return (
-        <div
-            className={`${classes.rowThumb} ${classes.rowThumbFallback} ${classes.resThumbDataApp}`}
-        >
-            <MantineIcon icon={IconAppWindow} size={18} />
-        </div>
-    );
+    // Same neutral square a link with no favicon falls back to — no kind tint.
+    return <IconSquare icon={IconAppWindow} />;
 };
 
 const UrlCardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
@@ -186,7 +180,11 @@ const UrlCardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 
     // No sharp photo → a quiet kind-tinted wash with the bare favicon on it.
     return (
-        <div className={`${classes.resThumbTile} ${meta.thumbAccent}`}>
+        <div
+            className={[classes.resThumbTile, meta.thumbAccent]
+                .filter(Boolean)
+                .join(' ')}
+        >
             {favicon && !faviconFailed ? (
                 <img
                     className={classes.resFavTile}
@@ -213,7 +211,7 @@ const CardThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     projectUuid,
 }) =>
     item.kind === 'data-app' ? (
-        <DataAppCardThumb item={item} projectUuid={projectUuid} />
+        <DataAppCardMedia item={item} projectUuid={projectUuid} />
     ) : (
         <UrlCardThumb item={item} />
     );
