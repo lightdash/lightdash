@@ -15,6 +15,15 @@
             "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-env"
           }
         ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-start"
+          }
+        ]
       }
     ]
   }

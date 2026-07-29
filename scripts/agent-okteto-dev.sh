@@ -9,6 +9,7 @@ OKTETO_CONTEXT_URL="${OKTETO_CONTEXT:-https://lightdash.okteto.dev}"
 OKTETO_MANIFEST="$REPO_ROOT/okteto.dev.yaml"
 OKTETO_SERVICE="lightdash-dev"
 READY_TIMEOUT_SECONDS="${OKTETO_READY_TIMEOUT_SECONDS:-300}"
+SYNC_START_TIMEOUT_SECONDS="${OKTETO_SYNC_START_TIMEOUT_SECONDS:-600}"
 POLL_INTERVAL_SECONDS="${OKTETO_POLL_INTERVAL_SECONDS:-5}"
 SETUP_DOC="docs/agent-okteto.md"
 TOKEN_ENV_VAR="LIGHTDASH_OKTETO_TOKEN"
@@ -36,13 +37,11 @@ require_command() {
         fail "Missing required command '$command_name'. See $SETUP_DOC."
 }
 
-capture_session_env() {
+# Reads the SessionStart hook JSON on stdin and prints a validated session_id.
+# Returns non-zero (without exiting) when it is missing or malformed so callers
+# can decide whether that is fatal.
+extract_session_id() {
     local hook_input session_id
-
-    [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] || return 0
-
-    [ -n "${CLAUDE_ENV_FILE:-}" ] ||
-        fail "CLAUDE_ENV_FILE is unavailable in the SessionStart hook."
 
     hook_input="$(cat)"
     session_id="$(
@@ -51,11 +50,64 @@ capture_session_env() {
             head -n 1
     )"
 
-    [ -n "$session_id" ] || fail "Claude SessionStart input has no session_id."
-    [[ "$session_id" =~ ^[A-Za-z0-9._:-]+$ ]] ||
-        fail "Claude session_id contains unsupported characters."
+    [ -n "$session_id" ] || return 1
+    [[ "$session_id" =~ ^[A-Za-z0-9._:-]+$ ]] || return 1
+
+    printf '%s' "$session_id"
+}
+
+capture_session_env() {
+    local session_id
+
+    [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] || return 0
+
+    [ -n "${CLAUDE_ENV_FILE:-}" ] ||
+        fail "CLAUDE_ENV_FILE is unavailable in the SessionStart hook."
+
+    session_id="$(extract_session_id)" ||
+        fail "Claude SessionStart input has no usable session_id."
 
     printf 'export LIGHTDASH_AGENT_SESSION_ID=%s\n' "$session_id" >>"$CLAUDE_ENV_FILE"
+}
+
+# Launches `start` as a detached background process so the SessionStart hook
+# returns immediately and never blocks session startup. Best-effort: any problem
+# skips the auto-start rather than breaking the session. The captured session_id
+# is exported so the background start computes the same namespace hash as the
+# model's later `wait`/`url` calls.
+hook_start() {
+    local session_id pidfile pid
+
+    [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] || return 0
+
+    session_id="$(extract_session_id)" || return 0
+    [ -n "$session_id" ] || return 0
+
+    export LIGHTDASH_AGENT_SESSION_ID="$session_id"
+    load_session_config
+    mkdir -p "$RUN_DIR"
+
+    # Environment already syncing (e.g. on resume) — nothing to launch.
+    if tmux_session_exists; then
+        return 0
+    fi
+
+    # Dedupe near-simultaneous hook fires: skip if a prior background start is
+    # still alive. A stale pidfile fails the liveness check and we proceed.
+    pidfile="$RUN_DIR/hook-start.pid"
+    if [ -f "$pidfile" ]; then
+        pid="$(cat "$pidfile" 2>/dev/null || true)"
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    nohup bash "$SCRIPT_DIR/agent-okteto-dev.sh" start \
+        </dev/null >>"$RUN_DIR/hook-start.log" 2>&1 &
+    printf '%s\n' "$!" >"$pidfile"
+    disown 2>/dev/null || true
+
+    echo "Okteto development environment starting in the background."
 }
 
 agent_session_id() {
@@ -254,12 +306,23 @@ start_environment() {
 }
 
 wait_for_environment() {
+    local deadline
+
     require_runtime
     prepare_runtime_dir
     authenticate
 
-    tmux_session_exists ||
-        fail "No active Okteto sync process. Run './scripts/agent-okteto-dev.sh start'."
+    # The SessionStart hook starts the environment in the background, so the
+    # sync session may not exist yet if `okteto deploy` is still running. Wait
+    # for it to appear before waiting for readiness.
+    deadline=$((SECONDS + SYNC_START_TIMEOUT_SECONDS))
+    while ! tmux_session_exists; do
+        if ((SECONDS >= deadline)); then
+            fail "No active Okteto sync process after ${SYNC_START_TIMEOUT_SECONDS}s. See logs in $RUN_DIR and $SETUP_DOC."
+        fi
+        echo "Waiting for the Okteto deployment to start syncing..."
+        sleep "$POLL_INTERVAL_SECONDS"
+    done
 
     wait_until_ready
 }
@@ -270,6 +333,9 @@ main() {
     case "$command_name" in
         hook-env)
             capture_session_env
+            ;;
+        hook-start)
+            hook_start
             ;;
         start | wait | url)
             if [ -z "${LIGHTDASH_OKTETO_TOKEN:-}" ]; then
