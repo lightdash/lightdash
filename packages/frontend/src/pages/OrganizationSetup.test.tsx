@@ -13,19 +13,34 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
 
-const renderSetupPage = (mocks?: Parameters<typeof renderWithProviders>[1]) =>
+const renderSetupPage = (
+    mocks?: Parameters<typeof renderWithProviders>[1],
+    initialEntry = '/organization-setup',
+) =>
     renderWithProviders(
-        <MemoryRouter initialEntries={['/organization-setup']}>
+        <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
                 <Route
                     path="/organization-setup"
                     element={<OrganizationSetup />}
+                />
+                <Route
+                    path="/onboarding/data-source"
+                    element={<div>Data source page</div>}
                 />
                 <Route path="/" element={<div>Home page</div>} />
             </Routes>
         </MemoryRouter>,
         mocks,
     );
+
+const mockOrgApi = (name: string, { optional = false } = {}) => {
+    const interceptor = nock(BASE_API_URL).get('/api/v1/org');
+    if (optional) {
+        interceptor.optionally();
+    }
+    return interceptor.reply(200, { status: 'ok', results: { name } });
+};
 
 const selectRole = async (user: ReturnType<typeof userEvent.setup>) => {
     const roleSelect = await screen.findByPlaceholderText('Select your role');
@@ -45,6 +60,7 @@ describe('OrganizationSetup', () => {
     it('submits an empty referral answer when a user joining an existing organization skips it', async () => {
         const user = userEvent.setup();
 
+        mockOrgApi('test organization');
         renderSetupPage({
             user: {
                 isSetupComplete: false,
@@ -95,6 +111,7 @@ describe('OrganizationSetup', () => {
     it('submits the trimmed referral answer when a user creating an organization answers it', async () => {
         const user = userEvent.setup();
 
+        mockOrgApi('');
         renderSetupPage({
             user: {
                 isSetupComplete: false,
@@ -142,5 +159,73 @@ describe('OrganizationSetup', () => {
 
         await waitFor(() => expect(scope.isDone()).toBe(true));
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
+    });
+
+    it('skips the workspace step when the organization is already named', async () => {
+        const user = userEvent.setup();
+
+        mockOrgApi('test organization');
+        renderSetupPage({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+                email: 'demo@lightdash.com',
+            },
+            health: {
+                mode: LightdashMode.DEFAULT,
+            },
+        });
+
+        expect(
+            await screen.findByText('Tell us about you'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByPlaceholderText('Acme Analytics'),
+        ).not.toBeInTheDocument();
+
+        await selectRole(user);
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete', {
+                jobTitle: 'Software Engineer',
+                howDidYouHearAboutUs: '',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            })
+            .reply(200);
+
+        await user.click(await screen.findByRole('button', { name: 'Finish' }));
+
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+    });
+
+    it('redirects to the redirect target when setup is already complete', async () => {
+        mockOrgApi('test organization', { optional: true });
+        renderSetupPage(
+            {
+                user: {
+                    isSetupComplete: true,
+                },
+            },
+            '/organization-setup?redirect=%2Fonboarding%2Fdata-source',
+        );
+
+        expect(await screen.findByText('Data source page')).toBeInTheDocument();
+        expect(screen.queryByText('Home page')).not.toBeInTheDocument();
+    });
+
+    it('falls back to home when the redirect target is the setup page itself', async () => {
+        mockOrgApi('test organization', { optional: true });
+        renderSetupPage(
+            {
+                user: {
+                    isSetupComplete: true,
+                },
+            },
+            '/organization-setup?redirect=%2Forganization-setup',
+        );
+
+        expect(await screen.findByText('Home page')).toBeInTheDocument();
     });
 });

@@ -9,6 +9,7 @@ import {
 import { Button, Checkbox, Select, Stack, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconConfetti } from '@tabler/icons-react';
+import { useIsMutating } from '@tanstack/react-query';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
@@ -196,6 +197,8 @@ const UserCompletionModalWithUser = () => {
     const { user, health } = useApp();
     const location = useLocation();
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const isCompletingUser =
+        useIsMutating({ mutationKey: ['user_complete'] }) > 0;
 
     if (orgSetupPageFlag.isLoading) {
         return null;
@@ -203,7 +206,10 @@ const UserCompletionModalWithUser = () => {
 
     if (orgSetupPageFlag.data?.enabled) {
         const shouldSetup =
-            user.data && !user.data.isSetupComplete && health.isSuccess;
+            user.data &&
+            !user.data.isSetupComplete &&
+            health.isSuccess &&
+            !isCompletingUser;
         // Keyed by pathname so the redirect re-fires if a competing route
         // redirect (e.g. AppRoute's needsProject -> /createProject) wins the
         // same render commit.
