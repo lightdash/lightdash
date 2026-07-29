@@ -839,16 +839,8 @@ export function useAppSdkBridge({
                             metadata as Record<string, unknown> | undefined
                         )?.label as string | undefined;
 
-                        // Results-cache dedupe: a second POST (e.g. from a
-                        // different component firing an identical query) can
-                        // resolve to the SAME queryUuid as one already
-                        // in-flight. The map only holds one id per
-                        // queryUuid, so this write would silently displace
-                        // the first POST's id — its pending/running entry
-                        // would then never reach a terminal status, and
-                        // MinimalApp's in-flight set would never drain (see
-                        // the ref comment above). Close the displaced
-                        // lifecycle here instead.
+                        // Displaced by results-cache dedupe (see ref comment
+                        // above); `queryUuid: null` avoids masking the real terminal.
                         const displacedId = queryUuidToPostIdRef.current.get(
                             json.results.queryUuid,
                         );
@@ -857,7 +849,7 @@ export function useAppSdkBridge({
                                 ...TERMINAL_EVENT_DEFAULTS,
                                 id: displacedId,
                                 timestamp: Date.now(),
-                                queryUuid: json.results.queryUuid,
+                                queryUuid: null,
                                 status: 'ready',
                                 rowCount: null,
                                 durationMs: null,
