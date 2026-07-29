@@ -101,8 +101,9 @@ describe('AI context compaction helpers', () => {
         expect(serialized).toContain('[truncated 500 chars]');
     });
 
-    it('includes deep research Markdown in the compaction input', () => {
-        const serialized = Compaction.serializeConversation(
+    it('does not include Deep Research report Markdown in compaction input', () => {
+        const reportSentinel = 'DEEP_RESEARCH_REPORT_SENTINEL';
+        const messages: Parameters<typeof Compaction.serializeConversation>[0] =
             [
                 {
                     role: 'assistant',
@@ -123,17 +124,25 @@ describe('AI context compaction helpers', () => {
                     modelConfig: null,
                     tokenUsage: null,
                 },
-            ],
-            {
-                deepResearchReportsByPromptUuid: new Map([
-                    ['research-prompt', '# Retention report'],
-                ]),
-            },
-        );
+            ];
+        const serializeWithLegacyReportOption =
+            Compaction.serializeConversation as unknown as (
+                input: typeof messages,
+                legacyOptions: {
+                    deepResearchReportsByPromptUuid: ReadonlyMap<
+                        string,
+                        string
+                    >;
+                },
+            ) => string;
 
-        expect(serialized).toContain(
-            '[Deep research report]: # Retention report',
-        );
+        const serialized = serializeWithLegacyReportOption(messages, {
+            deepResearchReportsByPromptUuid: new Map([
+                ['research-prompt', reportSentinel],
+            ]),
+        });
+
+        expect(serialized).not.toContain(reportSentinel);
     });
 
     it('serializes a same-named file and repository as distinct, unambiguous lines', () => {

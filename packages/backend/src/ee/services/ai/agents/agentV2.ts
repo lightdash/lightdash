@@ -1050,6 +1050,7 @@ const getAgentMessages = (
         availableExplores,
         availableSkills: args.availableSkills,
         knowledgeDocuments: args.knowledgeDocuments,
+        deepResearchRuns: args.deepResearchRuns,
         hasProjectContext,
         enableAiAgentMemory: args.aiAgentMemoryEnabled,
         enableDataAccess: args.enableDataAccess,

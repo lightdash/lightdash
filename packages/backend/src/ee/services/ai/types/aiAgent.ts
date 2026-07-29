@@ -7,7 +7,10 @@ import {
     AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
+    type AiDeepResearchActivity,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchPhase,
+    type AiDeepResearchRunStatus,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -125,6 +128,19 @@ export type AiAgentExecutionConfig =
           ) => void | Promise<void>;
       };
 
+export type AiAgentDeepResearchRunContext = {
+    uuid: string;
+    question: string;
+    status: AiDeepResearchRunStatus;
+    phase: AiDeepResearchPhase | null;
+    activity: AiDeepResearchActivity | null;
+    progressCurrent: number | null;
+    progressTotal: number | null;
+    startedAt: string | null;
+    elapsedSeconds: number;
+    hasReport: boolean;
+};
+
 export type AiAgentArgs = AnyAiModel & {
     // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
     // Stamped by the model builder and carried through for usage analytics.
@@ -132,6 +148,7 @@ export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
     knowledgeDocuments: AiAgentDocumentContext[];
+    deepResearchRuns: AiAgentDeepResearchRunContext[];
     projectContext: ProjectContextEntry[];
     // Whether the project_context feature is on for this turn (Control = off).
     projectContextEnabled: boolean;

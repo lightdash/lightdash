@@ -92,6 +92,8 @@ const makeService = ({
     aiAgentContentValidation = {},
     scheduleCompileProject = vi.fn().mockResolvedValue({ jobUuid: 'job-1' }),
     jobModel = { get: vi.fn() },
+    aiAgentDocumentModel = {},
+    aiDeepResearchRunModel = {},
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -107,6 +109,8 @@ const makeService = ({
     aiAgentContentValidation?: Record<string, unknown>;
     scheduleCompileProject?: import('vitest').Mock;
     jobModel?: Record<string, unknown>;
+    aiAgentDocumentModel?: Record<string, unknown>;
+    aiDeepResearchRunModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -167,7 +171,8 @@ const makeService = ({
         contentService: {},
         aiAgentContentValidation,
         projectContextModel: {},
-        aiAgentDocumentModel: {},
+        aiAgentDocumentModel,
+        aiDeepResearchRunModel,
         featureFlagService: {},
         previewDeploySetupService: {},
         shareService: {},
@@ -198,6 +203,111 @@ function makeRuntimeContext(
 }
 
 describe('AiAgentToolsService', () => {
+    describe('Deep Research knowledge documents', () => {
+        const run = {
+            ai_deep_research_run_uuid: 'run-uuid',
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            created_by_user_uuid: userUuid,
+            prompt: 'Why did revenue fall?',
+            result_markdown: '# Revenue report',
+            content_size_bytes: 16,
+            created_at: new Date('2026-07-29T10:00:00.000Z'),
+            updated_at: new Date('2026-07-29T10:05:00.000Z'),
+        };
+
+        it('lists report-bearing runs as virtual thread documents', async () => {
+            const service = makeService({
+                aiAgentDocumentModel: {
+                    findAllForAgent: vi.fn().mockResolvedValue([]),
+                },
+                aiDeepResearchRunModel: {
+                    findReportSummariesByThreadScoped: vi
+                        .fn()
+                        .mockResolvedValue([run]),
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(runtime.listKnowledgeDocuments()).resolves.toEqual([
+                expect.objectContaining({
+                    uuid: 'run-uuid',
+                    name: 'Why did revenue fall?',
+                    mimeType: 'text/markdown',
+                    alwaysIncludeInContext: false,
+                }),
+            ]);
+        });
+
+        it('reads report Markdown only from the current user and thread scope', async () => {
+            const findReportByUuidThreadScoped = vi.fn().mockResolvedValue(run);
+            const service = makeService({
+                aiAgentDocumentModel: {
+                    getContentForAgent: vi.fn().mockResolvedValue(undefined),
+                },
+                aiDeepResearchRunModel: {
+                    findReportByUuidThreadScoped,
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(
+                runtime.getKnowledgeDocumentContent({
+                    documentUuid: 'run-uuid',
+                }),
+            ).resolves.toEqual({
+                uuid: 'run-uuid',
+                name: 'Why did revenue fall?',
+                mimeType: 'text/markdown',
+                content: '# Revenue report',
+            });
+            expect(findReportByUuidThreadScoped).toHaveBeenCalledWith({
+                aiDeepResearchRunUuid: 'run-uuid',
+                aiThreadUuid: 'thread-uuid',
+                organizationUuid,
+                projectUuid,
+                createdByUserUuid: userUuid,
+            });
+        });
+
+        it('rejects runs without an accessible report', async () => {
+            const service = makeService({
+                aiAgentDocumentModel: {
+                    getContentForAgent: vi.fn().mockResolvedValue(undefined),
+                },
+                aiDeepResearchRunModel: {
+                    findReportByUuidThreadScoped: vi
+                        .fn()
+                        .mockResolvedValue(undefined),
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(
+                runtime.getKnowledgeDocumentContent({
+                    documentUuid: 'missing-run',
+                }),
+            ).rejects.toThrow(
+                'Knowledge document missing-run is not accessible to this agent.',
+            );
+        });
+    });
+
     it.each(['', 'tru', 'FALSE', 'unknown'])(
         'returns the boolean domain for query "%s"',
         async (query) => {

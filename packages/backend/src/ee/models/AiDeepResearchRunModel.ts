@@ -36,6 +36,31 @@ type CreateAiDeepResearchRun = {
     executionContextSnapshot: AiDeepResearchExecutionContextSnapshot;
 };
 
+export type AiDeepResearchRunContextRow = Pick<
+    DbAiDeepResearchRun,
+    | 'ai_deep_research_run_uuid'
+    | 'prompt'
+    | 'status'
+    | 'created_at'
+    | 'started_at'
+    | 'completed_at'
+> & {
+    has_report: boolean;
+};
+
+export type AiDeepResearchReportSummaryRow = Pick<
+    DbAiDeepResearchRun,
+    | 'ai_deep_research_run_uuid'
+    | 'organization_uuid'
+    | 'project_uuid'
+    | 'created_by_user_uuid'
+    | 'prompt'
+    | 'created_at'
+    | 'updated_at'
+> & {
+    content_size_bytes: number;
+};
+
 type EventCursor = {
     createdAt: string;
     eventUuid: string;
@@ -190,6 +215,111 @@ export class AiDeepResearchRunModel {
             .where('project_uuid', args.projectUuid)
             .where('created_by_user_uuid', args.createdByUserUuid)
             .orderBy('created_at', 'asc');
+    }
+
+    async findAgentContextByThreadScoped(args: {
+        aiThreadUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+    }): Promise<AiDeepResearchRunContextRow[]> {
+        const rows = await this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .select(
+                'ai_deep_research_run_uuid',
+                'prompt',
+                'status',
+                'created_at',
+                'started_at',
+                'completed_at',
+                this.database.raw(
+                    'coalesce(octet_length(result_markdown), 0) > 0 as has_report',
+                ),
+            )
+            .where('ai_thread_uuid', args.aiThreadUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid)
+            .where('created_by_user_uuid', args.createdByUserUuid)
+            .orderBy('created_at', 'asc');
+
+        return rows as unknown as AiDeepResearchRunContextRow[];
+    }
+
+    async findReportSummariesByThreadScoped(args: {
+        aiThreadUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+    }): Promise<AiDeepResearchReportSummaryRow[]> {
+        const rows = await this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .select(
+                'ai_deep_research_run_uuid',
+                'organization_uuid',
+                'project_uuid',
+                'created_by_user_uuid',
+                'prompt',
+                'created_at',
+                'updated_at',
+                this.database.raw(
+                    'octet_length(result_markdown) as content_size_bytes',
+                ),
+            )
+            .where('ai_thread_uuid', args.aiThreadUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid)
+            .where('created_by_user_uuid', args.createdByUserUuid)
+            .whereRaw('octet_length(result_markdown) > 0')
+            .orderBy('created_at', 'asc');
+
+        return rows as unknown as AiDeepResearchReportSummaryRow[];
+    }
+
+    async findReportByUuidThreadScoped(args: {
+        aiDeepResearchRunUuid: string;
+        aiThreadUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+    }): Promise<
+        | Pick<
+              DbAiDeepResearchRun,
+              'ai_deep_research_run_uuid' | 'prompt' | 'result_markdown'
+          >
+        | undefined
+    > {
+        return this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .select('ai_deep_research_run_uuid', 'prompt', 'result_markdown')
+            .where('ai_deep_research_run_uuid', args.aiDeepResearchRunUuid)
+            .where('ai_thread_uuid', args.aiThreadUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid)
+            .where('created_by_user_uuid', args.createdByUserUuid)
+            .whereRaw('octet_length(result_markdown) > 0')
+            .first();
+    }
+
+    async findLatestProgressByRunUuids(
+        aiDeepResearchRunUuids: string[],
+    ): Promise<DbAiDeepResearchEvent[]> {
+        if (aiDeepResearchRunUuids.length === 0) {
+            return [];
+        }
+
+        return this.database<AiDeepResearchEventsTable>(
+            AiDeepResearchEventsTableName,
+        )
+            .distinctOn('ai_deep_research_run_uuid')
+            .select('*')
+            .whereIn('ai_deep_research_run_uuid', aiDeepResearchRunUuids)
+            .where('event_type', 'progress')
+            .orderBy('ai_deep_research_run_uuid', 'asc')
+            .orderBy('created_at', 'desc')
+            .orderBy('ai_deep_research_event_uuid', 'desc');
     }
 
     async deleteUnstartedFailedRun(

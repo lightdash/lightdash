@@ -76,6 +76,7 @@ import {
     GITHUB_MCP_SERVER_URL,
     hasAiAgentAccessToSpace,
     InsufficientGitPermissionsError,
+    isAiDeepResearchRunTerminal,
     isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
     isGitProjectType,
@@ -112,6 +113,7 @@ import {
     type AiAgentModelConfig,
     type AiClonedThreadCreatedFrom,
     type AiDeepResearchBudget,
+    type AiDeepResearchEventPayloadMap,
     type AiDeepResearchExecutionContextSnapshot,
     type AiPromptContextInput,
     type AiWebAppThreadCreatedFrom,
@@ -217,7 +219,7 @@ import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
-import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
+import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { AiAgentMemoryModel } from '../../models/AiAgentMemoryModel';
 import {
@@ -231,7 +233,10 @@ import {
 } from '../../models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from '../../models/AiAgentReviewNotificationModel';
-import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
+import {
+    AiDeepResearchRunModel,
+    type AiDeepResearchRunContextRow,
+} from '../../models/AiDeepResearchRunModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -286,6 +291,7 @@ import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAgg
 import {
     AiAgentArgs,
     AiAgentDependencies,
+    type AiAgentDeepResearchRunContext,
     type AiAgentExecutionConfig,
     type AiAgentMcpServer,
     type AiAgentRequestingUser,
@@ -431,7 +437,7 @@ type AiAgentServiceDependencies = {
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
-        'findByPromptUuidsScoped'
+        'findAgentContextByThreadScoped' | 'findLatestProgressByRunUuids'
     >;
     projectContextModel: ProjectContextModel;
     analytics: LightdashAnalytics;
@@ -653,7 +659,7 @@ export class AiAgentService extends BaseService {
 
     private readonly aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
-        'findByPromptUuidsScoped'
+        'findAgentContextByThreadScoped' | 'findLatestProgressByRunUuids'
     >;
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -4673,26 +4679,8 @@ export class AiAgentService extends BaseService {
             },
         };
 
-        const promptUuidsToCompact = [
-            ...new Set(messagesToCompact.map((message) => message.uuid)),
-        ];
-        const deepResearchRuns =
-            await this.aiDeepResearchRunModel.findByPromptUuidsScoped({
-                promptUuids: promptUuidsToCompact,
-                organizationUuid: user.organizationUuid,
-                projectUuid: prompt.projectUuid,
-            });
-        const deepResearchReportsByPromptUuid = new Map(
-            deepResearchRuns.flatMap((run) =>
-                run.result_markdown
-                    ? [[run.prompt_uuid, run.result_markdown] as const]
-                    : [],
-            ),
-        );
-        const serializedInput = Compaction.serializeConversation(
-            messagesToCompact,
-            { deepResearchReportsByPromptUuid },
-        );
+        const serializedInput =
+            Compaction.serializeConversation(messagesToCompact);
 
         const summary = await generateCompactionSummary(compactionModel, {
             previousSummary: latestCompaction?.summary,
@@ -6758,6 +6746,8 @@ export class AiAgentService extends BaseService {
     // Rendered by Slack as "<agent name> <status>" under the user's message.
     private static readonly THINKING_STATUS = 'is thinking...';
 
+    private static readonly DEEP_RESEARCH_TERMINAL_CONTEXT_LIMIT = 5;
+
     private static readonly THINKING_LOADING_MESSAGES = [
         'Checking the project context...',
         'Finding the relevant metrics...',
@@ -6791,21 +6781,65 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         } satisfies UserModelMessage;
     }
 
-    static createDeepResearchContextMessage(
-        run: Pick<DbAiDeepResearchRun, 'result_markdown'> | undefined,
-    ): AssistantModelMessage | null {
-        if (!run?.result_markdown) {
-            return null;
-        }
+    static createDeepResearchRunContext(
+        runs: AiDeepResearchRunContextRow[],
+        latestProgressEvents: DbAiDeepResearchEvent[],
+        now = new Date(),
+    ): AiAgentDeepResearchRunContext[] {
+        const contextRuns = AiAgentService.selectDeepResearchContextRuns(runs);
+        const progressByRunUuid = new Map(
+            latestProgressEvents.map((event) => [
+                event.ai_deep_research_run_uuid,
+                (event.payload as AiDeepResearchEventPayloadMap['progress'])
+                    .progress,
+            ]),
+        );
 
-        return {
-            role: 'assistant',
-            content: [
-                '<deep_research_report>',
-                run.result_markdown,
-                '</deep_research_report>',
-            ].join('\n'),
-        } satisfies AssistantModelMessage;
+        return contextRuns.map((run) => {
+            const progress = progressByRunUuid.get(
+                run.ai_deep_research_run_uuid,
+            );
+            const startedAt = run.started_at ?? run.created_at;
+            const endedAt = run.completed_at ?? now;
+
+            return {
+                uuid: run.ai_deep_research_run_uuid,
+                question: run.prompt,
+                status: run.status,
+                phase: progress?.phase ?? null,
+                activity: progress?.activity ?? null,
+                progressCurrent: progress?.current ?? null,
+                progressTotal: progress?.total ?? null,
+                startedAt: run.started_at?.toISOString() ?? null,
+                elapsedSeconds: Math.max(
+                    0,
+                    Math.floor(
+                        (endedAt.getTime() - startedAt.getTime()) / 1000,
+                    ),
+                ),
+                hasReport: run.has_report,
+            };
+        });
+    }
+
+    static selectDeepResearchContextRuns(
+        runs: AiDeepResearchRunContextRow[],
+    ): AiDeepResearchRunContextRow[] {
+        const activeRuns = runs.filter(
+            ({ status }) => !isAiDeepResearchRunTerminal(status),
+        );
+        const recentTerminalRuns = runs
+            .filter(({ status }) => isAiDeepResearchRunTerminal(status))
+            .slice(-AiAgentService.DEEP_RESEARCH_TERMINAL_CONTEXT_LIMIT);
+        const includedRunUuids = new Set(
+            [...activeRuns, ...recentTerminalRuns].map(
+                ({ ai_deep_research_run_uuid: uuid }) => uuid,
+            ),
+        );
+
+        return runs.filter(({ ai_deep_research_run_uuid: uuid }) =>
+            includedRunUuids.has(uuid),
+        );
     }
 
     static createPinnedContextMessage(
@@ -7181,17 +7215,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const promptUuids = threadMessages.map(
             (message) => message.ai_prompt_uuid,
         );
-        const [contextMap, deepResearchRuns] = await Promise.all([
-            this.aiAgentModel.getContextForPromptUuids(promptUuids),
-            this.aiDeepResearchRunModel.findByPromptUuidsScoped({
-                promptUuids,
-                organizationUuid: options.organizationUuid,
-                projectUuid: options.projectUuid,
-            }),
-        ]);
-        const deepResearchRunsByPromptUuid = new Map(
-            deepResearchRuns.map((run) => [run.prompt_uuid, run]),
-        );
+        const contextMap =
+            await this.aiAgentModel.getContextForPromptUuids(promptUuids);
 
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
@@ -7262,16 +7287,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         toolCallsAndResults,
                     );
 
-                const deepResearchContextMessage =
-                    AiAgentService.createDeepResearchContextMessage(
-                        deepResearchRunsByPromptUuid.get(
-                            message.ai_prompt_uuid,
-                        ),
-                    );
-
-                if (deepResearchContextMessage) {
-                    messages.push(deepResearchContextMessage);
-                } else if (
+                if (
                     message.response &&
                     !message.error_message &&
                     (!hasUnresolvedApproval || !isCurrentPrompt)
@@ -7789,6 +7805,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             userAttributeOverrides:
                 options?.runtimeOptions?.userAttributeOverrides,
             agentUuid: runtimeAgentSettings.uuid,
+            threadUuid: prompt.threadUuid,
             onWarehouseQuery: options?.onWarehouseQuery,
         });
 
@@ -8758,6 +8775,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 agentUuid: agentSettings.uuid,
                 projectUuid: prompt.projectUuid,
             });
+        const threadDeepResearchRuns =
+            responseExecution.mode === 'standard'
+                ? await this.aiDeepResearchRunModel.findAgentContextByThreadScoped(
+                      {
+                          aiThreadUuid: prompt.threadUuid,
+                          organizationUuid: prompt.organizationUuid,
+                          projectUuid: prompt.projectUuid,
+                          createdByUserUuid: user.userUuid,
+                      },
+                  )
+                : [];
+        const deepResearchContextRuns =
+            AiAgentService.selectDeepResearchContextRuns(
+                threadDeepResearchRuns,
+            );
+        const latestDeepResearchProgress =
+            await this.aiDeepResearchRunModel.findLatestProgressByRunUuids(
+                deepResearchContextRuns.map(
+                    ({ ai_deep_research_run_uuid: uuid }) => uuid,
+                ),
+            );
+        const deepResearchRuns = AiAgentService.createDeepResearchRunContext(
+            deepResearchContextRuns,
+            latestDeepResearchProgress,
+        );
         const mcpServers = await this.getAgentRuntimeMcpServers({
             user,
             projectUuid: prompt.projectUuid,
@@ -9003,6 +9045,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentSettings,
             requestingUser,
             knowledgeDocuments,
+            deepResearchRuns,
             projectContext,
             projectContextEnabled,
             aiAgentMemoryEnabled,

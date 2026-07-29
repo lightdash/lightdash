@@ -126,6 +126,95 @@ describe('AiDeepResearchRunModel', () => {
         expect(tracker.history.select).toHaveLength(0);
     });
 
+    it('loads thread status without selecting report content', async () => {
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
+
+        await model.findAgentContextByThreadScoped({
+            aiThreadUuid: 'thread-1',
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+            createdByUserUuid: 'user-1',
+        });
+
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain(
+            'coalesce(octet_length(result_markdown), 0) > 0 as has_report',
+        );
+        expect(query.sql).not.toContain('select "result_markdown"');
+        expect(query.bindings).toEqual([
+            'thread-1',
+            'organization-1',
+            'project-1',
+            'user-1',
+        ]);
+    });
+
+    it('lists report metadata without selecting report content', async () => {
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
+
+        await model.findReportSummariesByThreadScoped({
+            aiThreadUuid: 'thread-1',
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+            createdByUserUuid: 'user-1',
+        });
+
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain(
+            'octet_length(result_markdown) as content_size_bytes',
+        );
+        expect(query.sql).not.toContain('select "result_markdown"');
+        expect(query.sql).toContain('octet_length(result_markdown) > 0');
+        expect(query.bindings).toEqual([
+            'thread-1',
+            'organization-1',
+            'project-1',
+            'user-1',
+        ]);
+    });
+
+    it('loads report content only for one scoped run', async () => {
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
+
+        await model.findReportByUuidThreadScoped({
+            aiDeepResearchRunUuid: RUN_UUID,
+            aiThreadUuid: 'thread-1',
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+            createdByUserUuid: 'user-1',
+        });
+
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain(
+            'select "ai_deep_research_run_uuid", "prompt", "result_markdown"',
+        );
+        expect(query.sql).toContain('octet_length(result_markdown) > 0');
+        expect(query.bindings).toEqual([
+            RUN_UUID,
+            'thread-1',
+            'organization-1',
+            'project-1',
+            'user-1',
+            1,
+        ]);
+    });
+
+    it('loads only the latest progress event for each run', async () => {
+        tracker.on.select(AiDeepResearchEventsTableName).responseOnce([]);
+
+        await model.findLatestProgressByRunUuids(['run-1', 'run-2']);
+
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain(
+            'distinct on ("ai_deep_research_run_uuid")',
+        );
+        expect(query.sql).toContain('"event_type" = $3');
+        expect(query.sql).toContain(
+            'order by "ai_deep_research_run_uuid" asc, "created_at" desc, "ai_deep_research_event_uuid" desc',
+        );
+        expect(query.bindings).toEqual(['run-1', 'run-2', 'progress']);
+    });
+
     it('does not overwrite a cancellation request with completion', async () => {
         tracker.on.update(AiDeepResearchRunsTableName).responseOnce([]);
 

@@ -420,6 +420,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getProjectContextModel<ProjectContextModel>(),
                     aiAgentDocumentModel:
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                    aiDeepResearchRunModel:
+                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
                     previewDeploySetupService:
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
