@@ -56,9 +56,6 @@ minimumReleaseAgeExclude:
   # Renovate security update: tar@7.5.21
   - tar@7.5.21
 
-overrides:
-  '@typescript/typescript6>typescript': 6.0.3
-
 # Dependency lifecycle scripts (preinstall/install/postinstall) are a supply-chain
 # attack/breakage vector — they also run on `npm install` for downstream consumers
 # of our published packages (e.g. @lightdash/cli). pnpm blocks them by default;

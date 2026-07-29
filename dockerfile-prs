@@ -126,7 +126,7 @@ COPY packages/common/tsconfig*.json packages/common/
 COPY packages/common/src/ packages/common/src/
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    turbo build:fast --filter=@lightdash/common
+    turbo build --filter=@lightdash/common
 # output: /usr/app/packages/common/dist
 
 ############################
@@ -137,7 +137,7 @@ COPY packages/formula/tsconfig*.json packages/formula/
 COPY packages/formula/src/ packages/formula/src/
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    turbo build:fast --filter=@lightdash/formula
+    turbo build --filter=@lightdash/formula
 # output: /usr/app/packages/formula/dist
 
 ############################
@@ -151,7 +151,7 @@ COPY packages/warehouses/tsconfig*.json packages/warehouses/
 COPY packages/warehouses/src/ packages/warehouses/src/
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    turbo build:fast --filter=@lightdash/warehouses
+    turbo build --filter=@lightdash/warehouses
 # output: /usr/app/packages/warehouses/dist
 
 ############################
@@ -168,7 +168,7 @@ COPY packages/backend/src/ packages/backend/src/
 
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    turbo build:fast --filter=backend
+    turbo build --filter=backend
 
 # output: /usr/app/packages/backend/dist
 
@@ -183,7 +183,7 @@ COPY packages/frontend/ packages/frontend/
 
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    turbo build:fast --filter=@lightdash/frontend && \
+    turbo build --filter=@lightdash/frontend && \
     find packages/frontend/build -type f -name '*.map' -delete
 
 # output: /usr/app/packages/frontend/build

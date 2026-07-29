@@ -5,8 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "tsc6 -b && vite build",
-        "build:fast": "tsc --build && vite build",
+        "build": "tsc --build && vite build",
         "lint": "eslint .",
         "preview": "vite preview"
     },
@@ -23,9 +22,7 @@
         "eslint-plugin-react-hooks": "5.2.0",
         "eslint-plugin-react-refresh": "0.4.20",
         "globals": "16.4.0",
-        "typescript": "npm:@typescript/typescript6@6.0.1",
-        "typescript-7": "npm:typescript@7.0.1-rc",
-        "typescript-eslint": "8.43.0",
+        "typescript": "7.0.2",
         "vite": "8.0.5"
     }
 }
