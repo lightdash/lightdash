@@ -100,7 +100,7 @@ ENV TURBO_API=https://cache.depot.dev
 
 # Install development dependencies for all
 COPY tsconfig.json .
-COPY .eslintrc.js .
+COPY .oxlintrc.base.json .
 COPY .pnpmfile.cjs .
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
