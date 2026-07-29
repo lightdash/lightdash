@@ -14,6 +14,7 @@ type Props = {
     notificationsLimit?: number;
     cssVariablesSelector?: string;
     getRootElement?: () => HTMLElement | undefined;
+    env?: 'default' | 'test';
 };
 
 const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
@@ -22,6 +23,7 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
     forceColorScheme,
     cssVariablesSelector,
     getRootElement,
+    env,
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const effectiveColorScheme = forceColorScheme || colorScheme;
@@ -43,6 +45,7 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
             cssVariablesSelector={cssVariablesSelector}
             getRootElement={getRootElement}
             classNamesPrefix="mantine-8"
+            env={env}
         >
             <CodeHighlightProvider>{children}</CodeHighlightProvider>
         </MantineProviderBase>
