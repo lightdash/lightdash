@@ -303,7 +303,7 @@ const Login: FC<{}> = () => {
                 <LightdashLogo />
             </Box>
             <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
-                <Title order={3} ta="center" mb="md" c="red">
+                <Title order={3} ta="center" mb="md">
                     Sign in
                 </Title>
                 <form
@@ -357,13 +357,11 @@ const Login: FC<{}> = () => {
                                     inherit
                                     href="/recover-password"
                                     mx="auto"
-                                    c="red"
                                 >
                                     Forgot your password?
                                 </Anchor>
                                 <Button
                                     type="submit"
-                                    color="red"
                                     loading={isFormLoading}
                                     disabled={isFormLoading}
                                     data-cy="signin-button"
@@ -387,7 +385,6 @@ const Login: FC<{}> = () => {
                         {formStage === 'precheck' && (
                             <Button
                                 type="submit"
-                                color="red"
                                 loading={isFormLoading}
                                 disabled={isFormLoading}
                                 data-cy="signin-button"
@@ -453,7 +450,6 @@ const Login: FC<{}> = () => {
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
                                 fz="sm"
-                                c="red"
                             >
                                 Sign up
                             </Anchor>
