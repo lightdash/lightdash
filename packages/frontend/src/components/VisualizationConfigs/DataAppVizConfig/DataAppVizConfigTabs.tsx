@@ -76,7 +76,7 @@ export const ConfigTabs: FC = memo(() => {
                         projectUuid={projectUuid ?? ''}
                         selectedDataAppVizUuid={dataAppVizUuid || null}
                         selectedDataAppViz={dataAppViz ?? null}
-                        onSelect={setDataAppVizUuid}
+                        onSelect={(uuid) => setDataAppVizUuid(uuid ?? '')}
                     />
                 </Config.Section>
             </Config>

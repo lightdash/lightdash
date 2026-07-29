@@ -10,7 +10,7 @@ type Props = {
     projectUuid: string;
     selectedDataAppVizUuid: string | null;
     selectedDataAppViz: DataAppViz | null;
-    onSelect: (dataAppVizUuid: string) => void;
+    onSelect: (dataAppVizUuid: string | null) => void;
 };
 
 interface DataAppVizItem extends ComboboxItem {
@@ -38,7 +38,19 @@ const DataAppVizLibraryPicker: FC<Props> = ({
     onSelect,
 }) => {
     const [search, setSearch] = useState('');
-    const [debouncedSearch] = useDebouncedValue(search, 300);
+    const selectedLabel = selectedDataAppViz
+        ? getAppDisplayName(
+              selectedDataAppViz.name,
+              selectedDataAppViz.dataAppVizUuid,
+          )
+        : null;
+    // Mantine puts the selected option's label in the input, which is not a
+    // query the user typed. Mirror Mantine's own `filterOptions` rule so the
+    // whole library stays listed until they actually type something else.
+    const [debouncedSearch] = useDebouncedValue(
+        search === selectedLabel ? '' : search,
+        300,
+    );
 
     const { data, isInitialLoading, isFetching, error } =
         useDataAppVisualizations(projectUuid, debouncedSearch);
@@ -66,10 +78,9 @@ const DataAppVizLibraryPicker: FC<Props> = ({
             onSearchChange={setSearch}
             // Search is done server-side, so keep every returned option.
             filter={({ options }) => options}
-            onChange={(value) => {
-                if (value) onSelect(value);
-            }}
+            onChange={(value) => onSelect(value)}
             allowDeselect={false}
+            clearable
             placeholder="Select a visualization"
             nothingFoundMessage={
                 error
