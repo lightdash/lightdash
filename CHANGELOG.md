@@ -1,3 +1,15 @@
+# [1.26.0](https://github.com/lightdash/lightdash/compare/1.25.0...1.26.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* preserve data app slugs in preview projects ([#26400](https://github.com/lightdash/lightdash/issues/26400)) ([2040cf0](https://github.com/lightdash/lightdash/commit/2040cf020d487386f5057a6cfa33bbb8d0e45dd9))
+
+
+### Features
+
+* always enable dashboard filter requirement groups ([#26423](https://github.com/lightdash/lightdash/issues/26423)) ([38badd7](https://github.com/lightdash/lightdash/commit/38badd7ab2a4431f640eeaa1bad50aeb3e3f22bb))
+
 # [1.25.0](https://github.com/lightdash/lightdash/compare/1.24.0...1.25.0) (2026-07-29)
 
 
