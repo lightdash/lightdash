@@ -90,6 +90,41 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 EXPOSE 3000
 EXPOSE 8080
 
+# Install development dependencies before copying source so source-only changes
+# reuse the node_modules layer.
+FROM dev AS dev-dependencies
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc .pnpmfile.cjs ./
+COPY packages/backend/package.json packages/backend/
+COPY packages/common/package.json packages/common/
+COPY packages/formula/package.json packages/formula/
+COPY packages/frontend/package.json packages/frontend/
+COPY packages/warehouses/package.json packages/warehouses/
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm --filter . --filter backend... --filter @lightdash/frontend... \
+    install --frozen-lockfile --prefer-offline
+
+# -----------------------------
+# Stage 1b: warm development environment
+# -----------------------------
+# Dev image with expensive-to-derive node state baked in: source at main,
+# installed node_modules, and pre-built package dists. Okteto cloud dev
+# environments (okteto.dev.yaml) start from this so a fresh namespace only
+# syncs the branch diff and builds incrementally instead of paying a full
+# install and cold builds. Published nightly by
+# .github/workflows/dev-warm-image.yml.
+FROM dev-dependencies AS dev-warm
+
+COPY . .
+
+# Pre-build the packages the backend imports as dist; scripts/okteto-dev-up.sh
+# reuses the emitted dists and *.tsbuildinfo for incremental rebuilds
+RUN export NODE_OPTIONS="--max-old-space-size=4096" \
+    && pnpm formula:build \
+    && pnpm common-build \
+    && pnpm warehouses-build
+
 # -----------------------------
 # Stage 2: continue build for production environment
 # -----------------------------

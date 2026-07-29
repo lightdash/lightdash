@@ -1,0 +1,59 @@
+name: Dev Warm Image
+
+# Bakes the warm base image for Okteto cloud dev environments (the dev-warm
+# target of dockerfile-prs): source at main + installed node_modules +
+# pre-built package dists. okteto.dev.yaml points its dev container at this
+# image so a fresh namespace starts hot-reloading in minutes instead of
+# deriving that state on first `okteto up`. The DB-state twin of
+# preview-db-snapshot.yml.
+
+on:
+  schedule:
+    # Nightly, before European working hours
+    - cron: "0 4 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "dockerfile-prs"
+      - ".github/workflows/dev-warm-image.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dev-warm-image
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and push the dev-warm image
+    runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 45
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install Okteto CLI
+        run: |
+          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
+          echo "f1fc644e2c2d2285a557577eafc6d4494410dce17b36bac6c3c269fc04c573ef  okteto" | sha256sum --check
+          chmod +x okteto
+          sudo mv okteto /usr/local/bin/okteto
+
+      - name: Okteto context
+        run: okteto context use "${{ secrets.OKTETO_CONTEXT }}" --token "${{ secrets.OKTETO_TOKEN }}"
+
+      - name: Build and push
+        run: |
+          start=$(date +%s)
+          # The global registry is readable from every namespace; the build
+          # runs on the shared BuildKit cluster so unchanged layers are cached
+          okteto build -f dockerfile-prs --target dev-warm \
+            -t okteto.global/lightdash-dev-warm:latest .
+          echo "Image build took $(( $(date +%s) - start ))s" | tee -a "$GITHUB_STEP_SUMMARY"

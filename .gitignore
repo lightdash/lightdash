@@ -154,3 +154,6 @@ docs/superpowers/
 
 # Playground bundle builder venv
 scripts/playground-bundle/.venv/
+
+# Local pnpm store (also keeps it out of Okteto file sync via .stignore)
+.pnpm-store/
