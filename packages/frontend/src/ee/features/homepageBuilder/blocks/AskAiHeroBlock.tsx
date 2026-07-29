@@ -5,6 +5,7 @@ import useApp from '../../../../providers/App/useApp';
 import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { DayOneAskInput } from '../DayOneAskInput';
 import { getGreeting } from '../greeting';
+import layout from '../homepageLayout.module.css';
 import { RecommendedActionsChecklist } from './RecommendedActionsChecklist';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 import { useRecommendedActions } from './useRecommendedActions';
@@ -32,15 +33,7 @@ export const AskAiHero: FC<{
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting && (
-                <Text
-                    component="h1"
-                    fz={23}
-                    fw={600}
-                    lts="-0.02em"
-                    lh={1.2}
-                    ta="center"
-                    m={0}
-                >
+                <Text component="h1" className={layout.heroGreeting}>
                     {getGreeting(user.data?.firstName)}. What do you want to
                     know?
                 </Text>

@@ -80,15 +80,11 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                         <Box ta="center">
                             <Text
                                 component="h1"
-                                fz={23}
-                                fw={600}
-                                lts="-0.02em"
-                                lh={1.2}
-                                m={0}
+                                className={layout.heroGreeting}
                             >
                                 {getGreeting(user.data?.firstName)}
                             </Text>
-                            <Text c="dimmed" fz={15} mt={8}>
+                            <Text className={layout.heroGreetingSub}>
                                 Pick up where you left off, or start something
                                 new.
                             </Text>
