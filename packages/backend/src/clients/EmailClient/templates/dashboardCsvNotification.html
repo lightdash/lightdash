@@ -1605,9 +1605,10 @@
                                                                                                                             line-height: 18px;
                                                                                                                         "
                                                                                                                     >
-                                                                                                                        <strong
+                                                                                                                        {{#if
+                                                                                                                        chartName}}<strong
                                                                                                                             >{{chartName}}:</strong
-                                                                                                                        >
+                                                                                                                        >{{/if}}
                                                                                                                         {{error}}
                                                                                                                     </li>
                                                                                                                     {{/failures}}
@@ -1662,8 +1663,7 @@
                                                                                                                 >
                                                                                                                     ⚠️
                                                                                                                     Warning:
-                                                                                                                    {{failures.length}}
-                                                                                                                    chart(s)
+                                                                                                                    {{failureCountPhrase}}
                                                                                                                     failed
                                                                                                                     to
                                                                                                                     export
@@ -1693,9 +1693,10 @@
                                                                                                                             line-height: 18px;
                                                                                                                         "
                                                                                                                     >
-                                                                                                                        <strong
+                                                                                                                        {{#if
+                                                                                                                        chartName}}<strong
                                                                                                                             >{{chartName}}:</strong
-                                                                                                                        >
+                                                                                                                        >{{/if}}
                                                                                                                         {{error}}
                                                                                                                     </li>
                                                                                                                     {{/failures}}

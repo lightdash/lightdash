@@ -115,6 +115,9 @@ import {
     WarehouseConnectionError,
     type Account as AccountType,
     type BatchDeliveryResult,
+    type CapturedQuery,
+    type DeliveryCaptureManifest,
+    type DeliveryNotice,
     type DeliveryResult,
     type DownloadAsyncQueryResultsPayload,
     type EmailBatchNotificationPayload,
@@ -135,6 +138,7 @@ import {
 import archiver from 'archiver';
 import fsSync from 'fs';
 import fs from 'fs/promises';
+import moment from 'moment';
 import { nanoid } from 'nanoid';
 import ExecutionContext from 'node-execution-context';
 import pLimit from 'p-limit';
@@ -374,6 +378,25 @@ export function buildItemMapFromColumns(columns: GsheetColumn[]): ItemsMap {
     return map;
 }
 
+// Different labels can sanitize to the same file name (e.g. "Q/A" and "Q:A"), so
+// duplicates get a " (n)" suffix before the extension.
+export function dedupeArtifactFilename(
+    filename: string,
+    used: Map<string, number>,
+): string {
+    const seen = used.get(filename);
+    if (seen === undefined) {
+        used.set(filename, 1);
+        return filename;
+    }
+    const next = seen + 1;
+    used.set(filename, next);
+    const dotIndex = filename.lastIndexOf('.');
+    return dotIndex === -1
+        ? `${filename} (${next})`
+        : `${filename.slice(0, dotIndex)} (${next})${filename.slice(dotIndex)}`;
+}
+
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
 
@@ -594,6 +617,41 @@ export default class SchedulerTask {
         throw new Error("Chart or dashboard can't be both undefined");
     }
 
+    // Renders the app once in delivery capture mode and returns the manifest of
+    // queries it ran. Must be called once per job, before the per-channel fan-out.
+    protected async captureAppDeliveryQueries(
+        scheduler: CreateSchedulerAndTargets,
+        jobId: string,
+    ): Promise<DeliveryCaptureManifest> {
+        if (!isAppCreateScheduler(scheduler)) {
+            throw new Error(
+                'Delivery capture is only available for app schedulers',
+            );
+        }
+        const { minimalUrl } = await this.getChartOrDashboard(
+            null,
+            null,
+            undefined,
+            QueryExecutionContext.SCHEDULED_DELIVERY,
+            null,
+            scheduler.appUuid,
+        );
+        const captureUrl = new URL(minimalUrl);
+        if (scheduler.appState) {
+            captureUrl.searchParams.set(
+                'state',
+                JSON.stringify(scheduler.appState),
+            );
+        }
+        captureUrl.searchParams.set('captureMode', 'delivery');
+
+        return this.unfurlService.captureAppDeliveryManifest({
+            url: captureUrl.href,
+            authUserUuid: scheduler.createdBy,
+            contextId: jobId,
+        });
+    }
+
     protected async getNotificationPageData(
         scheduler: CreateSchedulerAndTargets,
         jobId: string,
@@ -604,6 +662,9 @@ export default class SchedulerTask {
             dateZoomGranularity?: ExportContentPayload['dateZoomGranularity'];
             parameters?: ExportContentPayload['parameters'];
         },
+        // Captured once per job by captureAppDeliveryQueries — never rendered here,
+        // so the per-channel fan-out can't trigger a second app render.
+        appCaptureManifest?: DeliveryCaptureManifest,
     ): Promise<
         NotificationPayloadBase['page'] & {
             deliveryQueries?: SchedulerDeliveryQuery[];
@@ -625,6 +686,7 @@ export default class SchedulerTask {
         let pdfFile;
         let pdfPageCount: number | undefined;
         let failures: PartialFailure[] | undefined;
+        let notices: DeliveryNotice[] | undefined;
         let deliveryQueries: SchedulerDeliveryQuery[] | undefined;
 
         const schedulerUuid =
@@ -911,7 +973,187 @@ export default class SchedulerTask {
                 };
 
                 try {
-                    if (savedChartUuid) {
+                    if (appUuid) {
+                        if (!appCaptureManifest) {
+                            throw new Error(
+                                'App delivery requires a capture manifest from the delivery render',
+                            );
+                        }
+                        this.analytics.trackAccount(account, {
+                            event: 'download_results.started',
+                            userId: account.user.id,
+                            properties: baseAnalyticsProperties,
+                        });
+
+                        // Files (and workbook sheets) follow the order the app
+                        // declared the queries in.
+                        const capturedItems = [
+                            ...appCaptureManifest.items,
+                        ].sort((a, b) => a.order - b.order);
+                        const readyItems = capturedItems.filter(
+                            (
+                                item,
+                            ): item is Extract<
+                                CapturedQuery,
+                                { status: 'ready' }
+                            > => item.status === 'ready',
+                        );
+
+                        const renderFailures: PartialFailure[] = capturedItems
+                            .filter(
+                                (
+                                    item,
+                                ): item is Extract<
+                                    CapturedQuery,
+                                    { status: 'error' }
+                                > => item.status === 'error',
+                            )
+                            .map((item) => ({
+                                type: PartialFailureType.APP_QUERY,
+                                stage: 'render',
+                                captureKey: item.captureKey,
+                                label: item.label,
+                                error: item.error,
+                            }));
+                        const appNotices: DeliveryNotice[] = readyItems
+                            .filter(
+                                (item) =>
+                                    item.limitReached && item.rowCount !== null,
+                            )
+                            .map((item) => ({
+                                type: 'limit_reached',
+                                label: item.label,
+                                rowCount: item.rowCount ?? 0,
+                            }));
+                        if (appNotices.length > 0) {
+                            notices = appNotices;
+                        }
+
+                        if (readyItems.length === 0) {
+                            throw new Error(
+                                'App delivery render captured no successful queries',
+                            );
+                        }
+
+                        const settled = await Promise.allSettled(
+                            readyItems.map((item) =>
+                                this.asyncQueryService.downloadSyncQueryResults(
+                                    {
+                                        account,
+                                        projectUuid,
+                                        queryUuid: item.queryUuid,
+                                        type: downloadFileType,
+                                        onlyRaw:
+                                            csvOptions?.formatted === false,
+                                        expirationSecondsOverride,
+                                    },
+                                    SCHEDULER_POLLING_OPTIONS,
+                                ),
+                            ),
+                        );
+
+                        // One timestamp for the whole delivery, so labels that
+                        // sanitize to the same name collide and get deduped.
+                        const fileIdTime = moment();
+                        const usedFilenames = new Map<string, number>();
+                        const downloadFailures: PartialFailure[] = [];
+                        const appCsvUrls: NonNullable<
+                            NotificationPayloadBase['page']['csvUrls']
+                        > = [];
+                        const appDeliveryQueries: SchedulerDeliveryQuery[] = [];
+
+                        settled.forEach((result, index) => {
+                            const item = readyItems[index];
+                            if (result.status === 'rejected') {
+                                Logger.warn(
+                                    `Failed to download app delivery query "${item.label}" (${item.queryUuid}): ${result.reason}`,
+                                );
+                                downloadFailures.push({
+                                    type: PartialFailureType.APP_QUERY,
+                                    stage: 'download',
+                                    captureKey: item.captureKey,
+                                    label: item.label,
+                                    error: getErrorMessage(result.reason),
+                                });
+                                return;
+                            }
+                            appCsvUrls.push({
+                                filename: dedupeArtifactFilename(
+                                    downloadFileType === DownloadFileType.XLSX
+                                        ? ExcelService.generateFileId(
+                                              item.label,
+                                              false,
+                                              fileIdTime,
+                                          )
+                                        : CsvService.generateFileId(
+                                              item.label,
+                                              false,
+                                              fileIdTime,
+                                          ),
+                                    usedFilenames,
+                                ),
+                                path: result.value.fileUrl,
+                                localPath:
+                                    result.value.s3FileUrl ??
+                                    result.value.fileUrl,
+                                chartName: item.label,
+                                truncated: false,
+                            });
+                            appDeliveryQueries.push({
+                                chartName: item.label,
+                                queryUuid: item.queryUuid,
+                            });
+                        });
+
+                        if (appCsvUrls.length === 0) {
+                            throw new Error(
+                                'All app delivery downloads failed',
+                            );
+                        }
+
+                        const appFailures = [
+                            ...renderFailures,
+                            ...downloadFailures,
+                            ...(appCaptureManifest.overflowCount > 0
+                                ? [
+                                      {
+                                          type: PartialFailureType.APP_CAPTURE_OVERFLOW,
+                                          droppedCount:
+                                              appCaptureManifest.overflowCount,
+                                      } satisfies PartialFailure,
+                                  ]
+                                : []),
+                        ];
+                        if (appFailures.length > 0) {
+                            failures = appFailures;
+                        }
+                        csvUrls = appCsvUrls;
+                        deliveryQueries = appDeliveryQueries;
+
+                        if (
+                            format === SchedulerFormat.XLSX &&
+                            csvOptions?.xlsxFileLayout === 'workbook'
+                        ) {
+                            csvUrls = await this.buildWorkbookCsvUrls({
+                                files: csvUrls,
+                                workbookNameBase: details.name,
+                                organizationUuid,
+                                projectUuid,
+                                createdByUserUuid: userUuid,
+                                expirationSecondsOverride,
+                            });
+                        }
+
+                        this.analytics.trackAccount(account, {
+                            event: 'download_results.completed',
+                            userId: account.user.id,
+                            properties: {
+                                ...baseAnalyticsProperties,
+                                numCharts: csvUrls.length,
+                                numFailures: appFailures.length,
+                            },
+                        });
+                    } else if (savedChartUuid) {
                         this.analytics.trackAccount(account, {
                             event: 'download_results.started',
                             userId: account.user.id,
@@ -1341,24 +1583,14 @@ export default class SchedulerTask {
                             csvUrls.length > 0 &&
                             csvOptions?.xlsxFileLayout === 'workbook'
                         ) {
-                            const workbookResult =
-                                await this.createWorkbookDownloadUrl({
-                                    files: csvUrls,
-                                    workbookNameBase: details.name,
-                                    organizationUuid,
-                                    projectUuid,
-                                    createdByUserUuid: userUuid,
-                                    expirationSecondsOverride,
-                                });
-
-                            csvUrls = [
-                                {
-                                    filename: details.name,
-                                    path: workbookResult.url,
-                                    localPath: workbookResult.url,
-                                    truncated: false,
-                                },
-                            ];
+                            csvUrls = await this.buildWorkbookCsvUrls({
+                                files: csvUrls,
+                                workbookNameBase: details.name,
+                                organizationUuid,
+                                projectUuid,
+                                createdByUserUuid: userUuid,
+                                expirationSecondsOverride,
+                            });
                         }
 
                         this.analytics.trackAccount(account, {
@@ -1422,6 +1654,7 @@ export default class SchedulerTask {
             pdfFile,
             pdfPageCount,
             failures,
+            notices,
             deliveryQueries,
         };
     }
@@ -1497,6 +1730,7 @@ export default class SchedulerTask {
                 format,
                 savedChartUuid,
                 dashboardUuid,
+                appUuid,
                 name,
                 cron,
                 timezone,
@@ -1546,6 +1780,7 @@ export default class SchedulerTask {
                 pdfFile,
                 pdfPageCount,
                 failures,
+                notices,
             } = notificationPageData;
 
             const defaultSchedulerTimezone =
@@ -1732,7 +1967,7 @@ export default class SchedulerTask {
                                 ? csvUrl.path
                                 : undefined,
                     });
-                } else if (dashboardUuid) {
+                } else if (dashboardUuid || appUuid) {
                     if (csvUrls === undefined) {
                         throw new Error('Missing CSV URLS');
                     }
@@ -1740,6 +1975,7 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         csvUrls,
                         failures,
+                        notices,
                     });
                 } else {
                     throw new Error('Not implemented');
@@ -1890,6 +2126,7 @@ export default class SchedulerTask {
                 format,
                 savedChartUuid,
                 dashboardUuid,
+                appUuid,
                 name,
                 cron,
                 timezone,
@@ -2001,7 +2238,7 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         csvUrl,
                     });
-                } else if (dashboardUuid) {
+                } else if (dashboardUuid || appUuid) {
                     if (csvUrls === undefined) {
                         throw new UnexpectedServerError('Missing CSV URLS');
                     }
@@ -3036,6 +3273,7 @@ export default class SchedulerTask {
                 format,
                 savedChartUuid,
                 dashboardUuid,
+                appUuid,
                 name,
                 thresholds,
                 includeLinks,
@@ -3211,7 +3449,7 @@ export default class SchedulerTask {
                     format,
                     senderIdentity,
                 );
-            } else if (dashboardUuid) {
+            } else if (dashboardUuid || appUuid) {
                 if (csvUrls === undefined) {
                     throw new Error('Missing CSV URLS');
                 }
@@ -4429,6 +4667,16 @@ export default class SchedulerTask {
                 if (hasMsTeams) addToMap(msTeamsExpiration, 'msteams');
                 if (hasGoogleChat) addToMap(googleChatExpiration, 'googlechat');
 
+                // Captured once here: the fan-out below builds one page per
+                // distinct expiry, and each render would otherwise re-run the
+                // app's queries and hand recipients different data.
+                const appCaptureManifest =
+                    isAppCreateScheduler(scheduler) &&
+                    (scheduler.format === SchedulerFormat.CSV ||
+                        scheduler.format === SchedulerFormat.XLSX)
+                        ? await this.captureAppDeliveryQueries(scheduler, jobId)
+                        : undefined;
+
                 const pageByChannel = await Array.from(
                     expirationToChannels.entries(),
                 ).reduce(
@@ -4445,6 +4693,8 @@ export default class SchedulerTask {
                             jobId,
                             isFinalAttempt,
                             expiration,
+                            undefined,
+                            appCaptureManifest,
                         );
                         deliveryQueries ??= pageDeliveryQueries;
                         for (const channel of channels) {
@@ -5020,6 +5270,27 @@ export default class SchedulerTask {
             createdByUserUuid,
             source: 'scheduler',
         });
+    }
+
+    // Collapses per-query XLSX files into the single multi-sheet workbook the
+    // delivery attaches instead of them.
+    private async buildWorkbookCsvUrls(args: {
+        files: NonNullable<NotificationPayloadBase['page']['csvUrls']>;
+        workbookNameBase: string;
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+        expirationSecondsOverride?: number;
+    }): Promise<NonNullable<NotificationPayloadBase['page']['csvUrls']>> {
+        const workbookResult = await this.createWorkbookDownloadUrl(args);
+        return [
+            {
+                filename: args.workbookNameBase,
+                path: workbookResult.url,
+                localPath: workbookResult.url,
+                truncated: false,
+            },
+        ];
     }
 
     private async createWorkbookDownloadUrl({
@@ -6411,6 +6682,7 @@ export default class SchedulerTask {
                 format,
                 savedChartUuid,
                 dashboardUuid,
+                appUuid,
                 name,
                 cron,
                 timezone,
@@ -6523,7 +6795,7 @@ export default class SchedulerTask {
                         ...getBlocksArgs,
                         csvUrl,
                     });
-                } else if (dashboardUuid) {
+                } else if (dashboardUuid || appUuid) {
                     if (csvUrls === undefined) {
                         throw new UnexpectedServerError('Missing CSV URLS');
                     }

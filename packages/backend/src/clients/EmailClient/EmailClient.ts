@@ -28,6 +28,10 @@ import SMTPPool from 'nodemailer/lib/smtp-pool';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import {
+    buildFailureCountPhrase,
+    toEmailFailureFields,
+} from '../../utils/partialFailureUtils';
 
 const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
 
@@ -912,7 +916,10 @@ export default class EmailClient {
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
-                failures,
+                failures: failures?.map(toEmailFailureFields),
+                failureCountPhrase: failures
+                    ? buildFailureCountPhrase(failures)
+                    : undefined,
                 hasFailures: failures && failures.length > 0,
                 allChartsFailed,
             },

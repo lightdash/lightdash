@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    DownloadFileType,
     FieldReferenceError,
     FieldType,
     ForbiddenError,
@@ -7,7 +8,14 @@ import {
     GoogleSheetsTransientError,
     MetricType,
     NotEnoughResults,
+    PartialFailureType,
+    SchedulerFormat,
     ThresholdOperator,
+    type CapturedQuery,
+    type CreateSchedulerAndTargets,
+    type DeliveryCaptureManifest,
+    type NotificationPayloadBase,
+    type ScheduledDeliveryPayload,
     type UploadGsheetPayload,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
@@ -15,6 +23,7 @@ import type { ExecutionContextInfo } from '../logging/winston';
 import SchedulerTask, {
     buildItemMapFromColumns,
     buildSchedulerLogContext,
+    dedupeArtifactFilename,
     GSHEET_UPLOAD_MAX_ATTEMPTS,
     retryTransientGoogleSheetsWrite,
     setSchedulerJobLogContext,
@@ -596,6 +605,32 @@ describe('buildItemMapFromColumns', () => {
     });
 });
 
+describe('dedupeArtifactFilename', () => {
+    it('leaves the first occurrence untouched', () => {
+        const used = new Map<string, number>();
+        expect(dedupeArtifactFilename('csv-Q_A-2026.csv', used)).toBe(
+            'csv-Q_A-2026.csv',
+        );
+    });
+
+    it('suffixes repeats before the extension', () => {
+        const used = new Map<string, number>();
+        dedupeArtifactFilename('csv-Q_A-2026.csv', used);
+        expect(dedupeArtifactFilename('csv-Q_A-2026.csv', used)).toBe(
+            'csv-Q_A-2026 (2).csv',
+        );
+        expect(dedupeArtifactFilename('csv-Q_A-2026.csv', used)).toBe(
+            'csv-Q_A-2026 (3).csv',
+        );
+    });
+
+    it('appends the suffix at the end when there is no extension', () => {
+        const used = new Map<string, number>();
+        dedupeArtifactFilename('report', used);
+        expect(dedupeArtifactFilename('report', used)).toBe('report (2)');
+    });
+});
+
 describe('uploadGsheetFromQuery — rows branch', () => {
     // SchedulerTask has 20+ constructor dependencies. We create minimal mocks
     // for only the services touched by the rows branch.
@@ -701,5 +736,669 @@ describe('uploadGsheetFromQuery — rows branch', () => {
         expect(mockAppendToSheet).toHaveBeenCalledTimes(1);
         expect(mockAppendToSheet.mock.calls[0][2]).toEqual(payload.rows);
         expect(mockExecuteMetricQueryAndGetResults).not.toHaveBeenCalled();
+    });
+});
+
+type TaskDeps = ConstructorParameters<typeof SchedulerTask>[0];
+
+const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
+    new SchedulerTask({ ...({} as TaskDeps), ...overrides });
+
+const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
+    value as TaskDeps[K];
+
+const APP_ROW = {
+    project_uuid: 'project-1',
+    organization_uuid: 'org-1',
+    name: 'Sales App',
+    description: 'Sales overview',
+};
+
+const readyItem = (
+    overrides: Partial<Extract<CapturedQuery, { status: 'ready' }>> = {},
+): CapturedQuery => ({
+    status: 'ready',
+    captureKey: 'v1:key-1',
+    label: 'Revenue by month',
+    exploreName: 'orders',
+    queryUuid: 'query-1',
+    order: 0,
+    rowCount: 42,
+    limitReached: false,
+    ...overrides,
+});
+
+const errorItem = (
+    overrides: Partial<Extract<CapturedQuery, { status: 'error' }>> = {},
+): CapturedQuery => ({
+    status: 'error',
+    captureKey: 'v1:key-err',
+    label: 'Broken query',
+    exploreName: null,
+    queryUuid: null,
+    order: 9,
+    error: 'Query timed out',
+    ...overrides,
+});
+
+const manifestOf = (
+    items: CapturedQuery[],
+    overflowCount = 0,
+): DeliveryCaptureManifest => ({ version: 1, items, overflowCount });
+
+const appScheduler = (
+    overrides: Partial<CreateSchedulerAndTargets> = {},
+): CreateSchedulerAndTargets =>
+    ({
+        name: 'App delivery',
+        createdBy: 'user-1',
+        format: SchedulerFormat.CSV,
+        cron: '0 9 * * *',
+        timezone: 'UTC',
+        savedChartUuid: null,
+        dashboardUuid: null,
+        savedSqlUuid: null,
+        appUuid: 'app-1',
+        appName: 'Sales App',
+        options: { formatted: true, limit: 'table' },
+        enabled: true,
+        includeLinks: true,
+        targets: [],
+        ...overrides,
+    }) as CreateSchedulerAndTargets;
+
+type PageData = NotificationPayloadBase['page'];
+
+const callGetNotificationPageData = (
+    task: SchedulerTask,
+    scheduler: CreateSchedulerAndTargets,
+    appCaptureManifest?: DeliveryCaptureManifest,
+    expirationSecondsOverride?: number,
+): Promise<PageData> =>
+    (
+        task as unknown as {
+            getNotificationPageData(
+                scheduler: CreateSchedulerAndTargets,
+                jobId: string,
+                isFinalAttempt: boolean,
+                expirationSecondsOverride?: number,
+                exportOptions?: undefined,
+                appCaptureManifest?: DeliveryCaptureManifest,
+            ): Promise<PageData>;
+        }
+    ).getNotificationPageData(
+        scheduler,
+        'job-1',
+        false,
+        expirationSecondsOverride,
+        undefined,
+        appCaptureManifest,
+    );
+
+describe('getNotificationPageData — app CSV/XLSX branch', () => {
+    const setup = ({
+        download,
+        fileStorageEnabled = false,
+    }: {
+        download?: (args: { queryUuid: string }) => Promise<{
+            fileUrl: string;
+            s3FileUrl?: string;
+        }>;
+        fileStorageEnabled?: boolean;
+    } = {}) => {
+        const downloadSyncQueryResults = vi.fn(
+            download ??
+                (async ({ queryUuid }: { queryUuid: string }) => ({
+                    fileUrl: `https://files.example.com/${queryUuid}`,
+                    s3FileUrl: `s3://bucket/${queryUuid}`,
+                })),
+        );
+        const findAppByUuid = vi.fn().mockResolvedValue(APP_ROW);
+        const trackAccount = vi.fn();
+        const task = makeTaskWithDeps({
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                headlessBrowser: {
+                    internalLightdashHost: 'http://lightdash-dev:3000',
+                },
+                query: {},
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                appModel: { findAppByUuid },
+            }),
+            userService: asDep<'userService'>({
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { id: 'user-id-1' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+            }),
+            analytics: asDep<'analytics'>({ trackAccount, track: vi.fn() }),
+            fileStorageClient: asDep<'fileStorageClient'>({
+                isEnabled: () => fileStorageEnabled,
+            }),
+            asyncQueryService: asDep<'asyncQueryService'>({
+                downloadSyncQueryResults,
+            }),
+            slackClient: asDep<'slackClient'>({ isEnabled: false }),
+        });
+        return { task, downloadSyncQueryResults, findAppByUuid, trackAccount };
+    };
+
+    it('downloads every ready query and names the files after the capture labels', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler(),
+            manifestOf([
+                readyItem({
+                    captureKey: 'v1:a',
+                    label: 'Revenue by month',
+                    queryUuid: 'query-a',
+                    order: 0,
+                }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders by status',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+                readyItem({
+                    captureKey: 'v1:c',
+                    label: 'Top customers',
+                    queryUuid: 'query-c',
+                    order: 2,
+                }),
+            ]),
+            604800,
+        );
+
+        expect(downloadSyncQueryResults).toHaveBeenCalledTimes(3);
+        expect(downloadSyncQueryResults.mock.calls[0][0]).toMatchObject({
+            projectUuid: 'project-1',
+            queryUuid: 'query-a',
+            type: DownloadFileType.CSV,
+            onlyRaw: false,
+            expirationSecondsOverride: 604800,
+        });
+        expect(page.csvUrls).toHaveLength(3);
+        expect(page.csvUrls?.map((file) => file.chartName)).toEqual([
+            'Revenue by month',
+            'Orders by status',
+            'Top customers',
+        ]);
+        page.csvUrls?.forEach((file) => {
+            expect(file.truncated).toBe(false);
+        });
+        expect(page.csvUrls?.[0].filename).toMatch(
+            /^csv-Revenue by month-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{4}\.csv$/,
+        );
+        expect(page.csvUrls?.[0].path).toBe(
+            'https://files.example.com/query-a',
+        );
+        expect(page.csvUrls?.[0].localPath).toBe('s3://bucket/query-a');
+        expect(page.failures ?? []).toEqual([]);
+        expect(page.notices ?? []).toEqual([]);
+    });
+
+    it('passes onlyRaw when the scheduler asks for unformatted values', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        await callGetNotificationPageData(
+            task,
+            appScheduler({ options: { formatted: false, limit: 'table' } }),
+            manifestOf([readyItem()]),
+        );
+
+        expect(downloadSyncQueryResults.mock.calls[0][0]).toMatchObject({
+            onlyRaw: true,
+        });
+    });
+
+    it('requests XLSX downloads for an XLSX scheduler', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                format: SchedulerFormat.XLSX,
+                options: { formatted: true, limit: 'table' },
+            }),
+            manifestOf([readyItem({ label: 'Revenue' })]),
+        );
+
+        expect(downloadSyncQueryResults.mock.calls[0][0]).toMatchObject({
+            type: DownloadFileType.XLSX,
+        });
+        expect(page.csvUrls?.[0].filename).toMatch(
+            /^xlsx-Revenue-[\d-]+\.xlsx$/,
+        );
+    });
+
+    it('merges the files into a single workbook when the layout is workbook', async () => {
+        const { task } = setup({ fileStorageEnabled: true });
+        const createWorkbookDownloadUrl = vi.fn().mockResolvedValue({
+            url: 'https://files.example.com/workbook.xlsx',
+            numFileFailures: 0,
+        });
+        (task as unknown as Record<string, unknown>).createWorkbookDownloadUrl =
+            createWorkbookDownloadUrl;
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler({
+                format: SchedulerFormat.XLSX,
+                options: {
+                    formatted: true,
+                    limit: 'table',
+                    xlsxFileLayout: 'workbook',
+                },
+            }),
+            manifestOf([
+                readyItem({ label: 'Revenue', queryUuid: 'query-a' }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        );
+
+        expect(createWorkbookDownloadUrl).toHaveBeenCalledTimes(1);
+        expect(
+            createWorkbookDownloadUrl.mock.calls[0][0].files.map(
+                (file: { chartName?: string }) => file.chartName,
+            ),
+        ).toEqual(['Revenue', 'Orders']);
+        expect(createWorkbookDownloadUrl.mock.calls[0][0]).toMatchObject({
+            workbookNameBase: 'Sales App',
+        });
+        expect(page.csvUrls).toEqual([
+            {
+                filename: 'Sales App',
+                path: 'https://files.example.com/workbook.xlsx',
+                localPath: 'https://files.example.com/workbook.xlsx',
+                truncated: false,
+            },
+        ]);
+    });
+
+    it('delivers the ready queries and reports render-stage failures for the errored ones', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler(),
+            manifestOf([
+                readyItem({ label: 'Revenue', queryUuid: 'query-a' }),
+                errorItem({
+                    captureKey: 'v1:boom',
+                    label: 'Broken query',
+                    error: 'Query timed out',
+                }),
+            ]),
+        );
+
+        expect(downloadSyncQueryResults).toHaveBeenCalledTimes(1);
+        expect(page.csvUrls).toHaveLength(1);
+        expect(page.failures).toEqual([
+            {
+                type: PartialFailureType.APP_QUERY,
+                stage: 'render',
+                captureKey: 'v1:boom',
+                label: 'Broken query',
+                error: 'Query timed out',
+            },
+        ]);
+    });
+
+    it('reports a download-stage failure and still delivers the rest', async () => {
+        const { task } = setup({
+            download: async ({ queryUuid }) => {
+                if (queryUuid === 'query-b') {
+                    throw new Error('storage unavailable');
+                }
+                return { fileUrl: `https://files.example.com/${queryUuid}` };
+            },
+        });
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler(),
+            manifestOf([
+                readyItem({ label: 'Revenue', queryUuid: 'query-a' }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        );
+
+        expect(page.csvUrls).toHaveLength(1);
+        expect(page.csvUrls?.[0].chartName).toBe('Revenue');
+        expect(page.failures).toEqual([
+            {
+                type: PartialFailureType.APP_QUERY,
+                stage: 'download',
+                captureKey: 'v1:b',
+                label: 'Orders',
+                error: 'storage unavailable',
+            },
+        ]);
+    });
+
+    it('throws when every download fails', async () => {
+        const { task } = setup({
+            download: async () => {
+                throw new Error('storage unavailable');
+            },
+        });
+
+        await expect(
+            callGetNotificationPageData(
+                task,
+                appScheduler(),
+                manifestOf([
+                    readyItem({ queryUuid: 'query-a' }),
+                    readyItem({
+                        captureKey: 'v1:b',
+                        queryUuid: 'query-b',
+                        order: 1,
+                    }),
+                ]),
+            ),
+        ).rejects.toThrow(/all app delivery downloads failed/i);
+    });
+
+    it('reports dropped queries as a capture overflow failure', async () => {
+        const { task } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler(),
+            manifestOf([readyItem()], 2),
+        );
+
+        expect(page.failures).toEqual([
+            {
+                type: PartialFailureType.APP_CAPTURE_OVERFLOW,
+                droppedCount: 2,
+            },
+        ]);
+    });
+
+    it('reports a limit-reached query as a notice, never as a failure', async () => {
+        const { task } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler(),
+            manifestOf([
+                readyItem({ label: 'Revenue', rowCount: 500 }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    queryUuid: 'query-b',
+                    order: 1,
+                    rowCount: 5000,
+                    limitReached: true,
+                }),
+            ]),
+        );
+
+        expect(page.notices).toEqual([
+            { type: 'limit_reached', label: 'Orders', rowCount: 5000 },
+        ]);
+        expect(page.failures ?? []).toEqual([]);
+        expect(page.csvUrls).toHaveLength(2);
+    });
+
+    it('throws when the render captured no successful queries', async () => {
+        const { task, downloadSyncQueryResults } = setup();
+
+        await expect(
+            callGetNotificationPageData(
+                task,
+                appScheduler(),
+                manifestOf([errorItem()]),
+            ),
+        ).rejects.toThrow(/captured no successful queries/i);
+        expect(downloadSyncQueryResults).not.toHaveBeenCalled();
+    });
+
+    it('throws when no capture manifest was provided', async () => {
+        const { task } = setup();
+
+        await expect(
+            callGetNotificationPageData(task, appScheduler()),
+        ).rejects.toThrow(/requires a capture manifest/i);
+    });
+
+    it('suffixes filenames that collide once sanitized', async () => {
+        const { task } = setup();
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler(),
+            manifestOf([
+                readyItem({ label: 'Q/A', queryUuid: 'query-a' }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Q:A',
+                    queryUuid: 'query-b',
+                    order: 1,
+                }),
+            ]),
+        );
+
+        const filenames = page.csvUrls?.map((file) => file.filename) ?? [];
+        expect(filenames[0]).toMatch(/^csv-Q_A-[\d-]+\.csv$/);
+        expect(filenames[1]).toMatch(/^csv-Q_A-[\d-]+ \(2\)\.csv$/);
+    });
+});
+
+describe('captureAppDeliveryQueries', () => {
+    const setup = () => {
+        const captureAppDeliveryManifest = vi
+            .fn()
+            .mockResolvedValue(manifestOf([readyItem()]));
+        const task = makeTaskWithDeps({
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                headlessBrowser: {
+                    internalLightdashHost: 'http://lightdash-dev:3000',
+                },
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                appModel: {
+                    findAppByUuid: vi.fn().mockResolvedValue(APP_ROW),
+                },
+            }),
+            unfurlService: asDep<'unfurlService'>({
+                captureAppDeliveryManifest,
+            }),
+        });
+        return { task, captureAppDeliveryManifest };
+    };
+
+    const call = (task: SchedulerTask, scheduler: CreateSchedulerAndTargets) =>
+        (
+            task as unknown as {
+                captureAppDeliveryQueries(
+                    scheduler: CreateSchedulerAndTargets,
+                    jobId: string,
+                ): Promise<DeliveryCaptureManifest>;
+            }
+        ).captureAppDeliveryQueries(scheduler, 'job-9');
+
+    it('renders the minimal app page in delivery capture mode', async () => {
+        const { task, captureAppDeliveryManifest } = setup();
+
+        const manifest = await call(task, appScheduler());
+
+        expect(manifest.items).toHaveLength(1);
+        const args = captureAppDeliveryManifest.mock.calls[0][0];
+        expect(args.authUserUuid).toBe('user-1');
+        expect(args.contextId).toBe('job-9');
+        const url = new URL(args.url);
+        expect(url.origin).toBe('http://lightdash-dev:3000');
+        expect(url.pathname).toBe('/minimal/projects/project-1/apps/app-1');
+        expect(url.searchParams.get('captureMode')).toBe('delivery');
+        expect(url.searchParams.get('state')).toBeNull();
+    });
+
+    it('seeds the capture render with the scheduler app state', async () => {
+        const { task, captureAppDeliveryManifest } = setup();
+
+        await call(
+            task,
+            appScheduler({
+                appState: { tab: 'revenue' },
+            } as Partial<CreateSchedulerAndTargets>),
+        );
+
+        const url = new URL(captureAppDeliveryManifest.mock.calls[0][0].url);
+        expect(url.searchParams.get('state')).toBe('{"tab":"revenue"}');
+        expect(url.searchParams.get('captureMode')).toBe('delivery');
+    });
+});
+
+describe('handleScheduledDelivery — app delivery capture', () => {
+    const setup = () => {
+        const captureAppDeliveryManifest = vi
+            .fn()
+            .mockResolvedValue(manifestOf([readyItem()]));
+        const generateJobsForSchedulerTargets = vi.fn().mockResolvedValue([]);
+        const task = makeTaskWithDeps({
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                headlessBrowser: {
+                    internalLightdashHost: 'http://lightdash-dev:3000',
+                },
+                persistentDownloadUrls: { expirationSeconds: 3600 },
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+                appModel: {
+                    findAppByUuid: vi.fn().mockResolvedValue(APP_ROW),
+                },
+            }),
+            organizationSettingsModel: asDep<'organizationSettingsModel'>({
+                get: vi.fn().mockResolvedValue({
+                    scheduledDeliveryExpirationSecondsEmail: 100,
+                    scheduledDeliveryExpirationSecondsSlack: 200,
+                    scheduledDeliveryExpirationSecondsMsTeams: null,
+                    scheduledDeliveryExpirationSecondsGoogleChat: null,
+                    scheduledDeliveryExpirationSeconds: null,
+                }),
+            }),
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({}),
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { id: 'user-id-1' },
+                    organization: { organizationUuid: 'org-1' },
+                }),
+            }),
+            analytics: asDep<'analytics'>({ track: vi.fn() }),
+            schedulerClient: asDep<'schedulerClient'>({
+                generateJobsForSchedulerTargets,
+            }),
+            unfurlService: asDep<'unfurlService'>({
+                captureAppDeliveryManifest,
+            }),
+        });
+        const getNotificationPageData = vi.fn().mockResolvedValue({
+            url: 'https://lightdash.example.com/app',
+            details: { name: 'Sales App', description: undefined },
+            pageType: 'app',
+            organizationUuid: 'org-1',
+            csvUrls: [],
+        });
+        (task as unknown as Record<string, unknown>).getNotificationPageData =
+            getNotificationPageData;
+        return {
+            task,
+            captureAppDeliveryManifest,
+            getNotificationPageData,
+            generateJobsForSchedulerTargets,
+        };
+    };
+
+    const run = (task: SchedulerTask, scheduler: CreateSchedulerAndTargets) =>
+        (
+            task as unknown as {
+                handleScheduledDelivery(
+                    jobId: string,
+                    scheduledTime: Date,
+                    payload: ScheduledDeliveryPayload,
+                    isFinalAttempt: boolean,
+                ): Promise<void>;
+            }
+        ).handleScheduledDelivery(
+            'job-1',
+            new Date('2026-07-30T09:00:00Z'),
+            {
+                ...scheduler,
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+                userUuid: 'user-1',
+            } as unknown as ScheduledDeliveryPayload,
+            true,
+        );
+
+    it('captures the app render exactly once across two expiration groups', async () => {
+        const { task, captureAppDeliveryManifest, getNotificationPageData } =
+            setup();
+
+        await run(
+            task,
+            appScheduler({
+                targets: [{ recipient: 'a@b.com' }, { channel: 'C123' }],
+            }),
+        );
+
+        expect(getNotificationPageData).toHaveBeenCalledTimes(2);
+        expect(captureAppDeliveryManifest).toHaveBeenCalledTimes(1);
+        const manifests = getNotificationPageData.mock.calls.map(
+            (call) => call[5],
+        );
+        expect(manifests[0]).toBeDefined();
+        expect(manifests[0]).toBe(manifests[1]);
+    });
+
+    it('does not capture for an image-format app delivery', async () => {
+        const { task, captureAppDeliveryManifest, getNotificationPageData } =
+            setup();
+
+        await run(
+            task,
+            appScheduler({
+                format: SchedulerFormat.IMAGE,
+                options: {},
+                targets: [{ recipient: 'a@b.com' }],
+            }),
+        );
+
+        expect(captureAppDeliveryManifest).not.toHaveBeenCalled();
+        expect(getNotificationPageData.mock.calls[0][5]).toBeUndefined();
+    });
+
+    it('does not capture for a dashboard CSV delivery', async () => {
+        const { task, captureAppDeliveryManifest } = setup();
+
+        await run(
+            task,
+            appScheduler({
+                appUuid: null,
+                appName: null,
+                dashboardUuid: 'dashboard-1',
+                targets: [{ recipient: 'a@b.com' }],
+            }),
+        );
+
+        expect(captureAppDeliveryManifest).not.toHaveBeenCalled();
     });
 });
