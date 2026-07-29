@@ -74,14 +74,17 @@ jobs:
                 if (/^\S/.test(line)) {
                   break;
                 }
+                if (/^\\s*#/.test(line)) {
+                  continue;
+                }
 
-                const match = line.match(/^\\s{2}(?:'([^']+)'|\"([^\"]+)\"|([^:\\s]+))\\s*:\\s*(?:'([^']*)'|\"([^\"]*)\"|([^\\s#]+))/);
+                const match = line.match(/^\\s{2}(?:'([^']+)'|\"([^\"]+)\"|([^:\\s]+))\\s*:\\s*(?:'([^']*)'|\"([^\"]*)\"|([^#]+?))\\s*(?:#.*)?$/);
                 if (!match) {
                   continue;
                 }
 
                 const key = match[1] || match[2] || match[3];
-                const ver = match[4] || match[5] || match[6];
+                const ver = (match[4] || match[5] || match[6]).trim();
                 if (/^[\^~><=]/.test(ver) || /\\|\\|/.test(ver)) {
                   workspaceIssues.push('pnpm-workspace.yaml [pnpm-workspace overrides] ' + key + ': ' + ver);
                 }
