@@ -881,6 +881,7 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
         projectId: string;
         homepageUuid: string;
         onboardingFlow: OnboardingFlow;
+        homepageBuilderEnablement: HomepageBuilderEnablement | null;
     };
 };
 
@@ -897,6 +898,7 @@ type OnboardingHomepageSkippedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         onboardingFlow: OnboardingFlow;
+        homepageBuilderEnablement: HomepageBuilderEnablement | null;
         reason: OnboardingHomepageSkippedReason;
     };
 };
@@ -908,6 +910,7 @@ type OnboardingHomepageFailedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         onboardingFlow: OnboardingFlow;
+        homepageBuilderEnablement: HomepageBuilderEnablement | null;
         errorType: string;
     };
 };
