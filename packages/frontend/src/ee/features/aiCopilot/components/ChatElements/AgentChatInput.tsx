@@ -109,8 +109,9 @@ interface AgentChatInputProps {
     clearOnSubmit?: boolean;
     showSuggestions?: boolean;
     contentMentionPriorityItems?: ContentMentionSuggestionItem[];
-    // Reveals the agent selector on first focus instead of showing it always.
-    revealAgentSelectorOnFocus?: boolean;
+    // Reveals the deep research and agent controls on first focus instead of
+    // showing them always.
+    revealControlsOnFocus?: boolean;
     // Shrinks padding/min-heights for a more compact composer.
     dense?: boolean;
 }
@@ -156,17 +157,17 @@ export const AgentChatInput = ({
     clearOnSubmit = true,
     showSuggestions = true,
     contentMentionPriorityItems = [],
-    revealAgentSelectorOnFocus = false,
+    revealControlsOnFocus = false,
     dense = false,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
     const [hasClickedInput, setHasClickedInput] = useState(
-        !revealAgentSelectorOnFocus,
+        !revealControlsOnFocus,
     );
     const handleInputCardMouseDown = useCallback(() => {
-        if (revealAgentSelectorOnFocus) setHasClickedInput(true);
-    }, [revealAgentSelectorOnFocus]);
+        if (revealControlsOnFocus) setHasClickedInput(true);
+    }, [revealControlsOnFocus]);
     const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
     const [deepResearchDepth, setDeepResearchDepth] =
         useState<DeepResearchDepth>('standard');
@@ -769,19 +770,23 @@ export const AgentChatInput = ({
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
-                        {deepResearchControl}
-
-                        {showAgentSelector && (
+                        {(deepResearchControl || showAgentSelector) && (
                             <Box
-                                className={styles.agentSelectorReveal}
+                                className={styles.controlsReveal}
                                 data-visible={hasClickedInput}
                             >
-                                <AgentSelector
-                                    projectUuid={projectUuid!}
-                                    agents={agents!}
-                                    selectedAgent={selectedAgent!}
-                                    compact
-                                />
+                                <Group gap="xs" align="center" wrap="nowrap">
+                                    {deepResearchControl}
+
+                                    {showAgentSelector && (
+                                        <AgentSelector
+                                            projectUuid={projectUuid!}
+                                            agents={agents!}
+                                            selectedAgent={selectedAgent!}
+                                            compact
+                                        />
+                                    )}
+                                </Group>
                             </Box>
                         )}
 

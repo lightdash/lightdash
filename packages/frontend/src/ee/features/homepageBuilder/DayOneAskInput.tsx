@@ -366,7 +366,7 @@ const DayOneAskInputInner: FC<Props> = ({
                 loading={isCreatingThread}
                 showSuggestions={false}
                 fullWidth
-                revealAgentSelectorOnFocus
+                revealControlsOnFocus
                 dense
                 disabled={!projectUuid || !canCreateThread}
                 disabledReason={

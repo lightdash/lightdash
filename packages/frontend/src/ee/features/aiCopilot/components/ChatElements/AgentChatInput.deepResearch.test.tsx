@@ -260,6 +260,45 @@ describe('AgentChatInput Deep research mode', () => {
         expect(control.parentElement?.firstElementChild).toBe(control);
     });
 
+    it('reveals the control with the agent selector once the composer is clicked', async () => {
+        const user = userEvent.setup();
+        const agent = {
+            uuid: 'agent-1',
+            name: 'Data agent',
+            imageUrl: null,
+            adminOnly: false,
+        };
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AgentChatInput
+                        onSubmit={vi.fn()}
+                        onStartDeepResearch={vi.fn()}
+                        projectUuid="project-1"
+                        agentUuid="agent-1"
+                        agents={[agent]}
+                        selectedAgent={agent}
+                        revealControlsOnFocus
+                        showSuggestions={false}
+                    />
+                </MemoryRouter>
+            </Provider>,
+        );
+
+        const control = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        const reveal = control.closest<HTMLElement>('[data-visible]');
+        expect(reveal).toHaveAttribute('data-visible', 'false');
+        expect(reveal?.textContent).toContain('Data agent');
+
+        const composer = control.closest<HTMLElement>('[data-variant="card"]');
+        expect(composer).not.toBeNull();
+        await user.click(composer!);
+
+        expect(reveal).toHaveAttribute('data-visible', 'true');
+    });
+
     it('places the control first in the inline composer right actions', () => {
         renderWithProviders(
             <Provider store={store}>
