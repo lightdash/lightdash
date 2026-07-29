@@ -112,6 +112,7 @@ const LoginWithEmailOtp: FC<{
             </Stack>
             <Button
                 fullWidth
+                color="red"
                 loading={isVerifying}
                 disabled={disabled}
                 onClick={() => submitCode(form.values.passcode)}
@@ -122,6 +123,7 @@ const LoginWithEmailOtp: FC<{
             <Anchor
                 fz="sm"
                 mx="auto"
+                c="red"
                 component="button"
                 type="button"
                 disabled={isRequesting}
