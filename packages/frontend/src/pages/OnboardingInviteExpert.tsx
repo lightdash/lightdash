@@ -191,7 +191,7 @@ const OnboardingInviteExpert: FC = () => {
         data: inviteLink,
         mutateAsync,
         isLoading,
-    } = useCreateInviteLinkMutation();
+    } = useCreateInviteLinkMutation({ showSuccessToast: false });
     const { mutateAsync: updateUserAsync, isLoading: isUpdatingUser } =
         useUserUpdateMutation();
     const { track } = useTracking();
