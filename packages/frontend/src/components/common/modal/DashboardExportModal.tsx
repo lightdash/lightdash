@@ -58,6 +58,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
 
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
@@ -92,11 +93,15 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         );
     }, [allTabsSelected, dashboard.tiles, selectedTabs]);
 
+    // Filters and parameters are part of the key so a cached preview is not
+    // reused after the user changes the dashboard view.
     const getPreviewKey = useCallback(
         (width: string) => {
-            return `${width}-${selectedTabs.join('-')}`;
+            return `${width}-${selectedTabs.join('-')}-${JSON.stringify(
+                dashboardFilters,
+            )}-${JSON.stringify(parameterValues)}`;
         },
-        [selectedTabs],
+        [selectedTabs, dashboardFilters, parameterValues],
     );
 
     const currentPreview = previewChoice
@@ -132,6 +137,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                 exportType === SchedulerFormat.IMAGE ? {} : getCsvOptions(),
             dashboardFilters,
             dateZoomGranularity,
+            parameters: parameterValues,
             customViewportWidth:
                 exportType === SchedulerFormat.IMAGE && previewChoice
                     ? parseInt(previewChoice)
@@ -148,6 +154,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportType,
         getCsvOptions,
         onClose,
+        parameterValues,
         previewChoice,
     ]);
 
@@ -168,6 +175,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                 : undefined,
             dashboardFilters,
             dateZoomGranularity,
+            parameters: parameterValues,
             selectedTabs: exportSelectedTabs,
         });
 
@@ -185,6 +193,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportPreviewMutation,
         exportSelectedTabs,
         getPreviewKey,
+        parameterValues,
         previewChoice,
     ]);
 

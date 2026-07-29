@@ -229,6 +229,7 @@ export class DashboardService
             dateZoomGranularity: data.dateZoomGranularity,
             customViewportWidth: data.customViewportWidth,
             selectedTabs: data.selectedTabs ?? null,
+            parameters: data.parameters,
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
             userUuid: user.userUuid,

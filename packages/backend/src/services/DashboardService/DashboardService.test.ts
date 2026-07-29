@@ -9,6 +9,7 @@ import {
     OrganizationMemberRole,
     PossibleAbilities,
     ProjectMemberRole,
+    SCHEDULER_TASKS,
     SchedulerFormat,
     SessionUser,
     type Account,
@@ -112,6 +113,7 @@ const slackClient = {
 
 const schedulerClient = {
     generateDailyJobsForScheduler: vi.fn(async () => undefined),
+    scheduleTask: vi.fn(async () => ({ jobId: 'jobId' })),
 };
 
 const dashboardChartsResult = {
@@ -218,6 +220,18 @@ describe('DashboardService', () => {
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
             dashboard.uuid,
             { projectUuid: undefined },
+        );
+    });
+
+    test('should forward the applied parameter values when exporting content', async () => {
+        await service.scheduleExportContent(user, dashboard.uuid, {
+            format: SchedulerFormat.IMAGE,
+            parameters: { region: 'APAC' },
+        });
+
+        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+            SCHEDULER_TASKS.EXPORT_CONTENT,
+            expect.objectContaining({ parameters: { region: 'APAC' } }),
         );
     });
 
