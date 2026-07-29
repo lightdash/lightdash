@@ -47,8 +47,8 @@
   },
   "devDependencies": {
     "@types/big.js": "6.2.2",
-    "oxlint": "1.57.0",
-    "oxlint-tsgolint": "0.18.1",
+    "oxlint": "1.75.0",
+    "oxlint-tsgolint": "7.0.2001",
     "@types/node-fetch": "2.6.13",
     "@types/pg": "8.11.10",
     "@types/pg-cursor": "2.7.0",

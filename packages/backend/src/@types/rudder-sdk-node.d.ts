@@ -30,7 +30,7 @@ declare module '@rudderstack/rudder-sdk-node' {
         context?: Record<string, AnyType>;
     }
 
-    declare class Analytics {
+    class Analytics {
         constructor(writeKey: string, options?: AnalyticsOptions);
         identify(payload: Identify): void;
         track(payload: Track): void;

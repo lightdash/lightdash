@@ -71,8 +71,8 @@
     "@types/pegjs": "0.10.3",
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
-    "oxlint": "1.57.0",
-    "oxlint-tsgolint": "0.18.1",
+    "oxlint": "1.75.0",
+    "oxlint-tsgolint": "7.0.2001",
     "typescript": "7.0.2",
     "vitest": "4.1.6"
   }

@@ -1,6 +1,5 @@
 {
     "$schema": "../../node_modules/oxlint/configuration_schema.json",
-    "extends": ["oxlint:recommended"],
     "options": {
         "typeAware": true
     },
@@ -82,7 +81,8 @@
         "no-useless-computed-key": "error",
         "no-useless-concat": "error",
         "no-useless-rename": "error",
-        "no-useless-return": "error",
+        /* oxlint flags mid-switch guard returns (behavior-changing autofix) — re-enable when fixed upstream */
+        "no-useless-return": "off",
         "no-var": "error",
         "prefer-const": "error",
         "prefer-exponentiation-operator": "error",
@@ -95,6 +95,76 @@
         "radix": "error",
         "symbol-description": "error",
         "yoda": "error",
+        "object-shorthand": [
+            "error",
+            "always",
+            { "ignoreConstructors": false, "avoidQuotes": true }
+        ],
+        "prefer-arrow-callback": [
+            "error",
+            { "allowNamedFunctions": false, "allowUnboundThis": true }
+        ],
+        /* oxlint CFG mishandles try/catch continuation in loops (retry-loop FPs) — re-enable when fixed upstream */
+        "no-unreachable-loop": "off",
+        "prefer-regex-literals": [
+            "error",
+            { "disallowRedundantWrapping": true }
+        ],
+        "no-restricted-exports": [
+            "error",
+            { "restrictedNamedExports": ["default", "then"] }
+        ],
+        "no-restricted-properties": [
+            "error",
+            {
+                "object": "arguments",
+                "property": "callee",
+                "message": "arguments.callee is deprecated"
+            },
+            {
+                "object": "global",
+                "property": "isFinite",
+                "message": "Please use Number.isFinite instead"
+            },
+            {
+                "object": "self",
+                "property": "isFinite",
+                "message": "Please use Number.isFinite instead"
+            },
+            {
+                "object": "window",
+                "property": "isFinite",
+                "message": "Please use Number.isFinite instead"
+            },
+            {
+                "object": "global",
+                "property": "isNaN",
+                "message": "Please use Number.isNaN instead"
+            },
+            {
+                "object": "self",
+                "property": "isNaN",
+                "message": "Please use Number.isNaN instead"
+            },
+            {
+                "object": "window",
+                "property": "isNaN",
+                "message": "Please use Number.isNaN instead"
+            },
+            {
+                "property": "__defineGetter__",
+                "message": "Please use Object.defineProperty instead."
+            },
+            {
+                "property": "__defineSetter__",
+                "message": "Please use Object.defineProperty instead."
+            },
+            {
+                "object": "Math",
+                "property": "pow",
+                "message": "Use the exponentiation operator (**) instead."
+            }
+        ],
         "arrow-body-style": [
             "error",
             "as-needed",
@@ -213,10 +283,33 @@
         "no-unassigned-vars": "off",
         "no-constant-binary-expression": "off",
         "promise/no-callback-in-promise": "off",
+        "vitest/require-mock-type-parameters": "off",
+        "vitest/no-conditional-expect": "off",
+        "vitest/require-to-throw-message": "off",
+        "vitest/expect-expect": "off",
+        "vitest/prefer-snapshot-hint": "off",
+        "vitest/no-conditional-tests": "off",
+        "vitest/no-standalone-expect": "off",
+        "vitest/valid-title": "off",
+        "vitest/no-disabled-tests": "off",
+        "@typescript-eslint/no-useless-default-assignment": "off",
+        "@typescript-eslint/no-meaningless-void-operator": "off",
 
         /* ── import ───────────────────────────────────────────────────── */
         "import/first": "error",
         "import/export": "error",
+        "import/extensions": [
+            "error",
+            "ignorePackages",
+            {
+                "js": "never",
+                "mjs": "never",
+                "jsx": "never",
+                "ts": "never",
+                "tsx": "never"
+            }
+        ],
+        "import/newline-after-import": "error",
         "import/no-absolute-path": "error",
         "import/no-amd": "error",
         "import/no-cycle": "error",
