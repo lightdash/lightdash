@@ -563,4 +563,210 @@ describe('SchedulerService', () => {
             });
         });
     });
+
+    describe('createAppScheduler', () => {
+        const appUuid = 'appUuid';
+        const appRow = {
+            app_uuid: appUuid,
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            space_uuid: null,
+            created_by_user_uuid: 'userUuid',
+            name: 'Sales App',
+        };
+
+        const appActor = buildUser([
+            {
+                subject: 'DataApp',
+                action: ['view'],
+                conditions: { organizationUuid },
+            },
+            {
+                subject: 'ScheduledDeliveries',
+                action: ['create'],
+                conditions: { organizationUuid },
+            },
+        ]);
+
+        const buildAppService = () => {
+            const appSchedulerModel = {
+                createScheduler: vi.fn(async (scheduler) => ({
+                    ...scheduler,
+                    schedulerUuid: 'newSchedulerUuid',
+                })),
+            };
+            const appService = new SchedulerService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: analyticsMock,
+                schedulerModel: appSchedulerModel as unknown as SchedulerModel,
+                dashboardModel: {} as DashboardModel,
+                savedChartModel: {} as SavedChartModel,
+                savedSqlModel: {} as SavedSqlModel,
+                appModel: {
+                    findAppByUuid: vi.fn(async () => appRow),
+                } as unknown as AppModel,
+                projectModel: {} as ProjectModel,
+                schedulerClient: {} as SchedulerClient,
+                slackClient: {
+                    joinChannels: vi.fn(async () => {}),
+                } as unknown as SlackClient,
+                emailClient: {} as EmailClient,
+                userModel: {} as UserModel,
+                googleDriveClient: {} as GoogleDriveClient,
+                userService: {} as UserService,
+                jobModel: {} as JobModel,
+                spacePermissionService:
+                    spacePermissionService as unknown as SpacePermissionService,
+            });
+            return { appService, appSchedulerModel };
+        };
+
+        const appSchedulerPayload = (
+            format: SchedulerFormat,
+            options: unknown,
+        ) =>
+            ({
+                name: 'App delivery',
+                cron: '0 9 * * *',
+                timezone: 'UTC',
+                format,
+                options,
+                enabled: true,
+                includeLinks: true,
+                targets: [],
+            }) as unknown as Parameters<
+                SchedulerService['createAppScheduler']
+            >[2];
+
+        test.each([
+            SchedulerFormat.IMAGE,
+            SchedulerFormat.CSV,
+            SchedulerFormat.XLSX,
+        ])('should accept %s deliveries', async (format) => {
+            const { appService, appSchedulerModel } = buildAppService();
+
+            await appService.createAppScheduler(
+                appActor,
+                appUuid,
+                appSchedulerPayload(
+                    format,
+                    format === SchedulerFormat.IMAGE
+                        ? {}
+                        : { formatted: true, limit: 'table' },
+                ),
+            );
+
+            expect(appSchedulerModel.createScheduler).toHaveBeenCalledWith(
+                expect.objectContaining({ format, appUuid }),
+            );
+        });
+
+        test.each([SchedulerFormat.GSHEETS, SchedulerFormat.PDF])(
+            'should reject %s deliveries',
+            async (format) => {
+                const { appService, appSchedulerModel } = buildAppService();
+
+                await expect(
+                    appService.createAppScheduler(
+                        appActor,
+                        appUuid,
+                        appSchedulerPayload(format, {}),
+                    ),
+                ).rejects.toThrowError(ParameterError);
+
+                expect(
+                    appSchedulerModel.createScheduler,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each(['all', 500])(
+            'should reject a csv limit of %s',
+            async (limit) => {
+                const { appService, appSchedulerModel } = buildAppService();
+
+                await expect(
+                    appService.createAppScheduler(
+                        appActor,
+                        appUuid,
+                        appSchedulerPayload(SchedulerFormat.CSV, {
+                            formatted: true,
+                            limit,
+                        }),
+                    ),
+                ).rejects.toThrowError(ParameterError);
+
+                expect(
+                    appSchedulerModel.createScheduler,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test('should reject a csv/xlsx format change on the generic update path', async () => {
+            const { appService } = buildAppService();
+            const appScheduler = {
+                ...chartSchedulerInPrivateSpace,
+                savedChartUuid: null,
+                appUuid,
+                appName: 'Sales App',
+                format: SchedulerFormat.CSV,
+            };
+            const appUpdateService = new SchedulerService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: analyticsMock,
+                schedulerModel: {
+                    getScheduler: vi.fn(async () => appScheduler),
+                    updateScheduler: vi.fn(async () => ({
+                        ...appScheduler,
+                        targets: [],
+                    })),
+                    deleteScheduledLogs: vi.fn(async () => {}),
+                } as unknown as SchedulerModel,
+                dashboardModel: {} as DashboardModel,
+                savedChartModel: {} as SavedChartModel,
+                savedSqlModel: {} as SavedSqlModel,
+                appModel: {
+                    findAppByUuid: vi.fn(async () => appRow),
+                } as unknown as AppModel,
+                projectModel: {} as ProjectModel,
+                schedulerClient: {
+                    deleteScheduledJobs: vi.fn(async () => {}),
+                } as unknown as SchedulerClient,
+                slackClient: {
+                    joinChannels: vi.fn(async () => {}),
+                } as unknown as SlackClient,
+                emailClient: {
+                    canSendEmail: vi.fn(() => false),
+                } as unknown as EmailClient,
+                userModel: {} as UserModel,
+                googleDriveClient: {} as GoogleDriveClient,
+                userService: {} as UserService,
+                jobModel: {} as JobModel,
+                spacePermissionService:
+                    spacePermissionService as unknown as SpacePermissionService,
+            });
+            expect(appService).toBeDefined();
+
+            await expect(
+                appUpdateService.updateScheduler(
+                    buildUser([
+                        {
+                            subject: 'ScheduledDeliveries',
+                            action: ['manage'],
+                            conditions: { organizationUuid },
+                        },
+                    ]),
+                    'schedulerUuid',
+                    {
+                        name: 'scheduler',
+                        cron: '0 0 * * *',
+                        timezone: 'UTC',
+                        format: SchedulerFormat.PDF,
+                        options: {},
+                        targets: [],
+                    } as unknown as UpdateSchedulerAndTargetsWithoutId,
+                ),
+            ).rejects.toThrowError(ParameterError);
+        });
+    });
 });
