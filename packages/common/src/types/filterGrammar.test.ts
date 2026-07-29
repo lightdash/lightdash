@@ -439,6 +439,74 @@ describe('Parse metric filters', () => {
         ]);
     });
 
+    it('Should parse date in the current operator with singular interval', () => {
+        const filters = [{ order_date: 'inTheCurrent day' }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.IN_THE_CURRENT,
+                settings: {
+                    unitOfTime: 'days',
+                },
+                target: {
+                    fieldRef: 'order_date',
+                },
+                values: [1],
+            },
+        ]);
+    });
+
+    it('Should parse date in the current operator with plural interval', () => {
+        const filters = [{ order_date: 'inTheCurrent months' }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.IN_THE_CURRENT,
+                settings: {
+                    unitOfTime: 'months',
+                },
+                target: {
+                    fieldRef: 'order_date',
+                },
+                values: [1],
+            },
+        ]);
+    });
+
+    it('Should parse date not in the current operator with interval', () => {
+        const filters = [{ order_date: 'notInTheCurrent week' }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.NOT_IN_THE_CURRENT,
+                settings: {
+                    unitOfTime: 'weeks',
+                },
+                target: {
+                    fieldRef: 'order_date',
+                },
+                values: [1],
+            },
+        ]);
+    });
+
+    it('Should parse date in the current operator with quarter interval', () => {
+        const filters = [{ order_date: 'inTheCurrent quarter' }];
+        expect(removeIds(parseFilters(filters))).toStrictEqual([
+            {
+                id: undefined,
+                operator: FilterOperator.IN_THE_CURRENT,
+                settings: {
+                    unitOfTime: 'quarters',
+                },
+                target: {
+                    fieldRef: 'order_date',
+                },
+                values: [1],
+            },
+        ]);
+    });
+
     it('Should parse between operator with two values', () => {
         const filters = [{ length_of_session: 'between 1 and 3600' }];
         expect(removeIds(parseFilters(filters))).toStrictEqual([
