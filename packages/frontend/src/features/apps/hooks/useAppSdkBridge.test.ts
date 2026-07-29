@@ -1,9 +1,12 @@
 import {
+    APP_SDK_COLOR_SCHEME_MESSAGE,
+    APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
     LightdashAppUuidHeader,
     QueryExecutionContext,
+    type AppColorScheme,
     type DashboardFilters,
     type DataAppVizContext,
 } from '@lightdash/common';
@@ -119,6 +122,7 @@ function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
     } as RefObject<HTMLIFrameElement | null>;
     renderHook(() =>
         useAppSdkBridge({
+            colorScheme: 'light',
             iframeRef,
             expectedPreviewOrigin: window.location.origin,
             projectUuid: PROJECT_UUID,
@@ -542,6 +546,7 @@ describe('lineage message routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
@@ -565,6 +570,7 @@ describe('lineage message routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
@@ -588,6 +594,7 @@ describe('lineage message routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
@@ -610,6 +617,7 @@ describe('lineage message routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
@@ -647,6 +655,7 @@ describe('url-state-change routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
@@ -771,6 +780,7 @@ describe('chart-query routing', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
@@ -863,6 +873,7 @@ describe('external-fetch branch', () => {
         } as RefObject<HTMLIFrameElement | null>;
         renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
@@ -1139,6 +1150,7 @@ describe('data-app-viz-context push', () => {
         } as RefObject<HTMLIFrameElement | null>;
         return renderHook(() =>
             useAppSdkBridge({
+                colorScheme: 'light',
                 iframeRef,
                 expectedPreviewOrigin: window.location.origin,
                 projectUuid: PROJECT_UUID,
@@ -1171,6 +1183,7 @@ describe('data-app-viz-context push', () => {
         const { rerender } = renderHook(
             ({ ctx }: { ctx: DataAppVizContext }) =>
                 useAppSdkBridge({
+                    colorScheme: 'light',
                     iframeRef,
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
@@ -1205,6 +1218,7 @@ describe('data-app-viz-context push', () => {
         const { rerender } = renderHook(
             ({ ctx }: { ctx: DataAppVizContext }) =>
                 useAppSdkBridge({
+                    colorScheme: 'light',
                     iframeRef,
                     expectedPreviewOrigin: window.location.origin,
                     projectUuid: PROJECT_UUID,
@@ -1301,6 +1315,7 @@ describe('delivery capture accumulator integration', () => {
                 dashboardFilters,
                 invalidateCache: true,
                 deliveryCapture,
+                colorScheme: 'light',
             }),
         );
 
@@ -1372,6 +1387,7 @@ describe('delivery capture accumulator integration', () => {
                 projectUuid: PROJECT_UUID,
                 appUuid: APP_UUID,
                 deliveryCapture,
+                colorScheme: 'light',
             }),
         );
 
@@ -1435,6 +1451,7 @@ describe('delivery capture accumulator integration', () => {
                 appUuid: APP_UUID,
                 invalidateCache: true,
                 queryContextOverride: QueryExecutionContext.SCHEDULED_DELIVERY,
+                colorScheme: 'light',
             }),
         );
 
@@ -1465,5 +1482,100 @@ describe('delivery capture accumulator integration', () => {
         const sentBody = JSON.parse(String(init?.body));
         // No deliveryCapture/queryContextOverride passed — body is untouched.
         expect(sentBody).toEqual({ query: METRIC_QUERY });
+    });
+});
+
+describe('color scheme push', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    const iframeRef = {
+        current: { contentWindow: window } as unknown as HTMLIFrameElement,
+    } as RefObject<HTMLIFrameElement | null>;
+
+    const renderWithColorScheme = (colorScheme: AppColorScheme) =>
+        renderHook(
+            ({ scheme }: { scheme: AppColorScheme }) =>
+                useAppSdkBridge({
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    colorScheme: scheme,
+                }),
+            { initialProps: { scheme: colorScheme } },
+        );
+
+    it('pushes the host scheme to the iframe on mount', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithColorScheme('dark');
+        expect(postSpy).toHaveBeenCalledWith(
+            { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
+            '*',
+        );
+    });
+
+    it('re-pushes when the host toggles theme', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { rerender } = renderWithColorScheme('light');
+        postSpy.mockClear();
+        rerender({ scheme: 'dark' });
+        expect(postSpy).toHaveBeenCalledWith(
+            { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
+            '*',
+        );
+    });
+
+    it('re-sends the scheme on iframe load, after the ready signal', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const { result } = renderWithColorScheme('dark');
+        postSpy.mockClear();
+        result.current.handleIframeLoad();
+        expect(postSpy.mock.calls.map(([message]) => message)).toEqual([
+            { type: 'lightdash:sdk:ready' },
+            { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
+        ]);
+    });
+
+    // The recovery path: an app whose SDK mounted after the load-time push (its
+    // `createClient()` isn't at module scope) asks, and gets an answer. Without
+    // this the app would keep the seed forever and silently ignore toggles.
+    it('answers a theme request from an app that missed the load-time push', async () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithColorScheme('dark');
+        postSpy.mockClear();
+
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data: { type: APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE },
+                source: window,
+                origin: window.location.origin,
+            }),
+        );
+        await vi.waitFor(() =>
+            expect(postSpy).toHaveBeenCalledWith(
+                { type: APP_SDK_COLOR_SCHEME_MESSAGE, colorScheme: 'dark' },
+                '*',
+            ),
+        );
+    });
+
+    it('ignores a theme request from a window that is not the iframe', async () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        renderWithColorScheme('dark');
+        postSpy.mockClear();
+
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data: { type: APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE },
+                source: null,
+                origin: window.location.origin,
+            }),
+        );
+        await new Promise((resolve) => {
+            setTimeout(resolve, 0);
+        });
+        expect(postSpy).not.toHaveBeenCalled();
     });
 });

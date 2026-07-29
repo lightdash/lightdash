@@ -272,6 +272,9 @@ export default function MinimalApp() {
                 // Seeds the app from ?state= so scheduled deliveries with a
                 // saved app state screenshot that view, not the default one.
                 urlStateSync
+                // Scheduled renders must not depend on the headless browser's
+                // stored theme preference.
+                forceColorScheme="light"
             />
             {indicatorReady && (
                 <ScreenshotReadyIndicator
