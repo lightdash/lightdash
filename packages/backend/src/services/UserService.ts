@@ -3057,6 +3057,14 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
+        // Guard before deleting: an OAuth callback without a refresh token
+        // must not wipe the user's working credentials.
+        if (!refreshToken) {
+            throw new ParameterError(
+                'Cannot create BigQuery user credentials without a Google refresh token',
+            );
+        }
+
         // Remove old BigQuery credentials to prevent duplicates on re-authentication
         await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
             user.userUuid,
