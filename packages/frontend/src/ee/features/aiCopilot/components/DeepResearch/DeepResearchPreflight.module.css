@@ -24,6 +24,10 @@
     }
 }
 
+.emptyState {
+    padding-inline: var(--mantine-spacing-xs);
+}
+
 @media (max-width: 48em) {
     .root {
         max-width: calc(100vw - rem(32px));
