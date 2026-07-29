@@ -10,13 +10,6 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine-8/core';
-import {
-    IconAppWindow,
-    IconBox,
-    IconClock,
-    IconSparkles,
-    IconUser,
-} from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import {
     useCallback,
@@ -33,7 +26,6 @@ import {
     type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import ErrorState from '../../../components/common/ErrorState';
-import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated/index';
 import { useInfiniteDataAppActivity } from '../hooks/useDataAppActivity';
 import { useDataAppActivityFilters } from '../hooks/useDataAppActivityFilters';
@@ -121,14 +113,8 @@ export const DataAppActivityTable: FC = () => {
                 id: 'createdAt',
                 accessorFn: (row) => row.createdAt,
                 header: 'When',
-                size: 140,
+                size: 132,
                 enableSorting: false,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => (
                     <Tooltip
                         withinPortal
@@ -151,14 +137,8 @@ export const DataAppActivityTable: FC = () => {
                         ? `${row.user.firstName} ${row.user.lastName}`
                         : 'Unknown user',
                 header: 'User',
-                size: 148,
+                size: 142,
                 enableSorting: false,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconUser} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) =>
                     row.original.user ? (
                         <Text fz="sm" c="ldGray.9" truncate>
@@ -173,15 +153,9 @@ export const DataAppActivityTable: FC = () => {
             {
                 id: 'app',
                 accessorFn: (row) => row.appName,
-                header: 'App',
-                size: 168,
+                header: 'Name',
+                size: 162,
                 enableSorting: false,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconAppWindow} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => {
                     const displayName = getAppDisplayName(
                         row.original.appName,
@@ -224,14 +198,8 @@ export const DataAppActivityTable: FC = () => {
                 id: 'project',
                 accessorFn: (row) => row.projectName,
                 header: 'Project',
-                size: 110,
+                size: 105,
                 enableSorting: false,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconBox} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.9" truncate>
                         {row.original.projectName}
@@ -268,12 +236,6 @@ export const DataAppActivityTable: FC = () => {
                 header: 'Model',
                 size: 100,
                 enableSorting: false,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconSparkles} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.9">
                         {row.original.claudeModel}
@@ -284,7 +246,7 @@ export const DataAppActivityTable: FC = () => {
                 id: 'status',
                 accessorFn: (row) => row.status,
                 header: 'Status',
-                size: 105,
+                size: 130,
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Badge
