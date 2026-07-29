@@ -80,6 +80,7 @@ import type {
 } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
 import {
+    AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
@@ -1380,8 +1381,18 @@ export const generateAgentResponse = async ({
             `Generation complete. Result text length: ${result.text.length}, finishReason: ${result.finishReason}`,
         );
 
-        if (result.steps.length >= args.execution.maxSteps && !result.text) {
-            throw new AiAgentStepCapReachedError(result.steps.length);
+        // Invariant: a finished prompt must persist either a response or an
+        // error message. Empty (or whitespace-only) text under the step cap
+        // would otherwise be stored as a blank response with no explanation
+        // for the user.
+        if (!result.text.trim()) {
+            if (result.steps.length >= args.execution.maxSteps) {
+                throw new AiAgentStepCapReachedError(result.steps.length);
+            }
+            throw new AiAgentEmptyResponseError(
+                result.finishReason,
+                result.steps.length,
+            );
         }
 
         if (args.execution.mode !== 'deep_research') {
@@ -1775,12 +1786,35 @@ export const streamAgentResponse = async ({
                 // The AI SDK holds the stream open until onFinish resolves, so
                 // the HTTP stream only closes once the response is persisted —
                 // the client's post-stream refetch then reads persisted content.
-                if (stepCapReached && !completeResponse) {
+                // Invariant: a finished prompt must persist either a response
+                // or an error message — a blank response with no error renders
+                // as an empty chat bubble with no explanation. trim() matters:
+                // steps with empty text still join into "\n" strings.
+                if (!completeResponse.trim()) {
+                    const emptyResponseError = stepCapReached
+                        ? new AiAgentStepCapReachedError(steps.length)
+                        : new AiAgentEmptyResponseError(
+                              finishReason,
+                              steps.length,
+                          );
+                    if (!stepCapReached) {
+                        // Under-cap empty finishes are unexpected — capture so
+                        // the underlying trigger stays observable in Sentry.
+                        Logger.error(
+                            `[AiAgent][Stream Agent Response] Stream finished with empty response under the step cap. finishReason: ${finishReason}, steps: ${steps.length}`,
+                        );
+                        Sentry.captureException(emptyResponseError, {
+                            tags: {
+                                errorType: 'AiAgentEmptyResponseError',
+                                'ai.model': modelName,
+                                'ai.finishReason': finishReason,
+                            },
+                        });
+                    }
                     await persistPrompt({
                         promptUuid: args.promptUuid,
-                        errorMessage: getUserFacingErrorMessage(
-                            new AiAgentStepCapReachedError(steps.length),
-                        ),
+                        errorMessage:
+                            getUserFacingErrorMessage(emptyResponseError),
                         tokenUsage: {
                             totalTokens: usage.totalTokens ?? 0,
                         },

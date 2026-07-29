@@ -13,6 +13,26 @@ export class AiAgentStepCapReachedError extends Error {
     }
 }
 
+export const EMPTY_RESPONSE_MESSAGE =
+    'The agent finished without writing a response. Please try again — if it keeps happening, rephrase the question or start a new thread.';
+
+// A finished prompt must always carry either a response or an error message.
+// This error backs that invariant: the model stopped (under the step cap)
+// without producing any text, which would otherwise persist as a blank chat
+// bubble with no explanation.
+export class AiAgentEmptyResponseError extends Error {
+    readonly finishReason: string;
+
+    readonly stepsCount: number;
+
+    constructor(finishReason: string, stepsCount: number) {
+        super(EMPTY_RESPONSE_MESSAGE);
+        this.name = 'AiAgentEmptyResponseError';
+        this.finishReason = finishReason;
+        this.stepsCount = stepsCount;
+    }
+}
+
 /**
  * Converts technical error messages into user-friendly messages for AI agent errors.
  *
@@ -26,6 +46,10 @@ export const getUserFacingErrorMessage = (
 ): string => {
     if (error instanceof AiAgentStepCapReachedError) {
         return STEP_CAP_REACHED_MESSAGE;
+    }
+
+    if (error instanceof AiAgentEmptyResponseError) {
+        return EMPTY_RESPONSE_MESSAGE;
     }
 
     if (error instanceof McpAuthorizationRequiredError) {
