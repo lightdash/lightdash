@@ -11,7 +11,6 @@
       supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
       ];
 
@@ -26,6 +25,7 @@
             config = {
               allowUnfreePredicate = pkg: builtins.elem (nixpkgs.lib.getName pkg) [
                 "graphite-cli"
+                "graphite-cli-unwrapped"
               ];
             };
           };
@@ -33,7 +33,7 @@
           # Socket Firewall Free — blocks malicious npm packages before they hit
           # disk. Not in nixpkgs, so wrap `npx -y sfw` and expose it on PATH.
           sfw = pkgs.writeShellScriptBin "sfw" ''
-            exec ${pkgs.nodejs}/bin/npx -y sfw "$@"
+            exec ${pkgs.nodejs_24}/bin/npx -y sfw "$@"
           '';
         in
         {
@@ -53,7 +53,7 @@
             ];
 
             buildInputs = (with pkgs; [
-              nodejs
+              nodejs_24
               pnpm
 
               # for dbt
