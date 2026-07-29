@@ -1,3 +1,17 @@
+# [1.28.0](https://github.com/lightdash/lightdash/compare/1.27.0...1.28.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **ai:** never finish a prompt with empty response and no error message ([#26433](https://github.com/lightdash/lightdash/issues/26433)) ([d422c5b](https://github.com/lightdash/lightdash/commit/d422c5bfc20a8ea1bb00c82c80d977cceefb5511)), closes [#26431](https://github.com/lightdash/lightdash/issues/26431)
+* **ai:** redirect getMetadata field misses to explores where the field is reachable ([#26432](https://github.com/lightdash/lightdash/issues/26432)) ([1dca881](https://github.com/lightdash/lightdash/commit/1dca881f04e174141b26edb66e88a77fad7b0455)), closes [#26430](https://github.com/lightdash/lightdash/issues/26430)
+* **pre-aggregates:** bundle DuckDB extensions ([#26406](https://github.com/lightdash/lightdash/issues/26406)) ([e193226](https://github.com/lightdash/lightdash/commit/e193226c0578a22b0ea921246b42a2558a066a9a))
+
+
+### Features
+
+* show a clear not-set-up state when the org roadmap is unavailable ([#26424](https://github.com/lightdash/lightdash/issues/26424)) ([8374c8d](https://github.com/lightdash/lightdash/commit/8374c8d7070af8cbc0c298b5dd7f9dc2e75c0de2))
+
 # [1.27.0](https://github.com/lightdash/lightdash/compare/1.26.0...1.27.0) (2026-07-29)
 
 
