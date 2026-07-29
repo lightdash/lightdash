@@ -1,5 +1,10 @@
 # syntax=docker/dockerfile:1.7
 
+# Extensions are ABI-versioned. Keep this pinned image and the destination path
+# below aligned with @duckdb/node-api; the production stage fails if they drift.
+FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
+RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
+
 # Optimized Multi-Stage Build for PR Previews
 # Uses parallel build stages and cache mounts for maximum caching
 # Okteto uses a cluster of buildkit instances to persist caches across PRs
@@ -220,6 +225,19 @@ COPY --from=build-formula /usr/app/packages/formula/dist /usr/app/packages/formu
 COPY --from=build-warehouses /usr/app/packages/warehouses/dist /usr/app/packages/warehouses/dist
 COPY --from=build-backend /usr/app/packages/backend/dist /usr/app/packages/backend/dist
 COPY --from=build-frontend /usr/app/packages/frontend/build /usr/app/packages/frontend/build
+
+COPY --from=duckdb-extensions \
+    /root/.duckdb/extensions/v1.5.2/*/*.duckdb_extension \
+    /usr/app/packages/warehouses/dist/duckdbExtensions/v1.5.2/
+
+# Never silently restore production runtime downloads after a DuckDB upgrade.
+RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout.write(require('@duckdb/node-api').version())")" \
+    && extension_directory="/usr/app/packages/warehouses/dist/duckdbExtensions/${duckdb_version}" \
+    && if [ ! -r "${extension_directory}/httpfs.duckdb_extension" ] \
+        || [ ! -r "${extension_directory}/aws.duckdb_extension" ]; then \
+        echo >&2 "Bundled extensions do not match @duckdb/node-api ${duckdb_version}"; \
+        exit 1; \
+    fi
 
 EXPOSE 8080
 
