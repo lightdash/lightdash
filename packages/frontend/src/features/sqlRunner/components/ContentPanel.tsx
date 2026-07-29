@@ -416,15 +416,14 @@ export const ContentPanel: FC = () => {
                     downloadLimit === null
                         ? MAX_SAFE_INTEGER
                         : (downloadLimit ?? limit),
-                    // TODO: pass parameterValues (same as handleRunQuery)
-                    undefined,
+                    parameterValues,
                     true,
                 );
                 return newQuery.queryUuid;
             }
             return queryUuid;
         },
-        [sql, projectUuid, limit, queryUuid],
+        [sql, projectUuid, limit, queryUuid, parameterValues],
     );
 
     const getDownloadPivotQueryUuid = useCallback(async () => {

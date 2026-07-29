@@ -281,6 +281,7 @@ export const useSavedSqlChartResults = (
                         savedSqlUuid: chartQuery.data.savedSqlUuid,
                         context: context as QueryExecutionContext,
                         limit: limit ?? MAX_SAFE_INTEGER,
+                        parameters,
                     });
                 }
                 queryUuidToDownload = queryForDownload.queryUuid;
