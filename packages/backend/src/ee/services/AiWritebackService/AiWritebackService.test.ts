@@ -130,6 +130,7 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
             findByUuid: vi.fn(),
             findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
             updateStageIfInProgress: vi.fn().mockResolvedValue(undefined),
+            claimForFinalize: vi.fn().mockResolvedValue(true),
             markReady: vi.fn().mockResolvedValue(true),
             markError: vi.fn().mockResolvedValue(true),
         } as AnyType,
@@ -1377,11 +1378,13 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
     });
 
-    it('aborts before any commit, push, or PR when the run went terminal mid-flight', async () => {
+    it('aborts before any commit, push, or PR when the finalize claim is lost', async () => {
         const sandbox = fakeSandbox(0, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
         const aiWritebackRunModel = {
             create: vi.fn(),
+            // Cancel won the atomic arbitration: the guarded claim updates 0 rows
+            claimForFinalize: vi.fn().mockResolvedValue(false),
             findByUuid: vi.fn().mockResolvedValue({ status: 'cancelled' }),
             findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
             updateStageIfInProgress: vi.fn().mockResolvedValue(undefined),
@@ -1397,6 +1400,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             ),
         ).rejects.toThrow(WritebackRunAbortedError);
 
+        expect(aiWritebackRunModel.claimForFinalize).toHaveBeenCalledWith(
+            'run-1',
+        );
         expect(createPullRequest).not.toHaveBeenCalled();
         expect(sandbox.git.commit).not.toHaveBeenCalled();
         // A deliberate abort is not a failure: the error terminal write is skipped
@@ -2776,7 +2782,11 @@ describe('AiWritebackService.enqueueWriteback', () => {
     } as AnyType;
 
     it('creates a pending run row and enqueues the pipeline job', async () => {
-        const runRow = { ai_writeback_run_uuid: 'run-1' };
+        const runRow = {
+            ai_writeback_run_uuid: 'run-1',
+            created_at: new Date('2026-07-01T10:00:00Z'),
+            updated_at: new Date('2026-07-01T10:00:00Z'),
+        };
         const aiWritebackRunModel = {
             create: vi.fn().mockResolvedValue(runRow),
         } as AnyType;
@@ -2797,7 +2807,11 @@ describe('AiWritebackService.enqueueWriteback', () => {
             aiThreadUuid: 'thread-1',
         });
 
-        expect(result).toEqual({ aiWritebackRunUuid: 'run-1' });
+        expect(result).toEqual({
+            aiWritebackRunUuid: 'run-1',
+            createdAt: runRow.created_at,
+            updatedAt: runRow.updated_at,
+        });
         expect(aiWritebackRunModel.create).toHaveBeenCalledWith({
             organizationUuid: ORG,
             projectUuid: 'proj-1',
@@ -3328,6 +3342,26 @@ describe('AiWritebackService.cancelRun', () => {
             service.cancelRun(viewOnlyUser(), 'run-1'),
         ).rejects.toThrow(ForbiddenError);
         expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError when the run vanishes between authorization and the cancel attempt', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi
+                .fn()
+                .mockResolvedValueOnce(runRow())
+                .mockResolvedValueOnce(undefined),
+            markCancelled: vi.fn().mockResolvedValue(false),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        await expect(
+            service.cancelRun(userWithOrg(true), 'run-1'),
+        ).rejects.toThrow('not found');
     });
 
     it('throws NotFoundError for a non-mcp-sourced run — only tasks-surface runs are cancellable', async () => {

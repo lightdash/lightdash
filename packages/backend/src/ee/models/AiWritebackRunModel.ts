@@ -1,4 +1,5 @@
 import {
+    AI_WRITEBACK_RUN_FINALIZING_STATUSES,
     AI_WRITEBACK_RUN_TERMINAL_STATUSES,
     type AiWritebackRunStatus,
     type AiWritebackSource,
@@ -97,8 +98,10 @@ export class AiWritebackRunModel {
     }
 
     /**
-     * Cooperative cancellation: only flips a run that is still non-terminal,
-     * so a finished (or already-cancelled) run is never overwritten. Returns
+     * Cooperative cancellation: only flips a run that is still non-terminal
+     * AND has not begun its git side effects — once claimForFinalize moved
+     * the row into a finalizing stage, cancellation loses the race so an
+     * in-flight push can never end up on a row that reads cancelled. Returns
      * whether the run was cancelled by this call.
      */
     async markCancelled(aiWritebackRunUuid: string): Promise<boolean> {
@@ -106,9 +109,33 @@ export class AiWritebackRunModel {
             AiWritebackRunTableName,
         )
             .where('ai_writeback_run_uuid', aiWritebackRunUuid)
-            .whereNotIn('status', [...AI_WRITEBACK_RUN_TERMINAL_STATUSES])
+            .whereNotIn('status', [
+                ...AI_WRITEBACK_RUN_TERMINAL_STATUSES,
+                ...AI_WRITEBACK_RUN_FINALIZING_STATUSES,
+            ])
             .update({
                 status: 'cancelled',
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updatedRows > 0;
+    }
+
+    /**
+     * Atomic arbitration between cancellation and git side effects: moves a
+     * still-running row into the 'commit' finalizing stage in one guarded
+     * UPDATE. If this returns false the run went terminal (cancelled or
+     * swept) first and the pipeline must abort before committing, pushing,
+     * or opening a pull request; if it returns true, markCancelled can no
+     * longer flip the row.
+     */
+    async claimForFinalize(aiWritebackRunUuid: string): Promise<boolean> {
+        const updatedRows = await this.database<AiWritebackRunTable>(
+            AiWritebackRunTableName,
+        )
+            .where('ai_writeback_run_uuid', aiWritebackRunUuid)
+            .whereNotIn('status', [...AI_WRITEBACK_RUN_TERMINAL_STATUSES])
+            .update({
+                status: 'commit',
                 updated_at: this.database.fn.now() as unknown as Date,
             });
         return updatedRows > 0;

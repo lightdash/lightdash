@@ -14,7 +14,9 @@ describe('aiWritebackRunStatusToMcpTaskStatus', () => {
 
     it('maps terminal run statuses to terminal task statuses', () => {
         expect(aiWritebackRunStatusToMcpTaskStatus('ready')).toBe('completed');
-        expect(aiWritebackRunStatusToMcpTaskStatus('error')).toBe('failed');
+        // A run error is a tool-level failure: completed with isError, never
+        // the protocol-fault 'failed' status
+        expect(aiWritebackRunStatusToMcpTaskStatus('error')).toBe('completed');
         expect(aiWritebackRunStatusToMcpTaskStatus('cancelled')).toBe(
             'cancelled',
         );

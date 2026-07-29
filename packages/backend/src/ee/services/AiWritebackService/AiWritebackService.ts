@@ -1630,7 +1630,11 @@ export class AiWritebackService extends BaseService {
 
     async enqueueWriteback(
         args: Omit<AiWritebackRunArgs, 'onProgress' | 'aiWritebackRunUuid'>,
-    ): Promise<{ aiWritebackRunUuid: string }> {
+    ): Promise<{
+        aiWritebackRunUuid: string;
+        createdAt: Date;
+        updatedAt: Date;
+    }> {
         const { user, projectUuid, aiThreadUuid, source } = args;
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1658,7 +1662,11 @@ export class AiWritebackService extends BaseService {
             startNewPullRequest: args.startNewPullRequest,
             source,
         });
-        return { aiWritebackRunUuid: runRow.ai_writeback_run_uuid };
+        return {
+            aiWritebackRunUuid: runRow.ai_writeback_run_uuid,
+            createdAt: runRow.created_at,
+            updatedAt: runRow.updated_at,
+        };
     }
 
     async runPipeline(payload: AiWritebackPipelineJobPayload): Promise<void> {
@@ -1789,10 +1797,11 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Like {@link getRunStatus} but also returns row timestamps, which the
-     * MCP tasks/get handler needs for the task's createdAt/lastUpdatedAt.
-     * Kept separate so the public status endpoint's response type is
-     * unchanged.
+     * Like {@link getRunStatus} but also returns row timestamps and the run
+     * source, which the MCP tasks/get handler needs for the task's
+     * createdAt/lastUpdatedAt and to scope the task namespace to runs it
+     * issued handles for. Kept separate so the public status endpoint's
+     * response type is unchanged.
      */
     async getRunSnapshot(
         user: SessionUser,
@@ -1803,6 +1812,7 @@ export class AiWritebackService extends BaseService {
         errorMessage: string | null;
         createdAt: Date;
         updatedAt: Date;
+        source: AiWritebackSource;
     }> {
         const { runRow } = await this.getAuthorizedRun(
             user,
@@ -1814,17 +1824,19 @@ export class AiWritebackService extends BaseService {
             errorMessage: runRow.error_message,
             createdAt: runRow.created_at,
             updatedAt: runRow.updated_at,
+            source: runRow.source,
         };
     }
 
     /**
      * Cooperatively cancels a run: flips a still-running row to 'cancelled'
      * (all stage/terminal persist helpers skip terminal rows, so the run can
-     * never flip back to ready or error) and the pipeline aborts at its
-     * pre-push checkpoint. Sandbox work in flight may still complete, but no
-     * commit, push, or pull request is made after the checkpoint. When the
-     * run is already terminal, returns `cancelled: false` with the settled
-     * status.
+     * never flip back to ready or error). Cancellation and git side effects
+     * arbitrate atomically: the pipeline claims the row (claimForFinalize)
+     * before any commit/push/PR, so either the cancel wins and no pull
+     * request is ever opened, or the finalize wins and the cancel is refused
+     * (`cancelled: false` with the finalizing/terminal status). Sandbox work
+     * in flight may still complete either way.
      *
      * Only 'mcp'-sourced runs are cancellable — task handles are only issued
      * for those; any other source reads as not found. Cancelling requires
@@ -1854,7 +1866,14 @@ export class AiWritebackService extends BaseService {
         // Lost the race (or already terminal): report the settled status
         const settled =
             await this.aiWritebackRunModel.findByUuid(aiWritebackRunUuid);
-        return { cancelled: false, status: settled?.status ?? runRow.status };
+        if (!settled) {
+            // Deleted between authorization and the cancel attempt: keep the
+            // normalized not-found contract instead of reporting stale state
+            throw new NotFoundError(
+                `Writeback run ${aiWritebackRunUuid} not found`,
+            );
+        }
+        return { cancelled: false, status: settled.status };
     }
 
     /**
@@ -2251,17 +2270,25 @@ export class AiWritebackService extends BaseService {
                 );
             }
 
-            // Cancellation checkpoint: last point before any external side
-            // effect (commit/push/PR all happen inside applyAgentChanges). A
-            // run cancelled — or swept to error — while the agent worked must
-            // not open a pull request its caller will never hear about.
+            // Finalize claim: atomic arbitration with tasks/cancel before any
+            // external side effect (commit/push/PR all happen inside
+            // applyAgentChanges). Losing the claim means the run went terminal
+            // (cancelled or swept) — abort; winning it makes the row
+            // uncancellable, so an acknowledged cancel can never race an
+            // in-flight push into an unrecorded pull request.
             if (aiWritebackRunUuid) {
-                const liveRow =
-                    await this.aiWritebackRunModel.findByUuid(
+                const claimed =
+                    await this.aiWritebackRunModel.claimForFinalize(
                         aiWritebackRunUuid,
                     );
-                if (liveRow && !isAiWritebackRunInProgress(liveRow.status)) {
-                    throw new WritebackRunAbortedError(liveRow.status);
+                if (!claimed) {
+                    const liveRow =
+                        await this.aiWritebackRunModel.findByUuid(
+                            aiWritebackRunUuid,
+                        );
+                    throw new WritebackRunAbortedError(
+                        liveRow?.status ?? 'cancelled',
+                    );
                 }
             }
 

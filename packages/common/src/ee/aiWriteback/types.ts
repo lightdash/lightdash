@@ -147,6 +147,18 @@ export const AI_WRITEBACK_RUN_TERMINAL_STATUSES = [
     'cancelled',
 ] as const;
 
+/**
+ * Once a run's git side effects begin (commit → push → PR), cancellation is
+ * refused: the finalize claim moves the row into 'commit' atomically, and
+ * markCancelled excludes these stages so a cancel can never race an
+ * in-flight push into an unrecorded pull request.
+ */
+export const AI_WRITEBACK_RUN_FINALIZING_STATUSES = [
+    'commit',
+    'push',
+    'pull_request',
+] as const;
+
 export type AiWritebackRunStatus =
     | 'pending'
     | AiWritebackFailureStage
@@ -201,6 +213,28 @@ export const mcpRunAiWritebackStructuredOutputSchema = z.object({
         .string()
         .describe(
             'Id of the writeback run that just started. Pass this to get_ai_writeback_status to check progress and get the pull request URL.',
+        ),
+    // Only present on the final result of a task-augmented call (MCP Tasks
+    // extension): the synchronous response carries just the run id.
+    status: z
+        .string()
+        .optional()
+        .describe(
+            'Final run status. Only present on the completed result of a task-augmented call.',
+        ),
+    prUrl: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+            'URL of the opened pull request, or null when the run made no changes or failed. Only present on the completed result of a task-augmented call.',
+        ),
+    errorMessage: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+            'Why the run failed, or null on success. Only present on the completed result of a task-augmented call.',
         ),
 });
 

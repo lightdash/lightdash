@@ -7555,6 +7555,24 @@ Response shape (MCP CallToolResult):
             "description": "Id of the writeback run that just started. Pass this to get_ai_writeback_status to check progress and get the pull request URL.",
             "type": "string",
           },
+          "errorMessage": {
+            "description": "Why the run failed, or null on success. Only present on the completed result of a task-augmented call.",
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "prUrl": {
+            "description": "URL of the opened pull request, or null when the run made no changes or failed. Only present on the completed result of a task-augmented call.",
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "status": {
+            "description": "Final run status. Only present on the completed result of a task-augmented call.",
+            "type": "string",
+          },
         },
         "required": [
           "aiWritebackRunUuid",

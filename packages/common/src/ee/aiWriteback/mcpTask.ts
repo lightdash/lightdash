@@ -7,8 +7,11 @@ export const MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS = 5000;
 
 /**
  * Maps an AI writeback run status onto the MCP Tasks extension status
- * vocabulary: pending and every pipeline stage are `working`; `ready` is
- * `completed`; `error` is `failed`; `cancelled` maps directly.
+ * vocabulary: pending and every pipeline stage are `working`; `ready` AND
+ * `error` are both `completed` — a run error is a tool-level failure, which
+ * the extension requires to surface as a completed task whose result has
+ * `isError: true` (`failed` is reserved for JSON-RPC protocol faults);
+ * `cancelled` maps directly.
  */
 export const aiWritebackRunStatusToMcpTaskStatus = (
     status: AiWritebackRunStatus,
@@ -24,9 +27,8 @@ export const aiWritebackRunStatusToMcpTaskStatus = (
         case 'pull_request':
             return 'working';
         case 'ready':
-            return 'completed';
         case 'error':
-            return 'failed';
+            return 'completed';
         case 'cancelled':
             return 'cancelled';
         default:

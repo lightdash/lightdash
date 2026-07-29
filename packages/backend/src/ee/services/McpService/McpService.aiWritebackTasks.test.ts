@@ -158,6 +158,7 @@ const runSnapshot = (overrides: Record<string, unknown> = {}) => ({
     errorMessage: null,
     createdAt: new Date('2026-07-01T10:00:00Z'),
     updatedAt: new Date('2026-07-01T10:05:00Z'),
+    source: 'mcp',
     ...overrides,
 });
 
@@ -200,9 +201,11 @@ describe('McpService AI writeback MCP tasks', () => {
 
     describe('run_ai_writeback task augmentation', () => {
         it('returns the legacy uuid response when the client did not opt in', async () => {
-            const enqueueWriteback = vi
-                .fn()
-                .mockResolvedValue({ aiWritebackRunUuid: runUuid });
+            const enqueueWriteback = vi.fn().mockResolvedValue({
+                aiWritebackRunUuid: runUuid,
+                createdAt: new Date('2026-07-01T10:00:00Z'),
+                updatedAt: new Date('2026-07-01T10:00:00Z'),
+            });
             await createServerWithWriteback({ enqueueWriteback });
 
             const callback = mockRegisteredMcpTools.get(
@@ -220,9 +223,11 @@ describe('McpService AI writeback MCP tasks', () => {
         });
 
         it('returns a CreateTaskResult when the client declared the tasks extension', async () => {
-            const enqueueWriteback = vi
-                .fn()
-                .mockResolvedValue({ aiWritebackRunUuid: runUuid });
+            const enqueueWriteback = vi.fn().mockResolvedValue({
+                aiWritebackRunUuid: runUuid,
+                createdAt: new Date('2026-07-01T10:00:00Z'),
+                updatedAt: new Date('2026-07-01T10:00:00Z'),
+            });
             await createServerWithWriteback({ enqueueWriteback });
 
             const callback = mockRegisteredMcpTools.get(
@@ -240,6 +245,10 @@ describe('McpService AI writeback MCP tasks', () => {
                     status: 'working',
                     ttlMs: null,
                     pollIntervalMs: 5000,
+                    // Row timestamps, not wall-clock: the handle must match
+                    // what tasks/get later reports
+                    createdAt: '2026-07-01T10:00:00.000Z',
+                    lastUpdatedAt: '2026-07-01T10:00:00.000Z',
                 }),
             );
             // A CreateTaskResult replaces the tool result entirely
@@ -248,11 +257,32 @@ describe('McpService AI writeback MCP tasks', () => {
     });
 
     describe('tasks/get', () => {
-        const getTask = (taskId: string, extra = makeExtra()) =>
+        const getTask = (taskId: string, extra = makeExtra(tasksOptInMeta)) =>
             mockRegisteredRequestHandlers.get('tasks/get')!(
                 { method: 'tasks/get', params: { taskId } },
                 extra,
             );
+
+        it('rejects requests that do not declare the tasks capability with -32003', async () => {
+            const getRunSnapshot = vi.fn();
+            await createServerWithWriteback({ getRunSnapshot });
+
+            await expect(getTask(runUuid, makeExtra())).rejects.toMatchObject({
+                code: -32003,
+            });
+            expect(getRunSnapshot).not.toHaveBeenCalled();
+        });
+
+        it('normalizes non-mcp-sourced runs to task-not-found', async () => {
+            const getRunSnapshot = vi
+                .fn()
+                .mockResolvedValue(runSnapshot({ source: 'web' }));
+            await createServerWithWriteback({ getRunSnapshot });
+
+            await expect(getTask(runUuid)).rejects.toThrow(
+                `Task ${runUuid} not found`,
+            );
+        });
 
         it('maps an in-progress run to a working task', async () => {
             const getRunSnapshot = vi.fn().mockResolvedValue(runSnapshot());
@@ -295,6 +325,7 @@ describe('McpService AI writeback MCP tasks', () => {
                             },
                         ],
                         structuredContent: {
+                            aiWritebackRunUuid: runUuid,
                             status: 'ready',
                             prUrl,
                             errorMessage: null,
@@ -305,7 +336,7 @@ describe('McpService AI writeback MCP tasks', () => {
             );
         });
 
-        it('maps an errored run to a failed task carrying a JSON-RPC error', async () => {
+        it('maps an errored run to a completed task whose result carries isError', async () => {
             const getRunSnapshot = vi.fn().mockResolvedValue(
                 runSnapshot({
                     status: 'error',
@@ -316,16 +347,29 @@ describe('McpService AI writeback MCP tasks', () => {
 
             const result = await getTask(runUuid);
 
+            // Tool-level failures are completed tasks with an isError result;
+            // the 'failed' status is reserved for JSON-RPC protocol faults
             expect(result).toEqual(
                 expect.objectContaining({
-                    status: 'failed',
-                    error: {
-                        code: -32603,
-                        message: 'dbt compile failed',
+                    status: 'completed',
+                    result: {
+                        content: [
+                            {
+                                type: 'text',
+                                text: 'AI writeback failed: dbt compile failed',
+                            },
+                        ],
+                        structuredContent: {
+                            aiWritebackRunUuid: runUuid,
+                            status: 'error',
+                            prUrl: null,
+                            errorMessage: 'dbt compile failed',
+                        },
+                        isError: true,
                     },
                 }),
             );
-            expect(result).not.toHaveProperty('result');
+            expect(result).not.toHaveProperty('error');
         });
 
         it('maps a cancelled run to a cancelled task', async () => {
@@ -362,11 +406,35 @@ describe('McpService AI writeback MCP tasks', () => {
     });
 
     describe('tasks/cancel', () => {
-        const cancelTask = (taskId: string) =>
+        const cancelTask = (
+            taskId: string,
+            extra = makeExtra(tasksOptInMeta),
+        ) =>
             mockRegisteredRequestHandlers.get('tasks/cancel')!(
                 { method: 'tasks/cancel', params: { taskId } },
-                makeExtra(),
+                extra,
             );
+
+        it('rejects requests that do not declare the tasks capability with -32003', async () => {
+            const cancelRun = vi.fn();
+            await createServerWithWriteback({ cancelRun });
+
+            await expect(
+                cancelTask(runUuid, makeExtra()),
+            ).rejects.toMatchObject({ code: -32003 });
+            expect(cancelRun).not.toHaveBeenCalled();
+        });
+
+        it('reports a finalizing run as no longer cancellable', async () => {
+            const cancelRun = vi
+                .fn()
+                .mockResolvedValue({ cancelled: false, status: 'push' });
+            await createServerWithWriteback({ cancelRun });
+
+            await expect(cancelTask(runUuid)).rejects.toThrow(
+                'can no longer be cancelled: its pull request is being finalized',
+            );
+        });
 
         it('acknowledges cancellation of a non-terminal run with an empty result', async () => {
             const cancelRun = vi

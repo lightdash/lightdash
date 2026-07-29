@@ -76,6 +76,12 @@ export type McpGetTaskResult = McpTask & {
     error?: McpTaskError;
 };
 
+/**
+ * JSON-RPC error code the extension mandates for tasks/* requests from
+ * clients that did not declare the tasks capability in the request's _meta.
+ */
+export const MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY = -32003;
+
 /** tasks/cancel acknowledges with an empty result. */
 export type McpCancelTaskResult = {
     resultType: 'complete';

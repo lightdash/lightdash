@@ -5,6 +5,7 @@ import {
     AiResultType,
     AiWritebackRunStatus,
     aiWritebackRunStatusToMcpTaskStatus,
+    AiWritebackSource,
     AnyType,
     ApiKeyAccount,
     assertUnreachable,
@@ -47,6 +48,7 @@ import {
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
     MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
+    MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
     MCP_QUERY_POLL_INTERVAL_MS,
     MCP_QUERY_SYNC_WAIT_MS,
     MCP_TASKS_EXTENSION_NAME,
@@ -1159,7 +1161,7 @@ export class McpService extends BaseService {
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
                 try {
-                    const { aiWritebackRunUuid } =
+                    const { aiWritebackRunUuid, createdAt, updatedAt } =
                         await this.aiWritebackService.enqueueWriteback({
                             user,
                             projectUuid,
@@ -1174,6 +1176,8 @@ export class McpService extends BaseService {
                     if (clientSupportsMcpTasks(extra._meta)) {
                         return McpService.buildAiWritebackCreateTaskResult(
                             aiWritebackRunUuid,
+                            createdAt,
+                            updatedAt,
                             // The SDK types tool results as CallToolResult; the
                             // tasks extension replaces it with a CreateTaskResult,
                             // which the SDK passes through unvalidated.
@@ -1277,10 +1281,15 @@ export class McpService extends BaseService {
      * shaped by hand.
      */
     private registerAiWritebackTaskHandlers(): void {
-        // The SDK refuses tasks/* request handlers unless a tasks capability
-        // is registered; also advertise the extension itself (under
-        // `extensions` per the final SEP, and `experimental` for draft-era
-        // clients, mirroring the skills extension above).
+        // The SDK refuses tasks/* request handlers unless a core `tasks`
+        // capability is registered, so it unavoidably appears on the wire
+        // even though this server speaks the 2026-07-28 extension shapes,
+        // not the SDK's draft-era task protocol. Draft-era clients are not
+        // drawn in by it in practice: the draft gates task-augmented calls
+        // on per-tool execution.taskSupport, which no tool here declares.
+        // Also advertise the extension itself (under `extensions` per the
+        // final SEP, and `experimental` for draft-era clients, mirroring
+        // the skills extension above).
         this.mcpServer.server.registerCapabilities({
             tasks: {},
             experimental: {
@@ -1308,10 +1317,17 @@ export class McpService extends BaseService {
         taskId: string,
         extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
     ): Promise<McpGetTaskResult> {
+        McpService.requireTasksCapability(extra);
         const ctx = getMcpContext(extra);
         const { user } = McpService.getAccount(ctx);
 
         const snapshot = await this.getAiWritebackTaskSnapshot(user, taskId);
+        // The task namespace covers exactly the runs handles were issued for
+        // ('mcp'-sourced); other surfaces' runs read as not found here even
+        // though the legacy get_ai_writeback_status tool still serves them
+        if (snapshot.source !== 'mcp') {
+            throw McpService.taskNotFoundError(taskId);
+        }
 
         const base: McpGetTaskResult = {
             resultType: 'complete',
@@ -1330,34 +1346,41 @@ export class McpService extends BaseService {
             case 'cancelled':
             case 'input_required':
                 return base;
-            case 'completed':
+            case 'completed': {
+                // A run error is a tool-level failure: per the extension it
+                // is a completed task whose result carries isError: true —
+                // 'failed' is reserved for JSON-RPC protocol faults
+                const runFailed = snapshot.status === 'error';
+                let text: string;
+                if (runFailed) {
+                    text = `AI writeback failed: ${snapshot.errorMessage ?? 'unknown error'}`;
+                } else if (snapshot.prUrl) {
+                    text = `AI writeback complete. Pull request opened: ${snapshot.prUrl}`;
+                } else {
+                    text =
+                        'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                }
                 return {
                     ...base,
                     result: {
-                        content: [
-                            {
-                                type: 'text',
-                                text: snapshot.prUrl
-                                    ? `AI writeback complete. Pull request opened: ${snapshot.prUrl}`
-                                    : 'AI writeback complete. The agent made no file changes, so no pull request was opened.',
-                            },
-                        ],
+                        content: [{ type: 'text', text }],
                         structuredContent: {
+                            aiWritebackRunUuid: taskId,
                             status: snapshot.status,
-                            prUrl: snapshot.prUrl,
-                            errorMessage: null,
+                            prUrl: runFailed ? null : snapshot.prUrl,
+                            errorMessage: runFailed
+                                ? (snapshot.errorMessage ??
+                                  'AI writeback failed')
+                                : null,
                         },
-                        isError: false,
+                        isError: runFailed,
                     },
                 };
+            }
             case 'failed':
-                return {
-                    ...base,
-                    error: {
-                        code: ErrorCode.InternalError,
-                        message: snapshot.errorMessage ?? 'AI writeback failed',
-                    },
-                };
+                // Unreachable: run statuses never map to 'failed' (reserved
+                // for protocol faults), but the task vocabulary includes it
+                return base;
             default:
                 return assertUnreachable(
                     base.status,
@@ -1370,6 +1393,7 @@ export class McpService extends BaseService {
         taskId: string,
         extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
     ): Promise<McpCancelTaskResult> {
+        McpService.requireTasksCapability(extra);
         const ctx = getMcpContext(extra);
         const { user } = McpService.getAccount(ctx);
 
@@ -1387,15 +1411,44 @@ export class McpService extends BaseService {
         }
 
         if (!outcome.cancelled) {
+            const taskStatus = aiWritebackRunStatusToMcpTaskStatus(
+                outcome.status,
+            );
+            // Cancellation lost the finalize claim: the run is still working
+            // but its git side effects are underway and can't be recalled
+            if (taskStatus === 'working') {
+                throw new McpError(
+                    ErrorCode.InvalidParams,
+                    `Task ${taskId} can no longer be cancelled: its pull request is being finalized`,
+                );
+            }
             throw new McpError(
                 ErrorCode.InvalidParams,
-                `Task ${taskId} is already in terminal status '${aiWritebackRunStatusToMcpTaskStatus(
-                    outcome.status,
-                )}' and cannot be cancelled`,
+                `Task ${taskId} is already in terminal status '${taskStatus}' and cannot be cancelled`,
             );
         }
 
         return { resultType: 'complete' };
+    }
+
+    /**
+     * The extension mandates -32003 for tasks/* requests from clients that
+     * did not declare the tasks capability in this request's _meta.
+     */
+    private static requireTasksCapability(
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): void {
+        if (!clientSupportsMcpTasks(extra._meta)) {
+            throw new McpError(
+                MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
+                `This request requires the ${MCP_TASKS_EXTENSION_NAME} capability to be declared in the request's _meta`,
+                {
+                    requiredCapabilities: {
+                        extensions: { [MCP_TASKS_EXTENSION_NAME]: {} },
+                    },
+                },
+            );
+        }
     }
 
     /**
@@ -1412,6 +1465,7 @@ export class McpService extends BaseService {
         errorMessage: string | null;
         createdAt: Date;
         updatedAt: Date;
+        source: AiWritebackSource;
     }> {
         if (!isValidUuid(taskId)) {
             throw McpService.taskNotFoundError(taskId);
@@ -1439,15 +1493,17 @@ export class McpService extends BaseService {
 
     private static buildAiWritebackCreateTaskResult(
         aiWritebackRunUuid: string,
+        createdAt: Date,
+        updatedAt: Date,
     ): McpCreateTaskResult {
-        const now = new Date().toISOString();
         return {
             resultType: 'task',
             taskId: aiWritebackRunUuid,
             status: 'working',
             statusMessage: getAiWritebackTaskStatusMessage('pending'),
-            createdAt: now,
-            lastUpdatedAt: now,
+            // Row timestamps, so the handle matches what tasks/get reports
+            createdAt: createdAt.toISOString(),
+            lastUpdatedAt: updatedAt.toISOString(),
             // Run rows are retained indefinitely, so the handle never expires
             ttlMs: null,
             pollIntervalMs: MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
