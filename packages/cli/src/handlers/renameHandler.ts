@@ -5,6 +5,7 @@ import {
     LightdashError,
     RenameChange,
     RenameType,
+    UnexpectedServerError,
 } from '@lightdash/common';
 import fs from 'fs';
 import inquirer from 'inquirer';
@@ -43,6 +44,14 @@ const waitUntilRenameFinished = (jobUuid: string): Promise<string> =>
         jobUuid,
         refetchIntervalMs: REFETCH_JOB_INTERVAL,
         createError: (jobError) => new Error(`\nRename failed: ${jobError}`),
+    });
+
+const waitUntilValidationFinished = (jobUuid: string): Promise<string> =>
+    waitUntilFinished({
+        jobUuid,
+        refetchIntervalMs: REFETCH_JOB_INTERVAL,
+        createError: (jobError) =>
+            new UnexpectedServerError(`\nValidation failed: ${jobError}`),
     });
 
 const listResources = (
@@ -219,7 +228,7 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
 
             const { jobId } = validationJob;
 
-            await waitUntilRenameFinished(jobId);
+            await waitUntilValidationFinished(jobId);
 
             const validation = await getValidation(projectUuid, jobId);
             console.info(validation);
@@ -257,6 +266,10 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
                         '--model',
                     )} to specify a model to filter on`,
                 );
+        } else if (errorString.includes(`Validation failed`)) {
+            console.error(
+                `Rename completed, but the follow-up validation failed:${errorString}`,
+            );
         } else {
             console.error('Unable to rename, unexpected error:', e);
         }
