@@ -16,6 +16,11 @@ export type FeatureFlagLogicArgs = {
     featureFlagId: string;
 };
 
+export type EnsureOrganizationOverrideOutcome =
+    | 'enabled'
+    | 'already_enabled'
+    | 'kept_disabled';
+
 type FeatureFlagQueryOptions = { trx?: Knex };
 
 export class FeatureFlagModel {
@@ -135,6 +140,51 @@ export class FeatureFlagModel {
     ): Promise<FeatureFlag> {
         const dbResult = await this.tryGetFromDatabase(args, options);
         return dbResult ?? { id: args.featureFlagId, enabled: fallback };
+    }
+
+    // Insert-only enablement: an existing override row (including an explicit
+    // enabled=false) is never modified.
+    public async ensureOrganizationOverrideEnabled(
+        featureFlagId: string,
+        organizationUuid: string,
+    ): Promise<EnsureOrganizationOverrideOutcome> {
+        const getOrganizationOverride = () =>
+            this.database(FeatureFlagOverridesTableName)
+                .where('flag_id', featureFlagId)
+                .where('organization_uuid', organizationUuid)
+                .whereNull('user_uuid')
+                .first();
+
+        const existing = await getOrganizationOverride();
+        if (existing) {
+            return existing.enabled ? 'already_enabled' : 'kept_disabled';
+        }
+
+        await this.database(FeatureFlagsTableName)
+            .insert({ flag_id: featureFlagId })
+            .onConflict('flag_id')
+            .ignore();
+
+        const inserted = await this.database(FeatureFlagOverridesTableName)
+            .insert({
+                flag_id: featureFlagId,
+                organization_uuid: organizationUuid,
+                enabled: true,
+            })
+            .onConflict(
+                this.database.raw(
+                    '(flag_id, organization_uuid) WHERE organization_uuid IS NOT NULL AND user_uuid IS NULL',
+                ),
+            )
+            .ignore()
+            .returning('feature_flag_override_id');
+        if (inserted.length > 0) {
+            return 'enabled';
+        }
+        const concurrent = await getOrganizationOverride();
+        return concurrent?.enabled === false
+            ? 'kept_disabled'
+            : 'already_enabled';
     }
 
     protected async tryGetFromDatabase(

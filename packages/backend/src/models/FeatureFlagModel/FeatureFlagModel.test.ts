@@ -95,6 +95,57 @@ const buildFakeDatabase = (rows: FakeRows): Knex => {
     return ((table: string) => makeBuilder(table)) as unknown as Knex;
 };
 
+// Fake Knex for the override-write path: serves org-override reads from a
+// queue (first read = existence check, second = post-conflict re-read) and
+// records inserts. `overrideInsertConflicts` simulates a concurrent insert by
+// making the override insert return no rows.
+const buildFakeWriteDatabase = ({
+    overrideReadResults = [],
+    overrideInsertConflicts = false,
+}: {
+    overrideReadResults?: (Partial<DbFeatureFlagOverride> | undefined)[];
+    overrideInsertConflicts?: boolean;
+}) => {
+    const flagInserts: Record<string, unknown>[] = [];
+    const overrideInserts: Record<string, unknown>[] = [];
+    let readIndex = 0;
+    const makeBuilder = (table: string) => {
+        const builder = {
+            where: () => builder,
+            whereNull: () => builder,
+            first: () => {
+                if (table === FeatureFlagOverridesTableName) {
+                    const result = overrideReadResults[readIndex];
+                    readIndex += 1;
+                    return Promise.resolve(result);
+                }
+                return Promise.resolve(undefined);
+            },
+            insert: (values: Record<string, unknown>) => {
+                if (table === FeatureFlagsTableName) {
+                    flagInserts.push(values);
+                } else {
+                    overrideInserts.push(values);
+                }
+                return builder;
+            },
+            onConflict: () => builder,
+            ignore: () => builder,
+            returning: () =>
+                Promise.resolve(
+                    overrideInsertConflicts
+                        ? []
+                        : [{ feature_flag_override_id: 1 }],
+                ),
+        };
+        return builder;
+    };
+    const database = Object.assign((table: string) => makeBuilder(table), {
+        raw: (sql: string) => sql,
+    }) as unknown as Knex;
+    return { database, flagInserts, overrideInserts };
+};
+
 describe('FeatureFlagModel', () => {
     describe('check telemetry', () => {
         beforeEach(() => {
@@ -446,6 +497,68 @@ describe('FeatureFlagModel', () => {
             });
 
             expect(result.enabled).toBe(true);
+        });
+    });
+
+    describe('ensureOrganizationOverrideEnabled', () => {
+        const FLAG_ID = 'homepage-builder';
+        const ORG_UUID = 'org-uuid';
+
+        it('inserts an enabled override and the flag row when none exist', async () => {
+            const fake = buildFakeWriteDatabase({
+                overrideReadResults: [undefined],
+            });
+            const model = buildModel({}, fake.database);
+
+            await expect(
+                model.ensureOrganizationOverrideEnabled(FLAG_ID, ORG_UUID),
+            ).resolves.toBe('enabled');
+            expect(fake.flagInserts).toEqual([{ flag_id: FLAG_ID }]);
+            expect(fake.overrideInserts).toEqual([
+                {
+                    flag_id: FLAG_ID,
+                    organization_uuid: ORG_UUID,
+                    enabled: true,
+                },
+            ]);
+        });
+
+        it('leaves an existing enabled override untouched', async () => {
+            const fake = buildFakeWriteDatabase({
+                overrideReadResults: [{ enabled: true }],
+            });
+            const model = buildModel({}, fake.database);
+
+            await expect(
+                model.ensureOrganizationOverrideEnabled(FLAG_ID, ORG_UUID),
+            ).resolves.toBe('already_enabled');
+            expect(fake.flagInserts).toEqual([]);
+            expect(fake.overrideInserts).toEqual([]);
+        });
+
+        it('never flips an explicit disabled override back on', async () => {
+            const fake = buildFakeWriteDatabase({
+                overrideReadResults: [{ enabled: false }],
+            });
+            const model = buildModel({}, fake.database);
+
+            await expect(
+                model.ensureOrganizationOverrideEnabled(FLAG_ID, ORG_UUID),
+            ).resolves.toBe('kept_disabled');
+            expect(fake.flagInserts).toEqual([]);
+            expect(fake.overrideInserts).toEqual([]);
+        });
+
+        it('re-reads the override when a concurrent insert wins', async () => {
+            const fake = buildFakeWriteDatabase({
+                overrideReadResults: [undefined, { enabled: false }],
+                overrideInsertConflicts: true,
+            });
+            const model = buildModel({}, fake.database);
+
+            await expect(
+                model.ensureOrganizationOverrideEnabled(FLAG_ID, ORG_UUID),
+            ).resolves.toBe('kept_disabled');
         });
     });
 

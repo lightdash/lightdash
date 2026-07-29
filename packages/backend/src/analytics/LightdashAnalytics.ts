@@ -51,6 +51,7 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
+import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
@@ -911,6 +912,10 @@ type OnboardingHomepageFailedEvent = BaseTrack & {
     };
 };
 
+export type HomepageBuilderEnablement =
+    | EnsureOrganizationOverrideOutcome
+    | 'failed';
+
 type PlaygroundProjectProvisionedEvent = BaseTrack & {
     event: 'playground_project.provisioned';
     userId: string;
@@ -920,6 +925,7 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
         trigger: 'invite_expert';
         onboardingFlow: OnboardingFlow;
         catalogIndexErrorType: string | null;
+        homepageBuilderEnablement: HomepageBuilderEnablement;
     };
 };
 
