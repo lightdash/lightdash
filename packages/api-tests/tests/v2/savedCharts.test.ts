@@ -1,5 +1,6 @@
 import {
     CreateChartInSpace,
+    generateSlug,
     SavedChart,
     SEED_PROJECT,
 } from '@lightdash/common';
@@ -44,6 +45,20 @@ describe('V2 Project Saved Chart endpoints', () => {
     });
 
     describe('GET /api/v2/projects/:projectUuid/saved/:chartUuidOrSlug', () => {
+        it('should allocate numeric slugs when chart names collide', async () => {
+            const name = uniqueName('Chart slug collision');
+            const [first, second] = await Promise.all([
+                createChartV1(admin, projectUuid, name),
+                createChartV1(admin, projectUuid, name),
+            ]);
+            tracker.trackChart(first.uuid);
+            tracker.trackChart(second.uuid);
+
+            expect(new Set([first.slug, second.slug])).toEqual(
+                new Set([generateSlug(name), `${generateSlug(name)}-1`]),
+            );
+        });
+
         it('should get a chart by UUID', async () => {
             const created = await createChartV1(
                 admin,

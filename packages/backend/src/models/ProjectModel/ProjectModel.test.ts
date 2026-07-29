@@ -534,6 +534,10 @@ describe('ProjectModel', () => {
             ({ sql }: RawQuery) =>
                 sql.includes(table);
 
+        beforeEach(() => {
+            tracker.on.select('pg_advisory_xact_lock').response({});
+        });
+
         test('should return early if user already has a default space', async () => {
             tracker.on
                 .select(matchSql(SpaceTableName))

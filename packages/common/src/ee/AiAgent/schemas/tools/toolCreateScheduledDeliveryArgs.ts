@@ -29,7 +29,7 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
     resourceUuidOrSlug: z
         .string()
         .describe(
-            'UUID (preferred) or slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results — slugs are not guaranteed unique.',
+            'UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results as the canonical identity.',
         ),
     name: z.string().min(1).describe('Human-readable delivery name.'),
     cron: z

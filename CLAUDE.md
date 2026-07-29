@@ -296,34 +296,15 @@ export const sensitiveCredentialsFieldNames = [
 -   `ProjectModel.get()` filters credentials using this array before returning to API controllers
 -   `ProjectModel.getWithSensitiveFields()` returns unfiltered data for internal use only
 
-## Slugs — Not Unique Identifiers
+## Slugs — Project-Scoped Portable Identifiers
 
-**WARNING: Slugs are NOT guaranteed to be unique.** Do not treat them as reliable identifiers for lookups, deduplication, or foreign key relationships. Always use UUIDs for uniqueness guarantees.
+Slugs are unique per project and resource type for charts, dashboards, SQL Runner charts, spaces, and data apps. Database constraints are authoritative and include soft-deleted rows, so a deleted resource reserves its slug for a safe restore. The same slug may be used in a different project.
 
-Slugs are human-readable URL identifiers for charts, dashboards, and spaces (e.g., `weekly-sales-report`). They are generated from the entity name via `generateSlug()` (`packages/common/src/utils/slugs.ts`), and uniqueness is enforced at creation time by `generateUniqueSlug*` functions (`packages/backend/src/utils/SlugUtils.ts`). However, **multiple code paths bypass these uniqueness checks**, resulting in duplicate slugs in production.
+Use `generateUniqueSlugScopedToProject()` (`packages/backend/src/utils/SlugUtils.ts`) for normal creation. It derives the base with `generateSlug()`, probes exact indexed candidates, and appends `-1`, `-2`, and so on for conflicts. Explicit slugs used by content-as-code and promotion must be inserted exactly; same-project conflicts return an actionable conflict or resolve the intended active upsert, never overwrite another resource.
 
-**How slugs get duplicated:**
+UUIDs remain the canonical internal identity. Use them for foreign keys, durable relationships, and references without an explicit project scope. Slugs are appropriate for project-scoped URLs and portable content-as-code selectors.
 
-1. **Content-as-code (`lightdash upload`)**: The `CoderService` uses `forceSlug: true` when creating charts and dashboards, which skips the `generateUniqueSlug` call entirely and inserts the slug from the YAML file as-is. If two YAML files with the same slug are uploaded, or a slug already exists in the target project, duplicates are created.
-
-2. **Promotion**: The `PromoteService` also uses `forceSlug: true` when creating content in the upstream project. Promoting the same content from multiple downstream projects, or re-promoting after manual creation in upstream, can create duplicates.
-
-3. **Lossy slug generation**: `generateSlug()` strips all non-alphanumeric characters to hyphens, so different names produce identical slugs. Examples:
-   - `"Sales Report (2024)"` and `"Sales Report 2024"` → `sales-report-2024`
-   - `"Q1 / Q2 Summary"` and `"Q1 - Q2 Summary"` → `q1-q2-summary`
-
-   The uniqueness check at creation time handles this by appending `-1`, `-2`, etc., but `forceSlug: true` paths bypass this.
-
-4. **Ltree path conversion is also lossy**: `getLtreePathFromSlug` converts hyphens to underscores, so `"my-space"` and `"my_space"` map to the same ltree path. This can cause space resolution collisions.
-
-**No database-level uniqueness constraint** exists for slugs on `saved_queries`, `dashboards`, or `spaces` tables. Only `saved_sql` has a `UNIQUE(project_uuid, slug)` DB constraint. All other uniqueness enforcement is application-level only.
-
-**What this means in practice:**
-
-- **API resolution picks first match**: `getByIdOrSlug()` queries use `LIMIT 1` — when duplicates exist, the result is non-deterministic. No error is thrown.
-- **Promotion fails on duplicates**: `PromoteService` throws an explicit error (`"There are multiple charts with the same identifier {slug}"`) when it finds duplicate slugs in the upstream project.
-- **Never use slugs as unique keys** in new code. Use UUIDs for any operation that requires uniqueness. Slugs are for URL display only.
-- **A REPL script exists** to fix duplicates: `packages/backend/src/ee/repl/scripts/fixDuplicateSlugs.ts`
+`getLtreePathFromSlug` is lossy: hyphens and underscores map to the same ltree label. Space hierarchy and access logic must use `parent_space_uuid`; path-based resolution must reject ambiguity rather than selecting an arbitrary row.
 
 ### Make uuid vs uuid-or-slug explicit (endpoints & service args)
 

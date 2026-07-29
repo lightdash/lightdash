@@ -61,6 +61,7 @@ export class AppModel {
                 Pick<
                     DbApp,
                     | 'app_id'
+                    | 'slug'
                     | 'name'
                     | 'description'
                     | 'template'
@@ -78,14 +79,17 @@ export class AppModel {
             const appId = app.app_id ?? uuidv4();
             const appName = app.name ?? '';
             const hasSlugName = /[a-z0-9]/i.test(appName);
-            const slugSource = hasSlugName
-                ? appName
-                : (
-                      await trx.raw<{ rows: Array<{ slug: string }> }>(
-                          `SELECT 'app-' || nextval(?)::text AS slug`,
-                          [AppSlugSequence],
-                      )
-                  ).rows[0].slug;
+            const slugSource =
+                app.slug ??
+                (hasSlugName
+                    ? appName
+                    : (
+                          await trx.raw<{
+                              rows: Array<{ slug: string }>;
+                          }>(`SELECT 'app-' || nextval(?)::text AS slug`, [
+                              AppSlugSequence,
+                          ])
+                      ).rows[0].slug);
             const baseSlug = generateSlug(slugSource).slice(0, 255);
             await acquireProjectSlugLock(trx, app.project_uuid, baseSlug);
             const slug = await generateUniqueSlugScopedToProject(

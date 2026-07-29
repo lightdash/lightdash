@@ -4,7 +4,6 @@ import App from '../../App';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import knexConfig from '../../knexfile';
 import { getEnterpriseAppArguments } from '../index';
-import { getFixDuplicateSlugsScripts } from './scripts/fixDuplicateSlugs';
 import { getListProjectsScripts } from './scripts/listProjects';
 import { getReviewClassifierScoreboardScripts } from './scripts/reviewClassifierScoreboard';
 
@@ -35,7 +34,6 @@ import { getReviewClassifierScoreboardScripts } from './scripts/reviewClassifier
         clients,
         database,
         scripts: {
-            ...getFixDuplicateSlugsScripts(database, clients),
             ...getListProjectsScripts(database),
             ...getReviewClassifierScoreboardScripts(
                 database,
