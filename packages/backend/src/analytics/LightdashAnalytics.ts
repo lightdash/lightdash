@@ -1789,6 +1789,17 @@ export type DataAppDownloadedEvent = BaseTrack & {
     };
 };
 
+// How the upload was matched to an app: 'slug' (manifest slug, the current
+// path), 'uuid-fallback' (pre-slug bundle with targetAppUuid), 'none'
+// (pre-slug bundle with no target — fresh create), 'create-new' (--create-new).
+// 'uuid-fallback' + 'none' measure pre-slug bundle usage; the targetAppUuid
+// fallback can be removed once they decay to zero.
+export type DataAppUploadIdentitySource =
+    | 'slug'
+    | 'uuid-fallback'
+    | 'create-new'
+    | 'none';
+
 export type DataAppUploadedEvent = BaseTrack & {
     event: 'data_app.uploaded';
     userId: string;
@@ -1798,6 +1809,7 @@ export type DataAppUploadedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         action: 'create' | 'append';
+        identitySource: DataAppUploadIdentitySource;
         template: Exclude<DataAppTemplate, 'custom'> | null;
         sourceFileCount: number;
         sourceBytes: number;
