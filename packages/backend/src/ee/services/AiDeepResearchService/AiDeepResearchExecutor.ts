@@ -21,20 +21,14 @@ import type {
     AiDeepResearchExecutor as AiDeepResearchExecutorFn,
     AiDeepResearchExecutorResult,
 } from './AiDeepResearchService';
+import {
+    isDeepResearchWarehouseMcpTool,
+    isDeepResearchWarehouseTool,
+} from './toolClassification';
 
 const CANCELLATION_POLL_INTERVAL_MS = 1_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const ACCESS_RECHECK_INTERVAL_MS = 15_000;
-const WAREHOUSE_TOOL_NAMES = new Set([
-    'generateVisualization',
-    'runContentQuery',
-    'runSavedChart',
-    'runSql',
-    'searchFieldValues',
-]);
-const WAREHOUSE_MCP_TOOL_RE =
-    /__(?:run_metric_query|run_sql|search_field_values)(?:_\d+)?$/;
-
 type ToolProvenance = {
     toolCall: AiAgentToolCall;
     toolResult: AiAgentToolResult | null;
@@ -55,12 +49,6 @@ type Dependencies = {
     >;
     userService: Pick<UserService, 'getSessionByUserUuidAndOrg'>;
 };
-
-const isWarehouseTool = (toolName: string): boolean =>
-    WAREHOUSE_TOOL_NAMES.has(toolName) || WAREHOUSE_MCP_TOOL_RE.test(toolName);
-
-const isWarehouseMcpTool = (toolName: string): boolean =>
-    WAREHOUSE_MCP_TOOL_RE.test(toolName);
 
 const parseJson = (value: string): unknown => {
     try {
@@ -89,7 +77,7 @@ const findStringValues = (value: unknown, key: string): string[] => {
 const getQueryUuids = (provenance: ToolProvenance[]): string[] => [
     ...new Set(
         provenance.flatMap(({ toolResult }) =>
-            toolResult && isWarehouseTool(toolResult.toolName)
+            toolResult && isDeepResearchWarehouseTool(toolResult.toolName)
                 ? findStringValues(parseJson(toolResult.result), 'queryUuid')
                 : [],
         ),
@@ -137,7 +125,7 @@ const getActivity = (toolName: string): AiDeepResearchActivity => {
     if (toolName === AI_DEEP_RESEARCH_REPORT_TOOL_NAME) {
         return 'reporting';
     }
-    if (isWarehouseTool(toolName)) {
+    if (isDeepResearchWarehouseTool(toolName)) {
         return 'warehouse_query';
     }
     return 'lightdash_metadata';
@@ -261,7 +249,12 @@ export class AiDeepResearchExecutor {
         { signal },
     ): Promise<AiDeepResearchExecutorResult> => {
         if (signal.aborted || run.cancellation_requested_at) {
-            return { status: 'cancelled' };
+            return {
+                status: 'cancelled',
+                terminalReason: run.cancellation_requested_at
+                    ? 'user_cancellation'
+                    : 'internal_error',
+            };
         }
 
         const user: SessionUser =
@@ -274,6 +267,7 @@ export class AiDeepResearchExecutor {
                 status: 'failed',
                 errorMessage:
                     'Deep Research cannot run because its creator is inactive',
+                terminalReason: 'permission_revoked',
             };
         }
         try {
@@ -290,6 +284,7 @@ export class AiDeepResearchExecutor {
             return {
                 status: 'failed',
                 errorMessage: getErrorMessage(error),
+                terminalReason: 'permission_revoked',
             };
         }
         const controller = new AbortController();
@@ -326,7 +321,7 @@ export class AiDeepResearchExecutor {
             if (!isReport) {
                 toolCalls += 1;
                 toolCallOrdinal = toolCalls;
-                if (isWarehouseMcpTool(toolName)) {
+                if (isDeepResearchWarehouseMcpTool(toolName)) {
                     warehouseQueries += 1;
                     warehouseQueryOrdinal = warehouseQueries;
                 }
@@ -437,12 +432,18 @@ export class AiDeepResearchExecutor {
         }
 
         if (cancelledByUser || signal.aborted) {
-            return { status: 'cancelled' };
+            return {
+                status: 'cancelled',
+                terminalReason: cancelledByUser
+                    ? 'user_cancellation'
+                    : 'internal_error',
+            };
         }
         if (authorizationRevokedReason) {
             return {
                 status: 'failed',
                 errorMessage: authorizationRevokedReason,
+                terminalReason: 'permission_revoked',
             };
         }
 
@@ -460,6 +461,10 @@ export class AiDeepResearchExecutor {
                         `The ${budgetExceeded} budget was exhausted.`,
                     ),
                 warehouseQueryUuids: queryUuids,
+                terminalReason:
+                    budgetExceeded === 'maxToolCalls'
+                        ? 'tool_limit'
+                        : 'query_limit',
             };
         }
         if (executionError) {
@@ -468,11 +473,13 @@ export class AiDeepResearchExecutor {
                     status: 'partially_completed',
                     report,
                     warehouseQueryUuids: queryUuids,
+                    terminalReason: 'provider_error',
                 };
             }
             return {
                 status: 'failed',
                 errorMessage: getErrorMessage(executionError),
+                terminalReason: 'provider_error',
             };
         }
         if (!report) {
@@ -480,6 +487,7 @@ export class AiDeepResearchExecutor {
                 status: 'failed',
                 errorMessage:
                     'Deep Research finished without submitting a report',
+                terminalReason: 'provider_error',
             };
         }
 
@@ -487,6 +495,7 @@ export class AiDeepResearchExecutor {
             status: 'completed',
             report,
             warehouseQueryUuids: queryUuids,
+            terminalReason: null,
         };
     };
 }

@@ -1,5 +1,6 @@
 import {
     type AnyType,
+    type AiDeepResearchEntryPoint,
     type AiDeepResearchEventsPage,
     type AiDeepResearchRequestBody,
     type AiDeepResearchRun,
@@ -9,12 +10,16 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type ApiAiAgentThreadMessageVizQueryResponse,
     type ApiError,
+    isAiDeepResearchRunTerminal,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import useUser from '../../../../hooks/user/useUser';
+import useApp from '../../../../providers/App/useApp';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../types/Events';
 import {
     registerDeepResearchRun,
     replaceDeepResearchRun,
@@ -139,6 +144,7 @@ const useStartDeepResearchMutationBase = <
 >(
     projectUuid: string,
     getIds: (variables: Variables) => StartMutationIds,
+    entryPoint: AiDeepResearchEntryPoint,
 ) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
@@ -177,6 +183,7 @@ const useStartDeepResearchMutationBase = <
                 threadUuid,
                 promptUuid: variables.promptUuid,
                 mcpServerUuids: variables.mcpServerUuids,
+                entryPoint,
             });
         },
         onSuccess: (run, variables, context) => {
@@ -224,23 +231,30 @@ export const useStartDeepResearchMutation = ({
     projectUuid,
     agentUuid,
     threadUuid,
+    entryPoint = 'ask_ai',
 }: {
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
+    entryPoint?: AiDeepResearchEntryPoint;
 }) =>
     useStartDeepResearchMutationBase<StartMutationVariables>(
         projectUuid,
         () => ({ agentUuid, threadUuid }),
+        entryPoint,
     );
 
 type StartForThreadMutationVariables = StartMutationVariables &
     StartMutationIds;
 
-export const useStartDeepResearchForThreadMutation = (projectUuid: string) =>
+export const useStartDeepResearchForThreadMutation = (
+    projectUuid: string,
+    entryPoint: AiDeepResearchEntryPoint = 'ask_ai',
+) =>
     useStartDeepResearchMutationBase<StartForThreadMutationVariables>(
         projectUuid,
         ({ agentUuid, threadUuid }) => ({ agentUuid, threadUuid }),
+        entryPoint,
     );
 
 const useDeepResearchThreadRuns = (
@@ -252,6 +266,83 @@ const useDeepResearchThreadRuns = (
         queryFn: () => listDeepResearchRuns(projectUuid ?? '', threadUuid),
         enabled: !!projectUuid,
     });
+
+type DeepResearchEngagementRun = Pick<
+    AiDeepResearchRun,
+    | 'aiDeepResearchRunUuid'
+    | 'projectUuid'
+    | 'agentUuid'
+    | 'aiThreadUuid'
+    | 'status'
+    | 'completedAt'
+    | 'updatedAt'
+>;
+
+export const useTrackDeepResearchReportEngagement = () => {
+    const { user } = useApp();
+    const { track } = useTracking();
+
+    return useCallback(
+        (
+            action: 'opened' | 'copied' | 'shared' | 'follow_up',
+            run: DeepResearchEngagementRun,
+        ) => {
+            const userId = user?.data?.userUuid;
+            const organizationId = user?.data?.organizationUuid;
+            if (
+                !userId ||
+                !organizationId ||
+                !isAiDeepResearchRunTerminal(run.status)
+            ) {
+                return;
+            }
+
+            const completedAt = run.completedAt ?? run.updatedAt;
+            track({
+                name: EventName.AI_DEEP_RESEARCH_REPORT_ENGAGED,
+                properties: {
+                    action,
+                    organizationId,
+                    projectId: run.projectUuid,
+                    userId,
+                    runUuid: run.aiDeepResearchRunUuid,
+                    threadId: run.aiThreadUuid,
+                    aiAgentId: run.agentUuid,
+                    runStatus: run.status,
+                    timeSinceCompletedMs: Math.max(
+                        0,
+                        Date.now() - new Date(completedAt).getTime(),
+                    ),
+                },
+            });
+        },
+        [track, user?.data?.organizationUuid, user?.data?.userUuid],
+    );
+};
+
+export const useTrackDeepResearchFollowUp = ({
+    projectUuid,
+    threadUuid,
+}: {
+    projectUuid: string;
+    threadUuid: string;
+}) => {
+    const runsQuery = useDeepResearchThreadRuns(projectUuid, threadUuid);
+    const trackEngagement = useTrackDeepResearchReportEngagement();
+
+    return useCallback(() => {
+        const latestTerminalRun = runsQuery.data
+            ?.filter((run) => isAiDeepResearchRunTerminal(run.status))
+            .toSorted(
+                (left, right) =>
+                    new Date(right.completedAt ?? right.updatedAt).getTime() -
+                    new Date(left.completedAt ?? left.updatedAt).getTime(),
+            )[0];
+        if (latestTerminalRun) {
+            trackEngagement('follow_up', latestTerminalRun);
+        }
+    }, [runsQuery.data, trackEngagement]);
+};
 
 export const useDeepResearchThreadRunRegistrations = ({
     projectUuid,

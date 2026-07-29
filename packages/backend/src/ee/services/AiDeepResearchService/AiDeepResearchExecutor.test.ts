@@ -91,6 +91,8 @@ const run = (
     prompt: 'Investigate revenue',
     status: 'running',
     selected_mcp_server_uuids: ['mcp-1'],
+    entry_point: 'ask_ai',
+    effort: 'medium',
     result_markdown: null,
     result_chart_data: null,
     budget_snapshot: budget,
@@ -211,6 +213,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'failed',
             errorMessage:
                 'Deep Research cannot run because its creator is inactive',
+            terminalReason: 'permission_revoked',
         });
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
@@ -293,6 +296,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'completed',
             report,
             warehouseQueryUuids: [queryUuid],
+            terminalReason: null,
         });
         expect(generateAgentThreadResponse).toHaveBeenCalledTimes(1);
         expect(
@@ -351,6 +355,7 @@ describe('AiDeepResearchExecutor', () => {
         ).toHaveBeenCalledTimes(1);
         expect(result).toMatchObject({
             status: 'partially_completed',
+            terminalReason: 'tool_limit',
             warehouseQueryUuids: [],
             report: {
                 charts: [],
@@ -392,6 +397,7 @@ describe('AiDeepResearchExecutor', () => {
 
         expect(result).toMatchObject({
             status: 'partially_completed',
+            terminalReason: 'query_limit',
             warehouseQueryUuids: [],
         });
         expect(
@@ -418,6 +424,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'completed',
             report,
             warehouseQueryUuids: [],
+            terminalReason: null,
         });
     });
 
@@ -452,6 +459,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'completed',
             report,
             warehouseQueryUuids: [],
+            terminalReason: null,
         });
     });
 
@@ -470,6 +478,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'partially_completed',
             report,
             warehouseQueryUuids: [],
+            terminalReason: 'provider_error',
         });
     });
 
@@ -504,6 +513,7 @@ describe('AiDeepResearchExecutor', () => {
             status: 'completed',
             report,
             warehouseQueryUuids: [],
+            terminalReason: null,
         });
         expect(generateAgentThreadResponse).toHaveBeenCalledTimes(2);
         expect(generateAgentThreadResponse).toHaveBeenNthCalledWith(
@@ -575,7 +585,10 @@ describe('AiDeepResearchExecutor', () => {
 
         await expect(
             executor.execute(run(), { signal: controller.signal }),
-        ).resolves.toEqual({ status: 'cancelled' });
+        ).resolves.toEqual({
+            status: 'cancelled',
+            terminalReason: 'internal_error',
+        });
         expect(generateAgentThreadResponse).toHaveBeenCalledTimes(1);
     });
 
@@ -591,6 +604,7 @@ describe('AiDeepResearchExecutor', () => {
         ).resolves.toEqual({
             status: 'failed',
             errorMessage: 'Deep Research finished without submitting a report',
+            terminalReason: 'provider_error',
         });
         expect(generateAgentThreadResponse).toHaveBeenCalledTimes(2);
     });
@@ -603,7 +617,10 @@ describe('AiDeepResearchExecutor', () => {
 
         await expect(
             executor.execute(run(), { signal: controller.signal }),
-        ).resolves.toEqual({ status: 'cancelled' });
+        ).resolves.toEqual({
+            status: 'cancelled',
+            terminalReason: 'internal_error',
+        });
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
 });

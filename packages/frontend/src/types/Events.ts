@@ -186,6 +186,7 @@ export enum EventName {
     AI_AGENT_CHAT_MINIMIZED = 'ai_agent_chat.minimized',
     AI_AGENT_SUGGESTION_IMPRESSION = 'ai_agent.suggestion_impression',
     AI_AGENT_SUGGESTION_CLICK = 'ai_agent.suggestion_click',
+    AI_DEEP_RESEARCH_REPORT_ENGAGED = 'ai_deep_research.report_engaged',
 
     // Theme
     THEME_TOGGLED = 'theme.toggled',

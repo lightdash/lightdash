@@ -70,6 +70,7 @@ export class AiDeepResearchController extends BaseController {
                 aiThreadUuid: body.threadUuid,
                 promptUuid: body.promptUuid,
                 mcpServerUuids: body.mcpServerUuids,
+                entryPoint: body.entryPoint,
             }),
         };
     }

@@ -37,7 +37,10 @@ import {
     isDeepResearchRunTerminal,
 } from '../../deepResearch/runProgress';
 import { type DeepResearchRunView } from '../../deepResearch/types';
-import { useCancelDeepResearchMutation } from '../../hooks/useDeepResearch';
+import {
+    useCancelDeepResearchMutation,
+    useTrackDeepResearchReportEngagement,
+} from '../../hooks/useDeepResearch';
 import { DeepResearchReport } from './DeepResearchReport';
 import styles from './DeepResearchRunCard.module.css';
 
@@ -133,6 +136,7 @@ export const DeepResearchRunCard = ({
     const cancelMutation = useCancelDeepResearchMutation(projectUuid, run.uuid);
     const [isActivityOpen, setIsActivityOpen] = useState(false);
     const [isReportOpen, setIsReportOpen] = useState(false);
+    const trackReportEngagement = useTrackDeepResearchReportEngagement();
     const [announcedStatus, setAnnouncedStatus] = useState(run.status);
 
     useEffect(() => {
@@ -345,7 +349,25 @@ export const DeepResearchRunCard = ({
                                 variant="light"
                                 size="xs"
                                 w="fit-content"
-                                onClick={() => setIsReportOpen(true)}
+                                onClick={() => {
+                                    if (
+                                        run.status === 'completed' ||
+                                        run.status === 'partially_completed' ||
+                                        run.status === 'failed' ||
+                                        run.status === 'cancelled'
+                                    ) {
+                                        trackReportEngagement('opened', {
+                                            aiDeepResearchRunUuid: run.uuid,
+                                            projectUuid: run.projectUuid,
+                                            agentUuid: run.agentUuid,
+                                            aiThreadUuid: run.threadUuid,
+                                            status: run.status,
+                                            completedAt: run.completedAt,
+                                            updatedAt: run.updatedAt,
+                                        });
+                                    }
+                                    setIsReportOpen(true);
+                                }}
                             >
                                 Open full report
                             </Button>

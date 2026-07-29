@@ -7,10 +7,24 @@ import { type DeepResearchRunRegistration } from '../deepResearch/types';
 import {
     useDeepResearchRun,
     useStartDeepResearchMutation,
+    useTrackDeepResearchFollowUp,
+    useTrackDeepResearchReportEngagement,
 } from './useDeepResearch';
 
 const lightdashApiMock = vi.fn();
 const showToastApiErrorMock = vi.fn();
+const trackMock = vi.fn();
+const appUser = {
+    current: {
+        userUuid: 'user-1',
+        organizationUuid: 'org-1',
+    } as
+        | {
+              userUuid: string;
+              organizationUuid: string;
+          }
+        | undefined,
+};
 
 vi.mock('../../../../api', () => ({
     lightdashApi: (args: unknown) => lightdashApiMock(args),
@@ -22,6 +36,18 @@ vi.mock('../../../../hooks/toaster/useToaster', () => ({
 
 vi.mock('../../../../hooks/user/useUser', () => ({
     default: () => ({ data: { userUuid: 'user-1' } }),
+}));
+
+vi.mock('../../../../providers/App/useApp', () => ({
+    default: () => ({
+        user: {
+            data: appUser.current,
+        },
+    }),
+}));
+
+vi.mock('../../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: trackMock }),
 }));
 
 const registration: DeepResearchRunRegistration = {
@@ -41,6 +67,13 @@ const registration: DeepResearchRunRegistration = {
 const getRun = (status: 'running' | 'completed') => ({
     aiDeepResearchRunUuid: 'run-1',
     projectUuid: 'project-1',
+    agentUuid: 'agent-1',
+    aiThreadUuid: 'thread-1',
+    promptUuid: 'prompt-1',
+    mcpServerUuids: ['mcp-1'],
+    entryPoint: 'ask_ai',
+    effort: 'medium',
+    prompt: 'Why did enterprise retention fall in Q2?',
     status,
     result:
         status === 'completed'
@@ -122,6 +155,11 @@ describe('useStartDeepResearchMutation', () => {
             prompt: 'Why did retention fall?',
         });
         expect(showToastApiErrorMock).toHaveBeenCalledOnce();
+        expect(lightdashApiMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                body: expect.stringContaining('"entryPoint":"ask_ai"'),
+            }),
+        );
         expect(
             JSON.parse(
                 window.localStorage.getItem(
@@ -135,6 +173,104 @@ describe('useStartDeepResearchMutation', () => {
             }),
         ]);
         unsubscribe();
+    });
+});
+
+describe('useTrackDeepResearchFollowUp', () => {
+    afterEach(() => {
+        lightdashApiMock.mockReset();
+        trackMock.mockReset();
+    });
+
+    it('attributes a follow-up to the most recent terminal run', async () => {
+        lightdashApiMock.mockResolvedValue([
+            {
+                ...getRun('completed'),
+                aiDeepResearchRunUuid: 'older-run',
+                completedAt: '2026-07-15T09:04:00.000Z',
+            },
+            getRun('completed'),
+        ]);
+        const { result } = renderHook(
+            () =>
+                useTrackDeepResearchFollowUp({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(lightdashApiMock).toHaveBeenCalledOnce());
+        act(() => result.current());
+
+        expect(trackMock).toHaveBeenCalledWith({
+            name: 'ai_deep_research.report_engaged',
+            properties: expect.objectContaining({
+                action: 'follow_up',
+                runUuid: 'run-1',
+                threadId: 'thread-1',
+                aiAgentId: 'agent-1',
+                runStatus: 'completed',
+            }),
+        });
+    });
+});
+
+describe('useTrackDeepResearchReportEngagement', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-07-15T09:05:05.000Z'));
+        appUser.current = {
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+        };
+        trackMock.mockReset();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        appUser.current = {
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+        };
+    });
+
+    it('tracks the full terminal-run payload with persisted completion time', () => {
+        const { result } = renderHook(
+            () => useTrackDeepResearchReportEngagement(),
+            { wrapper: getWrapper() },
+        );
+
+        act(() => result.current('opened', getRun('completed')));
+
+        expect(trackMock).toHaveBeenCalledExactlyOnceWith({
+            name: 'ai_deep_research.report_engaged',
+            properties: {
+                action: 'opened',
+                organizationId: 'org-1',
+                projectId: 'project-1',
+                userId: 'user-1',
+                runUuid: 'run-1',
+                threadId: 'thread-1',
+                aiAgentId: 'agent-1',
+                runStatus: 'completed',
+                timeSinceCompletedMs: 5_000,
+            },
+        });
+    });
+
+    it('suppresses engagement for nonterminal runs or missing user context', () => {
+        const { result, rerender } = renderHook(
+            () => useTrackDeepResearchReportEngagement(),
+            { wrapper: getWrapper() },
+        );
+
+        act(() => result.current('opened', getRun('running')));
+        appUser.current = undefined;
+        rerender();
+        act(() => result.current('opened', getRun('completed')));
+
+        expect(trackMock).not.toHaveBeenCalled();
     });
 });
 

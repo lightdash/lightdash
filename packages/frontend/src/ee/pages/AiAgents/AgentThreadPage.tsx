@@ -26,7 +26,10 @@ import {
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
-import { useStartDeepResearchMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
+import {
+    useStartDeepResearchMutation,
+    useTrackDeepResearchFollowUp,
+} from '../../features/aiCopilot/hooks/useDeepResearch';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
@@ -176,6 +179,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         agentUuid: agentUuid!,
         threadUuid: threadUuid!,
     });
+    const trackDeepResearchFollowUp = useTrackDeepResearchFollowUp({
+        projectUuid: projectUuid!,
+        threadUuid: threadUuid!,
+    });
     const sqlMode = useAiAgentStoreSelector(
         selectThreadSqlMode(threadUuid ?? ''),
     );
@@ -288,7 +295,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             ),
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
-        });
+        }).then(trackDeepResearchFollowUp);
     };
     const handleStartDeepResearch = async ({
         question,
