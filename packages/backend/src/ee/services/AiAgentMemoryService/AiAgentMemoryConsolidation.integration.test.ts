@@ -201,7 +201,16 @@ describe('AI agent memory consolidation integration', () => {
         return rows.map((row) => row.slug);
     };
 
-    const buildService = (consolidateCall: AiAgentMemoryConsolidateCall) =>
+    /** Observes sweep enqueues without inserting real graphile jobs. */
+    const stubSchedulerClient = () => ({
+        aiAgentMemoryDistill: vi.fn(async () => ({})),
+        aiAgentMemoryConsolidatePartition: vi.fn(async () => ({})),
+    });
+
+    const buildService = (
+        consolidateCall: AiAgentMemoryConsolidateCall,
+        schedulerClientOverride?: ReturnType<typeof stubSchedulerClient>,
+    ) =>
         new AiAgentMemoryService({
             analytics,
             aiAgentMemoryModel: model,
@@ -209,9 +218,17 @@ describe('AI agent memory consolidation integration', () => {
             groupsModel: getTestContext().app.getModels().getGroupsModel(),
             projectModel: getTestContext().app.getModels().getProjectModel(),
             featureFlagService,
-            schedulerClient,
+            schedulerClient: schedulerClientOverride ?? schedulerClient,
             consolidateCall,
         });
+
+    /** The payload the sweep enqueues for one seeded partition. */
+    const partitionPayload = (ownerUserUuid: string) => ({
+        organizationUuid: SEED_ORG_1.organization_uuid,
+        projectUuid: SEED_PROJECT.project_uuid,
+        userUuid: 'system',
+        ownerUserUuid,
+    });
 
     const cannedCall = (operations: AiAgentMemoryConsolidationOperation[]) =>
         vi.fn().mockResolvedValue({ operations });
@@ -256,7 +273,9 @@ describe('AI agent memory consolidation integration', () => {
             ]),
         );
 
-        await service.consolidate();
+        await service.consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         const loser = await memoryBySlug(slugs[0]!);
         expect(loser).toMatchObject({
@@ -321,7 +340,9 @@ describe('AI agent memory consolidation integration', () => {
             ]),
         );
 
-        await service.consolidate();
+        await service.consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         const [run] = await runsForOwner(ownerUuid);
         expect(run).toMatchObject({
@@ -370,7 +391,9 @@ describe('AI agent memory consolidation integration', () => {
             ]),
         );
 
-        await service.consolidate();
+        await service.consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         const [run] = await runsForOwner(ownerUuid);
         expect(run).toMatchObject({ applied_count: 0, rejected_count: 2 });
@@ -420,7 +443,9 @@ describe('AI agent memory consolidation integration', () => {
             };
         });
 
-        await service.consolidate();
+        await service.consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         const [run] = await runsForOwner(ownerUuid);
         expect(run).toMatchObject({
@@ -478,7 +503,9 @@ describe('AI agent memory consolidation integration', () => {
                 ]),
             );
 
-            await service.consolidate();
+            await service.consolidateScheduledPartition(
+                partitionPayload(ownerUuid),
+            );
         } finally {
             await database.raw(
                 `DROP TRIGGER IF EXISTS consolidation_test_trip ON ${AiAgentMemoryTableName}`,
@@ -561,10 +588,14 @@ describe('AI agent memory consolidation integration', () => {
             prefix: 'skip',
         });
         const first = cannedCall([]);
-        await buildService(first).consolidate();
+        await buildService(first).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         const second = cannedCall([]);
-        await buildService(second).consolidate();
+        await buildService(second).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         expect(first).toHaveBeenCalledOnce();
         expect(second).not.toHaveBeenCalled();
@@ -578,10 +609,14 @@ describe('AI agent memory consolidation integration', () => {
             prefix: 'failskip',
         });
         const failing = vi.fn().mockRejectedValue(new Error('model exploded'));
-        await buildService(failing).consolidate();
+        await buildService(failing).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         const afterFailure = cannedCall([]);
-        await buildService(afterFailure).consolidate();
+        await buildService(afterFailure).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
         expect(afterFailure).not.toHaveBeenCalled();
 
         await seedPartition({
@@ -590,7 +625,9 @@ describe('AI agent memory consolidation integration', () => {
             prefix: 'failskip-new',
         });
         const afterChange = cannedCall([]);
-        await buildService(afterChange).consolidate();
+        await buildService(afterChange).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         expect(afterChange).toHaveBeenCalledOnce();
         const runs = await runsForOwner(ownerUuid);
@@ -604,12 +641,44 @@ describe('AI agent memory consolidation integration', () => {
             count: FLOOR - 1,
             prefix: 'floor',
         });
+        const enqueue = stubSchedulerClient();
         const call = cannedCall([]);
+        const service = buildService(call, enqueue);
 
-        await buildService(call).consolidate();
+        // The sweep never enqueues a below-floor partition...
+        await service.sweepConsolidationPartitions();
+        expect(
+            enqueue.aiAgentMemoryConsolidatePartition,
+        ).not.toHaveBeenCalledWith(partitionPayload(otherOwnerUuid));
+
+        // ...and a stale job for one is a quiet skip on the recheck.
+        await expect(
+            service.consolidateScheduledPartition(
+                partitionPayload(otherOwnerUuid),
+            ),
+        ).resolves.toBe('skipped');
 
         expect(call).not.toHaveBeenCalled();
         expect(await runsForOwner(otherOwnerUuid)).toHaveLength(0);
+    });
+
+    it('sweep enqueues one keyed job per eligible partition', async () => {
+        await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'sweep',
+        });
+        const enqueue = stubSchedulerClient();
+
+        const enqueued = await buildService(
+            cannedCall([]),
+            enqueue,
+        ).sweepConsolidationPartitions();
+
+        expect(enqueued).toBeGreaterThanOrEqual(1);
+        expect(enqueue.aiAgentMemoryConsolidatePartition).toHaveBeenCalledWith(
+            partitionPayload(ownerUuid),
+        );
     });
 
     it('never selects an owner-null row and never lets an operation cross owners', async () => {
@@ -642,7 +711,9 @@ describe('AI agent memory consolidation integration', () => {
             },
         ]);
 
-        await buildService(call).consolidate();
+        await buildService(call).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         const [{ input }] = call.mock.calls[0] as [
             { input: Array<{ id: string }> },
@@ -688,7 +759,9 @@ describe('AI agent memory consolidation integration', () => {
             });
         const call = cannedCall([]);
 
-        await buildService(call).consolidate();
+        await buildService(call).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
 
         const [{ input }] = call.mock.calls[0] as [
             {
@@ -719,9 +792,20 @@ describe('AI agent memory consolidation integration', () => {
             prefix: 'flagoff',
         });
         await setFeatureFlag(FeatureFlags.AiAgentMemory, false);
+        const enqueue = stubSchedulerClient();
         const call = cannedCall([]);
+        const service = buildService(call, enqueue);
 
-        await buildService(call).consolidate();
+        // The sweep filters the organization out...
+        await service.sweepConsolidationPartitions();
+        expect(
+            enqueue.aiAgentMemoryConsolidatePartition,
+        ).not.toHaveBeenCalledWith(partitionPayload(ownerUuid));
+
+        // ...and a job enqueued before the flag flipped skips on the recheck.
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload(ownerUuid)),
+        ).resolves.toBe('skipped');
 
         expect(call).not.toHaveBeenCalled();
         expect(await runsForOwner(ownerUuid)).toHaveLength(0);
@@ -772,7 +856,7 @@ describe('AI agent memory consolidation integration', () => {
                     reason: 'Its explore no longer resolves.',
                 },
             ]),
-        ).consolidate();
+        ).consolidateScheduledPartition(partitionPayload(ownerUuid));
 
         const afterOwner = await renderFor(ownerUuid);
         expect(afterOwner.slugs).not.toContain(slugs[0]);

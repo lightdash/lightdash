@@ -2,6 +2,7 @@ import {
     AgentOnboardingPipelineJobPayload,
     AiAgentEditDbtProjectPipelineJobPayload,
     AiAgentEvalRunJobPayload,
+    AiAgentMemoryConsolidatePartitionJobPayload,
     AiAgentMemoryDistillJobPayload,
     AiAgentReviewClassifierJobPayload,
     AiAgentReviewRemediationCompileJobPayload,
@@ -51,6 +52,24 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 maxAttempts: 1,
                 jobKey: `ai-agent-memory-distill:${payload.threadUuid}`,
                 queueName: `ai-agent-memory-distill:${payload.projectUuid}`,
+                priority: JobPriority.LOW,
+            },
+        );
+        return { jobId };
+    }
+
+    async aiAgentMemoryConsolidatePartition(
+        payload: AiAgentMemoryConsolidatePartitionJobPayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `ai-agent-memory-consolidate:${payload.projectUuid}:${payload.ownerUserUuid}`,
+                queueName: `ai-agent-memory-consolidate:${payload.projectUuid}`,
                 priority: JobPriority.LOW,
             },
         );

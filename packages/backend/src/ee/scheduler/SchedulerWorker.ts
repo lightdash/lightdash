@@ -41,6 +41,8 @@ const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const AI_AGENT_MEMORY_LLM_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
 const AI_AGENT_MEMORY_DISTILL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const AI_AGENT_MEMORY_SWEEP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+// Two curator attempts at the per-call ceiling, plus reads and the apply.
+const AI_AGENT_MEMORY_CONSOLIDATE_LLM_TIMEOUT_MS = 25 * 60 * 1000; // 25 minutes
 const AI_AGENT_MEMORY_CONSOLIDATE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
@@ -712,16 +714,40 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 payload,
                 helpers,
             ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentMemoryService.sweepConsolidationPartitions();
+                        },
+                    ),
+                    helpers.job,
+                    AI_AGENT_MEMORY_SWEEP_TIMEOUT_MS,
+                );
+            },
+            [EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION]: async (
+                payload,
+                helpers,
+            ) => {
                 const controller = new AbortController();
+                const abortSignal = AbortSignal.any([
+                    controller.signal,
+                    AbortSignal.timeout(
+                        AI_AGENT_MEMORY_CONSOLIDATE_LLM_TIMEOUT_MS,
+                    ),
+                ]);
                 const consolidatePromise = SchedulerClient.processJob(
-                    EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES,
+                    EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION,
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
                     async () => {
-                        await this.aiAgentMemoryService.consolidate(
-                            new Date(),
-                            controller.signal,
+                        await this.aiAgentMemoryService.consolidateScheduledPartition(
+                            payload,
+                            abortSignal,
                         );
                     },
                 );

@@ -51,26 +51,18 @@ const build = () => {
     const service = new AiAgentMemoryService({
         analytics: { track: vi.fn() } as AnyType,
         aiAgentMemoryModel: {
-            findConsolidationCandidates: vi.fn().mockResolvedValue([
-                {
-                    organizationUuid: 'org-enabled',
-                    projectUuid: 'project-enabled',
-                    ownerUserUuid: 'owner-1',
-                    activeCount: 30,
-                },
-            ]),
-            findActiveForProject: vi.fn().mockResolvedValue([
-                {
-                    ai_agent_memory_uuid: 'memory-1',
-                    slug: 'net-revenue-ab12cd34',
+            findActiveForProject: vi.fn().mockResolvedValue(
+                Array.from({ length: 30 }, (_, index) => ({
+                    ai_agent_memory_uuid: `memory-${index}`,
+                    slug: `net-revenue-${index}`,
                     title: 'Net revenue convention',
                     raw_memory: 'Use net revenue.',
                     terms: [],
                     objects: [],
                     scope: 'user',
                     generated_at: new Date('2026-07-20T10:00:00Z'),
-                },
-            ]),
+                })),
+            ),
             findLatestConsolidationRun: vi.fn().mockResolvedValue(undefined),
             recordConsolidationRun,
             applyConsolidation,
@@ -89,7 +81,10 @@ const build = () => {
                 enabled: true,
             })),
         } as AnyType,
-        schedulerClient: { aiAgentMemoryDistill: vi.fn() },
+        schedulerClient: {
+            aiAgentMemoryDistill: vi.fn(),
+            aiAgentMemoryConsolidatePartition: vi.fn(),
+        },
         orgAiCopilotConfigResolver: {
             getCopilotConfig: vi
                 .fn()
@@ -98,6 +93,13 @@ const build = () => {
         distillCall: vi.fn(),
     });
     return { service, recordConsolidationRun, applyConsolidation };
+};
+
+const payload = {
+    organizationUuid: 'org-enabled',
+    projectUuid: 'project-enabled',
+    userUuid: 'system',
+    ownerUserUuid: 'owner-1',
 };
 
 describe('AiAgentMemoryService consolidateWithLlm retry', () => {
@@ -111,7 +113,9 @@ describe('AiAgentMemoryService consolidateWithLlm retry', () => {
             .mockRejectedValueOnce(schemaFailure())
             .mockResolvedValueOnce({ object: { operations: [] } } as AnyType);
 
-        await expect(service.consolidate()).resolves.toBe(1);
+        await expect(
+            service.consolidateScheduledPartition(payload),
+        ).resolves.toBe('consolidated');
 
         expect(generateObjectMock).toHaveBeenCalledTimes(2);
         expect(applyConsolidation).toHaveBeenCalledOnce();
@@ -122,7 +126,9 @@ describe('AiAgentMemoryService consolidateWithLlm retry', () => {
         const { service, recordConsolidationRun, applyConsolidation } = build();
         generateObjectMock.mockRejectedValue(schemaFailure());
 
-        await expect(service.consolidate()).resolves.toBe(0);
+        await expect(
+            service.consolidateScheduledPartition(payload),
+        ).resolves.toBe('failed');
 
         expect(generateObjectMock).toHaveBeenCalledTimes(2);
         expect(applyConsolidation).not.toHaveBeenCalled();
@@ -137,7 +143,9 @@ describe('AiAgentMemoryService consolidateWithLlm retry', () => {
             .mockRejectedValueOnce(retryableApiFailure())
             .mockResolvedValueOnce({ object: { operations: [] } } as AnyType);
 
-        await expect(service.consolidate()).resolves.toBe(1);
+        await expect(
+            service.consolidateScheduledPartition(payload),
+        ).resolves.toBe('consolidated');
 
         expect(generateObjectMock).toHaveBeenCalledTimes(2);
         expect(generateObjectMock).toHaveBeenNthCalledWith(
@@ -156,7 +164,9 @@ describe('AiAgentMemoryService consolidateWithLlm retry', () => {
         const { service, recordConsolidationRun } = build();
         generateObjectMock.mockRejectedValue(new Error('provider down'));
 
-        await expect(service.consolidate()).resolves.toBe(0);
+        await expect(
+            service.consolidateScheduledPartition(payload),
+        ).resolves.toBe('failed');
 
         expect(generateObjectMock).toHaveBeenCalledOnce();
         expect(recordConsolidationRun).toHaveBeenCalledExactlyOnceWith(
