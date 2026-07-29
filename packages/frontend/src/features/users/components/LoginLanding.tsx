@@ -304,7 +304,7 @@ const Login: FC<{}> = () => {
             </Box>
             <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
                 <Title order={3} ta="center" mb="md">
-                    Sign in
+                    banana
                 </Title>
                 <form
                     name="login"
