@@ -107,6 +107,7 @@ import {
 } from '../../../analytics/aiUsage';
 import {
     LightdashAnalytics,
+    type DataAppUploadIdentitySource,
     type DataAppUploadRejectedEvent,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
@@ -9492,6 +9493,19 @@ export class AppGenerateService extends BaseService {
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';
+        // Mirrors the resolution precedence above. Watch 'uuid-fallback' and
+        // 'none' (both pre-slug bundles) decay to zero before removing the
+        // targetAppUuid fallback in a future codeVersion bump.
+        let identitySource: DataAppUploadIdentitySource;
+        if (body.createNew) {
+            identitySource = 'create-new';
+        } else if (manifestSlug !== undefined) {
+            identitySource = 'slug';
+        } else if (body.targetAppUuid) {
+            identitySource = 'uuid-fallback';
+        } else {
+            identitySource = 'none';
+        }
 
         const inProgressCount =
             await this.appModel.countInProgressVersionsForProject(projectUuid);
@@ -9696,6 +9710,7 @@ export class AppGenerateService extends BaseService {
                 hasCustomDependencies: dependencySummary !== undefined,
                 customDependencyCount: dependencySummary?.custom.length ?? 0,
                 customDependencies: dependencySummary?.custom ?? [],
+                identitySource,
                 ...(dependencySummary !== undefined
                     ? { lockfileHash: dependencySummary.lockfileHash }
                     : {}),
