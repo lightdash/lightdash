@@ -29983,6 +29983,14 @@
                 "type": "object",
                 "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. This is the same union the agent's repo VFS\nmounts (the org installation's repos plus the linked user's own), gated by the\nproject's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`\nendpoint, it never exposes repo names to users without source-code access."
             },
+            "AiDeepResearchEntryPoint": {
+                "type": "string",
+                "enum": ["homepage", "ask_ai"]
+            },
+            "AiDeepResearchEffort": {
+                "type": "string",
+                "enum": ["high", "medium", "low", "xhigh"]
+            },
             "AiDeepResearchRunStatus": {
                 "type": "string",
                 "enum": [
@@ -30540,6 +30548,12 @@
                     "prompt": {
                         "type": "string"
                     },
+                    "effort": {
+                        "$ref": "#/components/schemas/AiDeepResearchEffort"
+                    },
+                    "entryPoint": {
+                        "$ref": "#/components/schemas/AiDeepResearchEntryPoint"
+                    },
                     "mcpServerUuids": {
                         "items": {
                             "type": "string"
@@ -30575,6 +30589,8 @@
                     "resultMarkdown",
                     "status",
                     "prompt",
+                    "effort",
+                    "entryPoint",
                     "mcpServerUuids",
                     "promptUuid",
                     "aiThreadUuid",
@@ -30601,12 +30617,12 @@
             "ApiAiDeepResearchRunResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun_"
             },
-            "AiDeepResearchEffort": {
-                "type": "string",
-                "enum": ["high", "medium", "low", "xhigh"]
-            },
             "AiDeepResearchRequestBody": {
                 "properties": {
+                    "entryPoint": {
+                        "$ref": "#/components/schemas/AiDeepResearchEntryPoint",
+                        "description": "Product surface that accepted the run."
+                    },
                     "mcpServerUuids": {
                         "items": {
                             "type": "string"
@@ -30635,6 +30651,7 @@
                     }
                 },
                 "required": [
+                    "entryPoint",
                     "mcpServerUuids",
                     "promptUuid",
                     "threadUuid",
@@ -50948,7 +50965,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.33.0",
+        "version": "1.34.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

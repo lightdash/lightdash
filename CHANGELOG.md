@@ -1,3 +1,17 @@
+# [1.34.0](https://github.com/lightdash/lightdash/compare/1.33.0...1.34.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **analytics:** honour anonymized tracking preference in user.deleted events ([#26462](https://github.com/lightdash/lightdash/issues/26462)) ([44606fb](https://github.com/lightdash/lightdash/commit/44606fbe6f19b4f62185b13943d8fb04895392ac))
+* **ci:** generate the OpenAPI spec pair for the PR-time release-safety check ([#26385](https://github.com/lightdash/lightdash/issues/26385)) ([aa1f588](https://github.com/lightdash/lightdash/commit/aa1f58808ceee077faf60936f88c38d74175dede)), closes [#25605](https://github.com/lightdash/lightdash/issues/25605)
+
+
+### Features
+
+* **deep-research:** track lifecycle and report engagement ([#26464](https://github.com/lightdash/lightdash/issues/26464)) ([8a39587](https://github.com/lightdash/lightdash/commit/8a39587472cc75ee99ad740a803e9001516ac8e2))
+* **onboarding:** silence the invite toast and tighten the returnTo guard ([#26474](https://github.com/lightdash/lightdash/issues/26474)) ([38be76b](https://github.com/lightdash/lightdash/commit/38be76bcb00e534577725f27f3bc64b115e8f456))
+
 # [1.33.0](https://github.com/lightdash/lightdash/compare/1.32.0...1.33.0) (2026-07-29)
 
 
