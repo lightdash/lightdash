@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/lightdash/lightdash/compare/1.23.2...1.24.0) (2026-07-29)
+
+
+### Features
+
+* **data-apps:** load sandbox skills by name instead of by file path ([#26420](https://github.com/lightdash/lightdash/issues/26420)) ([fe4ac0a](https://github.com/lightdash/lightdash/commit/fe4ac0aee6d8fa050105a5eb10139ffa86b6b468))
+
 ## [1.23.2](https://github.com/lightdash/lightdash/compare/1.23.1...1.23.2) (2026-07-29)
 
 
