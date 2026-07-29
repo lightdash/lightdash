@@ -487,12 +487,31 @@ const RoadmapState: FC<{
     items: RoadmapItem[];
     isLoading: boolean;
     isError: boolean;
+    isUnavailable: boolean;
     hasActiveFilters: boolean;
     onRetry: () => void;
     children: ReactNode;
-}> = ({ items, isLoading, isError, hasActiveFilters, onRetry, children }) => {
+}> = ({
+    items,
+    isLoading,
+    isError,
+    isUnavailable,
+    hasActiveFilters,
+    onRetry,
+    children,
+}) => {
     if (isLoading) {
         return <EmptyStateLoader title="Loading your roadmap" />;
+    }
+
+    if (isUnavailable) {
+        return (
+            <SuboptimalState
+                icon={IconRoad}
+                title="Your roadmap isn't set up yet"
+                description="Your organization's roadmap hasn't been enabled. Reach out to your Lightdash contact to get it switched on."
+            />
+        );
     }
 
     if (isError) {
@@ -533,6 +552,7 @@ type RoadmapContentProps = {
     items: RoadmapItem[];
     isLoading: boolean;
     isError: boolean;
+    isUnavailable: boolean;
     hasActiveFilters?: boolean;
     onRetry: () => void;
 };
@@ -548,6 +568,7 @@ const RoadmapKanban: FC<RoadmapKanbanProps> = ({
     visibleStatuses,
     isLoading,
     isError,
+    isUnavailable,
     hasActiveFilters = false,
     onRetry,
 }) => {
@@ -575,6 +596,7 @@ const RoadmapKanban: FC<RoadmapKanbanProps> = ({
             items={items}
             isLoading={isLoading}
             isError={isError}
+            isUnavailable={isUnavailable}
             hasActiveFilters={hasActiveFilters}
             onRetry={onRetry}
         >
@@ -618,6 +640,7 @@ const RoadmapTable: FC<RoadmapTableProps> = ({
     pagination,
     isLoading,
     isError,
+    isUnavailable,
     hasActiveFilters = false,
     onRetry,
     onPageChange,
@@ -762,6 +785,7 @@ const RoadmapTable: FC<RoadmapTableProps> = ({
             items={items}
             isLoading={isLoading}
             isError={isError}
+            isUnavailable={isUnavailable}
             hasActiveFilters={hasActiveFilters}
             onRetry={onRetry}
         >
@@ -848,6 +872,7 @@ const Roadmap: FC = () => {
         },
     ]);
     const roadmapQuery = useAllOrgRoadmap();
+    const isRoadmapUnavailable = roadmapQuery.error?.error?.statusCode === 403;
     const allItems = roadmapQuery.data?.data ?? EMPTY_ROADMAP_ITEMS;
     const boardItems = useMemo(
         () =>
@@ -969,6 +994,7 @@ const Roadmap: FC = () => {
                         visibleStatuses={statuses}
                         isLoading={roadmapQuery.isInitialLoading}
                         isError={roadmapQuery.isError}
+                        isUnavailable={isRoadmapUnavailable}
                         hasActiveFilters={hasActiveFilters}
                         onRetry={() => void roadmapQuery.refetch()}
                     />
@@ -983,6 +1009,7 @@ const Roadmap: FC = () => {
                         }}
                         isLoading={roadmapQuery.isInitialLoading}
                         isError={roadmapQuery.isError}
+                        isUnavailable={isRoadmapUnavailable}
                         hasActiveFilters={hasActiveFilters}
                         onRetry={() => void roadmapQuery.refetch()}
                         onPageChange={setPage}

@@ -119,6 +119,17 @@ export class RoadmapService extends BaseService {
             );
         }
 
+        // 401/403 means the instance license is not bound to this org in the
+        // roadmap service — a provisioning state, not a transient failure.
+        if (response.status === 401 || response.status === 403) {
+            this.logger.warn('Roadmap service denied the request', {
+                statusCode: response.status,
+            });
+            throw new ForbiddenError(
+                'The organization roadmap is not available',
+            );
+        }
+
         if (!response.ok) {
             this.logger.warn('Roadmap service returned an error', {
                 statusCode: response.status,
