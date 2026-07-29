@@ -38,6 +38,18 @@ module.exports = {
             },
         ],
 
+        // npm version starts reifying node_modules toward npm's ideal tree
+        // (destroying parts of pnpm's symlink layout) before it hits the
+        // expected workspace:* error above. Reinstall from the unchanged
+        // lockfile to repair the tree; pnpm 11 used to do this implicitly via
+        // verifyDepsBeforeRun before it was pinned off in pnpm-workspace.yaml.
+        [
+            '@semantic-release/exec',
+            {
+                prepareCmd: 'sfw pnpm install --prefer-offline',
+            },
+        ],
+
         [
             '@semantic-release/exec',
             {
