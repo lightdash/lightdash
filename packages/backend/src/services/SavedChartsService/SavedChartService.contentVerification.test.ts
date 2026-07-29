@@ -44,6 +44,9 @@ const verificationInfo = {
 
 const savedChartData = {
     ...chartSummary,
+    name: 'Orders',
+    slug: 'orders',
+    description: 'Orders chart',
     spaceUuid: 'space-uuid',
     metricQuery: {
         metrics: [],
@@ -80,7 +83,10 @@ const adminUser = {
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability<PossibleAbilities>([
         { subject: 'ContentVerification', action: 'manage' },
-        { subject: 'SavedChart', action: ['view', 'update', 'delete'] },
+        {
+            subject: 'SavedChart',
+            action: ['view', 'update', 'delete', 'create'],
+        },
     ]),
     isActive: true,
     abilityRules: [],
@@ -103,6 +109,7 @@ const savedChartModel = {
     get: vi.fn(async () => savedChartData),
     createVersion: vi.fn(async () => savedChartData),
     update: vi.fn(async () => savedChartData),
+    create: vi.fn(async () => savedChartData),
 };
 
 const contentVerificationModel = {
@@ -153,6 +160,22 @@ describe('SavedChartService - Content Verification', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('duplicates a chart from its original slug base', async () => {
+        await service.duplicate(adminUser, 'project-uuid', 'chart-uuid', {
+            chartName: 'Copy of Orders',
+            chartDesc: 'Orders chart copy',
+        });
+
+        expect(savedChartModel.create).toHaveBeenCalledWith(
+            'project-uuid',
+            adminUser.userUuid,
+            expect.objectContaining({
+                name: 'Copy of Orders',
+                slug: 'orders',
+            }),
+        );
     });
 
     describe('CASL authorization', () => {

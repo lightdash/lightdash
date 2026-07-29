@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ConflictError,
     ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
@@ -82,7 +83,7 @@ import { DbValidationTable } from '../../database/entities/validation';
 import Logger from '../../logging/logger';
 import {
     acquireProjectSlugLock,
-    generateUniqueSlug,
+    generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import Transaction = Knex.Transaction;
@@ -915,7 +916,7 @@ export class DashboardModel {
 
         if (options?.projectUuid) {
             void query.where(
-                `${ProjectTableName}.project_uuid`,
+                `${DashboardsTableName}.project_uuid`,
                 options.projectUuid,
             );
         }
@@ -1384,8 +1385,17 @@ export class DashboardModel {
     /*
     This utility method wraps the slug generation functionality for testing purposes
     */
-    static async generateUniqueSlug(trx: Knex, slug: string): Promise<string> {
-        return generateUniqueSlug(trx, DashboardsTableName, slug);
+    static async generateUniqueSlug(
+        trx: Knex,
+        projectUuid: string,
+        slug: string,
+    ): Promise<string> {
+        return generateUniqueSlugScopedToProject(
+            trx,
+            projectUuid,
+            DashboardsTableName,
+            slug,
+        );
     }
 
     async create(
@@ -1395,28 +1405,22 @@ export class DashboardModel {
         projectUuid: string,
     ): Promise<DashboardDAO> {
         const dashboardId = await this.database.transaction(async (trx) => {
+            await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
+
             if (dashboard.forceSlug) {
-                // Forced slugs (content-as-code / promotion) skip unique-slug
-                // generation, and there is no DB unique constraint on the slug.
-                // Serialize concurrent creates of the same (project, slug) and
-                // dedupe against a row a racing upsert already created, so we
-                // never insert a duplicate slug (PROD-7883).
-                await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
-                const [existing] = await trx(DashboardsTableName)
-                    .innerJoin(
-                        SpaceTableName,
-                        `${SpaceTableName}.space_id`,
-                        `${DashboardsTableName}.space_id`,
-                    )
-                    .innerJoin(
-                        ProjectTableName,
-                        `${SpaceTableName}.project_id`,
-                        `${ProjectTableName}.project_id`,
-                    )
-                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                const existing = await trx(DashboardsTableName)
+                    .where(`${DashboardsTableName}.project_uuid`, projectUuid)
                     .where(`${DashboardsTableName}.slug`, dashboard.slug)
-                    .whereNull(`${DashboardsTableName}.deleted_at`)
-                    .select(`${DashboardsTableName}.dashboard_uuid`);
+                    .select(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.deleted_at`,
+                    )
+                    .first();
+                if (existing?.deleted_at) {
+                    throw new ConflictError(
+                        `Dashboard slug "${dashboard.slug}" is already used by a deleted dashboard`,
+                    );
+                }
                 if (existing) {
                     return existing.dashboard_uuid;
                 }
@@ -1446,6 +1450,7 @@ export class DashboardModel {
                         ? dashboard.slug
                         : await DashboardModel.generateUniqueSlug(
                               trx,
+                              projectUuid,
                               dashboard.slug,
                           ),
                 })

@@ -16,6 +16,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    generateSlug,
     getLtreePathFromSlug,
     GroupType,
     IdContentMapping,
@@ -126,7 +127,10 @@ import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAcco
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
+import {
+    acquireProjectSlugLock,
+    generateUniqueSlugScopedToProject,
+} from '../../utils/SlugUtils';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
 
@@ -640,12 +644,11 @@ export class ProjectModel {
             }
 
             if (data.type !== ProjectType.PREVIEW) {
-                const slug = await generateUniqueSpaceSlug(
-                    'Shared',
+                const slug = await generateUniqueSlugScopedToProject(
+                    trx,
                     project.project_id,
-                    {
-                        trx,
-                    },
+                    SpaceTableName,
+                    'Shared',
                 );
 
                 const path = getLtreePathFromSlug(slug);
@@ -2096,10 +2099,11 @@ export class ProjectModel {
                 .first();
 
             if (!parentSpace) {
-                const parentSlug = await generateUniqueSpaceSlug(
-                    DEFAULT_USER_SPACES_PARENT_NAME,
+                const parentSlug = await generateUniqueSlugScopedToProject(
+                    trx,
                     project.project_id,
-                    { trx },
+                    SpaceTableName,
+                    DEFAULT_USER_SPACES_PARENT_NAME,
                 );
                 const parentPath = getLtreePathFromSlug(parentSlug);
 
@@ -2192,9 +2196,18 @@ export class ProjectModel {
                 : `User ${user.userUuid.slice(0, 8)}`;
 
         await this.database.transaction(async (trx) => {
-            const slug = await generateUniqueSpaceSlug(spaceName, projectId, {
+            const baseSlug = generateSlug(spaceName);
+            await acquireProjectSlugLock(
                 trx,
-            });
+                String(projectId),
+                `space:${baseSlug}`,
+            );
+            const slug = await generateUniqueSlugScopedToProject(
+                trx,
+                projectId,
+                SpaceTableName,
+                baseSlug,
+            );
             const path = `${parentPath}.${getLtreePathFromSlug(slug)}`;
 
             const insertedSpaces = await trx(SpaceTableName)
@@ -2913,18 +2926,10 @@ export class ProjectModel {
                             `Chart ${d.saved_sql_uuid} has no space_uuid`,
                         );
                     }
-                    // Generate the slug asynchronously
-                    // const uniqueSlug = await generateUniqueSlug(
-                    //     trx,
-                    //     SavedSqlTableName,
-                    //     d.slug, // using the existing slug as a base - preventing naming duplicates
-                    // );
-                    // Map the saved SQL to the new saved SQL
                     const createSavedSQL: CloneSavedSQL = {
                         ...d,
                         project_uuid: previewProjectUuid,
                         space_uuid: getNewSpaceUuid(d.space_uuid),
-                        // slug: uniqueSlug,
                         search_vector: undefined,
                         saved_sql_uuid: undefined,
                         dashboard_uuid: null,

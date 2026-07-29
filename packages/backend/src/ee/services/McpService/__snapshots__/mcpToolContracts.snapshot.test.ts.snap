@@ -1127,7 +1127,7 @@ Usage tips:
             "type": "string",
           },
           "resourceUuidOrSlug": {
-            "description": "UUID (preferred) or slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results — slugs are not guaranteed unique.",
+            "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results as the canonical identity.",
             "type": "string",
           },
           "targets": {

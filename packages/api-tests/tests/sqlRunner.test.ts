@@ -1,6 +1,7 @@
 import {
     ChartKind,
     CreateSqlChart,
+    generateSlug,
     SEED_PROJECT,
     UpdateSqlChart,
     WarehouseTypes,
@@ -14,6 +15,7 @@ import {
     deleteProjectsByName,
     hasBigqueryCredentials,
 } from '../helpers/projects';
+import { uniqueName } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
 const apiV2Url = '/api/v2';
@@ -301,8 +303,9 @@ describe('Saved SQL chart', () => {
         );
         const space = spaceResp.body.results[0];
 
+        const sqlChartName = uniqueName('SQL chart slug collision');
         const sqlChartToCreate: CreateSqlChart = {
-            name: 'test',
+            name: sqlChartName,
             description: null,
             sql: 'SELECT * FROM postgres.jaffle.payments',
             limit: 21,
@@ -318,12 +321,35 @@ describe('Saved SQL chart', () => {
         };
 
         // Create SQL chart
-        const createResp = await admin.post<any>(
-            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
-            sqlChartToCreate,
-        );
+        const [createResp, duplicateResp] = await Promise.all([
+            admin.post<any>(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
+                sqlChartToCreate,
+            ),
+            admin.post<any>(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
+                sqlChartToCreate,
+            ),
+        ]);
         expect(createResp.status).toBe(200);
-        const { savedSqlUuid } = createResp.body.results;
+        const { savedSqlUuid, slug } = createResp.body.results;
+
+        expect(duplicateResp.status).toBe(200);
+        expect(new Set([slug, duplicateResp.body.results.slug])).toEqual(
+            new Set([
+                generateSlug(sqlChartName),
+                `${generateSlug(sqlChartName)}-1`,
+            ]),
+        );
+        const explicitConflictResp = await admin.post(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
+            {
+                ...sqlChartToCreate,
+                slug: generateSlug(sqlChartName),
+            },
+            { failOnStatusCode: false },
+        );
+        expect(explicitConflictResp.status).toBe(409);
 
         const sqlChartToUpdate: UpdateSqlChart = {
             unversionedData: {
@@ -366,5 +392,23 @@ describe('Saved SQL chart', () => {
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${savedSqlUuid}`,
         );
         expect(deleteResp.status).toBe(200);
+        await admin.delete(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${duplicateResp.body.results.savedSqlUuid}`,
+        );
+        const reusedDeletedSlugResp = await admin.post<any>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved`,
+            {
+                ...sqlChartToCreate,
+                slug: generateSlug(sqlChartName),
+            },
+            { failOnStatusCode: false },
+        );
+        expect(reusedDeletedSlugResp.status).toBe(200);
+        expect(reusedDeletedSlugResp.body.results.slug).toBe(
+            generateSlug(sqlChartName),
+        );
+        await admin.delete(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/sqlRunner/saved/${reusedDeletedSlugResp.body.results.savedSqlUuid}`,
+        );
     });
 });

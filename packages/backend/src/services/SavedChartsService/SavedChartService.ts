@@ -1711,7 +1711,7 @@ export class SavedChartService
             name: data.chartName,
             description: data.chartDesc,
             updatedByUser: user,
-            slug: generateSlug(`${data.chartName} ${Date.now()}`), // Ensure unique slug for duplicated charts
+            slug: chart.slug,
         };
         if (chart.dashboardUuid) {
             duplicatedChart = {
