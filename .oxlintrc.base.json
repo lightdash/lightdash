@@ -157,7 +157,8 @@
         "no-useless-computed-key": "error",
         "no-useless-concat": "error",
         "no-useless-rename": "error",
-        "no-useless-return": "error",
+        /* oxlint lacks ESLint's in-try-block exception (FPs with a behavior-changing autofix) — re-enable when fixed upstream */
+        "no-useless-return": "off",
         "no-var": "error",
         "operator-assignment": ["error", "always"],
         "prefer-const": "error",
