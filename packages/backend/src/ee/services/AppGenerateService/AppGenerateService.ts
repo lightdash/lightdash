@@ -66,6 +66,7 @@ import {
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityEventType,
+    type DataAppActivityFilters,
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppCodeDownload,
@@ -7677,6 +7678,7 @@ export class AppGenerateService extends BaseService {
     async getOrganizationActivity(
         user: SessionUser,
         paginateArgs?: KnexPaginateArgs,
+        filters?: DataAppActivityFilters,
     ): Promise<KnexPaginatedData<DataAppActivityEvent[]>> {
         await this.assertDataAppsEnabled(user);
 
@@ -7699,6 +7701,7 @@ export class AppGenerateService extends BaseService {
             await this.appModel.getOrganizationActivity(
                 organizationUuid,
                 paginateArgs,
+                filters,
             );
 
         return {

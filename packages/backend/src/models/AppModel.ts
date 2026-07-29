@@ -1,12 +1,14 @@
 import {
     APP_VERSION_CANCELLED_BY_USER,
     DATA_APP_VIZ_TEMPLATE,
+    DEFAULT_DATA_APP_CLAUDE_MODEL,
     generateSlug,
     NotFoundError,
     ProjectType,
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatusHistoryEntryKind,
+    type DataAppActivityFilters,
     type DataAppVizSchema,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -1096,6 +1098,7 @@ export class AppModel {
     async getOrganizationActivity(
         organizationUuid: string,
         paginateArgs?: KnexPaginateArgs,
+        filters?: DataAppActivityFilters,
     ): Promise<KnexPaginatedData<DbAppActivityRow[]>> {
         const query = this.database(AppVersionsTableName)
             .innerJoin(
@@ -1124,6 +1127,54 @@ export class AppModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
+            .modify((queryBuilder) => {
+                if (filters?.projectUuids?.length) {
+                    void queryBuilder.whereIn(
+                        `${AppsTableName}.project_uuid`,
+                        filters.projectUuids,
+                    );
+                }
+                if (filters?.userUuids?.length) {
+                    void queryBuilder.whereIn(
+                        `${AppVersionsTableName}.created_by_user_uuid`,
+                        filters.userUuids,
+                    );
+                }
+                if (filters?.models?.length) {
+                    const { models } = filters;
+                    void queryBuilder.where((modelQueryBuilder) => {
+                        void modelQueryBuilder.whereRaw(
+                            `${AppVersionsTableName}.resources->>'claudeModel' IN (${models
+                                .map(() => '?')
+                                .join(', ')})`,
+                            models,
+                        );
+                        // A version with no stored model ran on the default, and
+                        // that is what the API reports for it — so filtering on
+                        // the default has to match those rows too, or the filter
+                        // contradicts the value shown in the row.
+                        if (models.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
+                            void modelQueryBuilder.orWhereRaw(
+                                `${AppVersionsTableName}.resources->>'claudeModel' IS NULL`,
+                            );
+                        }
+                    });
+                }
+                if (filters?.dateFrom) {
+                    void queryBuilder.where(
+                        `${AppVersionsTableName}.created_at`,
+                        '>=',
+                        filters.dateFrom,
+                    );
+                }
+                if (filters?.dateTo) {
+                    void queryBuilder.where(
+                        `${AppVersionsTableName}.created_at`,
+                        '<=',
+                        filters.dateTo,
+                    );
+                }
+            })
             .select<DbAppActivityRow[]>(
                 `${AppVersionsTableName}.app_id`,
                 `${AppVersionsTableName}.version`,

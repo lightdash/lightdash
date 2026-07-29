@@ -662,6 +662,18 @@ export type DataAppActivityEvent = {
     } | null;
 };
 
+export type DataAppActivityFilters = {
+    projectUuids?: string[];
+    userUuids?: string[];
+    // Matches the model as reported, so filtering on the default model also
+    // returns versions that carry no model of their own — the ones that ran on
+    // the default before the picker shipped.
+    models?: DataAppClaudeModel[];
+    // ISO-8601, inclusive.
+    dateFrom?: string;
+    dateTo?: string;
+};
+
 export type ApiDataAppActivityResponse = ApiSuccess<{
     data: DataAppActivityEvent[];
     pagination?: KnexPaginateArgs & {

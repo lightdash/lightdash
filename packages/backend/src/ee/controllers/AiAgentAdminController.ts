@@ -59,7 +59,6 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
-import { validate as isUuid } from 'uuid';
 import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
@@ -69,32 +68,10 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type AiAgentAdminService } from '../services/AiAgentAdminService';
 import { type AiOrganizationSettingsService } from '../services/AiOrganizationSettingsService';
+import { validateDateFilter, validateUuidFilter } from './filterValidation';
 
 const MCP_ACTIVITY_MAX_PAGE_SIZE = 100;
 const AI_AGENT_MEMORIES_MAX_PAGE_SIZE = 100;
-
-// Rejects malformed date filters at the boundary (422) instead of letting
-// Postgres fail the query with a 500
-const validateDateFilter = (
-    name: string,
-    value: string | undefined,
-): string | undefined => {
-    if (value !== undefined && Number.isNaN(new Date(value).getTime())) {
-        throw new ParameterError(`Invalid ${name}: expected an ISO date`);
-    }
-    return value;
-};
-
-// Same rationale: a non-uuid value in a whereIn on a uuid column is a
-// Postgres cast error (500), not an empty result
-const validateUuidFilter = (
-    name: string,
-    values: string[] | undefined,
-): void => {
-    if (values?.some((value) => !isUuid(value))) {
-        throw new ParameterError(`Invalid ${name}: expected UUIDs`);
-    }
-};
 
 @Route('/api/v1/aiAgents/admin')
 @Response<ApiErrorPayload>('default', 'Error')
