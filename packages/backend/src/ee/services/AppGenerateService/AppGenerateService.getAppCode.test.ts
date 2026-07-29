@@ -265,8 +265,9 @@ describe('AppGenerateService.getAppCode', () => {
 
         const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
 
-        // manifest fields — identity is the slug; appUuid is never emitted
-        expect(result.manifest.appUuid).toBeUndefined();
+        // manifest fields — identity is the slug; the ids are informational
+        // until the id-free cutover
+        expect(result.manifest.appUuid).toBe(APP_UUID);
         expect(result.manifest.slug).toBe(APP_SLUG);
         expect(result.manifest.projectUuid).toBe(PROJECT_UUID);
         expect(result.manifest.version).toBe(VERSION);
@@ -355,7 +356,7 @@ describe('AppGenerateService.getAppCode', () => {
         ];
         expect(sentCommand.input.Key).not.toContain(APP_SLUG);
 
-        expect(result.manifest.appUuid).toBeUndefined();
+        expect(result.manifest.appUuid).toBe(APP_UUID);
     });
 
     it('includes the version viz schema in the manifest for a data app viz', async () => {
