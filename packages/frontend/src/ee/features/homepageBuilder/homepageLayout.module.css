@@ -26,32 +26,45 @@
 }
 
 .heroSection {
-    min-height: calc(100vh - var(--navbar-height) - 72px);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
 }
 
+/* `full` density: the hero is the opening view and owns the fold. Alone on the
+ * page it takes the whole viewport; sharing the page it yields a third so the
+ * first body row peeks above the fold. */
+.heroSection[data-density='full'] {
+    min-height: calc(100vh - var(--navbar-height) - 72px);
+}
+
 /* When the fav-bar is actually rendered above the hero, subtract its footprint
  * so the hero stays centred in the remaining viewport. The bar hides itself
  * when empty, so this only kicks in when there's really a bar. */
-.page:has(.favBar) .heroSection {
+.page:has(.favBar) .heroSection[data-density='full'] {
     min-height: calc(
         100vh - var(--navbar-height) - 72px - var(--homepage-favbar-height)
     );
 }
 
-/* Fold-aware hero: when body rows follow, the hero yields part of the
- * viewport so the first row just peeks above the fold — the composer owns
- * the opening view and the body starts clearly below it. Solo heroes — and
- * day-0, which never stamps the attribute — keep the full-viewport treatment
- * above. The favBar variant is repeated so it can't win the specificity
- * contest. */
-.heroSection[data-presentation='shared'],
-.page:has(.favBar) .heroSection[data-presentation='shared'] {
+/* The favBar variant is repeated so it can't win the specificity contest. */
+.heroSection[data-density='full'][data-presentation='shared'],
+.page:has(.favBar)
+    .heroSection[data-density='full'][data-presentation='shared'] {
     min-height: 66vh;
     padding-bottom: 32px;
+}
+
+/* `compact` density — the default whenever body rows follow. The hero is
+ * exactly as tall as the greeting + composer + chips inside it, plus the
+ * page's section rhythm below, so what the admin curated is on screen instead
+ * of under the fold. No reserved viewport share, no vertical centring: with
+ * content below, "centred in dead space" is the bug, not the feature. */
+.heroSection[data-density='compact'] {
+    justify-content: flex-start;
+    padding-top: 32px;
+    padding-bottom: 56px;
 }
 
 .favBar {

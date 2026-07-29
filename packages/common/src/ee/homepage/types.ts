@@ -7,6 +7,11 @@ export type HomepageMarkdownBlock = {
     config: { content: string };
 };
 
+/** How much of the opening view the hero claims. `full` centres it in the
+ * viewport; `compact` gives it only the height of its own content. Absent in
+ * stored configs means "let the layout decide" — see resolveHeroDensity. */
+export type HomepageHeroDensity = 'full' | 'compact';
+
 export type HomepageAskAiHeroBlock = {
     id: string;
     type: 'ask-ai-hero';
@@ -15,6 +20,7 @@ export type HomepageAskAiHeroBlock = {
         /** Replaces the prompt suggestions with the setup checklist.
          * Optional for configs persisted before this field existed. */
         showRecommendedActions?: boolean;
+        density?: HomepageHeroDensity;
     };
 };
 
@@ -24,7 +30,7 @@ export type HomepageAskAiHeroBlock = {
 export type HomepageGreetingBlock = {
     id: string;
     type: 'greeting';
-    config: { subtitle: string };
+    config: { subtitle: string; density?: HomepageHeroDensity };
 };
 
 export type HomepageCollectionItemRef = {

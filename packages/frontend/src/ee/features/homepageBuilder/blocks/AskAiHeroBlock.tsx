@@ -1,4 +1,5 @@
-import { Box, Stack, Switch, Text } from '@mantine-8/core';
+import { type HomepageHeroDensity } from '@lightdash/common';
+import { Box, SegmentedControl, Stack, Switch, Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
@@ -57,6 +58,39 @@ export const AskAiHero: FC<{
     );
 };
 
+// Shared by both hero-capable blocks. 'auto' clears the stored choice and
+// lets the layout decide (compact when content follows, full when alone) —
+// the right default for most pages, so it stays the first option.
+export const HeroDensityControl: FC<{
+    value: HomepageHeroDensity | undefined;
+    onChange: (density: HomepageHeroDensity | undefined) => void;
+}> = ({ value, onChange }) => (
+    <Stack gap={4}>
+        <Text size="xs" fw={500}>
+            Opening size
+        </Text>
+        <SegmentedControl
+            size="xs"
+            value={value ?? 'auto'}
+            onChange={(next) =>
+                onChange(
+                    next === 'auto' ? undefined : (next as HomepageHeroDensity),
+                )
+            }
+            data={[
+                { value: 'auto', label: 'Auto' },
+                { value: 'compact', label: 'Compact' },
+                { value: 'full', label: 'Full screen' },
+            ]}
+        />
+        <Text size="xs" c="dimmed">
+            {value === 'full'
+                ? 'Fills the opening view — content below starts under the fold.'
+                : 'Sized to its own content, so what you add below stays visible.'}
+        </Text>
+    </Stack>
+);
+
 export const AskAiHeroBlockView: FC<BlockComponentProps> = ({
     block,
     projectUuid,
@@ -103,6 +137,12 @@ export const AskAiHeroBlockBuild: FC<BuildComponentProps> = ({
                             showGreeting: e.currentTarget.checked,
                         },
                     })
+                }
+            />
+            <HeroDensityControl
+                value={block.config.density}
+                onChange={(density) =>
+                    onChange({ ...block, config: { ...block.config, density } })
                 }
             />
         </Stack>

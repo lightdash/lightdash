@@ -57,9 +57,14 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
             {/* Same favourites strip the published homepage puts above its
                 blocks — day-0 opens the same way */}
             <PersonalFavoritesBar projectUuid={projectUuid} />
-            {/* Body rows always follow, so the hero yields part of the
-                viewport and Recently viewed peeks above the fold */}
-            <div className={layout.heroSection} data-presentation="shared">
+            {/* Body rows always follow — Recently viewed and Pinned are the
+                point of day-0 — so the hero stays compact and they're on
+                screen. Same shell for both the AI and non-AI openings. */}
+            <div
+                className={layout.heroSection}
+                data-presentation="shared"
+                data-density="compact"
+            >
                 {canAskAi ? (
                     <div className={layout.hero}>
                         <AskAiHero

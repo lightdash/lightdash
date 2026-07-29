@@ -2,6 +2,7 @@ import { Box, Stack, Text, TextInput } from '@mantine-8/core';
 import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { getGreeting } from '../greeting';
+import { HeroDensityControl } from './AskAiHeroBlock';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 // Same type scale as the day-0 opening, so a greeting-led homepage and day-0
@@ -43,8 +44,17 @@ export const GreetingBlockBuild: FC<BuildComponentProps> = ({
                 onChange={(e) =>
                     onChange({
                         ...block,
-                        config: { subtitle: e.currentTarget.value },
+                        config: {
+                            ...block.config,
+                            subtitle: e.currentTarget.value,
+                        },
                     })
+                }
+            />
+            <HeroDensityControl
+                value={block.config.density}
+                onChange={(density) =>
+                    onChange({ ...block, config: { ...block.config, density } })
                 }
             />
         </Stack>
