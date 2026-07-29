@@ -186,7 +186,10 @@ const UserCredentialsSwitcher = () => {
                         variant="default"
                         size="xs"
                     >
-                        <MantineIcon icon={IconDatabaseCog} />
+                        <MantineIcon
+                            icon={IconDatabaseCog}
+                            color="light-dark(var(--mantine-color-blue-6), var(--mantine-color-blue-4))"
+                        />
                     </Button>
                 </Menu.Target>
 
