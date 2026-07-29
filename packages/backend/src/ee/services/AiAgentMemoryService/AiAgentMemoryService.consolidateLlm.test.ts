@@ -47,7 +47,9 @@ const retryableApiFailure = () =>
 // The real consolidateWithLlm path: no canned consolidateCall injected.
 const build = () => {
     const recordConsolidationRun = vi.fn().mockResolvedValue({});
-    const applyConsolidation = vi.fn().mockResolvedValue({});
+    const applyConsolidation = vi
+        .fn()
+        .mockResolvedValue({ run: {}, applied: [], rejected: [] });
     const service = new AiAgentMemoryService({
         analytics: { track: vi.fn() } as AnyType,
         aiAgentMemoryModel: {

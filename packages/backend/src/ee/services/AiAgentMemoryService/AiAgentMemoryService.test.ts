@@ -198,8 +198,16 @@ describe('AiAgentMemoryService', () => {
         const distillCall = vi.fn();
         const consolidateCall = vi.fn().mockResolvedValue({ operations: [] });
         const track = vi.fn();
+        const prometheusMetrics = {
+            trackAiAgentMemoryDistill: vi.fn(),
+            incrementAiAgentMemorySweepEnqueued: vi.fn(),
+            trackAiAgentMemoryConsolidate: vi.fn(),
+            trackAiAgentMemoryConsolidateOperations: vi.fn(),
+            incrementAiAgentMemoryEligiblePartitions: vi.fn(),
+        };
         const service = new AiAgentMemoryService({
             analytics: { track } as AnyType,
+            prometheusMetrics: prometheusMetrics as AnyType,
             aiAgentMemoryModel: {
                 findByProjectAndSlug,
                 findByProjectAndUuid,
@@ -255,6 +263,7 @@ describe('AiAgentMemoryService', () => {
             distillCall,
             consolidateCall,
             track,
+            prometheusMetrics,
         };
     };
 

@@ -11,6 +11,7 @@ import {
     type AiAgentMemory,
     type AiAgentMemoryConsolidatePartitionJobPayload,
     type AiAgentMemoryConsolidationInputEntry,
+    type AiAgentMemoryConsolidationOperation,
     type AiAgentMemoryConsolidationRejection,
     type AiAgentMemoryDistillJobPayload,
     type AiAgentMemoryEditableStatus,
@@ -26,6 +27,9 @@ import { createHash, randomBytes } from 'crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
+    type AiAgentMemoryConsolidatedEvent,
+    type AiAgentMemoryConsolidationFailedEvent,
+    type AiAgentMemoryConsolidationSkippedEvent,
     type AiAgentMemoryGeneratedEvent,
     type AiAgentMemoryGenerationFailedEvent,
     type AiAgentMemoryViewedEvent,
@@ -34,7 +38,10 @@ import {
 import { type GroupsModel } from '../../../models/GroupsModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
-import { type AiAgentMemoryDistillOutcome } from '../../../prometheus/PrometheusMetrics';
+import {
+    type AiAgentMemoryConsolidateOutcome,
+    type AiAgentMemoryDistillOutcome,
+} from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type DbAiAgentMemory } from '../../database/entities/aiAgentMemory';
@@ -59,6 +66,9 @@ import {
     buildConsolidationInput,
     buildConsolidationUserMessage,
     computeConsolidationInputHash,
+    countConsolidationOperations,
+    countConsolidationRejections,
+    countConsolidationScopes,
     validateConsolidationOperations,
     type AiAgentMemoryConsolidationPartition,
 } from './consolidation';
@@ -105,11 +115,7 @@ export type AiAgentMemoryConsolidateCall = (args: {
     abortSignal?: AbortSignal;
 }) => Promise<ConsolidationOutput>;
 
-export type AiAgentMemoryConsolidateOutcome =
-    | 'consolidated'
-    | 'skipped'
-    | 'failed'
-    | 'aborted';
+export { type AiAgentMemoryConsolidateOutcome };
 
 type MemorySchedulerClient = {
     aiAgentMemoryDistill: (
@@ -123,7 +129,16 @@ type MemorySchedulerClient = {
 type MemoryServiceAnalyticsEvent =
     | AiAgentMemoryGeneratedEvent
     | AiAgentMemoryGenerationFailedEvent
-    | AiAgentMemoryViewedEvent;
+    | AiAgentMemoryViewedEvent
+    | AiAgentMemoryConsolidatedEvent
+    | AiAgentMemoryConsolidationFailedEvent
+    | AiAgentMemoryConsolidationSkippedEvent;
+
+type ConsolidationFailureStage =
+    AiAgentMemoryConsolidationFailedEvent['properties']['failureStage'];
+
+type ConsolidationSkipReason =
+    AiAgentMemoryConsolidationSkippedEvent['properties']['reason'];
 
 type Dependencies = {
     analytics: LightdashAnalytics;
@@ -193,6 +208,94 @@ export class AiAgentMemoryService extends BaseService {
                 error: getErrorMessage(error),
             });
         }
+    }
+
+    /** The pass is scheduled work, so the organization is the anonymous actor. */
+    private trackConsolidationFailed(
+        partition: AiAgentMemoryConsolidationPartition,
+        failureStage: ConsolidationFailureStage,
+        error: unknown,
+    ): void {
+        this.track({
+            event: 'ai_agent_memory.consolidation_failed',
+            anonymousId: partition.organizationUuid,
+            properties: {
+                organizationId: partition.organizationUuid,
+                projectId: partition.projectUuid,
+                ownerUserId: partition.ownerUserUuid,
+                failureStage,
+                // Never the message: an AI SDK error quotes the model output.
+                errorType: error instanceof Error ? error.name : 'UnknownError',
+            },
+        });
+    }
+
+    /**
+     * One event per run that reached the apply transaction, and the applied and
+     * rejected operation mix on the metrics. Counts and closed enumerations
+     * only: no memory text, title, term, object name, slug or operation reason.
+     * Swallows its own failures — this runs inside the attempt's try, and an
+     * instrumentation error must not turn an applied run into a failed one.
+     */
+    private recordConsolidationApplied(args: {
+        partition: AiAgentMemoryConsolidationPartition;
+        input: AiAgentMemoryConsolidationInputEntry[];
+        applied: AiAgentMemoryConsolidationOperation[];
+        rejected: AiAgentMemoryConsolidationRejection[];
+    }): void {
+        try {
+            const appliedCounts = countConsolidationOperations(args.applied);
+            const rejectedCounts = countConsolidationRejections(args.rejected);
+            this.prometheusMetrics?.trackAiAgentMemoryConsolidateOperations({
+                applied: appliedCounts,
+                rejected: rejectedCounts,
+            });
+            this.track({
+                event: 'ai_agent_memory.consolidated',
+                anonymousId: args.partition.organizationUuid,
+                properties: {
+                    organizationId: args.partition.organizationUuid,
+                    projectId: args.partition.projectUuid,
+                    ownerUserId: args.partition.ownerUserUuid,
+                    // A quiet run is not a skipped partition: it read the
+                    // corpus, paid for the call and found nothing to do.
+                    outcome:
+                        args.applied.length > 0 ? 'applied' : 'no_operations',
+                    inputCount: args.input.length,
+                    mergeCount: appliedCounts.merge,
+                    supersedeCount: appliedCounts.supersede,
+                    retireCount: appliedCounts.retire,
+                    rejectedCount: args.rejected.length,
+                    ...countConsolidationScopes({
+                        input: args.input,
+                        applied: args.applied,
+                    }),
+                },
+            });
+        } catch (error) {
+            this.logger.warn('Unable to record AI agent consolidation run', {
+                projectUuid: args.partition.projectUuid,
+                error: getErrorMessage(error),
+            });
+        }
+    }
+
+    private trackConsolidationSkipped(
+        partition: AiAgentMemoryConsolidationPartition,
+        reason: ConsolidationSkipReason,
+        inputCount: number,
+    ): void {
+        this.track({
+            event: 'ai_agent_memory.consolidation_skipped',
+            anonymousId: partition.organizationUuid,
+            properties: {
+                organizationId: partition.organizationUuid,
+                projectId: partition.projectUuid,
+                ownerUserId: partition.ownerUserUuid,
+                reason,
+                inputCount,
+            },
+        });
     }
 
     /**
@@ -510,6 +613,9 @@ export class AiAgentMemoryService extends BaseService {
                 AI_AGENT_MEMORY_CONSOLIDATION_MIN_ACTIVE_ROWS,
             );
         const due = await this.filterByEnabledOrganizations(candidates);
+        this.prometheusMetrics?.incrementAiAgentMemoryEligiblePartitions(
+            due.length,
+        );
 
         await Promise.all(
             due.map((candidate) =>
@@ -531,6 +637,22 @@ export class AiAgentMemoryService extends BaseService {
      * skip, never a failure.
      */
     async consolidateScheduledPartition(
+        payload: AiAgentMemoryConsolidatePartitionJobPayload,
+        abortSignal?: AbortSignal,
+    ): Promise<AiAgentMemoryConsolidateOutcome> {
+        const startTime = Date.now();
+        const outcome = await this.runConsolidateScheduledPartition(
+            payload,
+            abortSignal,
+        );
+        this.prometheusMetrics?.trackAiAgentMemoryConsolidate(
+            outcome,
+            Date.now() - startTime,
+        );
+        return outcome;
+    }
+
+    private async runConsolidateScheduledPartition(
         payload: AiAgentMemoryConsolidatePartitionJobPayload,
         abortSignal?: AbortSignal,
     ): Promise<AiAgentMemoryConsolidateOutcome> {
@@ -566,14 +688,28 @@ export class AiAgentMemoryService extends BaseService {
                     projectUuid: partition.projectUuid,
                     ownerUserUuid: partition.ownerUserUuid,
                 });
-            if (latestRun?.input_hash === inputHash) return 'skipped';
+            if (latestRun?.input_hash === inputHash) {
+                this.trackConsolidationSkipped(
+                    partition,
+                    'clean',
+                    memories.length,
+                );
+                return 'skipped';
+            }
 
             // Read only for a partition that will be attempted: the common
             // all-skipped day must not read a single cached_explores blob.
             const explores = await this.loadConsolidationCatalog(
                 partition.projectUuid,
             );
-            if (explores === null) return 'skipped';
+            if (explores === null) {
+                this.trackConsolidationSkipped(
+                    partition,
+                    'catalog_unavailable',
+                    memories.length,
+                );
+                return 'skipped';
+            }
 
             return await this.consolidatePartition({
                 partition,
@@ -601,6 +737,7 @@ export class AiAgentMemoryService extends BaseService {
                 projectUuid: partition.projectUuid,
                 ownerUserUuid: partition.ownerUserUuid,
             });
+            this.trackConsolidationFailed(partition, 'selection', error);
             return 'failed';
         }
     }
@@ -662,6 +799,11 @@ export class AiAgentMemoryService extends BaseService {
                 'Skipping AI agent memory consolidation: no object resolves',
                 { projectUuid: partition.projectUuid },
             );
+            this.trackConsolidationSkipped(
+                partition,
+                'objects_unresolved',
+                input.length,
+            );
             return 'skipped';
         }
 
@@ -678,6 +820,7 @@ export class AiAgentMemoryService extends BaseService {
 
         // What curation tried and was not allowed to do survives a failed apply.
         let rejectedOperations: AiAgentMemoryConsolidationRejection[] = [];
+        let failureStage: ConsolidationFailureStage = 'consolidation';
         try {
             args.abortSignal?.throwIfAborted();
             const output = await this.consolidateCall({
@@ -697,7 +840,8 @@ export class AiAgentMemoryService extends BaseService {
                 input,
             });
             rejectedOperations = rejected;
-            await this.aiAgentMemoryModel.applyConsolidation({
+            failureStage = 'persistence';
+            const result = await this.aiAgentMemoryModel.applyConsolidation({
                 run,
                 selection: memories.map((memory) => ({
                     memoryUuid: memory.ai_agent_memory_uuid,
@@ -713,6 +857,14 @@ export class AiAgentMemoryService extends BaseService {
                             getAiProjectContextObjectKey(object.object),
                         ),
                 ),
+            });
+            // The apply's own audit, not validation's: it carries the rows the
+            // transaction rejected for having moved since selection.
+            this.recordConsolidationApplied({
+                partition,
+                input,
+                applied: result.applied,
+                rejected: result.rejected,
             });
             return 'consolidated';
         } catch (error) {
@@ -745,6 +897,7 @@ export class AiAgentMemoryService extends BaseService {
                 projectUuid: partition.projectUuid,
                 ownerUserUuid: partition.ownerUserUuid,
             });
+            this.trackConsolidationFailed(partition, failureStage, error);
             return 'failed';
         }
     }
