@@ -122,6 +122,8 @@ export type DbAiAgentMemoryConsolidationRun = {
     project_uuid: string;
     user_uuid: string;
     status: AiAgentMemoryConsolidationRunStatus;
+    /** A dry run applied nothing: its operation columns hold proposals. */
+    dry_run: boolean;
     prompt_hash: string;
     input_hash: string;
     input_count: number;

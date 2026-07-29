@@ -162,6 +162,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagService: repository.getFeatureFlagService(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                    consolidationDryRun:
+                        context.lightdashConfig.ai.agentMemory
+                            .consolidationDryRun,
                     prometheusMetrics,
                     orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
                         lightdashConfig: context.lightdashConfig,

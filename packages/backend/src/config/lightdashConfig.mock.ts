@@ -257,6 +257,9 @@ export const lightdashConfigMock: LightdashConfig = {
             toolDescriptionMaxChars: 600,
             defaultEmbeddingModelProvider: 'openai',
         },
+        agentMemory: {
+            consolidationDryRun: false,
+        },
     },
     embedding: {
         enabled: false,

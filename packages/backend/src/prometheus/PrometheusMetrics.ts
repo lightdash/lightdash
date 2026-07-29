@@ -73,6 +73,8 @@ export type AiAgentMemoryDistillOutcome =
 
 export const AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES = [
     'consolidated',
+    // Proposed and applied nothing: never counted as a consolidated partition.
+    'dry_run',
     'skipped',
     'failed',
     'aborted',
@@ -80,6 +82,14 @@ export const AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES = [
 
 export type AiAgentMemoryConsolidateOutcome =
     (typeof AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES)[number];
+
+const AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES = [
+    ...AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES,
+    'dry_run_failed',
+] as const;
+
+type AiAgentMemoryConsolidateMetricOutcome =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES)[number];
 
 export function getQueryContextLabel(
     context: string,
@@ -580,7 +590,7 @@ export default class PrometheusMetrics {
                 // AI agent memory consolidation pass
                 this.aiAgentMemoryConsolidateCounter = new prometheus.Counter({
                     name: 'ai_agent_memory_consolidate_total',
-                    help: 'AI agent memory consolidation runs by outcome (consolidated | skipped | failed | aborted)',
+                    help: 'AI agent memory consolidation runs by outcome (consolidated | dry_run | skipped | failed | dry_run_failed | aborted)',
                     labelNames: ['outcome'],
                     ...rest,
                 });
@@ -786,12 +796,17 @@ export default class PrometheusMetrics {
                         );
                     },
                 );
-                AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES.forEach((outcome) => {
-                    this.aiAgentMemoryConsolidateCounter?.inc({ outcome }, 0);
-                    this.aiAgentMemoryConsolidateDurationHistogram?.zero({
-                        outcome,
-                    });
-                });
+                AI_AGENT_MEMORY_CONSOLIDATE_METRIC_OUTCOMES.forEach(
+                    (outcome) => {
+                        this.aiAgentMemoryConsolidateCounter?.inc(
+                            { outcome },
+                            0,
+                        );
+                        this.aiAgentMemoryConsolidateDurationHistogram?.zero({
+                            outcome,
+                        });
+                    },
+                );
                 AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES.forEach(
                     (operation) => {
                         this.aiAgentMemoryConsolidateOperationCounter?.inc(
@@ -1660,7 +1675,7 @@ export default class PrometheusMetrics {
     }
 
     public trackAiAgentMemoryConsolidate(
-        outcome: AiAgentMemoryConsolidateOutcome,
+        outcome: AiAgentMemoryConsolidateMetricOutcome,
         durationMs: number,
     ) {
         this.aiAgentMemoryConsolidateCounter?.inc({ outcome });

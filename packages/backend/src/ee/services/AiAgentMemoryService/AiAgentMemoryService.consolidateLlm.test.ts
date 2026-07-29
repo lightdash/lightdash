@@ -87,6 +87,7 @@ const build = () => {
             aiAgentMemoryDistill: vi.fn(),
             aiAgentMemoryConsolidatePartition: vi.fn(),
         },
+        consolidationDryRun: false,
         orgAiCopilotConfigResolver: {
             getCopilotConfig: vi
                 .fn()
