@@ -16,7 +16,6 @@ const AVAILABLE_MESSAGE_TO_FEATURE: Record<string, string> = {
     'lightdash:inspect:available': 'inspect',
     'lightdash:lineage:available': 'lineage',
     'lightdash:sdk:screenshot-available': 'screenshot',
-    'lightdash:delivery:available': 'delivery',
 };
 
 describe('SDK_FEATURES registry', () => {
