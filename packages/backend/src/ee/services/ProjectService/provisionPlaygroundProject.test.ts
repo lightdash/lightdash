@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    CommercialFeatureFlags,
     FeatureFlags,
     OrganizationMemberRole,
     ProjectType,
@@ -9,7 +8,6 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import path from 'path';
-import Logger from '../../../logging/logger';
 import {
     provisionPlaygroundProject,
     type ProvisionPlaygroundProjectArguments,
@@ -60,9 +58,6 @@ const buildArguments = () => {
         id: FeatureFlags.NewOnboarding,
         enabled: true,
     }));
-    const ensureOrganizationOverrideEnabled = vi.fn<
-        ProvisionPlaygroundProjectArguments['featureFlagService']['ensureOrganizationOverrideEnabled']
-    >(async () => 'enabled');
     const getAllByOrganizationUuid = vi.fn(
         async () => [] as OrganizationProject[],
     );
@@ -99,7 +94,7 @@ const buildArguments = () => {
     return {
         args: {
             user,
-            featureFlagService: { get, ensureOrganizationOverrideEnabled },
+            featureFlagService: { get },
             projectModel: {
                 getAllByOrganizationUuid,
                 delete: deleteProject,
@@ -117,7 +112,6 @@ const buildArguments = () => {
             validatePlaygroundDatabase,
         } satisfies ProvisionPlaygroundProjectArguments,
         get,
-        ensureOrganizationOverrideEnabled,
         getAllByOrganizationUuid,
         deleteProject,
         saveExploresToCache,
@@ -179,7 +173,6 @@ describe('provisionPlaygroundProject', () => {
                 reason: 'playground_already_exists',
             },
         });
-        expect(mocks.ensureOrganizationOverrideEnabled).not.toHaveBeenCalled();
     });
 
     it('returns an existing real project without creating a playground', async () => {
@@ -201,7 +194,6 @@ describe('provisionPlaygroundProject', () => {
                 reason: 'organization_has_project',
             },
         });
-        expect(mocks.ensureOrganizationOverrideEnabled).not.toHaveBeenCalled();
     });
 
     it('does not disclose an existing project the user cannot view', async () => {
@@ -289,8 +281,6 @@ describe('provisionPlaygroundProject', () => {
                 trigger: 'invite_expert',
                 onboardingFlow: 'new',
                 catalogIndexErrorType: null,
-                homepageBuilderEnablement: 'enabled',
-                codingAgentOnboardingEnablement: 'enabled',
             },
         });
         expect(mocks.validatePlaygroundDatabase).toHaveBeenCalledWith(
@@ -348,171 +338,8 @@ describe('provisionPlaygroundProject', () => {
                 trigger: 'invite_expert',
                 onboardingFlow: 'new',
                 catalogIndexErrorType: 'Error',
-                homepageBuilderEnablement: 'enabled',
-                codingAgentOnboardingEnablement: 'enabled',
             },
         });
-    });
-
-    it('enables the homepage builder and coding agent onboarding for the organization before creating the project', async () => {
-        const mocks = buildArguments();
-        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
-            projectUuid,
-            created: true,
-        });
-        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledTimes(
-            2,
-        );
-        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
-            user,
-            featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-        });
-        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
-            user,
-            featureFlagId: FeatureFlags.CodingAgentOnboarding,
-        });
-        expect(
-            Math.max(
-                ...mocks.ensureOrganizationOverrideEnabled.mock
-                    .invocationCallOrder,
-            ),
-        ).toBeLessThan(
-            vi.mocked(mocks.createWithoutCompile).mock.invocationCallOrder[0],
-        );
-    });
-
-    it('reports when an explicit disabled override is preserved', async () => {
-        const mocks = buildArguments();
-        mocks.ensureOrganizationOverrideEnabled.mockImplementation(
-            async ({ featureFlagId }) =>
-                featureFlagId === CommercialFeatureFlags.HomepageBuilder
-                    ? 'kept_disabled'
-                    : 'enabled',
-        );
-        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
-            projectUuid,
-            created: true,
-        });
-        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
-            event: 'playground_project.provisioned',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                trigger: 'invite_expert',
-                onboardingFlow: 'new',
-                catalogIndexErrorType: null,
-                homepageBuilderEnablement: 'kept_disabled',
-                codingAgentOnboardingEnablement: 'enabled',
-            },
-        });
-    });
-
-    it('reports when an explicit disabled coding agent onboarding override is preserved', async () => {
-        const mocks = buildArguments();
-        mocks.ensureOrganizationOverrideEnabled.mockImplementation(
-            async ({ featureFlagId }) =>
-                featureFlagId === FeatureFlags.CodingAgentOnboarding
-                    ? 'kept_disabled'
-                    : 'enabled',
-        );
-        await expect(provisionPlaygroundProject(mocks.args)).resolves.toEqual({
-            projectUuid,
-            created: true,
-        });
-        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
-            event: 'playground_project.provisioned',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                trigger: 'invite_expert',
-                onboardingFlow: 'new',
-                catalogIndexErrorType: null,
-                homepageBuilderEnablement: 'enabled',
-                codingAgentOnboardingEnablement: 'kept_disabled',
-            },
-        });
-    });
-
-    it('still provisions when enabling the homepage builder fails', async () => {
-        const errorSpy = vi
-            .spyOn(Logger, 'error')
-            .mockImplementation(() => Logger);
-        try {
-            const mocks = buildArguments();
-            mocks.ensureOrganizationOverrideEnabled.mockImplementation(
-                async ({ featureFlagId }) => {
-                    if (
-                        featureFlagId === CommercialFeatureFlags.HomepageBuilder
-                    ) {
-                        throw new Error('Override write failed');
-                    }
-                    return 'enabled';
-                },
-            );
-            await expect(
-                provisionPlaygroundProject(mocks.args),
-            ).resolves.toEqual({
-                projectUuid,
-                created: true,
-            });
-            expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
-                event: 'playground_project.provisioned',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    trigger: 'invite_expert',
-                    onboardingFlow: 'new',
-                    catalogIndexErrorType: null,
-                    homepageBuilderEnablement: 'failed',
-                    codingAgentOnboardingEnablement: 'enabled',
-                },
-            });
-            expect(errorSpy).toHaveBeenCalled();
-        } finally {
-            errorSpy.mockRestore();
-        }
-    });
-
-    it('still provisions when enabling coding agent onboarding fails', async () => {
-        const errorSpy = vi
-            .spyOn(Logger, 'error')
-            .mockImplementation(() => Logger);
-        try {
-            const mocks = buildArguments();
-            mocks.ensureOrganizationOverrideEnabled.mockImplementation(
-                async ({ featureFlagId }) => {
-                    if (featureFlagId === FeatureFlags.CodingAgentOnboarding) {
-                        throw new Error('Override write failed');
-                    }
-                    return 'enabled';
-                },
-            );
-            await expect(
-                provisionPlaygroundProject(mocks.args),
-            ).resolves.toEqual({
-                projectUuid,
-                created: true,
-            });
-            expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
-                event: 'playground_project.provisioned',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    trigger: 'invite_expert',
-                    onboardingFlow: 'new',
-                    catalogIndexErrorType: null,
-                    homepageBuilderEnablement: 'enabled',
-                    codingAgentOnboardingEnablement: 'failed',
-                },
-            });
-            expect(errorSpy).toHaveBeenCalled();
-        } finally {
-            errorSpy.mockRestore();
-        }
     });
 
     it('does not create a project when bundle validation fails', async () => {
