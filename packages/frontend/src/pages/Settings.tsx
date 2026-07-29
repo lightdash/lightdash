@@ -150,6 +150,7 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled,
         dataAppsFlag,
+        isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
@@ -491,7 +492,13 @@ const Settings: FC = () => {
             user?.ability.can('view', 'OrganizationDesign')
         ) {
             allowedRoutes.push({
-                path: '/themes',
+                path: '/dataApps',
+                element: (
+                    <Navigate to="/generalSettings/dataApps/themes" replace />
+                ),
+            });
+            allowedRoutes.push({
+                path: '/dataApps/themes',
                 element: <DesignListPage />,
             });
         }
@@ -862,6 +869,9 @@ const Settings: FC = () => {
     const isAwaitingRoadmapRoute =
         isOrganizationRoadmapLoading &&
         Boolean(matchPath('/generalSettings/roadmap', location.pathname));
+    const isAwaitingDataAppsRoute =
+        isDataAppsFlagLoading &&
+        Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
 
     if (
         isHealthLoading ||
@@ -870,7 +880,8 @@ const Settings: FC = () => {
         isActiveProjectUuidLoading ||
         isProjectLoading ||
         isAwaitingAiSettingsRoute ||
-        isAwaitingRoadmapRoute
+        isAwaitingRoadmapRoute ||
+        isAwaitingDataAppsRoute
     ) {
         return <PageSpinner />;
     }

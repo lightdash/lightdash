@@ -938,6 +938,15 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 },
             },
             {
+                // Themes moved under the Data apps settings section. Redirect
+                // here rather than inside Settings so the sidebar mounts on the
+                // new path and expands the group.
+                path: '/generalSettings/themes',
+                element: (
+                    <Navigate to="/generalSettings/dataApps/themes" replace />
+                ),
+            },
+            {
                 path: '/roadmap',
                 element: <Navigate to="/generalSettings/roadmap" replace />,
             },
