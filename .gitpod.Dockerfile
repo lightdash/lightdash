@@ -1,5 +1,8 @@
 FROM gitpod/workspace-full
 
+# Pin Node + corepack so the repo packageManager field drives the pnpm version
+RUN bash -c '. /home/gitpod/.nvm/nvm.sh && nvm install 24.18 && nvm alias default 24.18 && npm i -g corepack@latest && corepack enable'
+
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
 RUN python3 -m venv /home/gitpod/dbt1.4
