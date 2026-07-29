@@ -21,6 +21,9 @@ import {
 } from './hooks/useProjectHomepage';
 import { buildStarterHomepage } from './starterHomepage';
 
+// Matches day-0's cap so the first draft is the page people were looking at.
+const MAX_STARTER_SPACES = 4;
+
 // ts-unused-exports:disable-next-line
 export const HomepageBuilderPage: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -37,12 +40,14 @@ export const HomepageBuilderPage: FC = () => {
         useHomepageBuilderFlag();
     const { canAskAi, isLoading: isAiStateLoading } =
         useHomepageAiState(projectUuid);
-    // The starter homepage mirrors day-0, which shows the project's pins
+    // The starter homepage mirrors day-0: the project's pins and the same key
+    // spaces day-0 leads its body with.
     const { data: project } = useProject(projectUuid);
     const { data: pinnedItems } = usePinnedItems(
         projectUuid,
         project?.pinnedListUuid,
     );
+    const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_STARTER_SPACES);
     const homepage = useHomepageForBuilder(projectUuid, {
         enabled: isFlagEnabled,
         homepageUuid: selectedHomepageUuid,
