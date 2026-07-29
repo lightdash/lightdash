@@ -93,6 +93,14 @@ minimumReleaseAgeExclude:
   # Renovate security update: tar@7.5.21
   - tar@7.5.21
 
+# pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
+# reinstalls) node_modules before running any package script. The production
+# image assembles node_modules across build stages, so the check can never pass
+# there — the entrypoint's `pnpm -F backend migrate-production` then triggers a
+# full install at container boot and the pod is killed before it finishes.
+# Restore the pnpm 10 behaviour: scripts run against node_modules as-is.
+verifyDepsBeforeRun: false
+
 # Dependency lifecycle scripts (preinstall/install/postinstall) are a supply-chain
 # attack/breakage vector — they also run on `npm install` for downstream consumers
 # of our published packages (e.g. @lightdash/cli). pnpm blocks them by default;
