@@ -34,13 +34,12 @@ Build a print-optimized report:
 // The viz build contract (the hook, the declaration, the option vocabulary, the
 // final pass) lives in the sandbox's `reusable-visualization` skill, so it sits alongside
 // the app-focused sandbox skill it overrides instead of competing with it from
-// the user prompt. This prompt only orients the request and loads that skill by
-// path — `Read(//app/**)` is allowlisted for every generation, so reading it
-// does not depend on the Skill tool being permitted.
+// the user prompt. This prompt only orients the request and names that skill —
+// naming it is enough for the agent to load it through the skill mechanism.
 const DATA_APP_VIZ_INSTRUCTIONS = `[Data app viz]
 You are building ONE reusable chart component. You do NOT fetch data or run queries: Lightdash runs the query, then gives you the result rows plus a mapping from your field names to the columns in those rows. The same component is reused across many different queries, so never hardcode column names — just render whatever data you are handed.
 
-Before you write any code, read \`/app/.claude/skills/reusable-visualization/SKILL.md\` with the Read tool — the \`reusable-visualization\` skill. It is the contract for this build: the \`useVizContext()\` hook you take your data and settings from, the fields and config options you declare as structured output, the exact option vocabulary, the palette rule, and the final pass you run before you finish. Where it and the sandbox skill disagree, it wins. Follow it as written.
+Before you write any code, use the \`reusable-visualization\` skill. It is the contract for this build: the \`useVizContext()\` hook you take your data and settings from, the fields and config options you declare as structured output, the exact option vocabulary, the palette rule, and the final pass you run before you finish. Where it and the sandbox skill disagree, it wins. Follow it as written.
 
 Build the chart type the user asked for; only if they did not name one, pick what best fits the fields (bars to compare categories, a line for a trend over time).
 
