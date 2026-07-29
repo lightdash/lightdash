@@ -750,58 +750,6 @@ ${customMetricFields
     }
 }
 
-/**
- * Validate that table names exist in the explore
- * @param explore - The explore containing table definitions
- * @param tableNames - Array of table names to validate
- */
-export function validateTableNames(explore: Explore, tableNames: string[]) {
-    const availableTableNames = Object.keys(explore.tables);
-    const errors: string[] = [];
-
-    tableNames.forEach((tableName) => {
-        if (!availableTableNames.includes(tableName)) {
-            errors.push(
-                `Error: Table "${tableName}" does not exist in the explore.`,
-            );
-        }
-    });
-
-    if (errors.length > 0) {
-        const errorMessage = `Invalid table names:
-
-${errors.join('\n\n')}
-
-Available tables:
-${availableTableNames.map((t) => `- ${t}`).join('\n')}`;
-
-        Logger.error(`[AiAgent][Validate Table Names] ${errorMessage}`);
-
-        throw new AiAgentValidatorError(errorMessage);
-    }
-}
-
-/**
- * Validate that an explore name exists in the list of available explores
- * @param availableExploreNames - Array of available explore names
- * @param exploreName - The explore name to validate
- */
-export function validateExploreNameExists(
-    availableExplores: Explore[],
-    exploreName: string,
-) {
-    if (availableExplores.some((e) => e.name === exploreName)) return;
-
-    const errorMessage = `Invalid explore name: "${exploreName}"
-
-Available explores:
-${availableExplores.map((e) => `- ${e.name}`).join('\n')}`;
-
-    Logger.error(`[AiAgent][Validate Explore Name Exists] ${errorMessage}`);
-
-    throw new AiAgentValidatorError(errorMessage);
-}
-
 // Numeric metric types that support most table calculations
 const NUMERIC_METRIC_TYPES: MetricType[] = [
     MetricType.NUMBER,
