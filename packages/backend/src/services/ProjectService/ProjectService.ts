@@ -44,7 +44,6 @@ import {
     CreateWarehouseCredentials,
     currentUtcWallClock,
     CustomFormatType,
-    CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
     DashboardFilters,
@@ -276,6 +275,7 @@ import { CachedWarehouse, ProjectAdapter } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { assertCanRunCustomSqlInMetricQuery } from '../../utils/customSqlPermissions';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -4869,6 +4869,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        assertCanRunCustomSqlInMetricQuery({
+            ability: auditedAbility,
+            metricQuery,
+            organizationUuid,
+            projectUuid,
+        });
+
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
@@ -5185,6 +5192,13 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        assertCanRunCustomSqlInMetricQuery({
+            ability: auditedAbility,
+            metricQuery,
+            organizationUuid,
+            projectUuid,
+        });
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),

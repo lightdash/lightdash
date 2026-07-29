@@ -61,6 +61,8 @@ export const user: SessionUser = {
         { subject: 'Job', action: ['view'] },
         { subject: 'SqlRunner', action: ['manage'] },
         { subject: 'Explore', action: ['manage'] },
+        { subject: 'CustomFields', action: ['manage'] },
+        { subject: 'CustomSqlTableCalculations', action: ['manage'] },
     ]),
     isActive: true,
     abilityRules: [],

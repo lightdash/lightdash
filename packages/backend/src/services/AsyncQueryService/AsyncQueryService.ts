@@ -17,7 +17,6 @@ import {
     CalculateTotalFromQuery,
     CompiledDimension,
     CreateWarehouseCredentials,
-    CustomSqlQueryForbiddenError,
     DashboardFilters,
     DashboardPreAggregateAudit,
     DEFAULT_RESULTS_PAGE_SIZE,
@@ -147,6 +146,7 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { assertCanRunCustomSqlInMetricQuery } from '../../utils/customSqlPermissions';
 import {
     processFieldsForExport,
     streamJsonlData,
@@ -4377,6 +4377,13 @@ export class AsyncQueryService extends ProjectService {
         if (isForbidden) {
             throw new ForbiddenError();
         }
+
+        assertCanRunCustomSqlInMetricQuery({
+            ability: auditedAbility,
+            metricQuery: inputMetricQuery,
+            organizationUuid,
+            projectUuid,
+        });
 
         return this.runAsyncMetricQueryWithoutPermissionCheck(
             args,

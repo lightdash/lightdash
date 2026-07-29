@@ -4,6 +4,8 @@ import {
     AnyType,
     ChartType,
     CreateWarehouseCredentials,
+    CustomDimensionType,
+    CustomSqlQueryForbiddenError,
     DimensionType,
     DownloadFileType,
     ExecuteAsyncQueryRequestParams,
@@ -22,6 +24,7 @@ import {
     VizIndexType,
     WarehouseClient,
     WarehouseTypes,
+    type CustomSqlDimension,
     type Explore,
     type ItemsMap,
     type MetricQuery,
@@ -1548,6 +1551,106 @@ describe('AsyncQueryService', () => {
                 }),
                 expect.any(Object),
             );
+        });
+
+        describe('custom SQL authorization', () => {
+            const viewerAccount = {
+                ...sessionAccount,
+                user: {
+                    ...sessionAccount.user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: ['view'] },
+                        { subject: 'Explore', action: ['view', 'manage'] },
+                    ]),
+                },
+            } as unknown as Account;
+
+            const customSqlDimension: CustomSqlDimension = {
+                id: 'custom_sql_dim',
+                name: 'Custom SQL dimension',
+                type: CustomDimensionType.SQL,
+                table: validExplore.baseTable,
+                sql: '1',
+                dimensionType: DimensionType.NUMBER,
+            };
+
+            test('rejects custom SQL dimensions when the account lacks manage:CustomFields', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+
+                await expect(
+                    service.executeAsyncMetricQuery({
+                        account: viewerAccount,
+                        projectUuid,
+                        metricQuery: {
+                            ...metricQueryMock,
+                            tableCalculations: [],
+                            customDimensions: [customSqlDimension],
+                        },
+                        context: QueryExecutionContext.EXPLORE,
+                    }),
+                ).rejects.toThrow(CustomSqlQueryForbiddenError);
+            });
+
+            test('rejects SQL table calculations when the account lacks manage:CustomSqlTableCalculations', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+
+                await expect(
+                    service.executeAsyncMetricQuery({
+                        account: viewerAccount,
+                        projectUuid,
+                        metricQuery: metricQueryMock,
+                        context: QueryExecutionContext.EXPLORE,
+                    }),
+                ).rejects.toThrow(CustomSqlQueryForbiddenError);
+            });
+
+            test('allows custom SQL dimensions when the account can manage custom fields', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                service.getExploreWithUserAccessControls = vi
+                    .fn()
+                    .mockResolvedValue({
+                        explore: validExplore,
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                    });
+                (service as AnyType).getWarehouseCredentials = vi
+                    .fn()
+                    .mockResolvedValue(warehouseClientMock.credentials);
+                service.combineParameters = vi
+                    .fn()
+                    .mockResolvedValue(undefined);
+                (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
+                    .fn()
+                    .mockResolvedValue(
+                        createQueryComposerMock({
+                            userAccessControls: {
+                                userAttributes: {},
+                                intrinsicUserAttributes: {},
+                            },
+                            availableParameterDefinitions: {},
+                        }),
+                    );
+                service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                    queryUuid: 'queryUuid',
+                    cacheMetadata: { cacheHit: false },
+                });
+
+                await expect(
+                    service.executeAsyncMetricQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        metricQuery: {
+                            ...metricQueryMock,
+                            customDimensions: [customSqlDimension],
+                        },
+                        context: QueryExecutionContext.EXPLORE,
+                    }),
+                ).resolves.toEqual(
+                    expect.objectContaining({ queryUuid: 'queryUuid' }),
+                );
+            });
         });
 
         test('attaches required pre-aggregate routing metadata for direct pre-aggregate explores', async () => {
