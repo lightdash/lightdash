@@ -33,6 +33,7 @@ import {
     TimeoutError,
     UserAttributeValueMap,
     WarehouseQueryError,
+    type AiAgentDocumentSummary,
     type ChartAsCode,
     type DashboardAsCode,
     type FieldValueSearchResult,
@@ -70,6 +71,7 @@ import {
 import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
+import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
@@ -141,6 +143,7 @@ export type AiAgentToolsRuntimeContext = {
     spaceAccess: string[] | null;
     userAttributeOverrides?: UserAttributeValueMap;
     agentUuid?: string;
+    threadUuid?: string;
     onWarehouseQuery?: () => void | Promise<void>;
 };
 
@@ -259,6 +262,7 @@ type AiAgentToolsServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
+    aiDeepResearchRunModel: AiDeepResearchRunModel;
     featureFlagService: FeatureFlagService;
     previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
@@ -310,6 +314,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly aiAgentContentValidation: AiAgentContentValidation;
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
+
+    private readonly aiDeepResearchRunModel: AiDeepResearchRunModel;
 
     private readonly featureFlagService: FeatureFlagService;
 
@@ -377,6 +383,7 @@ export class AiAgentToolsService extends BaseService {
         contentService,
         aiAgentContentValidation,
         aiAgentDocumentModel,
+        aiDeepResearchRunModel,
         featureFlagService,
         previewDeploySetupService,
         shareService,
@@ -405,6 +412,7 @@ export class AiAgentToolsService extends BaseService {
         this.contentService = contentService;
         this.aiAgentContentValidation = aiAgentContentValidation;
         this.aiAgentDocumentModel = aiAgentDocumentModel;
+        this.aiDeepResearchRunModel = aiDeepResearchRunModel;
         this.featureFlagService = featureFlagService;
         this.previewDeploySetupService = previewDeploySetupService;
         this.shareService = shareService;
@@ -2270,15 +2278,55 @@ export class AiAgentToolsService extends BaseService {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.listKnowledgeDocuments`,
             {},
-            () => {
+            async () => {
                 if (!context.agentUuid) {
-                    return Promise.resolve([]);
+                    return [];
                 }
-                return this.aiAgentDocumentModel.findAllForAgent({
-                    organizationUuid: context.organizationUuid,
-                    agentUuid: context.agentUuid,
-                    projectUuid: context.projectUuid,
-                });
+                const [documents, deepResearchRuns] = await Promise.all([
+                    this.aiAgentDocumentModel.findAllForAgent({
+                        organizationUuid: context.organizationUuid,
+                        agentUuid: context.agentUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                    context.threadUuid
+                        ? this.aiDeepResearchRunModel.findReportSummariesByThreadScoped(
+                              {
+                                  aiThreadUuid: context.threadUuid,
+                                  organizationUuid: context.organizationUuid,
+                                  projectUuid: context.projectUuid,
+                                  createdByUserUuid: context.user.userUuid,
+                              },
+                          )
+                        : [],
+                ]);
+                const deepResearchDocuments: AiAgentDocumentSummary[] =
+                    deepResearchRuns.map((run) => ({
+                        uuid: run.ai_deep_research_run_uuid,
+                        organizationUuid: run.organization_uuid,
+                        projectUuid: run.project_uuid,
+                        name: run.prompt,
+                        originalFilename: `${run.ai_deep_research_run_uuid}.md`,
+                        mimeType: 'text/markdown',
+                        contentSizeBytes: run.content_size_bytes,
+                        alwaysIncludeInContext: false,
+                        summary: {
+                            description:
+                                'Deep Research report from this conversation.',
+                            definedTerms: [],
+                            relatedExploreNames: [],
+                            useWhen: `Answering follow-up questions about: ${run.prompt}`,
+                            relevance: 'high',
+                            warning:
+                                'Read-only and available only in this conversation.',
+                        },
+                        agentAccess: [],
+                        createdByUserUuid: run.created_by_user_uuid,
+                        updatedByUserUuid: null,
+                        createdAt: run.created_at,
+                        updatedAt: run.updated_at,
+                    }));
+
+                return [...documents, ...deepResearchDocuments];
             },
         );
     }
@@ -2305,12 +2353,32 @@ export class AiAgentToolsService extends BaseService {
                         projectUuid: context.projectUuid,
                         documentUuid: args.documentUuid,
                     });
-                if (!content) {
-                    throw new NotFoundError(
-                        `Knowledge document ${args.documentUuid} is not accessible to this agent.`,
-                    );
+                if (content) {
+                    return content;
                 }
-                return content;
+                if (context.threadUuid) {
+                    const run =
+                        await this.aiDeepResearchRunModel.findReportByUuidThreadScoped(
+                            {
+                                aiDeepResearchRunUuid: args.documentUuid,
+                                aiThreadUuid: context.threadUuid,
+                                organizationUuid: context.organizationUuid,
+                                projectUuid: context.projectUuid,
+                                createdByUserUuid: context.user.userUuid,
+                            },
+                        );
+                    if (run?.result_markdown) {
+                        return {
+                            uuid: run.ai_deep_research_run_uuid,
+                            name: run.prompt,
+                            mimeType: 'text/markdown',
+                            content: run.result_markdown,
+                        };
+                    }
+                }
+                throw new NotFoundError(
+                    `Knowledge document ${args.documentUuid} is not accessible to this agent.`,
+                );
             },
         );
     }

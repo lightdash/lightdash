@@ -9,101 +9,85 @@ vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
         }),
 }));
 
-describe('AiAgentService.createDeepResearchContextMessage', () => {
-    it('makes the report Markdown available as assistant context', () => {
-        const message = AiAgentService.createDeepResearchContextMessage({
-            result_markdown: '# Retention report\n\nRetention improved.',
-        });
+const createRun = (
+    status: 'queued' | 'running' | 'completed' | 'partially_completed',
+    overrides: Record<string, unknown> = {},
+) =>
+    ({
+        ai_deep_research_run_uuid: `${status}-run`,
+        prompt: `${status} question`,
+        status,
+        has_report: false,
+        created_at: new Date('2026-07-29T10:00:00.000Z'),
+        updated_at: new Date('2026-07-29T10:00:00.000Z'),
+        started_at:
+            status === 'queued' ? null : new Date('2026-07-29T10:01:00.000Z'),
+        completed_at:
+            status === 'completed' || status === 'partially_completed'
+                ? new Date('2026-07-29T10:05:00.000Z')
+                : null,
+        ...overrides,
+    }) as never;
 
-        expect(message).toEqual({
-            role: 'assistant',
-            content: expect.stringContaining(
-                '# Retention report\n\nRetention improved.',
-            ),
+describe('AiAgentService.createDeepResearchRunContext', () => {
+    it('includes current progress and report availability', () => {
+        const run = createRun('running', {
+            has_report: true,
         });
+        const context = AiAgentService.createDeepResearchRunContext(
+            [run],
+            [
+                {
+                    ai_deep_research_run_uuid: 'running-run',
+                    event_type: 'progress',
+                    payload: {
+                        progress: {
+                            phase: 'investigating',
+                            activity: 'warehouse_query',
+                            current: 2,
+                            total: 5,
+                        },
+                    },
+                } as never,
+            ],
+            new Date('2026-07-29T10:03:00.000Z'),
+        );
+
+        expect(context).toEqual([
+            expect.objectContaining({
+                uuid: 'running-run',
+                status: 'running',
+                phase: 'investigating',
+                activity: 'warehouse_query',
+                progressCurrent: 2,
+                progressTotal: 5,
+                elapsedSeconds: 120,
+                hasReport: true,
+            }),
+        ]);
     });
 
-    it('does not create context before a report is available', () => {
-        expect(
-            AiAgentService.createDeepResearchContextMessage({
-                result_markdown: null,
+    it('bounds terminal metadata to the five most recent runs', () => {
+        const runs = Array.from({ length: 7 }, (_, index) =>
+            createRun('completed', {
+                ai_deep_research_run_uuid: `run-${index}`,
             }),
-        ).toBeNull();
+        );
+
         expect(
-            AiAgentService.createDeepResearchContextMessage(undefined),
-        ).toBeNull();
+            AiAgentService.createDeepResearchRunContext(runs, []).map(
+                ({ uuid }) => uuid,
+            ),
+        ).toEqual(['run-2', 'run-3', 'run-4', 'run-5', 'run-6']);
     });
 });
 
 describe('AiAgentService deep research conversation history', () => {
-    it('replays a completed report for a follow-up prompt', async () => {
-        const aiDeepResearchRunModel = {
-            findByPromptUuidsScoped: vi.fn().mockResolvedValue([
-                {
-                    prompt_uuid: 'research-prompt',
-                    result_markdown: '# Retention report',
-                },
-            ]),
-        };
+    it('keeps the ordinary response without injecting report Markdown', async () => {
         const service = new AiAgentService({
             aiAgentModel: {
                 getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
                 getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
-            },
-            aiDeepResearchRunModel,
-            lightdashConfig: {},
-        } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
-
-        const history = await service.getChatHistoryFromThreadMessages(
-            [
-                {
-                    ai_prompt_uuid: 'research-prompt',
-                    prompt: 'Research retention',
-                    response: null,
-                    error_message: null,
-                    human_score: null,
-                    human_feedback: null,
-                },
-            ] as never,
-            {
-                organizationUuid: 'organization-1',
-                projectUuid: 'project-1',
-                agentUuid: 'agent-1',
-                retrieveRelevantArtifacts: false,
-                compaction: null,
-                currentPromptUuid: 'follow-up-prompt',
-            },
-        );
-
-        expect(
-            aiDeepResearchRunModel.findByPromptUuidsScoped,
-        ).toHaveBeenCalledWith({
-            promptUuids: ['research-prompt'],
-            organizationUuid: 'organization-1',
-            projectUuid: 'project-1',
-        });
-        expect(history).toEqual([
-            { role: 'user', content: 'Research retention' },
-            {
-                role: 'assistant',
-                content: expect.stringContaining('# Retention report'),
-            },
-        ]);
-    });
-
-    it('keeps the ordinary response when a research report is incomplete', async () => {
-        const service = new AiAgentService({
-            aiAgentModel: {
-                getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
-                getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
-            },
-            aiDeepResearchRunModel: {
-                findByPromptUuidsScoped: vi.fn().mockResolvedValue([
-                    {
-                        prompt_uuid: 'research-prompt',
-                        result_markdown: null,
-                    },
-                ]),
             },
             lightdashConfig: {},
         } as unknown as ConstructorParameters<typeof AiAgentService>[0]);

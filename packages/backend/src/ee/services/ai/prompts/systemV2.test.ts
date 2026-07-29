@@ -147,6 +147,38 @@ describe('getSystemPromptV2 knowledge documents', () => {
     });
 });
 
+describe('getSystemPromptV2 Deep Research context', () => {
+    test('includes bounded status metadata and on-demand report guidance', () => {
+        const content = promptText({
+            availableExplores: [],
+            deepResearchRuns: [
+                {
+                    uuid: 'run-1',
+                    question: 'Why did <revenue> fall?',
+                    status: 'running',
+                    phase: 'investigating',
+                    activity: 'warehouse_query',
+                    progressCurrent: 2,
+                    progressTotal: 5,
+                    startedAt: '2026-07-29T10:00:00.000Z',
+                    elapsedSeconds: 90,
+                    hasReport: false,
+                },
+            ],
+        });
+
+        expect(content).toContain('## Deep Research in this conversation');
+        expect(content).toContain('status="running"');
+        expect(content).toContain('phase="investigating"');
+        expect(content).toContain('progress_current="2"');
+        expect(content).toContain('progress_total="5"');
+        expect(content).toContain('elapsed_seconds="90"');
+        expect(content).toContain('Why did &lt;revenue&gt; fall?');
+        expect(content).toContain('getKnowledgeDocumentContent');
+        expect(content).toContain('implicitly start a duplicate run');
+    });
+});
+
 describe('getSystemPromptV2 requesting user', () => {
     test('renders identity and non-technical guidance for a viewer', () => {
         const content = promptText({
