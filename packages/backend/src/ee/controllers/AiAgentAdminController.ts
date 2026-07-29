@@ -32,7 +32,6 @@ import {
     McpActivityFilters,
     McpActivitySort,
     McpActivityStatsFilters,
-    ParameterError,
     ReorderAiAgentReviewItems,
     UpdateAiAgentReviewItemAssignee,
     UpdateAiAgentReviewItemPriority,
