@@ -28,6 +28,7 @@ import AboutFooter from '../components/AboutFooter';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,
     useSaveOrganizationBrand,
@@ -115,15 +116,18 @@ type OrganizationSetupFormValues = {
 type OrganizationSetupContentProps = {
     user: UserWithAbility;
     health: HealthState;
+    organizationHasName: boolean;
     completeMutation: ReturnType<typeof useUserCompleteMutation>;
 };
 
 const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     user,
     health,
+    organizationHasName,
     completeMutation,
 }) => {
-    const canEnterOrganizationName = user.organizationName === '';
+    const canEnterOrganizationName =
+        user.organizationName === '' && !organizationHasName;
     const emailDomain = user.email ? getEmailDomain(user.email) : '';
     const isCompanyDomain =
         !!user.email && !validateOrganizationEmailDomains([emailDomain]);
@@ -245,7 +249,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
             properties: { step: 'about_you' },
         });
 
-        if (user.organizationName) {
+        if (!canEnterOrganizationName) {
             // Joining an existing org: no org name to set, and the brand
             // belongs to the org (which a joiner — often a viewer — has no
             // rights to change), so don't attempt to save it.
@@ -533,10 +537,14 @@ const OrganizationSetup: FC = () => {
     const redirectTo =
         redirectParam &&
         redirectParam.startsWith('/') &&
-        !redirectParam.startsWith('//')
+        !redirectParam.startsWith('//') &&
+        !redirectParam.startsWith('/organization-setup')
             ? redirectParam
             : '/';
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const organization = useOrganization({
+        enabled: !!user.data?.organizationUuid,
+    });
     const completeMutation = useUserCompleteMutation({
         onSuccess: () => void navigate(redirectTo),
     });
@@ -564,11 +572,15 @@ const OrganizationSetup: FC = () => {
     }
 
     if (user.data.isSetupComplete && !isCompletingSetup) {
-        return <Navigate to="/" />;
+        return <Navigate to={redirectTo} />;
     }
 
     if (!orgSetupPageFlag.data?.enabled) {
         return <Navigate to="/" />;
+    }
+
+    if (organization.isInitialLoading) {
+        return <PageSpinner />;
     }
 
     return (
@@ -576,6 +588,7 @@ const OrganizationSetup: FC = () => {
             key={user.data.userUuid}
             user={user.data}
             health={health.data}
+            organizationHasName={!!organization.data?.name}
             completeMutation={completeMutation}
         />
     );

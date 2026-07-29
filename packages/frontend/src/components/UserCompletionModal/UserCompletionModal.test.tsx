@@ -2,12 +2,46 @@ import { LightdashMode } from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import nock from 'nock';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BASE_API_URL } from '../../api';
+import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 import { renderWithProviders } from '../../testing/testUtils';
 import UserCompletionModal from './UserCompletionModal';
+
+const CompleteSetupHarness = () => {
+    const navigate = useNavigate();
+    const { mutate } = useUserCompleteMutation();
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                mutate({
+                    organizationName: 'test organization',
+                    jobTitle: 'Software Engineer',
+                    howDidYouHearAboutUs: '',
+                    enableEmailDomainAccess: false,
+                    isMarketingOptedIn: true,
+                    isTrackingAnonymized: false,
+                });
+                void navigate('/');
+            }}
+        >
+            Complete setup
+        </button>
+    );
+};
+
+const SetupStateProbe = () => {
+    const { user } = useApp();
+    return (
+        <div>
+            {user.data?.isSetupComplete ? 'setup complete' : 'setup incomplete'}
+        </div>
+    );
+};
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
@@ -397,6 +431,71 @@ describe('UserCompletionModal', () => {
             await screen.findByText('Organization setup page'),
         ).toBeInTheDocument();
         expect(screen.queryByText('Nearly there...')).not.toBeInTheDocument();
+    });
+
+    it('does not bounce back to organization setup while user setup is completing', async () => {
+        mockFeatureFlag(true);
+        const user = userEvent.setup();
+
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete')
+            .delay(100)
+            .reply(200, {
+                status: 'ok',
+                results: {
+                    isSetupComplete: true,
+                    organizationName: 'test organization',
+                },
+            });
+
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/organization-setup']}>
+                <Routes>
+                    <Route
+                        path="/organization-setup"
+                        element={
+                            <>
+                                <CompleteSetupHarness />
+                                <div>Organization setup page</div>
+                            </>
+                        }
+                    />
+                    <Route
+                        path="/"
+                        element={
+                            <>
+                                <UserCompletionModal />
+                                <SetupStateProbe />
+                                <div>Home page</div>
+                            </>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>,
+            {
+                user: {
+                    isSetupComplete: false,
+                    organizationName: '',
+                },
+            },
+        );
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Complete setup' }),
+        );
+
+        expect(await screen.findByText('Home page')).toBeInTheDocument();
+        expect(await screen.findByText('setup incomplete')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Organization setup page'),
+        ).not.toBeInTheDocument();
+
+        expect(await screen.findByText('setup complete')).toBeInTheDocument();
+        await waitFor(() => expect(scope.isDone()).toBe(true));
+        expect(screen.getByText('Home page')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Organization setup page'),
+        ).not.toBeInTheDocument();
     });
 
     it('still redirects to organization setup when telemetry is disabled', async () => {

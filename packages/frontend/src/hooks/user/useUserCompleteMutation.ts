@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
+import { type UserWithAbility } from './useUser';
 
 const completeUserQuery = async (data: CompleteUserArgs) =>
     lightdashApi<LightdashUser>({
@@ -25,8 +26,14 @@ export const useUserCompleteMutation = (
         completeUserQuery,
         {
             mutationKey: ['user_complete'],
-            onSuccess: async () => {
-                await queryClient.invalidateQueries(['user']);
+            onSuccess: async (completedUser) => {
+                queryClient.setQueryData<UserWithAbility>(
+                    ['user'],
+                    (currentUser) =>
+                        currentUser
+                            ? { ...currentUser, ...completedUser }
+                            : currentUser,
+                );
                 await queryClient.invalidateQueries(['organization']);
                 options?.onSuccess?.();
             },
