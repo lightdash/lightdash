@@ -1,5 +1,6 @@
 import { agentToolDefinitions } from '@lightdash/common';
 import { asSchema, type FlexibleSchema } from 'ai';
+import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
 import { getDiscoverFields } from '../agents/discoverFields/tool';
 import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
@@ -230,5 +231,13 @@ describe('AI agent tool contracts', () => {
                 agentToolSnapshot(name, definition as SnapshotTool),
             ),
         ).toMatchSnapshot();
+    });
+
+    it('has an explicit memory distill policy for every shared agent tool', () => {
+        expect(
+            sharedAgentToolDefinitionNames.filter(
+                (name) => !(name in DISTILL_TOOL_POLICIES),
+            ),
+        ).toEqual([]);
     });
 });

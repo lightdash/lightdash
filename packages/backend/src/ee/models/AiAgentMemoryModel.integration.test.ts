@@ -27,6 +27,8 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { getTestContext } from '../../vitest.setup.integration';
 import {
+    AiAgentToolCallTableName,
+    AiAgentToolResultTableName,
     AiPromptInterruptTableName,
     AiPromptTableName,
     AiThreadTableName,
@@ -37,6 +39,7 @@ import {
     AiAgentThreadDistillTableName,
 } from '../database/entities/aiAgentMemory';
 import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
+import { renderMemoryBlock } from '../services/ai/utils/memoryBlock';
 import {
     AiAgentMemoryService,
     type AiAgentMemoryDistillCall,
@@ -1086,6 +1089,128 @@ describe('AiAgentMemoryModel integration', () => {
             outcome: 'skipped',
             distilled_up_to: activity,
         });
+    });
+
+    it('loads visible feedback and strips pulled memory bodies before distill', async () => {
+        const activity = new Date('2026-07-22T05:00:00Z');
+        const hiddenActivity = new Date('2026-07-22T05:01:00Z');
+        const threadUuid = await createThread();
+        const promptUuid = await createPrompt(threadUuid, activity);
+        const hiddenPromptUuid = await createPrompt(
+            threadUuid,
+            hiddenActivity,
+            true,
+            true,
+        );
+        await Promise.all([
+            database(AiPromptTableName)
+                .where('ai_prompt_uuid', promptUuid)
+                .update({
+                    human_score: -1,
+                    human_feedback: 'Use the corrected definition.',
+                }),
+            database(AiPromptTableName)
+                .where('ai_prompt_uuid', hiddenPromptUuid)
+                .update({
+                    human_score: 1,
+                }),
+        ]);
+        const memoryBody = 'Previously distilled private convention';
+        const authorityExcerpt =
+            '- id: revenue; source: context; kind: definition; content: revenue excludes refunds.';
+        const result = [
+            authorityExcerpt,
+            renderMemoryBlock([
+                {
+                    slug: 'old-memory',
+                    content: memoryBody,
+                    scope: 'user',
+                    objects: [],
+                    ageDays: 1,
+                },
+            ]),
+        ].join('\n');
+        await database(AiAgentToolCallTableName).insert({
+            ai_prompt_uuid: promptUuid,
+            tool_call_id: 'load-project-context',
+            tool_name: 'loadProjectContext',
+            tool_args: { patterns: ['revenue'] },
+            ai_mcp_server_uuid: null,
+            parent_tool_call_id: null,
+        });
+        await database(AiAgentToolResultTableName).insert({
+            ai_prompt_uuid: promptUuid,
+            tool_call_id: 'load-project-context',
+            tool_name: 'loadProjectContext',
+            result,
+        });
+        const queryError =
+            'Error running content query.\n```csv\nerror,detail\nwarehouse,Exact failure\n```';
+        await database(AiAgentToolCallTableName).insert({
+            ai_prompt_uuid: promptUuid,
+            tool_call_id: 'run-content-query',
+            tool_name: 'runContentQuery',
+            tool_args: { queryUuid: 'query' },
+            ai_mcp_server_uuid: null,
+            parent_tool_call_id: null,
+        });
+        await database(AiAgentToolResultTableName).insert({
+            ai_prompt_uuid: promptUuid,
+            tool_call_id: 'run-content-query',
+            tool_name: 'runContentQuery',
+            result: queryError,
+            metadata: { status: 'error' },
+        });
+
+        const distillCall = vi.fn<AiAgentMemoryDistillCall>(
+            async ({ transcript }) => {
+                expect(transcript).not.toContain(memoryBody);
+                const parsed = JSON.parse(transcript);
+                expect(parsed).toMatchObject({
+                    turns: [
+                        {
+                            feedback: {
+                                score: -1,
+                                comment: 'Use the corrected definition.',
+                            },
+                        },
+                    ],
+                });
+                expect(parsed.turns[0].tools).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            name: 'loadProjectContext',
+                            result: [
+                                '- id: revenue; source: context (authority excerpt); kind: definition; content: revenue excludes refunds.',
+                                '[… ld-memory content omitted by policy …]',
+                            ].join('\n'),
+                        }),
+                        expect.objectContaining({
+                            name: 'runContentQuery',
+                            result: queryError,
+                        }),
+                    ]),
+                );
+                return {
+                    result: {
+                        type: 'no_op',
+                        reason: 'insufficient_signal',
+                    },
+                };
+            },
+        );
+        const service = buildService(distillCall);
+
+        await expect(
+            service.distillThread({
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                userUuid: 'system',
+                threadUuid,
+                sweptUpdatedAt: hiddenActivity.toISOString(),
+            }),
+        ).resolves.toBe('no_op');
+        expect(distillCall).toHaveBeenCalledOnce();
     });
 
     it('uses the stored flag to gate real scheduler enqueueing', async () => {

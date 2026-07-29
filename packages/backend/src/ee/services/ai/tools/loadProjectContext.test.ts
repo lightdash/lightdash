@@ -1,6 +1,7 @@
 import type { ProjectContextEntry } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import Logger from '../../../../logging/logger';
+import { stripMemoryBlocks } from '../utils/memoryBlock';
 import { getLoadProjectContext } from './loadProjectContext';
 import type { ProjectContextSearchEntry } from './memoryProjectContext';
 
@@ -116,6 +117,8 @@ describe('loadProjectContext tool', () => {
             terms: ['recognized revenue'],
             objects: [],
             source: 'memory',
+            memoryScope: 'user',
+            memoryAgeDays: 2,
         };
         const res = await run(['recognized revenue'], {
             entries: [{ ...entries[2], source: 'context' }, memoryEntry],
@@ -123,8 +126,35 @@ describe('loadProjectContext tool', () => {
             onEntriesLoaded,
         });
 
-        expect(res.result).toContain('source: memory; kind: context;');
+        expect(res.result).toContain(
+            '<ld-memory id="completed-order-revenue" scope="user" age_days="2"',
+        );
         expect(onEntriesLoaded).toHaveBeenCalledWith([memoryEntry]);
+    });
+
+    it('fences memory metadata in the no-match inventory', async () => {
+        const memoryEntry: ProjectContextSearchEntry = {
+            id: 'completed-order-revenue',
+            kind: 'context',
+            content: 'Use completed orders for recognized revenue.',
+            terms: ['recognized revenue'],
+            objects: [],
+            source: 'memory',
+            memoryScope: 'user',
+            memoryAgeDays: 2,
+        };
+        const res = await run(['no-match'], {
+            entries: [{ ...entries[0], source: 'context' }, memoryEntry],
+            includeMemories: true,
+        });
+
+        expect(res.result).toContain('<ld-memory id="completed-order-revenue"');
+        expect(stripMemoryBlocks(res.result)).not.toContain(
+            'completed-order-revenue',
+        );
+        expect(stripMemoryBlocks(res.result)).not.toContain(
+            'recognized revenue',
+        );
     });
 
     it('returns entries when pull telemetry fails', async () => {

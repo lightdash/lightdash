@@ -1,9 +1,18 @@
 import type { ProjectContextEntry } from '@lightdash/common';
 import type { AiAgentMemoryBlockEntry } from '../utils/memoryBlock';
 
-export type ProjectContextSearchEntry = ProjectContextEntry & {
-    source?: 'context' | 'memory';
-};
+export type ProjectContextSearchEntry =
+    | (ProjectContextEntry & {
+          source?: 'context';
+          memoryScope?: never;
+          memoryAgeDays?: never;
+      })
+    | (Omit<ProjectContextEntry, 'objects'> & {
+          objects: AiAgentMemoryBlockEntry['objects'];
+          source: 'memory';
+          memoryScope: AiAgentMemoryBlockEntry['scope'];
+          memoryAgeDays: number;
+      });
 
 export type MemorySearchEntry = AiAgentMemoryBlockEntry &
     Pick<ProjectContextEntry, 'terms'>;
@@ -31,6 +40,8 @@ export const getProjectContextSearchEntries = ({
             terms: memory.terms,
             objects: memory.objects,
             source: 'memory' as const,
+            memoryScope: memory.scope,
+            memoryAgeDays: memory.ageDays,
         })),
     ];
 };

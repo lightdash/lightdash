@@ -117,6 +117,9 @@ export default class PrometheusMetrics {
 
     public aiAgentMemorySweepEnqueuedCounter: prometheus.Counter | null = null;
 
+    public aiAgentMemoryUnknownToolPolicyCounter: prometheus.Counter | null =
+        null;
+
     // repoShell (read-only repo VFS) GitHub API latency
     public repoFsGithubTreeDurationHistogram: prometheus.Histogram | null =
         null;
@@ -518,6 +521,13 @@ export default class PrometheusMetrics {
                     },
                 );
 
+                this.aiAgentMemoryUnknownToolPolicyCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_unknown_tool_policy_total',
+                        help: 'Tool calls serialized with the fallback memory distill policy',
+                        ...rest,
+                    });
+
                 // repoShell GitHub API latency (per-request round-trips)
                 const githubRequestBuckets = [
                     25, 50, 100, 150, 200, 300, 500, 750, 1000, 2000, 5000,
@@ -672,6 +682,7 @@ export default class PrometheusMetrics {
                     });
                 });
                 this.aiAgentMemorySweepEnqueuedCounter?.inc(0);
+                this.aiAgentMemoryUnknownToolPolicyCounter?.inc(0);
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
@@ -1505,6 +1516,10 @@ export default class PrometheusMetrics {
 
     public incrementAiAgentMemorySweepEnqueued(count: number) {
         this.aiAgentMemorySweepEnqueuedCounter?.inc(count);
+    }
+
+    public incrementAiAgentMemoryUnknownToolPolicy() {
+        this.aiAgentMemoryUnknownToolPolicyCounter?.inc();
     }
 
     public observeAiWritebackSandboxCreateDuration(durationMs: number) {

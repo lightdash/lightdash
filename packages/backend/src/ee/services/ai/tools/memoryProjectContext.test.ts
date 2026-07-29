@@ -50,6 +50,8 @@ describe('getProjectContextSearchEntries', () => {
                 terms: ['recognized revenue'],
                 objects: [{ type: 'explore', name: 'orders' }],
                 source: 'memory',
+                memoryScope: 'project',
+                memoryAgeDays: 0,
             },
         ]);
     });

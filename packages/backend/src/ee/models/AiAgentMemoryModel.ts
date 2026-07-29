@@ -105,11 +105,13 @@ export type AiAgentMemoryThread = AiAgentMemoryThreadCandidate & {
         errorMessage: string | null;
         respondedAt: Date | null;
         interrupted: boolean;
+        feedback: { score: number; comment: string | null } | null;
         tools: Array<{
             toolCallId: string;
             name: string;
             args: unknown;
             result: string | null;
+            resultIsError: boolean;
             source: 'lightdash' | 'mcp';
         }>;
     }>;
@@ -219,6 +221,8 @@ export class AiAgentMemoryModel {
                     assistantText: string | null;
                     errorMessage: string | null;
                     respondedAt: Date | null;
+                    humanScore: number | null;
+                    humanFeedback: string | null;
                     interruptUuid: UUID | null;
                     hidden: boolean;
                 }>
@@ -238,6 +242,8 @@ export class AiAgentMemoryModel {
                 assistantText: 'prompt.response',
                 errorMessage: 'prompt.error_message',
                 respondedAt: 'prompt.responded_at',
+                humanScore: 'prompt.human_score',
+                humanFeedback: 'prompt.human_feedback',
                 interruptUuid: 'prompt_interrupt.ai_prompt_uuid',
                 hidden: 'prompt.hidden',
             });
@@ -252,9 +258,10 @@ export class AiAgentMemoryModel {
             name: string;
             args: unknown;
             result: string | null;
+            resultIsError: boolean;
             mcpServerUuid: string | null;
         };
-        const toolRows = await this.database(
+        const toolRows: ToolRow[] = await this.database(
             `${AiAgentToolCallTableName} as tool_call`,
         )
             .join(
@@ -279,12 +286,15 @@ export class AiAgentMemoryModel {
             .where('prompt.ai_thread_uuid', threadUuid)
             .whereNull('tool_call.parent_tool_call_id')
             .orderBy('tool_call.created_at', 'asc')
-            .select<ToolRow[]>({
+            .select({
                 promptUuid: 'tool_call.ai_prompt_uuid',
                 toolCallId: 'tool_call.tool_call_id',
                 name: 'tool_call.tool_name',
                 args: 'tool_call.tool_args',
                 result: 'tool_result.result',
+                resultIsError: this.database.raw(
+                    "COALESCE(tool_result.metadata->>'status' = 'error', false)",
+                ),
                 mcpServerUuid: 'tool_call.ai_mcp_server_uuid',
             });
         const toolsByPrompt = toolRows.reduce((map, row) => {
@@ -312,12 +322,20 @@ export class AiAgentMemoryModel {
                 errorMessage: row.errorMessage,
                 respondedAt: row.respondedAt,
                 interrupted: row.interruptUuid !== null,
+                feedback:
+                    row.humanScore !== null && row.humanScore !== 0
+                        ? {
+                              score: row.humanScore,
+                              comment: row.humanFeedback,
+                          }
+                        : null,
                 tools: (toolsByPrompt.get(row.promptUuid) ?? []).map(
                     (tool: ToolRow) => ({
                         toolCallId: tool.toolCallId,
                         name: tool.name,
                         args: tool.args,
                         result: tool.result,
+                        resultIsError: tool.resultIsError,
                         source: tool.mcpServerUuid ? 'mcp' : 'lightdash',
                     }),
                 ),
