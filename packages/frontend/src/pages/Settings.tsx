@@ -85,6 +85,7 @@ import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
+import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
 import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
 import { useSettingsContext } from '../hooks/settings/useSettingsContext';
@@ -487,20 +488,40 @@ const Settings: FC = () => {
             });
         }
 
-        if (
-            dataAppsFlag?.enabled &&
-            user?.ability.can('view', 'OrganizationDesign')
-        ) {
-            allowedRoutes.push({
-                path: '/dataApps',
-                element: (
-                    <Navigate to="/generalSettings/dataApps/themes" replace />
-                ),
-            });
-            allowedRoutes.push({
-                path: '/dataApps/themes',
-                element: <DesignListPage />,
-            });
+        if (dataAppsFlag?.enabled) {
+            const canViewThemes =
+                user?.ability.can('view', 'OrganizationDesign') ?? false;
+            const canViewActivity =
+                user?.ability.can('manage', 'Organization') ?? false;
+
+            if (canViewThemes) {
+                allowedRoutes.push({
+                    path: '/dataApps/themes',
+                    element: <DesignListPage />,
+                });
+            }
+            if (canViewActivity) {
+                allowedRoutes.push({
+                    path: '/dataApps/activity',
+                    element: <DataAppActivitySettingsPage />,
+                });
+            }
+            // Land on whichever sub-page the user can actually reach.
+            if (canViewThemes || canViewActivity) {
+                allowedRoutes.push({
+                    path: '/dataApps',
+                    element: (
+                        <Navigate
+                            to={
+                                canViewThemes
+                                    ? '/generalSettings/dataApps/themes'
+                                    : '/generalSettings/dataApps/activity'
+                            }
+                            replace
+                        />
+                    ),
+                });
+            }
         }
 
         if (user?.ability.can('manage', 'Organization')) {
@@ -855,7 +876,14 @@ const Settings: FC = () => {
                 { path: '/generalSettings/ai/issues/:fingerprint' },
                 location.pathname,
             ) &&
-            !matchPath({ path: '/generalSettings/roadmap' }, location.pathname)
+            !matchPath(
+                { path: '/generalSettings/roadmap' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/dataApps/activity' },
+                location.pathname,
+            )
         );
     }, [location.pathname]);
 
