@@ -23,7 +23,6 @@ import {
     useEffect,
     useMemo,
     useRef,
-    useState,
     type FC,
     type UIEvent,
 } from 'react';
@@ -115,13 +114,6 @@ export const DataAppActivityTable: FC = () => {
     useEffect(() => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
-
-    // Mirrors the other admin tables: the table memoises on identity, so the
-    // rows are staged through state to force a re-render on new pages.
-    const [tableData, setTableData] = useState<DataAppActivityEvent[]>([]);
-    useEffect(() => {
-        setTableData(flatData);
-    }, [flatData]);
 
     const columns = useMemo<ContentTableColumnDef<DataAppActivityEvent>[]>(
         () => [
@@ -319,7 +311,7 @@ export const DataAppActivityTable: FC = () => {
 
     const table = useContentTable({
         columns,
-        data: tableData,
+        data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: false,
         enableRowVirtualization: true,
