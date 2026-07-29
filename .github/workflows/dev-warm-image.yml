@@ -42,6 +42,7 @@ jobs:
       - name: Install Okteto CLI
         run: |
           curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
+          echo "f1fc644e2c2d2285a557577eafc6d4494410dce17b36bac6c3c269fc04c573ef  okteto" | sha256sum --check
           chmod +x okteto
           sudo mv okteto /usr/local/bin/okteto
 
