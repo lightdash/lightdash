@@ -30,29 +30,28 @@ module.exports = {
             },
         ],
 
+        // Metadata-only version bump for the release cohort: root plus the
+        // eight workspace manifests committed by the git plugin's assets list
+        // below. pkg set edits package.json files and nothing else — no
+        // dependency resolution, no node_modules reification (npm version
+        // reified and destroyed pnpm's layout, which is why a repair install
+        // used to live here). Other workspace members (formula, test apps,
+        // mcp-chart-app) keep their own unrelated versions on purpose.
         [
             '@semantic-release/exec',
             {
                 prepareCmd:
-                    'npm version ${nextRelease.version} --workspaces --include-workspace-root --allow-same-version --no-git-tag-version 2>&1 | grep -q -E "EUNSUPPORTEDPROTOCOL|Invalid comparator"',
+                    'pnpm pkg set version=${nextRelease.version} && pnpm --filter backend --filter @lightdash/cli --filter @lightdash/common --filter e2e --filter @lightdash/frontend --filter @lightdash/warehouses --filter @lightdash/query-sdk --filter @lightdash/sdk pkg set version=${nextRelease.version}',
             },
         ],
 
-        // npm version starts reifying node_modules toward npm's ideal tree
-        // (destroying parts of pnpm's symlink layout) before it hits the
-        // expected workspace:* error above. Reinstall from the unchanged
-        // lockfile to repair the tree; pnpm 11 used to do this implicitly via
-        // verifyDepsBeforeRun before it was pinned off in pnpm-workspace.yaml.
-        // Store-first with network fallback: strict --offline failed because
-        // the runner store lacks some lockfile tarballs even after the job's
-        // install step (run 30492147529, ERR_PNPM_NO_OFFLINE_TARBALL). No sfw
-        // wrapper: its crashed proxy masked a failed install with exit 0 (run
-        // 30491182209); plain pnpm re-fetches lockfile-pinned, integrity-
-        // checked packages with its own retries and honest exit codes.
+        // Unmatched pnpm filters exit 0, so a renamed package would silently
+        // stop being versioned. Assert every cohort manifest took the bump.
         [
             '@semantic-release/exec',
             {
-                prepareCmd: 'pnpm install --prefer-offline',
+                prepareCmd:
+                    'for f in package.json packages/backend/package.json packages/cli/package.json packages/common/package.json packages/e2e/package.json packages/frontend/package.json packages/warehouses/package.json packages/query-sdk/package.json packages/frontend/sdk/package.json; do grep -q "\\"version\\": \\"${nextRelease.version}\\"" "$f" || { echo "Version not bumped in $f"; exit 1; }; done',
             },
         ],
 
