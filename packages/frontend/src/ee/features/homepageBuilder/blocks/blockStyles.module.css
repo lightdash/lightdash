@@ -567,15 +567,6 @@ a .hoverCard:hover,
 
 /* Data apps use the brand orange, tinted into a quiet backdrop for the
  * icon fallback when an app has no thumbnail. */
-.resThumbDataApp {
-    background: linear-gradient(
-        135deg,
-        light-dark(#fff3e8, #362a1c),
-        light-dark(#f8e3cd, #2c2114)
-    );
-    color: light-dark(#c2410c, #fdba74);
-}
-
 /* External-link affordance: quiet corner mark, revealed on hover. */
 .resExternal {
     position: absolute;
@@ -589,6 +580,15 @@ a .hoverCard:hover,
 
 .mediaCard:hover .resExternal {
     opacity: 1;
+}
+
+.mediaIcon {
+    /* Stands in for the image band, so an icon-only card is exactly as tall as
+     * one with a screenshot and a mixed grid keeps a single baseline. */
+    flex: 1;
+    min-height: 56px;
+    display: grid;
+    place-items: center;
 }
 
 .mediaBody {
