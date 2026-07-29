@@ -36,6 +36,8 @@ type Props = {
     projectUuid?: string;
     onClose: () => void;
     defaults?: ChartMetadata;
+    /** Chart-level palette chosen before the first save. */
+    colorPaletteUuid?: string | null;
 };
 
 type SaveToDashboardFormValues = { name: string; description: string };
@@ -54,6 +56,7 @@ export const SaveToDashboard: FC<Props> = ({
     projectUuid,
     onClose,
     defaults = DEFAULT_CHART_METADATA,
+    colorPaletteUuid,
 }) => {
     const [dashboardInfoFromStorage, setDashboardInfoFromStorage] = useState({
         name: dashboardName,
@@ -115,6 +118,7 @@ export const SaveToDashboard: FC<Props> = ({
                 ...savedData,
                 name: values.name,
                 description: values.description,
+                colorPaletteUuid,
                 dashboardUuid,
             };
             const chart = await createChart(newChartInDashboard);
@@ -153,6 +157,7 @@ export const SaveToDashboard: FC<Props> = ({
         },
         [
             savedData,
+            colorPaletteUuid,
             dashboardUuid,
             createChart,
             getDashboardActiveTabUuid,

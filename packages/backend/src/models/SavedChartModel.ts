@@ -478,6 +478,7 @@ export const createSavedChart = async (
         updatedByUser,
         spaceUuid,
         dashboardUuid,
+        colorPaletteUuid,
         slug,
         forceSlug,
     }: CreateSavedChart & {
@@ -510,6 +511,7 @@ export const createSavedChart = async (
                         ChartKind.VERTICAL_BAR,
                     last_version_updated_by_user_uuid: userUuid,
                     project_uuid: projectUuid,
+                    color_palette_uuid: colorPaletteUuid ?? null,
                     slug: forceSlug
                         ? slug
                         : await generateUniqueSlugScopedToProject(
