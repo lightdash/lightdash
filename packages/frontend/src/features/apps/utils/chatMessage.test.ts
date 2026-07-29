@@ -1,23 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { mergeChatMessages, type ChatMessage } from './chatMessage';
+import {
+    emptyChatMessage,
+    mergeChatMessages,
+    type ChatMessage,
+} from './chatMessage';
 
 const baseMessage: ChatMessage = {
+    ...emptyChatMessage(),
     role: 'user',
-    status: null,
-    content: '',
-    imagePreviewUrls: [],
-    imageResourceIds: [],
-    files: [],
-    charts: [],
-    externalConnections: [],
-    dashboardName: null,
-    clarifications: [],
-    version: null,
     timestamp: new Date('2026-05-15T10:00:00Z'),
     userName: 'Test User',
-    vizSchema: null,
-    reasoning: [],
-    activity: [],
 };
 
 describe('mergeChatMessages', () => {

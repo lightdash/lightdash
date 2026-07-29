@@ -28,6 +28,11 @@ export type ChatMessage = {
      * renderers use to tell success from failure.
      */
     status: 'ready' | 'error' | null;
+    /**
+     * How long the build took, for the thread's "built in 52s" receipt. Null on
+     * user bubbles and on versions predating completion-time capture.
+     */
+    durationMs: number | null;
     content: string;
     imagePreviewUrls: string[];
     imageResourceIds: string[];
@@ -67,6 +72,7 @@ export const emptyChatMessage = (): Omit<
     'role' | 'timestamp'
 > => ({
     status: null,
+    durationMs: null,
     content: '',
     imagePreviewUrls: [],
     imageResourceIds: [],

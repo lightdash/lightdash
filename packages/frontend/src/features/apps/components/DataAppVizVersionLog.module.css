@@ -1,0 +1,26 @@
+/* One line per build. Rows are read down the version badges, so the badge
+   column is fixed and the prompt takes whatever is left. */
+.row {
+    padding: 6px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.row:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.versionBadge {
+    flex: 0 0 auto;
+    margin-top: 1px;
+}
+
+/* Without an explicit min-width a flex child refuses to shrink below its
+   content, so a long prompt would push the action off the row. */
+.rowBody {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.rowAction {
+    flex: 0 0 auto;
+}

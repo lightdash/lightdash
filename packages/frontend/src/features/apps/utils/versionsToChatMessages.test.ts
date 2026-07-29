@@ -181,6 +181,33 @@ describe('versionsToChatMessages', () => {
         expect(assistant.activity).toEqual(['Creating App.tsx']);
     });
 
+    // A viz-only version has no attachments, so the server serves the schema
+    // on an otherwise empty resources blob rather than omitting the blob.
+    it('carries the schema of a version that attached nothing else', () => {
+        const [user, assistant] = convert([
+            version({
+                resources: {
+                    images: [],
+                    charts: [],
+                    dashboardName: null,
+                    clarifications: [],
+                    vizSchema: {
+                        fields: [],
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                },
+            }),
+        ]);
+        expect(user.charts).toEqual([]);
+        expect(user.imageResourceIds).toEqual([]);
+        expect(assistant.vizSchema).toEqual({
+            fields: [],
+            configOptions: [],
+            colorPalette: null,
+        });
+    });
+
     it('handles a missing author', () => {
         const [user] = convert([version({ createdByUser: null })]);
         expect(user.userName).toBeNull();

@@ -1,0 +1,20 @@
+/* One column: the settings, and the build session docked under them. The dock
+   takes what it needs; the settings keep the rest and scroll. */
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    height: 100%;
+    min-height: 0;
+    /* The config sidebar is padded `16px 16px 0` — no bottom, because its
+       forms normally scroll. Filling the panel means we reach that edge. */
+    padding-bottom: var(--mantine-spacing-md);
+}
+
+/* Scrolls on its own, so the dock under it stays put — and so expanding the
+   dock squeezes the settings rather than pushing them off the panel. */
+.settings {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}

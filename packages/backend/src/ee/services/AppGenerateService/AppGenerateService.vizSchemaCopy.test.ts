@@ -2,6 +2,7 @@
 // version's viz_schema — it exists only in the database (generation structured
 // output), so a copy that drops it produces a data app viz that never appears
 // in the viz picker.
+import { type AppVersionDependencies } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -59,6 +60,11 @@ const sourceApp = {
     deleted_by_user_uuid: null,
 };
 
+const DEPENDENCIES: AppVersionDependencies = {
+    custom: [{ name: 'recharts', version: '2.12.0' }],
+    lockfileHash: 'a'.repeat(64),
+};
+
 const sourceVersion = {
     app_version_id: 'version-id',
     app_id: SOURCE_APP_UUID,
@@ -87,6 +93,7 @@ function buildService() {
             version: { version: 1 },
         }),
         createVersion: vi.fn().mockResolvedValue({ version: 7 }),
+        getVersion: vi.fn().mockResolvedValue(sourceVersion),
         setUpstreamAppUuid: vi.fn().mockResolvedValue(undefined),
         syncPromotedApp: vi.fn().mockResolvedValue(undefined),
         updateStatusMessage: vi.fn().mockResolvedValue(undefined),
@@ -319,6 +326,31 @@ describe('viz_schema propagation on app copy paths', () => {
         expect(externalConnectionModel.replaceAppLinks).toHaveBeenCalledWith(
             UPSTREAM_APP_UUID,
             [{ externalConnectionUuid: 'upstream-conn-1', alias: 'stripe' }],
+        );
+    });
+
+    it('restoreVersion carries the source viz_schema and dependencies onto the new version', async () => {
+        const { service, appModel } = buildService();
+        appModel.getVersion.mockResolvedValue({
+            ...sourceVersion,
+            dependencies: DEPENDENCIES,
+        });
+
+        await service.restoreVersion(
+            makeUser(),
+            PROJECT_UUID,
+            SOURCE_APP_UUID,
+            3,
+        );
+
+        expect(appModel.createVersion).toHaveBeenCalledWith(
+            SOURCE_APP_UUID,
+            { version: 7, prompt: 'Restore version 3' },
+            'ready',
+            USER_UUID,
+            undefined, // source has no resources
+            DEPENDENCIES,
+            VIZ_SCHEMA,
         );
     });
 

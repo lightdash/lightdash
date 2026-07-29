@@ -6178,6 +6178,11 @@ export class AppGenerateService extends BaseService {
             'ready',
             user.userUuid,
             source.resources ?? undefined,
+            source.dependencies ?? undefined,
+            // A data app viz is only listed while its latest ready version
+            // declares a schema, so dropping it here delists the viz and
+            // strips the contract from every chart bound to it.
+            source.viz_schema ?? undefined,
         );
         await this.appModel.updateStatusMessage(
             appUuid,
