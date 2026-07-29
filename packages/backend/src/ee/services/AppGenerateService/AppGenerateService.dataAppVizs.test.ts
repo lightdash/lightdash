@@ -1,7 +1,9 @@
 // Stub the e2b/ai SDKs so the tests never reach a real sandbox or model client.
 import {
     DATA_APP_VIZ_TEMPLATE,
+    getUserAbilityBuilder,
     NotFoundError,
+    OrganizationMemberRole,
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
@@ -91,6 +93,51 @@ function buildService(appModel: unknown) {
     return service;
 }
 
+/**
+ * A service whose ability is the real thing, so the rules under test are the
+ * ones that ship. `getSpaceAccessContext` stands in for the space lookup: a
+ * space the user can reach reports `inheritsFromOrgOrProject`.
+ */
+function buildServiceWithRealAbility(
+    appModel: unknown,
+    role: OrganizationMemberRole,
+    userUuid: string,
+    readableSpaceUuids: string[],
+) {
+    const service = buildService(appModel);
+    (
+        service as unknown as { spacePermissionService: unknown }
+    ).spacePermissionService = {
+        getSpaceAccessContext: (_userUuid: string, spaceUuid: string) =>
+            Promise.resolve(
+                readableSpaceUuids.includes(spaceUuid)
+                    ? { inheritsFromOrgOrProject: true }
+                    : {},
+            ),
+    };
+    const { builder } = getUserAbilityBuilder({
+        user: {
+            role,
+            organizationUuid: 'org-1',
+            userUuid,
+            roleUuid: undefined,
+        },
+        projectProfiles: [],
+        permissionsConfig: { pat: { enabled: false, allowedOrgRoles: [] } },
+    });
+    // Drop buildService's allow-everything stub so the real rules apply.
+    delete (service as unknown as { createAuditedAbility?: unknown })
+        .createAuditedAbility;
+    return {
+        service,
+        user: {
+            userUuid,
+            organizationUuid: 'org-1',
+            ability: builder.build(),
+        } as never,
+    };
+}
+
 describe('AppGenerateService data app vizs', () => {
     it('maps a page of rows to by-reference DataAppVizs (no code copied)', async () => {
         const pagination = {
@@ -131,6 +178,90 @@ describe('AppGenerateService data app vizs', () => {
                 },
             ],
             pagination,
+        });
+    });
+
+    describe('who a listed visualization is offered to', () => {
+        const listPagination = {
+            page: 1,
+            pageSize: 25,
+            totalPageCount: 1,
+            totalResults: 3,
+        };
+        const rows = [
+            makeDataAppVizRow({
+                app_id: 'mine-unfiled',
+                space_uuid: null,
+                created_by_user_uuid: 'editor-1',
+            }),
+            makeDataAppVizRow({
+                app_id: 'someone-elses-unfiled',
+                space_uuid: null,
+                created_by_user_uuid: 'someone-else',
+            }),
+            makeDataAppVizRow({
+                app_id: 'in-a-space-i-can-see',
+                space_uuid: 'space-1',
+                created_by_user_uuid: 'someone-else',
+            }),
+        ];
+        const listed = async (
+            role: OrganizationMemberRole,
+            readableSpaceUuids: string[] = ['space-1'],
+        ) => {
+            const appModel = {
+                listDataAppVisualizations: vi.fn().mockResolvedValue({
+                    data: rows,
+                    pagination: listPagination,
+                }),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                role,
+                'editor-1',
+                readableSpaceUuids,
+            );
+            const result = await service.listDataAppVisualizations(
+                user,
+                'project-1',
+                { page: 1, pageSize: 25 },
+            );
+            return result.data.map((viz) => viz.dataAppVizUuid);
+        };
+
+        it('offers an editor their own, and anything in a space they can see', async () => {
+            // Regression: this list was gated on a project-wide subject with no
+            // space context and no creator, which only an admin's unconditional
+            // `manage` could satisfy — so the picker came back empty for
+            // everyone else, including the author of the visualization.
+            expect(await listed(OrganizationMemberRole.EDITOR)).toEqual([
+                'mine-unfiled',
+                'in-a-space-i-can-see',
+            ]);
+        });
+
+        it('offers an interactive viewer the same — they can use one without authoring it', async () => {
+            expect(
+                await listed(OrganizationMemberRole.INTERACTIVE_VIEWER),
+            ).toEqual(['mine-unfiled', 'in-a-space-i-can-see']);
+        });
+
+        it('withholds a visualization in a space the user cannot reach', async () => {
+            expect(await listed(OrganizationMemberRole.EDITOR, [])).toEqual([
+                'mine-unfiled',
+            ]);
+        });
+
+        it('offers a viewer nothing — they hold no view:DataApp at all', async () => {
+            expect(await listed(OrganizationMemberRole.VIEWER)).toEqual([]);
+        });
+
+        it('offers an admin every visualization in the project', async () => {
+            expect(await listed(OrganizationMemberRole.ADMIN, [])).toEqual([
+                'mine-unfiled',
+                'someone-elses-unfiled',
+                'in-a-space-i-can-see',
+            ]);
         });
     });
 

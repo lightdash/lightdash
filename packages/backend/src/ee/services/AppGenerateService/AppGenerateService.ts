@@ -7574,22 +7574,35 @@ export class AppGenerateService extends BaseService {
         await this.assertDataAppsEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('DataApp', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError('Insufficient permissions');
-        }
         const { data, pagination } =
             await this.appModel.listDataAppVisualizations(
                 projectUuid,
                 paginateArgs,
                 search,
             );
-        return { data: data.map(AppGenerateService.mapDataAppViz), pagination };
+        // Every row is checked the way a single fetch is. A project-wide
+        // subject carries neither a space context nor a creator, so it could
+        // satisfy none of the `view:DataApp` rules except an admin's
+        // unconditional `manage` — which made this list admin-only while
+        // handing admins rows they had no space access to.
+        const visible = await Promise.all(
+            data.map((app) =>
+                this.canViewApp(user, {
+                    organization_uuid: organizationUuid,
+                    project_uuid: app.project_uuid,
+                    space_uuid: app.space_uuid,
+                    created_by_user_uuid: app.created_by_user_uuid,
+                }),
+            ),
+        );
+        return {
+            data: data
+                .filter((_, index) => visible[index])
+                .map(AppGenerateService.mapDataAppViz),
+            // Counted before filtering: the page size is what the database
+            // returned, so a page can come back short while more pages remain.
+            pagination,
+        };
     }
 
     async getDataAppVisualization(
