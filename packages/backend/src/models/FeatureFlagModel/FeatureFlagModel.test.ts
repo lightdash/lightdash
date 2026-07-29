@@ -384,6 +384,71 @@ describe('FeatureFlagModel', () => {
         });
     });
 
+    describe('EnableTimezoneSupport defaults to on', () => {
+        const withTimezoneSupport = (enableTimezoneSupport: boolean) => ({
+            query: { ...lightdashConfigMock.query, enableTimezoneSupport },
+        });
+
+        it('is enabled when neither config nor database has an opinion', async () => {
+            const model = buildModel({}, buildFakeDatabase({}));
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.EnableTimezoneSupport,
+                enabled: true,
+            });
+        });
+
+        it('is disabled by an organization override', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({
+                    flag: { default_enabled: null },
+                    orgOverride: { enabled: false },
+                }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('is disabled by LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=false, ignoring the database', async () => {
+            const model = buildModel(
+                withTimezoneSupport(false),
+                buildFakeDatabase({ flag: { default_enabled: true } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('stays enabled when LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true, ignoring the database', async () => {
+            const model = buildModel(
+                withTimezoneSupport(true),
+                buildFakeDatabase({ orgOverride: { enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(true);
+        });
+    });
+
     describe('database error resilience', () => {
         // Reproduces the embed-account regression: a non-UUID userUuid
         // (e.g. `external::…`) makes Postgres throw 22P02 on the override
@@ -401,6 +466,7 @@ describe('FeatureFlagModel', () => {
         });
 
         it('does not throw when EnableTimezoneSupport DB lookup fails', async () => {
+            // Falls back to the default (on) rather than propagating.
             const model = buildModel({}, throwingDatabase);
 
             const result = await model.get({
@@ -413,7 +479,7 @@ describe('FeatureFlagModel', () => {
 
             expect(result).toEqual({
                 id: FeatureFlags.EnableTimezoneSupport,
-                enabled: false,
+                enabled: true,
             });
             expect(warnSpy).toHaveBeenCalled();
         });
