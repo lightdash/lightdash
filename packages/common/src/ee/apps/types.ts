@@ -631,6 +631,26 @@ export type ApiMyAppsResponse = ApiSuccess<{
 }>;
 
 /**
+ * What one generation cost, aggregated across every `claude` CLI invocation in
+ * that version's pipeline — including build-fix retries.
+ *
+ * This is spend attributable to a generation, not all data-app AI spend: the
+ * short prompt-clarification and app-naming calls happen outside any version.
+ *
+ * `costUsd` is the CLI's own figure, computed from public list prices, so treat
+ * it as an estimate rather than an invoice.
+ */
+export type DataAppGenerationUsage = {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+    numTurns: number;
+    durationApiMs: number;
+    costUsd: number;
+};
+
+/**
  * One data app generation event — a row of the org-wide activity log. Backed by
  * an `app_versions` row, so it covers both new apps and iterations, and both
  * successful and failed generations.
@@ -657,6 +677,9 @@ export type DataAppActivityEvent = {
         firstName: string;
         lastName: string;
     } | null;
+    // Null for versions generated before spend was recorded, and for those that
+    // never called the model at all — "not recorded", not "spent nothing".
+    usage: DataAppGenerationUsage | null;
 };
 
 export type DataAppActivityFilters = {

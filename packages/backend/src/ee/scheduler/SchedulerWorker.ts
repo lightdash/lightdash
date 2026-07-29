@@ -495,7 +495,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                             'Build timed out. Please try again.',
                         );
                         if (marked) {
-                            this.appGenerateService.trackTimeoutFailure(
+                            await this.appGenerateService.trackTimeoutFailure(
                                 payload,
                                 e,
                                 schedulerWaitMs,

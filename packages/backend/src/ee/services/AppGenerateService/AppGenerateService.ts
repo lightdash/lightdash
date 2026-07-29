@@ -1695,12 +1695,12 @@ export class AppGenerateService extends BaseService {
         return Math.round(performance.now() - start);
     }
 
-    trackTimeoutFailure(
+    async trackTimeoutFailure(
         payload: AppGeneratePipelineJobPayload,
         error: unknown,
         schedulerWaitMs?: number,
-    ): void {
-        this.trackVersionFailed(payload, 'timeout', error, {}, null, 0, {
+    ): Promise<void> {
+        await this.trackVersionFailed(payload, 'timeout', error, {}, null, 0, {
             schedulerWaitMs,
         });
     }
@@ -1745,7 +1745,29 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    private trackVersionFailed(
+    /**
+     * Persist what the generation cost onto the version row, for the org-wide
+     * activity log. Bookkeeping only — a failure here must never take down a
+     * generation that otherwise succeeded, so it logs and moves on.
+     */
+    private async recordGenerationUsage(
+        payload: AppGeneratePipelineJobPayload,
+        usage: ClaudeGenerationUsage,
+    ): Promise<void> {
+        try {
+            await this.appModel.recordVersionGenerationUsage(
+                payload.appUuid,
+                payload.version,
+                usage,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${payload.appUuid}: failed to record generation usage for version ${payload.version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async trackVersionFailed(
         payload: AppGeneratePipelineJobPayload,
         failureStage:
             | 'sandbox'
@@ -1761,7 +1783,7 @@ export class AppGenerateService extends BaseService {
         overallStart: number | null,
         buildFixAttempts: number,
         telemetry: DataAppVersionFailureTelemetry = {},
-    ): void {
+    ): Promise<void> {
         const { generationUsage } = telemetry;
         const claudeModel =
             payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
@@ -1782,6 +1804,7 @@ export class AppGenerateService extends BaseService {
                 telemetry.keyManagement ?? 'lightdash-managed',
                 generationUsage,
             );
+            await this.recordGenerationUsage(payload, generationUsage);
         }
 
         this.analytics.track({
@@ -3859,9 +3882,17 @@ export class AppGenerateService extends BaseService {
                 userMessage,
             );
             if (marked) {
-                this.trackVersionFailed(payload, 'config', error, {}, null, 0, {
-                    schedulerWaitMs,
-                });
+                await this.trackVersionFailed(
+                    payload,
+                    'config',
+                    error,
+                    {},
+                    null,
+                    0,
+                    {
+                        schedulerWaitMs,
+                    },
+                );
             }
             return;
         }
@@ -3959,7 +3990,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to set up build environment. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'sandbox',
                         error,
@@ -3985,7 +4016,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to resume build environment. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'sandbox',
                         missingSandboxError,
@@ -4016,7 +4047,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to resume build environment. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'sandbox',
                         error,
@@ -4215,7 +4246,7 @@ export class AppGenerateService extends BaseService {
                     message,
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'config',
                         themeError,
@@ -4350,7 +4381,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to load your data models. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'catalog',
                         error,
@@ -4454,7 +4485,7 @@ export class AppGenerateService extends BaseService {
                     userMessage,
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'generating',
                         error,
@@ -4523,7 +4554,7 @@ export class AppGenerateService extends BaseService {
                             'Installing dependencies',
                         );
                         if (marked) {
-                            this.trackVersionFailed(
+                            await this.trackVersionFailed(
                                 payload,
                                 'building',
                                 installError,
@@ -4593,7 +4624,7 @@ export class AppGenerateService extends BaseService {
                         : "The generated code couldn't be compiled. Try again or simplify your request.",
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'building',
                         error,
@@ -4644,7 +4675,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to deploy your app. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'packaging',
                         error,
@@ -4691,7 +4722,7 @@ export class AppGenerateService extends BaseService {
                 'Something went wrong. Please try again.',
             );
             if (marked) {
-                this.trackVersionFailed(
+                await this.trackVersionFailed(
                     payload,
                     'db',
                     error,
@@ -4730,6 +4761,7 @@ export class AppGenerateService extends BaseService {
             claudeKeyManagement,
             generationUsage,
         );
+        await this.recordGenerationUsage(payload, generationUsage);
 
         this.analytics.track({
             event: 'data_app.version.completed',
@@ -7665,6 +7697,7 @@ export class AppGenerateService extends BaseService {
                           firstName: row.created_by_user_first_name,
                           lastName: row.created_by_user_last_name,
                       },
+            usage: row.generation_usage,
         };
     }
 
