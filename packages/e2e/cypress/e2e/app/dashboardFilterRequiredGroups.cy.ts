@@ -1,6 +1,3 @@
-// Requires the dashboard-filter-requirements feature flag on the server
-// under test (e.g. LIGHTDASH_ENABLE_FEATURE_FLAGS=dashboard-filter-requirements);
-// with the flag off, dashboards fall back to the legacy locked modal.
 import {
     ApiChartSummaryListResponse,
     CreateDashboard,

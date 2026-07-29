@@ -30,7 +30,6 @@ import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
-import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
@@ -47,7 +46,6 @@ import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
-import { shouldShowLegacyLockedState } from '../dashboardFilters/FilterRequirements/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
@@ -80,7 +78,6 @@ type TabGridPanelProps = {
     isActive: boolean;
     isEditMode: boolean;
     locked: boolean;
-    legacyLockedBlur: boolean;
     gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
     dashboardTabs: DashboardTab[];
     onDragStart: () => void;
@@ -113,7 +110,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
         isActive,
         isEditMode,
         locked,
-        legacyLockedBlur,
         gridProps,
         dashboardTabs,
         onDragStart,
@@ -145,7 +141,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
                 <ErrorBoundary>
                     <ResponsiveGridLayout
                         {...gridProps}
-                        className={legacyLockedBlur ? 'locked' : ''}
                         containerPadding={GRID_CONTAINER_PADDING}
                         onDragStart={onDragStart}
                         onDragStop={onDragStop}
@@ -181,8 +176,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
         if (prevProps.isActive !== nextProps.isActive) return false;
         if (prevProps.isEditMode !== nextProps.isEditMode) return false;
         if (prevProps.locked !== nextProps.locked) return false;
-        if (prevProps.legacyLockedBlur !== nextProps.legacyLockedBlur)
-            return false;
         if (prevProps.tiles.length !== nextProps.tiles.length) return false;
 
         // Check if tile identities changed (added/removed/reordered)
@@ -267,13 +260,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         FeatureFlags.DashboardTabsInMemory,
     );
     const keepTabsInMemory = dashboardTabsInMemoryFlag?.enabled ?? false;
-
-    const isFilterRequirementsEnabled = useDashboardContext(
-        (c) => c.isFilterRequirementsEnabled,
-    );
-    const isFilterRequirementsFlagResolved = useDashboardContext(
-        (c) => c.isFilterRequirementsFlagResolved,
-    );
 
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
@@ -579,26 +565,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         filterableFieldsByTileUuid,
     ]);
 
-    // Legacy locked UX (feature flag off): blur the grid behind the modal
-    const showLegacyLockedState = shouldShowLegacyLockedState({
-        isFlagResolved: isFilterRequirementsFlagResolved,
-        isFilterRequirementsEnabled,
-    });
-    const legacyLockedBlur =
-        showLegacyLockedState && hasUnmetFilterRequirementsForCurrentTab;
-
     // Guided setup card over the locked grid; dismissal lasts until reload
     const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
     const dashboardProjectUuid = useDashboardContext((c) => c.projectUuid);
     const showGuidedSetup = useMemo(
         () =>
-            isFilterRequirementsEnabled &&
             !isEditMode &&
             !isGuidedSetupDismissed &&
             hasUnmetFilterRequirementsForCurrentTab &&
             !!hasDashboardTiles,
         [
-            isFilterRequirementsEnabled,
             isEditMode,
             isGuidedSetupDismissed,
             hasUnmetFilterRequirementsForCurrentTab,
@@ -1238,9 +1214,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                               locked={
                                                                   hasUnmetFilterRequirementsForCurrentTab
                                                               }
-                                                              legacyLockedBlur={
-                                                                  legacyLockedBlur
-                                                              }
                                                               gridProps={
                                                                   gridProps
                                                               }
@@ -1282,11 +1255,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   <ErrorBoundary>
                                                       <ResponsiveGridLayout
                                                           {...gridProps}
-                                                          className={
-                                                              legacyLockedBlur
-                                                                  ? 'locked'
-                                                                  : ''
-                                                          }
                                                           containerPadding={
                                                               GRID_CONTAINER_PADDING
                                                           }
@@ -1362,14 +1330,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               )}
                                     </div>
                                 </Group>
-                                {showLegacyLockedState && (
-                                    <LockedDashboardModal
-                                        opened={
-                                            hasUnmetFilterRequirementsForCurrentTab &&
-                                            !!hasDashboardTiles
-                                        }
-                                    />
-                                )}
                                 {(!hasDashboardTiles ||
                                     !currentTabHasTiles) && (
                                     <EmptyStateNoTiles

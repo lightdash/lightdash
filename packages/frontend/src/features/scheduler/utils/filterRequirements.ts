@@ -12,33 +12,15 @@ export type SchedulerFilterRequirements = {
 };
 
 /**
- * Filter requirements that block a delivery. Flag off keeps the legacy test
- * (required scheduler filters with no values). Flag on evaluates what the
- * delivery will actually run with — the saved dashboard rules overlaid with
- * the scheduler overrides — so an unmet any-of group blocks like an unmet
- * required filter, and dropping a rule from the overrides can't skip the
- * check.
+ * Filter requirements that block a delivery. Evaluates what the delivery will
+ * actually run with — the saved dashboard rules overlaid with the scheduler
+ * overrides — so an unmet any-of group blocks like an unmet required filter,
+ * and dropping a rule from the overrides can't skip the check.
  */
 export const getSchedulerFilterRequirements = (
     savedDashboardFilters: DashboardFilters | undefined,
     schedulerFilters: DashboardFilterRule[] | undefined,
-    isFilterRequirementsEnabled: boolean,
 ): SchedulerFilterRequirements => {
-    if (!isFilterRequirementsEnabled) {
-        const unmetSingles = (schedulerFilters ?? []).filter(
-            (filter) =>
-                filter.required &&
-                (!filter.values || filter.values.length === 0),
-        );
-        return {
-            unmetRequirements: unmetSingles.map((filter) => ({
-                type: 'single',
-                filter,
-            })),
-            filtersWithUnmetRequirements: unmetSingles,
-        };
-    }
-
     if (!savedDashboardFilters) {
         return { unmetRequirements: [], filtersWithUnmetRequirements: [] };
     }

@@ -130,8 +130,6 @@ export type DashboardContextType = {
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
     hasTileComments: (tileUuid: string) => boolean;
     unmetFilterRequirements: UnmetFilterRequirement[];
-    isFilterRequirementsEnabled: boolean;
-    isFilterRequirementsFlagResolved: boolean;
     isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
     isAddFilterDisabled: boolean;
