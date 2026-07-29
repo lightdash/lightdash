@@ -202,7 +202,9 @@ const OnboardingInviteExpert: FC = () => {
     // Only accept app-local paths; anything else (e.g. "//host") would make
     // pushState throw.
     const returnTo =
-        rawReturnTo && /^\/(?!\/)/.test(rawReturnTo) ? rawReturnTo : undefined;
+        rawReturnTo && /^\/(?![/\\])/.test(rawReturnTo)
+            ? rawReturnTo
+            : undefined;
 
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const isNewOnboarding = newOnboardingFlag.data?.enabled ?? false;
