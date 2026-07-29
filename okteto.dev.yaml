@@ -25,11 +25,15 @@ deploy:
               # Only on first deploy: the volume is kept afterwards.
               SNAPSHOT=""
               if ! kubectl get pvc db-data >/dev/null 2>&1; then
-                SNAPSHOT=$(kubectl get volumesnapshots -n db-snapshot \
+                CANDIDATES=$(kubectl get volumesnapshots -n db-snapshot \
                   -l app.kubernetes.io/part-of=lightdash-preview-db \
                   --sort-by=.metadata.creationTimestamp \
                   -o jsonpath='{range .items[?(@.status.readyToUse==true)]}{.metadata.name}{"\n"}{end}' \
-                  2>/dev/null | tail -n 1 || true)
+                  2>/dev/null | tail -n 3 || true)
+                COUNT=$(echo "$CANDIDATES" | grep -c . || true)
+                if [ "$COUNT" -gt 0 ]; then
+                  SNAPSHOT=$(echo "$CANDIDATES" | sed -n "$(( $(date +%s) % COUNT + 1 ))p")
+                fi
               fi
               if [ -n "$SNAPSHOT" ]; then
                 echo "Booting dev database from snapshot db-snapshot/$SNAPSHOT"
@@ -41,7 +45,20 @@ deploy:
 
               echo "SITE_URL=https://lightdash-${OKTETO_NAMESPACE}.${OKTETO_DOMAIN}" >> "$OKTETO_ENV"
         - name: Deploying compose...
-          command: okteto deploy -f docker/docker-compose.okteto-dev.yml
+          command: |
+              set -e
+              if [ -n "${DB_SNAPSHOT_NAME:-}" ]; then
+                if ! okteto deploy -f docker/docker-compose.okteto-dev.yml --timeout 18m; then
+                  echo "Snapshot restore failed: retrying with a blank database volume"
+                  kubectl delete statefulset db-preview --ignore-not-found --wait
+                  kubectl delete deployment db-preview --ignore-not-found --wait
+                  kubectl delete pvc db-data --ignore-not-found --wait
+                  export DB_SNAPSHOT_NAME="" DB_SNAPSHOT_NAMESPACE=""
+                  okteto deploy -f docker/docker-compose.okteto-dev.yml --timeout 20m
+                fi
+              else
+                okteto deploy -f docker/docker-compose.okteto-dev.yml
+              fi
 
 dev:
     lightdash-dev:
