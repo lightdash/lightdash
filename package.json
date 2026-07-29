@@ -201,7 +201,6 @@
         ],
         "packages/common/src/**/*.(ts|tsx|json)": [
             "pnpm -F common run linter --fix",
-            "pnpm -F common run type-aware-linter --fix",
             "pnpm -F common run formatter"
         ],
         "packages/e2e/cypress/**/*.(ts|json)": [
