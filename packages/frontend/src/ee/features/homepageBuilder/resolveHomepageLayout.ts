@@ -1,6 +1,9 @@
 import {
     assertUnreachable,
+    collectionLimitOf,
+    collectionSourceOf,
     type HomepageBlock,
+    type HomepageCollectionBlock,
     type HomepageConfig,
     type HomepageHeroDensity,
 } from '@lightdash/common';
@@ -143,7 +146,14 @@ const dedupeGreetings = (
 // must not demote the hero, leave a phantom row gap, or hold a ghost column.
 const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
     switch (block.type) {
+        // A collection with a dynamic source has no items in config — what it
+        // will show is only knowable once its data lands, so it reports
+        // emptiness at runtime instead (see RuntimeEmptyBlocks).
         case 'collection':
+            return (
+                collectionSourceOf(block.config) === 'manual' &&
+                (block.config.items?.length ?? 0) === 0
+            );
         case 'resources':
         case 'metrics':
             return (block.config.items?.length ?? 0) === 0;
@@ -176,9 +186,18 @@ const toVisibleRows = (rows: HomepageConfig['rows']): HomepageConfig['rows'] =>
 // column with its centred 3-col grid. With only 1-2 items the extra width is
 // just empty margin around a centred card, and it starves whatever it shares
 // the row with — so weight follows actual item count, not just block type.
+// A dynamic source has no config item count to read, so it's sized by the
+// limit it will fill up to.
+const collectionItemCount = (
+    config: HomepageCollectionBlock['config'],
+): number =>
+    collectionSourceOf(config) === 'manual'
+        ? (config.items?.length ?? 0)
+        : collectionLimitOf(config);
+
 const columnWeightFor = (block: HomepageBlock): number => {
     if (block.type === 'collection') {
-        return (block.config.items?.length ?? 0) >= 3 ? 2 : 1;
+        return collectionItemCount(block.config) >= 3 ? 2 : 1;
     }
     return traitFor(block.type).columnWeight;
 };
@@ -193,7 +212,7 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
         case 'metrics':
             return clampUnits(block.config.items?.length ?? 0, 4);
         case 'collection':
-            return clampUnits(block.config.items?.length ?? 0, 3);
+            return clampUnits(collectionItemCount(block.config), 3);
         // Resources render as a self-sizing list/media grid — natural width.
         case 'resources':
         case 'announcements':
@@ -212,8 +231,9 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
 // How many items a block actually has, for blocks laid out on the page grid.
 const gridItemCountFor = (block: HomepageBlock): number => {
     switch (block.type) {
-        case 'metrics':
         case 'collection':
+            return collectionItemCount(block.config);
+        case 'metrics':
         case 'resources':
             return block.config.items?.length ?? 0;
         default:

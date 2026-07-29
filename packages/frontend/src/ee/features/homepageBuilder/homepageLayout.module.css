@@ -139,6 +139,13 @@
     margin-inline: auto;
 }
 
+/* A row whose blocks all resolved to nothing. Out of flow entirely, so it
+ * contributes no height and no margin — see RowRenderer for why this is a
+ * style rather than an unmount. */
+.row[data-runtime-empty] {
+    display: none;
+}
+
 .row[data-align='start'] {
     margin-inline: 0 auto;
 }

@@ -15,22 +15,23 @@ const getRecentlyViewed = async (projectUuid: string) =>
 
 const MAX_RECENT_ITEMS = 4;
 
-const useRecentlyViewed = (projectUuid: string) =>
+const useRecentlyViewed = (projectUuid: string | undefined) =>
     useQuery<HomepageRecentlyViewedItem[], ApiError>({
         queryKey: ['homepage_recently_viewed', projectUuid],
-        queryFn: () => getRecentlyViewed(projectUuid),
+        queryFn: () => getRecentlyViewed(projectUuid!),
+        enabled: !!projectUuid,
     });
 
 /** The viewer's recently-viewed content, resolved to real items. Exposed as a
  * hook so a surface that owns the section header (day-0) can decide whether to
  * render one at all — both callers share the same queries. */
-export const useRecentContents = (projectUuid: string) => {
+export const useRecentContents = (projectUuid: string | undefined) => {
     const { data: recents, isInitialLoading } = useRecentlyViewed(projectUuid);
     const uuids = (recents ?? [])
         .slice(0, MAX_RECENT_ITEMS)
         .map((item) => item.uuid);
     const { data: contents, isInitialLoading: isResolving } =
-        useCollectionContent(projectUuid, uuids);
+        useCollectionContent(projectUuid ?? '', uuids);
     return {
         recents: recents ?? [],
         contents: contents ?? [],
