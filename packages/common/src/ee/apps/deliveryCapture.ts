@@ -42,8 +42,13 @@ export type DeliveryCaptureManifest = {
 const isNullableString = (value: unknown): value is string | null =>
     value === null || typeof value === 'string';
 
-const isNullableNumber = (value: unknown): value is number | null =>
-    value === null || typeof value === 'number';
+/** Rejects NaN/Infinity/-Infinity as well as non-numbers — every numeric
+ *  field here crosses an untrusted page.evaluate() boundary. */
+const isFiniteNumber = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value);
+
+const isNullableFiniteNumber = (value: unknown): value is number | null =>
+    value === null || isFiniteNumber(value);
 
 const parseCapturedQuery = (value: unknown): CapturedQuery | null => {
     if (!isPlainObject(value)) return null;
@@ -56,12 +61,12 @@ const parseCapturedQuery = (value: unknown): CapturedQuery | null => {
         return null;
     }
     if (!isNullableString(exploreName)) return null;
-    if (typeof order !== 'number') return null;
+    if (!isFiniteNumber(order)) return null;
 
     if (status === 'ready') {
         const { queryUuid, rowCount, limitReached } = candidate;
         if (typeof queryUuid !== 'string') return null;
-        if (!isNullableNumber(rowCount)) return null;
+        if (!isNullableFiniteNumber(rowCount)) return null;
         if (typeof limitReached !== 'boolean') return null;
         return {
             status: 'ready',
@@ -108,12 +113,8 @@ export const parseDeliveryCaptureManifest = (
     if (candidate.version !== 1) return null;
     if (!Array.isArray(candidate.items)) return null;
     if (candidate.items.length > MAX_DELIVERY_QUERIES) return null;
-    if (
-        typeof candidate.overflowCount !== 'number' ||
-        candidate.overflowCount < 0
-    ) {
-        return null;
-    }
+    const { overflowCount } = candidate;
+    if (!isFiniteNumber(overflowCount) || overflowCount < 0) return null;
 
     const items: CapturedQuery[] = [];
     for (const item of candidate.items) {
@@ -125,6 +126,6 @@ export const parseDeliveryCaptureManifest = (
     return {
         version: 1,
         items,
-        overflowCount: candidate.overflowCount,
+        overflowCount,
     };
 };

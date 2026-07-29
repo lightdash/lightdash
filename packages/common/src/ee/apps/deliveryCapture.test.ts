@@ -198,6 +198,67 @@ describe('parseDeliveryCaptureManifest', () => {
         ).toBeNull();
     });
 
+    // typeof NaN === 'number' and typeof Infinity === 'number', so a bare
+    // typeof check lets these through a boundary meant to be fail-closed.
+    it('rejects NaN, Infinity and -Infinity for order', () => {
+        for (const bad of [NaN, Infinity, -Infinity]) {
+            expect(
+                parseDeliveryCaptureManifest({
+                    ...validManifest,
+                    items: [{ ...readyItem, order: bad }],
+                }),
+            ).toBeNull();
+        }
+    });
+
+    it('rejects NaN, Infinity and -Infinity for rowCount', () => {
+        for (const bad of [NaN, Infinity, -Infinity]) {
+            expect(
+                parseDeliveryCaptureManifest({
+                    ...validManifest,
+                    items: [{ ...readyItem, rowCount: bad }],
+                }),
+            ).toBeNull();
+        }
+    });
+
+    it('rejects NaN, Infinity and -Infinity for overflowCount', () => {
+        for (const bad of [NaN, Infinity, -Infinity]) {
+            expect(
+                parseDeliveryCaptureManifest({
+                    ...validManifest,
+                    overflowCount: bad,
+                }),
+            ).toBeNull();
+        }
+    });
+
+    it('rejects items array elements that are not plain objects', () => {
+        for (const bad of [null, 'x', 42, ['nested']]) {
+            expect(
+                parseDeliveryCaptureManifest({
+                    ...validManifest,
+                    items: [bad],
+                }),
+            ).toBeNull();
+        }
+    });
+
+    it('is unaffected by a `__proto__`-shaped payload and does not pollute Object.prototype', () => {
+        // JSON.parse creates a literal own property named "__proto__" (unlike
+        // an object literal, where that key sets the prototype instead) — the
+        // realistic shape an untrusted page.evaluate() payload could take.
+        const malicious = JSON.parse(
+            '{"version":1,"items":[],"overflowCount":0,"__proto__":{"polluted":true}}',
+        ) as unknown;
+        expect(parseDeliveryCaptureManifest(malicious)).toEqual({
+            version: 1,
+            items: [],
+            overflowCount: 0,
+        });
+        expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    });
+
     it('rejects a label longer than MAX_CAPTURE_LABEL_CHARS', () => {
         expect(
             parseDeliveryCaptureManifest({
