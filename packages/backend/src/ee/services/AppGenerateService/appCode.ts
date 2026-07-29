@@ -9,12 +9,10 @@ export const s3KeyToRelPath = (key: string, prefix: string): string =>
 export const relPathToS3Key = (relPath: string, prefix: string): string =>
     `${prefix}${relPath}`;
 
-// appUuid/projectUuid are informational for released CLIs only — identity is
-// the slug. Both stop being emitted at the announced id-free cutover.
+// Deliberately no appUuid or projectUuid: identity is the slug, and id-free
+// manifests are portable across projects (matching charts-as-code).
 export const buildManifest = (args: {
-    appUuid: string;
     slug: string;
-    projectUuid: string;
     version: number;
     name: string;
     description: string;

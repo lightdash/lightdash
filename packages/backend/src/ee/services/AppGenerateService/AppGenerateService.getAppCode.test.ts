@@ -275,7 +275,7 @@ describe('AppGenerateService.getAppCode', () => {
         // until the id-free cutover
         expect(result.manifest.appUuid).toBe(APP_UUID);
         expect(result.manifest.slug).toBe(APP_SLUG);
-        expect(result.manifest.projectUuid).toBe(PROJECT_UUID);
+        expect(result.manifest.projectUuid).toBeUndefined();
         expect(result.manifest.version).toBe(VERSION);
         expect(result.manifest.name).toBe('My App');
         expect(result.manifest.description).toBe('A test app');
