@@ -164,6 +164,15 @@ describe('AiAgentMemoryService', () => {
             .fn()
             .mockResolvedValue('none');
         const updateStatus = vi.fn().mockResolvedValue(true);
+        const findConsolidationCandidates = vi.fn().mockResolvedValue([]);
+        const findLatestConsolidationRun = vi.fn().mockResolvedValue(undefined);
+        const recordConsolidationRun = vi.fn().mockResolvedValue({});
+        const applyConsolidation = vi.fn().mockResolvedValue({
+            run: {},
+            applied: [],
+            rejected: [],
+        });
+        const findExploresFromCache = vi.fn().mockResolvedValue({});
         const aiAgentMemoryDistill = vi.fn();
         const getAgent = vi.fn().mockResolvedValue({
             uuid: 'agent-1',
@@ -186,6 +195,7 @@ describe('AiAgentMemoryService', () => {
                 projectUuid === 'project-other' ? 'org-other' : 'org-enabled',
         }));
         const distillCall = vi.fn();
+        const consolidateCall = vi.fn().mockResolvedValue({ operations: [] });
         const track = vi.fn();
         const service = new AiAgentMemoryService({
             analytics: { track } as AnyType,
@@ -200,16 +210,21 @@ describe('AiAgentMemoryService', () => {
                 findActiveBySourceThread,
                 resolveSourceThreadMemoryState,
                 updateStatus,
+                findConsolidationCandidates,
+                findLatestConsolidationRun,
+                recordConsolidationRun,
+                applyConsolidation,
             } as AnyType,
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
             groupsModel: { findUserInGroups } as AnyType,
             projectModel: {
                 getSummary: getProjectSummary,
-                findExploresFromCache: vi.fn().mockResolvedValue({}),
+                findExploresFromCache,
             } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
             schedulerClient: { aiAgentMemoryDistill },
             distillCall,
+            consolidateCall,
         });
         return {
             service,
@@ -224,10 +239,16 @@ describe('AiAgentMemoryService', () => {
             findActiveBySourceThread,
             resolveSourceThreadMemoryState,
             updateStatus,
+            findConsolidationCandidates,
+            findLatestConsolidationRun,
+            recordConsolidationRun,
+            applyConsolidation,
+            findExploresFromCache,
             aiAgentMemoryDistill,
             getAgent,
             findThreadOwnership,
             distillCall,
+            consolidateCall,
             track,
         };
     };
@@ -904,6 +925,305 @@ describe('AiAgentMemoryService', () => {
             distillPromptHash: null,
             distilledUpTo: activity,
         });
+    });
+
+    const consolidationCandidate = {
+        organizationUuid: 'org-enabled',
+        projectUuid: 'project-enabled',
+        ownerUserUuid: 'owner-1',
+        activeCount: 30,
+    };
+
+    const activeMemory = (
+        overrides: Record<string, unknown> = {},
+    ): Record<string, unknown> => ({
+        ai_agent_memory_uuid: 'memory-1',
+        slug: 'net-revenue-ab12cd34',
+        title: 'Net revenue convention',
+        raw_memory: 'Use net revenue.',
+        thread_summary: 'Summary the curator must never see.',
+        terms: [],
+        objects: [],
+        scope: 'user',
+        generated_at: new Date('2026-07-20T10:00:00Z'),
+        cited_count: 4,
+        ...overrides,
+    });
+
+    // An empty catalog is treated as an unreadable one, so a partition that is
+    // meant to be consolidated needs a catalog with something in it.
+    const buildConsolidation = (options?: { enabledOrganization: string }) => {
+        const context = build(options);
+        context.findExploresFromCache.mockResolvedValue({
+            orders: { name: 'orders', tables: {}, joinedTables: [] },
+        });
+        return context;
+    };
+
+    it('asks only for partitions at or above the row floor', async () => {
+        const { service, findConsolidationCandidates } = build();
+
+        await expect(service.consolidate()).resolves.toBe(0);
+
+        expect(findConsolidationCandidates).toHaveBeenCalledExactlyOnceWith(30);
+    });
+
+    it('does nothing for an organization whose flag is off', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findActiveForProject,
+            consolidateCall,
+            applyConsolidation,
+            recordConsolidationRun,
+        } = build({ enabledOrganization: 'none' });
+        findConsolidationCandidates.mockResolvedValue([consolidationCandidate]);
+
+        await expect(service.consolidate()).resolves.toBe(0);
+
+        expect(findActiveForProject).not.toHaveBeenCalled();
+        expect(consolidateCall).not.toHaveBeenCalled();
+        expect(applyConsolidation).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('fetches the catalog once per project across its partitions', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findActiveForProject,
+            findExploresFromCache,
+        } = buildConsolidation();
+        findConsolidationCandidates.mockResolvedValue([
+            consolidationCandidate,
+            { ...consolidationCandidate, ownerUserUuid: 'owner-2' },
+        ]);
+        findActiveForProject.mockResolvedValue([activeMemory()]);
+
+        await expect(service.consolidate()).resolves.toBe(2);
+
+        expect(findExploresFromCache).toHaveBeenCalledExactlyOnceWith(
+            'project-enabled',
+            'name',
+        );
+    });
+
+    it('skips a project whose catalog cannot be read', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findExploresFromCache,
+            consolidateCall,
+            recordConsolidationRun,
+        } = build();
+        findConsolidationCandidates.mockResolvedValue([consolidationCandidate]);
+        findExploresFromCache.mockRejectedValue(new Error('catalog gone'));
+
+        await expect(service.consolidate()).resolves.toBe(0);
+
+        // Every object would read as unresolved, which is exactly the evidence
+        // the retire licence rests on.
+        expect(consolidateCall).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('skips a project whose catalog is empty', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findActiveForProject,
+            consolidateCall,
+            recordConsolidationRun,
+        } = build();
+        findConsolidationCandidates.mockResolvedValue([consolidationCandidate]);
+        findActiveForProject.mockResolvedValue([activeMemory()]);
+
+        await expect(service.consolidate()).resolves.toBe(0);
+
+        expect(consolidateCall).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('skips a partition in which nothing resolves at all', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findActiveForProject,
+            consolidateCall,
+            recordConsolidationRun,
+        } = buildConsolidation();
+        findConsolidationCandidates.mockResolvedValue([consolidationCandidate]);
+        findActiveForProject.mockResolvedValue([
+            activeMemory({
+                objects: [{ type: 'explore', name: 'no_such_explore' }],
+            }),
+        ]);
+
+        await expect(service.consolidate()).resolves.toBe(0);
+
+        expect(consolidateCall).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('records no run for the partitions a job abort never reached', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findActiveForProject,
+            consolidateCall,
+            recordConsolidationRun,
+        } = buildConsolidation();
+        findConsolidationCandidates.mockResolvedValue([
+            consolidationCandidate,
+            { ...consolidationCandidate, ownerUserUuid: 'owner-2' },
+            { ...consolidationCandidate, ownerUserUuid: 'owner-3' },
+        ]);
+        findActiveForProject.mockResolvedValue([activeMemory()]);
+        const controller = new AbortController();
+        consolidateCall.mockImplementation(async () => {
+            controller.abort(new Error('Job timed out'));
+            throw new Error('Job timed out');
+        });
+
+        await expect(
+            service.consolidate(new Date(), controller.signal),
+        ).resolves.toBe(0);
+
+        // A partition that was never attempted must not be stamped with a hash
+        // that would suppress it until its corpus changes.
+        expect(consolidateCall).toHaveBeenCalledOnce();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('keeps the rejection audit on a run that fails during apply', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findActiveForProject,
+            consolidateCall,
+            applyConsolidation,
+            recordConsolidationRun,
+        } = buildConsolidation();
+        findConsolidationCandidates.mockResolvedValue([consolidationCandidate]);
+        findActiveForProject.mockResolvedValue([activeMemory()]);
+        consolidateCall.mockResolvedValue({
+            operations: [
+                {
+                    type: 'retire',
+                    slug: 'never-seen',
+                    reason: 'Its explore no longer resolves.',
+                },
+                {
+                    type: 'retire',
+                    slug: 'net-revenue-ab12cd34',
+                    reason: 'Its explore no longer resolves.',
+                },
+            ],
+        });
+        applyConsolidation.mockRejectedValue(new Error('database exploded'));
+
+        await expect(service.consolidate()).resolves.toBe(0);
+
+        expect(recordConsolidationRun).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                status: 'failed',
+                errorMessage: 'database exploded',
+                rejectedOperations: [
+                    {
+                        operation: expect.objectContaining({
+                            slug: 'never-seen',
+                        }),
+                        reason: 'unknown_slug',
+                    },
+                ],
+            }),
+        );
+    });
+
+    it('skips a partition whose corpus has not changed since the last run', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findActiveForProject,
+            findLatestConsolidationRun,
+            consolidateCall,
+            applyConsolidation,
+        } = buildConsolidation();
+        findConsolidationCandidates.mockResolvedValue([consolidationCandidate]);
+        findActiveForProject.mockResolvedValue([activeMemory()]);
+
+        await expect(service.consolidate()).resolves.toBe(1);
+        const { inputHash } = applyConsolidation.mock.calls[0][0].run;
+
+        const second = buildConsolidation();
+        second.findConsolidationCandidates.mockResolvedValue([
+            consolidationCandidate,
+        ]);
+        second.findActiveForProject.mockResolvedValue([activeMemory()]);
+        second.findLatestConsolidationRun.mockResolvedValue({
+            input_hash: inputHash,
+            status: 'failed',
+        });
+
+        await expect(second.service.consolidate()).resolves.toBe(0);
+        expect(second.consolidateCall).not.toHaveBeenCalled();
+        expect(second.applyConsolidation).not.toHaveBeenCalled();
+        // The catalog is read only for a partition that will be attempted.
+        expect(second.findExploresFromCache).not.toHaveBeenCalled();
+        expect(findLatestConsolidationRun).toHaveBeenCalledWith({
+            projectUuid: 'project-enabled',
+            ownerUserUuid: 'owner-1',
+        });
+        expect(consolidateCall).toHaveBeenCalledOnce();
+    });
+
+    it('records a failed run carrying the input hash when the call throws', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findActiveForProject,
+            consolidateCall,
+            applyConsolidation,
+            recordConsolidationRun,
+        } = buildConsolidation();
+        findConsolidationCandidates.mockResolvedValue([consolidationCandidate]);
+        findActiveForProject.mockResolvedValue([activeMemory()]);
+        consolidateCall.mockRejectedValue(new Error('model exploded'));
+
+        await expect(service.consolidate()).resolves.toBe(0);
+
+        expect(applyConsolidation).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                status: 'failed',
+                errorMessage: 'model exploded',
+                inputHash: expect.any(String),
+                appliedOperations: [],
+                rejectedOperations: [],
+            }),
+        );
+    });
+
+    it('never shows the curator a thread summary or a database uuid', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            findActiveForProject,
+            consolidateCall,
+        } = buildConsolidation();
+        findConsolidationCandidates.mockResolvedValue([consolidationCandidate]);
+        findActiveForProject.mockResolvedValue([activeMemory()]);
+
+        await service.consolidate();
+
+        const [{ input, partition }] = consolidateCall.mock.calls[0];
+        expect(partition).toEqual({
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            ownerUserUuid: 'owner-1',
+        });
+        expect(JSON.stringify(input)).not.toContain('Summary the curator');
+        expect(JSON.stringify(input)).not.toContain('memory-1');
     });
 
     it('returns not found without reading rows when the flag is off', async () => {

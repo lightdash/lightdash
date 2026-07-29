@@ -4,13 +4,12 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
-    getFields,
-    getItemId,
-    isExploreError,
     NotFoundError,
     ParameterError,
     ProjectType,
     type AiAgentMemory,
+    type AiAgentMemoryConsolidationInputEntry,
+    type AiAgentMemoryConsolidationRejection,
     type AiAgentMemoryDistillJobPayload,
     type AiAgentMemoryEditableStatus,
     type AiAgentMemorySource,
@@ -20,7 +19,7 @@ import {
     type SessionUser,
     type UUID,
 } from '@lightdash/common';
-import { generateObject } from 'ai';
+import { APICallError, generateObject, NoObjectGeneratedError } from 'ai';
 import { createHash, randomBytes } from 'crypto';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -51,9 +50,26 @@ import {
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
 import { canAccessAiAgentThread } from '../AiAgentService/aiAgentAccess';
+import {
+    AI_AGENT_MEMORY_CONSOLIDATION_CALL_TIMEOUT_MS,
+    AI_AGENT_MEMORY_CONSOLIDATION_INPUT_LIMIT,
+    AI_AGENT_MEMORY_CONSOLIDATION_MIN_ACTIVE_ROWS,
+    buildConsolidationInput,
+    buildConsolidationUserMessage,
+    computeConsolidationInputHash,
+    validateConsolidationOperations,
+    type AiAgentMemoryConsolidationPartition,
+} from './consolidation';
+import {
+    consolidationOutputSchema,
+    type ConsolidationOutput,
+} from './consolidationSchema';
 import { distillOutputSchema, type DistillOutput } from './distillSchema';
+import { validateMemoryObjects } from './memoryObjects';
 import { sanitizeThread } from './transcriptSanitizer';
 import { serializeTranscript } from './transcriptSerializer';
+
+export { validateMemoryObjects };
 
 export const AI_AGENT_MEMORY_IDLE_MS = 6 * 60 * 60 * 1000;
 export const AI_AGENT_MEMORY_ACTIVITY_FLOOR_MS = 5 * 24 * 60 * 60 * 1000;
@@ -66,11 +82,31 @@ const distillPromptHashPromise = distillPromptPromise.then((prompt) =>
     createHash('sha256').update(prompt).digest('hex'),
 );
 
+const consolidatePromptPromise = readFile(
+    resolve(__dirname, 'consolidate-system.md'),
+    'utf8',
+);
+const consolidatePromptHashPromise = consolidatePromptPromise.then((prompt) =>
+    createHash('sha256').update(prompt).digest('hex'),
+);
+
 export type AiAgentMemoryDistillCall = (args: {
     thread: AiAgentMemoryThread;
     transcript: string;
     abortSignal?: AbortSignal;
 }) => Promise<DistillOutput>;
+
+export type AiAgentMemoryConsolidateCall = (args: {
+    partition: AiAgentMemoryConsolidationPartition;
+    input: AiAgentMemoryConsolidationInputEntry[];
+    abortSignal?: AbortSignal;
+}) => Promise<ConsolidationOutput>;
+
+export type AiAgentMemoryConsolidateOutcome =
+    | 'consolidated'
+    | 'skipped'
+    | 'failed'
+    | 'aborted';
 
 type MemorySchedulerClient = {
     aiAgentMemoryDistill: (
@@ -92,42 +128,11 @@ type Dependencies = {
     featureFlagService: FeatureFlagService;
     schedulerClient: MemorySchedulerClient;
     prometheusMetrics?: PrometheusMetrics;
-} & (
-    | {
-          orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
-          distillCall?: undefined;
-      }
-    | {
-          orgAiCopilotConfigResolver?: OrgAiCopilotConfigResolver;
-          distillCall: AiAgentMemoryDistillCall;
-      }
-);
-
-export const validateMemoryObjects = (
-    objects: AiProjectContextTypedObjectRef[],
-    explores: Record<string, Explore | ExploreError>,
-): {
-    resolved: AiProjectContextTypedObjectRef[];
-    unresolved: AiProjectContextTypedObjectRef[];
-} => {
-    const resolved: AiProjectContextTypedObjectRef[] = [];
-    const unresolved: AiProjectContextTypedObjectRef[] = [];
-
-    for (const object of objects) {
-        const exploreName =
-            object.type === 'explore' ? object.name : object.explore;
-        const explore = explores[exploreName];
-        const isResolved =
-            explore !== undefined &&
-            !isExploreError(explore) &&
-            (object.type === 'explore' ||
-                getFields(explore).some(
-                    (field) => getItemId(field) === object.fieldId,
-                ));
-        (isResolved ? resolved : unresolved).push(object);
-    }
-
-    return { resolved, unresolved };
+    // Each LLM call is independently cannable for tests. A call that is not
+    // canned needs the resolver, which is guarded where the call is made.
+    orgAiCopilotConfigResolver?: OrgAiCopilotConfigResolver;
+    distillCall?: AiAgentMemoryDistillCall;
+    consolidateCall?: AiAgentMemoryConsolidateCall;
 };
 
 export class AiAgentMemoryService extends BaseService {
@@ -153,6 +158,8 @@ export class AiAgentMemoryService extends BaseService {
 
     private readonly distillCall: AiAgentMemoryDistillCall;
 
+    private readonly consolidateCall: AiAgentMemoryConsolidateCall;
+
     constructor(dependencies: Dependencies) {
         super({ serviceName: 'AiAgentMemoryService' });
         this.analytics = dependencies.analytics;
@@ -167,6 +174,8 @@ export class AiAgentMemoryService extends BaseService {
             dependencies.orgAiCopilotConfigResolver;
         this.distillCall =
             dependencies.distillCall ?? this.distillWithLlm.bind(this);
+        this.consolidateCall =
+            dependencies.consolidateCall ?? this.consolidateWithLlm.bind(this);
     }
 
     private track(event: MemoryServiceAnalyticsEvent): void {
@@ -475,6 +484,297 @@ export class AiAgentMemoryService extends BaseService {
         );
         this.prometheusMetrics?.incrementAiAgentMemorySweepEnqueued(due.length);
         return due.length;
+    }
+
+    /**
+     * Daily pass over every eligible `(project, owner)` partition. The flag is
+     * checked per organization here, so a flag-off organization costs nothing
+     * beyond the eligibility query.
+     */
+    async consolidate(
+        now = new Date(),
+        abortSignal?: AbortSignal,
+    ): Promise<number> {
+        const candidates =
+            await this.aiAgentMemoryModel.findConsolidationCandidates(
+                AI_AGENT_MEMORY_CONSOLIDATION_MIN_ACTIVE_ROWS,
+            );
+        const organizationUuids = [
+            ...new Set(candidates.map((row) => row.organizationUuid)),
+        ];
+        const enabledByOrganization = new Map(
+            await Promise.all(
+                organizationUuids.map(
+                    async (organizationUuid) =>
+                        [
+                            organizationUuid,
+                            await this.isEnabled(organizationUuid),
+                        ] as const,
+                ),
+            ),
+        );
+        const due = candidates.filter((candidate) =>
+            enabledByOrganization.get(candidate.organizationUuid),
+        );
+
+        // One catalog fetch per project, shared by that project's partitions
+        // but loaded only when one of them survives the input-hash skip check:
+        // the common all-skipped day must not read a single cached_explores blob.
+        const catalogByProject = new Map<
+            string,
+            Promise<Record<string, Explore | ExploreError> | null>
+        >();
+        const loadCatalog = (projectUuid: string) => {
+            const cached = catalogByProject.get(projectUuid);
+            if (cached) return cached;
+            const promise = this.loadConsolidationCatalog(projectUuid);
+            catalogByProject.set(projectUuid, promise);
+            return promise;
+        };
+
+        let consolidated = 0;
+        for (const candidate of due) {
+            // A job timeout must not cascade into the partitions it never
+            // reached: they would each record a failed run carrying their
+            // current hash and never be attempted again.
+            if (abortSignal?.aborted) break;
+
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                const outcome = await this.consolidatePartition({
+                    partition: {
+                        organizationUuid: candidate.organizationUuid,
+                        projectUuid: candidate.projectUuid,
+                        ownerUserUuid: candidate.ownerUserUuid,
+                    },
+                    loadCatalog: () => loadCatalog(candidate.projectUuid),
+                    now,
+                    abortSignal,
+                });
+                if (outcome === 'aborted') break;
+                if (outcome === 'consolidated') consolidated += 1;
+            } catch (error) {
+                // Every other failure here is per-partition; a read that
+                // throws outside the attempt must not cost the whole pass.
+                this.logger.warn(
+                    'Dropping AI agent memory consolidation partition',
+                    {
+                        projectUuid: candidate.projectUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+            }
+        }
+        return consolidated;
+    }
+
+    /**
+     * A catalog that cannot be read — and an empty one, which a failed dbt
+     * refresh also produces — is not consolidated: every object would read as
+     * unresolved, which is the exact evidence the retire licence rests on.
+     */
+    private async loadConsolidationCatalog(
+        projectUuid: string,
+    ): Promise<Record<string, Explore | ExploreError> | null> {
+        try {
+            const explores = await this.projectModel.findExploresFromCache(
+                projectUuid,
+                'name',
+            );
+            if (Object.keys(explores).length === 0) {
+                this.logger.warn(
+                    'Skipping AI agent memory consolidation: catalog is empty',
+                    { projectUuid },
+                );
+                return null;
+            }
+            return explores;
+        } catch (error) {
+            this.logger.warn(
+                'Skipping AI agent memory consolidation: catalog unavailable',
+                { projectUuid, error: getErrorMessage(error) },
+            );
+            return null;
+        }
+    }
+
+    private async consolidatePartition(args: {
+        partition: AiAgentMemoryConsolidationPartition;
+        loadCatalog: () => Promise<Record<
+            string,
+            Explore | ExploreError
+        > | null>;
+        now: Date;
+        abortSignal?: AbortSignal;
+    }): Promise<AiAgentMemoryConsolidateOutcome> {
+        const { partition } = args;
+        const memories = await this.aiAgentMemoryModel.findActiveForProject({
+            projectUuid: partition.projectUuid,
+            userUuid: partition.ownerUserUuid,
+            limit: AI_AGENT_MEMORY_CONSOLIDATION_INPUT_LIMIT,
+        });
+        const inputHash = computeConsolidationInputHash(memories);
+
+        // Same corpus state as the last attempt, whatever that attempt's
+        // status: a partition that reliably trips the pass cannot burn a call
+        // every day forever.
+        const latestRun =
+            await this.aiAgentMemoryModel.findLatestConsolidationRun({
+                projectUuid: partition.projectUuid,
+                ownerUserUuid: partition.ownerUserUuid,
+            });
+        if (latestRun?.input_hash === inputHash) return 'skipped';
+
+        const explores = await args.loadCatalog();
+        if (explores === null) return 'skipped';
+
+        const input = buildConsolidationInput({
+            memories,
+            explores,
+            now: args.now,
+        });
+
+        // A whole partition reading as unresolved is a catalog the pass cannot
+        // trust, not a corpus that is self-evidently dead.
+        const projectedObjects = input.flatMap((entry) => entry.objects);
+        if (
+            projectedObjects.length > 0 &&
+            projectedObjects.every((object) => !object.resolved)
+        ) {
+            this.logger.warn(
+                'Skipping AI agent memory consolidation: no object resolves',
+                { projectUuid: partition.projectUuid },
+            );
+            return 'skipped';
+        }
+
+        const run = {
+            organizationUuid: partition.organizationUuid,
+            projectUuid: partition.projectUuid,
+            ownerUserUuid: partition.ownerUserUuid,
+            promptHash: await consolidatePromptHashPromise,
+            inputHash,
+            inputCount: input.length,
+            errorMessage: null,
+            consolidatedUpTo: args.now,
+        };
+
+        // What curation tried and was not allowed to do survives a failed apply.
+        let rejectedOperations: AiAgentMemoryConsolidationRejection[] = [];
+        try {
+            args.abortSignal?.throwIfAborted();
+            const output = await this.consolidateCall({
+                partition,
+                input,
+                // One hung provider socket must not spend the whole job budget.
+                abortSignal: AbortSignal.any([
+                    ...(args.abortSignal ? [args.abortSignal] : []),
+                    AbortSignal.timeout(
+                        AI_AGENT_MEMORY_CONSOLIDATION_CALL_TIMEOUT_MS,
+                    ),
+                ]),
+            });
+            args.abortSignal?.throwIfAborted();
+            const { applied, rejected } = validateConsolidationOperations({
+                operations: output.operations,
+                input,
+            });
+            rejectedOperations = rejected;
+            await this.aiAgentMemoryModel.applyConsolidation({
+                run,
+                selection: memories.map((memory) => ({
+                    memoryUuid: memory.ai_agent_memory_uuid,
+                    slug: memory.slug,
+                    generatedAt: memory.generated_at,
+                })),
+                operations: applied,
+                rejected,
+            });
+            return 'consolidated';
+        } catch (error) {
+            const errorMessage = getErrorMessage(error);
+            // A partition the job was aborted out of never really attempted
+            // anything: a run row here would suppress it until its corpus moves.
+            if (args.abortSignal?.aborted) {
+                this.logger.warn('Aborting AI agent memory consolidation', {
+                    projectUuid: partition.projectUuid,
+                    error: errorMessage,
+                });
+                return 'aborted';
+            }
+            await this.aiAgentMemoryModel.recordConsolidationRun({
+                ...run,
+                status: 'failed',
+                appliedOperations: [],
+                rejectedOperations,
+                errorMessage,
+            });
+            this.logger.warn('Dropping AI agent memory consolidation', {
+                projectUuid: partition.projectUuid,
+                error: errorMessage,
+            });
+            return 'failed';
+        }
+    }
+
+    private async consolidateWithLlm(args: {
+        partition: AiAgentMemoryConsolidationPartition;
+        input: AiAgentMemoryConsolidationInputEntry[];
+        abortSignal?: AbortSignal;
+    }): Promise<ConsolidationOutput> {
+        if (!this.orgAiCopilotConfigResolver) {
+            throw new Error('AI copilot config resolver is required');
+        }
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                args.partition.organizationUuid,
+            );
+        // Rare and consequential where distillation is frequent and cheap: the
+        // org's default model, reasoning on, with a two-call ceiling.
+        const model = getModel(copilotConfig, { enableReasoning: true });
+        const system = await consolidatePromptPromise;
+        const attempt = async () => {
+            const result = await generateObject({
+                model: model.model,
+                ...defaultAgentOptions,
+                ...model.callOptions,
+                providerOptions: model.providerOptions,
+                maxRetries: 0,
+                schema: consolidationOutputSchema,
+                system,
+                abortSignal: args.abortSignal,
+                experimental_telemetry: getAiCallTelemetry({
+                    functionId: 'aiAgentMemoryConsolidate',
+                    feature: 'ai-agent-memory',
+                    organizationUuid: args.partition.organizationUuid,
+                    projectUuid: args.partition.projectUuid,
+                    userUuid: args.partition.ownerUserUuid,
+                    recordIO: copilotConfig.telemetryEnabled,
+                    ...getLanguageModelAttribution(model.model),
+                }),
+                messages: [
+                    {
+                        role: 'user',
+                        content: buildConsolidationUserMessage(args.input),
+                    },
+                ],
+            });
+            return result.object;
+        };
+        try {
+            return await attempt();
+        } catch (error) {
+            const retryableApiError =
+                APICallError.isInstance(error) && error.isRetryable;
+            if (
+                !retryableApiError &&
+                !NoObjectGeneratedError.isInstance(error)
+            ) {
+                throw error;
+            }
+            args.abortSignal?.throwIfAborted();
+            return attempt();
+        }
     }
 
     async distillThread(

@@ -146,6 +146,7 @@ export const EE_SCHEDULER_TASKS = {
     SWEEP_STALE_AI_DEEP_RESEARCH_RUNS: 'sweepStaleAiDeepResearchRuns',
     SWEEP_AI_AGENT_MEMORY_THREADS: 'sweepAiAgentMemoryThreads',
     AI_AGENT_MEMORY_DISTILL: 'aiAgentMemoryDistill',
+    CONSOLIDATE_AI_AGENT_MEMORIES: 'consolidateAiAgentMemories',
     CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
 } as const;
 
@@ -251,6 +252,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
     [SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: AiAgentMemoryDistillJobPayload;
+    [SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
@@ -276,6 +278,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: AiAgentMemoryDistillJobPayload;
+    [EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
