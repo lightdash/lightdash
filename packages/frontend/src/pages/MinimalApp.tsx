@@ -1,13 +1,18 @@
-import { FeatureFlags } from '@lightdash/common';
+import {
+    DELIVERY_CAPTURE_GLOBAL,
+    FeatureFlags,
+    QueryExecutionContext,
+} from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconAppsOff } from '@tabler/icons-react';
-import { useCallback, useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Navigate, useParams, useSearchParams } from 'react-router';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
+import { createDeliveryCaptureAccumulator } from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { type QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -46,6 +51,17 @@ export default function MinimalApp() {
         projectUuid: string;
         appUuid: string;
     }>();
+    const [searchParams] = useSearchParams();
+    const captureModeParam = searchParams.get('captureMode');
+    const captureMode: 'delivery' | 'preview' | null =
+        captureModeParam === 'delivery' || captureModeParam === 'preview'
+            ? captureModeParam
+            : null;
+    const deliveryCapture = useMemo(
+        () => (captureMode ? createDeliveryCaptureAccumulator() : undefined),
+        [captureMode],
+    );
+    const [manifestPublished, setManifestPublished] = useState(false);
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
@@ -72,7 +88,8 @@ export default function MinimalApp() {
 
     const handleIframeLoad = useCallback(() => {
         setIframeLoaded(true);
-    }, []);
+        deliveryCapture?.reset();
+    }, [deliveryCapture]);
 
     const handleScreenshotAvailable = useCallback((available: boolean) => {
         setSdkAlive(available);
@@ -115,6 +132,25 @@ export default function MinimalApp() {
         (sdkAlive || sdkAliveFallback) && activeQueryIds.size === 0,
         APP_QUIET_DEBOUNCE_MS,
     );
+
+    // Publishes the captured manifest to the window global exactly once per
+    // settle, before the indicator (which UnfurlService waits on) can mount.
+    useEffect(() => {
+        if (!isReady || !captureMode || !deliveryCapture || manifestPublished)
+            return;
+        let cancelled = false;
+        void deliveryCapture.getManifest().then((manifest) => {
+            if (cancelled) return;
+            (window as unknown as Record<string, unknown>)[
+                DELIVERY_CAPTURE_GLOBAL
+            ] = manifest;
+            setManifestPublished(true);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [isReady, captureMode, deliveryCapture, manifestPublished]);
+    const indicatorReady = captureMode ? isReady && manifestPublished : isReady;
 
     if (dataAppsFlag.isLoading) return null;
     if (!dataAppsFlag.data?.enabled) {
@@ -197,11 +233,18 @@ export default function MinimalApp() {
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
+                deliveryCapture={deliveryCapture}
+                invalidateCache={captureMode === 'delivery' ? true : undefined}
+                queryContextOverride={
+                    captureMode === 'delivery'
+                        ? QueryExecutionContext.SCHEDULED_DELIVERY
+                        : undefined
+                }
                 // Seeds the app from ?state= so scheduled deliveries with a
                 // saved app state screenshot that view, not the default one.
                 urlStateSync
             />
-            {isReady && (
+            {indicatorReady && (
                 <ScreenshotReadyIndicator
                     tilesTotal={1}
                     tilesReady={1}
