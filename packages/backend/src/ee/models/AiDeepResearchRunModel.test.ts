@@ -1,6 +1,7 @@
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import {
+    AiDeepResearchAnalyticsOutboxTableName,
     AiDeepResearchEventsTableName,
     AiDeepResearchRunsTableName,
 } from '../database/entities/aiDeepResearch';
@@ -246,6 +247,7 @@ describe('AiDeepResearchRunModel', () => {
             .update(AiDeepResearchRunsTableName)
             .responseOnce([runRow({ status: 'cancelled' })]);
         tracker.on.insert(AiDeepResearchEventsTableName).response([]);
+        tracker.on.insert(AiDeepResearchAnalyticsOutboxTableName).response([]);
 
         const run = await model.requestCancellation(RUN_UUID);
 
@@ -254,11 +256,15 @@ describe('AiDeepResearchRunModel', () => {
         expect(tracker.history.update[0].bindings).toEqual(
             expect.arrayContaining(['queued', 'cancelled', RUN_UUID]),
         );
-        expect(tracker.history.insert).toHaveLength(2);
+        expect(tracker.history.insert).toHaveLength(3);
         expect(tracker.history.insert[0].bindings).toContain(
             'cancellation_requested',
         );
         expect(tracker.history.insert[1].bindings).toContain('status_changed');
+        expect(tracker.history.insert[2].bindings).toContain('run_completed');
+        expect(tracker.history.insert[2].bindings).toContain(
+            'user_cancellation',
+        );
     });
 
     it('records a cancellation request without declaring a running job cancelled', async () => {
@@ -311,6 +317,7 @@ describe('AiDeepResearchRunModel', () => {
                 runRow({ ai_deep_research_run_uuid: 'run-2' }),
             ]);
         tracker.on.insert(AiDeepResearchEventsTableName).response([]);
+        tracker.on.insert(AiDeepResearchAnalyticsOutboxTableName).response([]);
 
         const runs = await model.markStaleRunsAsFailed(75, 'stale');
 
@@ -319,6 +326,8 @@ describe('AiDeepResearchRunModel', () => {
         expect(update.bindings).toEqual(
             expect.arrayContaining(['running', 75, 'failed', 'stale']),
         );
-        expect(tracker.history.insert).toHaveLength(2);
+        expect(tracker.history.insert).toHaveLength(4);
+        expect(tracker.history.insert[2].bindings).toContain('internal_error');
+        expect(tracker.history.insert[3].bindings).toContain('internal_error');
     });
 });
