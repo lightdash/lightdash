@@ -63,7 +63,7 @@ const getProjectSpaces = async (projectUuid: string) =>
         body: undefined,
     });
 
-export function delay(ms: number) {
+function delay(ms: number) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
     });
@@ -89,18 +89,28 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     excludeSpaces?: string[];
 };
 
-const waitUntilFinished = async (jobUuid: string): Promise<string> => {
+type WaitUntilFinishedOptions = {
+    jobUuid: string;
+    refetchIntervalMs: number;
+    createError: (jobError: string) => Error;
+};
+
+export const waitUntilFinished = async ({
+    jobUuid,
+    refetchIntervalMs,
+    createError,
+}: WaitUntilFinishedOptions): Promise<string> => {
     const job = await getJobState(jobUuid);
     if (job.status === SchedulerJobStatus.COMPLETED) {
         return job.status;
     }
     if (job.status === SchedulerJobStatus.ERROR) {
-        throw new UnexpectedServerError(
-            `\nValidation failed: ${job.details?.error || 'unknown error'}`,
-        );
+        throw createError(job.details?.error || 'unknown error');
     }
 
-    return delay(REFETCH_JOB_INTERVAL).then(() => waitUntilFinished(jobUuid));
+    return delay(refetchIntervalMs).then(() =>
+        waitUntilFinished({ jobUuid, refetchIntervalMs, createError }),
+    );
 };
 
 export const validateHandler = async (
@@ -228,7 +238,12 @@ export const validateHandler = async (
             `  Waiting for validation to finish`,
         );
 
-        await waitUntilFinished(jobId);
+        await waitUntilFinished({
+            jobUuid: jobId,
+            refetchIntervalMs: REFETCH_JOB_INTERVAL,
+            createError: (jobError) =>
+                new UnexpectedServerError(`\nValidation failed: ${jobError}`),
+        });
 
         const allValidation = await getValidation(projectUuid, jobId);
 

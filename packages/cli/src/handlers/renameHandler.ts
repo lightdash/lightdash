@@ -5,7 +5,6 @@ import {
     LightdashError,
     RenameChange,
     RenameType,
-    SchedulerJobStatus,
 } from '@lightdash/common';
 import fs from 'fs';
 import inquirer from 'inquirer';
@@ -18,10 +17,10 @@ import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProject } from './dbt/refresh';
 import {
-    delay,
     getJobState,
     getValidation,
     requestValidation,
+    waitUntilFinished,
 } from './validate';
 
 type RenameHandlerOptions = {
@@ -38,19 +37,13 @@ type RenameHandlerOptions = {
 };
 
 const REFETCH_JOB_INTERVAL = 2000;
-const waitUntilFinished = async (jobUuid: string): Promise<string> => {
-    const job = await getJobState(jobUuid);
-    if (job.status === SchedulerJobStatus.COMPLETED) {
-        return job.status;
-    }
-    if (job.status === SchedulerJobStatus.ERROR) {
-        throw new Error(
-            `\nRename failed: ${job.details?.error || 'unknown error'}`,
-        );
-    }
 
-    return delay(REFETCH_JOB_INTERVAL).then(() => waitUntilFinished(jobUuid));
-};
+const waitUntilRenameFinished = (jobUuid: string): Promise<string> =>
+    waitUntilFinished({
+        jobUuid,
+        refetchIntervalMs: REFETCH_JOB_INTERVAL,
+        createError: (jobError) => new Error(`\nRename failed: ${jobError}`),
+    });
 
 const listResources = (
     resources: RenameChange[],
@@ -150,7 +143,7 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
             body: JSON.stringify(options),
         });
         GlobalState.debug(`Rename job scheduled with id: ${jobResponse.jobId}`);
-        const status = await waitUntilFinished(jobResponse.jobId);
+        const status = await waitUntilRenameFinished(jobResponse.jobId);
         GlobalState.debug(`Rename job finished with status: ${status}`);
         const job = await getJobState(jobResponse.jobId);
 
@@ -226,7 +219,7 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
 
             const { jobId } = validationJob;
 
-            await waitUntilFinished(jobId);
+            await waitUntilRenameFinished(jobId);
 
             const validation = await getValidation(projectUuid, jobId);
             console.info(validation);
