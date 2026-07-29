@@ -1,3 +1,21 @@
+# [1.37.0](https://github.com/lightdash/lightdash/compare/1.36.0...1.37.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **frontend:** stop Mantine transitions leaking timers past test teardown ([#26490](https://github.com/lightdash/lightdash/issues/26490)) ([b272820](https://github.com/lightdash/lightdash/commit/b2728200fbec67b496a07dfcf01428a7700dc99d))
+* **homepage-builder:** data apps fall back to a neutral icon, not a coloured placeholder ([#26446](https://github.com/lightdash/lightdash/issues/26446)) ([d4d0292](https://github.com/lightdash/lightdash/commit/d4d029253c78166d5041f5cd0270f11424bc828b)), closes [#26437](https://github.com/lightdash/lightdash/issues/26437) [#26443](https://github.com/lightdash/lightdash/issues/26443)
+* **homepage-builder:** make the Resources list layout scannable ([#26448](https://github.com/lightdash/lightdash/issues/26448)) ([181d4b2](https://github.com/lightdash/lightdash/commit/181d4b28c65123472736d688282e578c9e312017)), closes [#26438](https://github.com/lightdash/lightdash/issues/26438) [#26446](https://github.com/lightdash/lightdash/issues/26446)
+* **homepage-builder:** size the hero to its content so curated rows stay above the fold ([#26443](https://github.com/lightdash/lightdash/issues/26443)) ([5b2619c](https://github.com/lightdash/lightdash/commit/5b2619cc551c938e74a5c0d2a8d2c35a025890f1)), closes [#26436](https://github.com/lightdash/lightdash/issues/26436)
+* keep data-apps template pnpm settings effective under pnpm 11 ([#26469](https://github.com/lightdash/lightdash/issues/26469)) ([cfa6a63](https://github.com/lightdash/lightdash/commit/cfa6a63e56392025cd9ea8cac6e317b7c1a73bd0))
+
+
+### Features
+
+* **homepage-builder:** give collections a live source instead of only a frozen list ([#26463](https://github.com/lightdash/lightdash/issues/26463)) ([61ac83e](https://github.com/lightdash/lightdash/commit/61ac83ec03ebc4fad761e62de5ad2981d5616d04)), closes [#26441](https://github.com/lightdash/lightdash/issues/26441)
+* **homepage-builder:** lead day-0 with the project's key spaces ([#26450](https://github.com/lightdash/lightdash/issues/26450)) ([3a34a7b](https://github.com/lightdash/lightdash/commit/3a34a7b935997ec68e49dab644fb62b9ac53c7d9)), closes [#26439](https://github.com/lightdash/lightdash/issues/26439) [#26448](https://github.com/lightdash/lightdash/issues/26448)
+* **onboarding:** add clickable Data Apps and BI-as-code media cards to the homepage stars rotation ([#26489](https://github.com/lightdash/lightdash/issues/26489)) ([078a269](https://github.com/lightdash/lightdash/commit/078a2699c5e265499012f9dcb41403a8ccb67181))
+
 # [1.36.0](https://github.com/lightdash/lightdash/compare/1.35.0...1.36.0) (2026-07-29)
 
 

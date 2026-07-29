@@ -9120,6 +9120,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageHeroDensity: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['full'] },
+                { dataType: 'enum', enums: ['compact'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageAskAiHeroBlock: {
         dataType: 'refAlias',
         type: {
@@ -9128,6 +9140,7 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        density: { ref: 'HomepageHeroDensity' },
                         showRecommendedActions: { dataType: 'boolean' },
                         showGreeting: { dataType: 'boolean', required: true },
                     },
@@ -9152,6 +9165,7 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        density: { ref: 'HomepageHeroDensity' },
                         subtitle: { dataType: 'string', required: true },
                     },
                     required: true,
@@ -9184,6 +9198,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageCollectionSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['manual'] },
+                { dataType: 'enum', enums: ['most-viewed'] },
+                { dataType: 'enum', enums: ['recently-updated'] },
+                { dataType: 'enum', enums: ['pinned'] },
+                { dataType: 'enum', enums: ['favorites'] },
+                { dataType: 'enum', enums: ['recently-viewed'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageCollectionBlock: {
         dataType: 'refAlias',
         type: {
@@ -9192,6 +9222,9 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        limit: { dataType: 'double' },
+                        verifiedOnly: { dataType: 'boolean' },
+                        source: { ref: 'HomepageCollectionSource' },
                         items: {
                             dataType: 'array',
                             array: {

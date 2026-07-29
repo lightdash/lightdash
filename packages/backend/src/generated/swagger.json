@@ -9764,10 +9764,18 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageHeroDensity": {
+                "type": "string",
+                "enum": ["full", "compact"],
+                "description": "How much of the opening view the hero claims. `full` centres it in the\nviewport; `compact` gives it only the height of its own content. Absent in\nstored configs means \"let the layout decide\" — see resolveHeroDensity."
+            },
             "HomepageAskAiHeroBlock": {
                 "properties": {
                     "config": {
                         "properties": {
+                            "density": {
+                                "$ref": "#/components/schemas/HomepageHeroDensity"
+                            },
                             "showRecommendedActions": {
                                 "type": "boolean",
                                 "description": "Replaces the prompt suggestions with the setup checklist.\nOptional for configs persisted before this field existed."
@@ -9795,6 +9803,9 @@
                 "properties": {
                     "config": {
                         "properties": {
+                            "density": {
+                                "$ref": "#/components/schemas/HomepageHeroDensity"
+                            },
                             "subtitle": {
                                 "type": "string"
                             }
@@ -9828,15 +9839,40 @@
                 "required": ["uuid", "contentType"],
                 "type": "object"
             },
+            "HomepageCollectionSource": {
+                "type": "string",
+                "enum": [
+                    "manual",
+                    "most-viewed",
+                    "recently-updated",
+                    "pinned",
+                    "favorites",
+                    "recently-viewed"
+                ],
+                "description": "Where a collection block's items come from.\n\n`manual` reads the block's own `items`. Every other source is a live rule\nresolved per viewer at render time — which is the point: a snapshot of\n\"most viewed\" is stale the week after it's taken, and a frozen copy of the\npin list stops tracking pins the moment it's published.\n\n`favorites` and `recently-viewed` are per-viewer; the rest are project-wide."
+            },
             "HomepageCollectionBlock": {
                 "properties": {
                     "config": {
                         "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "How many items to show. Absent means DEFAULT_COLLECTION_LIMIT."
+                            },
+                            "verifiedOnly": {
+                                "type": "boolean",
+                                "description": "Applies to every source, including manual."
+                            },
+                            "source": {
+                                "$ref": "#/components/schemas/HomepageCollectionSource"
+                            },
                             "items": {
                                 "items": {
                                     "$ref": "#/components/schemas/HomepageCollectionItemRef"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "The hand-picked items. Read only when `source` is `manual`, which\nis what an absent `source` means — every config stored before\nsources existed is a manual collection."
                             },
                             "title": {
                                 "type": "string"
@@ -50973,7 +51009,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.36.0",
+        "version": "1.37.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
