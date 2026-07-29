@@ -1,3 +1,10 @@
+## [1.23.2](https://github.com/lightdash/lightdash/compare/1.23.1...1.23.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* **charts:** persist the chart-level color palette on first save ([#26405](https://github.com/lightdash/lightdash/issues/26405)) ([bccb852](https://github.com/lightdash/lightdash/commit/bccb852962d0a156db53c09c01e66cb098c62b8a))
+
 ## [1.23.1](https://github.com/lightdash/lightdash/compare/1.23.0...1.23.1) (2026-07-29)
 
 

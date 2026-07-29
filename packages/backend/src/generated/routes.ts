@@ -40656,6 +40656,13 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        colorPaletteUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         dashboardUuid: { dataType: 'enum', enums: [null] },
                         spaceUuid: { dataType: 'string' },
                     },
@@ -40674,6 +40681,13 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        colorPaletteUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         spaceUuid: { dataType: 'enum', enums: [null] },
                         dashboardUuid: { dataType: 'string', required: true },
                     },
