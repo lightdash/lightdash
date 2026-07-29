@@ -2,30 +2,35 @@ import {
     LightdashError,
     ParameterError,
     type DataAppCodeDownload,
+    type DataAppManifest,
 } from '@lightdash/common';
 import {
     appsDownloadSummary,
     capListedApps,
     classifyAppDownloadError,
-    classifyAppUpload,
     computeUpsertedTotal,
     DEFAULT_APPS_LIMIT,
     ensureDownloadedAppContext,
+    getDataAppReference,
     getDataAppUploadFilter,
-    getDataAppUuidFromReference,
-    manifestRetargetHint,
+    preSlugUploadHint,
     resolveAppsLimit,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
     shouldWarnAllSkipped,
+    uploadFilterMatches,
 } from './appsDownload';
 
-describe('getDataAppUuidFromReference', () => {
+describe('getDataAppReference', () => {
     const appUuid = 'd3afc44c-6f0f-4d9f-a267-fb739efa31dd';
     const projectUuid = 'd4c8dfd2-98c0-4eb2-8395-d924aee62611';
 
     it('keeps a bare app UUID unchanged', () => {
-        expect(getDataAppUuidFromReference(appUuid)).toBe(appUuid);
+        expect(getDataAppReference(appUuid)).toBe(appUuid);
+    });
+
+    it('keeps a bare slug unchanged', () => {
+        expect(getDataAppReference('my-app-slug')).toBe('my-app-slug');
     });
 
     it.each([
@@ -34,7 +39,7 @@ describe('getDataAppUuidFromReference', () => {
         `https://app.lightdash.cloud/projects/${projectUuid}/apps/${appUuid}/versions/2/view?state=filters#preview`,
         `https://app.lightdash.cloud/embed/${projectUuid}/app/${appUuid}`,
     ])('extracts the app UUID from %s', (url) => {
-        expect(getDataAppUuidFromReference(url)).toBe(appUuid);
+        expect(getDataAppReference(url)).toBe(appUuid);
     });
 
     it.each([
@@ -43,7 +48,59 @@ describe('getDataAppUuidFromReference', () => {
         `https://app.lightdash.cloud/projects/${projectUuid}/apps/generate`,
         `ftp://app.lightdash.cloud/projects/${projectUuid}/apps/${appUuid}`,
     ])('leaves unsupported references unchanged: %s', (reference) => {
-        expect(getDataAppUuidFromReference(reference)).toBe(reference);
+        expect(getDataAppReference(reference)).toBe(reference);
+    });
+});
+
+describe('uploadFilterMatches', () => {
+    const makeManifest = (
+        overrides: Partial<DataAppManifest> = {},
+    ): DataAppManifest => ({
+        codeVersion: 1 as const,
+        appUuid: 'app-uuid-1',
+        projectUuid: 'proj-uuid-1',
+        version: 3,
+        name: 'My App',
+        description: '',
+        template: null,
+        downloadedAt: '2026-06-25T00:00:00.000Z',
+        ...overrides,
+    });
+
+    it('matches everything when the filter is null', () => {
+        expect(uploadFilterMatches(null, makeManifest())).toBe(true);
+    });
+
+    it('matches on manifest.appUuid', () => {
+        const filter = new Set(['app-uuid-1']);
+        expect(uploadFilterMatches(filter, makeManifest())).toBe(true);
+    });
+
+    it('matches on manifest.slug', () => {
+        const filter = new Set(['sales-app']);
+        expect(
+            uploadFilterMatches(filter, makeManifest({ slug: 'sales-app' })),
+        ).toBe(true);
+    });
+
+    it('does not match when neither uuid nor slug is in the filter', () => {
+        const filter = new Set(['other-uuid']);
+        expect(
+            uploadFilterMatches(filter, makeManifest({ slug: 'sales-app' })),
+        ).toBe(false);
+    });
+
+    it('matches only by uuid when the manifest has no slug', () => {
+        const filter = new Set(['app-uuid-1']);
+        expect(
+            uploadFilterMatches(filter, makeManifest({ slug: undefined })),
+        ).toBe(true);
+        expect(
+            uploadFilterMatches(
+                new Set(['sales-app']),
+                makeManifest({ slug: undefined }),
+            ),
+        ).toBe(false);
     });
 });
 
@@ -94,24 +151,24 @@ const makeDownload = (): DataAppCodeDownload =>
     }) as DataAppCodeDownload;
 
 describe('selectAppsToDownload', () => {
-    it('returns explicit uuids without listing when uuids are passed', () => {
+    it('returns explicit refs without listing when refs are passed', () => {
         expect(selectAppsToDownload({ apps: ['uuid-a', 'uuid-b'] })).toEqual({
             mode: 'explicit',
-            appUuids: ['uuid-a', 'uuid-b'],
+            appRefs: ['uuid-a', 'uuid-b'],
         });
     });
 
     it('lists all apps when --include-apps is passed', () => {
         expect(selectAppsToDownload({ includeApps: true })).toEqual({
             mode: 'list-all',
-            extraAppUuids: [],
+            extraAppRefs: [],
         });
     });
 
-    it('combines --include-apps with explicitly passed uuids', () => {
+    it('combines --include-apps with explicitly passed refs', () => {
         expect(
             selectAppsToDownload({ apps: ['uuid-a'], includeApps: true }),
-        ).toEqual({ mode: 'list-all', extraAppUuids: ['uuid-a'] });
+        ).toEqual({ mode: 'list-all', extraAppRefs: ['uuid-a'] });
     });
 
     it('normalizes explicit app URLs without listing apps', () => {
@@ -123,7 +180,7 @@ describe('selectAppsToDownload', () => {
             }),
         ).toEqual({
             mode: 'explicit',
-            appUuids: ['d3afc44c-6f0f-4d9f-a267-fb739efa31dd'],
+            appRefs: ['d3afc44c-6f0f-4d9f-a267-fb739efa31dd'],
         });
     });
 
@@ -236,6 +293,30 @@ describe('ensureDownloadedAppContext', () => {
     });
 });
 
+describe('preSlugUploadHint', () => {
+    it('suggests adding the slug to lightdash-app.yml when the server returned one', () => {
+        const hint = preSlugUploadHint({
+            folder: 'lightdash/apps/my-app',
+            slug: 'my-app',
+        });
+        expect(hint).toContain('lightdash/apps/my-app/lightdash-app.yml');
+        expect(hint).toContain('predates slug identity');
+        expect(hint).toContain('add `slug: my-app` to lightdash-app.yml');
+        expect(hint).toContain('Uploads keep working via uuid matching');
+    });
+
+    it('omits the add-slug suggestion when the server did not return a slug', () => {
+        const hint = preSlugUploadHint({
+            folder: 'lightdash/apps/my-app',
+            slug: undefined,
+        });
+        expect(hint).toContain('lightdash/apps/my-app/lightdash-app.yml');
+        expect(hint).toContain('predates slug identity');
+        expect(hint).not.toContain('add `slug:');
+        expect(hint).toContain('Uploads keep working via uuid matching');
+    });
+});
+
 describe('computeUpsertedTotal', () => {
     it('sums only keys that are neither skipped nor failed', () => {
         const changes = {
@@ -284,36 +365,6 @@ describe('shouldWarnAllSkipped', () => {
 
     it('returns false for empty changes', () => {
         expect(shouldWarnAllSkipped({})).toBe(false);
-    });
-});
-
-describe('classifyAppUpload', () => {
-    it('proceeds when createNew is true regardless of project mismatch', () => {
-        expect(classifyAppUpload('proj-a', 'proj-b', true)).toBe('proceed');
-    });
-
-    it('proceeds when manifest project matches target project', () => {
-        expect(classifyAppUpload('proj-a', 'proj-a', false)).toBe('proceed');
-    });
-
-    it('needs-confirmation when projects differ and createNew is false', () => {
-        expect(classifyAppUpload('proj-a', 'proj-b', false)).toBe(
-            'needs-confirmation',
-        );
-    });
-});
-
-describe('manifestRetargetHint', () => {
-    it('names both uuids, the consequence, and the manual fix', () => {
-        const hint = manifestRetargetHint({
-            folder: 'my-app',
-            appUuid: 'new-app-uuid',
-            projectUuid: 'target-proj-uuid',
-        });
-        expect(hint).toContain('my-app/lightdash-app.yml');
-        expect(hint).toContain('appUuid: new-app-uuid');
-        expect(hint).toContain('projectUuid: target-proj-uuid');
-        expect(hint).toMatch(/ask to create again/i);
     });
 });
 
@@ -384,7 +435,7 @@ describe('appsDownloadSummary', () => {
         const summary = appsDownloadSummary(
             0,
             1,
-            [{ appUuid: 'uuid-a', message: 'server exploded' }],
+            [{ appRef: 'uuid-a', message: 'server exploded' }],
             '/tmp/x/apps',
             0,
         );
@@ -408,7 +459,7 @@ describe('appsDownloadSummary', () => {
         const summary = appsDownloadSummary(
             1,
             3,
-            [{ appUuid: 'uuid-a', message: 'server exploded' }],
+            [{ appRef: 'uuid-a', message: 'server exploded' }],
             '/tmp/x/apps',
             1,
         );

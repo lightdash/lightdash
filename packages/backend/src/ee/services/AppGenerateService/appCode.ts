@@ -11,6 +11,7 @@ export const relPathToS3Key = (relPath: string, prefix: string): string =>
 
 export const buildManifest = (args: {
     appUuid: string;
+    slug: string;
     projectUuid: string;
     version: number;
     name: string;

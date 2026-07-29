@@ -31,6 +31,7 @@ import {
     getVisibleDataAppClaudeModels,
     isDashboardChartTileType,
     isExploreError,
+    isValidDataAppSlug,
     MAX_APP_FILES_PER_VERSION,
     MissingConfigError,
     NotFoundError,
@@ -8944,10 +8945,13 @@ export class AppGenerateService extends BaseService {
     async getAppCode(
         user: SessionUser,
         projectUuid: string,
-        appUuid: string,
+        appUuidOrSlug: string,
         version?: number,
     ): Promise<DataAppCodeDownload> {
-        const app = await this.appModel.getApp(appUuid, projectUuid);
+        const app = await this.appModel.getAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
         await this.assertCanViewApp(user, app);
 
         let resolvedVersion: number;
@@ -8961,7 +8965,7 @@ export class AppGenerateService extends BaseService {
             );
             if (!latestReady) {
                 throw new NotFoundError(
-                    `Data app has no ready version yet: ${appUuid}`,
+                    `Data app has no ready version yet: ${appUuidOrSlug}`,
                 );
             }
             resolvedVersion = latestReady.version;
@@ -8969,7 +8973,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const { client: s3Client, bucket } = this.getS3Client();
-        const sourceTarKey = `${versionPrefix(appUuid, resolvedVersion)}source.tar`;
+        const sourceTarKey = `${versionPrefix(app.app_id, resolvedVersion)}source.tar`;
 
         // Download the single source archive for this version
         let tarBuffer: Buffer;
@@ -8995,7 +8999,7 @@ export class AppGenerateService extends BaseService {
             const name = err instanceof Error ? err.name : undefined;
             if (code === 'NoSuchKey' || name === 'NoSuchKey') {
                 throw new NotFoundError(
-                    `Source not found for app ${appUuid} version ${resolvedVersion}`,
+                    `Source not found for app ${appUuidOrSlug} version ${resolvedVersion}`,
                 );
             }
             throw err;
@@ -9048,7 +9052,8 @@ export class AppGenerateService extends BaseService {
         );
 
         const manifest = buildManifest({
-            appUuid,
+            appUuid: app.app_id,
+            slug: app.slug,
             projectUuid,
             version: resolvedVersion,
             name: app.name,
@@ -9088,7 +9093,7 @@ export class AppGenerateService extends BaseService {
                     'This app declares custom dependencies, and custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED), so it cannot be downloaded.',
                 );
             }
-            const depsPrefix = `${versionPrefix(appUuid, resolvedVersion)}deps/`;
+            const depsPrefix = `${versionPrefix(app.app_id, resolvedVersion)}deps/`;
             const [packageJsonBuffer, lockfileBuffer] = await Promise.all([
                 readS3ObjectAsBuffer(
                     s3Client,
@@ -9113,7 +9118,7 @@ export class AppGenerateService extends BaseService {
             properties: {
                 organizationId: app.organization_uuid,
                 projectId: projectUuid,
-                appUuid,
+                appUuid: app.app_id,
                 version: resolvedVersion,
                 versionPinned: version !== undefined,
                 fileCount: files.length,
@@ -9243,6 +9248,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string;
         version: number;
         action: 'create' | 'append';
+        slug: string;
         warnings: string[];
     }> {
         await this.assertDataAppsEnabled(user);
@@ -9451,14 +9457,38 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Determine mode: append to existing app or create new one
-        const existingApp = body.targetAppUuid
-            ? await this.appModel.findApp(body.targetAppUuid, projectUuid)
-            : undefined;
-        if (body.targetAppUuid && existingApp === undefined) {
+        // Identity resolution (charts-as-code pattern): the manifest slug is
+        // matched against the TARGET project — found → append a version,
+        // missing → create with that exact slug. targetAppUuid remains as the
+        // fallback for pre-slug bundles/CLIs; createNew forces a fresh app.
+        const manifestSlug = code.manifest.slug;
+        // Reject before any lookup: the slug becomes a project-scoped index
+        // key here and a filesystem folder name on the CLI's next download —
+        // a hand-edited manifest (e.g. `slug: ../../../../tmp/evil`) must
+        // never reach either use unvalidated.
+        if (manifestSlug !== undefined && !isValidDataAppSlug(manifestSlug)) {
             throw new ParameterError(
-                `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+                `Invalid slug "${manifestSlug}" in the app manifest. Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters. Re-download the app or fix lightdash-app.yml.`,
             );
+        }
+        let existingApp: Awaited<ReturnType<AppModel['findApp']>> | undefined;
+        if (body.createNew) {
+            existingApp = undefined;
+        } else if (manifestSlug !== undefined) {
+            existingApp = await this.appModel.findAppBySlug(
+                projectUuid,
+                manifestSlug,
+            );
+        } else if (body.targetAppUuid) {
+            existingApp = await this.appModel.findApp(
+                body.targetAppUuid,
+                projectUuid,
+            );
+            if (existingApp === undefined) {
+                throw new ParameterError(
+                    `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+                );
+            }
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';
@@ -9472,6 +9502,7 @@ export class AppGenerateService extends BaseService {
         }
 
         let newAppUuid: string;
+        let newAppSlug: string;
         let newVersion: number;
 
         if (action === 'append' && existingApp !== undefined) {
@@ -9494,6 +9525,7 @@ export class AppGenerateService extends BaseService {
                 );
             }
             newAppUuid = existingApp.app_id;
+            newAppSlug = existingApp.slug;
             const latestVersion = await this.appModel.getLatestVersion(
                 existingApp.app_id,
             );
@@ -9542,6 +9574,11 @@ export class AppGenerateService extends BaseService {
                     description: code.manifest.description,
                     template: code.manifest.template,
                     space_uuid: body.spaceUuid ?? null,
+                    // Round-trip the manifest slug exactly; createNew and
+                    // pre-slug bundles let the model generate a unique one.
+                    ...(manifestSlug !== undefined && !body.createNew
+                        ? { slug: manifestSlug }
+                        : {}),
                 },
                 { version: newVersion, prompt: '' },
                 'pending',
@@ -9550,8 +9587,12 @@ export class AppGenerateService extends BaseService {
                 code.manifest.template === DATA_APP_VIZ_TEMPLATE
                     ? manifestVizSchema
                     : undefined,
+                // Verbatim slug + loud conflict, so re-uploads stay
+                // idempotent (never silently minting suffixed duplicates).
+                { forceSlug: true },
             );
             newAppUuid = app.app_id;
+            newAppSlug = app.slug;
         }
 
         // Reconcile links only when the manifest carries the field — bundles
@@ -9665,6 +9706,7 @@ export class AppGenerateService extends BaseService {
             appUuid: newAppUuid,
             version: newVersion,
             action,
+            slug: newAppSlug,
             warnings: linkWarnings,
         };
     }

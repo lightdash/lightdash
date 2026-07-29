@@ -10,7 +10,7 @@ import {
     buildImportBody,
     readBundleFromDir,
     readDependenciesFromDir,
-    retargetManifest,
+    resolveAppFolderName,
     writeBundleToDir,
     writeContextToDir,
 } from './appCodeFiles';
@@ -92,6 +92,19 @@ describe('buildImportBody', () => {
         });
         expect(body.targetAppUuid).toBeUndefined();
     });
+
+    it('includes createNew: true in the body when the flag is set', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        const body = buildImportBody(code, 'proj-uuid-1', { createNew: true });
+        expect(body.createNew).toBe(true);
+        expect(body.targetAppUuid).toBeUndefined();
+    });
+
+    it('omits the createNew key entirely when the flag is not set', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        const body = buildImportBody(code, 'proj-uuid-1', {});
+        expect('createNew' in body).toBe(false);
+    });
 });
 
 const bundle = {
@@ -166,24 +179,6 @@ it('upload reads back only src/ files, ignoring scaffolding and context', async 
     expect(read.files.map((f) => f.path).sort()).toEqual(
         bundle.files.map((f) => f.path).sort(),
     );
-});
-
-describe('retargetManifest', () => {
-    it('rewrites appUuid, projectUuid and version, preserving other fields', async () => {
-        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
-        await writeBundleToDir(dir, bundle);
-        await retargetManifest(dir, {
-            appUuid: 'new-app-uuid',
-            projectUuid: 'new-proj-uuid',
-            version: 1,
-        });
-        const read = await readBundleFromDir(dir);
-        expect(read.manifest.appUuid).toBe('new-app-uuid');
-        expect(read.manifest.projectUuid).toBe('new-proj-uuid');
-        expect(read.manifest.version).toBe(1);
-        expect(read.manifest.name).toBe('N');
-        expect(read.manifest.downloadedAt).toBe('2026-06-30T00:00:00.000Z');
-    });
 });
 
 it('throws a clear error when the manifest is not valid YAML', async () => {
@@ -301,6 +296,55 @@ describe('appFolderName', () => {
                 new Set(),
             ),
         ).toBe('untitled-app-abcd1234');
+    });
+});
+
+describe('resolveAppFolderName', () => {
+    it('uses the manifest slug when present', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: 'sales-app' },
+                new Set(),
+            ),
+        ).toBe('sales-app');
+    });
+
+    it('falls back to appFolderName when the manifest has no slug', () => {
+        const code = makeCode(
+            'abcd1234-ef56-7890-ab12-cdef01234567',
+            'proj-uuid-1',
+        );
+        expect(resolveAppFolderName(code.manifest, new Set())).toBe(
+            appFolderName(code.manifest.name, code.manifest.appUuid, new Set()),
+        );
+    });
+
+    // Defense-in-depth: a tampered manifest (or a server of unknown version)
+    // must not be able to steer the write path via an invalid slug.
+    it('falls back to appFolderName when the slug is a path-traversal attempt', () => {
+        const code = makeCode(
+            'abcd1234-ef56-7890-ab12-cdef01234567',
+            'proj-uuid-1',
+        );
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: '../../../../tmp/evil' },
+                new Set(),
+            ),
+        ).toBe(
+            appFolderName(code.manifest.name, code.manifest.appUuid, new Set()),
+        );
+    });
+
+    it('still uses a valid manifest slug (unaffected by the new validation)', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: 'sales-app-2' },
+                new Set(),
+            ),
+        ).toBe('sales-app-2');
     });
 });
 

@@ -925,7 +925,7 @@ const downloadCommand = program
     )
     .option(
         '--apps <appReferences...>',
-        'Download only specified data apps by UUID or URL (enterprise). Works for apps not added to a space.',
+        'Download only the specified data apps, by UUID, slug, or app URL (enterprise). Works for apps not added to a space.',
     )
     .option(
         '--include-apps',
@@ -1047,7 +1047,7 @@ const uploadCommand = program
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
         '--apps <appReferences...>',
-        'Upload only specified data apps by UUID or URL (enterprise).',
+        'Upload only the specified data apps, by UUID, slug, or app URL (enterprise).',
     )
     .option(
         '--include-apps',
@@ -1056,7 +1056,7 @@ const uploadCommand = program
     )
     .option(
         '--create-new',
-        'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml.',
+        'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml. The new app gets a fresh slug.',
         false,
     )
     .option(

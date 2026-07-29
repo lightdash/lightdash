@@ -8,6 +8,7 @@ import {
     SpaceMemberRole,
     type CartesianChartConfig,
     type ChartAsCode,
+    type DataAppManifest,
     type Series,
     type SpaceAsCode,
 } from '@lightdash/common';
@@ -16,6 +17,10 @@ import * as os from 'os';
 import * as path from 'path';
 import { vi } from 'vitest';
 import GlobalState from '../globalState';
+import {
+    getDataAppUploadFilter,
+    uploadFilterMatches,
+} from './apps/appsDownload';
 import { lightdashApi } from './dbt/apiClient';
 import {
     downloadContent,
@@ -95,6 +100,43 @@ describe('hasContentFilters', () => {
                 }),
             ),
         ).toBe(false);
+    });
+});
+
+describe('data app upload loop filter wiring', () => {
+    const makeManifest = (
+        overrides: Partial<DataAppManifest> = {},
+    ): DataAppManifest => ({
+        codeVersion: 1 as const,
+        appUuid: 'app-uuid-unmatched',
+        projectUuid: 'proj-uuid-1',
+        version: 1,
+        name: 'App',
+        description: '',
+        template: null,
+        downloadedAt: '2026-06-25T00:00:00.000Z',
+        ...overrides,
+    });
+
+    it('skips a folder matching neither slug nor uuid, and uploads one matched by slug', () => {
+        // Mirrors the --apps <appReferences...> wiring in the upload loop:
+        // the filter is built once from the CLI-supplied references, then
+        // matched per folder via uploadFilterMatches.
+        const uploadFilter = getDataAppUploadFilter(['sales-app'], false);
+
+        const unmatchedFolder = makeManifest({
+            appUuid: 'other-uuid',
+            slug: 'other-slug',
+        });
+        const matchedBySlugFolder = makeManifest({
+            appUuid: 'matched-uuid',
+            slug: 'sales-app',
+        });
+
+        expect(uploadFilterMatches(uploadFilter, unmatchedFolder)).toBe(false);
+        expect(uploadFilterMatches(uploadFilter, matchedBySlugFolder)).toBe(
+            true,
+        );
     });
 });
 
