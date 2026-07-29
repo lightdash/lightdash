@@ -4,8 +4,8 @@ import {
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import { JSONSchemaType } from 'ajv';
-import betterAjvErrors from 'better-ajv-errors';
 import { readFile } from 'fs/promises';
 import { ajv } from '../../ajv';
 import GlobalState from '../../globalState';

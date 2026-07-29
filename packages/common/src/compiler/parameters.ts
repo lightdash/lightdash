@@ -2,9 +2,9 @@
  * Utility functions for handling SQL parameter references
  */
 
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
-import betterAjvErrors from 'better-ajv-errors';
 import {
     isReservedParameterName,
     mergeReservedNames,

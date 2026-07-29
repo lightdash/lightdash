@@ -1,6 +1,6 @@
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
-import betterAjvErrors from 'better-ajv-errors';
 import * as yaml from 'js-yaml';
 import { validateParameterNames } from '../compiler/parameters';
 import lightdashProjectConfigSchema from '../schemas/json/lightdash-project-config-1.0.json';

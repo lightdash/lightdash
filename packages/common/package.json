@@ -37,12 +37,12 @@
   "dependencies": {
     "@casl/ability": "6.8.0",
     "@mastra/schema-compat": "0.11.2",
+    "@sidvind/better-ajv-errors": "7.0.0",
     "@types/lodash": "4.14.202",
     "ai": "6.0.205",
     "ajv": "8.18.0",
     "ajv-errors": "3.0.0",
     "ajv-formats": "2.1.1",
-    "better-ajv-errors": "1.2.0",
     "colorjs.io": "0.5.2",
     "company-email-validator": "1.2.4",
     "cronstrue": "2.23.0",
