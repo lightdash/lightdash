@@ -2,7 +2,14 @@ import {
     getAppDisplayName,
     type DataAppActivityEvent,
 } from '@lightdash/common';
-import { Badge, Group, Text, Tooltip, useMantineTheme } from '@mantine-8/core';
+import {
+    Anchor,
+    Badge,
+    Group,
+    Text,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine-8/core';
 import {
     IconAppWindow,
     IconBox,
@@ -20,6 +27,7 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
+import { Link } from 'react-router';
 import {
     ContentTable,
     useContentTable,
@@ -182,26 +190,43 @@ export const DataAppActivityTable: FC = () => {
                         {column.columnDef.header}
                     </Group>
                 ),
-                Cell: ({ row }) => (
-                    <Group gap="xs" wrap="nowrap">
-                        <Text fz="sm" c="ldGray.9" truncate>
-                            {getAppDisplayName(
-                                row.original.appName,
-                                row.original.appUuid,
+                Cell: ({ row }) => {
+                    const displayName = getAppDisplayName(
+                        row.original.appName,
+                        row.original.appUuid,
+                    );
+                    return (
+                        <Group gap="xs" wrap="nowrap">
+                            {row.original.appDeleted ? (
+                                // Deleted apps have nothing to open.
+                                <Text fz="sm" c="ldGray.9" truncate>
+                                    {displayName}
+                                </Text>
+                            ) : (
+                                <Anchor
+                                    component={Link}
+                                    to={`/projects/${row.original.projectUuid}/apps/${row.original.appUuid}`}
+                                    fz="sm"
+                                    c="inherit"
+                                    underline="hover"
+                                    truncate="end"
+                                >
+                                    {displayName}
+                                </Anchor>
                             )}
-                        </Text>
-                        {row.original.appDeleted && (
-                            <Badge
-                                size="xs"
-                                variant="light"
-                                color="gray"
-                                flex="0 0 auto"
-                            >
-                                Deleted
-                            </Badge>
-                        )}
-                    </Group>
-                ),
+                            {row.original.appDeleted && (
+                                <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color="gray"
+                                    flex="0 0 auto"
+                                >
+                                    Deleted
+                                </Badge>
+                            )}
+                        </Group>
+                    );
+                },
             },
             {
                 id: 'project',
