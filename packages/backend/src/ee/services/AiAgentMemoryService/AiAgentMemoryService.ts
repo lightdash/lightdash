@@ -67,6 +67,7 @@ import {
     type ConsolidationOutput,
 } from './consolidationSchema';
 import { distillOutputSchema, type DistillOutput } from './distillSchema';
+import { reportAiAgentMemoryFailure } from './failureReporting';
 import { validateMemoryObjects } from './memoryObjects';
 import { sanitizeThread } from './transcriptSanitizer';
 import { serializeTranscript } from './transcriptSerializer';
@@ -592,6 +593,14 @@ export class AiAgentMemoryService extends BaseService {
                     error: getErrorMessage(error),
                 },
             );
+            reportAiAgentMemoryFailure({
+                pipeline: 'consolidate',
+                error,
+                abortSignal: abortSignal ?? null,
+                organizationUuid: partition.organizationUuid,
+                projectUuid: partition.projectUuid,
+                ownerUserUuid: partition.ownerUserUuid,
+            });
             return 'failed';
         }
     }
@@ -727,6 +736,14 @@ export class AiAgentMemoryService extends BaseService {
             this.logger.warn('Dropping AI agent memory consolidation', {
                 projectUuid: partition.projectUuid,
                 error: errorMessage,
+            });
+            reportAiAgentMemoryFailure({
+                pipeline: 'consolidate',
+                error,
+                abortSignal: args.abortSignal ?? null,
+                organizationUuid: partition.organizationUuid,
+                projectUuid: partition.projectUuid,
+                ownerUserUuid: partition.ownerUserUuid,
             });
             return 'failed';
         }
@@ -996,6 +1013,14 @@ export class AiAgentMemoryService extends BaseService {
             this.logger.warn('Dropping AI agent memory distill', {
                 threadUuid: thread.threadUuid,
                 error: errorMessage,
+            });
+            reportAiAgentMemoryFailure({
+                pipeline: 'distill',
+                error,
+                abortSignal: abortSignal ?? null,
+                organizationUuid: thread.organizationUuid,
+                projectUuid: thread.projectUuid,
+                threadUuid: thread.threadUuid,
             });
             if (!memoryGenerated) {
                 this.track({
