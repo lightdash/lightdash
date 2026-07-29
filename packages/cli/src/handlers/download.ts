@@ -512,10 +512,10 @@ const readCodeFiles = async <
 
     logContentAsCodeDiscovery(`Reading ${folder} from ${baseDir}`);
 
-    const [major, minor] = process.versions.node.split('.').map(Number);
-    if (major < 20 || (major === 20 && minor < 12)) {
+    const [major] = process.versions.node.split('.').map(Number);
+    if (major < 24) {
         throw new Error(
-            `Node.js v20.12.0 or later is required for this command (current: ${process.version}).`,
+            `Node.js v24.0.0 or later is required for this command (current: ${process.version}).`,
         );
     }
 

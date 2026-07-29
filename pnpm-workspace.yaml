@@ -77,7 +77,6 @@ onlyBuiltDependencies:
   - canvas
   - core-js
   - core-js-pure
-  - cpu-features
   - cypress
   - duckdb
   - esbuild
@@ -96,6 +95,7 @@ ignoredBuiltDependencies:
   # Optional native liblzma/XZ addon, pulled in transitively via just-bash → backend.
   # Not compiled; the backend runs without the native build.
   - node-liblzma
+  - cpu-features
 
 packageExtensions:
   '@mastra/schema-compat@0.11.2':

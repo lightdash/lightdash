@@ -3,7 +3,7 @@
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
-FROM node:20-bookworm-slim AS pnpm-base
+FROM node:24-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
