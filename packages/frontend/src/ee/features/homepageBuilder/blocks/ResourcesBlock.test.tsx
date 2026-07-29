@@ -180,7 +180,7 @@ describe('ResourcesBlockView', () => {
             expect(screen.queryByText('Doc')).not.toBeInTheDocument();
         });
 
-        it('does not put a hero image in the 34px leading slot', () => {
+        it('uses one monochrome glyph family — no hero images, no brand favicons', () => {
             wrap(
                 <ResourcesBlockView
                     itemSpan={null}
@@ -194,16 +194,19 @@ describe('ResourcesBlockView', () => {
                                 title: 'Reading the funnel report',
                                 imageUrl: 'https://i.ytimg.com/vi/abc/hq.jpg',
                             },
+                            {
+                                url: 'https://example.com/handbook',
+                                kind: 'doc' as const,
+                                title: 'How we define revenue',
+                            },
                         ],
                     })}
                 />,
             );
-            // A 16:9 still cropped to 34px is a smudge; the favicon identifies
-            // the source instead.
-            const sources = screen
-                .queryAllByRole('img')
-                .map((img) => img.getAttribute('src'));
-            expect(sources).not.toContain('https://i.ytimg.com/vi/abc/hq.jpg');
+            // A cropped 16:9 still is a smudge at 34px, and a saturated brand
+            // favicon is a hotspot in a row of grey glyphs. Every row gets the
+            // same neutral square instead.
+            expect(screen.queryAllByRole('img')).toHaveLength(0);
         });
 
         it('still shows a hero image in the card layout', () => {

@@ -216,31 +216,19 @@ const CardThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
         <UrlCardThumb item={item} />
     );
 
-// No hero image in the leading slot: a 16:9 still cropped to 34px is a smudge,
-// not an identifier. The favicon says which site this is, and the kind glyph
-// says what it is — either is legible at this size, an image crop isn't.
-const UrlRowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
-    const [faviconFailed, setFaviconFailed] = useState(false);
-    const favicon = faviconUrl(item.url);
-    if (favicon && !faviconFailed) {
-        return (
-            <div className={`${classes.rowThumb} ${classes.rowThumbFallback}`}>
-                <img
-                    className={classes.rowFavicon}
-                    src={favicon}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setFaviconFailed(true)}
-                    onLoad={(e) => {
-                        if (isDefaultFavicon(e.currentTarget))
-                            setFaviconFailed(true);
-                    }}
-                />
-            </div>
-        );
-    }
-    return <IconSquare icon={kindMeta(item.kind).icon} />;
-};
+// One glyph family for the whole dense list: the monochrome kind icon in a
+// neutral square, every row identical in weight and colour.
+//
+// Not a hero image — a 16:9 still cropped to 34px is a smudge, not an
+// identifier. And not a favicon either: a saturated brand tile (YouTube's red
+// is the worst offender) is a hotspot in a row of grey glyphs, and it pulls the
+// eye to whichever item happens to be branded rather than to what matters.
+// Kind is what a scanner needs at this size; the hostname is still in the
+// supporting line for links without a description. The card layout keeps
+// favicons, where there's room for brand recognition to be worth its colour.
+const UrlRowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => (
+    <IconSquare icon={kindMeta(item.kind).icon} />
+);
 
 const RowThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     item,

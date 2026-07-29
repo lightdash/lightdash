@@ -668,17 +668,6 @@ a .hoverCard:hover,
     display: block;
 }
 
-.rowThumbFallback {
-    display: grid;
-    place-items: center;
-}
-
-.rowFavicon {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
-}
-
 /* Skeletons while a pasted link resolves */
 .skeletonBlock,
 .skeletonLine {
