@@ -1717,6 +1717,7 @@ export class UnfurlService extends BaseService {
                         this.logger.info(
                             `Waiting for app screenshot ready indicator (timeout ${APP_READY_TIMEOUT_MS}ms) - unfurlId: ${imageId}`,
                         );
+                        const waitStart = Date.now();
                         try {
                             await page.waitForSelector(
                                 SCREENSHOT_SELECTORS.READY_INDICATOR,
@@ -1728,6 +1729,16 @@ export class UnfurlService extends BaseService {
                             this.logger.info(
                                 `App ready indicator found - waiting ${APP_ANIMATION_BUFFER_MS}ms for animations - unfurlId: ${imageId}`,
                             );
+                            this.analytics.track({
+                                event: 'headless_browser.app_ready_wait',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    ready: true,
+                                    waitMs: Date.now() - waitStart,
+                                    context,
+                                    imageId,
+                                },
+                            });
                         } catch (waitError) {
                             // Fall through to the animation buffer so the
                             // screenshot still happens for apps that never
@@ -1735,6 +1746,16 @@ export class UnfurlService extends BaseService {
                             this.logger.warn(
                                 `App ready indicator not detected within ${APP_READY_TIMEOUT_MS}ms; proceeding with animation buffer only - unfurlId: ${imageId}`,
                             );
+                            this.analytics.track({
+                                event: 'headless_browser.app_ready_wait',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    ready: false,
+                                    waitMs: Date.now() - waitStart,
+                                    context,
+                                    imageId,
+                                },
+                            });
                         }
                         // page.evaluate keeps CDP traffic flowing during the
                         // animation buffer so a remote Chromium doesn't drop
