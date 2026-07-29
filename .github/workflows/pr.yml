@@ -38,6 +38,12 @@ jobs:
             .execSync('find . -name package.json -not -path \"*/node_modules/*\"', { encoding: 'utf8' })
             .trim().split('\n');
 
+          const workspaceFile = 'pnpm-workspace.yaml';
+          const workspaceContent = fs.existsSync(workspaceFile) ? fs.readFileSync(workspaceFile, 'utf8') : '';
+          const workspaceLines = workspaceContent.split('\n');
+          const workspaceIssues = [];
+          let inOverrides = false;
+
           const issues = [];
           for (const f of files) {
             const pkg = JSON.parse(fs.readFileSync(f, 'utf8'));
@@ -58,6 +64,34 @@ jobs:
               }
             }
           }
+          if (workspaceContent) {
+            for (const line of workspaceLines) {
+              if (!inOverrides && /^overrides:\s*$/.test(line)) {
+                inOverrides = true;
+                continue;
+              }
+              if (inOverrides) {
+                if (/^\S/.test(line)) {
+                  break;
+                }
+                if (/^\\s*#/.test(line)) {
+                  continue;
+                }
+
+                const match = line.match(/^\\s{2}(?:'([^']+)'|\"([^\"]+)\"|([^:\\s]+))\\s*:\\s*(?:'([^']*)'|\"([^\"]*)\"|([^#]+?))\\s*(?:#.*)?$/);
+                if (!match) {
+                  continue;
+                }
+
+                const key = match[1] || match[2] || match[3];
+                const ver = (match[4] || match[5] || match[6]).trim();
+                if (/^[\^~><=]/.test(ver) || /\\|\\|/.test(ver)) {
+                  workspaceIssues.push('pnpm-workspace.yaml [pnpm-workspace overrides] ' + key + ': ' + ver);
+                }
+              }
+            }
+          }
+          issues.push(...workspaceIssues);
 
           if (issues.length > 0) {
             console.error('ERROR: Found range specifiers in dependencies. All deps must use exact versions.');
@@ -66,7 +100,7 @@ jobs:
             issues.forEach(i => console.error('  ' + i));
             console.error('');
             console.error('Fix: use exact versions (e.g. \"1.2.3\" not \"^1.2.3\"). The .npmrc save-exact=true');
-            console.error('setting ensures pnpm add uses exact versions by default.');
+            console.error('covers the npm CLI, and savePrefix set to empty string in pnpm-workspace.yaml covers pnpm.');
             process.exit(1);
           }
 
