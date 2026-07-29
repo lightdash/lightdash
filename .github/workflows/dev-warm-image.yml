@@ -39,11 +39,14 @@ jobs:
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      - name: Install Okteto CLI
+        run: |
+          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
+          chmod +x okteto
+          sudo mv okteto /usr/local/bin/okteto
+
       - name: Okteto context
-        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
-        with:
-          url: ${{ secrets.OKTETO_CONTEXT }}
-          token: ${{ secrets.OKTETO_TOKEN }}
+        run: okteto context use "${{ secrets.OKTETO_CONTEXT }}" --token "${{ secrets.OKTETO_TOKEN }}"
 
       - name: Build and push
         run: |
