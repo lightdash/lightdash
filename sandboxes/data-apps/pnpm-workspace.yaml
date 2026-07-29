@@ -1,1 +1,3 @@
 packages: []
+# pnpm 11 reads settings from here; the .npmrc copy remains for pnpm <=10.
+ignoreWorkspaceRootCheck: true
