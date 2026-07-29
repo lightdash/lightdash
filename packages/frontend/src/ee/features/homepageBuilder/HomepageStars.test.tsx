@@ -1,9 +1,16 @@
 import { MantineProvider } from '@mantine-8/core';
 import { act, fireEvent, render } from '@testing-library/react';
+import { EventName } from '../../../types/Events';
 import HomepageStars from './HomepageStars';
 
-// Nothing is mocked: the cards are purpose-built presentational markup, so
-// the focusability assertions below run against the real DOM.
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+
+vi.mock('../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track, data: { rudder: true } }),
+}));
+
+// Only tracking is mocked: the cards are purpose-built presentational markup,
+// so the focusability assertions below run against the real DOM.
 // Answers min-width/min-height queries against a pretend viewport, so the
 // tier the component picks is the one a real browser would pick.
 const stubMatchMedia = ({
@@ -38,19 +45,29 @@ const renderStars = () =>
         </MantineProvider>,
     );
 
+const SKY_SELECTOR = '[data-testid="homepage-stars-sky"]';
+
+const VIDEO_HREF = 'https://www.youtube.com/watch?v=BwvgHQyhI1o';
+
+// Every draw returns the top of its range, so the last free def is always the
+// one picked — and the media cards sit last in the catalogue.
+const forceMediaCards = () => vi.spyOn(Math, 'random').mockReturnValue(0.99);
+
 describe('HomepageStars', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         stubMatchMedia();
+        track.mockClear();
     });
 
     afterEach(() => {
         vi.useRealTimers();
+        vi.restoreAllMocks();
     });
 
     it('spawns stars over time and caps how many are visible at once', () => {
         const { container } = renderStars();
-        const sky = container.querySelector('[inert]');
+        const sky = container.querySelector(SKY_SELECTOR);
         expect(sky).not.toBeNull();
         expect(sky!.childElementCount).toBe(0);
 
@@ -73,7 +90,7 @@ describe('HomepageStars', () => {
 
     it('never shows two stars with the same identity', () => {
         const { container } = renderStars();
-        const sky = container.querySelector('[inert]')!;
+        const sky = container.querySelector(SKY_SELECTOR)!;
 
         for (let i = 0; i < 40; i++) {
             act(() => {
@@ -89,7 +106,7 @@ describe('HomepageStars', () => {
 
     it('never leaves one side empty while stars are visible', () => {
         const { container } = renderStars();
-        const sky = container.querySelector('[inert]')!;
+        const sky = container.querySelector(SKY_SELECTOR)!;
 
         for (let i = 0; i < 40; i++) {
             act(() => {
@@ -109,7 +126,7 @@ describe('HomepageStars', () => {
 
     it('keeps stars on a side a full card apart', () => {
         const { container } = renderStars();
-        const sky = container.querySelector('[inert]')!;
+        const sky = container.querySelector(SKY_SELECTOR)!;
 
         for (let i = 0; i < 40; i++) {
             act(() => {
@@ -136,7 +153,7 @@ describe('HomepageStars', () => {
 
     it('expires stars even when animationend never fires', () => {
         const { container } = renderStars();
-        const sky = container.querySelector('[inert]')!;
+        const sky = container.querySelector(SKY_SELECTOR)!;
 
         act(() => {
             vi.advanceTimersByTime(3000);
@@ -154,7 +171,7 @@ describe('HomepageStars', () => {
 
     it('settles a star out of its entry animation, then removes it once it leaves', () => {
         const { container } = renderStars();
-        const sky = container.querySelector('[inert]')!;
+        const sky = container.querySelector(SKY_SELECTOR)!;
 
         act(() => {
             vi.advanceTimersByTime(600);
@@ -188,21 +205,71 @@ describe('HomepageStars', () => {
         expect(star.isConnected).toBe(false);
     });
 
-    it('contains no focusable elements and is inert + aria-hidden', () => {
+    it('hides decorative stars from assistive tech and keeps them unfocusable', () => {
         const { container } = renderStars();
-        const sky = container.querySelector('[inert]')!;
-        expect(sky).toHaveAttribute('aria-hidden');
+        const sky = container.querySelector(SKY_SELECTOR)!;
+        expect(sky).not.toHaveAttribute('inert');
+        expect(sky).not.toHaveAttribute('aria-hidden');
 
         act(() => {
             vi.advanceTimersByTime(30000);
         });
-        expect(sky.childElementCount).toBeGreaterThan(0);
-        expect(sky.querySelectorAll('a, button')).toHaveLength(0);
+        const decorative = sky.querySelectorAll('[aria-hidden="true"]');
+        expect(decorative.length).toBeGreaterThan(0);
+        decorative.forEach((star) => {
+            expect(star.querySelectorAll('a, button, [tabindex]')).toHaveLength(
+                0,
+            );
+        });
+    });
+
+    it('shows media cards in the rotation as new-tab links', () => {
+        forceMediaCards();
+        const { container } = renderStars();
+        const sky = container.querySelector(SKY_SELECTOR)!;
+
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        const links = [...sky.querySelectorAll('a')];
+        expect(links.map((link) => link.getAttribute('href'))).toContain(
+            VIDEO_HREF,
+        );
+        links.forEach((link) => {
+            expect(link).toHaveAttribute('target', '_blank');
+            expect(link).toHaveAttribute(
+                'rel',
+                expect.stringContaining('noreferrer'),
+            );
+            // Named by the card title, not by an aria-hidden wrapper.
+            expect(link.closest('[aria-hidden="true"]')).toBeNull();
+        });
+        expect(
+            sky.querySelector(`a[href="${VIDEO_HREF}"]`)?.textContent,
+        ).toContain(
+            'What can you build with Lightdash Data Apps? 3 real examples',
+        );
+    });
+
+    it('tracks a click on a media card', () => {
+        forceMediaCards();
+        const { container } = renderStars();
+
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        const link = container.querySelector(`a[href="${VIDEO_HREF}"]`)!;
+        fireEvent.click(link);
+
+        expect(track).toHaveBeenCalledWith({
+            name: EventName.HOMEPAGE_STARS_MEDIA_CARD_CLICKED,
+            properties: { cardKey: 'data-apps-video', href: VIDEO_HREF },
+        });
     });
 
     it('keeps one timer per star no matter how long the page stays open', () => {
         const { container, unmount } = renderStars();
-        const sky = container.querySelector('[inert]')!;
+        const sky = container.querySelector(SKY_SELECTOR)!;
 
         act(() => {
             vi.advanceTimersByTime(120000);
@@ -219,7 +286,7 @@ describe('HomepageStars', () => {
     it('still shows stars on a smaller viewport, at a narrower width', () => {
         stubMatchMedia({ width: 1280, height: 820 });
         const { container } = renderStars();
-        const sky = container.querySelector('[inert]')!;
+        const sky = container.querySelector(SKY_SELECTOR)!;
 
         act(() => {
             vi.advanceTimersByTime(3000);
@@ -239,7 +306,7 @@ describe('HomepageStars', () => {
         act(() => {
             vi.advanceTimersByTime(10000);
         });
-        expect(container.querySelector('[inert]')).toBeNull();
+        expect(container.querySelector(SKY_SELECTOR)).toBeNull();
     });
 
     it('renders nothing and schedules no stars under prefers-reduced-motion', () => {
@@ -249,6 +316,6 @@ describe('HomepageStars', () => {
         act(() => {
             vi.advanceTimersByTime(10000);
         });
-        expect(container.querySelector('[inert]')).toBeNull();
+        expect(container.querySelector(SKY_SELECTOR)).toBeNull();
     });
 });

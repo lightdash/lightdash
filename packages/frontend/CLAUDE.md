@@ -1,9 +1,10 @@
 ## 🎨 Frontend Style Guide
 
 **CRITICAL**: Before working on any frontend component, read
-the [Frontend Style Guide](STYLE_GUIDE.md). Key points:
+the [Frontend Style Guide](../../.cursor/rules/frontend.mdc). Key points:
 
 -   **Use Mantine v8 only** - Migrate any Mantine v6 components you encounter
+-   **Prefer Mantine components over raw HTML elements** - `Box` instead of `<div>`, `Text` instead of `<p>`/`<span>` for copy, `Group`/`Stack` for flex layouts. This applies even when mirroring existing code that uses raw elements - older files predate the rule and are not a licence to copy the pattern
 -   **Styling hierarchy**:
     1. Inline-style component props (≤3 simple layout props like `mt`, `p`, `w`)
     2. CSS modules (default choice when more than 3 inline-style props are needed or when component props aren't available)
