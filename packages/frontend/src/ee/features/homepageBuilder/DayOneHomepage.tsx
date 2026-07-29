@@ -7,6 +7,7 @@ import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { BlockHeader } from './blocks/BlockShell';
 import { ContentCard } from './blocks/ContentCard';
 import { PersonalFavoritesBar } from './blocks/FavoritesBlock';
+import { KeySpaces } from './blocks/KeySpaces';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { QuickActionCards } from './blocks/QuickActionsBlock';
 import { RecentList } from './blocks/RecentBlock';
@@ -15,6 +16,8 @@ import { getGreeting } from './greeting';
 import layout from './homepageLayout.module.css';
 import { useCollectionContent } from './hooks/useCollectionContent';
 import { useHomepageAiState } from './hooks/useHomepageAiState';
+import { useKeySpaces } from './hooks/useKeySpaces';
+import { useRecentContents } from './hooks/useRecentContents';
 
 type Props = {
     projectUuid: string;
@@ -48,9 +51,18 @@ const PinnedCollection: FC<{
     );
 };
 
+// Four fits one grid row at the page's 3-column span, which is the point: a
+// starting set, not a directory.
+const MAX_KEY_SPACES = 4;
+
 export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
     const { user } = useApp();
     const { canAskAi } = useHomepageAiState(projectUuid);
+    const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_KEY_SPACES);
+    const recent = useRecentContents(projectUuid);
+    // Keep the header while loading so the section doesn't pop in under the
+    // fold once it resolves.
+    const hasRecentlyViewed = recent.isLoading || recent.contents.length > 0;
 
     return (
         <div className={layout.page}>
@@ -99,10 +111,25 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
 
             <div className={classes.secondary}>
                 <Stack gap="xl">
-                    <Box>
-                        <BlockHeader icon={IconClock} title="Recently viewed" />
-                        <RecentList projectUuid={projectUuid} />
-                    </Box>
+                    {/* Spaces lead the body: they're the one section that has
+                        content in any real project. Recently viewed is empty
+                        for a first-time viewer and Pinned is empty until
+                        someone curates, so neither can be the thing a new
+                        viewer is sent to first. */}
+                    <KeySpaces
+                        spaces={keySpaces}
+                        projectUuid={projectUuid}
+                        title="Start here"
+                    />
+                    {hasRecentlyViewed && (
+                        <Box>
+                            <BlockHeader
+                                icon={IconClock}
+                                title="Recently viewed"
+                            />
+                            <RecentList projectUuid={projectUuid} />
+                        </Box>
+                    )}
                     <PinnedCollection
                         projectUuid={projectUuid}
                         pinnedItems={pinnedItems}

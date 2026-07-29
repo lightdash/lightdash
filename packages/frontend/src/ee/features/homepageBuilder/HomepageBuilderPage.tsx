@@ -12,6 +12,7 @@ import useApp from '../../../providers/App/useApp';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
 import { useHomepageAiState } from './hooks/useHomepageAiState';
+import { useKeySpaces } from './hooks/useKeySpaces';
 import {
     useCreateHomepageWithDraft,
     useHomepageBuilderFlag,
@@ -94,6 +95,7 @@ export const HomepageBuilderPage: FC = () => {
                         contentType: item.type,
                         uuid: item.data.uuid,
                     })),
+                    keySpaces.map((space) => space.uuid),
                 ),
             },
             { onSuccess: openHomepage },
@@ -104,6 +106,7 @@ export const HomepageBuilderPage: FC = () => {
         openHomepage,
         canAskAi,
         pinnedItems,
+        keySpaces,
     ]);
 
     if (isFlagLoading || isAiStateLoading) {
