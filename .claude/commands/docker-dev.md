@@ -779,7 +779,12 @@ fi
 If PM2 shows `MISMATCH`, delete this instance's processes first:
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+# One name per call — `pm2 delete a b c` aborts at the first name it cannot
+# find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
+# every later name running.
+for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
+done
 ```
 
 Then start:
@@ -915,7 +920,12 @@ Restart Claude Code to load the new `statusLine` command. If there's no command-
 Stop this instance's services. Shared services and other instances are not affected.
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+# One name per call — `pm2 delete a b c` aborts at the first name it cannot
+# find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
+# every later name running.
+for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
+done
 
 docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
 
@@ -933,7 +943,10 @@ Stop ALL instances, shared services, and release all port slots.
 for f in ~/.lightdash/dev-instances/*.json; do
   [ -f "$f" ] || continue
   INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
-  pm2 delete "${INST_ID}-api" "${INST_ID}-scheduler" "${INST_ID}-frontend" "${INST_ID}-common-watch" "${INST_ID}-formula-watch" "${INST_ID}-warehouses-watch" "${INST_ID}-sdk-test" "${INST_ID}-spotlight" 2>/dev/null || true
+  # One name per call — see the note under `stop`.
+  for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+    pm2 delete "${INST_ID}-${suffix}" 2>/dev/null || true
+  done
 done
 
 for f in ~/.lightdash/dev-instances/*.json; do
