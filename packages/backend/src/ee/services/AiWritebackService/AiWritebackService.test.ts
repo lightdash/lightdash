@@ -51,6 +51,7 @@ import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
     WritebackGitNotConnectedError,
+    WritebackRunAbortedError,
     WritebackThreadPrClosedError,
 } from './errors';
 
@@ -1208,7 +1209,11 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         deleteSnapshot: vi.fn().mockResolvedValue(undefined),
     };
 
-    const runService = (sandbox: AnyType) => {
+    const runService = (
+        sandbox: AnyType,
+        extraRunArgs: Record<string, AnyType> = {},
+        serviceOverrides: Record<string, AnyType> = {},
+    ) => {
         const service = buildService({
             lightdashConfig: {
                 siteUrl: 'https://app.example',
@@ -1258,12 +1263,14 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     .fn()
                     .mockResolvedValue({ pullRequestUuid: 'pr-uuid' }),
             } as AnyType,
+            ...serviceOverrides,
         });
         return service.run({
             user: permittedUser(),
             projectUuid: 'p1',
             prompt: 'add a revenue metric',
             source: 'web',
+            ...extraRunArgs,
         });
     };
 
@@ -1367,6 +1374,33 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
 
         await expect(runService(sandbox)).rejects.toThrow('exited with code 1');
         expect(createPullRequest).not.toHaveBeenCalled();
+        expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('aborts before any commit, push, or PR when the run went terminal mid-flight', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const aiWritebackRunModel = {
+            create: vi.fn(),
+            findByUuid: vi.fn().mockResolvedValue({ status: 'cancelled' }),
+            findLatestByProjectUuidAndPrUrl: vi.fn().mockResolvedValue(null),
+            updateStageIfInProgress: vi.fn().mockResolvedValue(undefined),
+            markReady: vi.fn().mockResolvedValue(true),
+            markError: vi.fn().mockResolvedValue(true),
+        } as AnyType;
+
+        await expect(
+            runService(
+                sandbox,
+                { aiWritebackRunUuid: 'run-1' },
+                { aiWritebackRunModel },
+            ),
+        ).rejects.toThrow(WritebackRunAbortedError);
+
+        expect(createPullRequest).not.toHaveBeenCalled();
+        expect(sandbox.git.commit).not.toHaveBeenCalled();
+        // A deliberate abort is not a failure: the error terminal write is skipped
+        expect(aiWritebackRunModel.markError).not.toHaveBeenCalled();
         expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
     });
 
@@ -3039,6 +3073,26 @@ describe('AiWritebackService.runPipeline', () => {
             }),
         );
     });
+
+    it('swallows a mid-run abort so the scheduler job does not retry a cancelled run', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue({
+                ai_writeback_run_uuid: 'run-1',
+                status: 'pending',
+            }),
+        } as AnyType;
+        const userModel = {
+            findSessionUserAndOrgByUuid: vi
+                .fn()
+                .mockResolvedValue({ userUuid: 'u1', organizationUuid: ORG }),
+        } as AnyType;
+        const service = buildService({ aiWritebackRunModel, userModel });
+        vi.spyOn(service, 'run').mockRejectedValue(
+            new WritebackRunAbortedError('cancelled'),
+        );
+
+        await expect(service.runPipeline(payload)).resolves.toBeUndefined();
+    });
 });
 
 describe('AiWritebackService.getRunStatus', () => {
@@ -3171,11 +3225,25 @@ describe('AiWritebackService.cancelRun', () => {
         } as AnyType;
     };
 
+    const viewOnlyUser = (): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('view', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'viewer',
+            ability: build(),
+        } as AnyType;
+    };
+
     const runRow = (overrides: Record<string, AnyType> = {}) => ({
         ai_writeback_run_uuid: 'run-1',
         organization_uuid: ORG,
         project_uuid: 'proj-1',
         status: 'agent',
+        source: 'mcp',
         pr_url: null,
         error_message: null,
         ...overrides,
@@ -3241,6 +3309,42 @@ describe('AiWritebackService.cancelRun', () => {
         await expect(
             service.cancelRun(userWithOrg(true), 'run-1'),
         ).rejects.toThrow(ForbiddenError);
+        expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenError for a view-only user — cancel requires manage:SourceCode', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(runRow()),
+            markCancelled: vi.fn(),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        await expect(
+            service.cancelRun(viewOnlyUser(), 'run-1'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundError for a non-mcp-sourced run — only tasks-surface runs are cancellable', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(runRow({ source: 'web' })),
+            markCancelled: vi.fn(),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        await expect(
+            service.cancelRun(userWithOrg(true), 'run-1'),
+        ).rejects.toThrow('not found');
         expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
     });
 });

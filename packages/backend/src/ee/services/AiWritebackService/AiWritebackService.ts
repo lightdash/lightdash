@@ -110,6 +110,7 @@ import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
     WritebackGitNotConnectedError,
+    WritebackRunAbortedError,
     WritebackThreadPrClosedError,
 } from './errors';
 import { GithubProvider } from './providers/GithubProvider';
@@ -1676,17 +1677,30 @@ export class AiWritebackService extends BaseService {
             userUuid,
             organizationUuid,
         );
-        await this.run({
-            user,
-            projectUuid: payload.projectUuid,
-            prompt: payload.prompt,
-            aiThreadUuid: payload.aiThreadUuid,
-            dbtSourceUuid: payload.dbtSourceUuid,
-            prUrl: payload.prUrl,
-            startNewPullRequest: payload.startNewPullRequest,
-            source: payload.source,
-            aiWritebackRunUuid,
-        });
+        try {
+            await this.run({
+                user,
+                projectUuid: payload.projectUuid,
+                prompt: payload.prompt,
+                aiThreadUuid: payload.aiThreadUuid,
+                dbtSourceUuid: payload.dbtSourceUuid,
+                prUrl: payload.prUrl,
+                startNewPullRequest: payload.startNewPullRequest,
+                source: payload.source,
+                aiWritebackRunUuid,
+            });
+        } catch (error) {
+            // A mid-run abort of an already-terminal run is expected after
+            // tasks/cancel — swallow it so the scheduler job doesn't retry
+            // or report a failure for a deliberate cancellation.
+            if (error instanceof WritebackRunAbortedError) {
+                this.logger.info(
+                    `AiWriteback: pipeline aborted — run ${aiWritebackRunUuid} is ${error.runStatus}`,
+                );
+                return;
+            }
+            throw error;
+        }
     }
 
     async markRunError(
@@ -1735,7 +1749,10 @@ export class AiWritebackService extends BaseService {
     private async getAuthorizedRun(
         user: SessionUser,
         aiWritebackRunUuid: string,
-    ): Promise<DbAiWritebackRun> {
+    ): Promise<{
+        runRow: DbAiWritebackRun;
+        project: Awaited<ReturnType<ProjectModel['get']>>;
+    }> {
         const runRow =
             await this.aiWritebackRunModel.findByUuid(aiWritebackRunUuid);
         if (!runRow) {
@@ -1749,11 +1766,11 @@ export class AiWritebackService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        await this.assertSourceCodeAccess({
+        const { project } = await this.assertSourceCodeAccess({
             user,
             projectUuid: runRow.project_uuid,
         });
-        return runRow;
+        return { runRow, project };
     }
 
     async getRunStatus(
@@ -1787,7 +1804,10 @@ export class AiWritebackService extends BaseService {
         createdAt: Date;
         updatedAt: Date;
     }> {
-        const runRow = await this.getAuthorizedRun(user, aiWritebackRunUuid);
+        const { runRow } = await this.getAuthorizedRun(
+            user,
+            aiWritebackRunUuid,
+        );
         return {
             status: runRow.status,
             prUrl: runRow.pr_url,
@@ -1798,17 +1818,34 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Cooperatively cancels a run. Only non-terminal runs can be cancelled —
-     * the pipeline stops at its next stage boundary (runPipeline and every
-     * stage/terminal persist helper skip terminal runs, so a cancelled run
-     * can never flip back to ready or error). When the run is already
-     * terminal, returns `cancelled: false` with the current status.
+     * Cooperatively cancels a run: flips a still-running row to 'cancelled'
+     * (all stage/terminal persist helpers skip terminal rows, so the run can
+     * never flip back to ready or error) and the pipeline aborts at its
+     * pre-push checkpoint. Sandbox work in flight may still complete, but no
+     * commit, push, or pull request is made after the checkpoint. When the
+     * run is already terminal, returns `cancelled: false` with the settled
+     * status.
+     *
+     * Only 'mcp'-sourced runs are cancellable — task handles are only issued
+     * for those; any other source reads as not found. Cancelling requires
+     * manage:SourceCode (matching run creation), stricter than the view-level
+     * tasks/get: a view-only caller can read the task but their cancel is
+     * normalized to not-found by the MCP layer.
      */
     async cancelRun(
         user: SessionUser,
         aiWritebackRunUuid: string,
     ): Promise<{ cancelled: boolean; status: AiWritebackRunStatus }> {
-        const runRow = await this.getAuthorizedRun(user, aiWritebackRunUuid);
+        const { runRow, project } = await this.getAuthorizedRun(
+            user,
+            aiWritebackRunUuid,
+        );
+        if (runRow.source !== 'mcp') {
+            throw new NotFoundError(
+                `Writeback run ${aiWritebackRunUuid} not found`,
+            );
+        }
+        this.assertCanManageSourceCode(user, project, runRow.project_uuid);
         const cancelled =
             await this.aiWritebackRunModel.markCancelled(aiWritebackRunUuid);
         if (cancelled) {
@@ -2214,6 +2251,20 @@ export class AiWritebackService extends BaseService {
                 );
             }
 
+            // Cancellation checkpoint: last point before any external side
+            // effect (commit/push/PR all happen inside applyAgentChanges). A
+            // run cancelled — or swept to error — while the agent worked must
+            // not open a pull request its caller will never hear about.
+            if (aiWritebackRunUuid) {
+                const liveRow =
+                    await this.aiWritebackRunModel.findByUuid(
+                        aiWritebackRunUuid,
+                    );
+                if (liveRow && !isAiWritebackRunInProgress(liveRow.status)) {
+                    throw new WritebackRunAbortedError(liveRow.status);
+                }
+            }
+
             const applied = await this.applyAgentChanges({
                 sandbox,
                 sandboxUuid,
@@ -2277,6 +2328,25 @@ export class AiWritebackService extends BaseService {
                 dbtSourceUuid: turn.projectDbtSourceUuid,
             };
         } catch (error) {
+            // A deliberate abort of an already-terminal run is not a failure:
+            // keep it out of Sentry, error metrics, and failure analytics.
+            if (error instanceof WritebackRunAbortedError) {
+                this.logger.info(
+                    'AI writeback run aborted — run already terminal',
+                    {
+                        event: 'ai_writeback.run.aborted',
+                        source,
+                        projectUuid,
+                        aiThreadUuid: aiThreadUuid ?? null,
+                        sandboxId: sandbox?.sandboxId ?? null,
+                        runStatus: error.runStatus,
+                        totalDurationMs: Math.round(
+                            performance.now() - runStartedAt,
+                        ),
+                    },
+                );
+                throw error;
+            }
             this.logger.error('AI writeback run failed', {
                 event: 'ai_writeback.run.failed',
                 source,

@@ -400,5 +400,15 @@ describe('McpService AI writeback MCP tasks', () => {
 
             await expect(cancelTask(runUuid)).rejects.toThrow('not found');
         });
+
+        it('normalizes authorization failures to the identical task-not-found error', async () => {
+            const cancelRun = vi.fn().mockRejectedValue(new ForbiddenError());
+            await createServerWithWriteback({ cancelRun });
+
+            await expect(cancelTask(runUuid)).rejects.toThrow(McpError);
+            await expect(cancelTask(runUuid)).rejects.toThrow(
+                `Task ${runUuid} not found`,
+            );
+        });
     });
 });
