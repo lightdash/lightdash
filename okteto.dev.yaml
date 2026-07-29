@@ -16,6 +16,10 @@ deploy:
               # from a snapshot keeps the password it was initialised with
               echo "PGPASSWORD=not-very-secret-preview-db" >> "$OKTETO_ENV"
 
+              # Retire the old workload without deleting its persistent data.
+              kubectl delete statefulset db-dev --ignore-not-found --wait
+              kubectl delete deployment db-dev --ignore-not-found --wait
+
               # Boot the database from the newest pre-seeded snapshot so the
               # environment starts with demo data and no migrate/seed wait.
               # Only on first deploy: the volume is kept afterwards.
