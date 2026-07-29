@@ -932,7 +932,6 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
         trigger: 'invite_expert';
         onboardingFlow: OnboardingFlow;
         catalogIndexErrorType: string | null;
-        homepageBuilderEnablement: HomepageBuilderEnablement;
         codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
     };
 };

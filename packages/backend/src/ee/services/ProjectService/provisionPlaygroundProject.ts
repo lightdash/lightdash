@@ -1,5 +1,4 @@
 import {
-    CommercialFeatureFlags,
     DbtProjectType,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
@@ -21,7 +20,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import {
     type CodingAgentOnboardingEnablement,
-    type HomepageBuilderEnablement,
     type LightdashAnalytics,
     type OnboardingFlow,
     type PlaygroundProjectSkippedReason,
@@ -202,30 +200,6 @@ export const provisionPlaygroundProject = async ({
                     validatePlaygroundDatabase,
                 );
 
-                // Before project creation so the onProjectCreated hook sees
-                // the flag when provisioning the onboarding homepage.
-                let homepageBuilderEnablement: HomepageBuilderEnablement;
-                try {
-                    homepageBuilderEnablement =
-                        await featureFlagService.ensureOrganizationOverrideEnabled(
-                            {
-                                user,
-                                featureFlagId:
-                                    CommercialFeatureFlags.HomepageBuilder,
-                            },
-                        );
-                } catch (error) {
-                    Sentry.captureException(error);
-                    Logger.error(
-                        `Failed to enable homepage builder for organization ${organizationUuid}: ${
-                            error instanceof Error
-                                ? error.message
-                                : String(error)
-                        }`,
-                    );
-                    homepageBuilderEnablement = 'failed';
-                }
-
                 let codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
                 try {
                     codingAgentOnboardingEnablement =
@@ -316,7 +290,6 @@ export const provisionPlaygroundProject = async ({
                         trigger: 'invite_expert',
                         onboardingFlow,
                         catalogIndexErrorType,
-                        homepageBuilderEnablement,
                         codingAgentOnboardingEnablement,
                     },
                 });
