@@ -95,9 +95,10 @@ export const MainNavBarContent: FC<Props> = ({
                         )}
 
                     <ProjectSwitcher />
+
+                    <UserCredentialsSwitcher />
                 </Button.Group>
 
-                <UserCredentialsSwitcher />
                 <UserMenu />
             </Group>
         </>
