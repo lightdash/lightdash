@@ -21,8 +21,8 @@ const HERO_COMPANION_TYPES: HomepageBlock['type'][] = ['quick-actions'];
 export type RowGap = 'none' | 'grouped' | 'section';
 
 // 'viewport' = the hero is the only content, centred in the full viewport
-// (day-0 feel). 'shared' = body rows follow, so the hero yields part of the
-// viewport and the first row peeks above the fold.
+// (day-0 feel). 'shared' = body rows follow, so the hero sizes to its content
+// instead of reserving viewport height that would push the body down.
 export type HeroPresentation = 'viewport' | 'shared';
 
 // 'intro' = a lone leading text block that opens the page and gets breathing
@@ -359,7 +359,7 @@ export const resolveHomepageLayout = (
     const smoothed = applyRowAlign(applyItemSpans(smoothWidthTiers(resolved)));
     const rows = hasLeadingHero ? smoothed : applyIntroRole(smoothed);
     // A hero keeps the whole viewport only when it's alone; with body rows it
-    // yields so the first row peeks above the fold.
+    // yields so the body isn't pushed down.
     const hero = hasLeadingHero
         ? {
               companions: visibleRows

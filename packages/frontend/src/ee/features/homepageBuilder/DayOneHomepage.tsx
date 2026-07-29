@@ -57,8 +57,8 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
             {/* Same favourites strip the published homepage puts above its
                 blocks — day-0 opens the same way */}
             <PersonalFavoritesBar projectUuid={projectUuid} />
-            {/* Body rows always follow, so the hero yields part of the
-                viewport and Recently viewed peeks above the fold */}
+            {/* Body rows always follow, so the hero sizes to its content and
+                Recently viewed stays close behind it */}
             <div className={layout.heroSection} data-presentation="shared">
                 {canAskAi ? (
                     <div className={layout.hero}>

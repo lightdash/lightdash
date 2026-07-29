@@ -42,16 +42,17 @@
     );
 }
 
-/* Fold-aware hero: when body rows follow, the hero yields part of the
- * viewport so the first row just peeks above the fold — the composer owns
- * the opening view and the body starts clearly below it. Solo heroes — and
- * day-0, which never stamps the attribute — keep the full-viewport treatment
- * above. The favBar variant is repeated so it can't win the specificity
- * contest. */
+/* When body rows follow, the hero sizes to its content instead of reserving a
+ * slice of the viewport: a leading composer that reserved 66vh centred itself
+ * in it, pushing the rest of the page below the fold behind a band of empty
+ * space. Solo heroes — and day-0, which never stamps the attribute — keep the
+ * full-viewport treatment above. The favBar variant is repeated so it can't
+ * win the specificity contest. */
 .heroSection[data-presentation='shared'],
 .page:has(.favBar) .heroSection[data-presentation='shared'] {
-    min-height: 66vh;
-    padding-bottom: 32px;
+    min-height: 0;
+    padding-top: 24px;
+    padding-bottom: 40px;
 }
 
 .favBar {
