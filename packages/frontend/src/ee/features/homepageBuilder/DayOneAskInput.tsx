@@ -73,6 +73,13 @@ const useAiRouterEnabledFromCache = (): boolean | undefined => {
     return enabled;
 };
 
+// Two chips, not the full generated set. On the homepage the composer is the
+// opening view and the chips are a hint at what it can do — five of them read
+// as a menu to work through, and they cost more vertical space than the
+// composer itself, pushing curated content under the fold. The thread page
+// still shows the full set, where there's nothing below to protect.
+const HOMEPAGE_SUGGESTION_LIMIT = 2;
+
 // The chips come from an LLM generation, so on a cold view they land a second
 // or two after the composer. The row reserves one chip-line of height while
 // loading so their arrival never shoves the greeting/composer up; the chips
@@ -285,7 +292,12 @@ const DayOneAskInputInner: FC<Props> = ({
         submitPrompt(chip.label, [chip.tool]);
     };
 
-    const chips = suggestionsQuery.data?.chips ?? [];
+    // Sliced at the source so the impression/click analytics count what the
+    // viewer actually saw.
+    const chips = (suggestionsQuery.data?.chips ?? []).slice(
+        0,
+        HOMEPAGE_SUGGESTION_LIMIT,
+    );
     const impressionFiredRef = useRef(false);
     useEffect(() => {
         if (impressionFiredRef.current) return;

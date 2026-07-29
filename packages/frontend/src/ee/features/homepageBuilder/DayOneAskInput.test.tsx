@@ -1,9 +1,9 @@
 import { MantineProvider } from '@mantine-8/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { type ComponentProps } from 'react';
 import type * as ReactRouter from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatInput';
 import { DayOneAskInput } from './DayOneAskInput';
 
@@ -82,11 +82,19 @@ vi.mock(
     }),
 );
 
+const { suggestionsState } = vi.hoisted(() => ({
+    suggestionsState: {
+        current: { data: undefined, isLoading: false } as {
+            data:
+                | { chips: { kind: 'prompt'; label: string; tool: string }[] }
+                | undefined;
+            isLoading: boolean;
+        },
+    },
+}));
+
 vi.mock('../aiCopilot/hooks/useAgentSuggestions', () => ({
-    useAgentSuggestions: () => ({
-        data: undefined,
-        isLoading: false,
-    }),
+    useAgentSuggestions: () => suggestionsState.current,
 }));
 
 vi.mock('../aiCopilot/hooks/useAiAgentPermission', () => ({
@@ -157,6 +165,57 @@ const renderInput = (routerEnabled = false) => {
         </MantineProvider>,
     );
 };
+
+const renderWithSuggestions = (labels: string[]) => {
+    suggestionsState.current = {
+        data: {
+            chips: labels.map((label) => ({
+                kind: 'prompt' as const,
+                label,
+                tool: 'generateQuery',
+            })),
+        },
+        isLoading: false,
+    };
+    const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(['ai-router'], { enabled: false });
+    return render(
+        <MantineProvider>
+            <QueryClientProvider client={queryClient}>
+                <DayOneAskInput projectUuid="project-1" />
+            </QueryClientProvider>
+        </MantineProvider>,
+    );
+};
+
+describe('DayOneAskInput suggestion chips', () => {
+    afterEach(() => {
+        suggestionsState.current = { data: undefined, isLoading: false };
+    });
+
+    it('shows at most two chips on the homepage, however many are generated', () => {
+        renderWithSuggestions([
+            'First suggestion',
+            'Second suggestion',
+            'Third suggestion',
+            'Fourth suggestion',
+            'Fifth suggestion',
+        ]);
+
+        expect(screen.getAllByRole('button')).toHaveLength(2);
+        expect(screen.getByText('First suggestion')).toBeInTheDocument();
+        expect(screen.getByText('Second suggestion')).toBeInTheDocument();
+        expect(screen.queryByText('Third suggestion')).not.toBeInTheDocument();
+    });
+
+    it('shows a single chip without padding the row', () => {
+        renderWithSuggestions(['Only suggestion']);
+
+        expect(screen.getAllByRole('button')).toHaveLength(1);
+    });
+});
 
 describe('DayOneAskInput', () => {
     beforeEach(() => {
