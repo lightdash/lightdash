@@ -188,7 +188,7 @@ const addAttributeThroughUi = async (
     value: string,
 ) => {
     await page.goto(settingsPath, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('button', { name: 'Add new attribute' }).click();
+    await page.getByRole('button', { name: 'Add attribute' }).click();
 
     const modal = page.getByRole('dialog', {
         name: 'Add user attribute',

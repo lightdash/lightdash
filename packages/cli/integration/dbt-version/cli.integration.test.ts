@@ -479,9 +479,8 @@ describe.sequential('CLI dbt versions', () => {
     it('Should throw error on lightdash compile', async () => {
         const result = await runCli(
             'compile',
-            ['-m', 'orders'],
+            ['-m', 'orders', '--no-partial-compilation'],
             SELECTED_PROJECT_TIMEOUT_MS,
-            { PARTIAL_COMPILATION_ENABLED: 'false' },
         );
         if (result.timedOut || result.exitCode !== 1) {
             throw new Error(

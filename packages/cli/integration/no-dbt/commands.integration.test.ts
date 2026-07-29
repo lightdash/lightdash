@@ -224,6 +224,18 @@ describe.sequential('CLI commands', () => {
         });
     });
 
+    test('prints a semantic version', async () => {
+        await withTemporaryRoot(async (temporaryRoot) => {
+            const result = await runCli(
+                'lightdash --version',
+                ['--version'],
+                temporaryRoot,
+            );
+
+            expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+        });
+    });
+
     test('logs in with a token and persists the server URL', async () => {
         await withTemporaryRoot(async (temporaryRoot) => {
             const cookie = await getSessionCookie();
