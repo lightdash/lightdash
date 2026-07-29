@@ -117,6 +117,7 @@ export const PublishedHomepage: FC<Props> = ({
                 <div
                     className={layout.heroSection}
                     data-presentation={hero.presentation}
+                    data-density={hero.density}
                 >
                     {hero.companions.length > 0 && (
                         <div className={layout.heroCompanions}>

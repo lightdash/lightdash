@@ -26,11 +26,14 @@
 }
 
 .heroSection {
-    min-height: calc(100vh - var(--navbar-height) - 72px);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    /* Full-viewport opening by default: a surface that doesn't declare a
+     * density (the no-project page) keeps the treatment it always had, and
+     * `compact` below opts out explicitly. */
+    min-height: calc(100vh - var(--navbar-height) - 72px);
 }
 
 /* When the fav-bar is actually rendered above the hero, subtract its footprint
@@ -42,16 +45,55 @@
     );
 }
 
-/* Fold-aware hero: when body rows follow, the hero yields part of the
- * viewport so the first row just peeks above the fold — the composer owns
- * the opening view and the body starts clearly below it. Solo heroes — and
- * day-0, which never stamps the attribute — keep the full-viewport treatment
- * above. The favBar variant is repeated so it can't win the specificity
- * contest. */
-.heroSection[data-presentation='shared'],
-.page:has(.favBar) .heroSection[data-presentation='shared'] {
+/* `full` density sharing the page with body rows: the hero yields a third of
+ * the viewport so the first row peeks above the fold. The favBar variant is
+ * repeated so it can't win the specificity contest. */
+.heroSection[data-density='full'][data-presentation='shared'],
+.page:has(.favBar)
+    .heroSection[data-density='full'][data-presentation='shared'] {
     min-height: 66vh;
     padding-bottom: 32px;
+}
+
+/* `compact` density — the default whenever body rows follow. The hero is
+ * exactly as tall as the greeting + composer + chips inside it, plus the
+ * page's section rhythm below, so what the admin curated is on screen instead
+ * of under the fold. No reserved viewport share, no vertical centring: with
+ * content below, "centred in dead space" is the bug, not the feature.
+ * Repeated with the favBar ancestor so it beats the rule above. */
+.heroSection[data-density='compact'],
+.page:has(.favBar) .heroSection[data-density='compact'] {
+    min-height: 0;
+    justify-content: flex-start;
+    padding-top: 32px;
+    padding-bottom: 56px;
+}
+
+/* With no favourites bar above it the greeting is the first thing on the page,
+ * and sitting it 32px under the navbar reads as cramped rather than as an
+ * opening. The bar removes itself when empty (see FavoritesBlock), so :has is
+ * a reliable signal for "nothing above the hero". */
+.page:not(:has(.favBar)) .heroSection[data-density='compact'] {
+    padding-top: 64px;
+}
+
+/* The day-part greeting, shared by every surface that opens with one — the AI
+ * hero, the standalone greeting block, day-0's non-AI opening and the
+ * no-project page — so they can't drift apart at four different sizes. */
+.heroGreeting {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 0;
+    text-align: center;
+}
+
+.heroGreetingSub {
+    font-size: 15px;
+    margin-top: 8px;
+    color: var(--mantine-color-dimmed);
+    text-align: center;
 }
 
 .favBar {

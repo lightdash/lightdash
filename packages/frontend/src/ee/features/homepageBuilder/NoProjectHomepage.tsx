@@ -57,15 +57,7 @@ const NoProjectHomepage: FC = () => {
                 <HomepageStars />
                 <Box className={`${layout.hero} ${layout.heroStageContent}`}>
                     <Stack gap={16} align="center" w="100%">
-                        <Text
-                            component="h1"
-                            fz={23}
-                            fw={600}
-                            lts="-0.02em"
-                            lh={1.2}
-                            ta="center"
-                            m={0}
-                        >
+                        <Text component="h1" className={layout.heroGreeting}>
                             {getGreeting(user.data?.firstName)}.
                         </Text>
                         {isCopilotEnabled ? (

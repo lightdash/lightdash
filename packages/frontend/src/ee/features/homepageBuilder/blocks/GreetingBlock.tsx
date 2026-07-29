@@ -2,6 +2,8 @@ import { Box, Stack, Text, TextInput } from '@mantine-8/core';
 import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { getGreeting } from '../greeting';
+import layout from '../homepageLayout.module.css';
+import { HeroDensityControl } from './AskAiHeroBlock';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 // Same type scale as the day-0 opening, so a greeting-led homepage and day-0
@@ -10,13 +12,11 @@ const Greeting: FC<{ subtitle: string }> = ({ subtitle }) => {
     const { user } = useApp();
     return (
         <Box ta="center">
-            <Text component="h1" fz={23} fw={600} lts="-0.02em" lh={1.2} m={0}>
+            <Text component="h1" className={layout.heroGreeting}>
                 {getGreeting(user.data?.firstName)}
             </Text>
             {subtitle.trim() ? (
-                <Text c="dimmed" fz={15} mt={8}>
-                    {subtitle}
-                </Text>
+                <Text className={layout.heroGreetingSub}>{subtitle}</Text>
             ) : null}
         </Box>
     );
@@ -43,8 +43,17 @@ export const GreetingBlockBuild: FC<BuildComponentProps> = ({
                 onChange={(e) =>
                     onChange({
                         ...block,
-                        config: { subtitle: e.currentTarget.value },
+                        config: {
+                            ...block.config,
+                            subtitle: e.currentTarget.value,
+                        },
                     })
+                }
+            />
+            <HeroDensityControl
+                value={block.config.density}
+                onChange={(density) =>
+                    onChange({ ...block, config: { ...block.config, density } })
                 }
             />
         </Stack>
