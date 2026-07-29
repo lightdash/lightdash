@@ -145,6 +145,22 @@ export const projectNotFoundMessage = (args: {
 }): string =>
     `Project ${args.projectUuid} was not found on ${args.serverUrl} (or you don't have access). This app belongs to a different project or instance than the one you're logged into — run 'lightdash login <url>' for the server the app was downloaded from, or pass --project to preview against another project.`;
 
+// Ctrl-C is the documented way to stop the dev server, so an interrupted child
+// is a normal exit rather than a crash to report. The runner may either die
+// from the signal or translate it into the conventional 128+signal exit code.
+const isUserStoppedDevServer = (error: unknown): boolean => {
+    if (!(error instanceof Error)) {
+        return false;
+    }
+    const { signal, exitCode } = error as execa.ExecaError;
+    return (
+        signal === 'SIGINT' ||
+        signal === 'SIGTERM' ||
+        exitCode === 130 ||
+        exitCode === 143
+    );
+};
+
 type AppsPreviewOptions = {
     project?: string;
     url?: string;
@@ -268,6 +284,11 @@ export const appsPreviewHandler = async (
                 proxyNonce,
             }),
         });
+    } catch (e) {
+        if (!isUserStoppedDevServer(e)) {
+            throw e;
+        }
+        GlobalState.log('Preview stopped.');
     } finally {
         await proxy.close();
     }
