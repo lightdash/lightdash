@@ -49165,6 +49165,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                parameters: { ref: 'ParametersValuesMap' },
                 selectedTabs: {
                     dataType: 'union',
                     subSchemas: [

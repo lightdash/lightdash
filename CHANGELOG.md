@@ -1,3 +1,10 @@
+## [1.22.1](https://github.com/lightdash/lightdash/compare/1.22.0...1.22.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* **dashboards:** apply the current parameter values when exporting ([#26399](https://github.com/lightdash/lightdash/issues/26399)) ([4e90f5e](https://github.com/lightdash/lightdash/commit/4e90f5ea9642ea17ca720f7f676b4470996880b9))
+
 # [1.22.0](https://github.com/lightdash/lightdash/compare/1.21.0...1.22.0) (2026-07-29)
 
 
