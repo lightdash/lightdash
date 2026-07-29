@@ -38009,6 +38009,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['sweepStaleAiDeepResearchRuns'] },
                 { dataType: 'enum', enums: ['sweepAiAgentMemoryThreads'] },
                 { dataType: 'enum', enums: ['aiAgentMemoryDistill'] },
+                { dataType: 'enum', enums: ['consolidateAiAgentMemories'] },
                 { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
                 { dataType: 'enum', enums: ['handleScheduledDelivery'] },
                 { dataType: 'enum', enums: ['sendSlackNotification'] },

@@ -1,3 +1,11 @@
+# [1.25.0](https://github.com/lightdash/lightdash/compare/1.24.0...1.25.0) (2026-07-29)
+
+
+### Features
+
+* **apps:** add org-wide data app activity page ([#26415](https://github.com/lightdash/lightdash/issues/26415)) ([7592465](https://github.com/lightdash/lightdash/commit/7592465b51f09b851cda751878939989c77b9fe8))
+* daily AI agent memory consolidation pass ([#26292](https://github.com/lightdash/lightdash/issues/26292)) ([9ce88f9](https://github.com/lightdash/lightdash/commit/9ce88f9520247bae1b3321e7659f7efc1ced75e1)), closes [#26284](https://github.com/lightdash/lightdash/issues/26284)
+
 # [1.24.0](https://github.com/lightdash/lightdash/compare/1.23.2...1.24.0) (2026-07-29)
 
 
