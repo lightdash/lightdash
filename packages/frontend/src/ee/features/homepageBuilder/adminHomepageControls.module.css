@@ -8,10 +8,6 @@
     gap: 8px;
 }
 
-.deepResearchTarget {
-    display: contents;
-}
-
 .tbBtn {
     border: 1px solid var(--mantine-color-ldGray-2);
     background: light-dark(#fff, var(--mantine-color-dark-6));

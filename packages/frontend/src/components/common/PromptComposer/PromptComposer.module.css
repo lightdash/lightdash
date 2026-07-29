@@ -335,6 +335,7 @@
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    gap: rem(4px);
 }
 
 @media (max-width: 48em) {

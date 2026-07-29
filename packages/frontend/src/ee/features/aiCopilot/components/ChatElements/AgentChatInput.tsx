@@ -22,7 +22,6 @@ import {
 import Mention from '@tiptap/extension-mention';
 import { type AnyExtension, type Editor } from '@tiptap/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
@@ -123,12 +122,6 @@ interface AgentChatInputProps {
     revealAgentSelectorOnFocus?: boolean;
     // Shrinks padding/min-heights for a more compact composer.
     dense?: boolean;
-    deepResearchControlPlacement?: 'composer' | 'page_header';
-    deepResearchControlVariant?: 'default' | 'compact';
-    deepResearchControlClassNames?: {
-        root?: string;
-        label?: string;
-    };
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -174,9 +167,6 @@ export const AgentChatInput = ({
     contentMentionPriorityItems = [],
     revealAgentSelectorOnFocus = false,
     dense = false,
-    deepResearchControlPlacement = 'composer',
-    deepResearchControlVariant = 'default',
-    deepResearchControlClassNames,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -189,8 +179,6 @@ export const AgentChatInput = ({
     const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
     const [deepResearchDepth, setDeepResearchDepth] =
         useState<DeepResearchDepth>('standard');
-    const [deepResearchHeaderTarget, setDeepResearchHeaderTarget] =
-        useState<Element | null>(null);
     const navigate = useNavigate();
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;
@@ -213,17 +201,6 @@ export const AgentChatInput = ({
     // it loads), never submit, so we guard on this in addition to the plugin's
     // `active` flag — which can read stale in the keydown vs async-items race.
     const contentMentionPopupOpenRef = useRef(false);
-
-    useEffect(() => {
-        if (deepResearchControlPlacement !== 'page_header') {
-            setDeepResearchHeaderTarget(null);
-            return;
-        }
-
-        setDeepResearchHeaderTarget(
-            document.querySelector('[data-deep-research-control-target]'),
-        );
-    }, [deepResearchControlPlacement]);
 
     // Hide the chip strip while the user is scrolled away from the input.
     // Reappears as they scroll back toward the bottom of the thread — chips
@@ -576,14 +553,9 @@ export const AgentChatInput = ({
         <DeepResearchModeControl
             mode={composerMode}
             onModeChange={setComposerMode}
-            variant={deepResearchControlVariant}
-            classNames={deepResearchControlClassNames}
         />
     ) : null;
-    const deepResearchControl =
-        deepResearchControlPlacement === 'composer'
-            ? deepResearchControlElement
-            : null;
+    const deepResearchControl = deepResearchControlElement;
     const deepResearchPreflight =
         composerMode === 'deep_research' && canStartDeepResearch ? (
             <DeepResearchPreflight
@@ -596,13 +568,6 @@ export const AgentChatInput = ({
                 mcpServerError={mcpServerError}
             />
         ) : null;
-    const deepResearchControlPortal =
-        deepResearchControlElement &&
-        deepResearchControlPlacement === 'page_header' &&
-        deepResearchHeaderTarget
-            ? createPortal(deepResearchControlElement, deepResearchHeaderTarget)
-            : null;
-
     const chipRow = useMemo(() => {
         if (composerMode === 'deep_research') return null;
         if (!emptyStateMode && !postResponseMode) return null;
@@ -788,7 +753,6 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
-                {deepResearchControlPortal}
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
@@ -796,6 +760,7 @@ export const AgentChatInput = ({
                         {...composerCommonProps}
                         variant="inline"
                         header={renderComposerHeader(true)}
+                        toolbarLeft={deepResearchControl}
                         toolbarRight={renderComposerAction('sm')}
                     />
                     {deepResearchPreflight}
@@ -803,19 +768,10 @@ export const AgentChatInput = ({
 
                 {showSqlModeControl && (
                     <Box className={styles.threadBelowControls}>
-                        <Group gap="xs">
-                            {deepResearchControl}
-                            {renderSqlModeControl({
-                                actionSize: 'sm',
-                                iconSize: 14,
-                            })}
-                        </Group>
-                    </Box>
-                )}
-
-                {!showSqlModeControl && deepResearchControl && (
-                    <Box className={styles.threadBelowControls}>
-                        {deepResearchControl}
+                        {renderSqlModeControl({
+                            actionSize: 'sm',
+                            iconSize: 14,
+                        })}
                     </Box>
                 )}
 
@@ -842,7 +798,6 @@ export const AgentChatInput = ({
             }`}
             data-dense={dense}
         >
-            {deepResearchControlPortal}
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
             <PromptComposer
@@ -853,15 +808,14 @@ export const AgentChatInput = ({
                 onMouseDown={handleInputCardMouseDown}
                 header={renderComposerHeader(false)}
                 toolbarLeft={
-                    !isThreadInput && (
-                        <>
-                            {deepResearchControl}
-                            {renderSqlModeControl({
+                    <>
+                        {deepResearchControl}
+                        {!isThreadInput &&
+                            renderSqlModeControl({
                                 actionSize: 30,
                                 iconSize: 15,
                             })}
-                        </>
-                    )
+                    </>
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
@@ -906,16 +860,12 @@ export const AgentChatInput = ({
             {deepResearchPreflight}
 
             {isThreadInput
-                ? (showSqlModeControl || deepResearchControl) && (
+                ? showSqlModeControl && (
                       <Box className={styles.threadBelowControls}>
-                          <Group gap="xs">
-                              {deepResearchControl}
-                              {showSqlModeControl &&
-                                  renderSqlModeControl({
-                                      actionSize: 'sm',
-                                      iconSize: 14,
-                                  })}
-                          </Group>
+                          {renderSqlModeControl({
+                              actionSize: 'sm',
+                              iconSize: 14,
+                          })}
                       </Box>
                   )
                 : renderChipRow(

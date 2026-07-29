@@ -250,8 +250,9 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 )}
 
                 {isInline
-                    ? toolbarRight && (
+                    ? (toolbarLeft || toolbarRight) && (
                           <Box className={classes.inlineActions}>
+                              {toolbarLeft}
                               {toolbarRight}
                           </Box>
                       )

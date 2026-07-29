@@ -66,7 +66,7 @@ describe('AgentChatInput Deep research mode', () => {
         expect(
             screen.getByRole('region', { name: 'Deep research settings' }),
         ).toBeInTheDocument();
-        expect(screen.getAllByText('Beta')).toHaveLength(2);
+        expect(screen.getAllByText('Beta')).toHaveLength(1);
         expect(
             screen.queryByRole('button', { name: 'Send message' }),
         ).not.toBeInTheDocument();
@@ -179,6 +179,83 @@ describe('AgentChatInput Deep research mode', () => {
         expect(
             screen.queryByRole('button', { name: 'Deep research' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('is unavailable when the feature is disabled', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AgentChatInput
+                        onSubmit={vi.fn()}
+                        projectUuid="project-1"
+                        agentUuid="agent-1"
+                        defaultValue="Investigate churn"
+                        showSuggestions={false}
+                    />
+                </MemoryRouter>
+            </Provider>,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Deep research' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', {
+                name: 'Deep research settings',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('keeps the chip inside the card composer action row', () => {
+        const agent = {
+            uuid: 'agent-1',
+            name: 'Data agent',
+            imageUrl: null,
+            adminOnly: false,
+        };
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AgentChatInput
+                        onSubmit={vi.fn()}
+                        onStartDeepResearch={vi.fn()}
+                        projectUuid="project-1"
+                        agentUuid="agent-1"
+                        agents={[agent]}
+                        selectedAgent={agent}
+                        showSuggestions={false}
+                    />
+                </MemoryRouter>
+            </Provider>,
+        );
+
+        const control = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        expect(control.closest('[data-variant="card"]')).toBeInTheDocument();
+    });
+
+    it('keeps the chip inside the inline thread composer action row', () => {
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <AgentChatInput
+                        onSubmit={vi.fn()}
+                        onStartDeepResearch={vi.fn()}
+                        projectUuid="project-1"
+                        agentUuid="agent-1"
+                        threadUuid="thread-1"
+                        messageCount={1}
+                        showSuggestions={false}
+                    />
+                </MemoryRouter>
+            </Provider>,
+        );
+
+        const control = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        expect(control.closest('[data-variant="inline"]')).toBeInTheDocument();
     });
 
     it('submits the exact per-run MCP selection', async () => {

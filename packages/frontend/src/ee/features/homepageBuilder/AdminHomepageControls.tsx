@@ -60,10 +60,6 @@ export const AdminHomepageControls: FC<Props> = ({
                     </span>
                 </button>
             </Can>
-            <div
-                className={classes.deepResearchTarget}
-                data-deep-research-control-target
-            />
         </div>
     );
 };

@@ -33,9 +33,12 @@ describe('DeepResearchModeControl', () => {
     it('keeps Ask as the unchanged default mode', () => {
         renderWithProviders(<ModeHarness />);
 
-        expect(
-            screen.getByRole('button', { name: 'Deep research' }),
-        ).toHaveAttribute('aria-pressed', 'false');
+        const modeButton = screen.getByRole('button', {
+            name: 'Deep research',
+        });
+        expect(modeButton).toHaveAttribute('aria-pressed', 'false');
+        expect(modeButton).toHaveAttribute('data-size', 'compact-xs');
+        expect(screen.queryByText('Beta')).not.toBeInTheDocument();
         expect(
             screen.queryByRole('region', {
                 name: 'Deep research settings',
@@ -77,24 +80,5 @@ describe('DeepResearchModeControl', () => {
                 name: 'Deep research settings',
             }),
         ).not.toBeInTheDocument();
-    });
-
-    it('renders the compact control with reusable toolbar classes', () => {
-        renderWithProviders(
-            <DeepResearchModeControl
-                mode="ask"
-                onModeChange={() => undefined}
-                variant="compact"
-                classNames={{ root: 'toolbar', label: 'toolbar-label' }}
-            />,
-        );
-
-        const control = screen.getByRole('button', {
-            name: 'Deep research',
-        });
-        expect(control).toHaveClass('toolbar');
-        expect(control.querySelector('.toolbar-label')).toHaveTextContent(
-            'Deep research',
-        );
     });
 });
