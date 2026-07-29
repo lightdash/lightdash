@@ -154,6 +154,86 @@ describe('ResourcesBlockView', () => {
         });
     });
 
+    describe('list layout scan hierarchy', () => {
+        it('carries kind in the leading glyph, not a trailing pill', () => {
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({
+                        layout: 'list',
+                        items: [
+                            {
+                                url: 'https://example.com/handbook',
+                                kind: 'doc' as const,
+                                title: 'How we define revenue',
+                                description: 'Metric definitions',
+                            },
+                        ],
+                    })}
+                />,
+            );
+            expect(
+                screen.getByText('How we define revenue'),
+            ).toBeInTheDocument();
+            // The pill repeated what the glyph already says, from the far edge.
+            expect(screen.queryByText('Doc')).not.toBeInTheDocument();
+        });
+
+        it('uses one monochrome glyph family — no hero images, no brand favicons', () => {
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({
+                        layout: 'list',
+                        items: [
+                            {
+                                url: 'https://www.youtube.com/watch?v=abc',
+                                kind: 'youtube' as const,
+                                title: 'Reading the funnel report',
+                                imageUrl: 'https://i.ytimg.com/vi/abc/hq.jpg',
+                            },
+                            {
+                                url: 'https://example.com/handbook',
+                                kind: 'doc' as const,
+                                title: 'How we define revenue',
+                            },
+                        ],
+                    })}
+                />,
+            );
+            // A cropped 16:9 still is a smudge at 34px, and a saturated brand
+            // favicon is a hotspot in a row of grey glyphs. Every row gets the
+            // same neutral square instead.
+            expect(screen.queryAllByRole('img')).toHaveLength(0);
+        });
+
+        it('still shows a hero image in the card layout', () => {
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({
+                        layout: 'card',
+                        items: [
+                            {
+                                url: 'https://www.youtube.com/watch?v=abc',
+                                kind: 'youtube' as const,
+                                title: 'Reading the funnel report',
+                                imageUrl: 'https://i.ytimg.com/vi/abc/hq.jpg',
+                            },
+                        ],
+                    })}
+                />,
+            );
+            expect(screen.getByRole('img')).toHaveAttribute(
+                'src',
+                'https://i.ytimg.com/vi/abc/hq.jpg',
+            );
+        });
+    });
+
     it('renders nothing when there are no items', () => {
         wrap(
             <ResourcesBlockView

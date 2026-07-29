@@ -216,42 +216,19 @@ const CardThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
         <UrlCardThumb item={item} />
     );
 
-const UrlRowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
-    const [imgFailed, setImgFailed] = useState(false);
-    const [faviconFailed, setFaviconFailed] = useState(false);
-    const imageUrl = safeImageUrl(item.imageUrl);
-    if (imageUrl && item.kind !== 'claude' && !imgFailed) {
-        return (
-            <div className={classes.rowThumb}>
-                <img
-                    src={imageUrl}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setImgFailed(true)}
-                />
-            </div>
-        );
-    }
-    const favicon = faviconUrl(item.url);
-    if (favicon && !faviconFailed) {
-        return (
-            <div className={`${classes.rowThumb} ${classes.rowThumbFallback}`}>
-                <img
-                    className={classes.rowFavicon}
-                    src={favicon}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setFaviconFailed(true)}
-                    onLoad={(e) => {
-                        if (isDefaultFavicon(e.currentTarget))
-                            setFaviconFailed(true);
-                    }}
-                />
-            </div>
-        );
-    }
-    return <IconSquare icon={kindMeta(item.kind).icon} />;
-};
+// One glyph family for the whole dense list: the monochrome kind icon in a
+// neutral square, every row identical in weight and colour.
+//
+// Not a hero image — a 16:9 still cropped to 34px is a smudge, not an
+// identifier. And not a favicon either: a saturated brand tile (YouTube's red
+// is the worst offender) is a hotspot in a row of grey glyphs, and it pulls the
+// eye to whichever item happens to be branded rather than to what matters.
+// Kind is what a scanner needs at this size; the hostname is still in the
+// supporting line for links without a description. The card layout keeps
+// favicons, where there's room for brand recognition to be worth its colour.
+const UrlRowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => (
+    <IconSquare icon={kindMeta(item.kind).icon} />
+);
 
 const RowThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     item,
@@ -314,11 +291,16 @@ const ResourceCard: FC<{
     );
 };
 
+// The list layout exists for blocks with more items than a card grid can
+// carry — which is exactly when scanning matters. So: the name is the only
+// primary thing on the row, the description is one truncated supporting line,
+// and kind is carried once by the glyph on the left rather than twice (the
+// trailing pill used to repeat it from the far edge, where nothing else was).
+// The external-link arrow still marks what leaves Lightdash.
 const ResourceRow: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     item,
     projectUuid,
 }) => {
-    const meta = kindMeta(item.kind);
     const dataApp = isDataApp(item);
     return (
         <a
@@ -330,11 +312,10 @@ const ResourceRow: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
             <RowThumb item={item} projectUuid={projectUuid} />
             <div className={classes.flexFill}>
                 <div className={classes.rowName}>{item.title}</div>
-                <div className={classes.rowMeta}>
+                <div className={classes.rowDesc}>
                     {item.description || (dataApp ? '' : hostnameOf(item.url))}
                 </div>
             </div>
-            <MiniPill>{meta.label}</MiniPill>
             {!dataApp && (
                 <MantineIcon
                     icon={IconExternalLink}
