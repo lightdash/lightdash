@@ -942,6 +942,7 @@ export class RolesService extends BaseService {
                 roleUuid: role.roleUuid,
                 roleName: role.name,
                 organizationUuid,
+                level: role.level,
                 scopes,
             },
         });
