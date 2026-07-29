@@ -256,7 +256,7 @@ const MediaStarCard: FC<{ card: MediaCard }> = ({ card }) => {
             }
         >
             {thumbnail ? (
-                <div className={classes.mediaThumb}>
+                <Box className={classes.mediaThumb}>
                     <img
                         src={thumbnail}
                         alt=""
@@ -264,9 +264,9 @@ const MediaStarCard: FC<{ card: MediaCard }> = ({ card }) => {
                         draggable={false}
                         onError={() => setThumbnailFailed(true)}
                     />
-                </div>
+                </Box>
             ) : (
-                <div className={classes.mediaWash}>
+                <Box className={classes.mediaWash}>
                     {favicon && !faviconFailed ? (
                         <img
                             className={classes.mediaFavicon}
@@ -279,12 +279,12 @@ const MediaStarCard: FC<{ card: MediaCard }> = ({ card }) => {
                     ) : (
                         <MantineIcon icon={IconLink} size={20} />
                     )}
-                </div>
+                </Box>
             )}
-            <div className={classes.mediaBody}>
-                <div className={classes.mediaTitle}>{card.title}</div>
-                <div className={classes.mediaSubtitle}>{card.subtitle}</div>
-            </div>
+            <Box className={classes.mediaBody}>
+                <Text className={classes.mediaTitle}>{card.title}</Text>
+                <Text className={classes.mediaSubtitle}>{card.subtitle}</Text>
+            </Box>
         </a>
     );
 };
