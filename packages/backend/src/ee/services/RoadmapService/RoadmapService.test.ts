@@ -154,9 +154,18 @@ describe('RoadmapService', () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('maps roadmap service errors to a stable server error', async () => {
+    it('maps a roadmap service auth denial to Forbidden (org not bound)', async () => {
         const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
         fetchMock.mockResolvedValue(new Response('denied', { status: 403 }));
+
+        await expect(buildService().getRoadmap(account)).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it('maps other roadmap service errors to a stable server error', async () => {
+        const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+        fetchMock.mockResolvedValue(new Response('boom', { status: 500 }));
 
         await expect(buildService().getRoadmap(account)).rejects.toThrow(
             UnexpectedServerError,
