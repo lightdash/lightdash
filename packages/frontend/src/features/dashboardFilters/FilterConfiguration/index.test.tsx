@@ -15,7 +15,6 @@ vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
     default: vi.fn((selector) => selector({ sqlChartTilesMetadata: {} })),
 }));
 
-// Filter requirements UI is feature-flagged; tests exercise the flag-on UX
 const mockDashboardContext = vi.hoisted(() => ({
     current: {
         dashboardFilters: {
@@ -25,7 +24,6 @@ const mockDashboardContext = vi.hoisted(() => ({
         },
         allFilterableFieldsMap: {},
         allFilterableMetricsMap: {},
-        isFilterRequirementsEnabled: true,
     },
 }));
 
@@ -92,7 +90,6 @@ describe('FilterConfiguration', () => {
             metrics: [],
             tableCalculations: [],
         };
-        mockDashboardContext.current.isFilterRequirementsEnabled = true;
     });
 
     it('saves a value typed into the input when Apply is clicked without pressing Enter', async () => {
@@ -266,50 +263,6 @@ describe('FilterConfiguration', () => {
         );
     });
 
-    it('renders the legacy checkbox and preserves rule membership when the flag is off', async () => {
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
-        const onSave = vi.fn();
-        mockDashboardContext.current.isFilterRequirementsEnabled = false;
-        const memberRule: DashboardFilterRule = {
-            ...anyValueRule,
-            requiredGroupId: 'group-1',
-        };
-
-        renderWithProviders(
-            <FilterConfiguration
-                isEditMode
-                tiles={[]}
-                tabs={[]}
-                availableTileFilters={{}}
-                field={mockField}
-                defaultFilterRule={memberRule}
-                originalFilterRule={memberRule}
-                onSave={onSave}
-            />,
-        );
-
-        expect(screen.queryByLabelText('Required')).not.toBeInTheDocument();
-        const checkbox = screen.getByLabelText(
-            'Require viewers to pick a value to load the dashboard',
-        );
-        expect(checkbox).not.toBeChecked();
-
-        await user.click(checkbox);
-        expect(checkbox).toBeChecked();
-
-        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
-
-        await waitFor(() => {
-            expect(onSave).toHaveBeenCalledTimes(1);
-        });
-        expect(onSave).toHaveBeenCalledWith(
-            expect.objectContaining({
-                required: true,
-                requiredGroupId: 'group-1',
-            }),
-        );
-    });
-
     it('allows applying when required is toggled on a filter with default value enabled but no value set', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         const onSave = vi.fn();
@@ -332,46 +285,6 @@ describe('FilterConfiguration', () => {
         );
 
         await user.click(screen.getByLabelText('Required'));
-
-        const applyButton = screen.getByRole('button', { name: 'Apply' });
-        expect(applyButton).toBeEnabled();
-        fireEvent.mouseDown(applyButton);
-
-        await waitFor(() => {
-            expect(onSave).toHaveBeenCalledTimes(1);
-        });
-        expect(onSave).toHaveBeenCalledWith(
-            expect.objectContaining({ required: true, disabled: true }),
-        );
-    });
-
-    it('also fixes the legacy checkbox when the flag is off: required with empty default value can apply', async () => {
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
-        const onSave = vi.fn();
-        mockDashboardContext.current.isFilterRequirementsEnabled = false;
-        const emptyDefaultValueRule: DashboardFilterRule = {
-            ...anyValueRule,
-            disabled: false,
-        };
-
-        renderWithProviders(
-            <FilterConfiguration
-                isEditMode
-                tiles={[]}
-                tabs={[]}
-                availableTileFilters={{}}
-                field={mockField}
-                defaultFilterRule={emptyDefaultValueRule}
-                originalFilterRule={emptyDefaultValueRule}
-                onSave={onSave}
-            />,
-        );
-
-        await user.click(
-            screen.getByLabelText(
-                'Require viewers to pick a value to load the dashboard',
-            ),
-        );
 
         const applyButton = screen.getByRole('button', { name: 'Apply' });
         expect(applyButton).toBeEnabled();

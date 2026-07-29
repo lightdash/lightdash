@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
     isNumericItem,
@@ -19,7 +18,6 @@ import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useUser from '../../../hooks/user/useUser';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -146,12 +144,6 @@ export const useSchedulerFormModal = ({
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 1;
 
-    const { data: filterRequirementsFlag } = useServerFeatureFlag(
-        FeatureFlags.DashboardFilterRequirements,
-    );
-    const isFilterRequirementsEnabled =
-        filterRequirementsFlag?.enabled === true;
-
     // Use the explicitly passed parameter values
     const dashboardParameterValues = currentParameterValues || {};
 
@@ -174,11 +166,7 @@ export const useSchedulerFormModal = ({
                     return null;
                 }
                 const { unmetRequirements, filtersWithUnmetRequirements } =
-                    getSchedulerFilterRequirements(
-                        dashboard?.filters,
-                        value,
-                        isFilterRequirementsEnabled,
-                    );
+                    getSchedulerFilterRequirements(dashboard?.filters, value);
 
                 if (filtersWithUnmetRequirements.length > 0) {
                     return unmetRequirements.every(
@@ -208,7 +196,7 @@ export const useSchedulerFormModal = ({
                     ? 'Instructions are required'
                     : null,
         }),
-        [dashboard?.filters, isFilterRequirementsEnabled],
+        [dashboard?.filters],
     );
 
     const form = useSchedulerForm({
@@ -262,7 +250,6 @@ export const useSchedulerFormModal = ({
     } = getSchedulerFilterRequirements(
         dashboard?.filters,
         form.values.dashboardFilters,
-        isFilterRequirementsEnabled,
     );
     const hasOnlyUnmetGroupRequirements =
         unmetRequirements.length > 0 &&

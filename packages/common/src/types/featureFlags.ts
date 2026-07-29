@@ -185,12 +185,6 @@ export enum FeatureFlags {
     LockDashboardFilters = 'lock-dashboard-filters',
 
     /**
-     * Filter requirement groups + the guided locked-dashboard UX; off = legacy
-     * required-filter behavior and `requiredGroupId` is ignored.
-     */
-    DashboardFilterRequirements = 'dashboard-filter-requirements',
-
-    /**
      * Show a persistent trial warning banner for an organization on shared
      * instances. This does not block product access.
      */

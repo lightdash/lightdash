@@ -42,6 +42,20 @@ const chartTile: Dashboard['tiles'][number] = {
     },
 };
 
+const markdownTile: Dashboard['tiles'][number] = {
+    uuid: 'tile-2',
+    type: DashboardTileTypes.MARKDOWN,
+    x: 0,
+    y: 0,
+    h: 2,
+    w: 2,
+    tabUuid: undefined,
+    properties: {
+        title: 'Notes',
+        content: 'Some notes',
+    },
+};
+
 const renderLockedTile = () =>
     renderWithProviders(
         <GridTile
@@ -58,27 +72,11 @@ const renderLockedTile = () =>
 describe('GridTile (locked)', () => {
     beforeEach(() => {
         mockDashboardContext.current = {
-            isFilterRequirementsEnabled: false,
-            isFilterRequirementsFlagResolved: true,
+            hasTileComments: () => false,
         };
     });
 
-    it('shows the loading skeleton while the requirements flag is unresolved', () => {
-        mockDashboardContext.current.isFilterRequirementsFlagResolved = false;
-
-        const { container } = renderLockedTile();
-
-        expect(
-            container.querySelector(`.${LOADING_CHART_OVERLAY_CLASS}`),
-        ).not.toBeNull();
-        expect(
-            screen.queryByTestId('unmet-requirements-placeholder'),
-        ).toBeNull();
-    });
-
-    it('shows the unmet requirements placeholder once the flag resolves enabled', () => {
-        mockDashboardContext.current.isFilterRequirementsEnabled = true;
-
+    it('shows the unmet requirements placeholder instead of the chart', () => {
         const { container } = renderLockedTile();
 
         expect(
@@ -89,12 +87,20 @@ describe('GridTile (locked)', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows an empty tile once the flag resolves disabled', () => {
-        const { container } = renderLockedTile();
+    it('renders non-filterable tiles normally', () => {
+        renderWithProviders(
+            <GridTile
+                tile={markdownTile}
+                index={0}
+                isEditMode={false}
+                locked
+                onEdit={vi.fn()}
+                onDelete={vi.fn()}
+                onAddTiles={vi.fn(async () => {})}
+            />,
+        );
 
-        expect(
-            container.querySelector(`.${LOADING_CHART_OVERLAY_CLASS}`),
-        ).toBeNull();
+        expect(screen.getByText('Some notes')).toBeInTheDocument();
         expect(
             screen.queryByTestId('unmet-requirements-placeholder'),
         ).toBeNull();

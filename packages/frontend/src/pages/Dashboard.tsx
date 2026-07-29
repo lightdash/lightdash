@@ -107,9 +107,6 @@ const Dashboard: FC = () => {
     const setRequiredFiltersNote = useDashboardContext(
         (c) => c.setRequiredFiltersNote,
     );
-    const isFilterRequirementsEnabled = useDashboardContext(
-        (c) => c.isFilterRequirementsEnabled,
-    );
     const areAllChartsLoaded = useDashboardTileStatusContext(
         (c) => c.areAllChartsLoaded,
     );
@@ -809,10 +806,7 @@ const Dashboard: FC = () => {
         ];
         // Reset value for required filter on save dashboard
         const requiredFiltersWithoutValues = dimensionFilters.map((filter) => {
-            if (
-                filter.required ||
-                (isFilterRequirementsEnabled && filter.requiredGroupId)
-            ) {
+            if (filter.required || filter.requiredGroupId) {
                 return {
                     ...filter,
                     disabled: true,

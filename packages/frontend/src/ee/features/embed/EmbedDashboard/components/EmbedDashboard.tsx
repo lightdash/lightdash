@@ -11,7 +11,6 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { LockedDashboardModal } from '../../../../../components/common/modal/LockedDashboardModal';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import AddTileButton from '../../../../../components/DashboardTiles/AddTileButton';
 import DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
@@ -60,7 +59,6 @@ const EmbedDashboardGrid: FC<{
     paletteColors?: string[];
     paletteDarkColors?: string[] | null;
     hasUnmetFilterRequirements: boolean;
-    isFilterRequirementsEnabled: boolean;
     isTabEmpty?: boolean;
     gridProps: ResponsiveGridLayoutProps;
     isEditMode: boolean;
@@ -77,7 +75,6 @@ const EmbedDashboardGrid: FC<{
     paletteColors,
     paletteDarkColors,
     hasUnmetFilterRequirements,
-    isFilterRequirementsEnabled,
     isTabEmpty,
     gridProps,
     isEditMode,
@@ -109,18 +106,12 @@ const EmbedDashboardGrid: FC<{
                     onDragStop={onLayoutChange}
                     onResizeStop={onLayoutChange}
                     onBreakpointChange={(_, cols) => onBreakpointChange(cols)}
-                    className={`react-grid-layout-dashboard ${
-                        !isFilterRequirementsEnabled &&
-                        hasUnmetFilterRequirements
-                            ? 'locked'
-                            : ''
-                    }`}
+                    className="react-grid-layout-dashboard"
                 >
                     {filteredTiles.map((tile, index) => (
                         <div key={tile.uuid} data-tile-uuid={tile.uuid}>
                             {(tile.type === DashboardTileTypes.SAVED_CHART ||
                                 tile.type === DashboardTileTypes.SQL_CHART) &&
-                            isFilterRequirementsEnabled &&
                             hasUnmetFilterRequirements ? (
                                 // Placeholder instead of the tile so its
                                 // query hooks never mount while locked
@@ -369,41 +360,20 @@ const EmbedDashboard: FC<{
 
     const hasUnmetFilterRequirements = unmetFilterRequirements.length > 0;
 
-    // Gates the reworked locked UX (guided setup + tile placeholders); when
-    // disabled, the legacy blocking modal + blurred grid is shown instead
-    const isFilterRequirementsEnabled = useDashboardContext(
-        (c) => c.isFilterRequirementsEnabled,
-    );
-
     // Guided setup card over the locked grid; dismissal lasts until reload
     const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
     const showGuidedSetup = useMemo(
         () =>
-            isFilterRequirementsEnabled &&
             !isEditMode &&
             !isGuidedSetupDismissed &&
             hasUnmetFilterRequirements,
-        [
-            isFilterRequirementsEnabled,
-            isEditMode,
-            isGuidedSetupDismissed,
-            hasUnmetFilterRequirements,
-        ],
+        [isEditMode, isGuidedSetupDismissed, hasUnmetFilterRequirements],
     );
 
     const currentDashboardTiles = useMemo(
         () => dashboardTiles ?? dashboard?.tiles ?? [],
         [dashboard?.tiles, dashboardTiles],
     );
-    const hasChartTiles =
-        useMemo(
-            () =>
-                currentDashboardTiles.some(
-                    (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-                ),
-            [currentDashboardTiles],
-        ) || false;
-
     // Ensure dashboard tabs are set in context
     useEffect(() => {
         if (!dashboardTabs.length && dashboard && dashboard.tabs.length > 0) {
@@ -783,7 +753,6 @@ const EmbedDashboard: FC<{
                 paletteColors={dashboard.selectedPalette?.colors}
                 paletteDarkColors={dashboard.selectedPalette?.darkColors}
                 hasUnmetFilterRequirements={hasUnmetFilterRequirements}
-                isFilterRequirementsEnabled={isFilterRequirementsEnabled}
                 isTabEmpty={options?.isTabEmpty}
                 gridProps={gridProps}
                 isEditMode={isEditMode}
@@ -807,11 +776,6 @@ const EmbedDashboard: FC<{
                 }
             }
         >
-            {!isFilterRequirementsEnabled && (
-                <LockedDashboardModal
-                    opened={hasUnmetFilterRequirements && !!hasChartTiles}
-                />
-            )}
             {currentDashboardTiles.length === 0 ? (
                 <>
                     <EmbedDashboardHeader

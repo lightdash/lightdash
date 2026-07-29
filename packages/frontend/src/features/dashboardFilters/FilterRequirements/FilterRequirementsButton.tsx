@@ -115,9 +115,6 @@ const RuleCard: FC<RuleCardProps> = ({
 );
 
 const FilterRequirementsButton: FC = () => {
-    const isFilterRequirementsEnabled = useDashboardContext(
-        (c) => c.isFilterRequirementsEnabled,
-    );
     const [isLocalPopoverOpen, { open: openLocal, close: closeLocal }] =
         useDisclosure(false);
     const popovers = useFilterBarPopovers();
@@ -346,10 +343,6 @@ const FilterRequirementsButton: FC = () => {
 
     const requirementCount = savedRequirementRules.length;
     const hasRuleRows = requirementRules.length > 0 || draftRuleIds.length > 0;
-
-    if (!isFilterRequirementsEnabled) {
-        return null;
-    }
 
     return (
         <Popover
