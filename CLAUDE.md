@@ -123,7 +123,7 @@ pnpm -F backend rollback-last
 
 ## Development Workflow
 
-1. **Package Management**: Use `pnpm` (v9.15.5+) - never use npm or yarn
+1. **Package Management**: Use `pnpm` (v11.17.0+, pinned via `packageManager` in the root `package.json` — let Corepack pick it up) - never use npm or yarn
 2. **Database**: Uses Knex.js for migrations and query building
 3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
 4. **Authentication**: CASL-based authorization with multiple auth providers
@@ -238,12 +238,12 @@ This applies to any install Claude runs in this repo — lockfile regeneration, 
 
 ### Dependency Install Scripts — Blocked by Default
 
-Dependency lifecycle scripts (`preinstall`/`install`/`postinstall`) are blocked by pnpm and enforced in CI via `strictDepBuilds: true` in `pnpm-workspace.yaml`. With it set, `pnpm install` (which every CI job runs) **fails** if any dependency has a build script that isn't reviewed in one of two lists in `pnpm-workspace.yaml`:
+Dependency lifecycle scripts (`preinstall`/`install`/`postinstall`) are blocked by pnpm and enforced in CI via `strictDepBuilds: true` in `pnpm-workspace.yaml`. With it set, `pnpm install` (which every CI job runs) **fails** if any dependency has a build script that isn't reviewed in the `allowBuilds` map in `pnpm-workspace.yaml`:
 
-- `onlyBuiltDependencies` — packages allowed to run their build scripts (native addons we depend on).
-- `ignoredBuiltDependencies` — packages whose build scripts we intentionally do NOT run (each entry documents why).
+- `allowBuilds: { <package>: true }` — allowed to run its build script (native addons we depend on).
+- `allowBuilds: { <package>: false }` — build script we intentionally do NOT run (each entry documents why).
 
-This matters because these scripts also run on `npm install` for downstream consumers of our published packages (e.g. `@lightdash/cli`). When CI fails with `ERR_PNPM_IGNORED_BUILDS`, either remove/replace the dependency, add it to `ignoredBuiltDependencies` (with a reason) if its script is safe to skip, or `onlyBuiltDependencies` if the script must run. (pnpm 11 replaces these three settings with a single `allowBuilds` map.)
+This matters because these scripts also run on `npm install` for downstream consumers of our published packages (e.g. `@lightdash/cli`). When CI fails on an unreviewed build script, either remove/replace the dependency, add it as `false` (with a reason) if its script is safe to skip, or `true` if the script must run.
 
 ### Warehouse Credentials Protection
 

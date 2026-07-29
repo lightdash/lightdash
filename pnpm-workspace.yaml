@@ -97,39 +97,37 @@ minimumReleaseAgeExclude:
 # attack/breakage vector — they also run on `npm install` for downstream consumers
 # of our published packages (e.g. @lightdash/cli). pnpm blocks them by default;
 # strictDepBuilds makes `pnpm install` FAIL (instead of warn) when a dependency has
-# a build script that isn't reviewed in one of the two lists below. This blocks
-# un-vetted install scripts from landing in CI.
-# Note: in pnpm 11 these three settings are replaced by a single `allowBuilds` map.
+# a build script that isn't reviewed in the `allowBuilds` map below. This blocks
+# un-vetted install scripts from landing in CI. (Default since pnpm 11; kept
+# explicit so the intent survives a future default change.)
 strictDepBuilds: true
 
-# Packages allowed to run their build scripts (native addons we depend on).
-onlyBuiltDependencies:
-  - '@sentry-internal/node-cpu-profiler'
-  - '@sentry/cli'
-  - '@swc/core'
-  - bcrypt
-  - canvas
-  - core-js
-  - core-js-pure
-  - cypress
-  - duckdb
-  - esbuild
-  - lz4
-  - msgpackr-extract
-  - protobufjs
-  - sharp
-  - ssh2
-
-# Packages that ship build scripts we intentionally do NOT run. Each entry must
-# explain why skipping the script is safe.
-ignoredBuiltDependencies:
+# Reviewed build scripts. `true` = allowed to run (native addons we depend on);
+# `false` = script intentionally NOT run, with a reason. pnpm 11 replaced
+# onlyBuiltDependencies/ignoredBuiltDependencies with this single map.
+allowBuilds:
+  '@sentry-internal/node-cpu-profiler': true
+  '@sentry/cli': true
+  '@swc/core': true
+  bcrypt: true
+  canvas: true
+  core-js: true
+  core-js-pure: true
+  cypress: true
+  duckdb: true
+  esbuild: true
+  lz4: true
+  msgpackr-extract: true
+  protobufjs: true
+  sharp: true
+  ssh2: true
   # Optional native Zstandard addon, pulled in transitively via just-bash → backend.
   # Not compiled; the backend runs without the native build.
-  - '@mongodb-js/zstd'
+  '@mongodb-js/zstd': false
   # Optional native liblzma/XZ addon, pulled in transitively via just-bash → backend.
   # Not compiled; the backend runs without the native build.
-  - node-liblzma
-  - cpu-features
+  node-liblzma: false
+  cpu-features: false
 
 packageExtensions:
   '@mastra/schema-compat@0.11.2':
