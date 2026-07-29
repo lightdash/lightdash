@@ -1,12 +1,14 @@
 import {
     APP_VERSION_CANCELLED_BY_USER,
     DATA_APP_VIZ_TEMPLATE,
+    DEFAULT_DATA_APP_CLAUDE_MODEL,
     generateSlug,
     NotFoundError,
     ProjectType,
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatusHistoryEntryKind,
+    type DataAppActivityFilters,
     type DataAppVizSchema,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -20,6 +22,7 @@ import {
     isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
+    type DbAppActivityRow,
     type DbAppVersion,
 } from '../database/entities/apps';
 import {
@@ -1082,6 +1085,120 @@ export class AppModel {
             ),
             pagination: result.pagination,
         };
+    }
+
+    /**
+     * A page of every data app generation across the organization, newest
+     * first. One row per `app_versions` row, so it covers new apps, iterations,
+     * and failed generations alike.
+     *
+     * Deliberately does NOT filter `apps.deleted_at`: this is an audit trail,
+     * and deleting an app must not erase the record of who generated what.
+     */
+    async getOrganizationActivity(
+        organizationUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        filters?: DataAppActivityFilters,
+    ): Promise<KnexPaginatedData<DbAppActivityRow[]>> {
+        const query = this.database(AppVersionsTableName)
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppVersionsTableName}.app_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            // LEFT JOIN so a hard-deleted author doesn't drop their generations
+            // from the log; the service collapses the missing row to null.
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AppVersionsTableName}.created_by_user_uuid`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .modify((queryBuilder) => {
+                if (filters?.projectUuids?.length) {
+                    void queryBuilder.whereIn(
+                        `${AppsTableName}.project_uuid`,
+                        filters.projectUuids,
+                    );
+                }
+                if (filters?.userUuids?.length) {
+                    void queryBuilder.whereIn(
+                        `${AppVersionsTableName}.created_by_user_uuid`,
+                        filters.userUuids,
+                    );
+                }
+                if (filters?.models?.length) {
+                    const { models } = filters;
+                    void queryBuilder.where((modelQueryBuilder) => {
+                        void modelQueryBuilder.whereRaw(
+                            `${AppVersionsTableName}.resources->>'claudeModel' IN (${models
+                                .map(() => '?')
+                                .join(', ')})`,
+                            models,
+                        );
+                        // A version with no stored model ran on the default, and
+                        // that is what the API reports for it — so filtering on
+                        // the default has to match those rows too, or the filter
+                        // contradicts the value shown in the row.
+                        if (models.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
+                            void modelQueryBuilder.orWhereRaw(
+                                `${AppVersionsTableName}.resources->>'claudeModel' IS NULL`,
+                            );
+                        }
+                    });
+                }
+                if (filters?.dateFrom) {
+                    void queryBuilder.where(
+                        `${AppVersionsTableName}.created_at`,
+                        '>=',
+                        filters.dateFrom,
+                    );
+                }
+                if (filters?.dateTo) {
+                    void queryBuilder.where(
+                        `${AppVersionsTableName}.created_at`,
+                        '<=',
+                        filters.dateTo,
+                    );
+                }
+            })
+            .select<DbAppActivityRow[]>(
+                `${AppVersionsTableName}.app_id`,
+                `${AppVersionsTableName}.version`,
+                `${AppVersionsTableName}.prompt`,
+                `${AppVersionsTableName}.status`,
+                `${AppVersionsTableName}.resources`,
+                `${AppVersionsTableName}.created_at`,
+                `${AppVersionsTableName}.created_by_user_uuid`,
+                `${AppsTableName}.name as app_name`,
+                `${AppsTableName}.deleted_at as app_deleted_at`,
+                `${AppsTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${UserTableName}.first_name as created_by_user_first_name`,
+                `${UserTableName}.last_name as created_by_user_last_name`,
+            )
+            // app_id/version tie-break keeps pagination stable when two
+            // generations share a timestamp.
+            .orderBy([
+                { column: `${AppVersionsTableName}.created_at`, order: 'desc' },
+                { column: `${AppVersionsTableName}.app_id`, order: 'asc' },
+                { column: `${AppVersionsTableName}.version`, order: 'desc' },
+            ]);
+
+        return KnexPaginate.paginate(query, paginateArgs);
     }
 
     async softDelete(

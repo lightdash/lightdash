@@ -10,6 +10,7 @@ import {
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
     type ApiCreateAppSchedulerResponse,
+    type ApiDataAppActivityResponse,
     type ApiDeleteAppResponse,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
@@ -29,6 +30,7 @@ import {
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
     type ApiUpgradeAppResponse,
+    type DataAppActivityFilters,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
     type UpgradeAppRequestBody,
@@ -58,6 +60,7 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
+import { validateDateFilter, validateUuidFilter } from './filterValidation';
 
 @Route('/api/v1/ee/projects/{projectUuid}/apps')
 @Hidden()
@@ -882,6 +885,67 @@ export class UserAppsController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+}
+
+const ACTIVITY_MAX_PAGE_SIZE = 100;
+
+@Route('/api/v1/ee/org/apps')
+@Hidden()
+@Response<ApiErrorPayload>('default', 'Error')
+export class OrgAppsController extends BaseController {
+    /**
+     * List every data app generation across the organization — who built what,
+     * when, and with which model. Org admins only; the `manage:Organization`
+     * check lives in `AppGenerateService.getOrganizationActivity`.
+     * @summary Get data app activity
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/activity')
+    @OperationId('getDataAppActivity')
+    async getDataAppActivity(
+        @Request() req: express.Request,
+        // Pagination
+        @Query() page?: number,
+        @Query() pageSize?: number,
+        // Filtering
+        @Query() projectUuids?: DataAppActivityFilters['projectUuids'],
+        @Query() userUuids?: DataAppActivityFilters['userUuids'],
+        @Query() models?: DataAppActivityFilters['models'],
+        @Query() dateFrom?: DataAppActivityFilters['dateFrom'],
+        @Query() dateTo?: DataAppActivityFilters['dateTo'],
+    ): Promise<ApiDataAppActivityResponse> {
+        assertRegisteredAccount(req.account);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('userUuids', userUuids);
+        validateDateFilter('dateFrom', dateFrom);
+        validateDateFilter('dateTo', dateTo);
+        // Always paginate: the log grows without bound and every row carries a
+        // full prompt, so an unpaginated read would pull the org's entire
+        // generation history in one response.
+        const paginateArgs = {
+            page: page ?? 1,
+            pageSize: Math.min(pageSize ?? 50, ACTIVITY_MAX_PAGE_SIZE),
+        };
+        const filters: DataAppActivityFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(userUuids && { userUuids }),
+            ...(models && { models }),
+            ...(dateFrom && { dateFrom }),
+            ...(dateTo && { dateTo }),
+        };
+        const results = await this.services
+            .getAppGenerateService<AppGenerateService>()
+            .getOrganizationActivity(
+                toSessionUser(req.account),
+                paginateArgs,
+                filters,
+            );
+        return {
+            status: 'ok',
+            results,
         };
     }
 }
