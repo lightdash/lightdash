@@ -66,6 +66,7 @@ export type AiAgentMemoryTable = Knex.CompositeTableType<
         | 'created_at'
         | 'updated_at'
     > &
+        AiAgentMemoryJsonbWrite &
         Partial<
             Pick<
                 DbAiAgentMemory,

@@ -1,9 +1,10 @@
 import {
     assertUnreachable,
+    getAiAgentMemoryConsolidationOperationSlugs,
+    getAiProjectContextObjectKey,
     type AiAgentMemoryConsolidationInputEntry,
     type AiAgentMemoryConsolidationOperation,
     type AiAgentMemoryConsolidationRejection,
-    type AiAgentMemoryConsolidationStatusFlipOperation,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
@@ -89,21 +90,6 @@ export const computeConsolidationInputHash = (
         )
         .digest('hex');
 
-const operationSlugs = (
-    operation: AiAgentMemoryConsolidationOperation,
-): string[] => {
-    switch (operation.type) {
-        case 'merge':
-            return operation.source_slugs;
-        case 'supersede':
-            return [operation.loser_slug, operation.winner_slug];
-        case 'retire':
-            return [operation.slug];
-        default:
-            return assertUnreachable(operation, 'Unknown consolidation op');
-    }
-};
-
 /** Slugs whose status this operation would change. */
 const operationTargets = (
     operation: AiAgentMemoryConsolidationOperation,
@@ -139,17 +125,46 @@ const collidesWithClaims = (
         (slug) => claims.targets.has(slug) || claims.winners.has(slug),
     ) || operationWinners(operation).some((slug) => claims.targets.has(slug));
 
-const isStatusFlipOperation = (
+/**
+ * A merge applies with distinct sources and objects the sources actually named:
+ * duplicated sources would double the inherited telemetry, and an invented
+ * object would hand the merged row a claim no source made.
+ */
+const normalizeOperation = (
     operation: AiAgentMemoryConsolidationOperation,
-): operation is AiAgentMemoryConsolidationStatusFlipOperation =>
-    operation.type !== 'merge';
+    entriesBySlug: Map<string, AiAgentMemoryConsolidationInputEntry>,
+): AiAgentMemoryConsolidationOperation => {
+    if (operation.type !== 'merge') return operation;
+
+    const sourceSlugs = [...new Set(operation.source_slugs)];
+    const sourceObjectKeys = new Set(
+        sourceSlugs.flatMap((slug) =>
+            (entriesBySlug.get(slug)?.objects ?? []).map((entry) =>
+                getAiProjectContextObjectKey(entry.object),
+            ),
+        ),
+    );
+    const seen = new Set<string>();
+    const objects = operation.objects.filter((object) => {
+        const key = getAiProjectContextObjectKey(object);
+        if (!sourceObjectKeys.has(key) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+
+    return { ...operation, source_slugs: sourceSlugs, objects };
+};
 
 const rejectionReason = (
     operation: AiAgentMemoryConsolidationOperation,
     inputSlugs: Set<string>,
     claims: ConsolidationClaims,
 ): AiAgentMemoryConsolidationRejection['reason'] | null => {
-    if (operationSlugs(operation).some((slug) => !inputSlugs.has(slug))) {
+    if (
+        getAiAgentMemoryConsolidationOperationSlugs(operation).some(
+            (slug) => !inputSlugs.has(slug),
+        )
+    ) {
         return 'unknown_slug';
     }
     if (
@@ -167,11 +182,6 @@ const rejectionReason = (
     if (collidesWithClaims(operation, claims)) {
         return 'duplicate_target';
     }
-    // Row creation lands with the merge operation; until then a well-formed
-    // merge is recorded as rejected rather than silently dropped.
-    if (operation.type === 'merge') {
-        return 'unsupported_operation';
-    }
     return null;
 };
 
@@ -184,32 +194,31 @@ export const validateConsolidationOperations = (args: {
     operations: AiAgentMemoryConsolidationOperation[];
     input: AiAgentMemoryConsolidationInputEntry[];
 }): {
-    applied: AiAgentMemoryConsolidationStatusFlipOperation[];
+    applied: AiAgentMemoryConsolidationOperation[];
     rejected: AiAgentMemoryConsolidationRejection[];
 } => {
-    const inputSlugs = new Set(args.input.map((entry) => entry.id));
+    const entriesBySlug = new Map(args.input.map((entry) => [entry.id, entry]));
+    const inputSlugs = new Set(entriesBySlug.keys());
     const claims: ConsolidationClaims = {
         targets: new Set<string>(),
         winners: new Set<string>(),
     };
-    const applied: AiAgentMemoryConsolidationStatusFlipOperation[] = [];
+    const applied: AiAgentMemoryConsolidationOperation[] = [];
     const rejected: AiAgentMemoryConsolidationRejection[] = [];
 
     for (const operation of args.operations) {
-        const reason = rejectionReason(operation, inputSlugs, claims);
-        if (reason !== null || !isStatusFlipOperation(operation)) {
-            rejected.push({
-                operation,
-                reason: reason ?? 'unsupported_operation',
-            });
+        const normalized = normalizeOperation(operation, entriesBySlug);
+        const reason = rejectionReason(normalized, inputSlugs, claims);
+        if (reason !== null) {
+            rejected.push({ operation, reason });
         } else {
-            operationTargets(operation).forEach((slug) =>
+            operationTargets(normalized).forEach((slug) =>
                 claims.targets.add(slug),
             );
-            operationWinners(operation).forEach((slug) =>
+            operationWinners(normalized).forEach((slug) =>
                 claims.winners.add(slug),
             );
-            applied.push(operation);
+            applied.push(normalized);
         }
     }
 

@@ -3,6 +3,7 @@ import {
     CommercialFeatureFlags,
     FeatureFlags,
     ForbiddenError,
+    getAiProjectContextObjectKey,
     getErrorMessage,
     NotFoundError,
     ParameterError,
@@ -696,6 +697,13 @@ export class AiAgentMemoryService extends BaseService {
                 })),
                 operations: applied,
                 rejected,
+                unresolvedObjectKeys: new Set(
+                    projectedObjects
+                        .filter((object) => !object.resolved)
+                        .map((object) =>
+                            getAiProjectContextObjectKey(object.object),
+                        ),
+                ),
             });
             return 'consolidated';
         } catch (error) {

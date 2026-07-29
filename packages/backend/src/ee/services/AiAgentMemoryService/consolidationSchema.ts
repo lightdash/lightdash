@@ -11,11 +11,13 @@ const slugSchema = z.string().min(1).max(120);
 const mergeOperationSchema = z
     .object({
         type: z.literal('merge'),
+        // Arity is owned by validation, not the schema: providers do not enforce
+        // `minItems` at generation time, so a one-source merge must land in the
+        // rejected-operations audit rather than throw away the whole run.
         source_slugs: z
             .array(slugSchema)
-            .min(2)
             .max(10)
-            .describe('Ids of the memories this merge replaces.'),
+            .describe('At least two ids of the memories this merge replaces.'),
         slug: z
             .string()
             .min(1)

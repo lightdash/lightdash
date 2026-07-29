@@ -15,6 +15,7 @@ import type {
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '../..';
+import assertUnreachable from '../../utils/assertUnreachable';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
@@ -417,18 +418,37 @@ export type AiAgentMemoryConsolidationOperation =
           reason: string;
       };
 
-/** The operations that are pure status flips — no row is created. */
-export type AiAgentMemoryConsolidationStatusFlipOperation = Extract<
+/** The one operation that creates a row. */
+export type AiAgentMemoryConsolidationMergeOperation = Extract<
     AiAgentMemoryConsolidationOperation,
-    { type: 'supersede' | 'retire' }
+    { type: 'merge' }
 >;
+
+/**
+ * Every existing row an operation names — a merge's sources included. Validation
+ * and the apply transaction's locking share it, so the set of rows an operation
+ * is checked against can never drift from the set it locks.
+ */
+export const getAiAgentMemoryConsolidationOperationSlugs = (
+    operation: AiAgentMemoryConsolidationOperation,
+): string[] => {
+    switch (operation.type) {
+        case 'merge':
+            return operation.source_slugs;
+        case 'supersede':
+            return [operation.loser_slug, operation.winner_slug];
+        case 'retire':
+            return [operation.slug];
+        default:
+            return assertUnreachable(operation, 'Unknown consolidation op');
+    }
+};
 
 export type AiAgentMemoryConsolidationRejectionReason =
     | 'unknown_slug'
     | 'duplicate_target'
     | 'self_supersede'
     | 'insufficient_sources'
-    | 'unsupported_operation'
     | 'row_moved';
 
 export type AiAgentMemoryConsolidationRejection = {
