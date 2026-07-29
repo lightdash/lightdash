@@ -1343,20 +1343,10 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardViewsTableName}.dashboard_version_id`,
             )
-            .innerJoin(
-                SpaceTableName,
-                `${DashboardsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
-            .innerJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
             .select<{ parameters: DashboardParameters | null } | undefined>(
                 `${DashboardViewsTableName}.parameters`,
             )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(`${DashboardsTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc');

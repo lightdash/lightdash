@@ -216,6 +216,34 @@ describe('DashboardModel', () => {
         expect(tracker.history.select).toHaveLength(2);
     });
 
+    test('should get dashboard parameters using the dashboard project uuid', async () => {
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const parameters = {
+            test_parameter: 'test value',
+        };
+        tracker.on.select(DashboardsTableName).response([{ parameters }]);
+
+        const result = await model.getDashboardParametersByIdOrSlug(
+            dashboardUuid,
+            projectUuid,
+        );
+
+        expect(result).toEqual(parameters);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).toContain(
+            '"dashboards"."project_uuid"',
+        );
+        expect(tracker.history.select[0].sql).not.toContain(
+            'inner join "spaces"',
+        );
+        expect(tracker.history.select[0].sql).not.toContain(
+            'inner join "projects"',
+        );
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([projectUuid, dashboardUuid]),
+        );
+    });
+
     test('should check if saved chart exists in dashboard', async () => {
         const testProjectUuid = 'test-project-uuid';
         const testDashboardUuid = 'test-dashboard-uuid';
