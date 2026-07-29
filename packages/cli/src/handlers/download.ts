@@ -3374,6 +3374,18 @@ export const uploadHandler = async (
                 changes,
             );
             output.completeItem(appSummary.detail, appSummary.variant);
+
+            if (appsFailed > 0) {
+                // App uploads are fire-and-forget per folder, so failures are
+                // logged and tallied rather than thrown — but the process must
+                // still exit non-zero or CI pipelines read the run as green.
+                GlobalState.log(
+                    styles.error(
+                        `${appsFailed} data app upload(s) failed — see errors above.`,
+                    ),
+                );
+                process.exitCode = 1;
+            }
         }
 
         const end = Date.now();
