@@ -897,7 +897,8 @@ const ACTIVITY_MAX_PAGE_SIZE = 100;
 export class OrgAppsController extends BaseController {
     /**
      * List every data app generation across the organization — who built what,
-     * when, and with which model. Org admins only.
+     * when, and with which model. Org admins only; the `manage:Organization`
+     * check lives in `AppGenerateService.getOrganizationActivity`.
      * @summary Get data app activity
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
