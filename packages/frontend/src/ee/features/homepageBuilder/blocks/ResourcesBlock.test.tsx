@@ -154,6 +154,83 @@ describe('ResourcesBlockView', () => {
         });
     });
 
+    describe('list layout scan hierarchy', () => {
+        it('carries kind in the leading glyph, not a trailing pill', () => {
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({
+                        layout: 'list',
+                        items: [
+                            {
+                                url: 'https://example.com/handbook',
+                                kind: 'doc' as const,
+                                title: 'How we define revenue',
+                                description: 'Metric definitions',
+                            },
+                        ],
+                    })}
+                />,
+            );
+            expect(
+                screen.getByText('How we define revenue'),
+            ).toBeInTheDocument();
+            // The pill repeated what the glyph already says, from the far edge.
+            expect(screen.queryByText('Doc')).not.toBeInTheDocument();
+        });
+
+        it('does not put a hero image in the 34px leading slot', () => {
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({
+                        layout: 'list',
+                        items: [
+                            {
+                                url: 'https://www.youtube.com/watch?v=abc',
+                                kind: 'youtube' as const,
+                                title: 'Reading the funnel report',
+                                imageUrl: 'https://i.ytimg.com/vi/abc/hq.jpg',
+                            },
+                        ],
+                    })}
+                />,
+            );
+            // A 16:9 still cropped to 34px is a smudge; the favicon identifies
+            // the source instead.
+            const sources = screen
+                .queryAllByRole('img')
+                .map((img) => img.getAttribute('src'));
+            expect(sources).not.toContain('https://i.ytimg.com/vi/abc/hq.jpg');
+        });
+
+        it('still shows a hero image in the card layout', () => {
+            wrap(
+                <ResourcesBlockView
+                    itemSpan={null}
+                    projectUuid="p1"
+                    block={block({
+                        layout: 'card',
+                        items: [
+                            {
+                                url: 'https://www.youtube.com/watch?v=abc',
+                                kind: 'youtube' as const,
+                                title: 'Reading the funnel report',
+                                imageUrl: 'https://i.ytimg.com/vi/abc/hq.jpg',
+                            },
+                        ],
+                    })}
+                />,
+            );
+            expect(screen.getByRole('img')).toHaveAttribute(
+                'src',
+                'https://i.ytimg.com/vi/abc/hq.jpg',
+            );
+        });
+    });
+
     it('renders nothing when there are no items', () => {
         wrap(
             <ResourcesBlockView

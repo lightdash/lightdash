@@ -216,22 +216,11 @@ const CardThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
         <UrlCardThumb item={item} />
     );
 
+// No hero image in the leading slot: a 16:9 still cropped to 34px is a smudge,
+// not an identifier. The favicon says which site this is, and the kind glyph
+// says what it is — either is legible at this size, an image crop isn't.
 const UrlRowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
-    const [imgFailed, setImgFailed] = useState(false);
     const [faviconFailed, setFaviconFailed] = useState(false);
-    const imageUrl = safeImageUrl(item.imageUrl);
-    if (imageUrl && item.kind !== 'claude' && !imgFailed) {
-        return (
-            <div className={classes.rowThumb}>
-                <img
-                    src={imageUrl}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setImgFailed(true)}
-                />
-            </div>
-        );
-    }
     const favicon = faviconUrl(item.url);
     if (favicon && !faviconFailed) {
         return (
@@ -314,11 +303,16 @@ const ResourceCard: FC<{
     );
 };
 
+// The list layout exists for blocks with more items than a card grid can
+// carry — which is exactly when scanning matters. So: the name is the only
+// primary thing on the row, the description is one truncated supporting line,
+// and kind is carried once by the glyph on the left rather than twice (the
+// trailing pill used to repeat it from the far edge, where nothing else was).
+// The external-link arrow still marks what leaves Lightdash.
 const ResourceRow: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     item,
     projectUuid,
 }) => {
-    const meta = kindMeta(item.kind);
     const dataApp = isDataApp(item);
     return (
         <a
@@ -330,11 +324,10 @@ const ResourceRow: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
             <RowThumb item={item} projectUuid={projectUuid} />
             <div className={classes.flexFill}>
                 <div className={classes.rowName}>{item.title}</div>
-                <div className={classes.rowMeta}>
+                <div className={classes.rowDesc}>
                     {item.description || (dataApp ? '' : hostnameOf(item.url))}
                 </div>
             </div>
-            <MiniPill>{meta.label}</MiniPill>
             {!dataApp && (
                 <MantineIcon
                     icon={IconExternalLink}
