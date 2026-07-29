@@ -11,33 +11,8 @@ import {
     type PartialFailure,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
-
-// Builds "2 charts and 1 query failed to export" from the failure kinds present,
-// falling back to a generic "issue(s)" bucket for non-content failure types.
-const buildFailureCountPhrase = (failures: PartialFailure[]): string => {
-    const chartCount = failures.filter(
-        (f) =>
-            f.type === PartialFailureType.DASHBOARD_CHART ||
-            f.type === PartialFailureType.DASHBOARD_SQL_CHART,
-    ).length;
-    const queryCount = failures.filter(
-        (f) => f.type === PartialFailureType.APP_QUERY,
-    ).length;
-    const otherCount = failures.length - chartCount - queryCount;
-
-    const parts: string[] = [];
-    if (chartCount > 0) {
-        parts.push(`${chartCount} chart${chartCount === 1 ? '' : 's'}`);
-    }
-    if (queryCount > 0) {
-        parts.push(`${queryCount} quer${queryCount === 1 ? 'y' : 'ies'}`);
-    }
-    if (otherCount > 0) {
-        parts.push(`${otherCount} issue${otherCount === 1 ? '' : 's'}`);
-    }
-    return parts.join(' and ');
-};
 
 /* eslint-disable class-methods-use-this */
 export class GoogleChatClient {
