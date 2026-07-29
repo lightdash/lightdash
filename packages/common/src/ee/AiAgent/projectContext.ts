@@ -1,6 +1,6 @@
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
-import betterAjvErrors from 'better-ajv-errors';
 import * as yaml from 'js-yaml';
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { z } from 'zod';
