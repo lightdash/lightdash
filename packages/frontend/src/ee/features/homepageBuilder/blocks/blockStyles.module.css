@@ -241,13 +241,31 @@ a .hoverCard:hover,
 }
 
 .rowName {
-    font-size: 13.5px;
-    font-weight: 500;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    /* The name is the thing being scanned: never let it wrap and push the
+     * supporting line around. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .rowMeta {
     font-size: 12px;
     color: var(--mantine-color-ldGray-6);
+}
+
+/* The supporting line under a name in the list layout. One line, always: a
+ * wrapped sentence outweighs the name it is supporting and makes row heights
+ * ragged, so a list of ten stops being scannable. */
+.rowDesc {
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .rowAside {
@@ -567,15 +585,6 @@ a .hoverCard:hover,
 
 /* Data apps use the brand orange, tinted into a quiet backdrop for the
  * icon fallback when an app has no thumbnail. */
-.resThumbDataApp {
-    background: linear-gradient(
-        135deg,
-        light-dark(#fff3e8, #362a1c),
-        light-dark(#f8e3cd, #2c2114)
-    );
-    color: light-dark(#c2410c, #fdba74);
-}
-
 /* External-link affordance: quiet corner mark, revealed on hover. */
 .resExternal {
     position: absolute;
@@ -589,6 +598,15 @@ a .hoverCard:hover,
 
 .mediaCard:hover .resExternal {
     opacity: 1;
+}
+
+.mediaIcon {
+    /* Stands in for the image band, so an icon-only card is exactly as tall as
+     * one with a screenshot and a mixed grid keeps a single baseline. */
+    flex: 1;
+    min-height: 56px;
+    display: grid;
+    place-items: center;
 }
 
 .mediaBody {
@@ -648,17 +666,6 @@ a .hoverCard:hover,
     height: 100%;
     object-fit: cover;
     display: block;
-}
-
-.rowThumbFallback {
-    display: grid;
-    place-items: center;
-}
-
-.rowFavicon {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
 }
 
 /* Skeletons while a pasted link resolves */

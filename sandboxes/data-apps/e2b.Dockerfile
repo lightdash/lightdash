@@ -1,7 +1,7 @@
 FROM node:22
 
 # Global tooling
-RUN npm install -g pnpm@10.33.0
+RUN npm install -g pnpm@11.17.0
 RUN npm install -g @anthropic-ai/claude-code@2.1.220
 
 WORKDIR /app

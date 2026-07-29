@@ -115,6 +115,122 @@ const makeConfig = (rows: HomepageBlock[][]): HomepageConfig => ({
     rows: rows.map((blocks, i) => ({ id: `row-${i}`, blocks })),
 });
 
+const heroWithDensity = (
+    id: string,
+    density: 'full' | 'compact' | undefined,
+): HomepageBlock => ({
+    id,
+    type: 'ask-ai-hero',
+    config: { showGreeting: true, density },
+});
+
+describe('hero density', () => {
+    it('defaults to compact when body rows follow, so they stay above the fold', () => {
+        const config = makeConfig([
+            [heroWithDensity('a', undefined)],
+            [block('b', 'collection')],
+        ]);
+        const { hero } = resolveHomepageLayout(config);
+        expect(hero?.presentation).toBe('shared');
+        expect(hero?.density).toBe('compact');
+    });
+
+    it('defaults to full when the hero is the whole page', () => {
+        const config = makeConfig([[heroWithDensity('a', undefined)]]);
+        const { hero } = resolveHomepageLayout(config);
+        expect(hero?.presentation).toBe('viewport');
+        expect(hero?.density).toBe('full');
+    });
+
+    it('honours an explicit full density even with body rows', () => {
+        const config = makeConfig([
+            [heroWithDensity('a', 'full')],
+            [block('b', 'collection')],
+        ]);
+        expect(resolveHomepageLayout(config).hero?.density).toBe('full');
+    });
+
+    it('honours an explicit compact density on a solo hero', () => {
+        const config = makeConfig([[heroWithDensity('a', 'compact')]]);
+        expect(resolveHomepageLayout(config).hero?.density).toBe('compact');
+    });
+
+    it('treats a row that only becomes empty at resolve time as no body row', () => {
+        const config = makeConfig([
+            [heroWithDensity('a', undefined)],
+            [emptyBlock('b', 'collection')],
+        ]);
+        const { hero, rows } = resolveHomepageLayout(config);
+        expect(rows).toHaveLength(0);
+        expect(hero?.density).toBe('full');
+    });
+
+    it('resolves density for a greeting hero too', () => {
+        const config = makeConfig([
+            [block('g', 'greeting')],
+            [block('c', 'collection')],
+        ]);
+        const { hero } = resolveHomepageLayout(config);
+        expect(hero?.row.columns[0].block.type).toBe('greeting');
+        expect(hero?.density).toBe('compact');
+    });
+});
+
+describe('greeting de-duplication', () => {
+    it('drops a greeting block that follows a greeting-bearing hero', () => {
+        const config = makeConfig([
+            [block('a', 'ask-ai-hero')],
+            [block('g', 'greeting')],
+            [block('c', 'collection')],
+        ]);
+        const { hero, rows } = resolveHomepageLayout(config);
+        expect(hero?.row.columns[0].block.id).toBe('a');
+        expect(rows.map((r) => r.columns[0].block.id)).toEqual(['c']);
+    });
+
+    it("turns off a later hero's built-in greeting when a greeting block leads", () => {
+        const config = makeConfig([
+            [block('g', 'greeting')],
+            [block('a', 'ask-ai-hero')],
+        ]);
+        const { hero, rows } = resolveHomepageLayout(config);
+        expect(hero?.row.columns[0].block.id).toBe('g');
+        const laterHero = rows[0].columns[0].block;
+        expect(laterHero.type).toBe('ask-ai-hero');
+        expect(
+            laterHero.type === 'ask-ai-hero' && laterHero.config.showGreeting,
+        ).toBe(false);
+    });
+
+    it('leaves a hero with showGreeting off untouched as the greeting claimant', () => {
+        const config = makeConfig([
+            [
+                {
+                    id: 'a',
+                    type: 'ask-ai-hero',
+                    config: { showGreeting: false },
+                } satisfies HomepageBlock,
+            ],
+            [block('g', 'greeting')],
+        ]);
+        const { hero, rows } = resolveHomepageLayout(config);
+        expect(hero?.row.columns[0].block.id).toBe('a');
+        expect(rows.map((r) => r.columns[0].block.id)).toEqual(['g']);
+    });
+
+    it('keeps every block on the build surface so nothing becomes un-editable', () => {
+        const config = makeConfig([
+            [block('a', 'ask-ai-hero')],
+            [block('g', 'greeting')],
+        ]);
+        const { rows } = resolveHomepageLayout(config, { surface: 'build' });
+        expect(rows.flatMap((r) => r.columns.map((c) => c.block.id))).toEqual([
+            'a',
+            'g',
+        ]);
+    });
+});
+
 describe('resolveHomepageLayout', () => {
     it('pulls a single leading ask-ai-hero into the hero slot', () => {
         const config = makeConfig([

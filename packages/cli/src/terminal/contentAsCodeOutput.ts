@@ -256,11 +256,38 @@ export const createContentAsCodeOutput = ({
         return value;
     };
 
+    // The spinner repaints its line continuously, drawing over interactive
+    // prompts rendered beneath it — the prompt becomes invisible and the
+    // command looks hung while waiting for input. Stop the spinner for the
+    // prompt's lifetime, then resume with the current progress text.
+    const promptWhilePaused = async <T>(
+        prompt: () => Promise<T>,
+    ): Promise<T> => {
+        if (!spinner) return prompt();
+        spinner.stop();
+        try {
+            return await prompt();
+        } finally {
+            spinner.start(
+                useTree
+                    ? formatContentAsCodeProgress({
+                          operation,
+                          scope,
+                          items,
+                          activeLabel,
+                          activeDetail,
+                      })
+                    : `${runningLabel} ${activeLabel.toLowerCase()}`,
+            );
+        }
+    };
+
     return {
         startItem,
         updateActive,
         completeItem,
         runItem,
+        promptWhilePaused,
         prepareForFailureDetails: () => {
             if (!useTree && spinner) {
                 spinner.stop();

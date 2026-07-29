@@ -248,13 +248,19 @@ jobs:
         with:
           mode: firewall-free
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Read packageManager
+        id: package-manager
+        run: |
+          version=$(node -p 'JSON.parse(require("fs").readFileSync("package.json","utf8")).packageManager.split("+")[0]')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache node_modules
         id: cache-node-modules
@@ -263,7 +269,7 @@ jobs:
           path: |
             node_modules
             packages/*/node_modules
-          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ steps.package-manager.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'

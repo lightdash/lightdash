@@ -173,9 +173,9 @@ The CLI is installed globally by end users (`npm i -g @lightdash/cli`), so trans
    ```bash
    tmp=$(mktemp -d) && cd "$tmp" && npm init -y --silent && sfw npm install @lightdash/cli --package-lock-only && cat package-lock.json | python3 -c "import sys,json; [print(f'{k}: {v[\"version\"]}') for k,v in json.load(sys.stdin).get('packages',{}).items() if k.endswith('/<suspect-package>')]" && rm -rf "$tmp"
    ```
-5. Pin the dependency to a known-good exact version using a pnpm override in the root `package.json` (no caret, no tilde).
+5. Pin the dependency to a known-good exact version using a pnpm override in the `overrides:` block of `pnpm-workspace.yaml` (no caret, no tilde).
 
-**Limitation of pnpm overrides:** Overrides in the root `package.json` only affect the monorepo lockfile. They do **not** change what end users get when they `npm install -g @lightdash/cli` — published packages only carry their `package.json` dependency ranges, not pnpm overrides. The override protects our own builds and deployments, but CLI users depend on the upstream package (e.g., `snowflake-sdk`) fixing or the compromised version being unpublished from npm.
+**Limitation of pnpm overrides:** Overrides in `pnpm-workspace.yaml` only affect the monorepo lockfile. They do **not** change what end users get when they `npm install -g @lightdash/cli` — published packages only carry their `package.json` dependency ranges, not pnpm overrides. The override protects our own builds and deployments, but CLI users depend on the upstream package (e.g., `snowflake-sdk`) fixing or the compromised version being unpublished from npm.
 
 **Example — axios compromise (2026-03-31):**
 - Malicious `axios@1.14.1` was published to npm for a few hours

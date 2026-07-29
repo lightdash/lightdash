@@ -1,3 +1,58 @@
+# [1.37.0](https://github.com/lightdash/lightdash/compare/1.36.0...1.37.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **frontend:** stop Mantine transitions leaking timers past test teardown ([#26490](https://github.com/lightdash/lightdash/issues/26490)) ([b272820](https://github.com/lightdash/lightdash/commit/b2728200fbec67b496a07dfcf01428a7700dc99d))
+* **homepage-builder:** data apps fall back to a neutral icon, not a coloured placeholder ([#26446](https://github.com/lightdash/lightdash/issues/26446)) ([d4d0292](https://github.com/lightdash/lightdash/commit/d4d029253c78166d5041f5cd0270f11424bc828b)), closes [#26437](https://github.com/lightdash/lightdash/issues/26437) [#26443](https://github.com/lightdash/lightdash/issues/26443)
+* **homepage-builder:** make the Resources list layout scannable ([#26448](https://github.com/lightdash/lightdash/issues/26448)) ([181d4b2](https://github.com/lightdash/lightdash/commit/181d4b28c65123472736d688282e578c9e312017)), closes [#26438](https://github.com/lightdash/lightdash/issues/26438) [#26446](https://github.com/lightdash/lightdash/issues/26446)
+* **homepage-builder:** size the hero to its content so curated rows stay above the fold ([#26443](https://github.com/lightdash/lightdash/issues/26443)) ([5b2619c](https://github.com/lightdash/lightdash/commit/5b2619cc551c938e74a5c0d2a8d2c35a025890f1)), closes [#26436](https://github.com/lightdash/lightdash/issues/26436)
+* keep data-apps template pnpm settings effective under pnpm 11 ([#26469](https://github.com/lightdash/lightdash/issues/26469)) ([cfa6a63](https://github.com/lightdash/lightdash/commit/cfa6a63e56392025cd9ea8cac6e317b7c1a73bd0))
+
+
+### Features
+
+* **homepage-builder:** give collections a live source instead of only a frozen list ([#26463](https://github.com/lightdash/lightdash/issues/26463)) ([61ac83e](https://github.com/lightdash/lightdash/commit/61ac83ec03ebc4fad761e62de5ad2981d5616d04)), closes [#26441](https://github.com/lightdash/lightdash/issues/26441)
+* **homepage-builder:** lead day-0 with the project's key spaces ([#26450](https://github.com/lightdash/lightdash/issues/26450)) ([3a34a7b](https://github.com/lightdash/lightdash/commit/3a34a7b935997ec68e49dab644fb62b9ac53c7d9)), closes [#26439](https://github.com/lightdash/lightdash/issues/26439) [#26448](https://github.com/lightdash/lightdash/issues/26448)
+* **onboarding:** add clickable Data Apps and BI-as-code media cards to the homepage stars rotation ([#26489](https://github.com/lightdash/lightdash/issues/26489)) ([078a269](https://github.com/lightdash/lightdash/commit/078a2699c5e265499012f9dcb41403a8ccb67181))
+
+# [1.36.0](https://github.com/lightdash/lightdash/compare/1.35.0...1.36.0) (2026-07-29)
+
+
+### Features
+
+* **charts:** make series draw order legible in the Series panel ([#26467](https://github.com/lightdash/lightdash/issues/26467)) ([a653965](https://github.com/lightdash/lightdash/commit/a653965c148c2cf82f49f08424e125ebc7928624))
+
+# [1.35.0](https://github.com/lightdash/lightdash/compare/1.34.0...1.35.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **cli:** exit non-zero when data app uploads fail ([#26475](https://github.com/lightdash/lightdash/issues/26475)) ([fa85c2a](https://github.com/lightdash/lightdash/commit/fa85c2af7f34f7844e038c17b0f3e864c7ee45e5))
+* **cli:** stop the progress spinner while prompting ([#26457](https://github.com/lightdash/lightdash/issues/26457)) ([efe3d2a](https://github.com/lightdash/lightdash/commit/efe3d2aa7e3ba6a004843dc2de81f39687196cac))
+* mock analytics outbox inserts in AiDeepResearchRunModel tests ([#26480](https://github.com/lightdash/lightdash/issues/26480)) ([89ed378](https://github.com/lightdash/lightdash/commit/89ed378f4b172d813edc441c73a42825f7a75049))
+
+
+### Features
+
+* **analytics:** track data app upload identity source ([#26456](https://github.com/lightdash/lightdash/issues/26456)) ([0006cd4](https://github.com/lightdash/lightdash/commit/0006cd43cb75b8f4ec4fb4e15866f2cc464341e4))
+* **cli:** prepare data app manifests for id-free identity ([#26323](https://github.com/lightdash/lightdash/issues/26323)) ([0ab082b](https://github.com/lightdash/lightdash/commit/0ab082b736d0ad1875d8375be0384673c3df11f7))
+* identify data apps by project-scoped slug in as-code flows ([#26234](https://github.com/lightdash/lightdash/issues/26234)) ([a94b59b](https://github.com/lightdash/lightdash/commit/a94b59b510866a994ed1160242f437f6b4d8cd92)), closes [#25886](https://github.com/lightdash/lightdash/issues/25886)
+
+# [1.34.0](https://github.com/lightdash/lightdash/compare/1.33.0...1.34.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **analytics:** honour anonymized tracking preference in user.deleted events ([#26462](https://github.com/lightdash/lightdash/issues/26462)) ([44606fb](https://github.com/lightdash/lightdash/commit/44606fbe6f19b4f62185b13943d8fb04895392ac))
+* **ci:** generate the OpenAPI spec pair for the PR-time release-safety check ([#26385](https://github.com/lightdash/lightdash/issues/26385)) ([aa1f588](https://github.com/lightdash/lightdash/commit/aa1f58808ceee077faf60936f88c38d74175dede)), closes [#25605](https://github.com/lightdash/lightdash/issues/25605)
+
+
+### Features
+
+* **deep-research:** track lifecycle and report engagement ([#26464](https://github.com/lightdash/lightdash/issues/26464)) ([8a39587](https://github.com/lightdash/lightdash/commit/8a39587472cc75ee99ad740a803e9001516ac8e2))
+* **onboarding:** silence the invite toast and tighten the returnTo guard ([#26474](https://github.com/lightdash/lightdash/issues/26474)) ([38be76b](https://github.com/lightdash/lightdash/commit/38be76bcb00e534577725f27f3bc64b115e8f456))
+
 # [1.33.0](https://github.com/lightdash/lightdash/compare/1.32.0...1.33.0) (2026-07-29)
 
 

@@ -25,15 +25,16 @@ describe('buildStarterHomepage', () => {
         expect(types(true)).toEqual(['favorites', 'ask-ai-hero']);
     });
 
-    it('carries the project pins across as a collection', () => {
+    it('tracks the live pin list rather than copying it', () => {
         const pins = [{ contentType: 'chart' as const, uuid: 'chart-1' }];
         const config = buildStarterHomepage(false, pins);
         const collection = config.rows
             .flatMap((row) => row.blocks)
             .find((block) => block.type === 'collection');
 
+        // A frozen copy would stop following pins after publish.
         expect(collection).toMatchObject({
-            config: { title: 'Pinned', items: pins },
+            config: { title: 'Pinned', source: 'pinned', items: [] },
         });
     });
 

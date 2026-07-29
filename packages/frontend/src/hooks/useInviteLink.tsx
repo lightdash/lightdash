@@ -76,7 +76,9 @@ export const useActivateInviteLinkMutation = (
     );
 };
 
-export const useCreateInviteLinkMutation = () => {
+export const useCreateInviteLinkMutation = ({
+    showSuccessToast = true,
+}: { showSuccessToast?: boolean } = {}) => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
@@ -94,9 +96,11 @@ export const useCreateInviteLinkMutation = () => {
         onSuccess: async () => {
             await queryClient.invalidateQueries(['onboarding-status']);
             await queryClient.refetchQueries(['organization_users']);
-            showToastSuccess({
-                title: 'Created new invite link',
-            });
+            if (showSuccessToast) {
+                showToastSuccess({
+                    title: 'Created new invite link',
+                });
+            }
         },
     });
 };

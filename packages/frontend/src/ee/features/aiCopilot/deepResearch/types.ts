@@ -28,6 +28,7 @@ export type DeepResearchSource = {
 export type DeepResearchRunView = {
     uuid: string;
     projectUuid: string;
+    agentUuid: string;
     threadUuid: string;
     question: string;
     depth: DeepResearchDepth;
@@ -35,6 +36,7 @@ export type DeepResearchRunView = {
     phase: string | null;
     startedAt: string | null;
     completedAt: string | null;
+    updatedAt: string;
     elapsedMs: number;
     sourceCount: number | null;
     queryCount: number;

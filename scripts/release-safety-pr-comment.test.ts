@@ -167,6 +167,61 @@ test('base label is rendered when provided', () => {
     assert.ok(body.includes('Comparing against `main (a1b2c3d)`'));
 });
 
+test('an unchecked REST surface says whether it was skipped or failed', () => {
+    const skipped = renderPrComment(baseMarker(), { restStatus: 'skipped' });
+    assert.ok(skipped.includes('| REST API | not checked — nothing on the API surface changed |'));
+
+    const failed = renderPrComment(baseMarker(), { restStatus: 'failed' });
+    assert.ok(failed.includes('| REST API | not checked — the OpenAPI specs could not be generated |'));
+    assert.ok(!failed.includes('| REST API | no breaking changes |'));
+
+    const noStatus = renderPrComment(baseMarker());
+    assert.ok(noStatus.includes('| REST API | not checked |'));
+});
+
+test('an API-only risk is described as an API change, not a database one', () => {
+    const apiBreak = baseMarker({
+        capabilities: ['migrations', 'rest', 'upgrade'],
+        compatibility: { rollingUpdateSafe: 'unknown', recommendedStrategy: 'Recreate', notes: 'No database migrations, but a deterministic check flagged a breaking REST API change.' },
+        api: {
+            rest: { checked: true, breaking: true, changes: ['GET /api/v1/org/users — the `query` request parameter `includeGroups` became required'] },
+            mcp: { checked: false, breaking: false, changes: [] },
+        },
+    });
+    const ready = renderPrComment(apiBreak, { restStatus: 'ran' });
+    assert.ok(ready.includes('This changes the API and we couldn’t automatically confirm'));
+    assert.ok(!ready.includes('This changes the database'));
+
+    const draft = renderPrComment(apiBreak, { restStatus: 'ran', draft: true });
+    assert.ok(draft.includes('This changes the API. Mark the PR ready for review'));
+});
+
+test('a failed REST check never leaves a bare "safe to upgrade" headline', () => {
+    // No migrations, so the marker's own verdict is "safe" — but it is safe only
+    // with respect to the checks that actually ran, and this one didn't.
+    const body = renderPrComment(baseMarker(), { restStatus: 'failed' });
+    assert.ok(!body.includes('✅ **Safe to upgrade normally.**'));
+    assert.ok(body.includes('❓ **Couldn’t confirm it’s safe.**'));
+    assert.ok(body.includes('**The REST API check didn’t run**'));
+});
+
+test('a deliberately skipped REST check leaves the verdict alone', () => {
+    const body = renderPrComment(baseMarker(), { restStatus: 'skipped' });
+    assert.ok(body.includes('✅ **Safe to upgrade normally.**'));
+    assert.ok(!body.includes('**The REST API check didn’t run**'));
+});
+
+test('a REST check that ran reports its result, not a status reason', () => {
+    const body = renderPrComment(baseMarker({
+        capabilities: ['migrations', 'rest', 'upgrade'],
+        api: {
+            rest: { checked: true, breaking: false, changes: [] },
+            mcp: { checked: false, breaking: false, changes: [] },
+        },
+    }), { restStatus: 'ran' });
+    assert.ok(body.includes('| REST API | no breaking changes |'));
+});
+
 test('raw JSON is embedded in a collapsed details block', () => {
     const body = renderPrComment(baseMarker());
     assert.ok(body.includes('<details><summary>Technical details (raw JSON)</summary>'));

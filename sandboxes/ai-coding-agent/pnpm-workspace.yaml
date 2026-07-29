@@ -1,1 +1,6 @@
 packages: []
+# esbuild ships its platform binary via optionalDependencies; its install
+# script is a fallback we have never run (pnpm 10 ignored it with a warning).
+# pnpm 11 errors on unreviewed build scripts, so record the decision here.
+allowBuilds:
+  esbuild: false

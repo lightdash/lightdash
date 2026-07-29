@@ -1,40 +1,18 @@
-import {
-    ContentType,
-    type ApiError,
-    type HomepageRecentlyViewedItem,
-    type SummaryContent,
-} from '@lightdash/common';
+import { ContentType, type SummaryContent } from '@lightdash/common';
 import { Skeleton, Stack } from '@mantine-8/core';
 import {
     IconChartBar,
     IconClock,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { lightdashApi } from '../../../../api';
 import TruncatedText from '../../../../components/common/TruncatedText';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
-import { useCollectionContent } from '../hooks/useCollectionContent';
+import { useRecentContents } from '../hooks/useRecentContents';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
-
-const getRecentlyViewed = async (projectUuid: string) =>
-    lightdashApi<HomepageRecentlyViewedItem[]>({
-        url: `/projects/${projectUuid}/homepage/recently-viewed`,
-        method: 'GET',
-        body: undefined,
-    });
-
-const MAX_RECENT_ITEMS = 4;
-
-const useRecentlyViewed = (projectUuid: string) =>
-    useQuery<HomepageRecentlyViewedItem[], ApiError>({
-        queryKey: ['homepage_recently_viewed', projectUuid],
-        queryFn: () => getRecentlyViewed(projectUuid),
-    });
 
 const contentUrl = (projectUuid: string, content: SummaryContent): string =>
     content.contentType === ContentType.DASHBOARD
@@ -78,14 +56,9 @@ const RecentRow: FC<{
 };
 
 export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
-    const { data: recents, isInitialLoading } = useRecentlyViewed(projectUuid);
-    const uuids = (recents ?? [])
-        .slice(0, MAX_RECENT_ITEMS)
-        .map((item) => item.uuid);
-    const { data: contents, isInitialLoading: isResolving } =
-        useCollectionContent(projectUuid, uuids);
+    const { recents, contents, isLoading } = useRecentContents(projectUuid);
 
-    if (isInitialLoading || isResolving) {
+    if (isLoading) {
         return (
             <Stack gap="xs">
                 {[0, 1, 2].map((i) => (
@@ -94,7 +67,7 @@ export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             </Stack>
         );
     }
-    if (!contents || contents.length === 0) {
+    if (contents.length === 0) {
         return (
             <div className={classes.dashedEmpty}>
                 Charts and dashboards you open will show up here.
@@ -102,7 +75,7 @@ export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         );
     }
     const viewedAtByUuid = new Map(
-        (recents ?? []).map((item) => [item.uuid, item.viewedAt]),
+        recents.map((item) => [item.uuid, item.viewedAt]),
     );
     return (
         <div className={classes.listCard}>

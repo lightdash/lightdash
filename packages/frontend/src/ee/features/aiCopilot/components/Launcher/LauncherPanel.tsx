@@ -33,6 +33,7 @@ import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageCon
 import {
     useStartDeepResearchForThreadMutation,
     useStartDeepResearchMutation,
+    useTrackDeepResearchFollowUp,
 } from '../../hooks/useDeepResearch';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../hooks/usePinnedContext';
@@ -480,6 +481,10 @@ const ExistingThreadPanel: FC<{
         agentUuid: agent.uuid,
         threadUuid: threadId,
     });
+    const trackDeepResearchFollowUp = useTrackDeepResearchFollowUp({
+        projectUuid,
+        threadUuid: threadId,
+    });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const sqlMode = useAiAgentStoreSelector(selectThreadSqlMode(threadId));
@@ -535,6 +540,7 @@ const ExistingThreadPanel: FC<{
             toolHints,
         }).then(() => {
             recordSubmittedContext(curatedContext.context);
+            trackDeepResearchFollowUp();
         });
     };
 

@@ -9764,10 +9764,18 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageHeroDensity": {
+                "type": "string",
+                "enum": ["full", "compact"],
+                "description": "How much of the opening view the hero claims. `full` centres it in the\nviewport; `compact` gives it only the height of its own content. Absent in\nstored configs means \"let the layout decide\" — see resolveHeroDensity."
+            },
             "HomepageAskAiHeroBlock": {
                 "properties": {
                     "config": {
                         "properties": {
+                            "density": {
+                                "$ref": "#/components/schemas/HomepageHeroDensity"
+                            },
                             "showRecommendedActions": {
                                 "type": "boolean",
                                 "description": "Replaces the prompt suggestions with the setup checklist.\nOptional for configs persisted before this field existed."
@@ -9795,6 +9803,9 @@
                 "properties": {
                     "config": {
                         "properties": {
+                            "density": {
+                                "$ref": "#/components/schemas/HomepageHeroDensity"
+                            },
                             "subtitle": {
                                 "type": "string"
                             }
@@ -9828,15 +9839,40 @@
                 "required": ["uuid", "contentType"],
                 "type": "object"
             },
+            "HomepageCollectionSource": {
+                "type": "string",
+                "enum": [
+                    "manual",
+                    "most-viewed",
+                    "recently-updated",
+                    "pinned",
+                    "favorites",
+                    "recently-viewed"
+                ],
+                "description": "Where a collection block's items come from.\n\n`manual` reads the block's own `items`. Every other source is a live rule\nresolved per viewer at render time — which is the point: a snapshot of\n\"most viewed\" is stale the week after it's taken, and a frozen copy of the\npin list stops tracking pins the moment it's published.\n\n`favorites` and `recently-viewed` are per-viewer; the rest are project-wide."
+            },
             "HomepageCollectionBlock": {
                 "properties": {
                     "config": {
                         "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "How many items to show. Absent means DEFAULT_COLLECTION_LIMIT."
+                            },
+                            "verifiedOnly": {
+                                "type": "boolean",
+                                "description": "Applies to every source, including manual."
+                            },
+                            "source": {
+                                "$ref": "#/components/schemas/HomepageCollectionSource"
+                            },
                             "items": {
                                 "items": {
                                     "$ref": "#/components/schemas/HomepageCollectionItemRef"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "The hand-picked items. Read only when `source` is `manual`, which\nis what an absent `source` means — every config stored before\nsources existed is a manual collection."
                             },
                             "title": {
                                 "type": "string"
@@ -16989,6 +17025,9 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "slug": {
+                        "type": "string"
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -17008,7 +17047,6 @@
                     "name",
                     "version",
                     "projectUuid",
-                    "appUuid",
                     "codeVersion"
                 ],
                 "type": "object"
@@ -17152,7 +17190,11 @@
             "ApiGetAppCodeResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppCodeDownload_"
             },
-            "ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__": {
+            "UuidOrSlug": {
+                "type": "string",
+                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
+            },
+            "ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -17161,6 +17203,9 @@
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            "slug": {
+                                "type": "string"
                             },
                             "action": {
                                 "type": "string",
@@ -17174,7 +17219,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["action", "version", "appUuid"],
+                        "required": ["slug", "action", "version", "appUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -17187,10 +17232,13 @@
                 "type": "object"
             },
             "ApiImportAppCodeResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__"
             },
             "ImportAppCodeRequestBody": {
                 "properties": {
+                    "createNew": {
+                        "type": "boolean"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -29983,6 +30031,14 @@
                 "type": "object",
                 "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. This is the same union the agent's repo VFS\nmounts (the org installation's repos plus the linked user's own), gated by the\nproject's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`\nendpoint, it never exposes repo names to users without source-code access."
             },
+            "AiDeepResearchEntryPoint": {
+                "type": "string",
+                "enum": ["homepage", "ask_ai"]
+            },
+            "AiDeepResearchEffort": {
+                "type": "string",
+                "enum": ["high", "medium", "low", "xhigh"]
+            },
             "AiDeepResearchRunStatus": {
                 "type": "string",
                 "enum": [
@@ -30540,6 +30596,12 @@
                     "prompt": {
                         "type": "string"
                     },
+                    "effort": {
+                        "$ref": "#/components/schemas/AiDeepResearchEffort"
+                    },
+                    "entryPoint": {
+                        "$ref": "#/components/schemas/AiDeepResearchEntryPoint"
+                    },
                     "mcpServerUuids": {
                         "items": {
                             "type": "string"
@@ -30575,6 +30637,8 @@
                     "resultMarkdown",
                     "status",
                     "prompt",
+                    "effort",
+                    "entryPoint",
                     "mcpServerUuids",
                     "promptUuid",
                     "aiThreadUuid",
@@ -30601,12 +30665,12 @@
             "ApiAiDeepResearchRunResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun_"
             },
-            "AiDeepResearchEffort": {
-                "type": "string",
-                "enum": ["high", "medium", "low", "xhigh"]
-            },
             "AiDeepResearchRequestBody": {
                 "properties": {
+                    "entryPoint": {
+                        "$ref": "#/components/schemas/AiDeepResearchEntryPoint",
+                        "description": "Product surface that accepted the run."
+                    },
                     "mcpServerUuids": {
                         "items": {
                             "type": "string"
@@ -30635,6 +30699,7 @@
                     }
                 },
                 "required": [
+                    "entryPoint",
                     "mcpServerUuids",
                     "promptUuid",
                     "threadUuid",
@@ -46143,10 +46208,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "UuidOrSlug": {
-                "type": "string",
-                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
-            },
             "Pick_UpdatedByUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -50948,7 +51009,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.33.0",
+        "version": "1.37.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

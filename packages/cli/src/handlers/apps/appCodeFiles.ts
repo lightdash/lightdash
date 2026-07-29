@@ -1,6 +1,7 @@
 import {
     generateSlug,
     getErrorMessage,
+    isValidDataAppSlug,
     validateDataAppCode,
     type DataAppCode,
     type DataAppCodeFile,
@@ -143,6 +144,9 @@ export const buildImportBody = (
     } else if (opts.app) {
         targetAppUuid = opts.app;
     } else if (targetProjectUuid === code.manifest.projectUuid) {
+        // Pre-slug bundles carry an appUuid (uuid-fallback identity, and
+        // same-project append on pre-slug servers). Slug-only bundles yield
+        // undefined here — slug-aware servers resolve by slug instead.
         targetAppUuid = code.manifest.appUuid;
     }
 
@@ -150,25 +154,32 @@ export const buildImportBody = (
         code,
         targetAppUuid,
         spaceUuid: opts.space,
+        ...(opts.createNew ? { createNew: true } : {}),
     };
 };
 
 /**
- * Points a downloaded app folder's manifest at a different app, so future
- * uploads update that app instead of the one it was downloaded from.
+ * The persistent slug from a slug-aware server is the folder name (stable
+ * across app renames). Pre-slug servers fall back to name-derived folders.
  */
-export const retargetManifest = async (
-    dir: string,
-    target: { appUuid: string; projectUuid: string; version: number },
-): Promise<void> => {
-    const manifestPath = path.join(dir, MANIFEST_FILENAME);
-    const manifest = YAML.parse(
-        await fs.readFile(manifestPath, 'utf-8'),
-    ) as DataAppManifest;
-    await fs.writeFile(
-        manifestPath,
-        YAML.stringify({ ...manifest, ...target }),
-        'utf-8',
+export const resolveAppFolderName = (
+    manifest: DataAppManifest,
+    takenFolders: Set<string>,
+): string => {
+    // Defense-in-depth: a server of unknown version, or a hand-tampered
+    // manifest on disk, must not steer the local write path via an
+    // unvalidated slug (e.g. `../../etc`) — only trust it once it passes the
+    // same shape check the server enforces on upload.
+    if (manifest.slug !== undefined && isValidDataAppSlug(manifest.slug)) {
+        return manifest.slug;
+    }
+    // The fallback needs a uuid for its collision/untitled suffixes. Real
+    // pre-slug servers always emit appUuid; only a tampered slug-only
+    // manifest lands here without one.
+    return appFolderName(
+        manifest.name,
+        manifest.appUuid ?? 'unknown',
+        takenFolders,
     );
 };
 

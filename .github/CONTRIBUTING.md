@@ -406,7 +406,7 @@ the `/etc/hosts` configuration in your computer otherwise it will fail with a `D
 
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
--   node >= v18.x (20 is preferred)
+-   node >= v24 (see `.nvmrc` for the exact version)
 -   python >= 3.8
 -   pnpm
 -   postgres >= 12
@@ -424,8 +424,8 @@ brew install nvm
 
 # 3 Install specified node version using NVM (https://github.com/nvm-sh/nvm)
 
-nvm install v20.19.0
-nvm alias default v20.19.0
+nvm install v24.18.0
+nvm alias default v24.18.0
 
 # 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew) and pgvector
 brew install postgresql@14

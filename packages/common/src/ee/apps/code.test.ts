@@ -2,6 +2,7 @@ import {
     computeCustomDependencies,
     currentDataAppCodeVersion,
     extractLockfilePackages,
+    isValidDataAppSlug,
     MAX_DECLARED_DEPENDENCIES,
     MAX_LOCKFILE_BYTES,
     parseLockfilePackageKey,
@@ -637,6 +638,37 @@ describe('validateDataAppCode with dependencies', () => {
                 }),
             }),
         ).not.toThrow();
+    });
+});
+
+describe('isValidDataAppSlug', () => {
+    it.each(['my-app', 'app2', 'a', 'my-app-abcd1234'])(
+        'accepts a well-formed slug (%s)',
+        (slug) => {
+            expect(isValidDataAppSlug(slug)).toBe(true);
+        },
+    );
+
+    it.each([
+        ['empty string', ''],
+        ['path traversal', '../evil'],
+        ['nested path traversal', '../../../../tmp/evil'],
+        ['leading slash', '/etc/passwd'],
+        ['uppercase letters', 'My-App'],
+        ['starts with a hyphen', '-my-app'],
+        ['contains a slash', 'my/app'],
+        ['contains a dot', 'my.app'],
+        ['contains whitespace', 'my app'],
+    ])('rejects an invalid slug (%s)', (_label, slug) => {
+        expect(isValidDataAppSlug(slug)).toBe(false);
+    });
+
+    it('accepts a slug at exactly the 255 char limit', () => {
+        expect(isValidDataAppSlug('a'.repeat(255))).toBe(true);
+    });
+
+    it('rejects a slug over the 255 char limit', () => {
+        expect(isValidDataAppSlug('a'.repeat(256))).toBe(false);
     });
 });
 

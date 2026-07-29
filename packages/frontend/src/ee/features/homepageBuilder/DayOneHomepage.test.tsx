@@ -4,8 +4,26 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DayOneHomepage } from './DayOneHomepage';
 
-const { aiState } = vi.hoisted(() => ({
+const { aiState, keySpaces, recentContents } = vi.hoisted(() => ({
     aiState: { current: { canAskAi: true } },
+    keySpaces: {
+        current: [
+            { uuid: 'space-1', name: 'Finance', itemCount: 12, isPinned: true },
+        ],
+    },
+    recentContents: { current: { contents: [{ uuid: 'recent-1' }] } },
+}));
+
+vi.mock('./hooks/useKeySpaces', () => ({
+    useKeySpaces: () => ({ spaces: keySpaces.current, isLoading: false }),
+}));
+
+vi.mock('./hooks/useRecentContents', () => ({
+    useRecentContents: () => ({
+        recents: [],
+        contents: recentContents.current.contents,
+        isLoading: false,
+    }),
 }));
 
 vi.mock('./hooks/useHomepageAiState', () => ({

@@ -51,9 +51,12 @@ import {
 } from './resourceUrls';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
+// `thumbAccent` is the kind-tinted wash behind a bare favicon: it exists so an
+// external link's kind is legible when there's no image to show. Internal
+// content carries its own icon language and takes no tint — see DataAppCardMedia.
 const KIND_META: Record<
     HomepageResourceKind,
-    { icon: Icon; label: string; thumbAccent: string }
+    { icon: Icon; label: string; thumbAccent?: string }
 > = {
     video: {
         icon: IconVideo,
@@ -72,11 +75,7 @@ const KIND_META: Record<
         label: 'YouTube',
         thumbAccent: classes.resThumbYoutube,
     },
-    'data-app': {
-        icon: IconAppWindow,
-        label: 'Data app',
-        thumbAccent: classes.resThumbDataApp,
-    },
+    'data-app': { icon: IconAppWindow, label: 'Data app' },
 };
 
 // Data apps are added via the picker, not the kind dropdown, so they're
@@ -95,10 +94,12 @@ const isDefaultFavicon = (img: HTMLImageElement) => img.naturalWidth < 32;
 
 // --- Thumbnails -------------------------------------------------------------
 
-// Data app thumbnails are short-lived signed URLs, so they're fetched live
-// from `appUuid` at render time. Missing thumbnail (or no view access) →
-// falls back to the data app glyph on a polished accent background.
-const DataAppCardThumb: FC<{
+// The media slot for a data app card: its screenshot when there is one,
+// otherwise the neutral icon square native content uses (see ContentCard) —
+// never a full-size coloured placeholder. A fallback should be quieter than
+// the real thing, not louder. Kind stays legible in text on the card body.
+// Shared by the published card and the editor canvas so they can't drift.
+const DataAppCardMedia: FC<{
     item: HomepageResourceItem;
     projectUuid: string;
 }> = ({ item, projectUuid }) => {
@@ -108,24 +109,22 @@ const DataAppCardThumb: FC<{
         item.appUuid,
         !!item.appUuid,
     );
-    const thumbnailUrl = data?.thumbnailUrl;
-    if (thumbnailUrl && !failed) {
+    const thumbnailUrl = failed ? undefined : data?.thumbnailUrl;
+    if (!thumbnailUrl) {
         return (
-            <div className={classes.resThumb}>
-                <img
-                    src={thumbnailUrl}
-                    alt={item.title}
-                    loading="lazy"
-                    onError={() => setFailed(true)}
-                />
+            <div className={classes.mediaIcon}>
+                <IconSquare icon={IconAppWindow} />
             </div>
         );
     }
     return (
-        <div className={`${classes.resThumbTile} ${classes.resThumbDataApp}`}>
-            <div className={classes.resGlyphTile}>
-                <MantineIcon icon={IconAppWindow} size={22} />
-            </div>
+        <div className={classes.resThumb}>
+            <img
+                src={thumbnailUrl}
+                alt={item.title}
+                loading="lazy"
+                onError={() => setFailed(true)}
+            />
         </div>
     );
 };
@@ -153,13 +152,8 @@ const DataAppRowThumb: FC<{
             </div>
         );
     }
-    return (
-        <div
-            className={`${classes.rowThumb} ${classes.rowThumbFallback} ${classes.resThumbDataApp}`}
-        >
-            <MantineIcon icon={IconAppWindow} size={18} />
-        </div>
-    );
+    // Same neutral square a link with no favicon falls back to — no kind tint.
+    return <IconSquare icon={IconAppWindow} />;
 };
 
 const UrlCardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
@@ -186,7 +180,11 @@ const UrlCardThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
 
     // No sharp photo → a quiet kind-tinted wash with the bare favicon on it.
     return (
-        <div className={`${classes.resThumbTile} ${meta.thumbAccent}`}>
+        <div
+            className={[classes.resThumbTile, meta.thumbAccent]
+                .filter(Boolean)
+                .join(' ')}
+        >
             {favicon && !faviconFailed ? (
                 <img
                     className={classes.resFavTile}
@@ -213,47 +211,24 @@ const CardThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     projectUuid,
 }) =>
     item.kind === 'data-app' ? (
-        <DataAppCardThumb item={item} projectUuid={projectUuid} />
+        <DataAppCardMedia item={item} projectUuid={projectUuid} />
     ) : (
         <UrlCardThumb item={item} />
     );
 
-const UrlRowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => {
-    const [imgFailed, setImgFailed] = useState(false);
-    const [faviconFailed, setFaviconFailed] = useState(false);
-    const imageUrl = safeImageUrl(item.imageUrl);
-    if (imageUrl && item.kind !== 'claude' && !imgFailed) {
-        return (
-            <div className={classes.rowThumb}>
-                <img
-                    src={imageUrl}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setImgFailed(true)}
-                />
-            </div>
-        );
-    }
-    const favicon = faviconUrl(item.url);
-    if (favicon && !faviconFailed) {
-        return (
-            <div className={`${classes.rowThumb} ${classes.rowThumbFallback}`}>
-                <img
-                    className={classes.rowFavicon}
-                    src={favicon}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setFaviconFailed(true)}
-                    onLoad={(e) => {
-                        if (isDefaultFavicon(e.currentTarget))
-                            setFaviconFailed(true);
-                    }}
-                />
-            </div>
-        );
-    }
-    return <IconSquare icon={kindMeta(item.kind).icon} />;
-};
+// One glyph family for the whole dense list: the monochrome kind icon in a
+// neutral square, every row identical in weight and colour.
+//
+// Not a hero image — a 16:9 still cropped to 34px is a smudge, not an
+// identifier. And not a favicon either: a saturated brand tile (YouTube's red
+// is the worst offender) is a hotspot in a row of grey glyphs, and it pulls the
+// eye to whichever item happens to be branded rather than to what matters.
+// Kind is what a scanner needs at this size; the hostname is still in the
+// supporting line for links without a description. The card layout keeps
+// favicons, where there's room for brand recognition to be worth its colour.
+const UrlRowThumb: FC<{ item: HomepageResourceItem }> = ({ item }) => (
+    <IconSquare icon={kindMeta(item.kind).icon} />
+);
 
 const RowThumb: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     item,
@@ -316,11 +291,16 @@ const ResourceCard: FC<{
     );
 };
 
+// The list layout exists for blocks with more items than a card grid can
+// carry — which is exactly when scanning matters. So: the name is the only
+// primary thing on the row, the description is one truncated supporting line,
+// and kind is carried once by the glyph on the left rather than twice (the
+// trailing pill used to repeat it from the far edge, where nothing else was).
+// The external-link arrow still marks what leaves Lightdash.
 const ResourceRow: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
     item,
     projectUuid,
 }) => {
-    const meta = kindMeta(item.kind);
     const dataApp = isDataApp(item);
     return (
         <a
@@ -332,11 +312,10 @@ const ResourceRow: FC<{ item: HomepageResourceItem; projectUuid: string }> = ({
             <RowThumb item={item} projectUuid={projectUuid} />
             <div className={classes.flexFill}>
                 <div className={classes.rowName}>{item.title}</div>
-                <div className={classes.rowMeta}>
+                <div className={classes.rowDesc}>
                     {item.description || (dataApp ? '' : hostnameOf(item.url))}
                 </div>
             </div>
-            <MiniPill>{meta.label}</MiniPill>
             {!dataApp && (
                 <MantineIcon
                     icon={IconExternalLink}

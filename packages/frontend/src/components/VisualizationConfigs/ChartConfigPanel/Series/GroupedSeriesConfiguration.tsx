@@ -28,6 +28,11 @@ import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
 import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
+import {
+    SeriesDepthControl,
+    type SeriesDrawOrderControl,
+} from './SeriesDrawOrder';
+import drawOrderStyles from './seriesDrawOrder.module.css';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 const VALUE_LABELS_OPTIONS = [
@@ -77,6 +82,7 @@ type GroupedSeriesConfigurationProps = {
     items: Array<Field | TableCalculation | CustomDimension>;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
     isDragDisabled?: boolean;
+    drawOrder?: SeriesDrawOrderControl;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
     series: Series[];
 } & Pick<
@@ -94,6 +100,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateAllGroupedSeries,
     dragHandleProps,
     isDragDisabled,
+    drawOrder,
     updateSeries,
     series,
 }) => {
@@ -153,7 +160,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     return (
         <Config>
             <Config.Section>
-                <Group wrap="nowrap" gap="two">
+                <Group
+                    wrap="nowrap"
+                    gap="two"
+                    className={drawOrderStyles.seriesHeader}
+                >
                     <GrabIcon
                         dragHandleProps={dragHandleProps}
                         disabled={isDragDisabled}
@@ -163,6 +174,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     <Config.Heading>
                         {getItemLabelWithoutTableName(item)} (grouped)
                     </Config.Heading>
+                    {drawOrder && <SeriesDepthControl control={drawOrder} />}
                 </Group>
                 <Stack gap="xs" ml="md">
                     <Group wrap="nowrap" gap="xs" align="start">

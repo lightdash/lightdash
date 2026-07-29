@@ -9120,6 +9120,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageHeroDensity: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['full'] },
+                { dataType: 'enum', enums: ['compact'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageAskAiHeroBlock: {
         dataType: 'refAlias',
         type: {
@@ -9128,6 +9140,7 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        density: { ref: 'HomepageHeroDensity' },
                         showRecommendedActions: { dataType: 'boolean' },
                         showGreeting: { dataType: 'boolean', required: true },
                     },
@@ -9152,6 +9165,7 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        density: { ref: 'HomepageHeroDensity' },
                         subtitle: { dataType: 'string', required: true },
                     },
                     required: true,
@@ -9184,6 +9198,22 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageCollectionSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['manual'] },
+                { dataType: 'enum', enums: ['most-viewed'] },
+                { dataType: 'enum', enums: ['recently-updated'] },
+                { dataType: 'enum', enums: ['pinned'] },
+                { dataType: 'enum', enums: ['favorites'] },
+                { dataType: 'enum', enums: ['recently-viewed'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageCollectionBlock: {
         dataType: 'refAlias',
         type: {
@@ -9192,6 +9222,9 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        limit: { dataType: 'double' },
+                        verifiedOnly: { dataType: 'boolean' },
+                        source: { ref: 'HomepageCollectionSource' },
                         items: {
                             dataType: 'array',
                             array: {
@@ -15600,8 +15633,9 @@ const models: TsoaRoute.Models = {
                 description: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
                 version: { dataType: 'double', required: true },
+                slug: { dataType: 'string' },
                 projectUuid: { dataType: 'string', required: true },
-                appUuid: { dataType: 'string', required: true },
+                appUuid: { dataType: 'string' },
                 codeVersion: { dataType: 'enum', enums: [1], required: true },
             },
             validators: {},
@@ -15740,7 +15774,12 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_DataAppCodeDownload_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__':
+    UuidOrSlug: {
+        dataType: 'refAlias',
+        type: { dataType: 'string', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__':
         {
             dataType: 'refAlias',
             type: {
@@ -15753,6 +15792,7 @@ const models: TsoaRoute.Models = {
                                 dataType: 'array',
                                 array: { dataType: 'string' },
                             },
+                            slug: { dataType: 'string', required: true },
                             action: {
                                 dataType: 'union',
                                 subSchemas: [
@@ -15775,7 +15815,7 @@ const models: TsoaRoute.Models = {
     ApiImportAppCodeResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__',
+            ref: 'ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__',
             validators: {},
         },
     },
@@ -15785,6 +15825,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                createNew: { dataType: 'boolean' },
                 spaceUuid: { dataType: 'string' },
                 targetAppUuid: { dataType: 'string' },
                 code: { ref: 'DataAppCode', required: true },
@@ -29613,6 +29654,32 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchEntryPoint: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['homepage'] },
+                { dataType: 'enum', enums: ['ask_ai'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchEffort: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['high'] },
+                { dataType: 'enum', enums: ['medium'] },
+                { dataType: 'enum', enums: ['low'] },
+                { dataType: 'enum', enums: ['xhigh'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchRunStatus: {
         dataType: 'refAlias',
         type: {
@@ -30157,6 +30224,8 @@ const models: TsoaRoute.Models = {
                 },
                 status: { ref: 'AiDeepResearchRunStatus', required: true },
                 prompt: { dataType: 'string', required: true },
+                effort: { ref: 'AiDeepResearchEffort', required: true },
+                entryPoint: { ref: 'AiDeepResearchEntryPoint', required: true },
                 mcpServerUuids: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -30189,25 +30258,12 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_AiDeepResearchRun_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiDeepResearchEffort: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['high'] },
-                { dataType: 'enum', enums: ['medium'] },
-                { dataType: 'enum', enums: ['low'] },
-                { dataType: 'enum', enums: ['xhigh'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchRequestBody: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                entryPoint: { ref: 'AiDeepResearchEntryPoint', required: true },
                 mcpServerUuids: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -45980,11 +46036,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    UuidOrSlug: {
-        dataType: 'refAlias',
-        type: { dataType: 'string', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_UpdatedByUser.userUuid-or-firstName-or-lastName_': {
         dataType: 'refAlias',
         type: {
@@ -60975,16 +61026,16 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        appUuid: {
+        appUuidOrSlug: {
             in: 'path',
-            name: 'appUuid',
+            name: 'appUuidOrSlug',
             required: true,
-            dataType: 'string',
+            ref: 'UuidOrSlug',
         },
         version: { in: 'query', name: 'version', dataType: 'double' },
     };
     app.get(
-        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/download',
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuidOrSlug/download',
         ...fetchMiddlewares<RequestHandler>(AppGenerateController),
         ...fetchMiddlewares<RequestHandler>(
             AppGenerateController.prototype.getAppCode,

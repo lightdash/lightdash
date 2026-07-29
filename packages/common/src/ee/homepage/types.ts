@@ -7,6 +7,11 @@ export type HomepageMarkdownBlock = {
     config: { content: string };
 };
 
+/** How much of the opening view the hero claims. `full` centres it in the
+ * viewport; `compact` gives it only the height of its own content. Absent in
+ * stored configs means "let the layout decide" — see resolveHeroDensity. */
+export type HomepageHeroDensity = 'full' | 'compact';
+
 export type HomepageAskAiHeroBlock = {
     id: string;
     type: 'ask-ai-hero';
@@ -15,6 +20,7 @@ export type HomepageAskAiHeroBlock = {
         /** Replaces the prompt suggestions with the setup checklist.
          * Optional for configs persisted before this field existed. */
         showRecommendedActions?: boolean;
+        density?: HomepageHeroDensity;
     };
 };
 
@@ -24,7 +30,7 @@ export type HomepageAskAiHeroBlock = {
 export type HomepageGreetingBlock = {
     id: string;
     type: 'greeting';
-    config: { subtitle: string };
+    config: { subtitle: string; density?: HomepageHeroDensity };
 };
 
 export type HomepageCollectionItemRef = {
@@ -32,11 +38,63 @@ export type HomepageCollectionItemRef = {
     uuid: string;
 };
 
+/**
+ * Where a collection block's items come from.
+ *
+ * `manual` reads the block's own `items`. Every other source is a live rule
+ * resolved per viewer at render time — which is the point: a snapshot of
+ * "most viewed" is stale the week after it's taken, and a frozen copy of the
+ * pin list stops tracking pins the moment it's published.
+ *
+ * `favorites` and `recently-viewed` are per-viewer; the rest are project-wide.
+ */
+export type HomepageCollectionSource =
+    | 'manual'
+    | 'most-viewed'
+    | 'recently-updated'
+    | 'pinned'
+    | 'favorites'
+    | 'recently-viewed';
+
+/** Sources whose content differs for every viewer, so an admin previewing as
+ * someone else must not see the target's data. */
+export const PERSONAL_COLLECTION_SOURCES: HomepageCollectionSource[] = [
+    'favorites',
+    'recently-viewed',
+];
+
+export const isPersonalCollectionSource = (
+    source: HomepageCollectionSource,
+): boolean => PERSONAL_COLLECTION_SOURCES.includes(source);
+
+export const DEFAULT_COLLECTION_LIMIT = 6;
+export const MAX_COLLECTION_LIMIT = 24;
+
 export type HomepageCollectionBlock = {
     id: string;
     type: 'collection';
-    config: { title: string; items: HomepageCollectionItemRef[] };
+    config: {
+        title: string;
+        /** The hand-picked items. Read only when `source` is `manual`, which
+         * is what an absent `source` means — every config stored before
+         * sources existed is a manual collection. */
+        items: HomepageCollectionItemRef[];
+        source?: HomepageCollectionSource;
+        /** Applies to every source, including manual. */
+        verifiedOnly?: boolean;
+        /** How many items to show. Absent means DEFAULT_COLLECTION_LIMIT. */
+        limit?: number;
+    };
 };
+
+export const collectionSourceOf = (
+    config: HomepageCollectionBlock['config'],
+): HomepageCollectionSource => config.source ?? 'manual';
+
+export const collectionLimitOf = (
+    config: HomepageCollectionBlock['config'],
+): number =>
+    Math.min(config.limit ?? DEFAULT_COLLECTION_LIMIT, MAX_COLLECTION_LIMIT);
 
 export type HomepageResourceKind =
     | 'video'

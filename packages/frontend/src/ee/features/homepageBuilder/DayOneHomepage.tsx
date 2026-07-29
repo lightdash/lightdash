@@ -7,6 +7,7 @@ import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { BlockHeader } from './blocks/BlockShell';
 import { ContentCard } from './blocks/ContentCard';
 import { PersonalFavoritesBar } from './blocks/FavoritesBlock';
+import { KeySpaces } from './blocks/KeySpaces';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
 import { QuickActionCards } from './blocks/QuickActionsBlock';
 import { RecentList } from './blocks/RecentBlock';
@@ -15,6 +16,8 @@ import { getGreeting } from './greeting';
 import layout from './homepageLayout.module.css';
 import { useCollectionContent } from './hooks/useCollectionContent';
 import { useHomepageAiState } from './hooks/useHomepageAiState';
+import { useKeySpaces } from './hooks/useKeySpaces';
+import { useRecentContents } from './hooks/useRecentContents';
 
 type Props = {
     projectUuid: string;
@@ -48,18 +51,32 @@ const PinnedCollection: FC<{
     );
 };
 
+// Four fits one grid row at the page's 3-column span, which is the point: a
+// starting set, not a directory.
+const MAX_KEY_SPACES = 4;
+
 export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
     const { user } = useApp();
     const { canAskAi } = useHomepageAiState(projectUuid);
+    const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_KEY_SPACES);
+    const recent = useRecentContents(projectUuid);
+    // Keep the header while loading so the section doesn't pop in under the
+    // fold once it resolves.
+    const hasRecentlyViewed = recent.isLoading || recent.contents.length > 0;
 
     return (
         <div className={layout.page}>
             {/* Same favourites strip the published homepage puts above its
                 blocks — day-0 opens the same way */}
             <PersonalFavoritesBar projectUuid={projectUuid} />
-            {/* Body rows always follow, so the hero yields part of the
-                viewport and Recently viewed peeks above the fold */}
-            <div className={layout.heroSection} data-presentation="shared">
+            {/* Body rows always follow — Recently viewed and Pinned are the
+                point of day-0 — so the hero stays compact and they're on
+                screen. Same shell for both the AI and non-AI openings. */}
+            <div
+                className={layout.heroSection}
+                data-presentation="shared"
+                data-density="compact"
+            >
                 {canAskAi ? (
                     <div className={layout.hero}>
                         <AskAiHero
@@ -75,15 +92,11 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                         <Box ta="center">
                             <Text
                                 component="h1"
-                                fz={23}
-                                fw={600}
-                                lts="-0.02em"
-                                lh={1.2}
-                                m={0}
+                                className={layout.heroGreeting}
                             >
                                 {getGreeting(user.data?.firstName)}
                             </Text>
-                            <Text c="dimmed" fz={15} mt={8}>
+                            <Text className={layout.heroGreetingSub}>
                                 Pick up where you left off, or start something
                                 new.
                             </Text>
@@ -98,10 +111,25 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
 
             <div className={classes.secondary}>
                 <Stack gap="xl">
-                    <Box>
-                        <BlockHeader icon={IconClock} title="Recently viewed" />
-                        <RecentList projectUuid={projectUuid} />
-                    </Box>
+                    {/* Spaces lead the body: they're the one section that has
+                        content in any real project. Recently viewed is empty
+                        for a first-time viewer and Pinned is empty until
+                        someone curates, so neither can be the thing a new
+                        viewer is sent to first. */}
+                    <KeySpaces
+                        spaces={keySpaces}
+                        projectUuid={projectUuid}
+                        title="Start here"
+                    />
+                    {hasRecentlyViewed && (
+                        <Box>
+                            <BlockHeader
+                                icon={IconClock}
+                                title="Recently viewed"
+                            />
+                            <RecentList projectUuid={projectUuid} />
+                        </Box>
+                    )}
                     <PinnedCollection
                         projectUuid={projectUuid}
                         pinnedItems={pinnedItems}

@@ -34,6 +34,10 @@ import {
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackStrategy,
     type AiAgentRootCause,
+    type AiDeepResearchEffort,
+    type AiDeepResearchEntryPoint,
+    type AiDeepResearchTerminalReason,
+    type AiDeepResearchTerminalStatus,
     type AiRouterDecisionConfidence,
     type AiRouterRouteNextAction,
     type AiWritebackFailureStage,
@@ -1786,6 +1790,17 @@ export type DataAppDownloadedEvent = BaseTrack & {
     };
 };
 
+// How the upload was matched to an app: 'slug' (manifest slug, the current
+// path), 'uuid-fallback' (pre-slug bundle with targetAppUuid), 'none'
+// (pre-slug bundle with no target — fresh create), 'create-new' (--create-new).
+// 'uuid-fallback' + 'none' measure pre-slug bundle usage; the targetAppUuid
+// fallback can be removed once they decay to zero.
+export type DataAppUploadIdentitySource =
+    | 'slug'
+    | 'uuid-fallback'
+    | 'create-new'
+    | 'none';
+
 export type DataAppUploadedEvent = BaseTrack & {
     event: 'data_app.uploaded';
     userId: string;
@@ -1795,6 +1810,7 @@ export type DataAppUploadedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         action: 'create' | 'append';
+        identitySource: DataAppUploadIdentitySource;
         template: Exclude<DataAppTemplate, 'custom'> | null;
         sourceFileCount: number;
         sourceBytes: number;
@@ -2071,6 +2087,46 @@ export type ManagedAgentEvent =
     | ManagedAgentRunStartedEvent
     | ManagedAgentRunCompletedEvent
     | ManagedAgentActionCreatedEvent;
+
+type AiDeepResearchRunDimensions = {
+    organizationId: string;
+    projectId: string;
+    runUuid: string;
+    threadId: string;
+    aiAgentId: string;
+    entryPoint: AiDeepResearchEntryPoint;
+    effort: AiDeepResearchEffort;
+    provider: string | null;
+    model: string | null;
+    keyManagement: 'lightdash-managed' | 'self-managed' | null;
+    selectedMcpServerCount: number;
+};
+
+export type AiDeepResearchRunStartedEvent = BaseTrack & {
+    event: 'ai_deep_research.run_started';
+    userId: string;
+    properties: AiDeepResearchRunDimensions;
+};
+
+export type AiDeepResearchRunCompletedEvent = BaseTrack & {
+    event: 'ai_deep_research.run_completed';
+    userId: string;
+    properties: AiDeepResearchRunDimensions & {
+        status: AiDeepResearchTerminalStatus;
+        terminalReason: AiDeepResearchTerminalReason | null;
+        durationMs: number;
+        totalTokens: number;
+        toolCallCount: number;
+        warehouseQueryCount: number;
+        mcpToolCallCount: number;
+        hasReport: boolean;
+        chartCount: number;
+    };
+};
+
+export type AiDeepResearchEvent =
+    | AiDeepResearchRunStartedEvent
+    | AiDeepResearchRunCompletedEvent;
 
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,
@@ -3165,6 +3221,7 @@ type TypedEvent =
     | CreateSqlChartVersionEvent
     | CommentsEvent
     | ManagedAgentEvent
+    | AiDeepResearchEvent
     | VirtualViewEvent
     | GithubInstallEvent
     | GithubUserLinkEvent

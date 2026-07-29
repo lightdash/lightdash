@@ -4,26 +4,29 @@
     font-size: var(--mantine-font-size-md) !important;
 }
 
-/* One chip-line of height reserved up front (pill: 12px text + 10px padding +
-   2px border = 30px) so late-arriving chips don't shove the composer. */
+/* One chip-line of height reserved up front (pill: 12px text + 8px padding =
+   26px) so late-arriving chips don't shove the composer. */
 .pillRow {
-    margin-top: 12px;
-    min-height: 30px;
+    margin-top: 10px;
+    min-height: 26px;
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
 }
 
+/* Quiet by default: no card, no border, no fill — these are a hint at what the
+   composer can do, not two more buttons competing with it. The affordance
+   arrives on hover, where it's actually needed. */
 .pill {
     font-size: 12px;
-    font-weight: 500;
-    padding: 5px 11px;
+    font-weight: 400;
+    padding: 4px 10px;
     border-radius: 999px;
     cursor: pointer;
-    background: light-dark(#fff, var(--mantine-color-dark-6));
-    border: 1px solid var(--mantine-color-ldGray-2);
-    color: var(--mantine-color-ldGray-7);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--mantine-color-ldGray-6);
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -34,18 +37,6 @@
 
 .pill:nth-child(2) {
     animation-delay: 40ms;
-}
-.pill:nth-child(3) {
-    animation-delay: 80ms;
-}
-.pill:nth-child(4) {
-    animation-delay: 120ms;
-}
-.pill:nth-child(5) {
-    animation-delay: 160ms;
-}
-.pill:nth-child(6) {
-    animation-delay: 200ms;
 }
 
 @keyframes pillIn {
@@ -60,9 +51,15 @@
 }
 
 .pill:hover {
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border-color: var(--mantine-color-ldGray-2);
+    color: var(--mantine-color-ldGray-9);
+}
+
+.pill:focus-visible {
+    background: light-dark(#fff, var(--mantine-color-dark-6));
     border-color: var(--mantine-color-ldGray-4);
     color: var(--mantine-color-ldGray-9);
-    box-shadow: var(--mantine-shadow-subtle);
 }
 
 @media (prefers-reduced-motion: reduce) {

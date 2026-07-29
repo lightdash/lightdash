@@ -179,6 +179,7 @@ export const adaptDeepResearchRun = ({
     return {
         uuid: run.aiDeepResearchRunUuid,
         projectUuid: run.projectUuid,
+        agentUuid: run.agentUuid,
         threadUuid: registration.threadUuid,
         question: registration.question,
         depth: registration.depth,
@@ -189,6 +190,7 @@ export const adaptDeepResearchRun = ({
         ),
         startedAt: run.startedAt,
         completedAt: run.completedAt,
+        updatedAt: run.updatedAt,
         elapsedMs: Math.max(0, endTime - startTime),
         sourceCount: null,
         queryCount,

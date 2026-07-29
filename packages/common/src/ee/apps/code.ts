@@ -17,8 +17,19 @@ export type DataAppManifestExternalConnection = {
 
 export type DataAppManifest = {
     codeVersion: 1;
-    appUuid: string;
+    // Read but no longer written: pre-slug bundles carry it and uploads fall
+    // back to it for identity; slug-aware servers stop emitting it so files
+    // stay portable across projects.
+    appUuid?: string;
+    // Still emitted: released CLIs hard-fail their cross-project guard when
+    // this is missing. Informational for slug-aware code; drop with the next
+    // codeVersion bump once old CLIs age out.
     projectUuid: string;
+    // Project-scoped identity used to match uploads to existing apps, the
+    // same pattern charts/dashboards-as-code use. Optional because bundles
+    // downloaded before slugs existed don't carry it (those fall back to
+    // appUuid matching); slug-aware servers always emit it.
+    slug?: string;
     version: number;
     name: string;
     description: string;
@@ -82,15 +93,21 @@ export type ApiGetAppCodeResponse = ApiSuccess<DataAppCodeDownload>;
 
 export type ImportAppCodeRequestBody = {
     code: DataAppCode;
-    // when present and the app exists in the target project -> append a version; otherwise create a new app
+    // Legacy identity for pre-slug bundles and old CLIs: append when this app
+    // exists in the target project. Ignored when the manifest carries a slug.
     targetAppUuid?: string;
     spaceUuid?: string;
+    // Force-create a new app (with a fresh generated slug) even when the
+    // manifest slug matches an existing app in the target project (--create-new).
+    createNew?: boolean;
 };
 
 export type ApiImportAppCodeResponse = ApiSuccess<{
     appUuid: string;
     version: number;
     action: 'create' | 'append';
+    // The app's project-scoped slug, so the CLI can tell pre-slug bundles what to add.
+    slug: string;
     // Non-fatal issues the CLI should surface (e.g. a manifest link whose
     // connectionSlug does not exist in the target project was skipped).
     // Optional for compatibility with servers predating link support.
@@ -389,6 +406,28 @@ export function validateDataAppDependencies(
     }
 
     return { customDeps };
+}
+
+// Matches every generateSlug() output; also caps length defensively (the DB
+// unique index already rejects absurdly long values, but reject loudly here
+// instead of relying on that).
+const MAX_DATA_APP_SLUG_LENGTH = 255;
+const DATA_APP_SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * Validates a data app manifest slug's shape. The slug is used as a folder
+ * name client-side (CLI download) and a project-scoped lookup key
+ * server-side (upload identity resolution) — an unvalidated value (e.g. a
+ * hand-edited `../../etc` in lightdash-app.yml) must never be trusted for
+ * either of those uses.
+ */
+export function isValidDataAppSlug(slug: string): boolean {
+    return (
+        typeof slug === 'string' &&
+        slug.length > 0 &&
+        slug.length <= MAX_DATA_APP_SLUG_LENGTH &&
+        DATA_APP_SLUG_RE.test(slug)
+    );
 }
 
 const isSafeRelPath = (p: string): boolean => {

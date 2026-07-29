@@ -186,6 +186,7 @@ export enum EventName {
     AI_AGENT_CHAT_MINIMIZED = 'ai_agent_chat.minimized',
     AI_AGENT_SUGGESTION_IMPRESSION = 'ai_agent.suggestion_impression',
     AI_AGENT_SUGGESTION_CLICK = 'ai_agent.suggestion_click',
+    AI_DEEP_RESEARCH_REPORT_ENGAGED = 'ai_deep_research.report_engaged',
 
     // Theme
     THEME_TOGGLED = 'theme.toggled',
@@ -209,6 +210,7 @@ export enum EventName {
     HOMEPAGE_ASK_SUBMITTED = 'homepage_ask.submitted',
     HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION = 'homepage_recommended_action.impression',
     HOMEPAGE_RECOMMENDED_ACTION_RESTORED = 'homepage_recommended_action.restored',
+    HOMEPAGE_STARS_MEDIA_CARD_CLICKED = 'homepage_stars_media_card.clicked',
     AGENT_SETUP_PROMPT_COPIED = 'agent_setup_prompt.copied',
     CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED = 'create_project_columns_defined_button.click',
 }

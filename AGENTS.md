@@ -35,6 +35,6 @@ Processes: `<instance>-api`, `-scheduler`, `-frontend`, `-common-watch`, `-formu
 
 ### Non-obvious caveats
 
-- Node: use Node 20.19 (pinned by `.nvmrc`). The VM's default `node` on `PATH` is a v22 tool-runtime at `/exec-daemon/node`; the nvm 20.19 build is prepended for interactive shells via `~/.bashrc`, and the update script sources nvm explicitly. Run dev commands from a login shell so 20.19 is active — native modules are built against it.
+- Node: use Node 24.18 (pinned by `.nvmrc`). The VM's default `node` on `PATH` is a v22 tool-runtime at `/exec-daemon/node`; the nvm 24.18 build is prepended for interactive shells via `~/.bashrc`, and the update script sources nvm explicitly. Run dev commands from a login shell so 24.18 is active — native modules are built against it.
 - dbt venv must be Python 3.11: `dbt-core==1.7.0` imports `distutils`, which was removed in Python 3.12 (the VM's default `python3`). The venv at `./venv` is built with `python3.11`. If it must be recreated, use `python3.11 -m venv venv`, NOT `python3`. Note `scripts/dev-fast-start.sh` recreates the venv with `python3` only when it is missing — the snapshot ships a working `python3.11` venv so that path is normally skipped; if you delete the venv, rebuild it with `python3.11` before re-running the script.
 - Backend lint runs out of heap with the default Node memory limit and aborts (exit 134). Run it with a larger heap: `NODE_OPTIONS="--max-old-space-size=8192" pnpm -F backend lint`.

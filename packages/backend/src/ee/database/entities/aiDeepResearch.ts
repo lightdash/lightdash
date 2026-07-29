@@ -1,10 +1,13 @@
 import {
     type AiDeepResearchBudget,
     type AiDeepResearchChartDataMap,
+    type AiDeepResearchEffort,
+    type AiDeepResearchEntryPoint,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventType,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchRunStatus,
+    type AiDeepResearchTerminalReason,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -22,6 +25,8 @@ export type DbAiDeepResearchRun = {
     prompt: string;
     status: AiDeepResearchRunStatus;
     selected_mcp_server_uuids: string[];
+    entry_point: AiDeepResearchEntryPoint;
+    effort: AiDeepResearchEffort;
     result_markdown: string | null;
     result_chart_data: AiDeepResearchChartDataMap | null;
     budget_snapshot: AiDeepResearchBudget;
@@ -47,6 +52,8 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
         | 'tool_call_id'
         | 'prompt'
         | 'selected_mcp_server_uuids'
+        | 'entry_point'
+        | 'effort'
         | 'budget_snapshot'
         | 'execution_context_snapshot'
     >,
@@ -83,4 +90,27 @@ export type AiDeepResearchEventsTable = Knex.CompositeTableType<
         'ai_deep_research_run_uuid' | 'event_type' | 'payload'
     > &
         Partial<Pick<DbAiDeepResearchEvent, 'created_at'>>
+>;
+
+export const AiDeepResearchAnalyticsOutboxTableName =
+    'ai_deep_research_analytics_outbox';
+
+export type AiDeepResearchAnalyticsEventType = 'run_started' | 'run_completed';
+
+export type DbAiDeepResearchAnalyticsOutbox = {
+    ai_deep_research_analytics_event_uuid: string;
+    ai_deep_research_run_uuid: string;
+    event_type: AiDeepResearchAnalyticsEventType;
+    terminal_reason: AiDeepResearchTerminalReason | null;
+    delivered_at: Date | null;
+    created_at: Date;
+};
+
+export type AiDeepResearchAnalyticsOutboxTable = Knex.CompositeTableType<
+    DbAiDeepResearchAnalyticsOutbox,
+    Pick<
+        DbAiDeepResearchAnalyticsOutbox,
+        'ai_deep_research_run_uuid' | 'event_type' | 'terminal_reason'
+    >,
+    Pick<DbAiDeepResearchAnalyticsOutbox, 'delivered_at'>
 >;
