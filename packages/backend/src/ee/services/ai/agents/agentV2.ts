@@ -1382,9 +1382,10 @@ export const generateAgentResponse = async ({
         );
 
         // Invariant: a finished prompt must persist either a response or an
-        // error message. Empty text under the step cap would otherwise be
-        // stored as a blank response with no explanation for the user.
-        if (!result.text) {
+        // error message. Empty (or whitespace-only) text under the step cap
+        // would otherwise be stored as a blank response with no explanation
+        // for the user.
+        if (!result.text.trim()) {
             if (result.steps.length >= args.execution.maxSteps) {
                 throw new AiAgentStepCapReachedError(result.steps.length);
             }
@@ -1787,8 +1788,9 @@ export const streamAgentResponse = async ({
                 // the client's post-stream refetch then reads persisted content.
                 // Invariant: a finished prompt must persist either a response
                 // or an error message — a blank response with no error renders
-                // as an empty chat bubble with no explanation.
-                if (!completeResponse) {
+                // as an empty chat bubble with no explanation. trim() matters:
+                // steps with empty text still join into "\n" strings.
+                if (!completeResponse.trim()) {
                     const emptyResponseError = stepCapReached
                         ? new AiAgentStepCapReachedError(steps.length)
                         : new AiAgentEmptyResponseError(
