@@ -11,6 +11,7 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import useUser from '../../../../hooks/user/useUser';
@@ -19,11 +20,13 @@ import {
     replaceDeepResearchRun,
     restoreDeepResearchComposerPrompt,
     updateDeepResearchRun,
+    useDeepResearchRunsForThread,
 } from '../deepResearch/deepResearchRegistry';
 import {
     adaptDeepResearchRun,
     DEEP_RESEARCH_DEPTH_CONFIG,
     isDeepResearchRunTerminal,
+    toDeepResearchRegistration,
 } from '../deepResearch/runProgress';
 import {
     type DeepResearchRunRegistration,
@@ -240,7 +243,7 @@ export const useStartDeepResearchForThreadMutation = (projectUuid: string) =>
         ({ agentUuid, threadUuid }) => ({ agentUuid, threadUuid }),
     );
 
-export const useDeepResearchThreadRuns = (
+const useDeepResearchThreadRuns = (
     projectUuid: string | undefined,
     threadUuid: string,
 ) =>
@@ -249,6 +252,41 @@ export const useDeepResearchThreadRuns = (
         queryFn: () => listDeepResearchRuns(projectUuid ?? '', threadUuid),
         enabled: !!projectUuid,
     });
+
+export const useDeepResearchThreadRunRegistrations = ({
+    projectUuid,
+    threadUuid,
+}: {
+    projectUuid: string | undefined;
+    threadUuid: string;
+}) => {
+    const user = useUser(true);
+    const userUuid = user.data?.userUuid;
+    const serverRuns = useDeepResearchThreadRuns(projectUuid, threadUuid);
+    const localRegistrations = useDeepResearchRunsForThread(
+        projectUuid ?? '',
+        threadUuid,
+        userUuid,
+    );
+
+    return useMemo(() => {
+        const fromServer = (serverRuns.data ?? []).map((run) =>
+            toDeepResearchRegistration(run, {
+                threadUuid,
+                userUuid: userUuid ?? '',
+            }),
+        );
+        const serverRunUuids = new Set(
+            fromServer.map((registration) => registration.runUuid),
+        );
+        return [
+            ...fromServer,
+            ...localRegistrations.filter(
+                (registration) => !serverRunUuids.has(registration.runUuid),
+            ),
+        ];
+    }, [serverRuns.data, localRegistrations, threadUuid, userUuid]);
+};
 
 export const useDeepResearchRun = (
     registration: DeepResearchRunRegistration,
