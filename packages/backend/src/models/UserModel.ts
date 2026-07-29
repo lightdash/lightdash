@@ -395,6 +395,23 @@ export class UserModel {
         return results.length > 0;
     }
 
+    async getIsTrackingAnonymizedByUserUuids(
+        userUuids: string[],
+    ): Promise<Record<string, boolean>> {
+        if (userUuids.length === 0) {
+            return {};
+        }
+        const users = await this.database(UserTableName)
+            .whereIn('user_uuid', userUuids)
+            .select<Pick<DbUser, 'user_uuid' | 'is_tracking_anonymized'>[]>(
+                'user_uuid',
+                'is_tracking_anonymized',
+            );
+        return Object.fromEntries(
+            users.map((user) => [user.user_uuid, user.is_tracking_anonymized]),
+        );
+    }
+
     async getUserDetailsByUuid(userUuid: string): Promise<LightdashUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)

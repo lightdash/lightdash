@@ -161,8 +161,13 @@ export type DeleteUserEvent = BaseTrack & {
         email: string | undefined;
         organizationId: string | undefined;
         deletedUserId: string;
+        isTrackingAnonymized: boolean;
     };
 };
+
+function isUserDeletedEvent(event: BaseTrack): event is DeleteUserEvent {
+    return event.event === 'user.deleted';
+}
 
 export type UpdateUserEvent = BaseTrack & {
     event: 'user.updated';
@@ -3327,6 +3332,29 @@ export class LightdashAnalytics extends Analytics {
                         ? undefined
                         : payload.properties.email,
                 },
+            });
+            return;
+        }
+        if (isUserDeletedEvent(payload)) {
+            const basicEventProperties = {
+                context: payload.properties.context,
+                organizationId: payload.properties.organizationId,
+                deletedUserId: payload.properties.deletedUserId,
+                is_tracking_anonymized: payload.properties.isTrackingAnonymized,
+            };
+
+            super.track({
+                ...payload,
+                event: `${this.lightdashContext.app.name}.${payload.event}`,
+                context: { ...this.lightdashContext },
+                properties: payload.properties.isTrackingAnonymized
+                    ? basicEventProperties
+                    : {
+                          ...basicEventProperties,
+                          firstName: payload.properties.firstName,
+                          lastName: payload.properties.lastName,
+                          email: payload.properties.email,
+                      },
             });
             return;
         }

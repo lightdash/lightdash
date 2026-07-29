@@ -610,6 +610,7 @@ export class UserService extends BaseService {
                 email: userToDelete.email,
                 organizationId: userToDelete.organizationUuid,
                 deletedUserId: userToDelete.userUuid,
+                isTrackingAnonymized: userToDelete.isTrackingAnonymized,
             },
         });
     }
