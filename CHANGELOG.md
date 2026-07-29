@@ -1,3 +1,12 @@
+# [1.29.0](https://github.com/lightdash/lightdash/compare/1.28.0...1.29.0) (2026-07-29)
+
+
+### Features
+
+* **ai:** move deep research into prompt composers ([#26418](https://github.com/lightdash/lightdash/issues/26418)) ([933ec7a](https://github.com/lightdash/lightdash/commit/933ec7a99dac5a497ff961ba6ca555f501874258))
+* consolidation analytics events and prometheus metrics ([#26389](https://github.com/lightdash/lightdash/issues/26389)) ([77079d3](https://github.com/lightdash/lightdash/commit/77079d375eaa610ddce7ceb7a6d683599dafd600)), closes [#26143](https://github.com/lightdash/lightdash/issues/26143) [#26149](https://github.com/lightdash/lightdash/issues/26149)
+* report memory distill and consolidation failures to Sentry ([#26388](https://github.com/lightdash/lightdash/issues/26388)) ([5873b39](https://github.com/lightdash/lightdash/commit/5873b39be4afc805024a355d8079ecd5f38a3835))
+
 # [1.28.0](https://github.com/lightdash/lightdash/compare/1.27.0...1.28.0) (2026-07-29)
 
 
