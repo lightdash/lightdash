@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/lightdash/lightdash/compare/1.31.1...1.32.0) (2026-07-29)
+
+
+### Features
+
+* **ai:** expose Deep Research status and reports to chat ([#26460](https://github.com/lightdash/lightdash/issues/26460)) ([508271c](https://github.com/lightdash/lightdash/commit/508271c89aaf0522299d58a0fc7b6d2b36789fdf))
+
 ## [1.31.1](https://github.com/lightdash/lightdash/compare/1.31.0...1.31.1) (2026-07-29)
 
 
