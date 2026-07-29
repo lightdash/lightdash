@@ -1,11 +1,18 @@
 #!/bin/bash
 # Runs inside the Okteto dev container (see okteto.dev.yaml). Installs
 # dependencies, builds the packages the backend imports as dist, migrates the
-# database, then starts the same watchers as local dev. node_modules and
-# incremental build state live on the dev container's persistent volume, so
-# only the first run pays the full cost.
+# database, then starts the same watchers as local dev. The warm image provides
+# node_modules and incremental build state; each pod restart starts from it.
 set -euo pipefail
 cd /usr/app
+
+# Snapshotted project settings use the paths from the preview image.
+if [ ! -e /usr/app/dbt ] && [ ! -L /usr/app/dbt ]; then
+    ln -s /usr/app/examples/full-jaffle-shop-demo/dbt /usr/app/dbt
+fi
+if [ ! -e /usr/app/profiles ] && [ ! -L /usr/app/profiles ]; then
+    ln -s /usr/app/examples/full-jaffle-shop-demo/profiles /usr/app/profiles
+fi
 
 echo "--- Installing dependencies"
 pnpm install --prefer-offline
