@@ -7158,6 +7158,7 @@ export class AppGenerateService extends BaseService {
                     // by their creator inside the preview.
                     created_by_user_uuid: sourceApp.created_by_user_uuid,
                     name: sourceApp.name,
+                    slug: sourceApp.slug,
                     description: sourceApp.description,
                     template: sourceApp.template,
                     space_uuid: previewSpaceUuid,
