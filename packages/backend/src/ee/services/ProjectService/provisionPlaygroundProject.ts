@@ -1,4 +1,5 @@
 import {
+    CommercialFeatureFlags,
     DbtProjectType,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
@@ -19,6 +20,7 @@ import * as Sentry from '@sentry/node';
 import fs from 'fs/promises';
 import path from 'path';
 import {
+    type HomepageBuilderEnablement,
     type LightdashAnalytics,
     type OnboardingFlow,
     type PlaygroundProjectSkippedReason,
@@ -32,7 +34,10 @@ import { type ProjectService } from '../../../services/ProjectService/ProjectSer
 
 export type ProvisionPlaygroundProjectArguments = {
     user: SessionUser;
-    featureFlagService: Pick<FeatureFlagService, 'get'>;
+    featureFlagService: Pick<
+        FeatureFlagService,
+        'get' | 'ensureOrganizationOverrideEnabled'
+    >;
     projectModel: Pick<
         ProjectModel,
         'getAllByOrganizationUuid' | 'delete' | 'saveExploresToCache'
@@ -196,6 +201,30 @@ export const provisionPlaygroundProject = async ({
                     validatePlaygroundDatabase,
                 );
 
+                // Before project creation so the onProjectCreated hook sees
+                // the flag when provisioning the onboarding homepage.
+                let homepageBuilderEnablement: HomepageBuilderEnablement;
+                try {
+                    homepageBuilderEnablement =
+                        await featureFlagService.ensureOrganizationOverrideEnabled(
+                            {
+                                featureFlagId:
+                                    CommercialFeatureFlags.HomepageBuilder,
+                                organizationUuid,
+                            },
+                        );
+                } catch (error) {
+                    Sentry.captureException(error);
+                    Logger.error(
+                        `Failed to enable homepage builder for organization ${organizationUuid}: ${
+                            error instanceof Error
+                                ? error.message
+                                : String(error)
+                        }`,
+                    );
+                    homepageBuilderEnablement = 'failed';
+                }
+
                 const creation = await projectService.createWithoutCompile(
                     user,
                     {
@@ -264,6 +293,7 @@ export const provisionPlaygroundProject = async ({
                         trigger: 'invite_expert',
                         onboardingFlow,
                         catalogIndexErrorType,
+                        homepageBuilderEnablement,
                     },
                 });
                 return { projectUuid, created: true };

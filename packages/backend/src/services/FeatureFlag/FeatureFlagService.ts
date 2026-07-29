@@ -28,4 +28,17 @@ export class FeatureFlagService extends BaseService {
     }) {
         return this.featureFlagModel.get({ user, featureFlagId });
     }
+
+    ensureOrganizationOverrideEnabled({
+        featureFlagId,
+        organizationUuid,
+    }: {
+        featureFlagId: string;
+        organizationUuid: string;
+    }) {
+        return this.featureFlagModel.ensureOrganizationOverrideEnabled(
+            featureFlagId,
+            organizationUuid,
+        );
+    }
 }
