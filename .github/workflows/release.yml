@@ -67,7 +67,7 @@ jobs:
           cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Upgrade npm for OIDC support
-        run: sfw npm install -g npm@11.18.0
+        run: sfw npm install -g npm@12.0.1
 
       - name: Install dependencies
         run: sfw pnpm install --frozen-lockfile --prefer-offline --prod=false
