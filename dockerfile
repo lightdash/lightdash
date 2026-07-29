@@ -196,7 +196,7 @@ COPY pnpm-workspace.yaml .
 COPY pnpm-lock.yaml .
 COPY turbo.json .
 COPY tsconfig.json .
-COPY .eslintrc.js .
+COPY .oxlintrc.base.json .
 COPY .pnpmfile.cjs .
 COPY packages/common/package.json ./packages/common/
 COPY packages/formula/package.json ./packages/formula/
