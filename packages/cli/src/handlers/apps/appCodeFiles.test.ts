@@ -311,30 +311,34 @@ describe('resolveAppFolderName', () => {
     });
 
     it('falls back to appFolderName when the manifest has no slug', () => {
-        const code = makeCode(
-            'abcd1234-ef56-7890-ab12-cdef01234567',
-            'proj-uuid-1',
-        );
+        const uuid = 'abcd1234-ef56-7890-ab12-cdef01234567';
+        const code = makeCode(uuid, 'proj-uuid-1');
         expect(resolveAppFolderName(code.manifest, new Set())).toBe(
-            appFolderName(code.manifest.name, code.manifest.appUuid, new Set()),
+            appFolderName(code.manifest.name, uuid, new Set()),
         );
+    });
+
+    it('uses the slug for uuid-free manifests (slug-aware servers)', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, appUuid: undefined, slug: 'sales-app' },
+                new Set(),
+            ),
+        ).toBe('sales-app');
     });
 
     // Defense-in-depth: a tampered manifest (or a server of unknown version)
     // must not be able to steer the write path via an invalid slug.
     it('falls back to appFolderName when the slug is a path-traversal attempt', () => {
-        const code = makeCode(
-            'abcd1234-ef56-7890-ab12-cdef01234567',
-            'proj-uuid-1',
-        );
+        const uuid = 'abcd1234-ef56-7890-ab12-cdef01234567';
+        const code = makeCode(uuid, 'proj-uuid-1');
         expect(
             resolveAppFolderName(
                 { ...code.manifest, slug: '../../../../tmp/evil' },
                 new Set(),
             ),
-        ).toBe(
-            appFolderName(code.manifest.name, code.manifest.appUuid, new Set()),
-        );
+        ).toBe(appFolderName(code.manifest.name, uuid, new Set()));
     });
 
     it('still uses a valid manifest slug (unaffected by the new validation)', () => {

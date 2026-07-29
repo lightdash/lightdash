@@ -265,7 +265,8 @@ describe('AppGenerateService.getAppCode', () => {
 
         const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
 
-        // manifest fields
+        // manifest fields — identity is the slug; the ids are informational
+        // until the id-free cutover
         expect(result.manifest.appUuid).toBe(APP_UUID);
         expect(result.manifest.slug).toBe(APP_SLUG);
         expect(result.manifest.projectUuid).toBe(PROJECT_UUID);
@@ -327,12 +328,11 @@ describe('AppGenerateService.getAppCode', () => {
             PROJECT_UUID,
             APP_SLUG,
         );
-        expect(result.manifest.appUuid).toBe(APP_UUID);
         expect(result.manifest.slug).toBe(APP_SLUG);
         expect(result.files).toHaveLength(2);
     });
 
-    it('uses the resolved app_id — never the raw uuid-or-slug ref — for the S3 source key and manifest appUuid', async () => {
+    it('uses the resolved app_id — never the raw uuid-or-slug ref — for the S3 source key', async () => {
         const fakeS3 = makeFakeS3(sourceTarBuffer);
         const appModel = {
             getAppByUuidOrSlug: vi.fn().mockResolvedValue(fakeApp),
@@ -357,7 +357,6 @@ describe('AppGenerateService.getAppCode', () => {
         expect(sentCommand.input.Key).not.toContain(APP_SLUG);
 
         expect(result.manifest.appUuid).toBe(APP_UUID);
-        expect(result.manifest.appUuid).not.toBe(APP_SLUG);
     });
 
     it('includes the version viz schema in the manifest for a data app viz', async () => {
@@ -603,7 +602,7 @@ describe('AppGenerateService.getAppCode', () => {
         const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
 
         // Core deliverables are intact
-        expect(result.manifest.appUuid).toBe(APP_UUID);
+        expect(result.manifest.slug).toBe(APP_SLUG);
         expect(result.manifest.version).toBe(VERSION);
         expect(result.files).toHaveLength(2);
 

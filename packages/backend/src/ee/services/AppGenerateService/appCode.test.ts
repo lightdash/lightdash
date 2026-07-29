@@ -38,5 +38,8 @@ describe('appCode helpers', () => {
 
         expect(manifest.slug).toBe('my-app');
         expect(manifest.codeVersion).toBe(1);
+        // Ids are informational (released-CLI compat) until the id-free
+        // cutover; identity is the slug.
+        expect(manifest.appUuid).toBe('app-uuid-1234');
     });
 });

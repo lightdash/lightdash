@@ -46,8 +46,41 @@ export const uploadFilterMatches = (
     manifest: DataAppManifest,
 ): boolean =>
     filter === null ||
-    filter.has(manifest.appUuid) ||
+    (manifest.appUuid !== undefined && filter.has(manifest.appUuid)) ||
     (manifest.slug !== undefined && filter.has(manifest.slug));
+
+/** The filter entries this manifest satisfies (for unmatched-ref reporting). */
+export const matchedUploadRefs = (
+    filter: Set<string>,
+    manifest: DataAppManifest,
+): string[] =>
+    [manifest.appUuid, manifest.slug].filter(
+        (ref): ref is string => ref !== undefined && filter.has(ref),
+    );
+
+/**
+ * Warning for --apps references that matched no local app folder. Uuid-shaped
+ * refs (including refs parsed out of app URLs) get the slug-identity
+ * explanation: id-free bundles can only be selected by slug.
+ */
+export const unmatchedUploadRefsWarning = (
+    unmatched: string[],
+): string | null => {
+    if (unmatched.length === 0) return null;
+    const base = `No local app folder matched: ${unmatched.join(', ')}.`;
+    return unmatched.some((ref) => isUuid(ref))
+        ? `${base} Bundles downloaded with slug identity carry no uuid — select them by slug (the folder name) instead of a UUID or app URL.`
+        : base;
+};
+
+/**
+ * Shown when the upload response carries no slug even though the bundle sent
+ * one — the server predates slug identity, so it ignored the slug and matched
+ * (or created) by uuid only. A same-slug upload may have just created a
+ * duplicate app instead of appending.
+ */
+export const preSlugServerHint = (folder: string): string =>
+    `This server predates slug-based app identity, so "${folder}" was matched by uuid only. If you expected to update an existing app, verify no duplicate was created, and upgrade the server (or use a matching CLI version).`;
 
 /**
  * Resolves the --apps-limit flag. Commander passes the raw string (or
