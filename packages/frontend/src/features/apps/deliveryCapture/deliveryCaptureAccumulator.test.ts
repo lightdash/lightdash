@@ -481,7 +481,28 @@ describe('deliveryCaptureAccumulator', () => {
         expect(manifest.overflowCount).toBe(0);
     });
 
-    it('pending entries that never reach a terminal status are excluded from the manifest', async () => {
+    it('an initiated-but-never-responded entry surfaces as an error item with queryUuid null (partial capture must never look complete)', async () => {
+        const acc = createDeliveryCaptureAccumulator();
+        acc.onInitiation({
+            requestId: 'r1',
+            method: 'POST',
+            path: METRIC_PATH,
+            body: { query: baseMetricQuery() },
+            label: null,
+        });
+        // No onPostResponse/onTerminal — the POST never resolved.
+
+        const manifest = await acc.getManifest();
+        expect(manifest.items).toHaveLength(1);
+        expect(manifest.items[0]).toMatchObject({
+            status: 'error',
+            queryUuid: null,
+            error: 'Query did not settle before capture completed',
+        });
+        expect(parseDeliveryCaptureManifest(manifest)).not.toBeNull();
+    });
+
+    it('a responded-but-never-polled-terminal entry surfaces as an error item carrying the uuid', async () => {
         const acc = createDeliveryCaptureAccumulator();
         acc.onInitiation({
             requestId: 'r1',
@@ -491,9 +512,15 @@ describe('deliveryCaptureAccumulator', () => {
             label: null,
         });
         acc.onPostResponse('r1', { queryUuid: 'u1' });
-        // No onTerminal call — query never settles.
+        // No onTerminal call — the poll never reached ready/error.
 
         const manifest = await acc.getManifest();
-        expect(manifest.items).toHaveLength(0);
+        expect(manifest.items).toHaveLength(1);
+        expect(manifest.items[0]).toMatchObject({
+            status: 'error',
+            queryUuid: 'u1',
+            error: 'Query did not settle before capture completed',
+        });
+        expect(parseDeliveryCaptureManifest(manifest)).not.toBeNull();
     });
 });

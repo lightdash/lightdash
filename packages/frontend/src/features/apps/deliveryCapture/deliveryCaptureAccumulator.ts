@@ -31,7 +31,9 @@ export type DeliveryCaptureAccumulator = {
             | { status: 'ready'; rowCount: number | null }
             | { status: 'error'; error: string },
     ): void;
-    /** Awaits in-flight sha256 work, applies display-label suffixes, caps. */
+    /** Awaits in-flight sha256 work, applies display-label suffixes, caps.
+     *  A partial capture must never look complete: entries still `pending`
+     *  when this resolves are surfaced as `error` items, not dropped. */
     getManifest(): Promise<DeliveryCaptureManifest>;
     reset(): void;
 };
@@ -77,6 +79,9 @@ const resolveBaseLabel = (entry: CaptureEntry): string =>
     truncateLabel(
         entry.rawLabel ?? entry.exploreName ?? `Query ${entry.order + 1}`,
     );
+
+/** Error message for entries still `pending` when getManifest() resolves. */
+const NOT_SETTLED_ERROR = 'Query did not settle before capture completed';
 
 /** Appends a display-only " (n)" suffix for the nth occurrence of a label,
  *  re-truncating so the final label still respects the cap. */
@@ -235,10 +240,6 @@ export const createDeliveryCaptureAccumulator =
                 const items: CapturedQuery[] = [];
 
                 ordered.forEach((entry) => {
-                    // Never reached ready/error — the manifest type has no
-                    // "pending" variant, so it's excluded rather than guessed at.
-                    if (entry.status === 'pending') return;
-
                     const baseLabel = resolveBaseLabel(entry);
                     const occurrence =
                         (labelOccurrences.get(baseLabel) ?? 0) + 1;
@@ -258,6 +259,9 @@ export const createDeliveryCaptureAccumulator =
                             limitReached: entry.limitReached,
                         });
                     } else {
+                        // 'error' status, or 'pending' (never reached a
+                        // terminal state) — either way a visible failure
+                        // rather than a silently missing file downstream.
                         items.push({
                             status: 'error',
                             captureKey,
@@ -265,7 +269,10 @@ export const createDeliveryCaptureAccumulator =
                             exploreName: entry.exploreName,
                             queryUuid: entry.queryUuid,
                             order: entry.order,
-                            error: entry.error ?? 'Unknown error',
+                            error:
+                                entry.status === 'pending'
+                                    ? NOT_SETTLED_ERROR
+                                    : (entry.error ?? 'Unknown error'),
                         });
                     }
                 });
