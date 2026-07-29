@@ -299,10 +299,9 @@ test.describe('Dashboard filter required groups', { tag: '@mutating' }, () => {
             })
             .and(page.locator('button'));
         await paymentMethodChip.press('Enter');
-        const paymentMethodPopover = page.getByRole('dialog', {
-            name: 'Payment method is any value',
-            exact: true,
-        });
+        const paymentMethodPopover = page
+            .getByRole('dialog')
+            .filter({ hasText: 'Payment method' });
         await expect(paymentMethodPopover).toBeVisible();
         await paymentMethodPopover
             .getByPlaceholder('any value', { exact: true })
