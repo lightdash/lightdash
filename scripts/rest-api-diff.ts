@@ -8,12 +8,14 @@
  *
  * This is the DETERMINISTIC sibling of the P6 AI migration review: oasdiff parses
  * both specs into a semantic OpenAPI model and compares them, so JSON key ordering
- * is irrelevant and the result is reproducible. Because it's deterministic and
- * cheap it needs no opt-in flag — the generator runs it automatically whenever
- * `oasdiff` is on PATH (or `OASDIFF_BIN` points at it) and a previous tag exists.
+ * is irrelevant and the result is reproducible. It runs whenever `oasdiff` is
+ * available (on PATH or via `OASDIFF_BIN`) and the caller named both sides of the
+ * comparison — which specs to diff is never inferred, see the generator.
  *
- * The old spec is read from git. The new spec normally comes from another git
- * ref, but release preparation can explicitly use the freshly generated file.
+ * Each side comes from either a git ref or an explicit file. Release preparation
+ * reads the old side from the previous tag and the new side from the freshly
+ * generated working-tree file; the PR preview passes two freshly generated files
+ * (the committed spec is a release-time artifact and is stale on every PR).
  *
  * FAIL-SAFE (soft): any failure (oasdiff missing, spec absent at a ref, oasdiff
  * error, unparseable output) degrades to `checked: false` — the honest "not
@@ -23,6 +25,7 @@
  * Importable: `diffRestApi(opts)` returns an `ApiSurface`.
  *
  * CLI:  npx tsx scripts/rest-api-diff.ts --last-tag 0.3260.2 [--new-ref HEAD]
+ *       npx tsx scripts/rest-api-diff.ts --base-spec base.json --new-spec pr.json
  */
 import { execFileSync } from 'child_process';
 import * as fs from 'fs';
@@ -122,7 +125,9 @@ function readSpecFile(specPath: string): string | null {
 
 export interface DiffRestApiOpts {
     /** Previous release tag/ref — the old spec side. */
-    lastTag: string;
+    lastTag?: string;
+    /** Generated spec to use as the old side instead of lastTag. */
+    baseSpecPath?: string;
     /** New spec side; defaults to HEAD (the release commit). */
     newRef?: string;
     /** Generated working-tree spec to use instead of newRef. */
@@ -145,15 +150,21 @@ export function diffRestApi(opts: DiffRestApiOpts): ApiSurface {
     if (opts.newRef !== undefined && opts.newSpecPath !== undefined) {
         throw new Error('Provide either newRef or newSpecPath, not both');
     }
+    if ((opts.lastTag === undefined) === (opts.baseSpecPath === undefined)) {
+        throw new Error('Provide exactly one of lastTag or baseSpecPath');
+    }
 
     if (!bin) {
         log('oasdiff not found (OASDIFF_BIN unset, not on PATH); api.rest stays unchecked');
         return UNCHECKED;
     }
 
-    const oldSpec = showAtRef(opts.lastTag, SPEC_PATH);
+    const oldSpec = opts.baseSpecPath
+        ? readSpecFile(opts.baseSpecPath)
+        : showAtRef(opts.lastTag as string, SPEC_PATH);
     if (oldSpec === null) {
-        log(`spec not found at ${opts.lastTag}:${SPEC_PATH}; api.rest stays unchecked`);
+        const source = opts.baseSpecPath ?? `${opts.lastTag}:${SPEC_PATH}`;
+        log(`spec not found at ${source}; api.rest stays unchecked`);
         return UNCHECKED;
     }
     const newSpec = opts.newSpecPath
@@ -212,11 +223,17 @@ function arg(name: string): string | undefined {
 }
 
 function main(): void {
-    const lastTag = arg('last-tag') ?? arg('previous-version');
-    if (!lastTag) throw new Error('--last-tag (or --previous-version) is required');
+    const baseSpecPath = arg('base-spec');
+    const lastTag = baseSpecPath ? undefined : arg('last-tag') ?? arg('previous-version');
+    if (!lastTag && !baseSpecPath) {
+        throw new Error('--last-tag (or --previous-version) or --base-spec is required');
+    }
+    const newSpecPath = arg('new-spec');
     const result = diffRestApi({
         lastTag,
-        newRef: arg('new-ref'),
+        baseSpecPath,
+        newRef: newSpecPath ? undefined : arg('new-ref'),
+        newSpecPath,
         log: (m) => console.log(`[rest-api-diff] ${m}`),
     });
     console.log(JSON.stringify(result, null, 2));
