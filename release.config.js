@@ -43,10 +43,15 @@ module.exports = {
         // expected workspace:* error above. Reinstall from the unchanged
         // lockfile to repair the tree; pnpm 11 used to do this implicitly via
         // verifyDepsBeforeRun before it was pinned off in pnpm-workspace.yaml.
+        // --offline: the job's install step already populated the store, so
+        // the relink must not touch the network — a registry flake here left
+        // a half-restored tree, and sfw's crashed proxy masked the failure
+        // with exit 0 (run 30491182209). Offline means no fetches to firewall
+        // and a hard failure if the store is somehow incomplete.
         [
             '@semantic-release/exec',
             {
-                prepareCmd: 'sfw pnpm install --prefer-offline',
+                prepareCmd: 'pnpm install --offline',
             },
         ],
 
