@@ -25,7 +25,6 @@ import {
 import { AiDeepResearchRunModel } from './AiDeepResearchRunModel';
 
 const budget: AiDeepResearchBudget = {
-    maxTokens: 10_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,

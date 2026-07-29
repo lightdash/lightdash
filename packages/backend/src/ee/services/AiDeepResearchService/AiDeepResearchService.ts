@@ -208,7 +208,6 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     resultMarkdown: row.result_markdown,
     resultChartData: row.result_chart_data,
     budget: {
-        maxTokens: row.budget_snapshot.maxTokens,
         maxToolCalls: row.budget_snapshot.maxToolCalls,
         maxWarehouseQueries: row.budget_snapshot.maxWarehouseQueries,
         maxResultRows: row.budget_snapshot.maxResultRows,
@@ -308,25 +307,21 @@ export const AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT: Record<
     AiDeepResearchBudget
 > = {
     low: {
-        maxTokens: 500_000,
         maxToolCalls: 50,
         maxWarehouseQueries: 10,
         maxResultRows: 5_000,
     },
     medium: {
-        maxTokens: 1_000_000,
         maxToolCalls: 125,
         maxWarehouseQueries: 25,
         maxResultRows: 10_000,
     },
     high: {
-        maxTokens: 2_000_000,
         maxToolCalls: 250,
         maxWarehouseQueries: 50,
         maxResultRows: 25_000,
     },
     xhigh: {
-        maxTokens: 4_000_000,
         maxToolCalls: 500,
         maxWarehouseQueries: 100,
         maxResultRows: 50_000,

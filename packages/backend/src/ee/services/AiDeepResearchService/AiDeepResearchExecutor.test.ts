@@ -9,7 +9,6 @@ import { AI_DEEP_RESEARCH_REPORT_TOOL_NAME } from './AiDeepResearchAgent';
 import { AiDeepResearchExecutor } from './AiDeepResearchExecutor';
 
 const budget: AiDeepResearchBudget = {
-    maxTokens: 10_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
@@ -422,7 +421,11 @@ describe('AiDeepResearchExecutor', () => {
         });
     });
 
-    it('returns the saved report when the model token budget is exhausted', async () => {
+    it('continues after exceeding the legacy model token budget', async () => {
+        const legacyBudget = {
+            ...budget,
+            maxTokens: 1_000,
+        } as AiDeepResearchBudget;
         const generateAgentThreadResponse = vi.fn(
             async (
                 _user: SessionUser,
@@ -441,15 +444,12 @@ describe('AiDeepResearchExecutor', () => {
         await expect(
             executor.execute(
                 run({
-                    budget_snapshot: {
-                        ...budget,
-                        maxTokens: 1_000,
-                    },
+                    budget_snapshot: legacyBudget,
                 }),
                 { signal: new AbortController().signal },
             ),
         ).resolves.toEqual({
-            status: 'partially_completed',
+            status: 'completed',
             report,
             warehouseQueryUuids: [],
         });
@@ -520,13 +520,6 @@ describe('AiDeepResearchExecutor', () => {
     });
 
     it.each([
-        {
-            budgetName: 'maxTokens',
-            budget: { ...budget, maxTokens: 1 },
-            consumeBudget: async (options: AnyType, _attempt: number) => {
-                await options.execution.onStepUsage(1);
-            },
-        },
         {
             budgetName: 'maxToolCalls',
             budget: { ...budget, maxToolCalls: 1 },

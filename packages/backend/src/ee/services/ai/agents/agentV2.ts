@@ -3,6 +3,7 @@ import {
     AnyType,
     assertUnreachable,
     Explore,
+    type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -1003,6 +1004,11 @@ export const buildMessagesWithMemoryBlock = ({
     ...messageHistory,
 ];
 
+export const getDeepResearchBudgetInstruction = (
+    budget: AiDeepResearchBudget,
+): string =>
+    `Run limits: at most ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, and ${budget.maxResultRows} rows per query result. Submit the best report available before a limit is exhausted.`;
+
 const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
@@ -1027,7 +1033,7 @@ const getAgentMessages = (
         args.projectContextEnabled && args.projectContext.length > 0;
     const deepResearchBudgetInstruction =
         args.execution.mode === 'deep_research'
-            ? `Run limits: at most ${args.execution.budget.maxToolCalls} tool calls, ${args.execution.budget.maxWarehouseQueries} warehouse queries, ${args.execution.budget.maxResultRows} rows per query result, and ${args.execution.budget.maxTokens} total model tokens. Submit the best report available before a limit is exhausted.`
+            ? getDeepResearchBudgetInstruction(args.execution.budget)
             : null;
     const instructions = [
         args.agentSettings.instruction,

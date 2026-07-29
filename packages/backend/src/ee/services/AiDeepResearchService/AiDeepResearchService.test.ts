@@ -17,7 +17,6 @@ import { Readable } from 'stream';
 import { AiDeepResearchService } from './AiDeepResearchService';
 
 const budget: AiDeepResearchBudget = {
-    maxTokens: 10_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
@@ -75,7 +74,6 @@ const effortBudgets = [
     {
         effort: 'low',
         budget: {
-            maxTokens: 500_000,
             maxToolCalls: 50,
             maxWarehouseQueries: 10,
             maxResultRows: 5_000,
@@ -84,7 +82,6 @@ const effortBudgets = [
     {
         effort: 'medium',
         budget: {
-            maxTokens: 1_000_000,
             maxToolCalls: 125,
             maxWarehouseQueries: 25,
             maxResultRows: 10_000,
@@ -93,7 +90,6 @@ const effortBudgets = [
     {
         effort: 'high',
         budget: {
-            maxTokens: 2_000_000,
             maxToolCalls: 250,
             maxWarehouseQueries: 50,
             maxResultRows: 25_000,
@@ -102,7 +98,6 @@ const effortBudgets = [
     {
         effort: 'xhigh',
         budget: {
-            maxTokens: 4_000_000,
             maxToolCalls: 500,
             maxWarehouseQueries: 100,
             maxResultRows: 50_000,
@@ -795,7 +790,7 @@ describe('AiDeepResearchService', () => {
             await expect(
                 service.createRun({
                     ...validCreateRunArgs(),
-                    budget: { ...budget, maxTokens: 0 },
+                    budget: { ...budget, maxToolCalls: 0 },
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
             expect(model.create).not.toHaveBeenCalled();
@@ -809,7 +804,7 @@ describe('AiDeepResearchService', () => {
                     ...validCreateRunArgs(),
                     budget: {
                         ...budget,
-                        maxTokens: 4_000_000 + 1,
+                        maxToolCalls: 501,
                     },
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
@@ -818,10 +813,11 @@ describe('AiDeepResearchService', () => {
     });
 
     describe('access and cancellation', () => {
-        it('omits legacy runtime limits from returned budget snapshots', async () => {
+        it('omits legacy limits from returned budget snapshots', async () => {
             const legacyBudget = {
                 ...budget,
                 maxRuntimeMs: 30 * 60 * 1_000,
+                maxTokens: 1_000_000,
             } as AiDeepResearchBudget;
             const { service } = buildService({
                 model: {
