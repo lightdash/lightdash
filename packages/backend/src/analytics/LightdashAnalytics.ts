@@ -55,6 +55,7 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
+import Logger from '../logging/logger';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
@@ -3430,6 +3431,29 @@ export class LightdashAnalytics extends Analytics {
             ...payload,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });
+    }
+
+    /**
+     * Drains queued events over the wire. track() only enqueues, so without
+     * this anything tracked during shutdown dies with the process. flush()
+     * sends at most `flushAt` events per call, hence the loop.
+     */
+    async flushEvents(timeoutMs: number = 5000): Promise<void> {
+        if (!this.lightdashConfig.rudder.writeKey) return; // Tracking disabled
+
+        const deadline = Date.now() + timeoutMs;
+        try {
+            do {
+                // eslint-disable-next-line no-await-in-loop
+                await this.flush();
+            } while (this.queue.length > 0 && Date.now() < deadline);
+            // track() auto-flushes on its own once the queue reaches flushAt,
+            // so an empty queue can still have requests in flight. Flushing an
+            // empty queue resolves only once that pending chain settles.
+            await this.flush();
+        } catch (e) {
+            Logger.warn(`Failed to flush analytics events: ${e}`);
+        }
     }
 
     trackFeatureFlagChecks(
