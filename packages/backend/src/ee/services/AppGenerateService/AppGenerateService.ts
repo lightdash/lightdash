@@ -1745,6 +1745,28 @@ export class AppGenerateService extends BaseService {
         );
     }
 
+    /**
+     * Persist what the generation cost onto the version row, for the org-wide
+     * activity log. Bookkeeping only — a failure here must never take down a
+     * generation that otherwise succeeded, so it logs and moves on.
+     */
+    private async recordGenerationUsage(
+        payload: AppGeneratePipelineJobPayload,
+        usage: ClaudeGenerationUsage,
+    ): Promise<void> {
+        try {
+            await this.appModel.recordVersionGenerationUsage(
+                payload.appUuid,
+                payload.version,
+                usage,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${payload.appUuid}: failed to record generation usage for version ${payload.version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     private trackVersionFailed(
         payload: AppGeneratePipelineJobPayload,
         failureStage:
@@ -1782,6 +1804,9 @@ export class AppGenerateService extends BaseService {
                 telemetry.keyManagement ?? 'lightdash-managed',
                 generationUsage,
             );
+            // This path is synchronous (called from ~10 error sites), so the
+            // write is floated rather than awaited; it swallows its own errors.
+            void this.recordGenerationUsage(payload, generationUsage);
         }
 
         this.analytics.track({
@@ -4730,6 +4755,7 @@ export class AppGenerateService extends BaseService {
             claudeKeyManagement,
             generationUsage,
         );
+        await this.recordGenerationUsage(payload, generationUsage);
 
         this.analytics.track({
             event: 'data_app.version.completed',
@@ -7665,6 +7691,7 @@ export class AppGenerateService extends BaseService {
                           firstName: row.created_by_user_first_name,
                           lastName: row.created_by_user_last_name,
                       },
+            usage: row.generation_usage,
         };
     }
 

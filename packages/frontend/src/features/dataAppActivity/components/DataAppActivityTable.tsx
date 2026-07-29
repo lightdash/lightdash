@@ -1,11 +1,13 @@
 import {
     getAppDisplayName,
     type DataAppActivityEvent,
+    type DataAppGenerationUsage,
 } from '@lightdash/common';
 import {
     Anchor,
     Badge,
     Group,
+    Stack,
     Text,
     Tooltip,
     useMantineTheme,
@@ -34,6 +36,57 @@ import { DataAppActivityTopToolbar } from './DataAppActivityTopToolbar';
 const STATUS_COLORS: Record<string, string> = {
     ready: 'green',
     error: 'red',
+};
+
+const compactTokens = new Intl.NumberFormat(undefined, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+});
+const exactTokens = new Intl.NumberFormat();
+
+const formatCost = (costUsd: number) =>
+    `$${costUsd.toFixed(costUsd < 0.01 ? 4 : 2)}`;
+
+/**
+ * Blank rather than zero when nothing was recorded: versions that predate spend
+ * tracking, and those that never called the model, are unknown — not free.
+ */
+const NotRecorded: FC = () => (
+    <Text fz="sm" c="ldGray.5">
+        -
+    </Text>
+);
+
+const TokensCell: FC<{ usage: DataAppGenerationUsage | null }> = ({
+    usage,
+}) => {
+    if (!usage) return <NotRecorded />;
+    // Cached tokens dominate an agentic run — every turn re-sends the system
+    // prompt and conversation so far, served from Anthropic's cache. Leaving
+    // them out understated a generation by ~30x, so the total counts them and
+    // the tooltip shows them (read and write combined) to keep it reconcilable.
+    const cached = usage.cacheReadInputTokens + usage.cacheCreationInputTokens;
+    const total = usage.inputTokens + usage.outputTokens + cached;
+    return (
+        <Tooltip
+            withinPortal
+            label={
+                <Stack gap={2}>
+                    <Text fz="xs">{`Input: ${exactTokens.format(usage.inputTokens)}`}</Text>
+                    <Text fz="xs">{`Output: ${exactTokens.format(usage.outputTokens)}`}</Text>
+                    <Text fz="xs">{`Cached: ${exactTokens.format(cached)}`}</Text>
+                    <Text fz="xs">{`${usage.numTurns} turns`}</Text>
+                    <Text fz="xs">{`Estimated cost: ${formatCost(
+                        usage.costUsd,
+                    )}`}</Text>
+                </Stack>
+            }
+        >
+            <Text fz="sm" c="ldGray.9">
+                {compactTokens.format(total)}
+            </Text>
+        </Tooltip>
+    );
 };
 
 const PromptCell: FC<{ prompt: string }> = ({ prompt }) => {
@@ -113,7 +166,7 @@ export const DataAppActivityTable: FC = () => {
                 id: 'createdAt',
                 accessorFn: (row) => row.createdAt,
                 header: 'When',
-                size: 132,
+                size: 118,
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Tooltip
@@ -137,7 +190,7 @@ export const DataAppActivityTable: FC = () => {
                         ? `${row.user.firstName} ${row.user.lastName}`
                         : 'Unknown user',
                 header: 'User',
-                size: 142,
+                size: 138,
                 enableSorting: false,
                 Cell: ({ row }) =>
                     row.original.user ? (
@@ -154,7 +207,7 @@ export const DataAppActivityTable: FC = () => {
                 id: 'app',
                 accessorFn: (row) => row.appName,
                 header: 'Name',
-                size: 162,
+                size: 150,
                 enableSorting: false,
                 Cell: ({ row }) => {
                     const displayName = getAppDisplayName(
@@ -198,7 +251,7 @@ export const DataAppActivityTable: FC = () => {
                 id: 'project',
                 accessorFn: (row) => row.projectName,
                 header: 'Project',
-                size: 105,
+                size: 100,
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.9" truncate>
@@ -210,7 +263,7 @@ export const DataAppActivityTable: FC = () => {
                 id: 'version',
                 accessorFn: (row) => row.version,
                 header: 'Type',
-                size: 122,
+                size: 114,
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Group gap="xs" wrap="nowrap">
@@ -234,7 +287,7 @@ export const DataAppActivityTable: FC = () => {
                 id: 'claudeModel',
                 accessorFn: (row) => row.claudeModel,
                 header: 'Model',
-                size: 100,
+                size: 78,
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.9">
@@ -246,7 +299,7 @@ export const DataAppActivityTable: FC = () => {
                 id: 'status',
                 accessorFn: (row) => row.status,
                 header: 'Status',
-                size: 130,
+                size: 112,
                 enableSorting: false,
                 Cell: ({ row }) => (
                     <Badge
@@ -259,10 +312,20 @@ export const DataAppActivityTable: FC = () => {
                 ),
             },
             {
+                id: 'tokens',
+                accessorFn: (row) => row.usage?.inputTokens ?? null,
+                header: 'Tokens',
+                size: 80,
+                enableSorting: false,
+                mantineTableBodyCellProps: { ta: 'right' },
+                mantineTableHeadCellProps: { ta: 'right' },
+                Cell: ({ row }) => <TokensCell usage={row.original.usage} />,
+            },
+            {
                 id: 'prompt',
                 accessorFn: (row) => row.prompt,
                 header: 'Prompt',
-                size: 187,
+                size: 190,
                 grow: true,
                 enableSorting: false,
                 Cell: ({ row }) => <PromptCell prompt={row.original.prompt} />,
@@ -297,7 +360,7 @@ export const DataAppActivityTable: FC = () => {
         mantineTableBodyCellProps: {
             h: 72,
             style: {
-                padding: `${theme.spacing.md} ${theme.spacing.xl}`,
+                padding: theme.spacing.md,
                 borderRight: 'none',
                 borderLeft: 'none',
                 borderBottom: `1px solid ${theme.colors.ldGray[2]}`,

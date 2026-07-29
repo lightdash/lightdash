@@ -9,6 +9,7 @@ import {
     type AppVersionResources,
     type AppVersionStatusHistoryEntryKind,
     type DataAppActivityFilters,
+    type DataAppGenerationUsage,
     type DataAppVizSchema,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -161,6 +162,53 @@ export class AppModel {
                 ]),
             ],
         ) as unknown as DbAppVersion['status_history'];
+    }
+
+    /**
+     * Record what the version's generation cost. Called once the pipeline
+     * reaches a terminal state, on both the success and failure paths — a
+     * generation that failed halfway still spent what it spent.
+     *
+     * Adds to any spend already recorded rather than replacing it. A version's
+     * pipeline can run more than once: when a job is retried the resumed
+     * `--continue` leg reports only its own usage, so overwriting would leave
+     * the row showing the tail of the work instead of all of it. Accumulating
+     * in SQL keeps it a single atomic statement, with no read-modify-write race
+     * between concurrent legs.
+     */
+    async recordVersionGenerationUsage(
+        appId: string,
+        version: number,
+        usage: DataAppGenerationUsage,
+    ): Promise<void> {
+        const sum = (field: keyof DataAppGenerationUsage) =>
+            `COALESCE((generation_usage->>'${field}')::numeric, 0) + ?`;
+        await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .update({
+                generation_usage: this.database.raw(
+                    `jsonb_build_object(
+                        'inputTokens', ${sum('inputTokens')},
+                        'outputTokens', ${sum('outputTokens')},
+                        'cacheReadInputTokens', ${sum('cacheReadInputTokens')},
+                        'cacheCreationInputTokens', ${sum(
+                            'cacheCreationInputTokens',
+                        )},
+                        'numTurns', ${sum('numTurns')},
+                        'durationApiMs', ${sum('durationApiMs')},
+                        'costUsd', ${sum('costUsd')}
+                    )`,
+                    [
+                        usage.inputTokens,
+                        usage.outputTokens,
+                        usage.cacheReadInputTokens,
+                        usage.cacheCreationInputTokens,
+                        usage.numTurns,
+                        usage.durationApiMs,
+                        usage.costUsd,
+                    ],
+                ) as unknown as DataAppGenerationUsage,
+            });
     }
 
     async updateVersionStatus(
@@ -1185,6 +1233,7 @@ export class AppModel {
                 `${AppVersionsTableName}.prompt`,
                 `${AppVersionsTableName}.status`,
                 `${AppVersionsTableName}.resources`,
+                `${AppVersionsTableName}.generation_usage`,
                 `${AppVersionsTableName}.created_at`,
                 `${AppVersionsTableName}.created_by_user_uuid`,
                 `${AppsTableName}.name as app_name`,
