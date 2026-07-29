@@ -2,6 +2,37 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Opt-in Agent Okteto Development Environment
+
+This workflow is enabled only when
+`LIGHTDASH_OKTETO_TOKEN` is set. If it is not set, skip this section and
+follow the normal development workflow.
+
+When it is set, immediately after receiving the user's first prompt:
+
+1. Tell the user that the development environment is starting.
+2. Start a background subagent that runs
+   `./scripts/agent-okteto-dev.sh start` with a 10-minute Bash timeout.
+3. Continue working on the user's prompt in the main agent while the environment
+   starts. Do not wait for the subagent before beginning the task.
+
+If startup fails, give the user the exact error plus
+`docs/agent-okteto.md`, but continue working on their request.
+
+This applies to any opted-in coding-agent session. Do not replace it with a
+local Docker environment.
+
+For an opted-in session, after making and validating code changes, collect the
+startup subagent's result and have a background subagent run
+`./scripts/agent-okteto-dev.sh wait` with a 10-minute Bash timeout. If the
+environment is ready, include the URL from its `READY:` line and the manual
+test login in the final response:
+`demo@lightdash.com` / `demo_password!`. If it is unavailable, report that
+without blocking delivery of the completed code changes.
+
+Leave the Okteto namespace and sync process running so the user can test the
+changes.
+
 ## Formula Package Development
 
 The `packages/formula/` package contains a Peggy-based parser that compiles Google Sheets-like formulas to SQL for each warehouse dialect (Postgres, BigQuery, Snowflake, DuckDB).

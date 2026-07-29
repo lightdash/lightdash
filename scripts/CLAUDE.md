@@ -1,5 +1,14 @@
 # Scripts
 
+## Claude Code Okteto Environment
+
+### `agent-okteto-dev.sh <start|wait|url>`
+
+When `LIGHTDASH_OKTETO_TOKEN` is set, creates one Okteto namespace per
+Claude Code session, keeps source changes synchronized through a detached
+`okteto up`, and reports the public test URL. See
+`docs/agent-okteto.md` for setup.
+
 ## Okteto Preview Environment
 
 ### `preview-db-snapshot.sh <suffix>`
