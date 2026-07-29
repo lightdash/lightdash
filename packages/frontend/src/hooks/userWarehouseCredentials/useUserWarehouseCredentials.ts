@@ -13,7 +13,7 @@ import {
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
-const getUserWarehouseCredentials = async () =>
+export const getUserWarehouseCredentials = async () =>
     lightdashApi<UserWarehouseCredentials[]>({
         url: `/user/warehouseCredentials`,
         method: 'GET',

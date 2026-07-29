@@ -1794,6 +1794,9 @@ export class ProjectService extends BaseService {
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
+                this.logger.warn(
+                    `No ${credentials.type} user warehouse credentials found for user ${userId} on project ${projectUuid} (requireUserCredentials enabled, host mismatch: ${!!hostMismatch})`,
+                );
                 if (credentials.type === WarehouseTypes.DATABRICKS) {
                     throw new DatabricksTokenError(
                         'Please authenticate to access Databricks',
