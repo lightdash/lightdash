@@ -303,7 +303,7 @@ const Login: FC<{}> = () => {
                 <LightdashLogo />
             </Box>
             <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
-                <Title order={3} ta="center" mb="md">
+                <Title order={3} ta="center" mb="md" c="red">
                     Sign in
                 </Title>
                 <form
@@ -316,6 +316,7 @@ const Login: FC<{}> = () => {
                             name="email"
                             placeholder="Your email address"
                             required
+                            color="red"
                             {...form.getInputProps('email')}
                             disabled={isFormLoading}
                             rightSectionPointerEvents="all"
@@ -350,6 +351,7 @@ const Login: FC<{}> = () => {
                                     autoComplete="current-password"
                                     required
                                     autoFocus
+                                    color="red"
                                     {...form.getInputProps('password')}
                                     disabled={isFormLoading}
                                 />
@@ -357,11 +359,13 @@ const Login: FC<{}> = () => {
                                     inherit
                                     href="/recover-password"
                                     mx="auto"
+                                    c="red"
                                 >
                                     Forgot your password?
                                 </Anchor>
                                 <Button
                                     type="submit"
+                                    color="red"
                                     loading={isFormLoading}
                                     disabled={isFormLoading}
                                     data-cy="signin-button"
@@ -385,6 +389,7 @@ const Login: FC<{}> = () => {
                         {formStage === 'precheck' && (
                             <Button
                                 type="submit"
+                                color="red"
                                 loading={isFormLoading}
                                 disabled={isFormLoading}
                                 data-cy="signin-button"
@@ -445,11 +450,12 @@ const Login: FC<{}> = () => {
                                 </Stack>
                             </>
                         )}
-                        <Text mx="auto" mt="md" fz="sm">
+                        <Text mx="auto" mt="md" fz="sm" c="red">
                             Don't have an account?{' '}
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
                                 fz="sm"
+                                c="red"
                             >
                                 Sign up
                             </Anchor>
