@@ -1,4 +1,4 @@
-import { ActionIcon, getDefaultZIndex, Menu, Text } from '@mantine-8/core';
+import { Button, getDefaultZIndex, Menu, Text } from '@mantine-8/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
@@ -181,12 +181,13 @@ const UserCredentialsSwitcher = () => {
                 portalProps={{ target: '#navbar-header' }}
             >
                 <Menu.Target>
-                    <ActionIcon size="sm" pos="relative">
-                        <MantineIcon
-                            data-testid="tile-icon-more"
-                            icon={IconDatabaseCog}
-                        />
-                    </ActionIcon>
+                    <Button
+                        aria-label="Warehouse credentials"
+                        variant="default"
+                        size="xs"
+                    >
+                        <MantineIcon icon={IconDatabaseCog} />
+                    </Button>
                 </Menu.Target>
 
                 <Menu.Dropdown>
