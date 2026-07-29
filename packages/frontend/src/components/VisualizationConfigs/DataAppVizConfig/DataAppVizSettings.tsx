@@ -8,7 +8,9 @@ import {
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
-import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
+import DataAppVizLibraryPicker, {
+    type DataAppVizDraftOption,
+} from '../../../features/apps/components/DataAppVizLibraryPicker';
 import { poolKeyForSlot } from '../../../features/apps/utils/autoMapDataAppVizFields';
 import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
 import FieldSelect from '../../common/FieldSelect';
@@ -24,7 +26,9 @@ type Props = {
     fields: DataAppVizField[];
     /** The saved binding, reconciled against the contract in force now. */
     fieldMapping: DataAppVizFieldMapping;
+    draft: DataAppVizDraftOption | null;
     onSelect: (dataAppViz: DataAppViz | null) => void;
+    onSelectDraft: () => void;
     onFieldChange: (fieldName: string, fieldId: string | null) => void;
 };
 
@@ -41,7 +45,9 @@ const DataAppVizSettings: FC<Props> = ({
     itemsMap,
     fields,
     fieldMapping,
+    draft,
     onSelect,
+    onSelectDraft,
     onFieldChange,
 }) => {
     const { dimensions, metrics } = useMemo(
@@ -49,6 +55,7 @@ const DataAppVizSettings: FC<Props> = ({
         [itemsMap],
     );
     const itemPools = { dimension: dimensions, metric: metrics };
+    const isOnDraft = draft !== null && !dataAppVizUuid;
     const fieldItems = (field: DataAppVizField): Item[] =>
         itemPools[poolKeyForSlot(field)];
     // Auto-binding cannot run without columns, and it only runs once, at pick
@@ -62,9 +69,15 @@ const DataAppVizSettings: FC<Props> = ({
                     <Config.Heading>Visualization</Config.Heading>
                     <DataAppVizLibraryPicker
                         projectUuid={projectUuid}
-                        selectedDataAppVizUuid={dataAppVizUuid || null}
+                        selectedDataAppVizUuid={
+                            isOnDraft
+                                ? draft.dataAppVizUuid
+                                : dataAppVizUuid || null
+                        }
                         selectedDataAppViz={dataAppViz}
                         disabled={!hasColumns}
+                        draft={draft}
+                        onSelectDraft={onSelectDraft}
                         onSelect={onSelect}
                     />
                     {!hasColumns && (

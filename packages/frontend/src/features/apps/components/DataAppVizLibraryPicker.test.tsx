@@ -42,6 +42,10 @@ const setData = (data: DataAppViz[]) => {
 const render = (
     onSelect: (dataAppViz: DataAppViz | null) => void,
     selected: DataAppViz | null = null,
+    extra: {
+        draft?: { dataAppVizUuid: string; elapsed: string | null };
+        onSelectDraft?: () => void;
+    } = {},
 ) =>
     renderWithProviders(
         <DataAppVizLibraryPicker
@@ -49,9 +53,16 @@ const render = (
             selectedDataAppVizUuid={selected?.dataAppVizUuid ?? null}
             selectedDataAppViz={selected}
             disabled={false}
+            draft={extra.draft ?? null}
+            onSelectDraft={extra.onSelectDraft ?? vi.fn()}
             onSelect={onSelect}
         />,
     );
+
+const rightSectionPointerEvents = (container: HTMLElement) =>
+    container
+        .querySelector<HTMLElement>('.mantine-8-Input-wrapper')
+        ?.style.getPropertyValue('--input-right-section-pointer-events');
 
 // Options live in the Select dropdown, which only mounts once opened.
 const openDropdown = () =>
@@ -137,6 +148,49 @@ describe('DataAppVizLibraryPicker', () => {
         fireEvent.click(clearButton!);
 
         expect(onSelect).toHaveBeenCalledWith(null);
+    });
+
+    it('leaves the clear button clickable', () => {
+        const selected = makeDataAppViz({ dataAppVizUuid: 'a' });
+        setData([selected]);
+        const { container } = render(vi.fn(), selected);
+
+        expect(rightSectionPointerEvents(container)).not.toBe('none');
+    });
+
+    it('keeps the draft badge out of the way of pointer events', () => {
+        setData([]);
+        const { container } = render(vi.fn(), null, {
+            draft: { dataAppVizUuid: 'building-1', elapsed: '0:12' },
+        });
+
+        expect(rightSectionPointerEvents(container)).toBe('none');
+    });
+
+    it('lists a build in flight, which the server cannot return yet', () => {
+        setData([]);
+        render(vi.fn(), null, {
+            draft: { dataAppVizUuid: 'draft-1', elapsed: '0:12' },
+        });
+        openDropdown();
+
+        expect(screen.getByText('Untitled visualization')).toBeDefined();
+        expect(screen.getByText('building 0:12')).toBeDefined();
+    });
+
+    it('reports picking the draft separately: it is not a viz yet', () => {
+        setData([]);
+        const onSelect = vi.fn();
+        const onSelectDraft = vi.fn();
+        render(onSelect, null, {
+            draft: { dataAppVizUuid: 'draft-1', elapsed: null },
+            onSelectDraft,
+        });
+        openDropdown();
+        fireEvent.click(screen.getByText('Untitled visualization'));
+
+        expect(onSelectDraft).toHaveBeenCalledTimes(1);
+        expect(onSelect).not.toHaveBeenCalled();
     });
 
     it('shows an empty state when there are no bindable vizs', () => {

@@ -8,6 +8,8 @@ import {
 import { useCallback, useState } from 'react';
 import { autoMapDataAppVizFields } from '../utils/autoMapDataAppVizFields';
 import { useAppBuildPoller } from './useAppBuildPoller';
+import { useCancelAppVersion } from './useCancelAppVersion';
+import { useDeleteApp } from './useDeleteApp';
 import { useGenerateApp } from './useGenerateApp';
 
 type Args = {
@@ -27,16 +29,14 @@ export type VizBuildRequest = {
     description: string;
 };
 
-/**
- * A build in flight, once the server has accepted it. It is a real app
- * already — the request creates it — but it has no ready version yet, so it is
- * not worth pointing a chart at.
- */
-type RunningBuild = {
+/** The app claimed by a build before it has a renderable version. */
+export type DataAppVizDraft = {
     appUuid: string;
     version: number;
     startedAt: Date;
 };
+
+type RunningBuild = DataAppVizDraft;
 
 export type DataAppVizBuildState = {
     /**
@@ -45,6 +45,7 @@ export type DataAppVizBuildState = {
      * chart still points at nothing.
      */
     appUuid: string | null;
+    draft: DataAppVizDraft | null;
     /** When the build in flight started, for the panel's clock. */
     startedAt: Date | null;
     /**
@@ -60,6 +61,8 @@ export type DataAppVizBuildState = {
     send: (request: VizBuildRequest) => void;
     /** Re-send the request that failed; null when there is nothing to retry. */
     retry: (() => void) | null;
+    /** Cancels the build and deletes its draft app. */
+    discard: (() => void) | null;
 };
 
 /**
@@ -86,6 +89,8 @@ export const useDataAppVizBuild = ({
         request: VizBuildRequest | null;
     } | null>(null);
     const { mutate: generateApp } = useGenerateApp();
+    const { mutate: cancelVersion } = useCancelAppVersion();
+    const { mutate: deleteApp } = useDeleteApp();
 
     const handleDone = useCallback(
         (version: ApiAppVersionSummary) => {
@@ -154,9 +159,11 @@ export const useDataAppVizBuild = ({
     );
 
     const failedRequest = failed?.request ?? null;
+    const draft = building;
 
     return {
         appUuid: building?.appUuid ?? null,
+        draft,
         startedAt: building?.startedAt ?? null,
         claimedVersion: building?.version ?? null,
         // A request is in flight from the moment it is sent until the build
@@ -167,5 +174,28 @@ export const useDataAppVizBuild = ({
         error: failed?.message ?? null,
         send,
         retry: failedRequest ? () => send(failedRequest) : null,
+        discard:
+            projectUuid && draft
+                ? () => {
+                      // Cancel before delete to avoid orphaned sandbox work.
+                      cancelVersion(
+                          {
+                              projectUuid,
+                              appUuid: draft.appUuid,
+                              version: draft.version,
+                          },
+                          {
+                              onSettled: () =>
+                                  deleteApp({
+                                      projectUuid,
+                                      appUuid: draft.appUuid,
+                                  }),
+                          },
+                      );
+                      setBuilding(null);
+                      setInFlight(null);
+                      setFailed(null);
+                  }
+                : null,
     };
 };

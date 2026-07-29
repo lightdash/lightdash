@@ -49,6 +49,7 @@ type Props = {
     /** Sits under the log wherever there is one. A resting dock has none, so
      *  it is one line and nothing else. */
     footer?: ReactNode;
+    onCancelBuild?: (() => void) | null;
 };
 
 /**
@@ -71,6 +72,7 @@ const DataAppVizDock: FC<Props> = ({
     elapsed,
     status,
     footer,
+    onCancelBuild = null,
 }) => {
     // Open on arrival when there is nothing selected: describing one is the
     // only thing to do here.
@@ -118,6 +120,7 @@ const DataAppVizDock: FC<Props> = ({
                         dataAppVizUuid={dataAppVizUuid}
                         build={build}
                         elapsed={elapsed}
+                        onCancelBuild={onCancelBuild}
                     />
                 )}
                 {footer && <Box className={classes.footer}>{footer}</Box>}
@@ -189,6 +192,7 @@ const DataAppVizDock: FC<Props> = ({
                         dataAppVizUuid={dataAppVizUuid}
                         build={build}
                         elapsed={elapsed}
+                        onCancelBuild={onCancelBuild}
                     />
                 </Box>
 

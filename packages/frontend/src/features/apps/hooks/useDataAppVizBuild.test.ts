@@ -3,14 +3,20 @@ import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHookWithProviders } from '../../../testing/testUtils';
 import { useAppBuildPoller } from './useAppBuildPoller';
+import { useCancelAppVersion } from './useCancelAppVersion';
 import { useDataAppVizBuild } from './useDataAppVizBuild';
+import { useDeleteApp } from './useDeleteApp';
 import { useGenerateApp } from './useGenerateApp';
 
 vi.mock('./useGenerateApp', () => ({ useGenerateApp: vi.fn() }));
 vi.mock('./useAppBuildPoller', () => ({ useAppBuildPoller: vi.fn() }));
+vi.mock('./useCancelAppVersion', () => ({ useCancelAppVersion: vi.fn() }));
+vi.mock('./useDeleteApp', () => ({ useDeleteApp: vi.fn() }));
 
 const mockedGenerate = vi.mocked(useGenerateApp);
 const mockedPoller = vi.mocked(useAppBuildPoller);
+const mockedCancel = vi.mocked(useCancelAppVersion);
+const mockedDelete = vi.mocked(useDeleteApp);
 
 type GenerateHandlers = {
     onSuccess: (result: { appUuid: string; version: number }) => void;
@@ -55,14 +61,24 @@ const itemsMap = {
 
 describe('useDataAppVizBuild', () => {
     let generate: ReturnType<typeof vi.fn>;
+    let cancelVersion: ReturnType<typeof vi.fn>;
+    let deleteApp: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         vi.clearAllMocks();
         generate = vi.fn();
+        cancelVersion = vi.fn();
+        deleteApp = vi.fn();
         mockedGenerate.mockReturnValue({
             mutate: generate,
             isLoading: false,
         } as unknown as ReturnType<typeof useGenerateApp>);
+        mockedCancel.mockReturnValue({
+            mutate: cancelVersion,
+        } as unknown as ReturnType<typeof useCancelAppVersion>);
+        mockedDelete.mockReturnValue({
+            mutate: deleteApp,
+        } as unknown as ReturnType<typeof useDeleteApp>);
     });
 
     const setup = (onCreated = vi.fn()) => {
@@ -162,5 +178,35 @@ describe('useDataAppVizBuild', () => {
         act(() => result.current.send({ description: 'actually a bar chart' }));
 
         expect(generate).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels a draft before deleting its app', () => {
+        const { result } = setup();
+
+        act(() => result.current.send({ description: 'a donut' }));
+        const generateHandlers = generate.mock
+            .lastCall?.[1] as GenerateHandlers;
+        act(() => generateHandlers.onSuccess({ appUuid: 'viz-1', version: 1 }));
+        act(() => result.current.discard?.());
+
+        expect(cancelVersion).toHaveBeenCalledWith(
+            {
+                projectUuid: 'project-1',
+                appUuid: 'viz-1',
+                version: 1,
+            },
+            expect.anything(),
+        );
+        expect(deleteApp).not.toHaveBeenCalled();
+
+        const cancelHandlers = cancelVersion.mock.lastCall?.[1] as {
+            onSettled: () => void;
+        };
+        act(() => cancelHandlers.onSettled());
+
+        expect(deleteApp).toHaveBeenCalledWith({
+            projectUuid: 'project-1',
+            appUuid: 'viz-1',
+        });
     });
 });
