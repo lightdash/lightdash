@@ -1,3 +1,10 @@
+# [1.36.0](https://github.com/lightdash/lightdash/compare/1.35.0...1.36.0) (2026-07-29)
+
+
+### Features
+
+* **charts:** make series draw order legible in the Series panel ([#26467](https://github.com/lightdash/lightdash/issues/26467)) ([a653965](https://github.com/lightdash/lightdash/commit/a653965c148c2cf82f49f08424e125ebc7928624))
+
 # [1.35.0](https://github.com/lightdash/lightdash/compare/1.34.0...1.35.0) (2026-07-29)
 
 
