@@ -1,3 +1,10 @@
+## [1.18.1](https://github.com/lightdash/lightdash/compare/1.18.0...1.18.1) (2026-07-29)
+
+
+### Performance Improvements
+
+* optimize dashboard parameter project filtering ([#26391](https://github.com/lightdash/lightdash/issues/26391)) ([5bd3ccd](https://github.com/lightdash/lightdash/commit/5bd3ccd691e8f2f25ceb55c9bc1547363dd555a7))
+
 # [1.18.0](https://github.com/lightdash/lightdash/compare/1.17.1...1.18.0) (2026-07-28)
 
 
