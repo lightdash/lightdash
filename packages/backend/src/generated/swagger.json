@@ -18041,8 +18041,59 @@
             "ApiMyAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__data-ApiAppSummary-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
             },
+            "DataAppGenerationUsage": {
+                "properties": {
+                    "costUsd": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "durationApiMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "numTurns": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "cacheCreationInputTokens": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "cacheReadInputTokens": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "outputTokens": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "inputTokens": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "costUsd",
+                    "durationApiMs",
+                    "numTurns",
+                    "cacheCreationInputTokens",
+                    "cacheReadInputTokens",
+                    "outputTokens",
+                    "inputTokens"
+                ],
+                "type": "object",
+                "description": "What one generation cost, aggregated across every `claude` CLI invocation in\nthat version's pipeline — including build-fix retries.\n\nThis is spend attributable to a generation, not all data-app AI spend: the\nshort prompt-clarification and app-naming calls happen outside any version.\n\n`costUsd` is the CLI's own figure, computed from public list prices, so treat\nit as an estimate rather than an invoice."
+            },
             "DataAppActivityEvent": {
                 "properties": {
+                    "usage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppGenerationUsage"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "user": {
                         "properties": {
                             "lastName": {
@@ -18093,6 +18144,7 @@
                     }
                 },
                 "required": [
+                    "usage",
                     "user",
                     "projectName",
                     "projectUuid",
@@ -50901,7 +50953,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.29.2",
+        "version": "1.30.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

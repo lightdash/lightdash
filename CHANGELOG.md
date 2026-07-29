@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/lightdash/lightdash/compare/1.29.2...1.30.0) (2026-07-29)
+
+
+### Features
+
+* **apps:** record data app generation token spend ([#26434](https://github.com/lightdash/lightdash/issues/26434)) ([a966c31](https://github.com/lightdash/lightdash/commit/a966c313166fe2e683e87a8f56b0da1bd4d77d5d))
+
 ## [1.29.2](https://github.com/lightdash/lightdash/compare/1.29.1...1.29.2) (2026-07-29)
 
 

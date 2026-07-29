@@ -16478,11 +16478,39 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppGenerationUsage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                costUsd: { dataType: 'double', required: true },
+                durationApiMs: { dataType: 'double', required: true },
+                numTurns: { dataType: 'double', required: true },
+                cacheCreationInputTokens: {
+                    dataType: 'double',
+                    required: true,
+                },
+                cacheReadInputTokens: { dataType: 'double', required: true },
+                outputTokens: { dataType: 'double', required: true },
+                inputTokens: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppActivityEvent: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                usage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppGenerationUsage' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 user: {
                     dataType: 'union',
                     subSchemas: [
