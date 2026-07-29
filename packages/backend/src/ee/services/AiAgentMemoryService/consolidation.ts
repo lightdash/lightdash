@@ -4,7 +4,9 @@ import {
     getAiProjectContextObjectKey,
     type AiAgentMemoryConsolidationInputEntry,
     type AiAgentMemoryConsolidationOperation,
+    type AiAgentMemoryConsolidationOperationType,
     type AiAgentMemoryConsolidationRejection,
+    type AiAgentMemoryConsolidationRejectionReason,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
@@ -223,6 +225,85 @@ export const validateConsolidationOperations = (args: {
     }
 
     return { applied, rejected };
+};
+
+export type ConsolidationOperationCounts = Record<
+    AiAgentMemoryConsolidationOperationType,
+    number
+>;
+
+export type ConsolidationRejectionCounts = Record<
+    AiAgentMemoryConsolidationRejectionReason,
+    number
+>;
+
+/** Exhaustive by construction: a new operation type fails to compile here. */
+export const countConsolidationOperations = (
+    operations: AiAgentMemoryConsolidationOperation[],
+): ConsolidationOperationCounts => {
+    const counts: ConsolidationOperationCounts = {
+        merge: 0,
+        supersede: 0,
+        retire: 0,
+    };
+    operations.forEach((operation) => {
+        counts[operation.type] += 1;
+    });
+    return counts;
+};
+
+export const countConsolidationRejections = (
+    rejections: AiAgentMemoryConsolidationRejection[],
+): ConsolidationRejectionCounts => {
+    const counts: ConsolidationRejectionCounts = {
+        unknown_slug: 0,
+        duplicate_target: 0,
+        self_supersede: 0,
+        insufficient_sources: 0,
+        row_moved: 0,
+    };
+    rejections.forEach((rejection) => {
+        counts[rejection.reason] += 1;
+    });
+    return counts;
+};
+
+/**
+ * The promotion-nomination mix. A mixed-scope merge downgrades to `user` and
+ * erases a nomination with no rejection recorded, so the loss is counted here
+ * rather than being invisible.
+ */
+export const countConsolidationScopes = (args: {
+    input: AiAgentMemoryConsolidationInputEntry[];
+    applied: AiAgentMemoryConsolidationOperation[];
+}): {
+    projectScopeInputCount: number;
+    projectScopeMergeCount: number;
+    scopeDowngradedMergeCount: number;
+} => {
+    const scopeBySlug = new Map(
+        args.input.map((entry) => [entry.id, entry.scope]),
+    );
+    const merges = args.applied.filter(
+        (operation) => operation.type === 'merge',
+    );
+    const sourceScopes = merges.map((merge) =>
+        merge.source_slugs.map((slug) => scopeBySlug.get(slug) ?? 'user'),
+    );
+
+    return {
+        projectScopeInputCount: args.input.filter(
+            (entry) => entry.scope === 'project',
+        ).length,
+        projectScopeMergeCount: sourceScopes.filter((scopes) =>
+            scopes.every((scope) => scope === 'project'),
+        ).length,
+        scopeDowngradedMergeCount: sourceScopes.filter(
+            (scopes) =>
+                scopes.some((scope) => scope === 'project') &&
+                !scopes.every((scope) => scope === 'project'),
+        ).length,
+    };
 };
 
 export const buildConsolidationUserMessage = (

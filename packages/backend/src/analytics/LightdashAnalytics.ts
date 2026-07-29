@@ -2897,11 +2897,65 @@ export type AiAgentMemoryViewedEvent = BaseTrack & {
     };
 };
 
+/**
+ * The consolidation pass is scheduled work, so the organization is the actor.
+ * Memory text, titles, terms, object names, slugs and operation reasons never
+ * leave the process: only identifiers, counts and closed enumerations do.
+ */
+export type AiAgentMemoryConsolidatedEvent = BaseTrack & {
+    event: 'ai_agent_memory.consolidated';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        ownerUserId: string;
+        outcome: 'applied' | 'no_operations';
+        inputCount: number;
+        mergeCount: number;
+        supersedeCount: number;
+        retireCount: number;
+        rejectedCount: number;
+        // Promotion nominations: how many `project`-scope rows curation saw, how
+        // many merges kept that scope, and how many merges silently dropped it.
+        projectScopeInputCount: number;
+        projectScopeMergeCount: number;
+        scopeDowngradedMergeCount: number;
+    };
+};
+
+export type AiAgentMemoryConsolidationFailedEvent = BaseTrack & {
+    event: 'ai_agent_memory.consolidation_failed';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        ownerUserId: string;
+        failureStage: 'selection' | 'consolidation' | 'persistence';
+        errorType: string;
+    };
+};
+
+/** A partition that never reached the curator, kept apart from an empty run. */
+export type AiAgentMemoryConsolidationSkippedEvent = BaseTrack & {
+    event: 'ai_agent_memory.consolidation_skipped';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        ownerUserId: string;
+        reason: 'clean' | 'catalog_unavailable' | 'objects_unresolved';
+        inputCount: number;
+    };
+};
+
 export type AiAgentMemoryEvent =
     | AiAgentMemoryGeneratedEvent
     | AiAgentMemoryGenerationFailedEvent
     | AiAgentMemoryCitedEvent
-    | AiAgentMemoryViewedEvent;
+    | AiAgentMemoryViewedEvent
+    | AiAgentMemoryConsolidatedEvent
+    | AiAgentMemoryConsolidationFailedEvent
+    | AiAgentMemoryConsolidationSkippedEvent;
 
 export type AiRouterConfigUpdatedEvent = BaseTrack & {
     event: 'ai_router.config_updated';

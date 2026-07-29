@@ -418,6 +418,12 @@ export type AiAgentMemoryConsolidationOperation =
           reason: string;
       };
 
+export type AiAgentMemoryConsolidationOperationType =
+    AiAgentMemoryConsolidationOperation['type'];
+
+export const AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES: ReadonlyArray<AiAgentMemoryConsolidationOperationType> =
+    ['merge', 'supersede', 'retire'];
+
 /** The one operation that creates a row. */
 export type AiAgentMemoryConsolidationMergeOperation = Extract<
     AiAgentMemoryConsolidationOperation,
@@ -444,12 +450,17 @@ export const getAiAgentMemoryConsolidationOperationSlugs = (
     }
 };
 
+/** Enumerable and content-free, so both the run audit and metrics can label by it. */
+export const AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS = [
+    'unknown_slug',
+    'duplicate_target',
+    'self_supersede',
+    'insufficient_sources',
+    'row_moved',
+] as const;
+
 export type AiAgentMemoryConsolidationRejectionReason =
-    | 'unknown_slug'
-    | 'duplicate_target'
-    | 'self_supersede'
-    | 'insufficient_sources'
-    | 'row_moved';
+    (typeof AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS)[number];
 
 export type AiAgentMemoryConsolidationRejection = {
     operation: AiAgentMemoryConsolidationOperation;
