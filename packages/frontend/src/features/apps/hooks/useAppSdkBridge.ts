@@ -670,9 +670,8 @@ export function useAppSdkBridge({
                 return;
             }
 
-            // Record the capture-key-relevant, pre-stamp body — dashboard
-            // filters/invalidateCache/context are per-render decoration, not
-            // part of the query's identity (stableStringify strips them too).
+            // Record the pre-stamp body — dashboard filters/invalidateCache/
+            // context are per-render decoration, not part of the query's identity.
             if (
                 isMetricQueryPost(method, path) ||
                 isChartQueryPost(method, path)

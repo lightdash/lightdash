@@ -96,9 +96,8 @@ const applyDisplaySuffix = (base: string, occurrence: number): string => {
 
 export const createDeliveryCaptureAccumulator =
     (): DeliveryCaptureAccumulator => {
-        // Keyed by the pre-hash stableStringify input, which is available
-        // synchronously — this is what lets onInitiation dedupe/replace-in-place
-        // without ever waiting on the async digest.
+        // Keyed by the pre-hash stableStringify input (synchronous) — lets
+        // onInitiation dedupe/replace-in-place without waiting on the digest.
         let entriesByRawKey = new Map<string, CaptureEntry>();
         let requestIdToEntry = new Map<string, CaptureEntry>();
         let uuidToEntry = new Map<string, CaptureEntry>();
@@ -141,9 +140,8 @@ export const createDeliveryCaptureAccumulator =
                 nextOrder += 1;
                 entriesByRawKey.set(rawKey, entry);
 
-                // Every initiation of the same rawKey hashes to the same
-                // value, so writing captureKey here is race-free regardless
-                // of resolution order across re-initiations.
+                // Same rawKey always hashes to the same value, so writing
+                // captureKey here is race-free regardless of resolution order.
                 const settledEntry = entry;
                 const work = sha256Hex(rawKey).then((hex) => {
                     settledEntry.captureKey = `${CAPTURE_KEY_VERSION}:${hex}`;
@@ -259,9 +257,8 @@ export const createDeliveryCaptureAccumulator =
                             limitReached: entry.limitReached,
                         });
                     } else {
-                        // 'error' status, or 'pending' (never reached a
-                        // terminal state) — either way a visible failure
-                        // rather than a silently missing file downstream.
+                        // 'error', or 'pending' (never reached a terminal
+                        // state) — a visible failure, not a silent gap.
                         items.push({
                             status: 'error',
                             captureKey,
@@ -290,6 +287,9 @@ export const createDeliveryCaptureAccumulator =
             uuidToEntry = new Map();
             droppedKeys = new Set();
             pendingHashWork = new Set();
+            // So a post-reset capture's first unlabeled query reads "Query 1"
+            // again, not a number carried over from the previous capture.
+            nextOrder = 0;
         };
 
         return {

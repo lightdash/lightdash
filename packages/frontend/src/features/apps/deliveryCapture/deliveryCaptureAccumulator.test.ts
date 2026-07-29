@@ -163,6 +163,47 @@ describe('deliveryCaptureAccumulator', () => {
         expect(manifest.items[0].queryUuid).toBe('u2');
     });
 
+    it('array order changes the captureKey — arrays must not be sorted like object keys', async () => {
+        // Only top-level object keys are permuted above; this proves a
+        // multi-element array (e.g. a filter group) keeps its order in the
+        // hash input, so reordering it produces a genuinely different key.
+        const filterOne = { id: 'f1', value: 'a' };
+        const filterTwo = { id: 'f2', value: 'b' };
+        const acc = createDeliveryCaptureAccumulator();
+        acc.onInitiation({
+            requestId: 'r1',
+            method: 'POST',
+            path: METRIC_PATH,
+            body: {
+                query: baseMetricQuery({
+                    filters: { dimensions: { and: [filterOne, filterTwo] } },
+                }),
+            },
+            label: null,
+        });
+        acc.onInitiation({
+            requestId: 'r2',
+            method: 'POST',
+            path: METRIC_PATH,
+            body: {
+                query: baseMetricQuery({
+                    filters: { dimensions: { and: [filterTwo, filterOne] } },
+                }),
+            },
+            label: null,
+        });
+        completeReady(acc, 'r1', 'u1', 1);
+        completeReady(acc, 'r2', 'u2', 2);
+
+        const manifest = await acc.getManifest();
+        // Must NOT collapse to one item — array order is part of the query's
+        // identity (a reordered filter group is a semantically different query).
+        expect(manifest.items).toHaveLength(2);
+        expect(manifest.items[0].captureKey).not.toBe(
+            manifest.items[1].captureKey,
+        );
+    });
+
     it('a body with invalidateCache: true hashes identically to one without', async () => {
         const acc = createDeliveryCaptureAccumulator();
         acc.onInitiation({
