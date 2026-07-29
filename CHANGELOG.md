@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/lightdash/lightdash/compare/1.20.1...1.21.0) (2026-07-29)
+
+
+### Features
+
+* support inTheCurrent date filters in dbt YAML ([#26237](https://github.com/lightdash/lightdash/issues/26237)) ([7328e2f](https://github.com/lightdash/lightdash/commit/7328e2fc2dc477ac744f3608133e342bc9666828))
+
 ## [1.20.1](https://github.com/lightdash/lightdash/compare/1.20.0...1.20.1) (2026-07-29)
 
 
