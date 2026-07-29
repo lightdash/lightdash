@@ -6,11 +6,9 @@ import {
     OrganizationMemberRole,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Alert,
     Box,
     Button,
-    CopyButton,
     Group,
     Loader,
     Paper,
@@ -18,18 +16,22 @@ import {
     Text,
     TextInput,
     Title,
-    Tooltip,
 } from '@mantine-8/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { captureException } from '@sentry/react';
 import {
     IconArrowLeft,
-    IconCheck,
-    IconCopy,
     IconInfoCircle,
     IconUserPlus,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useEffectEvent,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { z } from 'zod';
 import AboutFooter from '../components/AboutFooter';
@@ -58,6 +60,108 @@ type SetupInviteFormValues = {
     lastName: string;
     email: string;
 };
+
+const PreparingPlaygroundCard: FC = () => (
+    <Group gap="md" wrap="nowrap">
+        <Loader size="sm" />
+        <Stack gap={2}>
+            <Text size="sm" fw={500}>
+                Preparing your playground…
+            </Text>
+            <Text size="sm" c="dimmed">
+                Explore sample data while your expert connects your warehouse.
+            </Text>
+        </Stack>
+    </Group>
+);
+
+const PlaygroundFailureCard: FC<{
+    failure: PlaygroundSetupFailure;
+    onRetry: () => void;
+    onClose: () => void;
+}> = ({ failure, onRetry, onClose }) => (
+    <Stack gap="md">
+        <Callout variant="warning" title="We couldn't set up a sample project">
+            <Text size="sm">{PLAYGROUND_SETUP_FAILURE_MESSAGES[failure]}</Text>
+        </Callout>
+        <Group justify="flex-end" gap="xs">
+            {isRetryablePlaygroundSetupFailure(failure) && (
+                <Button variant="default" onClick={onRetry}>
+                    Try again
+                </Button>
+            )}
+            <Button onClick={onClose}>Done</Button>
+        </Group>
+    </Stack>
+);
+
+const InviteExpertForm: FC<{
+    form: UseFormReturnType<SetupInviteFormValues>;
+    needsName: boolean;
+    isSubmitting: boolean;
+    onSubmit: (values: SetupInviteFormValues) => Promise<void>;
+    onCancel: () => void;
+}> = ({ form, needsName, isSubmitting, onSubmit, onCancel }) => (
+    <form
+        id="setup_invite"
+        name="setup_invite"
+        onSubmit={form.onSubmit((values) => onSubmit(values))}
+    >
+        <Stack gap="sm">
+            {needsName && (
+                <>
+                    <Group grow gap="sm">
+                        <TextInput
+                            name="firstName"
+                            label="Your first name"
+                            required
+                            disabled={isSubmitting}
+                            {...form.getInputProps('firstName')}
+                        />
+                        <TextInput
+                            name="lastName"
+                            label="Your last name"
+                            required
+                            disabled={isSubmitting}
+                            {...form.getInputProps('lastName')}
+                        />
+                    </Group>
+                    <Text size="sm" c="dimmed">
+                        We'll include your name in the invite so they know who's
+                        asking.
+                    </Text>
+                </>
+            )}
+            <TextInput
+                name="email"
+                label="Their email address"
+                placeholder="example@company.com"
+                required
+                disabled={isSubmitting}
+                {...form.getInputProps('email')}
+            />
+            <Text size="sm" c="dimmed">
+                We'll ask them to connect your data warehouse.
+            </Text>
+            <Group justify="flex-end" mt="sm">
+                <Button
+                    variant="default"
+                    onClick={onCancel}
+                    disabled={isSubmitting}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    loading={isSubmitting}
+                    type="submit"
+                    form="setup_invite"
+                >
+                    Send invite
+                </Button>
+            </Group>
+        </Stack>
+    </form>
+);
 
 const OnboardingInviteExpert: FC = () => {
     const { health, user } = useApp();
@@ -148,6 +252,8 @@ const OnboardingInviteExpert: FC = () => {
         title.focus({ preventScroll: true });
     }, [isBooting]);
 
+    const closeOnEscape = useEffectEvent(handleClose);
+
     useEffect(() => {
         if (isBooting) return undefined;
         const onKeyDown = (event: KeyboardEvent) => {
@@ -161,11 +267,11 @@ const OnboardingInviteExpert: FC = () => {
             ) {
                 return;
             }
-            handleClose();
+            closeOnEscape();
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [handleClose, isBooting]);
+    }, [isBooting]);
 
     const preparePlayground = async () => {
         try {
@@ -214,10 +320,15 @@ const OnboardingInviteExpert: FC = () => {
 
         if (canOfferPlayground) {
             await preparePlayground();
+        } else {
+            handleClose();
         }
     };
 
     const isSubmitting = isLoading || isUpdatingUser;
+
+    const isEnteringPlayground =
+        canOfferPlayground && !playgroundFailure && inviteLink !== undefined;
 
     if (isBooting) {
         return <PageSpinner />;
@@ -308,184 +419,25 @@ const OnboardingInviteExpert: FC = () => {
                     radius="md"
                     className={classes.card}
                 >
-                    {isPreparingPlayground ? (
-                        <Group gap="md" wrap="nowrap">
-                            <Loader size="sm" />
-                            <Stack gap={2}>
-                                <Text size="sm" fw={500}>
-                                    Preparing your playground…
-                                </Text>
-                                <Text size="sm" c="dimmed">
-                                    Explore sample data while your expert
-                                    connects your warehouse.
-                                </Text>
-                            </Stack>
-                        </Group>
-                    ) : inviteLink ? (
-                        <Stack gap="md">
-                            {playgroundFailure && (
-                                <Callout
-                                    variant="warning"
-                                    title="We couldn't set up a sample project"
-                                >
-                                    <Text size="sm">
-                                        {
-                                            PLAYGROUND_SETUP_FAILURE_MESSAGES[
-                                                playgroundFailure
-                                            ]
-                                        }
-                                    </Text>
-                                </Callout>
-                            )}
-                            <Alert
-                                icon={<IconCheck />}
-                                color="green"
-                                title="Invite ready"
-                            >
-                                <Stack gap="sm">
-                                    <Text size="sm">
-                                        {health.data?.hasEmailClient ? (
-                                            <>
-                                                Invite sent to{' '}
-                                                <b>{inviteLink.email}</b> —
-                                                we'll take them straight to
-                                                warehouse setup.
-                                            </>
-                                        ) : (
-                                            <>
-                                                Share this link with{' '}
-                                                <b>{inviteLink.email}</b> to
-                                                take them straight to warehouse
-                                                setup.
-                                            </>
-                                        )}
-                                    </Text>
-                                    <TextInput
-                                        readOnly
-                                        className="sentry-block ph-no-capture"
-                                        value={inviteLink.inviteUrl}
-                                        rightSection={
-                                            <CopyButton
-                                                value={inviteLink.inviteUrl}
-                                            >
-                                                {({ copied, copy }) => (
-                                                    <Tooltip
-                                                        label={
-                                                            copied
-                                                                ? 'Copied'
-                                                                : 'Copy'
-                                                        }
-                                                        withArrow
-                                                        position="right"
-                                                    >
-                                                        <ActionIcon
-                                                            color={
-                                                                copied
-                                                                    ? 'teal'
-                                                                    : 'gray'
-                                                            }
-                                                            onClick={copy}
-                                                        >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    copied
-                                                                        ? IconCheck
-                                                                        : IconCopy
-                                                                }
-                                                            />
-                                                        </ActionIcon>
-                                                    </Tooltip>
-                                                )}
-                                            </CopyButton>
-                                        }
-                                    />
-                                </Stack>
-                            </Alert>
-                            <Group justify="flex-end" gap="xs">
-                                {playgroundFailure &&
-                                    isRetryablePlaygroundSetupFailure(
-                                        playgroundFailure,
-                                    ) && (
-                                        <Button
-                                            variant="default"
-                                            onClick={() => {
-                                                setPlaygroundFailure(null);
-                                                void preparePlayground();
-                                            }}
-                                        >
-                                            Try again
-                                        </Button>
-                                    )}
-                                <Button onClick={handleClose}>Done</Button>
-                            </Group>
-                        </Stack>
+                    {isPreparingPlayground || isEnteringPlayground ? (
+                        <PreparingPlaygroundCard />
+                    ) : playgroundFailure ? (
+                        <PlaygroundFailureCard
+                            failure={playgroundFailure}
+                            onRetry={() => {
+                                setPlaygroundFailure(null);
+                                void preparePlayground();
+                            }}
+                            onClose={handleClose}
+                        />
                     ) : (
-                        <form
-                            id="setup_invite"
-                            name="setup_invite"
-                            onSubmit={form.onSubmit((values) =>
-                                handleSubmit(values),
-                            )}
-                        >
-                            <Stack gap="sm">
-                                {needsName && (
-                                    <>
-                                        <Group grow gap="sm">
-                                            <TextInput
-                                                name="firstName"
-                                                label="Your first name"
-                                                required
-                                                disabled={isSubmitting}
-                                                {...form.getInputProps(
-                                                    'firstName',
-                                                )}
-                                            />
-                                            <TextInput
-                                                name="lastName"
-                                                label="Your last name"
-                                                required
-                                                disabled={isSubmitting}
-                                                {...form.getInputProps(
-                                                    'lastName',
-                                                )}
-                                            />
-                                        </Group>
-                                        <Text size="sm" c="dimmed">
-                                            We'll include your name in the
-                                            invite so they know who's asking.
-                                        </Text>
-                                    </>
-                                )}
-                                <TextInput
-                                    name="email"
-                                    label="Their email address"
-                                    placeholder="example@company.com"
-                                    required
-                                    disabled={isSubmitting}
-                                    {...form.getInputProps('email')}
-                                />
-                                <Text size="sm" c="dimmed">
-                                    We'll ask them to connect your data
-                                    warehouse.
-                                </Text>
-                                <Group justify="flex-end" mt="sm">
-                                    <Button
-                                        variant="default"
-                                        onClick={handleClose}
-                                        disabled={isSubmitting}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        loading={isSubmitting}
-                                        type="submit"
-                                        form="setup_invite"
-                                    >
-                                        Send invite
-                                    </Button>
-                                </Group>
-                            </Stack>
-                        </form>
+                        <InviteExpertForm
+                            form={form}
+                            needsName={needsName}
+                            isSubmitting={isSubmitting}
+                            onSubmit={handleSubmit}
+                            onCancel={handleClose}
+                        />
                     )}
                 </Paper>
 
