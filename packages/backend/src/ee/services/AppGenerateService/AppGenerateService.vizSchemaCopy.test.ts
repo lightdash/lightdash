@@ -52,6 +52,7 @@ const sourceApp = {
     upstream_app_uuid: null,
     template: 'data_app_viz',
     name: 'My Viz',
+    slug: 'my-viz',
     description: 'A viz',
     created_by_user_uuid: USER_UUID,
     deleted_at: null,
@@ -334,6 +335,7 @@ describe('viz_schema propagation on app copy paths', () => {
             expect.objectContaining({
                 project_uuid: PREVIEW_PROJECT_UUID,
                 template: 'data_app_viz',
+                slug: 'my-viz',
             }),
             expect.anything(),
             'ready',
