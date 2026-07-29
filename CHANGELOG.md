@@ -1,3 +1,11 @@
+# [1.22.0](https://github.com/lightdash/lightdash/compare/1.21.0...1.22.0) (2026-07-29)
+
+
+### Features
+
+* enable timezone support by default ([#26295](https://github.com/lightdash/lightdash/issues/26295)) ([8bf2b98](https://github.com/lightdash/lightdash/commit/8bf2b98cf267e5a4d6e5638d1b02326f33f2db03))
+* **settings:** add Data apps org settings section ([#26404](https://github.com/lightdash/lightdash/issues/26404)) ([f637a7d](https://github.com/lightdash/lightdash/commit/f637a7ddd854c8a6a093c48b90863a62f32ebb86))
+
 # [1.21.0](https://github.com/lightdash/lightdash/compare/1.20.1...1.21.0) (2026-07-29)
 
 
