@@ -9587,6 +9587,9 @@ export class AppGenerateService extends BaseService {
                 code.manifest.template === DATA_APP_VIZ_TEMPLATE
                     ? manifestVizSchema
                     : undefined,
+                // Verbatim slug + loud conflict, so re-uploads stay
+                // idempotent (never silently minting suffixed duplicates).
+                { forceSlug: true },
             );
             newAppUuid = app.app_id;
             newAppSlug = app.slug;

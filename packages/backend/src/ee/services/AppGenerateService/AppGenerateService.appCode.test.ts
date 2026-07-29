@@ -263,6 +263,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // no viz schema
+            { forceSlug: true },
         );
 
         // S3 PutObjectCommand sent for source.tar
@@ -517,6 +518,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+            { forceSlug: true },
         );
     });
 
@@ -607,6 +609,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // vizSchema not persisted for non-viz apps
+            { forceSlug: true },
         );
     });
 
@@ -1029,6 +1032,9 @@ describe('importAppCode slug identity', () => {
             expect.any(Object),
             undefined,
             undefined,
+            // Exact round-trip: the manifest slug must be forced, never
+            // silently dedupe-suffixed.
+            { forceSlug: true },
         );
     });
 
@@ -1156,6 +1162,7 @@ describe('importAppCode slug validation', () => {
             expect.any(Object),
             undefined,
             undefined,
+            { forceSlug: true },
         );
     });
 });
