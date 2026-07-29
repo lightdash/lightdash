@@ -1,3 +1,17 @@
+# [1.31.0](https://github.com/lightdash/lightdash/compare/1.30.0...1.31.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **cli:** restore macOS binary builds ([#26451](https://github.com/lightdash/lightdash/issues/26451)) ([a4012ea](https://github.com/lightdash/lightdash/commit/a4012eaab7b708c919c06daf2fa8dd00f2d78f92))
+* **deep-research:** stop token budgets from aborting runs ([#26452](https://github.com/lightdash/lightdash/issues/26452)) ([6e147a7](https://github.com/lightdash/lightdash/commit/6e147a7a4043a54135311e06b0da7d54219bc818))
+* **onboarding:** stop organization setup wizard restarting after completion ([#26447](https://github.com/lightdash/lightdash/issues/26447)) ([6aba9d7](https://github.com/lightdash/lightdash/commit/6aba9d7589747be04d5617024e8218f1c02402b2))
+
+
+### Features
+
+* enable coding agent onboarding for orgs provisioned via new onboarding ([#26444](https://github.com/lightdash/lightdash/issues/26444)) ([c32f160](https://github.com/lightdash/lightdash/commit/c32f1609c30ff2bb5f496cd333f7fa7d23678ce2))
+
 # [1.30.0](https://github.com/lightdash/lightdash/compare/1.29.2...1.30.0) (2026-07-29)
 
 
