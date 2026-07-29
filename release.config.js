@@ -43,15 +43,16 @@ module.exports = {
         // expected workspace:* error above. Reinstall from the unchanged
         // lockfile to repair the tree; pnpm 11 used to do this implicitly via
         // verifyDepsBeforeRun before it was pinned off in pnpm-workspace.yaml.
-        // --offline: the job's install step already populated the store, so
-        // the relink must not touch the network — a registry flake here left
-        // a half-restored tree, and sfw's crashed proxy masked the failure
-        // with exit 0 (run 30491182209). Offline means no fetches to firewall
-        // and a hard failure if the store is somehow incomplete.
+        // Store-first with network fallback: strict --offline failed because
+        // the runner store lacks some lockfile tarballs even after the job's
+        // install step (run 30492147529, ERR_PNPM_NO_OFFLINE_TARBALL). No sfw
+        // wrapper: its crashed proxy masked a failed install with exit 0 (run
+        // 30491182209); plain pnpm re-fetches lockfile-pinned, integrity-
+        // checked packages with its own retries and honest exit codes.
         [
             '@semantic-release/exec',
             {
-                prepareCmd: 'pnpm install --offline',
+                prepareCmd: 'pnpm install --prefer-offline',
             },
         ],
 
