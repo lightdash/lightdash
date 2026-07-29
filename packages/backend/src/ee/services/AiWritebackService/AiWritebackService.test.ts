@@ -3124,4 +3124,123 @@ describe('AiWritebackService.getRunStatus', () => {
             service.getRunStatus(userWithOrg(false), 'run-1'),
         ).rejects.toThrow(ForbiddenError);
     });
+
+    it('getRunSnapshot also returns the run row timestamps', async () => {
+        const createdAt = new Date('2026-07-01T10:00:00Z');
+        const updatedAt = new Date('2026-07-01T10:05:00Z');
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(
+                runRow({
+                    status: 'agent',
+                    pr_url: null,
+                    created_at: createdAt,
+                    updated_at: updatedAt,
+                }),
+            ),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        const result = await service.getRunSnapshot(userWithOrg(true), 'run-1');
+
+        expect(result).toEqual({
+            status: 'agent',
+            prUrl: null,
+            errorMessage: null,
+            createdAt,
+            updatedAt,
+        });
+    });
+});
+
+describe('AiWritebackService.cancelRun', () => {
+    const userWithOrg = (canView: boolean): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (canView) can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const runRow = (overrides: Record<string, AnyType> = {}) => ({
+        ai_writeback_run_uuid: 'run-1',
+        organization_uuid: ORG,
+        project_uuid: 'proj-1',
+        status: 'agent',
+        pr_url: null,
+        error_message: null,
+        ...overrides,
+    });
+
+    it('cancels a non-terminal run', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(runRow()),
+            markCancelled: vi.fn().mockResolvedValue(true),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        const result = await service.cancelRun(userWithOrg(true), 'run-1');
+
+        expect(result).toEqual({ cancelled: true, status: 'cancelled' });
+        expect(aiWritebackRunModel.markCancelled).toHaveBeenCalledWith('run-1');
+    });
+
+    it('reports the settled status when the run is already terminal', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(runRow({ status: 'ready' })),
+            markCancelled: vi.fn().mockResolvedValue(false),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        const result = await service.cancelRun(userWithOrg(true), 'run-1');
+
+        expect(result).toEqual({ cancelled: false, status: 'ready' });
+    });
+
+    it('throws NotFoundError when the run does not exist', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(undefined),
+            markCancelled: vi.fn(),
+        } as AnyType;
+        const service = buildService({ aiWritebackRunModel });
+
+        await expect(
+            service.cancelRun(userWithOrg(true), 'missing'),
+        ).rejects.toThrow('not found');
+        expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenError when the run belongs to another organization', async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi
+                .fn()
+                .mockResolvedValue(runRow({ organization_uuid: 'org-2' })),
+            markCancelled: vi.fn(),
+        } as AnyType;
+        const service = buildService({ aiWritebackRunModel });
+
+        await expect(
+            service.cancelRun(userWithOrg(true), 'run-1'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(aiWritebackRunModel.markCancelled).not.toHaveBeenCalled();
+    });
 });

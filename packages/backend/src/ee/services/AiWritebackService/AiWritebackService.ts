@@ -58,6 +58,7 @@ import { BaseService } from '../../../services/BaseService';
 import type { CiService } from '../../../services/CiService/CiService';
 import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
+import type { DbAiWritebackRun } from '../../database/entities/ai';
 import type { AiWritebackRunModel } from '../../models/AiWritebackRunModel';
 import type {
     AiWritebackThreadModel,
@@ -1726,14 +1727,15 @@ export class AiWritebackService extends BaseService {
         }));
     }
 
-    async getRunStatus(
+    /**
+     * Fetches a run row after enforcing org membership and source-code access
+     * for the caller. Shared by the status/snapshot/cancel entry points so the
+     * auth checks live in one place.
+     */
+    private async getAuthorizedRun(
         user: SessionUser,
         aiWritebackRunUuid: string,
-    ): Promise<{
-        status: AiWritebackRunStatus;
-        prUrl: string | null;
-        errorMessage: string | null;
-    }> {
+    ): Promise<DbAiWritebackRun> {
         const runRow =
             await this.aiWritebackRunModel.findByUuid(aiWritebackRunUuid);
         if (!runRow) {
@@ -1751,11 +1753,71 @@ export class AiWritebackService extends BaseService {
             user,
             projectUuid: runRow.project_uuid,
         });
+        return runRow;
+    }
+
+    async getRunStatus(
+        user: SessionUser,
+        aiWritebackRunUuid: string,
+    ): Promise<{
+        status: AiWritebackRunStatus;
+        prUrl: string | null;
+        errorMessage: string | null;
+    }> {
+        const { status, prUrl, errorMessage } = await this.getRunSnapshot(
+            user,
+            aiWritebackRunUuid,
+        );
+        return { status, prUrl, errorMessage };
+    }
+
+    /**
+     * Like {@link getRunStatus} but also returns row timestamps, which the
+     * MCP tasks/get handler needs for the task's createdAt/lastUpdatedAt.
+     * Kept separate so the public status endpoint's response type is
+     * unchanged.
+     */
+    async getRunSnapshot(
+        user: SessionUser,
+        aiWritebackRunUuid: string,
+    ): Promise<{
+        status: AiWritebackRunStatus;
+        prUrl: string | null;
+        errorMessage: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+    }> {
+        const runRow = await this.getAuthorizedRun(user, aiWritebackRunUuid);
         return {
             status: runRow.status,
             prUrl: runRow.pr_url,
             errorMessage: runRow.error_message,
+            createdAt: runRow.created_at,
+            updatedAt: runRow.updated_at,
         };
+    }
+
+    /**
+     * Cooperatively cancels a run. Only non-terminal runs can be cancelled —
+     * the pipeline stops at its next stage boundary (runPipeline and every
+     * stage/terminal persist helper skip terminal runs, so a cancelled run
+     * can never flip back to ready or error). When the run is already
+     * terminal, returns `cancelled: false` with the current status.
+     */
+    async cancelRun(
+        user: SessionUser,
+        aiWritebackRunUuid: string,
+    ): Promise<{ cancelled: boolean; status: AiWritebackRunStatus }> {
+        const runRow = await this.getAuthorizedRun(user, aiWritebackRunUuid);
+        const cancelled =
+            await this.aiWritebackRunModel.markCancelled(aiWritebackRunUuid);
+        if (cancelled) {
+            return { cancelled: true, status: 'cancelled' };
+        }
+        // Lost the race (or already terminal): report the settled status
+        const settled =
+            await this.aiWritebackRunModel.findByUuid(aiWritebackRunUuid);
+        return { cancelled: false, status: settled?.status ?? runRow.status };
     }
 
     /**

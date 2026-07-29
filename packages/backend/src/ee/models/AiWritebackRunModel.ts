@@ -96,6 +96,24 @@ export class AiWritebackRunModel {
         return updatedRows > 0;
     }
 
+    /**
+     * Cooperative cancellation: only flips a run that is still non-terminal,
+     * so a finished (or already-cancelled) run is never overwritten. Returns
+     * whether the run was cancelled by this call.
+     */
+    async markCancelled(aiWritebackRunUuid: string): Promise<boolean> {
+        const updatedRows = await this.database<AiWritebackRunTable>(
+            AiWritebackRunTableName,
+        )
+            .where('ai_writeback_run_uuid', aiWritebackRunUuid)
+            .whereNotIn('status', [...AI_WRITEBACK_RUN_TERMINAL_STATUSES])
+            .update({
+                status: 'cancelled',
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updatedRows > 0;
+    }
+
     async markError(
         aiWritebackRunUuid: string,
         errorMessage: string,
