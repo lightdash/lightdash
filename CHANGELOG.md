@@ -1,3 +1,11 @@
+## [1.29.1](https://github.com/lightdash/lightdash/compare/1.29.0...1.29.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* **ai:** keep deep research cards in conversation order ([#26429](https://github.com/lightdash/lightdash/issues/26429)) ([e50ad71](https://github.com/lightdash/lightdash/commit/e50ad71a097cc315ea094a503e32f4e85a2a9467)), closes [#26416](https://github.com/lightdash/lightdash/issues/26416)
+* **ai:** render Markdown in deep research summaries ([#26416](https://github.com/lightdash/lightdash/issues/26416)) ([15026fc](https://github.com/lightdash/lightdash/commit/15026fc4477db7b0b41726ff58f41a71daf38868))
+
 # [1.29.0](https://github.com/lightdash/lightdash/compare/1.28.0...1.29.0) (2026-07-29)
 
 
