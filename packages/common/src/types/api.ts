@@ -80,6 +80,7 @@ import type {
     ApiPreviewTokenResponse,
     ApiProjectHomepageOrNullResponse,
     ApiProjectHomepageResponse,
+    ApiProjectHomepageSettingsResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
     ApiResolvedHomepageResponse,
@@ -1338,6 +1339,7 @@ type ApiResults =
     | ApiOrganizationDesignFileResponse['results']
     | ApiProjectHomepageResponse['results']
     | ApiProjectHomepageOrNullResponse['results']
+    | ApiProjectHomepageSettingsResponse['results']
     | ApiResolvedHomepageResponse['results']
     | ApiAnnouncementsResponse['results']
     | ApiAnnouncementResponse['results']

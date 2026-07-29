@@ -1,5 +1,8 @@
 import { subject } from '@casl/ability';
-import { type ProjectHomepage } from '@lightdash/common';
+import {
+    resolveHomepageOpening,
+    type ProjectHomepage,
+} from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
@@ -12,6 +15,7 @@ import useApp from '../../../providers/App/useApp';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
 import { useHomepageAiState } from './hooks/useHomepageAiState';
+import { useHomepageSettings } from './hooks/useHomepageSettings';
 import { useKeySpaces } from './hooks/useKeySpaces';
 import {
     useCreateHomepageWithDraft,
@@ -48,6 +52,9 @@ export const HomepageBuilderPage: FC = () => {
         project?.pinnedListUuid,
     );
     const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_STARTER_SPACES);
+    const { data: settings } = useHomepageSettings(projectUuid, {
+        enabled: isFlagEnabled,
+    });
     const homepage = useHomepageForBuilder(projectUuid, {
         enabled: isFlagEnabled,
         homepageUuid: selectedHomepageUuid,
@@ -94,14 +101,18 @@ export const HomepageBuilderPage: FC = () => {
         createFirstHomepage.mutate(
             {
                 name: 'Homepage',
-                draftConfig: buildStarterHomepage(
+                draftConfig: buildStarterHomepage({
+                    opening: resolveHomepageOpening(
+                        settings?.opening ?? null,
+                        canAskAi,
+                    ),
                     canAskAi,
-                    (pinnedItems ?? []).map((item) => ({
+                    pinnedItems: (pinnedItems ?? []).map((item) => ({
                         contentType: item.type,
                         uuid: item.data.uuid,
                     })),
-                    keySpaces.map((space) => space.uuid),
-                ),
+                    keySpaceUuids: keySpaces.map((space) => space.uuid),
+                }),
             },
             { onSuccess: openHomepage },
         );
@@ -112,6 +123,7 @@ export const HomepageBuilderPage: FC = () => {
         canAskAi,
         pinnedItems,
         keySpaces,
+        settings?.opening,
     ]);
 
     if (isFlagLoading || isAiStateLoading) {

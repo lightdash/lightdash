@@ -1,4 +1,4 @@
-import { type PinnedItems } from '@lightdash/common';
+import { resolveHomepageOpening, type PinnedItems } from '@lightdash/common';
 import { Box, Stack, Text } from '@mantine-8/core';
 import { IconClock, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -16,6 +16,7 @@ import { getGreeting } from './greeting';
 import layout from './homepageLayout.module.css';
 import { useCollectionContent } from './hooks/useCollectionContent';
 import { useHomepageAiState } from './hooks/useHomepageAiState';
+import { useHomepageSettings } from './hooks/useHomepageSettings';
 import { useKeySpaces } from './hooks/useKeySpaces';
 import { useRecentContents } from './hooks/useRecentContents';
 
@@ -58,6 +59,10 @@ const MAX_KEY_SPACES = 4;
 export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
     const { user } = useApp();
     const { canAskAi } = useHomepageAiState(projectUuid);
+    const { data: settings } = useHomepageSettings(projectUuid);
+    // The admin's choice decides the opening; AI availability can only
+    // downgrade ask-first, never force it.
+    const opening = resolveHomepageOpening(settings?.opening ?? null, canAskAi);
     const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_KEY_SPACES);
     const recent = useRecentContents(projectUuid);
     // Keep the header while loading so the section doesn't pop in under the
@@ -77,7 +82,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                 data-presentation="shared"
                 data-density="compact"
             >
-                {canAskAi ? (
+                {opening === 'ask-first' ? (
                     <div className={layout.hero}>
                         <AskAiHero
                             projectUuid={projectUuid}
@@ -101,8 +106,11 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                                 new.
                             </Text>
                         </Box>
+                        {/* Ask AI stays reachable as a quick action whenever
+                            the project has it — content-first changes what the
+                            page opens on, not what's available. */}
                         <QuickActionCards
-                            actions={getDefaultQuickActions(false)}
+                            actions={getDefaultQuickActions(canAskAi)}
                             projectUuid={projectUuid}
                         />
                     </Stack>

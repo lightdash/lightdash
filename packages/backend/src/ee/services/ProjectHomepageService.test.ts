@@ -138,6 +138,8 @@ const makeService = ({
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
             getRecentlyViewed: vi.fn().mockResolvedValue([]),
             getAssignments: vi.fn().mockResolvedValue([]),
+            getSettings: vi.fn().mockResolvedValue({ opening: null }),
+            setOpening: vi.fn().mockResolvedValue({ opening: null }),
             updateGroupPriorities: vi.fn().mockResolvedValue(undefined),
             resolvePublished: vi.fn().mockResolvedValue(undefined),
             list: vi.fn().mockResolvedValue([]),

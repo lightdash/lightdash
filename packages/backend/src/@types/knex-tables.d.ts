@@ -503,6 +503,8 @@ import {
     HomepageAssignmentsTable,
     HomepageAssignmentsTableName,
     HomepagesTableName,
+    ProjectHomepageSettingsTable,
+    ProjectHomepageSettingsTableName,
     ProjectHomepagesTable,
 } from '../ee/database/entities/projectHomepages';
 import {
@@ -644,6 +646,7 @@ declare module 'knex/types/tables' {
         [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
         [HomepagesTableName]: ProjectHomepagesTable;
         [HomepageAssignmentsTableName]: HomepageAssignmentsTable;
+        [ProjectHomepageSettingsTableName]: ProjectHomepageSettingsTable;
         [AnnouncementsTableName]: AnnouncementsTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;

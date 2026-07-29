@@ -134,6 +134,7 @@ const Home: FC = () => {
                 <AdminHomepageControls
                     projectUuid={project.data.projectUuid}
                     organizationUuid={project.data.organizationUuid}
+                    showOpeningChoice
                 />
                 <FavoritesProvider projectUuid={project.data.projectUuid}>
                     <PinnedItemsProvider

@@ -21,11 +21,13 @@ import {
     type HomepageViewAsTarget,
     type ProjectAnnouncement,
     type ProjectHomepage,
+    type ProjectHomepageSettings,
     type ProjectMemberRole,
     type ResolvedHomepage,
     type SessionUser,
     type UpdateAnnouncementRequest,
     type UpdateProjectHomepageDraftRequest,
+    type UpdateProjectHomepageSettingsRequest,
 } from '@lightdash/common';
 import { type KnownBlock } from '@slack/web-api';
 import { createCanvas, loadImage } from 'canvas';
@@ -167,6 +169,8 @@ export type ProjectHomepageServiceArguments = {
         | 'getPublishedDefault'
         | 'getRecentlyViewed'
         | 'getAssignments'
+        | 'getSettings'
+        | 'setOpening'
         | 'updateGroupPriorities'
         | 'resolvePublished'
         | 'list'
@@ -389,6 +393,32 @@ export class ProjectHomepageService extends BaseService {
             default:
                 return assertUnreachable(target, 'Unknown view-as target type');
         }
+    }
+
+    async getSettings(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ProjectHomepageSettings> {
+        await this.assertFlagEnabled(user);
+        this.assertCanView(user, projectUuid);
+        return this.projectHomepageModel.getSettings(projectUuid);
+    }
+
+    async updateSettings(
+        user: SessionUser,
+        projectUuid: string,
+        { opening }: UpdateProjectHomepageSettingsRequest,
+    ): Promise<ProjectHomepageSettings> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        if (
+            opening !== null &&
+            opening !== 'ask-first' &&
+            opening !== 'content-first'
+        ) {
+            throw new ParameterError(`Unknown homepage opening: ${opening}`);
+        }
+        return this.projectHomepageModel.setOpening(projectUuid, opening);
     }
 
     async getAssignments(

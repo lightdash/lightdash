@@ -7,9 +7,11 @@ import {
     type HomepageAssignment,
     type HomepageAudience,
     type HomepageConfig,
+    type HomepageOpening,
     type HomepageRecentlyViewedItem,
     type ProjectAnnouncement,
     type ProjectHomepage,
+    type ProjectHomepageSettings,
     type ProjectMemberRole,
     type PublishedProjectHomepage,
     type ResolvedPublishedHomepage,
@@ -20,6 +22,7 @@ import {
     AnnouncementsTableName,
     HomepageAssignmentsTableName,
     HomepagesTableName,
+    ProjectHomepageSettingsTableName,
     type DbAnnouncement,
     type DbProjectHomepage,
 } from '../database/entities/projectHomepages';
@@ -331,6 +334,31 @@ export class ProjectHomepageModel {
             }
             return ProjectHomepageModel.mapDbHomepage(row);
         });
+    }
+
+    async getSettings(projectUuid: string): Promise<ProjectHomepageSettings> {
+        const row = await this.database(ProjectHomepageSettingsTableName)
+            .select('opening')
+            .where('project_uuid', projectUuid)
+            .first();
+        // An unrecognised stored value (a rolling deploy reading a value a
+        // newer version wrote) reads as "not chosen" rather than throwing.
+        const opening =
+            row?.opening === 'ask-first' || row?.opening === 'content-first'
+                ? (row.opening as HomepageOpening)
+                : null;
+        return { opening };
+    }
+
+    async setOpening(
+        projectUuid: string,
+        opening: HomepageOpening | null,
+    ): Promise<ProjectHomepageSettings> {
+        await this.database(ProjectHomepageSettingsTableName)
+            .insert({ project_uuid: projectUuid, opening })
+            .onConflict('project_uuid')
+            .merge({ opening, updated_at: new Date() });
+        return { opening };
     }
 
     async getAssignments(projectUuid: string): Promise<HomepageAssignment[]> {

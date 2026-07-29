@@ -41,6 +41,21 @@ export type ProjectHomepagesTable = Knex.CompositeTableType<
     DbProjectHomepageUpdate
 >;
 
+export const ProjectHomepageSettingsTableName = 'project_homepage_settings';
+
+export type DbProjectHomepageSettings = {
+    project_uuid: string;
+    opening: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type ProjectHomepageSettingsTable = Knex.CompositeTableType<
+    DbProjectHomepageSettings,
+    Pick<DbProjectHomepageSettings, 'project_uuid' | 'opening'>,
+    Pick<DbProjectHomepageSettings, 'opening' | 'updated_at'>
+>;
+
 export const HomepageAssignmentsTableName = 'homepage_assignments';
 
 export type DbHomepageAssignment = {

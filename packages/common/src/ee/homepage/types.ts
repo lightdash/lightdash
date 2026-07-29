@@ -154,6 +154,37 @@ export type HomepageBlock =
     | HomepageFavoritesBlock
     | HomepageRecentBlock;
 
+/** Which opening a project's homepage leads with. An admin's choice, not a
+ * consequence of whether AI is licensed — see resolveHomepageOpening. */
+export type HomepageOpening = 'ask-first' | 'content-first';
+
+export type ProjectHomepageSettings = {
+    /** null = not chosen; the layout falls back to AI availability. */
+    opening: HomepageOpening | null;
+};
+
+export type UpdateProjectHomepageSettingsRequest = {
+    opening: HomepageOpening | null;
+};
+
+export type ApiProjectHomepageSettingsResponse =
+    ApiSuccess<ProjectHomepageSettings>;
+
+/**
+ * The opening a viewer actually gets. An explicit admin choice always wins;
+ * with no choice stored, a project with a usable AI agent opens on the
+ * composer and one without opens on content. AI availability can only ever
+ * *downgrade* ask-first — a composer that can't answer anything is worse than
+ * no composer.
+ */
+export const resolveHomepageOpening = (
+    chosen: HomepageOpening | null,
+    canAskAi: boolean,
+): HomepageOpening => {
+    if (!canAskAi) return 'content-first';
+    return chosen ?? 'ask-first';
+};
+
 export type HomepageAudience =
     | { type: 'everyone' }
     | { type: 'groups'; groupUuids: string[] }

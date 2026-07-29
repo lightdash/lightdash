@@ -2,6 +2,7 @@ import {
     type HomepageBlock,
     type HomepageCollectionItemRef,
     type HomepageConfig,
+    type HomepageOpening,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { getDefaultQuickActions } from './blocks/quickActionDefaults';
@@ -12,11 +13,21 @@ import { getDefaultQuickActions } from './blocks/quickActionDefaults';
  * recently viewed, pinned). Publishing the first homepage should keep the page
  * people were already looking at, not drop them onto a different one.
  */
-export const buildStarterHomepage = (
-    canAskAi: boolean,
-    pinnedItems: HomepageCollectionItemRef[],
-    keySpaceUuids: string[] = [],
-): HomepageConfig => {
+export const buildStarterHomepage = ({
+    opening,
+    canAskAi,
+    pinnedItems,
+    keySpaceUuids = [],
+}: {
+    /** What the page opens on — the admin's choice, already resolved. */
+    opening: HomepageOpening;
+    /** Whether Ask AI is usable at all, which decides only whether it appears
+     * as a quick action in the content-first preset. */
+    canAskAi: boolean;
+    pinnedItems: HomepageCollectionItemRef[];
+    keySpaceUuids?: string[];
+}): HomepageConfig => {
+    const asksFirst = opening === 'ask-first';
     const row = (block: HomepageBlock) => ({ id: uuidv4(), blocks: [block] });
 
     const rows = [
@@ -25,7 +36,7 @@ export const buildStarterHomepage = (
             type: 'favorites',
             config: { title: 'My favorites' },
         }),
-        canAskAi
+        asksFirst
             ? row({
                   id: uuidv4(),
                   type: 'ask-ai-hero',
@@ -60,12 +71,12 @@ export const buildStarterHomepage = (
     }
 
     // Day-0 pairs the greeting with quick actions; the AI hero stands alone.
-    if (!canAskAi) {
+    if (!asksFirst) {
         rows.push(
             row({
                 id: uuidv4(),
                 type: 'quick-actions',
-                config: { actions: getDefaultQuickActions(false) },
+                config: { actions: getDefaultQuickActions(canAskAi) },
             }),
             row({
                 id: uuidv4(),

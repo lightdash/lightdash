@@ -7,6 +7,7 @@ import {
     type ApiHomepageViewAsResponse,
     type ApiProjectHomepageOrNullResponse,
     type ApiProjectHomepageResponse,
+    type ApiProjectHomepageSettingsResponse,
     type ApiProjectHomepagesResponse,
     type ApiRecentlyViewedResponse,
     type ApiResolvedHomepageResponse,
@@ -17,6 +18,7 @@ import {
     type PublishProjectHomepageRequest,
     type UpdateHomepageGroupPrioritiesRequest,
     type UpdateProjectHomepageDraftRequest,
+    type UpdateProjectHomepageSettingsRequest,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -185,6 +187,50 @@ export class ProjectHomepageController extends BaseController {
             results: await this.getHomepageService().getAssignments(
                 toSessionUser(req.account),
                 projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/settings')
+    @OperationId('getProjectHomepageSettings')
+    async getSettings(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiProjectHomepageSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().getSettings(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/settings')
+    @OperationId('updateProjectHomepageSettings')
+    async updateSettings(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateProjectHomepageSettingsRequest,
+    ): Promise<ApiProjectHomepageSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().updateSettings(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
             ),
         };
     }

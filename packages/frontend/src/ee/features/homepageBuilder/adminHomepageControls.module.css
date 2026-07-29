@@ -57,3 +57,28 @@
         transition: none;
     }
 }
+
+/* A two-row schematic of the opening: the filled row is the composer, so
+   "ask first" and "content first" are distinguishable without reading. */
+.previewFrame {
+    width: 26px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    padding: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.previewComposer {
+    flex: 1;
+    border-radius: 2px;
+    background: var(--mantine-color-ldGray-7);
+}
+
+.previewContent {
+    flex: 1;
+    border-radius: 2px;
+    background: var(--mantine-color-ldGray-2);
+}

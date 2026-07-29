@@ -5,11 +5,15 @@ import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { Can } from '../../../providers/Ability';
 import classes from './adminHomepageControls.module.css';
+import { OpeningChoiceMenu } from './OpeningChoiceMenu';
 
 type Props = {
     projectUuid: string;
     organizationUuid: string | undefined;
     showNewHomepage?: boolean;
+    /** Day-0 only: there's no published layout yet, so the opening is the one
+     * thing an admin can change without entering the builder. */
+    showOpeningChoice?: boolean;
 };
 
 // Pinned top-right, just below the navbar, for anyone who can manage the
@@ -18,6 +22,7 @@ export const AdminHomepageControls: FC<Props> = ({
     projectUuid,
     organizationUuid,
     showNewHomepage = false,
+    showOpeningChoice = false,
 }) => {
     const navigate = useNavigate();
     return (
@@ -29,6 +34,9 @@ export const AdminHomepageControls: FC<Props> = ({
                     projectUuid,
                 })}
             >
+                {showOpeningChoice && (
+                    <OpeningChoiceMenu projectUuid={projectUuid} />
+                )}
                 {showNewHomepage && (
                     <button
                         type="button"
