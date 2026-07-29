@@ -12,10 +12,10 @@ export type LoadManifestArgs = {
     targetDir: string;
 };
 
-export const getManifestPath = async (targetDir: string): Promise<string> =>
+const getManifestPath = async (targetDir: string): Promise<string> =>
     path.join(targetDir, 'manifest.json');
 
-export const loadManifestFromFile = async (
+const loadManifestFromFile = async (
     filename: string,
 ): Promise<DbtManifest> => {
     globalState.debug(`> Loading dbt manifest from ${filename}`);
@@ -50,7 +50,7 @@ export const isHttpUrl = (value: string): boolean => {
     }
 };
 
-export const loadManifestFromUrl = async (
+const loadManifestFromUrl = async (
     url: string,
 ): Promise<DbtManifest> => {
     globalState.debug(`> Loading dbt manifest from ${url}`);

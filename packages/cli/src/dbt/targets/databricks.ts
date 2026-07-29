@@ -36,7 +36,7 @@ export type DatabricksTarget = {
     compute?: DatabricksComputeConfig;
 };
 
-export const databricksSchema: JSONSchemaType<DatabricksTarget> = {
+const databricksSchema: JSONSchemaType<DatabricksTarget> = {
     type: 'object',
     properties: {
         type: {

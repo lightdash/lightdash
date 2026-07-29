@@ -56,7 +56,7 @@ export const getValidation = async (projectUuid: string, jobId: string) =>
         body: undefined,
     });
 
-export const getProjectSpaces = async (projectUuid: string) =>
+const getProjectSpaces = async (projectUuid: string) =>
     lightdashApi<ApiSpaceSummaryListResponse['results']>({
         method: 'GET',
         url: `/api/v1/projects/${projectUuid}/spaces`,
@@ -89,7 +89,7 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     excludeSpaces?: string[];
 };
 
-export const waitUntilFinished = async (jobUuid: string): Promise<string> => {
+const waitUntilFinished = async (jobUuid: string): Promise<string> => {
     const job = await getJobState(jobUuid);
     if (job.status === SchedulerJobStatus.COMPLETED) {
         return job.status;

@@ -637,5 +637,3 @@ export class LightdashAnalytics {
         }
     }
 }
-
-export const analytics: LightdashAnalytics = new LightdashAnalytics();

@@ -32,7 +32,7 @@ export type PostgresTarget = {
     sslrootcert?: string;
 };
 
-export const postgresSchema: JSONSchemaType<PostgresTarget> = {
+const postgresSchema: JSONSchemaType<PostgresTarget> = {
     type: 'object',
     properties: {
         type: {

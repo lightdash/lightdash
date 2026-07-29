@@ -3,7 +3,7 @@ import { createHash } from 'crypto';
 import * as path from 'path';
 
 export const CODE_FILENAME_MAX_STEM_LENGTH = 200;
-export const CODE_FILENAME_HASH_LENGTH = 8;
+const CODE_FILENAME_HASH_LENGTH = 8;
 
 export const getStableCodeHash = (
     value: string,

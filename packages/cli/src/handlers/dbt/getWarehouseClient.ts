@@ -71,7 +71,7 @@ type GetTableCatalogProps = {
     databaseName?: string;
 };
 
-export const getTableSchema = async ({
+const getTableSchema = async ({
     projectUuid,
     tableName,
     schemaName,

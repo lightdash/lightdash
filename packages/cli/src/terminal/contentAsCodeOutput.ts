@@ -49,7 +49,7 @@ const getOperationLabel = (
     return tense === 'running' ? 'Uploading' : 'Uploaded';
 };
 
-export const formatDurationTag = (durationMs: number) =>
+const formatDurationTag = (durationMs: number) =>
     chalk.gray(getDurationLabel(durationMs));
 
 export const formatContentAsCodeAction = ({
@@ -135,7 +135,7 @@ export const formatContentAsCodeComplete = ({
     return [header, ...items.map(formatTreeItem), pathItem].join('\n');
 };
 
-export const canRenderContentAsCodeTree = (): boolean =>
+const canRenderContentAsCodeTree = (): boolean =>
     Boolean(
         process.stderr.isTTY &&
         process.env.CI !== 'true' &&
@@ -152,7 +152,7 @@ export const logContentAsCodeDiscovery = (message: string): void => {
     }
 };
 
-export const renderContentAsCodeComplete = (
+const renderContentAsCodeComplete = (
     props: ContentAsCodeOutputProps,
 ): boolean => {
     if (!canRenderContentAsCodeTree()) {
