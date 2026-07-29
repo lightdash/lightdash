@@ -21,7 +21,15 @@ import {
     IconPlugConnected,
     IconTelescope,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import {
+    useEffect,
+    useState,
+    type AnchorHTMLAttributes,
+    type FC,
+    type ReactNode,
+} from 'react';
+import { type StreamdownProps } from 'streamdown';
+import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     DEEP_RESEARCH_DEPTH_CONFIG,
@@ -32,6 +40,16 @@ import { type DeepResearchRunView } from '../../deepResearch/types';
 import { useCancelDeepResearchMutation } from '../../hooks/useDeepResearch';
 import { DeepResearchReport } from './DeepResearchReport';
 import styles from './DeepResearchRunCard.module.css';
+
+const PreviewLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
+    children,
+}) => <span>{children as ReactNode}</span>;
+
+const PREVIEW_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
+    a: PreviewLink as unknown as NonNullable<
+        StreamdownProps['components']
+    >['a'],
+};
 
 const STATUS_CONFIG: Record<
     DeepResearchRunView['status'],
@@ -313,13 +331,16 @@ export const DeepResearchRunCard = ({
                                     Executive answer
                                 </Text>
                             </Group>
-                            <Text size="sm" lineClamp={5}>
-                                {run.resultMarkdown
-                                    ? getDeepResearchReportPreview(
-                                          run.resultMarkdown,
-                                      )
-                                    : null}
-                            </Text>
+                            {run.resultMarkdown && (
+                                <AiMarkdown
+                                    className={styles.answerPreview}
+                                    components={PREVIEW_MARKDOWN_COMPONENTS}
+                                >
+                                    {getDeepResearchReportPreview(
+                                        run.resultMarkdown,
+                                    )}
+                                </AiMarkdown>
+                            )}
                             <Button
                                 variant="light"
                                 size="xs"

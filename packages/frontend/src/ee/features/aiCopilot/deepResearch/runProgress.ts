@@ -146,14 +146,9 @@ export const toDeepResearchRegistration = (
     state: 'started',
 });
 
-/** Plain-text intro of the report markdown, for compact previews. */
+/** Intro of the report markdown, before the detailed report sections. */
 export const getDeepResearchReportPreview = (markdown: string): string =>
-    markdown
-        .split(/^## /m)[0]
-        .replace(/^(`{3,}|~{3,})[\s\S]*?(\1|$)/gm, ' ')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    markdown.split(/^## /m)[0].trim();
 
 export const adaptDeepResearchRun = ({
     run,
