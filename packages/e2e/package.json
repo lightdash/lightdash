@@ -11,11 +11,11 @@
         "playwright:report": "playwright show-report",
         "typecheck": "tsc --project tsconfig.json --noEmit",
         "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
-        "formatter": "oxfmt",
+        "formatter": "oxfmt --ignore-path ./../../.gitignore",
         "lint": "pnpm run linter ./playwright ./playwright.config.ts",
         "fix-lint": "pnpm run linter ./playwright ./playwright.config.ts --fix",
-        "format": "oxfmt ./playwright ./playwright.config.ts ./tsconfig.json --check",
-        "fix-format": "oxfmt ./playwright ./playwright.config.ts ./tsconfig.json"
+        "format": "pnpm run formatter ./playwright ./playwright.config.ts ./tsconfig.json --check",
+        "fix-format": "pnpm run formatter ./playwright ./playwright.config.ts ./tsconfig.json"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*"
