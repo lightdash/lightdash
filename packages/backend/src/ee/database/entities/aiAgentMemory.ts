@@ -2,6 +2,7 @@ import type {
     AiAgentMemoryConsolidationOperation,
     AiAgentMemoryConsolidationRejection,
     AiAgentMemoryConsolidationRunStatus,
+    AiAgentMemoryConsolidationTrigger,
     AiAgentMemoryScope,
     AiAgentMemoryStatus,
     AiProjectContextTypedObjectRef,
@@ -124,6 +125,9 @@ export type DbAiAgentMemoryConsolidationRun = {
     status: AiAgentMemoryConsolidationRunStatus;
     /** A dry run applied nothing: its operation columns hold proposals. */
     dry_run: boolean;
+    trigger: AiAgentMemoryConsolidationTrigger;
+    /** The operator who triggered the run, never the partition owner. */
+    triggered_by_user_uuid: string | null;
     prompt_hash: string;
     input_hash: string;
     input_count: number;
