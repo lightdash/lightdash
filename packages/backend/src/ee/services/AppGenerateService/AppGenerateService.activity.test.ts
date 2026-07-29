@@ -37,11 +37,6 @@ const row = (overrides: Partial<DbAppActivityRow> = {}): DbAppActivityRow => ({
 });
 
 describe('toActivityEvent', () => {
-    it('reads version 1 as the app being created and later versions as iterations', () => {
-        expect(toEvent(row({ version: 1 })).eventType).toBe('created');
-        expect(toEvent(row({ version: 2 })).eventType).toBe('iteration');
-    });
-
     it('falls back to the default model when the version predates the model picker', () => {
         expect(toEvent(row({ resources: null })).claudeModel).toBe('sonnet');
         expect(toEvent(row({ resources: resources() })).claudeModel).toBe(

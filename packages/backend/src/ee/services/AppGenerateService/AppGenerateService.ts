@@ -65,7 +65,6 @@ import {
     type CompiledTable,
     type DashboardBlueprint,
     type DataAppActivityEvent,
-    type DataAppActivityEventType,
     type DataAppActivityFilters,
     type DataAppClaudeModel,
     type DataAppCode,
@@ -7642,14 +7641,11 @@ export class AppGenerateService extends BaseService {
     private static toActivityEvent(
         row: DbAppActivityRow,
     ): DataAppActivityEvent {
-        const eventType: DataAppActivityEventType =
-            row.version === 1 ? 'created' : 'iteration';
         return {
             appUuid: row.app_id,
             appName: row.app_name,
             appDeleted: row.app_deleted_at !== null,
             version: row.version,
-            eventType,
             status: row.status,
             prompt: row.prompt,
             claudeModel:

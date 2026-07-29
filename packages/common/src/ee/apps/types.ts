@@ -630,9 +630,6 @@ export type ApiMyAppsResponse = ApiSuccess<{
     };
 }>;
 
-// Version 1 creates the app; every later version iterates on it.
-export type DataAppActivityEventType = 'created' | 'iteration';
-
 /**
  * One data app generation event — a row of the org-wide activity log. Backed by
  * an `app_versions` row, so it covers both new apps and iterations, and both
@@ -644,8 +641,8 @@ export type DataAppActivityEvent = {
     // Activity outlives the app: a deleted app's generations still show, so the
     // log stays a complete record of what the org spent effort on.
     appDeleted: boolean;
+    // Version 1 created the app; every later version iterated on it.
     version: number;
-    eventType: DataAppActivityEventType;
     status: AppVersionStatus;
     prompt: string;
     // Versions built before the model picker shipped carry no model on their
