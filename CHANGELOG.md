@@ -1,3 +1,18 @@
+# [1.27.0](https://github.com/lightdash/lightdash/compare/1.26.0...1.27.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **navbar:** attach the user credentials switcher to the project switcher ([#26419](https://github.com/lightdash/lightdash/issues/26419)) ([14177f1](https://github.com/lightdash/lightdash/commit/14177f12aa01dd5c43e91d7fdf4de214849ad630)), closes [#26408](https://github.com/lightdash/lightdash/issues/26408)
+* prevent BigQuery user-credentials re-auth loop ([#26412](https://github.com/lightdash/lightdash/issues/26412)) ([1d99a98](https://github.com/lightdash/lightdash/commit/1d99a988f459d0364929683059f878d0d1414186)), closes [#23920](https://github.com/lightdash/lightdash/issues/23920) [#26408](https://github.com/lightdash/lightdash/issues/26408)
+
+
+### Features
+
+* **ai-memory:** fan out consolidation into per-partition child jobs ([#26425](https://github.com/lightdash/lightdash/issues/26425)) ([23188e5](https://github.com/lightdash/lightdash/commit/23188e5a3fffd96895ef09f2ddd9730c91811f25)), closes [#26292](https://github.com/lightdash/lightdash/issues/26292)
+* consolidation merge operation creates the merged memory row ([#26294](https://github.com/lightdash/lightdash/issues/26294)) ([186a154](https://github.com/lightdash/lightdash/commit/186a154d8b3227b0f7782098b6dcaddd9208e22a))
+* **onboarding:** enable homepage builder for orgs provisioned via new onboarding ([#26428](https://github.com/lightdash/lightdash/issues/26428)) ([049c54c](https://github.com/lightdash/lightdash/commit/049c54ce5312911346fc9c86827ea92f384763eb))
+
 # [1.26.0](https://github.com/lightdash/lightdash/compare/1.25.0...1.26.0) (2026-07-29)
 
 
