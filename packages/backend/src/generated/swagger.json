@@ -18041,6 +18041,123 @@
             "ApiMyAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__data-ApiAppSummary-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
             },
+            "DataAppActivityEvent": {
+                "properties": {
+                    "user": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "claudeModel": {
+                        "$ref": "#/components/schemas/DataAppClaudeModel"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AppVersionStatus"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "appDeleted": {
+                        "type": "boolean"
+                    },
+                    "appName": {
+                        "type": "string"
+                    },
+                    "appUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "user",
+                    "projectName",
+                    "projectUuid",
+                    "createdAt",
+                    "claudeModel",
+                    "prompt",
+                    "status",
+                    "version",
+                    "appDeleted",
+                    "appName",
+                    "appUuid"
+                ],
+                "type": "object",
+                "description": "One data app generation event — a row of the org-wide activity log. Backed by\nan `app_versions` row, so it covers both new apps and iterations, and both\nsuccessful and failed generations."
+            },
+            "ApiSuccess__data-DataAppActivityEvent-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "pagination": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/KnexPaginateArgs"
+                                    },
+                                    {
+                                        "properties": {
+                                            "totalResults": {
+                                                "type": "number",
+                                                "format": "double"
+                                            },
+                                            "totalPageCount": {
+                                                "type": "number",
+                                                "format": "double"
+                                            }
+                                        },
+                                        "required": [
+                                            "totalResults",
+                                            "totalPageCount"
+                                        ],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "data": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DataAppActivityEvent"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["data"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppActivityResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__data-DataAppActivityEvent-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
+            },
             "AiRouter": {
                 "properties": {
                     "updatedAt": {
@@ -50774,7 +50891,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.22.1",
+        "version": "1.23.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,15 @@
+# [1.23.0](https://github.com/lightdash/lightdash/compare/1.22.1...1.23.0) (2026-07-29)
+
+
+### Bug Fixes
+
+* **sql-runner:** apply the current parameter values when downloading ([#26403](https://github.com/lightdash/lightdash/issues/26403)) ([49f354a](https://github.com/lightdash/lightdash/commit/49f354a29f0d54e347f3302c32223520d82b3d7d))
+
+
+### Features
+
+* **data-apps:** add org-wide data app activity API ([#26407](https://github.com/lightdash/lightdash/issues/26407)) ([b98f238](https://github.com/lightdash/lightdash/commit/b98f23853e564b4955cfa24da65329c182960797))
+
 ## [1.22.1](https://github.com/lightdash/lightdash/compare/1.22.0...1.22.1) (2026-07-29)
 
 
