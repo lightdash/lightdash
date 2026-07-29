@@ -1015,20 +1015,6 @@ export default class SchedulerTask {
                                 label: item.label,
                                 error: item.error,
                             }));
-                        const appNotices: DeliveryNotice[] = readyItems
-                            .filter(
-                                (item) =>
-                                    item.limitReached && item.rowCount !== null,
-                            )
-                            .map((item) => ({
-                                type: 'limit_reached',
-                                label: item.label,
-                                rowCount: item.rowCount ?? 0,
-                            }));
-                        if (appNotices.length > 0) {
-                            notices = appNotices;
-                        }
-
                         if (readyItems.length === 0) {
                             throw new Error(
                                 'App delivery render captured no successful queries',
@@ -1061,6 +1047,10 @@ export default class SchedulerTask {
                             NotificationPayloadBase['page']['csvUrls']
                         > = [];
                         const appDeliveryQueries: SchedulerDeliveryQuery[] = [];
+                        const deliveredItems: Extract<
+                            CapturedQuery,
+                            { status: 'ready' }
+                        >[] = [];
 
                         settled.forEach((result, index) => {
                             const item = readyItems[index];
@@ -1103,12 +1093,29 @@ export default class SchedulerTask {
                                 chartName: item.label,
                                 queryUuid: item.queryUuid,
                             });
+                            deliveredItems.push(item);
                         });
 
                         if (appCsvUrls.length === 0) {
                             throw new Error(
                                 'All app delivery downloads failed',
                             );
+                        }
+
+                        // Only for files that actually shipped — a notice about
+                        // an unattached file would just confuse recipients.
+                        const appNotices: DeliveryNotice[] = deliveredItems
+                            .filter(
+                                (item) =>
+                                    item.limitReached && item.rowCount !== null,
+                            )
+                            .map((item) => ({
+                                type: 'limit_reached',
+                                label: item.label,
+                                rowCount: item.rowCount ?? 0,
+                            }));
+                        if (appNotices.length > 0) {
+                            notices = appNotices;
                         }
 
                         const appFailures = [
@@ -2228,7 +2235,10 @@ export default class SchedulerTask {
                 throw new ParameterError(
                     'PDF-only format is not supported for MS Teams webhooks',
                 );
-            } else if (format === SchedulerFormat.CSV) {
+            } else if (
+                format === SchedulerFormat.CSV ||
+                format === SchedulerFormat.XLSX
+            ) {
                 if (savedChartUuid) {
                     if (csvUrl === undefined) {
                         throw new UnexpectedServerError('Missing CSV URL');
@@ -3320,6 +3330,7 @@ export default class SchedulerTask {
                 pdfFile,
                 pdfPageCount,
                 failures,
+                notices,
             } = notificationPageData;
 
             const imageBuffer =
@@ -3474,6 +3485,7 @@ export default class SchedulerTask {
                     csvOptions?.asAttachment,
                     format,
                     failures,
+                    notices,
                     senderIdentity,
                 );
             } else {
@@ -4667,9 +4679,8 @@ export default class SchedulerTask {
                 if (hasMsTeams) addToMap(msTeamsExpiration, 'msteams');
                 if (hasGoogleChat) addToMap(googleChatExpiration, 'googlechat');
 
-                // Captured once here: the fan-out below builds one page per
-                // distinct expiry, and each render would otherwise re-run the
-                // app's queries and hand recipients different data.
+                // Captured once: the fan-out builds a page per distinct expiry,
+                // and a second render would hand recipients different data.
                 const appCaptureManifest =
                     isAppCreateScheduler(scheduler) &&
                     (scheduler.format === SchedulerFormat.CSV ||
@@ -6785,7 +6796,10 @@ export default class SchedulerTask {
                 throw new ParameterError(
                     'PDF-only format is not supported for Google Chat webhooks',
                 );
-            } else if (format === SchedulerFormat.CSV) {
+            } else if (
+                format === SchedulerFormat.CSV ||
+                format === SchedulerFormat.XLSX
+            ) {
                 if (savedChartUuid) {
                     if (csvUrl === undefined) {
                         throw new UnexpectedServerError('Missing CSV URL');

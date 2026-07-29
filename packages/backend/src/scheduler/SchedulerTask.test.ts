@@ -6,6 +6,7 @@ import {
     ForbiddenError,
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
+    LightdashPage,
     MetricType,
     NotEnoughResults,
     PartialFailureType,
@@ -1156,6 +1157,45 @@ describe('getNotificationPageData — app CSV/XLSX branch', () => {
         expect(page.csvUrls).toHaveLength(2);
     });
 
+    it('drops the limit notice when that query never made it into a file', async () => {
+        const { task } = setup({
+            download: async ({ queryUuid }) => {
+                if (queryUuid === 'query-b') {
+                    throw new Error('storage unavailable');
+                }
+                return { fileUrl: `https://files.example.com/${queryUuid}` };
+            },
+        });
+
+        const page = await callGetNotificationPageData(
+            task,
+            appScheduler(),
+            manifestOf([
+                readyItem({ label: 'Revenue', queryUuid: 'query-a' }),
+                readyItem({
+                    captureKey: 'v1:b',
+                    label: 'Orders',
+                    queryUuid: 'query-b',
+                    order: 1,
+                    rowCount: 5000,
+                    limitReached: true,
+                }),
+            ]),
+        );
+
+        expect(page.csvUrls).toHaveLength(1);
+        expect(page.notices ?? []).toEqual([]);
+        expect(page.failures).toEqual([
+            {
+                type: PartialFailureType.APP_QUERY,
+                stage: 'download',
+                captureKey: 'v1:b',
+                label: 'Orders',
+                error: 'storage unavailable',
+            },
+        ]);
+    });
+
     it('throws when the render captured no successful queries', async () => {
         const { task, downloadSyncQueryResults } = setup();
 
@@ -1400,5 +1440,208 @@ describe('handleScheduledDelivery — app delivery capture', () => {
         );
 
         expect(captureAppDeliveryManifest).not.toHaveBeenCalled();
+    });
+});
+
+describe('app delivery target senders', () => {
+    const senderPage = (
+        overrides: Partial<PageData> = {},
+    ): PageData & { notices?: PageData['notices'] } => ({
+        url: 'https://lightdash.example.com/projects/project-1/apps/app-1/view',
+        details: { name: 'Sales App', description: 'Sales overview' },
+        pageType: LightdashPage.APP,
+        organizationUuid: 'org-1',
+        csvUrls: [
+            {
+                filename: 'csv-Revenue-2026-07-30.csv',
+                path: 'https://files.example.com/revenue.csv',
+                localPath: 'https://files.example.com/revenue.csv',
+                chartName: 'Revenue',
+                truncated: false,
+            },
+        ],
+        failures: [
+            {
+                type: PartialFailureType.APP_QUERY,
+                stage: 'download',
+                captureKey: 'v1:b',
+                label: 'Orders',
+                error: 'storage unavailable',
+            },
+        ],
+        notices: [{ type: 'limit_reached', label: 'Sessions', rowCount: 5000 }],
+        ...overrides,
+    });
+
+    const senderBaseDeps = (): Partial<TaskDeps> => ({
+        analytics: asDep<'analytics'>({ track: vi.fn() }),
+        schedulerService: asDep<'schedulerService'>({
+            logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            getSchedulerDefaultTimezone: vi.fn().mockResolvedValue('UTC'),
+        }),
+        organizationSettingsModel: asDep<'organizationSettingsModel'>({
+            get: vi.fn().mockResolvedValue({}),
+        }),
+        lightdashConfig: asDep<'lightdashConfig'>({
+            siteUrl: 'https://lightdash.example.com',
+            persistentDownloadUrls: { expirationSeconds: 604800 },
+        }),
+    });
+
+    const notificationOf = (
+        scheduler: CreateSchedulerAndTargets,
+        page: PageData,
+        target: Record<string, string>,
+    ) =>
+        ({
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+            scheduledTime: new Date('2026-07-30T09:00:00Z'),
+            jobGroup: 'job-1',
+            scheduler,
+            page,
+            ...target,
+        }) as unknown as never;
+
+    it('posts an app csv delivery to Slack with the files and the limit notice', async () => {
+        const postMessage = vi.fn().mockResolvedValue({ ts: '111' });
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            slackClient: asDep<'slackClient'>({ isEnabled: true, postMessage }),
+        });
+        const page = senderPage();
+
+        await (
+            task as unknown as {
+                sendSlackNotification(
+                    jobId: string,
+                    notification: never,
+                ): Promise<void>;
+            }
+        ).sendSlackNotification(
+            'job-1',
+            notificationOf(appScheduler(), page, { channel: 'C123' }),
+        );
+
+        expect(postMessage).toHaveBeenCalledTimes(1);
+        const blocks = JSON.stringify(postMessage.mock.calls[0][0].blocks);
+        expect(blocks).toContain('csv-Revenue-2026-07-30.csv');
+        expect(blocks).toContain(
+            'Sessions reached its query limit; additional rows may exist (5000 rows delivered)',
+        );
+        expect(blocks).toContain('Orders');
+    });
+
+    it('sends an app csv delivery by email with its failures and notices', async () => {
+        const sendDashboardCsvNotificationEmail = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            emailClient: asDep<'emailClient'>({
+                sendDashboardCsvNotificationEmail,
+            }),
+            emailWhitelabelService: asDep<'emailWhitelabelService'>({
+                resolveSenderIdentity: vi.fn().mockResolvedValue(null),
+            }),
+        });
+        const page = senderPage();
+
+        await (
+            task as unknown as {
+                sendEmailNotification(
+                    jobId: string,
+                    notification: never,
+                ): Promise<void>;
+            }
+        ).sendEmailNotification(
+            'job-1',
+            notificationOf(appScheduler(), page, {
+                recipient: 'recipient@example.com',
+            }),
+        );
+
+        expect(sendDashboardCsvNotificationEmail).toHaveBeenCalledTimes(1);
+        const args = sendDashboardCsvNotificationEmail.mock.calls[0];
+        expect(args[0]).toBe('recipient@example.com');
+        expect(args[7]).toEqual(page.csvUrls);
+        expect(args[14]).toEqual(page.failures);
+        expect(args[15]).toEqual(page.notices);
+    });
+
+    it('posts an app xlsx delivery to the MS Teams webhook', async () => {
+        const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                persistentDownloadUrls: { expirationSeconds: 604800 },
+                microsoftTeams: { enabled: true },
+            }),
+            msTeamsClient: asDep<'msTeamsClient'>({ postCsvsWithWebhook }),
+        });
+        const page = senderPage();
+
+        await (
+            task as unknown as {
+                sendMsTeamsNotification(
+                    jobId: string,
+                    notification: never,
+                ): Promise<void>;
+            }
+        ).sendMsTeamsNotification(
+            'job-1',
+            notificationOf(
+                appScheduler({ format: SchedulerFormat.XLSX }),
+                page,
+                { webhook: 'https://webhook.example.com/teams' },
+            ),
+        );
+
+        expect(postCsvsWithWebhook).toHaveBeenCalledTimes(1);
+        expect(postCsvsWithWebhook.mock.calls[0][0]).toMatchObject({
+            webhookUrl: 'https://webhook.example.com/teams',
+            csvUrls: page.csvUrls,
+            failures: page.failures,
+        });
+    });
+
+    it('posts a dashboard xlsx delivery to the Google Chat webhook', async () => {
+        const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            googleChatClient: asDep<'googleChatClient'>({
+                postCsvsWithWebhook,
+            }),
+        });
+        const page = senderPage({ pageType: LightdashPage.DASHBOARD });
+
+        await (
+            task as unknown as {
+                sendGoogleChatNotification(
+                    jobId: string,
+                    notification: never,
+                ): Promise<void>;
+            }
+        ).sendGoogleChatNotification(
+            'job-1',
+            notificationOf(
+                appScheduler({
+                    format: SchedulerFormat.XLSX,
+                    appUuid: null,
+                    appName: null,
+                    dashboardUuid: 'dashboard-1',
+                }),
+                page,
+                { googleChatWebhook: 'https://webhook.example.com/chat' },
+            ),
+        );
+
+        expect(postCsvsWithWebhook).toHaveBeenCalledTimes(1);
+        expect(postCsvsWithWebhook.mock.calls[0][0]).toMatchObject({
+            webhookUrl: 'https://webhook.example.com/chat',
+            csvUrls: page.csvUrls,
+        });
     });
 });

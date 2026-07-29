@@ -183,6 +183,7 @@ describe('EmailClient', () => {
                         droppedCount: 3,
                     },
                 ],
+                [{ type: 'limit_reached', label: 'Sessions', rowCount: 5000 }],
             );
 
             const sentContext = (
@@ -191,6 +192,8 @@ describe('EmailClient', () => {
                     context: {
                         failures: { chartName?: string; error: string }[];
                         failureCountPhrase: string;
+                        notices: { label: string; rowCount: number }[];
+                        hasNotices: boolean;
                     };
                 }
             ).context;
@@ -206,6 +209,52 @@ describe('EmailClient', () => {
                 },
             ]);
             expect(sentContext.failureCountPhrase).toBe('1 query and 1 issue');
+            // Notices ride their own context key so the template can render them
+            // outside the failure block.
+            expect(sentContext.hasNotices).toBe(true);
+            expect(sentContext.notices).toEqual([
+                { type: 'limit_reached', label: 'Sessions', rowCount: 5000 },
+            ]);
+        });
+
+        test('should not flag notices when an app delivery had none', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+
+            await client.sendDashboardCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'title',
+                'description',
+                undefined,
+                'date',
+                'frequency',
+                [
+                    {
+                        path: 'https://example.com/file.csv',
+                        filename: 'file.csv',
+                        localPath: '',
+                        truncated: false,
+                    },
+                ],
+                'https://example.com/app',
+                'https://example.com/scheduler',
+                true,
+                7,
+                false,
+                SchedulerFormat.CSV,
+            );
+
+            const sentContext = (
+                vi.mocked(client.transporter!.sendMail).mock
+                    .calls[0][0] as unknown as {
+                    context: { hasNotices?: boolean; notices?: unknown };
+                }
+            ).context;
+
+            expect(sentContext.hasNotices).toBeUndefined();
+            expect(sentContext.notices).toBeUndefined();
         });
 
         test('should use the setup invitation template for setup invites', async () => {

@@ -14,6 +14,7 @@ import {
     SchedulerFormat,
     SessionUser,
     SmptError,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import fs from 'fs';
@@ -864,6 +865,7 @@ export default class EmailClient {
         asAttachment?: boolean,
         format?: SchedulerFormat,
         failures?: PartialFailure[],
+        notices?: DeliveryNotice[],
         sender?: EmailSenderIdentity | null,
     ) {
         const csvUrls = attachments.filter(
@@ -921,6 +923,8 @@ export default class EmailClient {
                     ? buildFailureCountPhrase(failures)
                     : undefined,
                 hasFailures: failures && failures.length > 0,
+                notices,
+                hasNotices: notices && notices.length > 0,
                 allChartsFailed,
             },
             text: title,

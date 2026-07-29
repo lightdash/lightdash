@@ -702,35 +702,42 @@ describe('SchedulerService', () => {
             },
         );
 
-        test('should reject a csv/xlsx format change on the generic update path', async () => {
-            const { appService } = buildAppService();
-            const appScheduler = {
+        // The generic PATCH /schedulers path is the only way to edit an app
+        // scheduler, so the format gate has to hold there too.
+        const buildAppUpdateService = () => {
+            const existingAppScheduler = {
                 ...chartSchedulerInPrivateSpace,
                 savedChartUuid: null,
                 appUuid,
                 appName: 'Sales App',
-                format: SchedulerFormat.CSV,
+                format: SchedulerFormat.IMAGE,
+                options: {},
+            };
+            const appUpdateSchedulerModel = {
+                getScheduler: vi.fn(async () => existingAppScheduler),
+                updateScheduler: vi.fn(async () => ({
+                    ...existingAppScheduler,
+                    targets: [],
+                })),
+                deleteScheduledLogs: vi.fn(async () => {}),
             };
             const appUpdateService = new SchedulerService({
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
-                schedulerModel: {
-                    getScheduler: vi.fn(async () => appScheduler),
-                    updateScheduler: vi.fn(async () => ({
-                        ...appScheduler,
-                        targets: [],
-                    })),
-                    deleteScheduledLogs: vi.fn(async () => {}),
-                } as unknown as SchedulerModel,
+                schedulerModel:
+                    appUpdateSchedulerModel as unknown as SchedulerModel,
                 dashboardModel: {} as DashboardModel,
                 savedChartModel: {} as SavedChartModel,
                 savedSqlModel: {} as SavedSqlModel,
                 appModel: {
                     findAppByUuid: vi.fn(async () => appRow),
                 } as unknown as AppModel,
-                projectModel: {} as ProjectModel,
+                projectModel: {
+                    get: vi.fn(async () => ({ schedulerTimezone: 'UTC' })),
+                } as unknown as ProjectModel,
                 schedulerClient: {
                     deleteScheduledJobs: vi.fn(async () => {}),
+                    generateDailyJobsForScheduler: vi.fn(async () => {}),
                 } as unknown as SchedulerClient,
                 slackClient: {
                     joinChannels: vi.fn(async () => {}),
@@ -745,28 +752,83 @@ describe('SchedulerService', () => {
                 spacePermissionService:
                     spacePermissionService as unknown as SpacePermissionService,
             });
-            expect(appService).toBeDefined();
+            return { appUpdateService, appUpdateSchedulerModel };
+        };
+
+        const appUpdateActor = () =>
+            buildUser([
+                {
+                    subject: 'ScheduledDeliveries',
+                    action: ['manage'],
+                    conditions: { organizationUuid },
+                },
+            ]);
+
+        const appUpdatePayload = (format: SchedulerFormat, options: unknown) =>
+            ({
+                name: 'scheduler',
+                cron: '0 0 * * *',
+                timezone: 'UTC',
+                format,
+                options,
+                targets: [],
+            }) as unknown as UpdateSchedulerAndTargetsWithoutId;
+
+        test('should reject a PDF format change on the generic update path', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
 
             await expect(
                 appUpdateService.updateScheduler(
-                    buildUser([
-                        {
-                            subject: 'ScheduledDeliveries',
-                            action: ['manage'],
-                            conditions: { organizationUuid },
-                        },
-                    ]),
+                    appUpdateActor(),
                     'schedulerUuid',
-                    {
-                        name: 'scheduler',
-                        cron: '0 0 * * *',
-                        timezone: 'UTC',
-                        format: SchedulerFormat.PDF,
-                        options: {},
-                        targets: [],
-                    } as unknown as UpdateSchedulerAndTargetsWithoutId,
+                    appUpdatePayload(SchedulerFormat.PDF, {}),
                 ),
             ).rejects.toThrowError(ParameterError);
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should reject a csv limit change on the generic update path', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            await expect(
+                appUpdateService.updateScheduler(
+                    appUpdateActor(),
+                    'schedulerUuid',
+                    appUpdatePayload(SchedulerFormat.CSV, {
+                        formatted: true,
+                        limit: 'all',
+                    }),
+                ),
+            ).rejects.toThrowError(ParameterError);
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('should allow an image app scheduler update on the generic update path', async () => {
+            const { appUpdateService, appUpdateSchedulerModel } =
+                buildAppUpdateService();
+
+            await appUpdateService.updateScheduler(
+                appUpdateActor(),
+                'schedulerUuid',
+                appUpdatePayload(SchedulerFormat.IMAGE, { withPdf: false }),
+            );
+
+            expect(
+                appUpdateSchedulerModel.updateScheduler,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    schedulerUuid: 'schedulerUuid',
+                    format: SchedulerFormat.IMAGE,
+                }),
+            );
         });
     });
 });
