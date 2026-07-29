@@ -208,9 +208,9 @@ export const provisionPlaygroundProject = async ({
                     homepageBuilderEnablement =
                         await featureFlagService.ensureOrganizationOverrideEnabled(
                             {
+                                user,
                                 featureFlagId:
                                     CommercialFeatureFlags.HomepageBuilder,
-                                organizationUuid,
                             },
                         );
                 } catch (error) {

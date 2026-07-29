@@ -361,8 +361,8 @@ describe('provisionPlaygroundProject', () => {
         expect(
             mocks.ensureOrganizationOverrideEnabled,
         ).toHaveBeenCalledExactlyOnceWith({
+            user,
             featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-            organizationUuid,
         });
         expect(
             mocks.ensureOrganizationOverrideEnabled.mock.invocationCallOrder[0],

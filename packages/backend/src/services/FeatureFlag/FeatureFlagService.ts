@@ -1,4 +1,9 @@
-import { LightdashUser } from '@lightdash/common';
+import { subject } from '@casl/ability';
+import {
+    ForbiddenError,
+    LightdashUser,
+    type SessionUser,
+} from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../BaseService';
@@ -30,12 +35,24 @@ export class FeatureFlagService extends BaseService {
     }
 
     ensureOrganizationOverrideEnabled({
+        user,
         featureFlagId,
-        organizationUuid,
     }: {
+        user: SessionUser;
         featureFlagId: string;
-        organizationUuid: string;
     }) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         return this.featureFlagModel.ensureOrganizationOverrideEnabled(
             featureFlagId,
             organizationUuid,
