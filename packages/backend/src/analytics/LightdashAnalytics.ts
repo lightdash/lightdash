@@ -916,6 +916,10 @@ export type HomepageBuilderEnablement =
     | EnsureOrganizationOverrideOutcome
     | 'failed';
 
+export type CodingAgentOnboardingEnablement =
+    | EnsureOrganizationOverrideOutcome
+    | 'failed';
+
 type PlaygroundProjectProvisionedEvent = BaseTrack & {
     event: 'playground_project.provisioned';
     userId: string;
@@ -926,6 +930,7 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
         onboardingFlow: OnboardingFlow;
         catalogIndexErrorType: string | null;
         homepageBuilderEnablement: HomepageBuilderEnablement;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
     };
 };
 
