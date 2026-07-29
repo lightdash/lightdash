@@ -67,6 +67,7 @@ packages:
   - mosh
   - software-properties-common
   - tmux
+  - ufw
   - unzip
 
 # -- Swap (safety net for memory-intensive builds) ----------------------------
@@ -83,7 +84,7 @@ users:
   - name: lightdash
     shell: /bin/bash
     groups: [docker, sudo]
-    sudo: ALL=(ALL) NOPASSWD:ALL
+    sudo: "ALL=(ALL) NOPASSWD: /usr/bin/tailscale, /usr/bin/systemctl start docker, /usr/bin/systemctl stop docker, /usr/bin/systemctl restart docker, /usr/bin/systemctl reload docker, /usr/bin/systemctl status docker, /usr/sbin/ufw"
     # SSH keys are copied from root to lightdash during provisioning.
     # SSH directly: ssh lightdash@<server-ip>
 
@@ -123,6 +124,14 @@ write_files:
 runcmd:
   # -- Apply sysctl tuning immediately ----------------------------------------
   - sysctl --system
+
+  # -- Host firewall: deny inbound by default, allow SSH/mosh/Tailscale --------
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw allow 60000:61000/udp
+  - ufw allow in on tailscale0
+  - ufw --force enable
 
   # -- Install Docker CE ------------------------------------------------------
   - install -m 0755 -d /etc/apt/keyrings
@@ -202,8 +211,12 @@ runcmd:
     export PGHOST=localhost
     export PGPORT=15432
     export PGUSER=postgres
-    export PGPASSWORD=password
+    export PGPASSWORD=__PGPASSWORD__
     ENVFILE
+
+    # Random per-host Postgres password (the compose stack reads PGPASSWORD)
+    AGENT_PG_PASSWORD="$(openssl rand -hex 16)"
+    sed -i "s/__PGPASSWORD__/$AGENT_PG_PASSWORD/" /home/lightdash/.env.agent-harness
 
     # .profile.d/agent-harness.sh
     cat > /home/lightdash/.profile.d/agent-harness.sh << 'PROFILE'
