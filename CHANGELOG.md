@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/lightdash/lightdash/compare/1.18.1...1.19.0) (2026-07-29)
+
+
+### Features
+
+* **ci:** remove stale npm-pin comment in release workflow ([#26396](https://github.com/lightdash/lightdash/issues/26396)) ([e5d8bbe](https://github.com/lightdash/lightdash/commit/e5d8bbe022546bf1b3fb3154c941bc7ff488d7bf)), closes [lightdash#26320](https://github.com/lightdash/issues/26320) [lightdash#26320](https://github.com/lightdash/issues/26320)
+
 ## [1.18.1](https://github.com/lightdash/lightdash/compare/1.18.0...1.18.1) (2026-07-29)
 
 

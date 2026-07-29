@@ -35510,7 +35510,7 @@
             },
             "url.URL": {
                 "type": "string",
-                "description": "The **`URL`** interface is used to parse, construct, normalize, and encode URL.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)\n`URL` class is a global reference for `import { URL } from 'url'`\nhttps://nodejs.org/api/url.html#the-whatwg-url-api"
+                "description": "The **`URL`** interface is used to parse, construct, normalize, and encode URL.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)"
             },
             "OauthAuth": {
                 "properties": {
@@ -50771,7 +50771,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.18.1",
+        "version": "1.19.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
