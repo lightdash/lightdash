@@ -286,15 +286,29 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (isDataAppsEnabled && ability?.can('view', 'OrganizationDesign')) {
-            organizationItems.push({
-                label: 'Themes',
-                to: '/generalSettings/themes',
-                icon: IconBrush,
-                keywords: ['design', 'colors', 'charts'],
-                children: [],
-                exact: true,
-            });
+        if (isDataAppsEnabled) {
+            const dataAppChildren: SettingsNavigationItem[] = [];
+
+            if (ability?.can('view', 'OrganizationDesign')) {
+                dataAppChildren.push({
+                    label: 'Themes',
+                    to: '/generalSettings/dataApps/themes',
+                    icon: IconBrush,
+                    keywords: ['design', 'colors', 'charts'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (dataAppChildren.length > 0) {
+                organizationItems.push({
+                    label: 'Data apps',
+                    to: '/generalSettings/dataApps',
+                    icon: IconAppWindow,
+                    keywords: ['apps', 'data apps'],
+                    children: dataAppChildren,
+                });
+            }
         }
 
         if (ability?.can('manage', 'Organization')) {

@@ -79,6 +79,7 @@ export type SettingsContext = {
     hasAnyAiAgentAccess: boolean;
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
+    isDataAppsFlagLoading: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;

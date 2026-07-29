@@ -78,9 +78,8 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.UserGroupsEnabled,
     );
 
-    const { data: dataAppsFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableDataApps,
-    );
+    const dataAppsFlagQuery = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const { data: dataAppsFlag } = dataAppsFlagQuery;
 
     const { data: proLimitsFlag } = useServerFeatureFlag(
         FeatureFlags.ProLimits,
@@ -202,6 +201,7 @@ export const useSettingsContext = (): SettingsContext => {
         isAiOrganizationSettingsLoading:
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
+        isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,

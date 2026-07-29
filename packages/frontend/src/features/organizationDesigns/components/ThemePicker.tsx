@@ -211,7 +211,9 @@ export const ThemePicker: FC<Props> = ({
                 <Menu.Divider />
                 <Menu.Item
                     leftSection={<MantineIcon icon={IconSettings} size={14} />}
-                    onClick={() => void navigate('/generalSettings/themes')}
+                    onClick={() =>
+                        void navigate('/generalSettings/dataApps/themes')
+                    }
                 >
                     <Text size="xs">Manage themes</Text>
                 </Menu.Item>
