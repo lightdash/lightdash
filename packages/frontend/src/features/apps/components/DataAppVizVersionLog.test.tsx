@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
 import { useGetApp } from '../hooks/useGetApp';
 import { useRestoreAppVersion } from '../hooks/useRestoreAppVersion';
 import {
@@ -10,6 +11,7 @@ import {
     appVersionsPage,
     appVersionsUnreadable,
 } from '../testing/appVersionHistory';
+import { buildStub } from '../testing/dataAppVizBuildStub';
 import DataAppVizVersionLog from './DataAppVizVersionLog';
 
 vi.mock('../hooks/useGetApp', () => ({ useGetApp: vi.fn() }));
@@ -32,9 +34,14 @@ const setVersions = (
     );
 };
 
-const render = () =>
+const render = (build: DataAppVizBuildState = buildStub()) =>
     renderWithProviders(
-        <DataAppVizVersionLog projectUuid="project-1" dataAppVizUuid="viz-1" />,
+        <DataAppVizVersionLog
+            projectUuid="project-1"
+            dataAppVizUuid="viz-1"
+            build={build}
+            elapsed={build.isBuilding ? '0:14' : null}
+        />,
     );
 
 describe('DataAppVizVersionLog', () => {
@@ -156,6 +163,89 @@ describe('DataAppVizVersionLog', () => {
         expect(
             screen.getByText(/Could not load this visualization's versions/),
         ).toBeInTheDocument();
+    });
+
+    it('writes the request in flight as its own row, with the clock', () => {
+        setVersions([version()]);
+        render(
+            buildStub({
+                isBuilding: true,
+                pendingPrompt: 'make the bars horizontal',
+                claimedVersion: 2,
+            }),
+        );
+
+        expect(
+            screen.getByText('make the bars horizontal'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Building')).toBeInTheDocument();
+        expect(screen.getByText('0:14')).toBeInTheDocument();
+        expect(screen.getByText('v2')).toBeInTheDocument();
+    });
+
+    it('drops the live row once the version it claimed reaches history', () => {
+        setVersions([version(), version({ version: 2 })]);
+        render(
+            buildStub({
+                isBuilding: true,
+                pendingPrompt: 'make the bars horizontal',
+                claimedVersion: 2,
+            }),
+        );
+
+        expect(screen.queryByText('Building')).not.toBeInTheDocument();
+    });
+
+    it('reports progress on any stage before a version lands', () => {
+        setVersions([
+            version(),
+            version({
+                version: 2,
+                status: 'generating',
+                statusUpdatedAt: null,
+                prompt: 'make the bars horizontal',
+            }),
+        ]);
+        render(
+            buildStub({
+                isBuilding: true,
+                pendingPrompt: 'make the bars horizontal',
+                claimedVersion: 2,
+            }),
+        );
+
+        // One row, not a live row on top of the history row for the same build.
+        expect(screen.getAllByText('make the bars horizontal')).toHaveLength(1);
+        expect(screen.getByText('Building')).toBeInTheDocument();
+        expect(screen.getByText('0:14')).toBeInTheDocument();
+    });
+
+    it('keeps the last finished version current while the next one builds', () => {
+        setVersions([
+            version(),
+            version({
+                version: 2,
+                status: 'generating',
+                statusUpdatedAt: null,
+            }),
+        ]);
+        render(buildStub({ isBuilding: true, claimedVersion: 2 }));
+
+        // v1 is what the chart still renders, so it is not restorable.
+        expect(screen.getByText('current')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Restore' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers to re-send a request the server never accepted', async () => {
+        const retry = vi.fn();
+        setVersions([version()]);
+        render(buildStub({ error: 'The builder is busy', retry }));
+
+        expect(screen.getByText('The builder is busy')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(retry).toHaveBeenCalled();
     });
 
     it('restores only once the consequence is confirmed', async () => {

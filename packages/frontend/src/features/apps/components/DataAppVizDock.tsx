@@ -1,3 +1,4 @@
+import { isAppVersionInProgress } from '@lightdash/common';
 import { Badge, Box, Button, Group, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
@@ -9,10 +10,14 @@ import {
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import { useAppBuildPoller } from '../hooks/useAppBuildPoller';
 import { useAppVersionHistory } from '../hooks/useAppVersionHistory';
+import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
 import { getVersionAuthorName } from '../utils/versionsToChatMessages';
 import classes from './DataAppVizDock.module.css';
 import DataAppVizVersionLog from './DataAppVizVersionLog';
+
+const ignoreExternalBuildDone = () => undefined;
 
 const Provenance: FC<{
     authorName: string | null;
@@ -34,11 +39,11 @@ const Provenance: FC<{
 
 type Props = {
     projectUuid: string;
-    /**
-     * The visualization whose versions are on show, already resolved by the
-     * caller. The dock does not work out which one that is.
-     */
-    dataAppVizUuid: string;
+    /** The visualization the chart points at; null when it points at none. */
+    dataAppVizUuid: string | null;
+    build: DataAppVizBuildState;
+    /** Ticking `0:12` while a build runs; null when nothing is running. */
+    elapsed: string | null;
     /** Replaces the provenance line on the resting bar while it is present. */
     status?: ReactNode;
     /** Sits under the log wherever there is one. A resting dock has none, so
@@ -50,21 +55,39 @@ type Props = {
  * The visualization's versions, docked to the bottom of the config panel.
  *
  * Resting it is a slim bar: where this visualization came from, and the way in.
- * Expanded it is every version it has had, and the way out to the full builder.
- * The settings above it never move.
+ * Expanded it is every version it has had, the composer to ask for the next
+ * one, and the way out to the full builder. The settings above it never move.
  *
  * What the bar reports and what sits under the log are the caller's business,
  * so the status line and the footer are slots rather than branches here.
+ *
+ * Before anything exists there are no versions to hide, so the dock is the
+ * composer alone — collapsing an empty panel is not worth offering.
  */
 const DataAppVizDock: FC<Props> = ({
     projectUuid,
     dataAppVizUuid,
+    build,
+    elapsed,
     status,
     footer,
 }) => {
-    const [isExpanded, { toggle }] = useDisclosure(false);
-    const { latest, oldest, hasOrigin, latestReadyVersion, isError } =
+    // Open on arrival when there is nothing selected: describing one is the
+    // only thing to do here.
+    const [isExpanded, { toggle }] = useDisclosure(dataAppVizUuid === null);
+    const { versions, latest, oldest, hasOrigin, latestReadyVersion, isError } =
         useAppVersionHistory(projectUuid, dataAppVizUuid);
+    const isLatestVersionBuilding =
+        latest !== null && isAppVersionInProgress(latest.status);
+    const isOwnedByPanel = build.isBuilding && build.appUuid === dataAppVizUuid;
+    // A build started in the app builder has no local build state to own its
+    // worker. Keep the shared app cache moving until that version is terminal.
+    useAppBuildPoller(
+        projectUuid,
+        dataAppVizUuid ?? undefined,
+        isLatestVersionBuilding && !isOwnedByPanel,
+        ignoreExternalBuildDone,
+    );
     // With the origin loaded the line reports where the visualization came
     // from; without it the verb flips to "Last updated", which is the newest
     // version rather than the oldest page we happen to hold.
@@ -77,6 +100,30 @@ const DataAppVizDock: FC<Props> = ({
             {`v${latestReadyVersion}`}
         </Badge>
     );
+
+    // Version chrome needs versions. A first build in flight has claimed one
+    // but landed none, so there is nothing yet to collapse, label or open in
+    // the builder — just the build, and the composer under it.
+    // Knowing there are none is not the same as failing to find out, so a
+    // failed history keeps the bar that can say so.
+    const hasLandedVersion =
+        versions.some((v) => v.status === 'ready') || isError;
+
+    if (dataAppVizUuid === null || !hasLandedVersion) {
+        return (
+            <Box className={`${classes.dock} ${classes.dockBare}`}>
+                {(dataAppVizUuid !== null || build.error !== null) && (
+                    <DataAppVizVersionLog
+                        projectUuid={projectUuid}
+                        dataAppVizUuid={dataAppVizUuid}
+                        build={build}
+                        elapsed={elapsed}
+                    />
+                )}
+                {footer && <Box className={classes.footer}>{footer}</Box>}
+            </Box>
+        );
+    }
 
     const toggleButton = (
         <Tooltip
@@ -140,6 +187,8 @@ const DataAppVizDock: FC<Props> = ({
                     <DataAppVizVersionLog
                         projectUuid={projectUuid}
                         dataAppVizUuid={dataAppVizUuid}
+                        build={build}
+                        elapsed={elapsed}
                     />
                 </Box>
 
@@ -150,6 +199,16 @@ const DataAppVizDock: FC<Props> = ({
 
     return (
         <Box className={classes.dock}>
+            {build.isBuilding && (
+                <Box
+                    className={classes.progress}
+                    role="progressbar"
+                    aria-label="Build in progress"
+                    aria-valuetext={elapsed ?? 'Starting'}
+                >
+                    <Box className={classes.progressBar} />
+                </Box>
+            )}
             <Box className={classes.bar}>
                 <button
                     type="button"
