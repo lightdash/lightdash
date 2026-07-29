@@ -1,3 +1,10 @@
+## [1.20.1](https://github.com/lightdash/lightdash/compare/1.20.0...1.20.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* **data-apps:** fix app viz picker search and add clear button ([#26346](https://github.com/lightdash/lightdash/issues/26346)) ([5ce0c27](https://github.com/lightdash/lightdash/commit/5ce0c277132ace0c99e98626bbe5afb1c4f98cf3))
+
 # [1.20.0](https://github.com/lightdash/lightdash/compare/1.19.0...1.20.0) (2026-07-29)
 
 
