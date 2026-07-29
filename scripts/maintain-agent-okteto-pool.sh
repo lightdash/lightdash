@@ -81,6 +81,7 @@ deploy_namespace() {
         --wait \
         --timeout 20m
     namespace_is_claimed "$namespace" || mark_namespace_ready "$namespace"
+    return 0
 }
 
 create_pool_namespace() {
@@ -89,11 +90,11 @@ create_pool_namespace() {
     echo "Creating pooled namespace $namespace..."
     okteto namespace create "$namespace" --use=false
     deploy_namespace "$namespace"
+    return 0
 }
 
 main() {
     local available=0 attempts=0 created=0 namespace run_key max_attempts
-    local -a pool_namespaces=()
 
     [[ "$TARGET_SIZE" =~ ^[1-9][0-9]*$ ]] ||
         fail "Pool size must be a positive integer."
@@ -115,10 +116,6 @@ main() {
         --token "$LIGHTDASH_OKTETO_TOKEN" >/dev/null
 
     while IFS= read -r namespace; do
-        pool_namespaces+=("$namespace")
-    done < <(list_namespaces | grep "^${POOL_NAMESPACE_PREFIX}" | sort)
-
-    for namespace in "${pool_namespaces[@]}"; do
         namespace_is_claimed "$namespace" && continue
 
         if namespace_is_ready "$namespace"; then
@@ -130,7 +127,7 @@ main() {
         if deploy_namespace "$namespace" && namespace_is_ready "$namespace"; then
             available=$((available + 1))
         fi
-    done
+    done < <(list_namespaces | grep "^${POOL_NAMESPACE_PREFIX}" | sort)
 
     run_key="${GITHUB_RUN_ID:-$(date -u +%Y%m%d%H%M%S)-$$}-${GITHUB_RUN_ATTEMPT:-1}"
     run_key="$(printf '%s' "$run_key" | tr -cd 'a-zA-Z0-9-' | tr 'A-Z' 'a-z')"

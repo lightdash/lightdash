@@ -264,21 +264,16 @@ use_claimed_namespace() {
 
 claim_pool_namespace() {
     local namespace owner
-    local -a pool_namespaces=()
 
     while IFS= read -r namespace; do
-        pool_namespaces+=("$namespace")
-    done < <(list_namespaces | grep "^${POOL_NAMESPACE_PREFIX}" | sort)
-
-    for namespace in "${pool_namespaces[@]}"; do
         owner="$(claim_owner "$namespace")"
         if [ "$owner" = "$SESSION_HASH" ]; then
             use_claimed_namespace "$namespace"
             return 0
         fi
-    done
+    done < <(list_namespaces | grep "^${POOL_NAMESPACE_PREFIX}" | sort)
 
-    for namespace in "${pool_namespaces[@]}"; do
+    while IFS= read -r namespace; do
         [ -z "$(claim_owner "$namespace")" ] || continue
         pool_namespace_is_ready "$namespace" || continue
 
@@ -291,7 +286,7 @@ claim_pool_namespace() {
             use_claimed_namespace "$namespace"
             return 0
         fi
-    done
+    done < <(list_namespaces | grep "^${POOL_NAMESPACE_PREFIX}" | sort)
 
     return 1
 }
