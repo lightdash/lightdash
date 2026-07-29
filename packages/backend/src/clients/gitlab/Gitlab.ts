@@ -5,7 +5,6 @@ import {
     getErrorMessage,
     LightdashError,
     NotFoundError,
-    ParameterError,
     PullRequestState,
     UnexpectedGitError,
 } from '@lightdash/common';
