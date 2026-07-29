@@ -9,10 +9,12 @@ import { TIER_CLASS } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
 import { type BlockPresentation } from './blocks/types';
 import layout from './homepageLayout.module.css';
+import { useRuntimeEmptyBlocks } from './hooks/useRuntimeEmptyBlocks';
 import {
     resolveHomepageLayout,
     type ResolvedRow,
 } from './resolveHomepageLayout';
+import { RuntimeEmptyBlocksProvider } from './RuntimeEmptyBlocks';
 
 const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
 
@@ -65,32 +67,48 @@ const RowRenderer: FC<{
     row: ResolvedRow;
     projectUuid: string;
     personalPlaceholders: boolean;
-}> = ({ row, projectUuid, personalPlaceholders }) => (
-    <Box
-        className={`${layout.row} ${TIER_CLASS[row.widthTier]}`}
-        data-gap={row.gap}
-        data-role={row.role}
-        data-align={row.align}
-        data-fit={row.fit}
-    >
-        {row.columns.map((column) => (
-            <Box
-                key={column.block.id}
-                className={layout.col}
-                data-weight={column.weight}
-                data-hug-units={column.hugUnits ?? undefined}
-            >
-                <BlockRenderer
-                    block={column.block}
-                    projectUuid={projectUuid}
-                    personalPlaceholders={personalPlaceholders}
-                    itemSpan={column.itemSpan}
-                    standalone={row.columns.length === 1}
-                />
-            </Box>
-        ))}
-    </Box>
-);
+}> = ({ row, projectUuid, personalPlaceholders }) => {
+    const { emptyBlockIds } = useRuntimeEmptyBlocks();
+    // A row whose every block resolved to nothing takes no space and no gap —
+    // the same guarantee the resolver gives config-empty blocks, applied to
+    // blocks that can only know at runtime.
+    //
+    // Hidden, NOT unmounted: unmounting removes the block that reported the
+    // emptiness, its cleanup clears the flag, the row comes back, the block
+    // remounts and reports empty again — an infinite loop. `display: none`
+    // takes it out of flow (so no gap either) while leaving the reporter
+    // mounted and the state stable.
+    const isRuntimeEmpty =
+        row.columns.length > 0 &&
+        row.columns.every((column) => emptyBlockIds.has(column.block.id));
+    return (
+        <Box
+            className={`${layout.row} ${TIER_CLASS[row.widthTier]}`}
+            data-gap={row.gap}
+            data-role={row.role}
+            data-align={row.align}
+            data-fit={row.fit}
+            data-runtime-empty={isRuntimeEmpty || undefined}
+        >
+            {row.columns.map((column) => (
+                <Box
+                    key={column.block.id}
+                    className={layout.col}
+                    data-weight={column.weight}
+                    data-hug-units={column.hugUnits ?? undefined}
+                >
+                    <BlockRenderer
+                        block={column.block}
+                        projectUuid={projectUuid}
+                        personalPlaceholders={personalPlaceholders}
+                        itemSpan={column.itemSpan}
+                        standalone={row.columns.length === 1}
+                    />
+                </Box>
+            ))}
+        </Box>
+    );
+};
 
 type Props = {
     config: HomepageConfig;
@@ -111,50 +129,54 @@ export const PublishedHomepage: FC<Props> = ({
     const { hero, rows } = resolveHomepageLayout(migrateHomepageConfig(config));
 
     return (
-        <div className={layout.page}>
-            {topBar}
-            {hero && (
-                <div
-                    className={layout.heroSection}
-                    data-presentation={hero.presentation}
-                    data-density={hero.density}
-                >
-                    {hero.companions.length > 0 && (
-                        <div className={layout.heroCompanions}>
-                            {hero.companions.map((row) => (
-                                <RowRenderer
-                                    key={row.id}
-                                    row={row}
-                                    projectUuid={projectUuid}
-                                    personalPlaceholders={personalPlaceholders}
-                                />
-                            ))}
+        <RuntimeEmptyBlocksProvider>
+            <div className={layout.page}>
+                {topBar}
+                {hero && (
+                    <div
+                        className={layout.heroSection}
+                        data-presentation={hero.presentation}
+                        data-density={hero.density}
+                    >
+                        {hero.companions.length > 0 && (
+                            <div className={layout.heroCompanions}>
+                                {hero.companions.map((row) => (
+                                    <RowRenderer
+                                        key={row.id}
+                                        row={row}
+                                        projectUuid={projectUuid}
+                                        personalPlaceholders={
+                                            personalPlaceholders
+                                        }
+                                    />
+                                ))}
+                            </div>
+                        )}
+                        <div className={layout.hero}>
+                            <BlockRenderer
+                                block={hero.row.columns[0].block}
+                                projectUuid={projectUuid}
+                                personalPlaceholders={personalPlaceholders}
+                                presentation="hero"
+                                itemSpan={hero.row.columns[0].itemSpan}
+                                standalone={hero.row.columns.length === 1}
+                            />
                         </div>
-                    )}
-                    <div className={layout.hero}>
-                        <BlockRenderer
-                            block={hero.row.columns[0].block}
-                            projectUuid={projectUuid}
-                            personalPlaceholders={personalPlaceholders}
-                            presentation="hero"
-                            itemSpan={hero.row.columns[0].itemSpan}
-                            standalone={hero.row.columns.length === 1}
-                        />
                     </div>
-                </div>
-            )}
-            {rows.length > 0 && (
-                <div className={layout.secondary}>
-                    {rows.map((row) => (
-                        <RowRenderer
-                            key={row.id}
-                            row={row}
-                            projectUuid={projectUuid}
-                            personalPlaceholders={personalPlaceholders}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
+                )}
+                {rows.length > 0 && (
+                    <div className={layout.secondary}>
+                        {rows.map((row) => (
+                            <RowRenderer
+                                key={row.id}
+                                row={row}
+                                projectUuid={projectUuid}
+                                personalPlaceholders={personalPlaceholders}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </RuntimeEmptyBlocksProvider>
     );
 };

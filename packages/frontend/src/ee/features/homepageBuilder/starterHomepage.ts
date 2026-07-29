@@ -80,7 +80,14 @@ export const buildStarterHomepage = (
             row({
                 id: uuidv4(),
                 type: 'collection',
-                config: { title: 'Pinned', items: pinnedItems },
+                config: {
+                    title: 'Pinned',
+                    // The live pin list, not a copy of it: a frozen snapshot
+                    // stops tracking pins the moment it's published, and
+                    // everyone reasonably expects this block to follow them.
+                    source: 'pinned',
+                    items: [],
+                },
             }),
         );
     }
