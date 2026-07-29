@@ -175,6 +175,44 @@ describe('UserWarehouseCredentialsModel', () => {
             ).rejects.toThrow(BigqueryTokenError);
         });
 
+        test('falls back to a valid credential when the preferred one cannot be decrypted', async () => {
+            const undecryptableRow = {
+                ...makeRow('undecryptable', validBigqueryCredentials),
+                encrypted_credentials: Buffer.from('not-json'),
+            };
+            const model = createModel({
+                preferredRow: undecryptableRow,
+                fallbackRows: [
+                    undecryptableRow,
+                    makeRow('valid', validBigqueryCredentials),
+                ],
+            });
+            const result = await model.findForProjectWithSecrets(
+                'project-1',
+                'user-1',
+                WarehouseTypes.BIGQUERY,
+            );
+            expect(result?.uuid).toEqual('valid');
+        });
+
+        test('returns undefined when every credential is undecryptable', async () => {
+            const undecryptableRow = {
+                ...makeRow('undecryptable', validBigqueryCredentials),
+                encrypted_credentials: Buffer.from('not-json'),
+            };
+            const model = createModel({
+                preferredRow: undecryptableRow,
+                fallbackRows: [undecryptableRow],
+            });
+            await expect(
+                model.findForProjectWithSecrets(
+                    'project-1',
+                    'user-1',
+                    WarehouseTypes.BIGQUERY,
+                ),
+            ).resolves.toBeUndefined();
+        });
+
         test('returns undefined when the user has no credentials', async () => {
             const model = createModel({
                 preferredRow: undefined,

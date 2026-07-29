@@ -448,8 +448,21 @@ export class UserWarehouseCredentialsModel {
 
         let firstError: LightdashError | undefined;
         for (const { row, isPreferred } of candidates) {
-            const credentialsWithSecrets =
-                this.convertToUserWarehouseCredentialsWithSecrets(row);
+            let credentialsWithSecrets: UserWarehouseCredentialsWithSecrets;
+            try {
+                credentialsWithSecrets =
+                    this.convertToUserWarehouseCredentialsWithSecrets(row);
+            } catch (e) {
+                // Undecryptable rows (e.g. encrypted under a rotated secret)
+                // are permanently unusable — skip them so they can't block a
+                // valid credential, and let the user reauthenticate if none is
+                // left rather than surfacing a server error.
+                Logger.warn(
+                    `Skipping undecryptable user warehouse credential ${row.user_warehouse_credentials_uuid} (type: ${warehouseType}, preferred: ${isPreferred}) for user ${userUuid} on project ${projectUuid}`,
+                );
+                // eslint-disable-next-line no-continue
+                continue;
+            }
             const validationError =
                 UserWarehouseCredentialsModel.getQueryTimeValidationError(
                     credentialsWithSecrets.credentials,
