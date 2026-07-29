@@ -50,6 +50,7 @@ const OperatorPicker: FC<Props> = ({
             withinPortal
             position="bottom-start"
             shadow="md"
+            transitionProps={{ duration: 0 }}
             onOpen={onOpen}
             onClose={onClose}
         >
