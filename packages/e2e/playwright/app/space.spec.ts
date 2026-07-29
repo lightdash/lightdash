@@ -392,13 +392,17 @@ const expandTreeItem = async (
     await expect(label).toHaveCount(1);
     const treeItem = label.locator('xpath=ancestor::*[@role="treeitem"]');
     await expect(treeItem).toHaveCount(1);
+    const child = tree.getByText(childName, { exact: true });
+    if (await child.isVisible()) {
+        return;
+    }
     await treeItem
         .getByRole('button', {
             name: `Expand ${parentName}`,
             exact: true,
         })
         .click();
-    await expect(tree.getByText(childName, { exact: true })).toBeVisible();
+    await expect(child).toBeVisible();
 };
 
 const waitForVirtualTreeRender = async (container: Locator) => {

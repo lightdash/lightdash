@@ -622,7 +622,7 @@ const configureSnowflakeAuthentication = async (
             await selectOption(
                 page,
                 'Authentication Type',
-                'Service Account (JSON key file)',
+                'Key Pair (private key file)',
             );
             await page
                 .locator('input[name="warehouse.privateKey"]')

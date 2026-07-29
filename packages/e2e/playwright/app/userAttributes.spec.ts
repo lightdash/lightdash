@@ -293,7 +293,9 @@ const openExplore = async (page: Page, label: 'Customers' | 'Users') => {
     await expect(explore).toHaveCount(1);
     await explore.getByText(label, { exact: true }).click();
     await expect(page).toHaveURL(
-        `/projects/${SEED_PROJECT.project_uuid}/tables/${label.toLowerCase()}`,
+        (url) =>
+            url.pathname ===
+            `/projects/${SEED_PROJECT.project_uuid}/tables/${label.toLowerCase()}`,
     );
     await expect(
         page.getByPlaceholder('Search metrics + dimensions'),

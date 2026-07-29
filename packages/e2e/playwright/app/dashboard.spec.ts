@@ -658,7 +658,9 @@ test('admin can view underlying dimensions and metrics', async ({ page }) => {
         })
         .click();
 
-    const dialog = getDialog(page, 'View underlying data');
+    const dialog = page.getByRole('dialog', {
+        name: /^View underlying data(?:\s|$)/,
+    });
     await expect(dialog).toBeVisible();
     await expect(
         dialog.getByText('Payments Unique payment count', { exact: true }),
@@ -755,7 +757,7 @@ test(
 
             await openAddTileMenu(page, dashboardName, 'Saved chart');
             const addChartsDialog = getDialog(page, 'Add saved charts');
-            const chartSearch = addChartsDialog.getByRole('searchbox', {
+            const chartSearch = addChartsDialog.getByRole('textbox', {
                 name: 'Select the charts you want to add to this dashboard',
                 exact: true,
             });
