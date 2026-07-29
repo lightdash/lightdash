@@ -236,6 +236,48 @@ const buildFieldStructuredResult = (
     };
 };
 
+// A field that misses on the requested explore often exists on another explore
+// (grep surfaces fields across the whole catalog, so the agent may pair a real
+// fieldId with the wrong explore). Without a redirect the "not found" is a dead
+// end and the agent loops grep -> getMetadata -> not found indefinitely.
+const REACHABLE_EXPLORES_MAX = 5;
+
+const findExploresContainingField = (
+    explores: Explore[],
+    fieldId: string,
+    excludeExploreId: string,
+): string[] =>
+    explores
+        .filter(
+            (explore) =>
+                explore.name !== excludeExploreId &&
+                findField(explore, fieldId) !== null,
+        )
+        .map((explore) => explore.name);
+
+const buildFieldNotFoundError = (
+    availableExplores: Explore[],
+    exploreId: string,
+    fieldId: string,
+): string => {
+    const reachableFrom = findExploresContainingField(
+        availableExplores,
+        fieldId,
+        exploreId,
+    );
+    if (reachableFrom.length === 0) {
+        return `Field "${fieldId}" not found in explore "${exploreId}".`;
+    }
+    const shown = reachableFrom.slice(0, REACHABLE_EXPLORES_MAX);
+    const overflow =
+        reachableFrom.length > shown.length
+            ? ` (+${reachableFrom.length - shown.length} more)`
+            : '';
+    return `Field "${fieldId}" not found in explore "${exploreId}" — its table is not joined there. It IS available in: ${shown.join(
+        ', ',
+    )}${overflow}. Query it from one of those explores instead; it cannot be combined with "${exploreId}" fields in a single query.`;
+};
+
 export const executeGetMetadata = (
     { requests }: ToolGetMetadataArgs,
     { availableExplores }: Dependencies,
@@ -279,7 +321,11 @@ export const executeGetMetadata = (
                 } else {
                     const found = findField(explore, fieldId);
                     if (!found) {
-                        const error = `Field "${fieldId}" not found in explore "${exploreId}".`;
+                        const error = buildFieldNotFoundError(
+                            availableExplores,
+                            exploreId,
+                            fieldId,
+                        );
                         textBlocks.push(error);
                         fields.push({
                             exploreId,
