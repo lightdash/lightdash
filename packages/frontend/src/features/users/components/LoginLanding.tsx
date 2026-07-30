@@ -311,7 +311,7 @@ const Login: FC<{}> = () => {
                 shadow="xs"
                 className={classes.loginCard}
             >
-                <Title order={3} ta="center" mb="md" c="violet.7">
+                <Title order={3} ta="center" mb="md" c="yellow.7">
                     Sign in
                 </Title>
                 <form
@@ -365,13 +365,13 @@ const Login: FC<{}> = () => {
                                     inherit
                                     href="/recover-password"
                                     mx="auto"
-                                    c="violet.7"
+                                    c="yellow.7"
                                 >
                                     Forgot your password?
                                 </Anchor>
                                 <Button
                                     type="submit"
-                                    color="violet"
+                                    color="yellow"
                                     loading={isFormLoading}
                                     disabled={isFormLoading}
                                     data-cy="signin-button"
@@ -395,7 +395,7 @@ const Login: FC<{}> = () => {
                         {formStage === 'precheck' && (
                             <Button
                                 type="submit"
-                                color="violet"
+                                color="yellow"
                                 loading={isFormLoading}
                                 disabled={isFormLoading}
                                 data-cy="signin-button"
@@ -461,7 +461,7 @@ const Login: FC<{}> = () => {
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
                                 fz="sm"
-                                c="violet.7"
+                                c="yellow.7"
                             >
                                 Sign up
                             </Anchor>
