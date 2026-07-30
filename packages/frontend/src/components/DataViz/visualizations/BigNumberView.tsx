@@ -62,6 +62,7 @@ const BigNumberView: FC<Props> = memo(
                         label={spec.label}
                         showLabel={spec.showLabel}
                         flipColors={spec.flipColors}
+                        valueColor={spec.valueColor}
                         comparison={spec.comparison}
                     />
                 )}

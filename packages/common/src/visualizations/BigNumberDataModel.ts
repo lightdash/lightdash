@@ -3,6 +3,7 @@ import {
     DimensionType,
     type CompactOrAlias,
 } from '../types/field';
+import { FilterOperator } from '../types/filter';
 import { type RawResultRow } from '../types/results';
 import {
     ComparisonDiffTypes,
@@ -10,6 +11,7 @@ import {
     type ChartKind,
 } from '../types/savedCharts';
 import { type SqlRunnerQuery } from '../types/sqlRunner';
+import assertUnreachable from '../utils/assertUnreachable';
 import {
     applyCustomFormat,
     getCustomFormatFromLegacy,
@@ -17,6 +19,7 @@ import {
 import {
     type PivotChartData,
     type PivotChartLayout,
+    type VizBigNumberConditionalRule,
     type VizBigNumberDisplay,
     type VizConfigErrors,
 } from './types';
@@ -39,6 +42,8 @@ export type BigNumberSpec = {
     label: string;
     showLabel: boolean;
     flipColors: boolean;
+    /** CSS colour from the first matching conditional formatting rule. */
+    valueColor: string | undefined;
     comparison: BigNumberComparisonSpec | undefined;
 };
 
@@ -77,6 +82,45 @@ const formatValue = (value: unknown, style: CompactOrAlias | undefined) => {
         Number(value),
         getCustomFormatFromLegacy({ compact: style }),
     );
+};
+
+const matchesRule = (
+    value: number,
+    rule: VizBigNumberConditionalRule,
+): boolean => {
+    switch (rule.operator) {
+        case FilterOperator.EQUALS:
+            return value === rule.value;
+        case FilterOperator.NOT_EQUALS:
+            return value !== rule.value;
+        case FilterOperator.LESS_THAN:
+            return value < rule.value;
+        case FilterOperator.LESS_THAN_OR_EQUAL:
+            return value <= rule.value;
+        case FilterOperator.GREATER_THAN:
+            return value > rule.value;
+        case FilterOperator.GREATER_THAN_OR_EQUAL:
+            return value >= rule.value;
+        default:
+            return assertUnreachable(
+                rule.operator,
+                `Unsupported big number conditional operator`,
+            );
+    }
+};
+
+export const getBigNumberValueColor = (
+    value: unknown,
+    rules: VizBigNumberConditionalRule[] | undefined,
+): string | undefined => {
+    if (!rules?.length || !isNumeric(value)) {
+        return undefined;
+    }
+    const match = rules.find((rule) => matchesRule(Number(value), rule));
+    if (!match) {
+        return undefined;
+    }
+    return `light-dark(${match.color}, ${match.darkColor ?? match.color})`;
 };
 
 const getComparisonDirection = (delta: number): ComparisonDiffTypes => {
@@ -348,6 +392,10 @@ export class BigNumberDataModel {
                 '',
             showLabel: display?.showLabel ?? true,
             flipColors: display?.flipColors ?? false,
+            valueColor: getBigNumberValueColor(
+                value,
+                display?.conditionalFormatting,
+            ),
             comparison: showComparison
                 ? BigNumberDataModel.buildComparison(
                       value,
