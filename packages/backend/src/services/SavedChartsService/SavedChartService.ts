@@ -1553,6 +1553,40 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        if (
+            chartToSave.metricQuery.customDimensions?.some(
+                isCustomSqlDimension,
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with custom SQL dimensions',
+            );
+        }
+
+        if (
+            chartToSave.metricQuery.tableCalculations?.some(
+                isSqlTableCalculation,
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomSqlTableCalculations', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with SQL table calculations',
+            );
+        }
+
         if (!resolvedSpaceUuid && !chartToSave.dashboardUuid) {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
