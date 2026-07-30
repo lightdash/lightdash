@@ -11219,6 +11219,122 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ExternalConnectionConfigProposal: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                notes: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                docsUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                credentialGuide: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                instructions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                allowedPathPrefixes: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                allowedMethods: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ExternalConnectionMethod',
+                    },
+                    required: true,
+                },
+                customHeaders: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.string_' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                oauthScopes: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                apiKeyLocation: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ApiKeyLocation' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                apiKeyName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                type: { ref: 'ExternalConnectionAuthType', required: true },
+                origin: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiProposeExternalConnectionConfigResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'ExternalConnectionConfigProposal',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiProposeExternalConnectionConfigRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                description: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionSampleRequest: {
         dataType: 'refAlias',
         type: {
@@ -58335,6 +58451,74 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'testExternalConnectionConfig',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExternalConnectionController_proposeExternalConnectionConfig: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiProposeExternalConnectionConfigRequest',
+        },
+    };
+    app.post(
+        '/api/v1/ee/projects/:projectUuid/external-connections/propose-config',
+        ...fetchMiddlewares<RequestHandler>(ExternalConnectionController),
+        ...fetchMiddlewares<RequestHandler>(
+            ExternalConnectionController.prototype
+                .proposeExternalConnectionConfig,
+        ),
+
+        async function ExternalConnectionController_proposeExternalConnectionConfig(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsExternalConnectionController_proposeExternalConnectionConfig,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ExternalConnectionController>(
+                        ExternalConnectionController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'proposeExternalConnectionConfig',
                     controller,
                     response,
                     next,

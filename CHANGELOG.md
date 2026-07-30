@@ -1,3 +1,17 @@
+# [1.43.0](https://github.com/lightdash/lightdash/compare/1.42.0...1.43.0) (2026-07-30)
+
+
+### Bug Fixes
+
+* register the deep research hypothesis and investigation tools ([#26560](https://github.com/lightdash/lightdash/issues/26560)) ([cdb2ee7](https://github.com/lightdash/lightdash/commit/cdb2ee7720b20a9798f3299d8133bc8bf3e6c923))
+* register the two new AI tool names in the frontend tool registries ([#26558](https://github.com/lightdash/lightdash/issues/26558)) ([4feea71](https://github.com/lightdash/lightdash/commit/4feea710cbd5964c53ae31214a76a2dd060150ad))
+
+
+### Features
+
+* **data-apps:** propose external connection config with AI (GLITCH-641) ([#26547](https://github.com/lightdash/lightdash/issues/26547)) ([13f306a](https://github.com/lightdash/lightdash/commit/13f306a9dd084168b9fd4b7cf8adf59ba7e2d53c))
+* **frontend:** automatic AI setup option in the connection wizard (GLITCH-641) ([#26550](https://github.com/lightdash/lightdash/issues/26550)) ([6b9618f](https://github.com/lightdash/lightdash/commit/6b9618fc17d688ba607dae3faa1cf2d731ca4953))
+
 # [1.42.0](https://github.com/lightdash/lightdash/compare/1.41.0...1.42.0) (2026-07-30)
 
 

@@ -11862,6 +11862,116 @@
                 "type": "object",
                 "description": "Test an unsaved connection config (incl. plaintext secret) before creating\nit. Runs through the same SSRF-guarded proxy core, persisting nothing.\nDeliberately a flat object, NOT `ApiTestExternalConnectionRequest & {...}`:\nTSOA validates intersection bodies in remove-extras mode, which empties\nRecord<string, string> fields (query, config.customHeaders)."
             },
+            "ExternalConnectionConfigProposal": {
+                "properties": {
+                    "notes": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Caveats the user should double-check before saving."
+                    },
+                    "docsUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "credentialGuide": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Markdown steps for obtaining the credential; null when type is 'none'."
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "customHeaders": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "oauthScopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "notes",
+                    "docsUrl",
+                    "credentialGuide",
+                    "instructions",
+                    "allowedPathPrefixes",
+                    "allowedMethods",
+                    "customHeaders",
+                    "oauthScopes",
+                    "apiKeyLocation",
+                    "apiKeyName",
+                    "type",
+                    "origin",
+                    "name"
+                ],
+                "type": "object",
+                "description": "AI-proposed connection config, shaped to prefill the create wizard. Never\ncarries a secret — the user pastes the credential themselves on the Auth\nstep. Kept flat for the same TSOA reason as\nApiTestExternalConnectionConfigRequest."
+            },
+            "ApiProposeExternalConnectionConfigResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionConfigProposal"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiProposeExternalConnectionConfigRequest": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description"],
+                "type": "object"
+            },
             "ExternalConnectionSampleRequest": {
                 "properties": {
                     "body": {},
@@ -51161,7 +51271,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.42.0",
+        "version": "1.43.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
