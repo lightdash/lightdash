@@ -5,7 +5,8 @@ name: Dev Warm Image
 # pre-built package dists. okteto.dev.yaml points its dev container at this
 # image so a fresh namespace starts hot-reloading in minutes instead of
 # deriving that state on first `okteto up`. The DB-state twin of
-# preview-db-snapshot.yml.
+# preview-db-snapshot.yml. After publishing, unclaimed pool namespaces are
+# refreshed so their ready markers pin the new digest.
 
 on:
   schedule:
@@ -29,9 +30,9 @@ concurrency:
 
 jobs:
   build:
-    name: Build and push the dev-warm image
+    name: Build, push, and prepare the dev-warm image
     runs-on: depot-ubuntu-24.04-4
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -57,3 +58,10 @@ jobs:
           okteto build -f dockerfile-prs --target dev-warm \
             -t okteto.global/lightdash-dev-warm:latest .
           echo "Image build took $(( $(date +%s) - start ))s" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Refresh unclaimed development environments
+        env:
+          LIGHTDASH_OKTETO_TOKEN: ${{ secrets.LIGHTDASH_OKTETO_TOKEN }}
+          OKTETO_CONTEXT: ${{ secrets.OKTETO_CONTEXT }}
+          OKTETO_FORCE_POOL_REFRESH: "true"
+        run: ./scripts/maintain-agent-okteto-pool.sh 3

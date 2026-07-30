@@ -12,7 +12,7 @@ POOL_NAMESPACE_PREFIX="dev-warm-"
 COLD_NAMESPACE_PREFIX="dev-cold-"
 POOL_CLAIM_CONFIGMAP="lightdash-agent-claim"
 POOL_READY_CONFIGMAP="lightdash-agent-ready"
-READY_TIMEOUT_SECONDS="${OKTETO_READY_TIMEOUT_SECONDS:-300}"
+READY_TIMEOUT_SECONDS="${OKTETO_READY_TIMEOUT_SECONDS:-1700}"
 SYNC_START_TIMEOUT_SECONDS="${OKTETO_SYNC_START_TIMEOUT_SECONDS:-600}"
 POLL_INTERVAL_SECONDS="${OKTETO_POLL_INTERVAL_SECONDS:-5}"
 SETUP_DOC="docs/agent-okteto.md"
@@ -20,6 +20,9 @@ TOKEN_ENV_VAR="LIGHTDASH_OKTETO_TOKEN"
 KUBECTL_CONFIGURED=false
 
 fail() {
+    if [ -n "${STATE_FILE:-}" ]; then
+        write_setup_state "FAILED" "$*" || true
+    fi
     echo "ERROR: $*" >&2
     exit 1
 }
@@ -58,7 +61,7 @@ extract_session_id() {
 }
 
 hook_start() {
-    local hook_input hook_output ready_line session_id
+    local failure_detail hook_input hook_output ready_line session_id
 
     [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] || return 0
 
@@ -80,8 +83,17 @@ hook_start() {
     fi
 
     if ! hook_output="$(bash "$SCRIPT_DIR/agent-okteto-dev.sh" start 2>&1)"; then
-        printf '%s\n' "$hook_output" >&2
-        hook_setup_failed "Okteto startup failed."
+        failure_detail="$(
+            printf '%s\n' "$hook_output" |
+                grep '^ERROR:' |
+                tail -n 1 |
+                sed 's/^ERROR:[[:space:]]*//' ||
+                true
+        )"
+        failure_detail="${failure_detail:-Okteto startup command exited unexpectedly. See the session setup log.}"
+        load_session_config
+        write_setup_state "FAILED" "$failure_detail"
+        hook_setup_failed "$failure_detail"
         return
     fi
 
@@ -109,7 +121,7 @@ hook_setup_failed() {
 }
 
 hook_prompt() {
-    local hook_input session_id
+    local hook_input session_id status_output
 
     [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] || return 0
 
@@ -120,8 +132,10 @@ hook_prompt() {
     }
 
     export LIGHTDASH_AGENT_SESSION_ID="$session_id"
-    if ! bash "$SCRIPT_DIR/agent-okteto-dev.sh" check-ready >/dev/null 2>&1; then
-        echo "Lightdash Okteto setup did not reach READY. Fix the SessionStart setup error, then resubmit the prompt." >&2
+    if ! status_output="$(
+        bash "$SCRIPT_DIR/agent-okteto-dev.sh" setup-status 2>&1
+    )"; then
+        printf '%s\n' "$status_output" >&2
         exit 2
     fi
 }
@@ -205,6 +219,10 @@ load_session_config() {
     NAMESPACE_FILE="$RUN_DIR/namespace"
     URL_FILE="$RUN_DIR/url"
     READY_FILE="$RUN_DIR/ready"
+    STATE_FILE="$RUN_DIR/state"
+    FAILURE_FILE="$RUN_DIR/failure"
+    WARM_IMAGE_FILE="$RUN_DIR/warm-image"
+    ACTIVE_WARM_IMAGE="okteto.global/lightdash-dev-warm:latest"
 
     saved_namespace=""
     if [ -f "$NAMESPACE_FILE" ]; then
@@ -223,6 +241,11 @@ load_session_config() {
     if [[ "$saved_url" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
         PUBLIC_URL="$saved_url"
     fi
+
+    if [ -f "$WARM_IMAGE_FILE" ]; then
+        set_active_warm_image "$(cat "$WARM_IMAGE_FILE" 2>/dev/null || true)" ||
+            true
+    fi
 }
 
 set_active_namespace() {
@@ -238,6 +261,28 @@ save_active_namespace() {
     mkdir -p "$RUN_DIR"
     printf '%s\n' "$OKTETO_NAMESPACE" >"$NAMESPACE_FILE"
     printf '%s\n' "$PUBLIC_URL" >"$URL_FILE"
+}
+
+set_active_warm_image() {
+    local image="$1"
+
+    [[ "$image" =~ ^okteto\.global/lightdash-dev-warm@sha256:[a-f0-9]{64}$ ]] ||
+        return 1
+    ACTIVE_WARM_IMAGE="$image"
+    mkdir -p "$RUN_DIR"
+    printf '%s\n' "$ACTIVE_WARM_IMAGE" >"$WARM_IMAGE_FILE"
+}
+
+write_setup_state() {
+    local state="$1" detail="${2:-}"
+
+    mkdir -p "$RUN_DIR"
+    printf '%s\n' "$state" >"$STATE_FILE"
+    if [ -n "$detail" ]; then
+        printf '%s\n' "$detail" >"$FAILURE_FILE"
+    else
+        rm -f "$FAILURE_FILE"
+    fi
 }
 
 require_client_runtime() {
@@ -340,10 +385,16 @@ pool_namespace_resources_are_ready() {
 }
 
 pool_namespace_is_ready() {
-    local namespace="$1"
+    local namespace="$1" running_image warm_image
 
-    kubectl -n "$namespace" get configmap "$POOL_READY_CONFIGMAP" \
-        >/dev/null 2>&1 &&
+    warm_image="$(
+        kubectl -n "$namespace" get configmap "$POOL_READY_CONFIGMAP" \
+            -o jsonpath='{.data.warm_image}' 2>/dev/null ||
+            true
+    )"
+    running_image="$(namespace_deployed_warm_image "$namespace" || true)"
+    [[ "$warm_image" =~ ^okteto\.global/lightdash-dev-warm@sha256:[a-f0-9]{64}$ ]] &&
+        [ "$warm_image" = "$running_image" ] &&
         pool_namespace_resources_are_ready "$namespace"
 }
 
@@ -354,17 +405,34 @@ claim_owner() {
         -o jsonpath='{.data.session_hash}' 2>/dev/null || true
 }
 
-use_claimed_namespace() {
+claim_warm_image() {
     local namespace="$1"
+
+    kubectl -n "$namespace" get configmap "$POOL_CLAIM_CONFIGMAP" \
+        -o jsonpath='{.data.warm_image}' 2>/dev/null || true
+}
+
+pool_warm_image() {
+    local namespace="$1"
+
+    kubectl -n "$namespace" get configmap "$POOL_READY_CONFIGMAP" \
+        -o jsonpath='{.data.warm_image}' 2>/dev/null || true
+}
+
+use_claimed_namespace() {
+    local namespace="$1" warm_image="${2:-}"
 
     set_active_namespace "$namespace"
     discover_public_url "$namespace" || return 1
+    if [ -n "$warm_image" ]; then
+        set_active_warm_image "$warm_image" || return 1
+    fi
     save_active_namespace
     echo "Using pre-provisioned Okteto namespace $OKTETO_NAMESPACE."
 }
 
 claim_pool_namespace() {
-    local namespace owner first_pool_namespace
+    local namespace owner first_pool_namespace warm_image
 
     first_pool_namespace="$(
         list_namespaces |
@@ -379,7 +447,8 @@ claim_pool_namespace() {
     while IFS= read -r namespace; do
         owner="$(claim_owner "$namespace")"
         if [ "$owner" = "$SESSION_HASH" ]; then
-            if use_claimed_namespace "$namespace"; then
+            warm_image="$(claim_warm_image "$namespace")"
+            if use_claimed_namespace "$namespace" "$warm_image"; then
                 return 0
             fi
         fi
@@ -388,14 +457,16 @@ claim_pool_namespace() {
     while IFS= read -r namespace; do
         [ -z "$(claim_owner "$namespace")" ] || continue
         pool_namespace_is_ready "$namespace" || continue
+        warm_image="$(pool_warm_image "$namespace")"
 
         if kubectl -n "$namespace" create configmap "$POOL_CLAIM_CONFIGMAP" \
             --from-literal="session_hash=$SESSION_HASH" \
             --from-literal="claimed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --from-literal="warm_image=$warm_image" \
             >/dev/null 2>&1; then
             kubectl -n "$namespace" delete configmap "$POOL_READY_CONFIGMAP" \
                 --ignore-not-found >/dev/null 2>&1 || true
-            if use_claimed_namespace "$namespace"; then
+            if use_claimed_namespace "$namespace" "$warm_image"; then
                 return 0
             fi
             return 1
@@ -428,6 +499,34 @@ app_is_healthy() {
         "$PUBLIC_URL/api/v1/health" >/dev/null 2>&1
 }
 
+namespace_deployed_warm_image() {
+    local namespace="$1" digest image_id
+
+    image_id="$(
+        kubectl -n "$namespace" get pods \
+            -l stack.okteto.com/service=lightdash-dev \
+            -o json 2>/dev/null |
+            jq -r '
+                [
+                    .items[].status.containerStatuses[]?
+                    | select(.name == "lightdash-dev")
+                    | .imageID
+                ][0] // empty
+            '
+    )"
+    digest="${image_id##*@}"
+    [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || return 1
+    printf 'okteto.global/lightdash-dev-warm@%s' "$digest"
+}
+
+discover_deployed_warm_image() {
+    local warm_image
+
+    warm_image="$(namespace_deployed_warm_image "$OKTETO_NAMESPACE")" ||
+        return 1
+    set_active_warm_image "$warm_image"
+}
+
 show_log_tail() {
     if [ -s "$LOG_FILE" ]; then
         echo "Last Okteto output:" >&2
@@ -438,7 +537,7 @@ show_log_tail() {
 wait_until_ready() {
     local deadline last_report now
 
-    deadline=$((SECONDS + READY_TIMEOUT_SECONDS))
+    deadline="${START_DEADLINE:-$((SECONDS + READY_TIMEOUT_SECONDS))}"
     last_report=$((SECONDS - 30))
 
     while ((SECONDS < deadline)); do
@@ -452,6 +551,7 @@ wait_until_ready() {
             if sync_is_ready && app_is_healthy; then
                 mkdir -p "$RUN_DIR"
                 printf 'READY: %s\n' "$PUBLIC_URL" >"$READY_FILE"
+                write_setup_state "READY"
                 echo "READY: $PUBLIC_URL"
                 return
             fi
@@ -476,12 +576,14 @@ start_tmux_session() {
     : >"$LOG_FILE"
 
     printf -v up_command \
-        'exec okteto up %q -f %q -n %q --env %q --env %q' \
+        'DEV_WARM_IMAGE=%q exec okteto up %q -f %q -n %q --env %q --env %q --env %q' \
+        "$ACTIVE_WARM_IMAGE" \
         "$OKTETO_SERVICE" \
         "$OKTETO_MANIFEST" \
         "$OKTETO_NAMESPACE" \
         "LIGHTDASH_AGENT_SESSION_HASH=$SESSION_HASH" \
-        "SITE_URL=$PUBLIC_URL"
+        "SITE_URL=$PUBLIC_URL" \
+        "DEV_WARM_IMAGE=$ACTIVE_WARM_IMAGE"
     printf -v pipe_command 'cat >> %q' "$LOG_FILE"
 
     echo "Starting Okteto file synchronization..."
@@ -494,7 +596,9 @@ start_tmux_session() {
 }
 
 start_environment() {
+    START_DEADLINE=$((SECONDS + READY_TIMEOUT_SECONDS))
     rm -f "$READY_FILE"
+    write_setup_state "STARTING"
     require_runtime
     prepare_runtime_dir
     authenticate
@@ -512,14 +616,19 @@ start_environment() {
         save_active_namespace
         ensure_namespace
         echo "No ready pooled environment was available; deploying one now..."
-        okteto deploy \
+        if ! DEV_WARM_IMAGE="$ACTIVE_WARM_IMAGE" okteto deploy \
             -f "$OKTETO_MANIFEST" \
             -n "$OKTETO_NAMESPACE" \
+            --env "DEV_WARM_IMAGE=$ACTIVE_WARM_IMAGE" \
             --wait \
-            --timeout 8m
+            --timeout 8m; then
+            fail "Okteto deployment failed in $OKTETO_NAMESPACE."
+        fi
         configure_kubectl_access "$OKTETO_NAMESPACE"
         discover_public_url "$OKTETO_NAMESPACE" ||
             fail "No public ingress found in $OKTETO_NAMESPACE."
+        discover_deployed_warm_image ||
+            fail "Could not resolve the deployed warm image digest in $OKTETO_NAMESPACE."
         save_active_namespace
     fi
 
@@ -552,6 +661,29 @@ wait_for_environment() {
     wait_until_ready
 }
 
+setup_status() {
+    local detail state
+
+    state="$(cat "$STATE_FILE" 2>/dev/null || true)"
+    case "$state" in
+        READY)
+            [ -s "$READY_FILE" ] && return 0
+            echo "Lightdash Okteto setup lost its READY marker. Resume the session to verify it again." >&2
+            ;;
+        STARTING)
+            echo "Lightdash Okteto setup is still starting. Wait for the SessionStart hook to finish, then resubmit the prompt." >&2
+            ;;
+        FAILED)
+            detail="$(cat "$FAILURE_FILE" 2>/dev/null || true)"
+            echo "Lightdash Okteto setup failed: ${detail:-unknown setup error}. Resume the session after fixing it." >&2
+            ;;
+        *)
+            echo "Lightdash Okteto setup has not started. Resume the session to run the startup gate." >&2
+            ;;
+    esac
+    return 1
+}
+
 main() {
     local command_name="${1:-}"
 
@@ -565,7 +697,7 @@ main() {
         hook-stop)
             hook_stop
             ;;
-        start | wait | url | check-ready)
+        start | wait | url | check-ready | setup-status)
             if [ -z "${LIGHTDASH_OKTETO_TOKEN:-}" ]; then
                 echo "SKIPPED: $TOKEN_ENV_VAR is not set."
                 return
@@ -576,7 +708,8 @@ main() {
                 start) start_environment ;;
                 wait) wait_for_environment ;;
                 url) echo "$PUBLIC_URL" ;;
-                check-ready) [ -s "$READY_FILE" ] ;;
+                check-ready) setup_status >/dev/null 2>&1 ;;
+                setup-status) setup_status ;;
             esac
             ;;
         -h | --help | help | "")

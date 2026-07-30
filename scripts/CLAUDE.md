@@ -14,7 +14,9 @@ URL. See
 
 Repairs and replenishes the pool of unclaimed agent development environments.
 The `agent-okteto-pool.yml` workflow runs it every 30 minutes with a minimum of
-three.
+three. A ready namespace has the baked development image running in its idle
+Lightdash pod and records the resolved immutable digest. The image workflow
+refreshes unclaimed pool members after publishing a new digest.
 
 ## Okteto Preview Environment
 

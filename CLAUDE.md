@@ -16,6 +16,8 @@ replace it with a local Docker environment.
 
 If setup fails, do not make code changes. Follow the reported error and
 `docs/agent-okteto.md`, then resume the session after fixing the setup.
+The prompt guard reports whether setup is still running or the specific startup
+failure recorded by the SessionStart gate.
 
 After making and validating code changes, run
 `./scripts/agent-okteto-dev.sh wait` before the final response. Include the URL

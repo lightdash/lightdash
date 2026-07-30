@@ -36,7 +36,7 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-stop",
-            "timeout": 600,
+            "timeout": 1800,
             "statusMessage": "Verifying the Lightdash Okteto development environment"
           }
         ]

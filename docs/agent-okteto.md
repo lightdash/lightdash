@@ -117,6 +117,9 @@ application health are stable. Its `READY:` output is added to Claude's
 SessionStart context. `BASH_MAX_TIMEOUT_MS` does not control hook execution;
 the timeout is set directly on the hook.
 
+The internal startup deadline is 1700 seconds, leaving time for the hook to
+surface a clean failure before the 1800-second SessionStart timeout.
+
 `start` claims an unclaimed, healthy pooled namespace and runs `okteto up`
 against its existing deployment. If the pool is temporarily exhausted, it
 falls back to creating and deploying a session-specific namespace.
@@ -124,9 +127,10 @@ falls back to creating and deploying a session-specific namespace.
 SessionStart exit codes do not block Claude. The hook therefore returns
 structured `continue: false` output when setup fails. A fast
 `UserPromptSubmit` guard also rejects prompts unless the startup gate recorded
-readiness, covering hook cancellation or timeout. A `Stop` hook verifies
-synchronization and health again and requires the ready URL in Claude's final
-response.
+readiness, covering hook cancellation or timeout. It distinguishes an active
+startup from a failed startup and reports the recorded failure. A `Stop` hook
+verifies synchronization and health again and requires the ready URL in
+Claude's final response.
 
 All hooks return immediately without output when `LIGHTDASH_OKTETO_TOKEN` is
 unset.
@@ -187,14 +191,22 @@ LIGHTDASH_OKTETO_TOKEN=<shared automation token>
 OKTETO_CONTEXT=https://lightdash.okteto.dev
 ```
 
-The maintainer marks a namespace ready after its base pods and public ingress
+The maintainer runs the baked development image in the idle `lightdash-dev`
+pod, then records its immutable digest after the base pods and public ingress
 are available. An agent claims it by atomically creating the
 `lightdash-agent-claim` ConfigMap with its session hash. Kubernetes allows only
 one creation to succeed, preventing two simultaneous sessions from selecting
-the same namespace. After `okteto up`, the launcher waits for file
+the same namespace. The claim also records the prepared digest, and `okteto up`
+uses that exact image instead of resolving the mutable `latest` tag. After
+`okteto up`, the launcher waits for file
 synchronization and `/api/v1/health`. Claimed namespaces are excluded when the
 workflow replenishes the pool. The same hash is available inside the
 development container as `LIGHTDASH_AGENT_SESSION_HASH`.
+
+After `Dev Warm Image` publishes a new image, it refreshes unclaimed pool
+namespaces and records the new digest. It never restarts claimed namespaces.
+Both the image workflow and pool workflow support manual `workflow_dispatch`
+runs.
 
 If no warm namespace is available, the launcher creates an on-demand namespace
 named `dev-cold-<8-character-session-hash>`.
