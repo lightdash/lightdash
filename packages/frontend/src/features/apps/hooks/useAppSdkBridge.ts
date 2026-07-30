@@ -139,7 +139,16 @@ const ALLOWED_ROUTES: Array<{ method: string; pattern: RegExp }> = [
     { method: 'GET', pattern: /^\/api\/v1\/user$/ },
 ];
 
-function isAllowedRoute(method: string, path: string): boolean {
+function isAllowedRoute(
+    method: string,
+    path: string,
+    projectUuid: string,
+): boolean {
+    const projectPath = path.match(/^\/api\/v2\/projects\/([^/]+)\//);
+    if (projectPath && projectPath[1] !== projectUuid) {
+        return false;
+    }
+
     return ALLOWED_ROUTES.some(
         (route) =>
             route.method === method.toUpperCase() && route.pattern.test(path),
@@ -653,7 +662,7 @@ export function useAppSdkBridge({
                 );
             };
 
-            if (!isAllowedRoute(method, path)) {
+            if (!isAllowedRoute(method, path, projectUuid)) {
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
             }
