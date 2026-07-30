@@ -38688,6 +38688,75 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PartialFailureType.APP_QUERY': {
+        dataType: 'refEnum',
+        enums: ['app_query'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppQueryPartialFailure: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                error: { dataType: 'string', required: true },
+                label: { dataType: 'string', required: true },
+                captureKey: { dataType: 'string', required: true },
+                stage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['render'] },
+                        { dataType: 'enum', enums: ['download'] },
+                    ],
+                    required: true,
+                },
+                type: { ref: 'PartialFailureType.APP_QUERY', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PartialFailureType.APP_QUERY_MISSING': {
+        dataType: 'refEnum',
+        enums: ['app_query_missing'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppQueryMissingPartialFailure: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                identityChanged: { dataType: 'boolean', required: true },
+                label: { dataType: 'string', required: true },
+                captureKey: { dataType: 'string', required: true },
+                type: {
+                    ref: 'PartialFailureType.APP_QUERY_MISSING',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PartialFailureType.APP_CAPTURE_OVERFLOW': {
+        dataType: 'refEnum',
+        enums: ['app_capture_overflow'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppCaptureOverflowPartialFailure: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                droppedCount: { dataType: 'double', required: true },
+                type: {
+                    ref: 'PartialFailureType.APP_CAPTURE_OVERFLOW',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PartialFailure: {
         dataType: 'refAlias',
         type: {
@@ -38697,6 +38766,9 @@ const models: TsoaRoute.Models = {
                 { ref: 'DashboardSqlChartPartialFailure' },
                 { ref: 'MissingTargetsPartialFailure' },
                 { ref: 'AiAugmentationPartialFailure' },
+                { ref: 'AppQueryPartialFailure' },
+                { ref: 'AppQueryMissingPartialFailure' },
+                { ref: 'AppCaptureOverflowPartialFailure' },
             ],
             validators: {},
         },

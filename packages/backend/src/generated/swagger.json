@@ -38771,6 +38771,72 @@
                 "required": ["error", "type"],
                 "type": "object"
             },
+            "PartialFailureType.APP_QUERY": {
+                "enum": ["app_query"],
+                "type": "string"
+            },
+            "AppQueryPartialFailure": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "captureKey": {
+                        "type": "string"
+                    },
+                    "stage": {
+                        "type": "string",
+                        "enum": ["render", "download"]
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.APP_QUERY"
+                    }
+                },
+                "required": ["error", "label", "captureKey", "stage", "type"],
+                "type": "object"
+            },
+            "PartialFailureType.APP_QUERY_MISSING": {
+                "enum": ["app_query_missing"],
+                "type": "string"
+            },
+            "AppQueryMissingPartialFailure": {
+                "properties": {
+                    "identityChanged": {
+                        "type": "boolean",
+                        "description": "True when a captured query matched this snapshot entry by\nlabel+explore but not by captureKey (identity changed)."
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "captureKey": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.APP_QUERY_MISSING"
+                    }
+                },
+                "required": ["identityChanged", "label", "captureKey", "type"],
+                "type": "object"
+            },
+            "PartialFailureType.APP_CAPTURE_OVERFLOW": {
+                "enum": ["app_capture_overflow"],
+                "type": "string"
+            },
+            "AppCaptureOverflowPartialFailure": {
+                "properties": {
+                    "droppedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.APP_CAPTURE_OVERFLOW"
+                    }
+                },
+                "required": ["droppedCount", "type"],
+                "type": "object"
+            },
             "PartialFailure": {
                 "anyOf": [
                     {
@@ -38784,6 +38850,15 @@
                     },
                     {
                         "$ref": "#/components/schemas/AiAugmentationPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AppQueryPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AppQueryMissingPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AppCaptureOverflowPartialFailure"
                     }
                 ]
             },
@@ -51427,7 +51502,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.47.0",
+        "version": "1.48.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

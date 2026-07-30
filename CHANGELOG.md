@@ -1,3 +1,15 @@
+# [1.48.0](https://github.com/lightdash/lightdash/compare/1.47.0...1.48.0) (2026-07-30)
+
+
+### Features
+
+* **data-apps:** add `captureAppDeliveryManifest` to UnfurlService ([#26502](https://github.com/lightdash/lightdash/issues/26502)) ([c7b9c7c](https://github.com/lightdash/lightdash/commit/c7b9c7cb7cc21660c81f0dd6a96105219248bc89)), closes [#24475](https://github.com/lightdash/lightdash/issues/24475)
+* **data-apps:** add delivery capture manifest type and fail-closed parser ([#26483](https://github.com/lightdash/lightdash/issues/26483)) ([9128b91](https://github.com/lightdash/lightdash/commit/9128b91603e1bf4ba1320c8c2e6d437dfdc6b048)), closes [#24475](https://github.com/lightdash/lightdash/issues/24475)
+* **data-apps:** deliver app CSV/XLSX queries with partial-failure and limit-reached notices ([#26504](https://github.com/lightdash/lightdash/issues/26504)) ([eebafcb](https://github.com/lightdash/lightdash/commit/eebafcb3347611637954ea5843a501c695f0e2de)), closes [#24475](https://github.com/lightdash/lightdash/issues/24475)
+* **data-apps:** publish delivery-capture manifest before screenshot indicator in MinimalApp ([#26485](https://github.com/lightdash/lightdash/issues/26485)) ([4135af8](https://github.com/lightdash/lightdash/commit/4135af8294cf457a4e2e6806a9a93cbe25f18c9d)), closes [#24475](https://github.com/lightdash/lightdash/issues/24475)
+* **data-apps:** surface app delivery partial failures in Slack, Teams, and Google Chat notifications ([#26503](https://github.com/lightdash/lightdash/issues/26503)) ([f41dc8e](https://github.com/lightdash/lightdash/commit/f41dc8eb43a0d85baafeb8dbf07d4133bea25967))
+* **data-apps:** wire delivery capture accumulator into useAppSdkBridge ([#26484](https://github.com/lightdash/lightdash/issues/26484)) ([db53586](https://github.com/lightdash/lightdash/commit/db535861a9bb1fa1f9b302ef28b8ffbf7e835e05)), closes [#24475](https://github.com/lightdash/lightdash/issues/24475)
+
 # [1.47.0](https://github.com/lightdash/lightdash/compare/1.46.0...1.47.0) (2026-07-30)
 
 
