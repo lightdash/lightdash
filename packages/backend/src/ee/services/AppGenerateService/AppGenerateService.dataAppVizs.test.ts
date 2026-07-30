@@ -1,6 +1,7 @@
 // Stub the e2b/ai SDKs so the tests never reach a real sandbox or model client.
 import {
     DATA_APP_VIZ_TEMPLATE,
+    ForbiddenError,
     getUserAbilityBuilder,
     NotFoundError,
     OrganizationMemberRole,
@@ -95,26 +96,14 @@ function buildService(appModel: unknown) {
 
 /**
  * A service whose ability is the real thing, so the rules under test are the
- * ones that ship. `getSpaceAccessContext` stands in for the space lookup: a
- * space the user can reach reports `inheritsFromOrgOrProject`.
+ * ones that ship.
  */
 function buildServiceWithRealAbility(
     appModel: unknown,
     role: OrganizationMemberRole,
     userUuid: string,
-    readableSpaceUuids: string[],
 ) {
     const service = buildService(appModel);
-    (
-        service as unknown as { spacePermissionService: unknown }
-    ).spacePermissionService = {
-        getSpaceAccessContext: (_userUuid: string, spaceUuid: string) =>
-            Promise.resolve(
-                readableSpaceUuids.includes(spaceUuid)
-                    ? { inheritsFromOrgOrProject: true }
-                    : {},
-            ),
-    };
     const { builder } = getUserAbilityBuilder({
         user: {
             role,
@@ -181,7 +170,7 @@ describe('AppGenerateService data app vizs', () => {
         });
     });
 
-    describe('who a listed visualization is offered to', () => {
+    describe('who the library is offered to', () => {
         const listPagination = {
             page: 1,
             pageSize: 25,
@@ -200,15 +189,13 @@ describe('AppGenerateService data app vizs', () => {
                 created_by_user_uuid: 'someone-else',
             }),
             makeDataAppVizRow({
-                app_id: 'in-a-space-i-can-see',
+                app_id: 'in-someone-elses-space',
                 space_uuid: 'space-1',
                 created_by_user_uuid: 'someone-else',
             }),
         ];
-        const listed = async (
-            role: OrganizationMemberRole,
-            readableSpaceUuids: string[] = ['space-1'],
-        ) => {
+        const wholeLibrary = rows.map((row) => row.app_id);
+        const listed = async (role: OrganizationMemberRole) => {
             const appModel = {
                 listDataAppVisualizations: vi.fn().mockResolvedValue({
                     data: rows,
@@ -219,7 +206,6 @@ describe('AppGenerateService data app vizs', () => {
                 appModel,
                 role,
                 'editor-1',
-                readableSpaceUuids,
             );
             const result = await service.listDataAppVisualizations(
                 user,
@@ -229,39 +215,21 @@ describe('AppGenerateService data app vizs', () => {
             return result.data.map((viz) => viz.dataAppVizUuid);
         };
 
-        it('offers an editor their own, and anything in a space they can see', async () => {
-            // Regression: this list was gated on a project-wide subject with no
-            // space context and no creator, which only an admin's unconditional
-            // `manage` could satisfy — so the picker came back empty for
-            // everyone else, including the author of the visualization.
-            expect(await listed(OrganizationMemberRole.EDITOR)).toEqual([
-                'mine-unfiled',
-                'in-a-space-i-can-see',
-            ]);
+        // The library follows the explore: whoever can build a chart is offered
+        // every renderer in the project, whether or not they authored it.
+        it.each([
+            OrganizationMemberRole.INTERACTIVE_VIEWER,
+            OrganizationMemberRole.EDITOR,
+            OrganizationMemberRole.DEVELOPER,
+            OrganizationMemberRole.ADMIN,
+        ])('offers the whole project library to a %s', async (role) => {
+            expect(await listed(role)).toEqual(wholeLibrary);
         });
 
-        it('offers an interactive viewer the same — they can use one without authoring it', async () => {
-            expect(
-                await listed(OrganizationMemberRole.INTERACTIVE_VIEWER),
-            ).toEqual(['mine-unfiled', 'in-a-space-i-can-see']);
-        });
-
-        it('withholds a visualization in a space the user cannot reach', async () => {
-            expect(await listed(OrganizationMemberRole.EDITOR, [])).toEqual([
-                'mine-unfiled',
-            ]);
-        });
-
-        it('offers a viewer nothing — they hold no view:DataApp at all', async () => {
-            expect(await listed(OrganizationMemberRole.VIEWER)).toEqual([]);
-        });
-
-        it('offers an admin every visualization in the project', async () => {
-            expect(await listed(OrganizationMemberRole.ADMIN, [])).toEqual([
-                'mine-unfiled',
-                'someone-elses-unfiled',
-                'in-a-space-i-can-see',
-            ]);
+        it('refuses a viewer, who has no explore to render one in', async () => {
+            await expect(listed(OrganizationMemberRole.VIEWER)).rejects.toThrow(
+                ForbiddenError,
+            );
         });
     });
 
