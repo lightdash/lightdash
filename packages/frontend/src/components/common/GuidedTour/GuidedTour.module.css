@@ -32,10 +32,7 @@
     border-radius: var(--mantine-radius-md);
     box-shadow:
         0 0 0 2px var(--mantine-color-indigo-4),
-        0 0 0 6px light-dark(
-                rgba(76, 87, 217, 0.25),
-                rgba(129, 140, 248, 0.22)
-            ),
+        0 0 0 6px light-dark(rgba(76, 87, 217, 0.25), rgba(129, 140, 248, 0.22)),
         0 0 0 9999px light-dark(rgba(17, 24, 39, 0.62), rgba(0, 0, 0, 0.75));
     pointer-events: none;
     transition:
