@@ -2151,6 +2151,62 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'dense_rank() over (order by g."event_type" asc) as "column_index"',
             );
         });
+
+        test('Should aggregate over every row when there are no index or groupBy columns', () => {
+            const pivotConfiguration = {
+                indexColumn: undefined,
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = replaceWhitespace(builder.toSql());
+
+            expect(result).toContain(
+                'group_by_query AS (SELECT count("event_id") AS "event_id_count" FROM original_query)',
+            );
+            expect(result.toLowerCase()).not.toContain('group by');
+        });
+
+        test('Should aggregate multiple value columns into a single row', () => {
+            const pivotConfiguration = {
+                indexColumn: [],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [],
+                sortBy: undefined,
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = replaceWhitespace(builder.toSql());
+
+            expect(result).toContain(
+                'group_by_query AS (SELECT count("event_id") AS "event_id_count", sum("revenue") AS "revenue_sum" FROM original_query)',
+            );
+            expect(result.toLowerCase()).not.toContain('group by');
+        });
     });
 
     describe('Warehouse type compatibility', () => {
