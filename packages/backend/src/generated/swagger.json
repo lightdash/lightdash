@@ -30892,6 +30892,17 @@
                     "budget": {
                         "$ref": "#/components/schemas/AiDeepResearchBudget"
                     },
+                    "isReportExpired": {
+                        "type": "boolean"
+                    },
+                    "reportExpiredAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reportExpiresAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "resultChartData": {
                         "allOf": [
                             {
@@ -30949,6 +30960,9 @@
                     "errorMessage",
                     "executionContextSnapshot",
                     "budget",
+                    "isReportExpired",
+                    "reportExpiredAt",
+                    "reportExpiresAt",
                     "resultChartData",
                     "resultMarkdown",
                     "status",
@@ -38456,6 +38470,7 @@
                     "consolidateAiAgentMemories",
                     "consolidateAiAgentMemoryPartition",
                     "cleanMcpToolCalls",
+                    "cleanAiDeepResearchReports",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
@@ -49323,6 +49338,9 @@
                             "$ref": "#/components/schemas/ConditionalFormattingConfig"
                         },
                         "type": "array"
+                    },
+                    "showColumnTotals": {
+                        "type": "boolean"
                     }
                 },
                 "type": "object",
@@ -51271,7 +51289,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.43.1",
+        "version": "1.44.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,19 @@
+# [1.44.0](https://github.com/lightdash/lightdash/compare/1.43.1...1.44.0) (2026-07-30)
+
+
+### Bug Fixes
+
+* enforce custom SQL query permissions ([#26519](https://github.com/lightdash/lightdash/issues/26519)) ([5ba23d8](https://github.com/lightdash/lightdash/commit/5ba23d8907d2ce9773023bc85c38a82487eeaeec))
+* include column totals row in non-pivot Excel exports ([#26532](https://github.com/lightdash/lightdash/issues/26532)) ([07a70f9](https://github.com/lightdash/lightdash/commit/07a70f96c4268bfea5803dd445b6e5a768a86466)), closes [/linear.app/lightdash/issue/PROD-9169/excel-export-ignores-show-column-total-for-non-pivot-tables#agent-session-fbb2358](https://github.com//linear.app/lightdash/issue/PROD-9169/excel-export-ignores-show-column-total-for-non-pivot-tables/issues/agent-session-fbb2358)
+* render spaces added to homepage collection blocks ([#26551](https://github.com/lightdash/lightdash/issues/26551)) ([7f0b042](https://github.com/lightdash/lightdash/commit/7f0b042bc0a132d6fec79a2ff65ceac29587c179)), closes [#26541](https://github.com/lightdash/lightdash/issues/26541)
+
+
+### Features
+
+* add spaces from the space tree in the collection picker ([#26561](https://github.com/lightdash/lightdash/issues/26561)) ([ce8fcf4](https://github.com/lightdash/lightdash/commit/ce8fcf488f62b8953b68711cb6757e9c6d80d507)), closes [#26541](https://github.com/lightdash/lightdash/issues/26541)
+* **deep-research:** expire reports after 30 days ([#26565](https://github.com/lightdash/lightdash/issues/26565)) ([d489a08](https://github.com/lightdash/lightdash/commit/d489a08e1232c551d2b673c54c95fb1366b15c7f))
+* include persisted steers in memory distill transcripts ([#26548](https://github.com/lightdash/lightdash/issues/26548)) ([4af6ff7](https://github.com/lightdash/lightdash/commit/4af6ff7588022eaa5f3552dd9b992f30f85d1705))
+
 ## [1.43.1](https://github.com/lightdash/lightdash/compare/1.43.0...1.43.1) (2026-07-30)
 
 

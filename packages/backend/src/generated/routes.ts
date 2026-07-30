@@ -30558,6 +30558,23 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 budget: { ref: 'AiDeepResearchBudget', required: true },
+                isReportExpired: { dataType: 'boolean', required: true },
+                reportExpiredAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                reportExpiresAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 resultChartData: {
                     dataType: 'union',
                     subSchemas: [
@@ -38372,6 +38389,7 @@ const models: TsoaRoute.Models = {
                     enums: ['consolidateAiAgentMemoryPartition'],
                 },
                 { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
+                { dataType: 'enum', enums: ['cleanAiDeepResearchReports'] },
                 { dataType: 'enum', enums: ['handleScheduledDelivery'] },
                 { dataType: 'enum', enums: ['sendSlackNotification'] },
                 { dataType: 'enum', enums: ['sendEmailNotification'] },
@@ -49222,6 +49240,13 @@ const models: TsoaRoute.Models = {
                                     ref: 'ConditionalFormattingConfig',
                                 },
                             },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    showColumnTotals: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
                             { dataType: 'undefined' },
                         ],
                     },
