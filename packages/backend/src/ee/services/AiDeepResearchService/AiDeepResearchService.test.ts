@@ -194,6 +194,8 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
     effort: 'medium',
     result_markdown: null,
     result_chart_data: null,
+    report_expires_at: null,
+    report_expired_at: null,
     budget_snapshot: budget,
     execution_context_snapshot: executionContextSnapshot,
     error_message: null,
@@ -1054,6 +1056,37 @@ describe('AiDeepResearchService', () => {
                     threadUuid: 'thread-1',
                 },
             );
+        });
+
+        it('redacts report data immediately after its expiry boundary', async () => {
+            const reportExpiresAt = new Date('2026-07-01T00:00:00.000Z');
+            const { service } = buildService({
+                model: {
+                    findByUuidScoped: vi.fn().mockResolvedValue(
+                        runRow({
+                            status: 'completed',
+                            completed_at: new Date('2026-06-01T00:00:00.000Z'),
+                            result_markdown: 'Expired private report',
+                            result_chart_data: {
+                                private: { source: 'inline' },
+                            },
+                            report_expires_at: reportExpiresAt,
+                        }),
+                    ),
+                },
+            });
+
+            const run = await service.getRun(
+                userWithProjectAccess(),
+                'project-1',
+                'run-1',
+            );
+
+            expect(run.resultMarkdown).toBeNull();
+            expect(run.resultChartData).toBeNull();
+            expect(run.reportExpiresAt).toBe(reportExpiresAt.toISOString());
+            expect(run.reportExpiredAt).toBeNull();
+            expect(run.isReportExpired).toBe(true);
         });
 
         it("does not expose another creator's run to a project viewer", async () => {

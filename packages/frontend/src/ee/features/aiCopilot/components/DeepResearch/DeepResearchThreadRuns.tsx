@@ -9,9 +9,11 @@ import { DeepResearchRunCard } from './DeepResearchRunCard';
 const DeepResearchThreadRun = ({
     registration,
     canRetry,
+    onRunAgain,
 }: {
     registration: DeepResearchRunRegistration;
     canRetry: boolean;
+    onRunAgain?: (registration: DeepResearchRunRegistration) => void;
 }) => {
     const runQuery = useDeepResearchRun(registration);
     const continueMutation = useContinueDeepResearchMutation({
@@ -102,6 +104,8 @@ const DeepResearchThreadRun = ({
         <DeepResearchRunCard
             run={runQuery.data}
             projectUuid={registration.projectUuid}
+            canRunAgain={canRetry}
+            onRunAgain={onRunAgain ? () => onRunAgain(registration) : undefined}
         />
     );
 };
@@ -109,9 +113,11 @@ const DeepResearchThreadRun = ({
 export const DeepResearchThreadRuns = ({
     registrations,
     canRetry = false,
+    onRunAgain,
 }: {
     registrations: DeepResearchRunRegistration[];
     canRetry?: boolean;
+    onRunAgain?: (registration: DeepResearchRunRegistration) => void;
 }) => {
     if (!registrations.length) {
         return null;
@@ -123,6 +129,7 @@ export const DeepResearchThreadRuns = ({
                     key={registration.runUuid}
                     registration={registration}
                     canRetry={canRetry}
+                    onRunAgain={onRunAgain}
                 />
             ))}
         </Stack>

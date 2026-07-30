@@ -154,5 +154,8 @@ export const deepResearchRunFixture: DeepResearchRunView = {
     ],
     resultMarkdown: deepResearchReportMarkdownFixture,
     resultChartData: deepResearchChartDataFixture,
+    reportExpiresAt: '2026-08-29T09:18:00.000Z',
+    reportExpiredAt: null,
+    isReportExpired: false,
     errorMessage: null,
 };

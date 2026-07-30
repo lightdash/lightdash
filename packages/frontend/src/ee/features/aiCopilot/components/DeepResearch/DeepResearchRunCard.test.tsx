@@ -160,6 +160,39 @@ describe('DeepResearchRunCard', () => {
         ).toBeInTheDocument();
     });
 
+    it('replaces expired report content with a stable rerun action', async () => {
+        const user = userEvent.setup();
+        const onRunAgain = vi.fn();
+        renderWithProviders(
+            <DeepResearchRunCard
+                run={{
+                    ...deepResearchRunFixture,
+                    resultMarkdown: null,
+                    resultChartData: null,
+                    findingCount: 0,
+                    isReportExpired: true,
+                    reportExpiredAt: '2026-07-30T09:18:00.000Z',
+                }}
+                projectUuid="project-1"
+                canRunAgain
+                onRunAgain={onRunAgain}
+            />,
+        );
+
+        expect(
+            screen.getByText(
+                'This Deep research report expired after 30 days.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getAllByText(deepResearchRunFixture.question),
+        ).toHaveLength(2);
+        expect(screen.queryByText('Executive answer')).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Run again' }));
+        expect(onRunAgain).toHaveBeenCalledOnce();
+    });
+
     it('tracks explicitly opening the full report', async () => {
         const user = userEvent.setup();
         renderWithProviders(

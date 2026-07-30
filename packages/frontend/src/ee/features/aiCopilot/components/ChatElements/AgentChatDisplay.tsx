@@ -18,6 +18,7 @@ import {
     type PropsWithChildren,
 } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import { useDeepResearchThreadRunRegistrations } from '../../hooks/useDeepResearch';
 import { useAgentAiMcpServers } from '../../hooks/useProjectAiMcpServers';
 import { AddToEvalModal } from '../Admin/AddToEvalModal';
@@ -43,6 +44,9 @@ type Props = {
     showAddToEvalsButton?: boolean;
     onDashboardLinkClick?: (url: string) => void;
     canRetryDeepResearch?: boolean;
+    onRunDeepResearchAgain?: (
+        registration: DeepResearchRunRegistration,
+    ) => void;
 };
 
 const CompactionDivider = () => (
@@ -103,6 +107,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     showAddToEvalsButton = false,
     onDashboardLinkClick,
     canRetryDeepResearch = false,
+    onRunDeepResearchAgain,
 }) => {
     const viewport = useRef<HTMLDivElement>(null);
     const { data: mcpServers } = useAgentAiMcpServers(projectUuid, agentUuid, {
@@ -253,6 +258,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                             ) ?? []
                                         }
                                         canRetry={canRetryDeepResearch}
+                                        onRunAgain={onRunDeepResearchAgain}
                                     />
                                 )}
                             </Fragment>
@@ -264,6 +270,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                     unanchoredDeepResearchRegistrations
                                 }
                                 canRetry={canRetryDeepResearch}
+                                onRunAgain={onRunDeepResearchAgain}
                             />
                         )}
                     </Stack>

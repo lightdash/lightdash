@@ -339,6 +339,9 @@ export type AiDeepResearchRun = {
     resultMarkdown: string | null;
     /** Render data for each referenced chart, keyed by chart key. */
     resultChartData: AiDeepResearchChartDataMap | null;
+    reportExpiresAt: string | null;
+    reportExpiredAt: string | null;
+    isReportExpired: boolean;
     budget: AiDeepResearchBudget;
     executionContextSnapshot: AiDeepResearchExecutionContextSnapshot | null;
     errorMessage: string | null;

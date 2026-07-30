@@ -29,6 +29,8 @@ export type DbAiDeepResearchRun = {
     effort: AiDeepResearchEffort;
     result_markdown: string | null;
     result_chart_data: AiDeepResearchChartDataMap | null;
+    report_expires_at: Date | null;
+    report_expired_at: Date | null;
     /** Rows persisted before hypothesis fan-out lack `maxHypotheses`. */
     budget_snapshot: Omit<AiDeepResearchBudget, 'maxHypotheses'> &
         Partial<Pick<AiDeepResearchBudget, 'maxHypotheses'>>;
@@ -65,6 +67,8 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'status'
             | 'result_markdown'
             | 'result_chart_data'
+            | 'report_expires_at'
+            | 'report_expired_at'
             | 'error_message'
             | 'cancellation_requested_at'
             | 'started_at'

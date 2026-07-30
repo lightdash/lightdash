@@ -56,6 +56,9 @@ export type DeepResearchRunView = {
     resultMarkdown: string | null;
     /** Render data for each referenced chart, keyed by chart key. */
     resultChartData: AiDeepResearchChartDataMap | null;
+    reportExpiresAt: string | null;
+    reportExpiredAt: string | null;
+    isReportExpired: boolean;
     errorMessage: string | null;
 };
 
