@@ -9,17 +9,18 @@ This workflow is enabled only when
 follow the normal development workflow.
 
 When it is set, the Okteto development environment is started automatically by
-the `SessionStart` hook (`agent-okteto-dev.sh hook-start`) — you do NOT need to
-start it yourself. It provisions in the background while you work on the user's
-prompt. Do not replace it with a local Docker environment.
+the `SessionStart` hook (`agent-okteto-dev.sh hook-start`). The hook captures
+the session ID, starts synchronization, and waits for the environment to become
+healthy before the first prompt reaches Claude. Do not start it yourself or
+replace it with a local Docker environment.
 
-For an opted-in session, after making and validating code changes, have a
-background subagent run `./scripts/agent-okteto-dev.sh wait` with a 10-minute
-Bash timeout. If the environment is ready, include the URL from its `READY:`
-line and the manual test login in the final response:
-`demo@lightdash.com` / `demo_password!`. If it is unavailable (for example the
-background start failed — check `docs/agent-okteto.md` and the logs it points
-to), report that without blocking delivery of the completed code changes.
+If setup fails, do not make code changes. Follow the reported error and
+`docs/agent-okteto.md`, then resume the session after fixing the setup.
+
+After making and validating code changes, run
+`./scripts/agent-okteto-dev.sh wait` before the final response. Include the URL
+from its `READY:` line in the final response. The `Stop` hook verifies readiness
+again and prevents a final response that omits the URL.
 
 Leave the Okteto namespace and sync process running so the user can test the
 changes.

@@ -10,6 +10,10 @@ Each opted-in session atomically claims a ready namespace from a shared pool, so
 multiple tasks can run without overwriting one another. The namespace remains
 claimed after the agent finishes so you can test the result.
 
+The manifest uses the stable development environment name `lightdash` so pool
+provisioning and agent synchronization update the same Okteto environment
+record regardless of the checkout directory name.
+
 ## What you need
 
 Ask a Lightdash administrator for the shared coding-agent Okteto token. This is
@@ -44,7 +48,6 @@ Add these values:
 
 ```text
 LIGHTDASH_OKTETO_TOKEN=<shared automation token>
-BASH_MAX_TIMEOUT_MS=600000
 ```
 
 Changing environment variables only affects newly created sessions.
@@ -94,26 +97,39 @@ command -v tmux >/dev/null || {
 }
 ```
 
-Start a new Claude Code session after saving the environment. Claude claims a
-ready Okteto namespace and starts file synchronization in the background while
-its main agent works on your task.
+Start a new Claude Code session after saving the environment. Before processing
+the first prompt, Claude claims a ready Okteto namespace, starts file
+synchronization, waits for 100% synchronization, and waits for the Lightdash
+health endpoint.
 
 ### How the Claude hook works
 
 The `SessionStart` hook in `.claude/settings.json` runs on new, resumed,
-cleared, compacted, and forked Claude sessions. Claude sends session metadata
-to the hook over standard input and provides `CLAUDE_ENV_FILE` for variables
-that should remain available to later shell commands.
+cleared, compacted, and forked Claude sessions. It has an explicit 1800-second
+timeout for the cold fallback path. Claude sends session metadata to the hook
+over standard input and provides `CLAUDE_ENV_FILE` for variables that should
+remain available to later shell commands.
 
-The first hook calls `agent-okteto-dev.sh hook-env`. When the token is set, it
-copies Claude's `session_id` into `LIGHTDASH_AGENT_SESSION_ID` through
-`CLAUDE_ENV_FILE`. The second hook calls `hook-start`, which launches `start`
-as a detached process and immediately returns. Both hooks do nothing when the
-token is absent.
+One hook invocation copies Claude's `session_id` into
+`LIGHTDASH_AGENT_SESSION_ID` through `CLAUDE_ENV_FILE`, claims or reuses a
+namespace, starts `okteto up` in tmux, and waits until synchronization and
+application health are stable. Its `READY:` output is added to Claude's
+SessionStart context. `BASH_MAX_TIMEOUT_MS` does not control hook execution;
+the timeout is set directly on the hook.
 
 `start` claims an unclaimed, healthy pooled namespace and runs `okteto up`
 against its existing deployment. If the pool is temporarily exhausted, it
 falls back to creating and deploying a session-specific namespace.
+
+SessionStart exit codes do not block Claude. The hook therefore returns
+structured `continue: false` output when setup fails. A fast
+`UserPromptSubmit` guard also rejects prompts unless the startup gate recorded
+readiness, covering hook cancellation or timeout. A `Stop` hook verifies
+synchronization and health again and requires the ready URL in Claude's final
+response.
+
+All hooks return immediately without output when `LIGHTDASH_OKTETO_TOKEN` is
+unset.
 
 ## Other coding agents
 
@@ -136,7 +152,6 @@ in the terminal immediately before starting Claude:
 
 ```bash
 export LIGHTDASH_OKTETO_TOKEN='<shared automation token>'
-export BASH_MAX_TIMEOUT_MS=600000
 claude
 ```
 
@@ -193,7 +208,8 @@ the desired minimum pool size when testing administrator changes:
 
 ## Manual testing
 
-The agent's final response includes a URL like:
+The agent verifies synchronization and health again before its final response,
+which includes a URL like:
 
 ```text
 https://<deployment>-dev-warm-<number>.lightdash.okteto.dev
@@ -208,9 +224,8 @@ Email: demo@lightdash.com
 Password: demo_password!
 ```
 
-If startup fails, the agent reports the setup error and continues working on
-your request without a test environment. Expired tokens must be replaced in the
-agent environment or local secret manager before starting a new session.
+If startup fails, Claude stops before working on the request. Follow the setup
+error, replace expired tokens or fix missing tools, and then resume the session.
 
 Okteto recommends a separate namespace for each autonomous run to prevent
 parallel branches from colliding. See

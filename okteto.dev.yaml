@@ -5,6 +5,8 @@
 #
 # Okteto derives the public endpoint from the deployment and namespace names.
 # The agent launcher discovers it from the ingress before starting sync.
+name: lightdash
+
 deploy:
     commands:
         - name: Configuring database...
