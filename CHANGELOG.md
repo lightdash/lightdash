@@ -1,3 +1,16 @@
+# [1.45.0](https://github.com/lightdash/lightdash/compare/1.44.0...1.45.0) (2026-07-30)
+
+
+### Bug Fixes
+
+* **dev:** restore fixed Okteto debugger port ([#26575](https://github.com/lightdash/lightdash/issues/26575)) ([499cdd2](https://github.com/lightdash/lightdash/commit/499cdd2c6f6daea5db39b0c8da4790ee420e1d04))
+
+
+### Features
+
+* add icon to memory details modal and attach the rail divider ([#26577](https://github.com/lightdash/lightdash/issues/26577)) ([5216d46](https://github.com/lightdash/lightdash/commit/5216d462be8998a8fa19bb1e3d9e247b796e41f7)), closes [#26557](https://github.com/lightdash/lightdash/issues/26557)
+* owner-facing my-memories modal on AI agent page ([#26557](https://github.com/lightdash/lightdash/issues/26557)) ([68c37ac](https://github.com/lightdash/lightdash/commit/68c37ac14a674a49aa173e9943fd708870eb29a6))
+
 # [1.44.0](https://github.com/lightdash/lightdash/compare/1.43.1...1.44.0) (2026-07-30)
 
 

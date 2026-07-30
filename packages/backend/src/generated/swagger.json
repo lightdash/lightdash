@@ -31245,6 +31245,144 @@
             "ApiAiDeepResearchEventsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchEventsPage_"
             },
+            "AiAgentUserMemoryItem": {
+                "properties": {
+                    "generatedAt": {
+                        "type": "string"
+                    },
+                    "lastPulledAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pulledCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lastCitedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "citedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sourceThreadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "agent": {
+                        "properties": {
+                            "imageUrl": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["imageUrl", "name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "scope": {
+                        "$ref": "#/components/schemas/AiAgentMemoryScope"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentMemoryStatus"
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "generatedAt",
+                    "lastPulledAt",
+                    "pulledCount",
+                    "lastCitedAt",
+                    "citedCount",
+                    "sourceThreadUuid",
+                    "agent",
+                    "scope",
+                    "status",
+                    "summary",
+                    "title",
+                    "slug",
+                    "uuid"
+                ],
+                "type": "object",
+                "description": "A memory list row as its owner sees it. Not shared with the admin list row."
+            },
+            "AiAgentUserMemoriesSummary": {
+                "properties": {
+                    "memories": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentUserMemoryItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["memories"],
+                "type": "object"
+            },
+            "KnexPaginatedData_AiAgentUserMemoriesSummary_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/AiAgentUserMemoriesSummary"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_AiAgentUserMemoriesSummary__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentUserMemoriesSummary_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentUserMemoriesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentUserMemoriesSummary__"
+            },
             "ApiUpdateAiAgentMemoryStatusResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
@@ -51289,7 +51427,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.44.0",
+        "version": "1.45.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -63299,6 +63437,112 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgentMemories": {
+            "get": {
+                "operationId": "getMyAiAgentMemories",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentUserMemoriesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the active memories the AI agents saved from the requesting user's\nown threads in this project. The owner is always the session user.",
+                "summary": "List my memories",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgentMemories/{slug}": {
+            "get": {
+                "operationId": "getAiAgentMemoryBySlug",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentMemoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns one memory the requesting user can read, without going through an\nagent: memories consolidated across agents have no agent to route by.",
+                "summary": "Get a memory",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
