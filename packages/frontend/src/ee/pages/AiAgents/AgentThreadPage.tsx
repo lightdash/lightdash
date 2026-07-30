@@ -16,7 +16,11 @@ import {
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
 import { findRetryableDeepResearchRun } from '../../features/aiCopilot/deepResearch/deepResearchRegistry';
-import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
+import { runDeepResearchAgain } from '../../features/aiCopilot/deepResearch/runAgain';
+import {
+    type DeepResearchRunRegistration,
+    type StartDeepResearchArgs,
+} from '../../features/aiCopilot/deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import {
@@ -327,7 +331,27 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             promptUuid,
         });
     };
-    const isBusy = Boolean(isCreatingMessage || isStreaming || isPending);
+    const handleRunDeepResearchAgain = async (
+        registration: DeepResearchRunRegistration,
+    ) =>
+        runDeepResearchAgain({
+            registration,
+            createPrompt: (question) =>
+                createAgentThreadMessage({
+                    prompt: question,
+                    modelConfig: threadModelConfig ?? undefined,
+                    context: pageContextInput,
+                    optimisticContext: pagePreviewItems,
+                    skipAgentResponse: true,
+                }),
+            startRun: startDeepResearch.mutateAsync,
+        });
+    const isBusy = Boolean(
+        isCreatingMessage ||
+        isStreaming ||
+        isPending ||
+        startDeepResearch.isLoading,
+    );
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
     const handleRetryOriginalQuestion = () => {
         if (!retryPrompt) return;
@@ -369,6 +393,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
                     canRetryDeepResearch={!inputDisabled && !isBusy}
+                    onRunDeepResearchAgain={(registration) => {
+                        void handleRunDeepResearchAgain(registration).catch(
+                            () => undefined,
+                        );
+                    }}
                 >
                     {workstreams && workstreams.length > 0 && (
                         <ThreadWorkstreamsPanel workstreams={workstreams} />

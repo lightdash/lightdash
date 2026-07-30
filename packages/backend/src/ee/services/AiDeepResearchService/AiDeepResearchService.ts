@@ -266,29 +266,51 @@ export const getAiDeepResearchRunBudget = (
         AI_DEEP_RESEARCH_DEFAULT_BUDGET.maxHypotheses,
 });
 
-const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
-    aiDeepResearchRunUuid: row.ai_deep_research_run_uuid,
-    projectUuid: row.project_uuid,
-    agentUuid: row.agent_uuid,
-    aiThreadUuid: row.ai_thread_uuid,
-    promptUuid: row.prompt_uuid,
-    mcpServerUuids: row.selected_mcp_server_uuids,
-    entryPoint: row.entry_point,
-    effort: row.effort,
-    prompt: row.prompt,
-    status: row.status,
-    resultMarkdown: row.result_markdown,
-    resultChartData: row.result_chart_data,
-    budget: getAiDeepResearchRunBudget(row.budget_snapshot),
-    executionContextSnapshot: row.execution_context_snapshot,
-    errorMessage: row.error_message,
-    cancellationRequestedAt:
-        row.cancellation_requested_at?.toISOString() ?? null,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
-    startedAt: row.started_at?.toISOString() ?? null,
-    completedAt: row.completed_at?.toISOString() ?? null,
-});
+const getReportExpiresAt = (row: DbAiDeepResearchRun): Date | null => {
+    if (row.report_expires_at) {
+        return row.report_expires_at;
+    }
+    if (
+        row.completed_at &&
+        (row.result_markdown !== null || row.result_chart_data !== null)
+    ) {
+        return new Date(row.completed_at.getTime() + 30 * 24 * 60 * 60 * 1_000);
+    }
+    return null;
+};
+
+const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
+    const reportExpiresAt = getReportExpiresAt(row);
+    const isReportExpired =
+        row.report_expired_at !== null ||
+        (reportExpiresAt !== null && reportExpiresAt.getTime() <= Date.now());
+    return {
+        aiDeepResearchRunUuid: row.ai_deep_research_run_uuid,
+        projectUuid: row.project_uuid,
+        agentUuid: row.agent_uuid,
+        aiThreadUuid: row.ai_thread_uuid,
+        promptUuid: row.prompt_uuid,
+        mcpServerUuids: row.selected_mcp_server_uuids,
+        entryPoint: row.entry_point,
+        effort: row.effort,
+        prompt: row.prompt,
+        status: row.status,
+        resultMarkdown: isReportExpired ? null : row.result_markdown,
+        resultChartData: isReportExpired ? null : row.result_chart_data,
+        reportExpiresAt: reportExpiresAt?.toISOString() ?? null,
+        reportExpiredAt: row.report_expired_at?.toISOString() ?? null,
+        isReportExpired,
+        budget: getAiDeepResearchRunBudget(row.budget_snapshot),
+        executionContextSnapshot: row.execution_context_snapshot,
+        errorMessage: row.error_message,
+        cancellationRequestedAt:
+            row.cancellation_requested_at?.toISOString() ?? null,
+        createdAt: row.created_at.toISOString(),
+        updatedAt: row.updated_at.toISOString(),
+        startedAt: row.started_at?.toISOString() ?? null,
+        completedAt: row.completed_at?.toISOString() ?? null,
+    };
+};
 
 const toEvent = (row: DbAiDeepResearchEvent): AiDeepResearchEvent => {
     const event = {
@@ -877,6 +899,10 @@ export class AiDeepResearchService extends BaseService {
         return runs.map(toRun);
     }
 
+    async cleanExpiredReports(batchSize: number) {
+        return this.aiDeepResearchRunModel.cleanExpiredReports(batchSize);
+    }
+
     async refreshChart(args: {
         account: Account;
         user: SessionUser;
@@ -889,6 +915,15 @@ export class AiDeepResearchService extends BaseService {
             args.projectUuid,
             args.aiDeepResearchRunUuid,
         );
+        const reportExpiresAt = getReportExpiresAt(run);
+        if (
+            run.report_expired_at ||
+            (reportExpiresAt && reportExpiresAt.getTime() <= Date.now())
+        ) {
+            throw new NotFoundError(
+                `Deep Research chart ${args.chartKey} not found`,
+            );
+        }
         // Membership in the persisted chart data is the authorization gate.
         const chart = run.result_chart_data?.[args.chartKey];
         if (!chart) {

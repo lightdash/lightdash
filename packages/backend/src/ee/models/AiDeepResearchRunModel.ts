@@ -1,4 +1,8 @@
 import {
+    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
+    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    getErrorMessage,
     type AiDeepResearchBudget,
     type AiDeepResearchChartDataMap,
     type AiDeepResearchEffort,
@@ -12,6 +16,15 @@ import {
     type AiDeepResearchTerminalReason,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import Logger from '../../logging/logger';
+import {
+    AiAgentToolCallErrorTableName,
+    AiAgentToolCallTableName,
+    AiAgentToolResultTableName,
+    type AiAgentToolCallErrorTable,
+    type AiAgentToolCallTable,
+    type AiAgentToolResultTable,
+} from '../database/entities/ai';
 import {
     AiDeepResearchAnalyticsOutboxTableName,
     AiDeepResearchEventsTable,
@@ -80,6 +93,12 @@ export type DbAiDeepResearchEventWithCursor = DbAiDeepResearchEvent & {
 };
 
 type Queryable = Knex | Knex.Transaction;
+
+export type AiDeepResearchReportCleanupResult = {
+    scanned: number;
+    expired: number;
+    failed: number;
+};
 
 export class AiDeepResearchRunModel {
     private readonly database: Knex;
@@ -245,7 +264,11 @@ export class AiDeepResearchRunModel {
             .select('prompt_uuid', 'result_markdown')
             .whereIn('prompt_uuid', args.promptUuids)
             .where('organization_uuid', args.organizationUuid)
-            .where('project_uuid', args.projectUuid);
+            .where('project_uuid', args.projectUuid)
+            .whereNull('report_expired_at')
+            .whereRaw(
+                "coalesce(report_expires_at, completed_at + interval '30 days') > now()",
+            );
     }
 
     async findByThreadScoped(args: {
@@ -281,7 +304,14 @@ export class AiDeepResearchRunModel {
                 'started_at',
                 'completed_at',
                 this.database.raw(
-                    'coalesce(octet_length(result_markdown), 0) > 0 as has_report',
+                    `(
+                        report_expired_at is null
+                        and coalesce(
+                            report_expires_at,
+                            completed_at + interval '30 days'
+                        ) > now()
+                        and coalesce(octet_length(result_markdown), 0) > 0
+                    ) as has_report`,
                 ),
             )
             .where('ai_thread_uuid', args.aiThreadUuid)
@@ -318,6 +348,10 @@ export class AiDeepResearchRunModel {
             .where('organization_uuid', args.organizationUuid)
             .where('project_uuid', args.projectUuid)
             .where('created_by_user_uuid', args.createdByUserUuid)
+            .whereNull('report_expired_at')
+            .whereRaw(
+                "coalesce(report_expires_at, completed_at + interval '30 days') > now()",
+            )
             .whereRaw('octet_length(result_markdown) > 0')
             .orderBy('created_at', 'asc');
 
@@ -346,6 +380,10 @@ export class AiDeepResearchRunModel {
             .where('organization_uuid', args.organizationUuid)
             .where('project_uuid', args.projectUuid)
             .where('created_by_user_uuid', args.createdByUserUuid)
+            .whereNull('report_expired_at')
+            .whereRaw(
+                "coalesce(report_expires_at, completed_at + interval '30 days') > now()",
+            )
             .whereRaw('octet_length(result_markdown) > 0')
             .first();
     }
@@ -445,6 +483,10 @@ export class AiDeepResearchRunModel {
                     result_chart_data: JSON.stringify(
                         resultChartData,
                     ) as unknown as AiDeepResearchChartDataMap,
+                    report_expires_at: transaction.raw(
+                        "now() + interval '30 days'",
+                    ) as unknown as Date,
+                    report_expired_at: null,
                     error_message: null,
                     completed_at: transaction.fn.now() as unknown as Date,
                     updated_at: transaction.fn.now() as unknown as Date,
@@ -752,6 +794,174 @@ export class AiDeepResearchRunModel {
             );
             return runs;
         });
+    }
+
+    async cleanExpiredReports(
+        batchSize: number,
+    ): Promise<AiDeepResearchReportCleanupResult> {
+        const candidates = await this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .select('ai_deep_research_run_uuid', 'prompt_uuid')
+            .whereNull('report_expired_at')
+            .where((query) =>
+                query
+                    .where('report_expires_at', '<=', this.database.fn.now())
+                    .orWhere((legacyQuery) =>
+                        legacyQuery
+                            .whereNull('report_expires_at')
+                            .whereNotNull('completed_at')
+                            .whereRaw(
+                                "completed_at + interval '30 days' <= now()",
+                            ),
+                    ),
+            )
+            .where((query) =>
+                query
+                    .whereNotNull('result_markdown')
+                    .orWhereNotNull('result_chart_data'),
+            )
+            .orderByRaw(
+                "coalesce(report_expires_at, completed_at + interval '30 days') asc",
+            )
+            .limit(batchSize);
+
+        const results = await Promise.all(
+            candidates.map(async (candidate) => {
+                try {
+                    return await this.database.transaction(
+                        async (transaction) => {
+                            const lockedCandidate =
+                                await transaction<AiDeepResearchRunsTable>(
+                                    AiDeepResearchRunsTableName,
+                                )
+                                    .select('ai_deep_research_run_uuid')
+                                    .where(
+                                        'ai_deep_research_run_uuid',
+                                        candidate.ai_deep_research_run_uuid,
+                                    )
+                                    .whereNull('report_expired_at')
+                                    .whereRaw(
+                                        "coalesce(report_expires_at, completed_at + interval '30 days') <= now()",
+                                    )
+                                    .where((query) =>
+                                        query
+                                            .whereNotNull('result_markdown')
+                                            .orWhereNotNull(
+                                                'result_chart_data',
+                                            ),
+                                    )
+                                    .forUpdate()
+                                    .first();
+                            if (!lockedCandidate) {
+                                return 'skipped' as const;
+                            }
+
+                            const toolCalls =
+                                await transaction<AiAgentToolCallTable>(
+                                    AiAgentToolCallTableName,
+                                )
+                                    .select(
+                                        'ai_agent_tool_call_uuid',
+                                        'tool_call_id',
+                                    )
+                                    .where(
+                                        'ai_prompt_uuid',
+                                        candidate.prompt_uuid,
+                                    )
+                                    .where((query) =>
+                                        query
+                                            .where(
+                                                'parent_tool_call_id',
+                                                'like',
+                                                `deep-research:${candidate.ai_deep_research_run_uuid}:%`,
+                                            )
+                                            .orWhereIn('tool_name', [
+                                                AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
+                                                AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+                                                AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+                                            ]),
+                                    );
+                            const toolCallIds = toolCalls.map(
+                                (toolCall) => toolCall.tool_call_id,
+                            );
+
+                            if (toolCallIds.length > 0) {
+                                await transaction<AiAgentToolResultTable>(
+                                    AiAgentToolResultTableName,
+                                )
+                                    .where(
+                                        'ai_prompt_uuid',
+                                        candidate.prompt_uuid,
+                                    )
+                                    .whereIn('tool_call_id', toolCallIds)
+                                    .delete();
+                                await transaction<AiAgentToolCallErrorTable>(
+                                    AiAgentToolCallErrorTableName,
+                                )
+                                    .where(
+                                        'ai_prompt_uuid',
+                                        candidate.prompt_uuid,
+                                    )
+                                    .whereIn('tool_call_id', toolCallIds)
+                                    .delete();
+                                await transaction<AiAgentToolCallTable>(
+                                    AiAgentToolCallTableName,
+                                )
+                                    .whereIn(
+                                        'ai_agent_tool_call_uuid',
+                                        toolCalls.map(
+                                            (toolCall) =>
+                                                toolCall.ai_agent_tool_call_uuid,
+                                        ),
+                                    )
+                                    .delete();
+                            }
+
+                            const expired =
+                                await transaction<AiDeepResearchRunsTable>(
+                                    AiDeepResearchRunsTableName,
+                                )
+                                    .where(
+                                        'ai_deep_research_run_uuid',
+                                        candidate.ai_deep_research_run_uuid,
+                                    )
+                                    .whereNull('report_expired_at')
+                                    .whereRaw(
+                                        "coalesce(report_expires_at, completed_at + interval '30 days') <= now()",
+                                    )
+                                    .update({
+                                        result_markdown: null,
+                                        result_chart_data: null,
+                                        report_expires_at: transaction.raw(
+                                            "coalesce(report_expires_at, completed_at + interval '30 days')",
+                                        ) as unknown as Date,
+                                        report_expired_at:
+                                            transaction.fn.now() as unknown as Date,
+                                        updated_at:
+                                            transaction.fn.now() as unknown as Date,
+                                    });
+                            return expired > 0
+                                ? ('expired' as const)
+                                : ('skipped' as const);
+                        },
+                    );
+                } catch (error) {
+                    Logger.error(
+                        `Failed to clean Deep Research report ${candidate.ai_deep_research_run_uuid}: ${getErrorMessage(error)}`,
+                    );
+                    return 'failed' as const;
+                }
+            }),
+        );
+
+        const expired = results.filter((result) => result === 'expired').length;
+        const failed = results.filter((result) => result === 'failed').length;
+        return {
+            scanned: candidates.length,
+            expired,
+            failed,
+        };
     }
 
     async listPendingAnalyticsEvents(args?: {

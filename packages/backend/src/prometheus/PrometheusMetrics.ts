@@ -134,6 +134,9 @@ export default class PrometheusMetrics {
     public aiAgentMemoryUnknownToolPolicyCounter: prometheus.Counter | null =
         null;
 
+    public aiDeepResearchReportCleanupCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
     // AI agent memory consolidation pass (daily cron)
     public aiAgentMemoryConsolidateCounter: prometheus.Counter<'outcome'> | null =
         null;
@@ -558,6 +561,14 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
+                this.aiDeepResearchReportCleanupCounter =
+                    new prometheus.Counter({
+                        name: 'ai_deep_research_report_cleanup_total',
+                        help: 'Deep Research reports processed by cleanup outcome',
+                        labelNames: ['outcome'],
+                        ...rest,
+                    });
+
                 // AI agent memory consolidation pass
                 this.aiAgentMemoryConsolidateCounter = new prometheus.Counter({
                     name: 'ai_agent_memory_consolidate_total',
@@ -758,6 +769,14 @@ export default class PrometheusMetrics {
                 });
                 this.aiAgentMemorySweepEnqueuedCounter?.inc(0);
                 this.aiAgentMemoryUnknownToolPolicyCounter?.inc(0);
+                (['scanned', 'expired', 'failed'] as const).forEach(
+                    (outcome) => {
+                        this.aiDeepResearchReportCleanupCounter?.inc(
+                            { outcome },
+                            0,
+                        );
+                    },
+                );
                 AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES.forEach((outcome) => {
                     this.aiAgentMemoryConsolidateCounter?.inc({ outcome }, 0);
                     this.aiAgentMemoryConsolidateDurationHistogram?.zero({
@@ -1618,6 +1637,13 @@ export default class PrometheusMetrics {
 
     public incrementAiAgentMemoryUnknownToolPolicy() {
         this.aiAgentMemoryUnknownToolPolicyCounter?.inc();
+    }
+
+    public incrementAiDeepResearchReportCleanup(
+        outcome: 'scanned' | 'expired' | 'failed',
+        count: number,
+    ) {
+        this.aiDeepResearchReportCleanupCounter?.inc({ outcome }, count);
     }
 
     public trackAiAgentMemoryConsolidate(

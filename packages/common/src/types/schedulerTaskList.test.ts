@@ -11,4 +11,7 @@ test('AI_DEEP_RESEARCH tasks are registered', () => {
     expect(EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS).toBe(
         'sweepStaleAiDeepResearchRuns',
     );
+    expect(EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS).toBe(
+        'cleanAiDeepResearchReports',
+    );
 });

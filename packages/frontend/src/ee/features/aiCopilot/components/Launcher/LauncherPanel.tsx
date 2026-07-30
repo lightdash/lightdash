@@ -27,7 +27,11 @@ import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import { findRetryableDeepResearchRun } from '../../deepResearch/deepResearchRegistry';
-import { type StartDeepResearchArgs } from '../../deepResearch/types';
+import { runDeepResearchAgain } from '../../deepResearch/runAgain';
+import {
+    type DeepResearchRunRegistration,
+    type StartDeepResearchArgs,
+} from '../../deepResearch/types';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
 import {
@@ -504,7 +508,12 @@ const ExistingThreadPanel: FC<{
         });
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
-    const isBusy = Boolean(isCreatingMessage || isStreaming || isPending);
+    const isBusy = Boolean(
+        isCreatingMessage ||
+        isStreaming ||
+        isPending ||
+        startDeepResearch.isLoading,
+    );
     const isInputDisabled =
         thread?.createdFrom === 'slack' || !isThreadFromCurrentUser;
     const contentMentionItems = useMemo(
@@ -573,6 +582,20 @@ const ExistingThreadPanel: FC<{
         });
     };
 
+    const handleRunDeepResearchAgain = async (
+        registration: DeepResearchRunRegistration,
+    ) =>
+        runDeepResearchAgain({
+            registration,
+            createPrompt: (question) =>
+                createAgentThreadMessage({
+                    prompt: question,
+                    modelConfig,
+                    skipAgentResponse: true,
+                }),
+            startRun: startDeepResearch.mutateAsync,
+        });
+
     const headerTitle =
         thread?.title || thread?.firstMessage?.message || agent.name;
 
@@ -625,6 +648,11 @@ const ExistingThreadPanel: FC<{
                     renderArtifactsInline
                     onDashboardLinkClick={handleDashboardLinkClick}
                     canRetryDeepResearch={!isInputDisabled && !isBusy}
+                    onRunDeepResearchAgain={(registration) => {
+                        void handleRunDeepResearchAgain(registration).catch(
+                            () => undefined,
+                        );
+                    }}
                 >
                     <AgentChatInput
                         disabled={isInputDisabled}

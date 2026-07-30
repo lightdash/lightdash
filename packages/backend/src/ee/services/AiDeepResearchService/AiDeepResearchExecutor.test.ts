@@ -128,6 +128,8 @@ const run = (
     effort: 'low',
     result_markdown: null,
     result_chart_data: null,
+    report_expires_at: null,
+    report_expired_at: null,
     budget_snapshot: budget,
     execution_context_snapshot: executionContextSnapshot,
     error_message: null,

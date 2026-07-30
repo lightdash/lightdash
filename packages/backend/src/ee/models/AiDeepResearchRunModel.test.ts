@@ -1,6 +1,11 @@
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import {
+    AiAgentToolCallErrorTableName,
+    AiAgentToolCallTableName,
+    AiAgentToolResultTableName,
+} from '../database/entities/ai';
+import {
     AiDeepResearchAnalyticsOutboxTableName,
     AiDeepResearchEventsTableName,
     AiDeepResearchRunsTableName,
@@ -113,6 +118,12 @@ describe('AiDeepResearchRunModel', () => {
         expect(tracker.history.select[0].sql).not.toContain(
             'result_chart_data',
         );
+        expect(tracker.history.select[0].sql).toContain(
+            'coalesce(report_expires_at, completed_at + interval',
+        );
+        expect(tracker.history.select[0].sql).toContain(
+            '"report_expired_at" is null',
+        );
     });
 
     it('does not query for an empty conversation', async () => {
@@ -139,7 +150,10 @@ describe('AiDeepResearchRunModel', () => {
 
         const [query] = tracker.history.select;
         expect(query.sql).toContain(
-            'coalesce(octet_length(result_markdown), 0) > 0 as has_report',
+            'coalesce(octet_length(result_markdown), 0) > 0',
+        );
+        expect(query.sql).toContain(
+            'coalesce(\n                            report_expires_at',
         );
         expect(query.sql).not.toContain('select "result_markdown"');
         expect(query.bindings).toEqual([
@@ -166,6 +180,10 @@ describe('AiDeepResearchRunModel', () => {
         );
         expect(query.sql).not.toContain('select "result_markdown"');
         expect(query.sql).toContain('octet_length(result_markdown) > 0');
+        expect(query.sql).toContain(
+            'coalesce(report_expires_at, completed_at + interval',
+        );
+        expect(query.sql).toContain('"report_expired_at" is null');
         expect(query.bindings).toEqual([
             'thread-1',
             'organization-1',
@@ -190,6 +208,10 @@ describe('AiDeepResearchRunModel', () => {
             'select "ai_deep_research_run_uuid", "prompt", "result_markdown"',
         );
         expect(query.sql).toContain('octet_length(result_markdown) > 0');
+        expect(query.sql).toContain(
+            'coalesce(report_expires_at, completed_at + interval',
+        );
+        expect(query.sql).toContain('"report_expired_at" is null');
         expect(query.bindings).toEqual([
             RUN_UUID,
             'thread-1',
@@ -229,6 +251,39 @@ describe('AiDeepResearchRunModel', () => {
         );
         expect(tracker.history.insert).toHaveLength(0);
     });
+
+    it.each(['completed', 'partially_completed'] as const)(
+        'persists the 30-day report expiry when a run is %s',
+        async (status) => {
+            tracker.on
+                .update(AiDeepResearchRunsTableName)
+                .responseOnce([runRow({ status })]);
+            tracker.on.insert(AiDeepResearchEventsTableName).responseOnce([]);
+            tracker.on
+                .insert(AiDeepResearchAnalyticsOutboxTableName)
+                .responseOnce([]);
+
+            const updated =
+                status === 'completed'
+                    ? await model.markCompleted(RUN_UUID, reportMarkdown, {})
+                    : await model.markPartiallyCompleted(
+                          RUN_UUID,
+                          reportMarkdown,
+                          {},
+                          'query_limit',
+                      );
+
+            expect(updated).toBe(true);
+            const [update] = tracker.history.update;
+            expect(update.sql).toContain(
+                `"report_expires_at" = now() + interval '30 days'`,
+            );
+            expect(update.sql).toContain('"report_expired_at" = $');
+            expect(update.bindings).toEqual(
+                expect.arrayContaining([status, reportMarkdown, RUN_UUID]),
+            );
+        },
+    );
 
     it('deletes only an unstarted failed run so enqueue failures can retry', async () => {
         tracker.on.delete(AiDeepResearchRunsTableName).responseOnce(1);
@@ -329,5 +384,40 @@ describe('AiDeepResearchRunModel', () => {
         expect(tracker.history.insert).toHaveLength(4);
         expect(tracker.history.insert[2].bindings).toContain('internal_error');
         expect(tracker.history.insert[3].bindings).toContain('internal_error');
+    });
+
+    it('scrubs an expired report and its run-scoped provenance', async () => {
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([
+            {
+                ai_deep_research_run_uuid: RUN_UUID,
+                prompt_uuid: 'prompt-1',
+            },
+        ]);
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([
+            {
+                ai_deep_research_run_uuid: RUN_UUID,
+            },
+        ]);
+        tracker.on.select(AiAgentToolCallTableName).responseOnce([
+            {
+                ai_agent_tool_call_uuid: '00000000-0000-0000-0000-000000000003',
+                tool_call_id: 'tool-1',
+            },
+        ]);
+        tracker.on.delete(AiAgentToolResultTableName).responseOnce(1);
+        tracker.on.delete(AiAgentToolCallErrorTableName).responseOnce(0);
+        tracker.on.delete(AiAgentToolCallTableName).responseOnce(1);
+        tracker.on.update(AiDeepResearchRunsTableName).responseOnce(1);
+
+        const result = await model.cleanExpiredReports(100);
+
+        expect(result).toEqual({ scanned: 1, expired: 1, failed: 0 });
+        expect(tracker.history.delete).toHaveLength(3);
+        expect(tracker.history.update.at(-1)?.sql).toContain(
+            '"result_markdown" = $1',
+        );
+        expect(tracker.history.update.at(-1)?.sql).toContain(
+            '"result_chart_data" = $2',
+        );
     });
 });

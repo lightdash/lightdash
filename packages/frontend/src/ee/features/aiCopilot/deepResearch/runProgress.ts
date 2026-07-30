@@ -209,6 +209,9 @@ export const adaptDeepResearchRun = ({
             })),
         resultMarkdown: run.resultMarkdown,
         resultChartData: run.resultChartData,
+        reportExpiresAt: run.reportExpiresAt,
+        reportExpiredAt: run.reportExpiredAt,
+        isReportExpired: run.isReportExpired,
         errorMessage: run.errorMessage,
     };
 };

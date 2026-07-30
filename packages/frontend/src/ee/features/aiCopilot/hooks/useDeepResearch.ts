@@ -27,6 +27,7 @@ import {
     updateDeepResearchRun,
     useDeepResearchRunsForThread,
 } from '../deepResearch/deepResearchRegistry';
+import { getDeepResearchRunRefetchInterval } from '../deepResearch/runPolling';
 import {
     adaptDeepResearchRun,
     DEEP_RESEARCH_DEPTH_CONFIG,
@@ -392,9 +393,10 @@ export const useDeepResearchRun = (
             getDeepResearchRun(registration.projectUuid, registration.runUuid),
         enabled: registration.state === 'started',
         refetchInterval: (run) =>
-            run && isDeepResearchRunTerminal(run.status)
-                ? false
-                : DEEP_RESEARCH_POLL_INTERVAL_MS,
+            getDeepResearchRunRefetchInterval(
+                run,
+                DEEP_RESEARCH_POLL_INTERVAL_MS,
+            ),
     });
     const isRunActive = runQuery.data
         ? !isDeepResearchRunTerminal(runQuery.data.status)
