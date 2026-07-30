@@ -83,6 +83,7 @@ dayjs.extend(relativeTime);
 const FREQUENCY_LABEL: Record<Frequency, string> = {
     [Frequency.HOURLY]: 'Hourly',
     [Frequency.DAILY]: 'Daily',
+    [Frequency.WEEKDAYS]: 'Weekdays',
     [Frequency.WEEKLY]: 'Weekly',
     [Frequency.MONTHLY]: 'Monthly',
     [Frequency.CUSTOM]: 'Custom',
