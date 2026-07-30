@@ -253,14 +253,18 @@ const getBackoffDelay = (retryCount: number, baseDelayMs: number): number => {
 const getAppBrowserEndpoint = (
     browserEndpoint: string,
     size: { width: number; height: number },
+    internalHost?: string,
 ): string => {
     const endpoint = new URL(browserEndpoint);
-    endpoint.searchParams.set(
-        'launch',
-        JSON.stringify({
-            args: [`--window-size=${size.width},${size.height}`],
-        }),
-    );
+    const args = [`--window-size=${size.width},${size.height}`];
+    // App bundles call secure-context APIs (crypto.randomUUID in the SDK
+    // transport), which a plain-http internal host silently breaks.
+    if (internalHost?.startsWith('http://')) {
+        args.push(
+            `--unsafely-treat-insecure-origin-as-secure=${new URL(internalHost).origin}`,
+        );
+    }
+    endpoint.searchParams.set('launch', JSON.stringify({ args }));
     return endpoint.toString();
 };
 
@@ -1253,6 +1257,8 @@ export class UnfurlService extends BaseService {
                             ? getAppBrowserEndpoint(
                                   browserEndpoint,
                                   initialViewport,
+                                  this.lightdashConfig.headlessBrowser
+                                      .internalLightdashHost,
                               )
                             : browserEndpoint;
 
@@ -2346,6 +2352,7 @@ export class UnfurlService extends BaseService {
                 getAppBrowserEndpoint(
                     this.lightdashConfig.headlessBrowser.browserEndpoint,
                     appViewport,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
                 ),
                 { timeout: 1000 * 60 * 30 },
             );
@@ -2379,12 +2386,18 @@ export class UnfurlService extends BaseService {
                                 RequestMethod.HEADLESS_BROWSER,
                             'Lightdash-Headless-Browser-Context':
                                 ScreenshotContext.SCHEDULED_DELIVERY,
-                            'Lightdash-Headless-Browser-Context-Id':
+                            // String(): a non-string jobId (graphile ids can
+                            // surface as bigint) throws in route.continue.
+                            'Lightdash-Headless-Browser-Context-Id': String(
                                 contextId ?? 'undefined',
+                            ),
                         },
                     });
                 } catch {
-                    await route.fallback().catch(() => {});
+                    // Best effort only: a failed continue({headers}) pollutes
+                    // the request's fallback overrides, so no retry can resume
+                    // it — the String() above is the real safeguard.
+                    await route.continue().catch(() => {});
                 }
             });
 
