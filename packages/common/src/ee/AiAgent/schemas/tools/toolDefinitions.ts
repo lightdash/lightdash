@@ -1670,6 +1670,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,
     submitResearchReportToolDefinition,
+    submitResearchHypothesesToolDefinition,
+    submitInvestigationReportToolDefinition,
     findChartsToolDefinition,
     findDashboardsToolDefinition,
     generateBarVizConfigToolDefinition,
