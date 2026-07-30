@@ -132,7 +132,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
         );
 
-        act(() => result.current.setDataAppVizUuid('viz-2'));
+        act(() => result.current.setDataAppVizUuid('viz-2', {}));
 
         expect(result.current.optionValues).toEqual({});
         expect(onConfigChange).toHaveBeenCalledWith({
@@ -151,7 +151,7 @@ describe('useDataAppVizVisualizationConfig', () => {
         // The user picks another viz while a debounced control still holds an
         // edit; the control flushes it from its unmount cleanup, after the
         // switch has already committed.
-        act(() => result.current.setDataAppVizUuid('viz-2'));
+        act(() => result.current.setDataAppVizUuid('viz-2', {}));
         onConfigChange.mockClear();
         act(() => result.current.setOption('viz-1', 'title', 'Revenue'));
 

@@ -8,24 +8,35 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type CustomSqlDimension,
+    type DataAppViz,
     type DataAppVizConfigOption,
     type DataAppVizPaletteDeclaration,
     type DataAppVizField,
     type Item,
+    type ItemsMap,
     type TableCalculation,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { ConfigTabs } from './DataAppVizConfigTabs';
 
-const { fieldSelectItems } = vi.hoisted(() => ({
+type PickerProps = {
+    disabled: boolean;
+    onSelect: (dataAppViz: DataAppViz | null) => void;
+};
+
+const { fieldSelectItems, pickerProps } = vi.hoisted(() => ({
     fieldSelectItems: [] as Item[][],
+    pickerProps: [] as PickerProps[],
 }));
 
 vi.mock('../../../features/apps/components/DataAppVizLibraryPicker', () => ({
-    default: () => null,
+    default: (props: PickerProps) => {
+        pickerProps.push(props);
+        return <div data-testid="viz-picker" />;
+    },
 }));
 vi.mock('../../../features/apps/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
@@ -122,34 +133,42 @@ const mockSchema = (
     } as unknown as ReturnType<typeof useDataAppVisualization>);
 };
 
+const queryColumns: ItemsMap = {
+    orders_visible: makeDimension('visible', false),
+    orders_hidden: makeDimension('hidden', true),
+    orders_visible_metric: makeMetric('visible_metric', false),
+    orders_hidden_metric: makeMetric('hidden_metric', true),
+    'custom-dimension': customDimension,
+    table_calculation: tableCalculation,
+};
+
 describe('DataAppVizConfigTabs', () => {
     const setOption = vi.fn();
+    const setDataAppVizUuid = vi.fn();
 
-    beforeEach(() => {
-        fieldSelectItems.length = 0;
-        setOption.mockClear();
-        mockSchema([]);
+    const mockContext = (itemsMap: ItemsMap) =>
         vi.mocked(useVisualizationContext).mockReturnValue({
-            itemsMap: {
-                orders_visible: makeDimension('visible', false),
-                orders_hidden: makeDimension('hidden', true),
-                orders_visible_metric: makeMetric('visible_metric', false),
-                orders_hidden_metric: makeMetric('hidden_metric', true),
-                'custom-dimension': customDimension,
-                table_calculation: tableCalculation,
-            },
+            itemsMap,
             visualizationConfig: {
                 chartType: ChartType.DATA_APP_VIZ,
                 chartConfig: {
                     dataAppVizUuid: 'data-app-viz-uuid',
                     fieldMapping: {},
                     optionValues: {},
-                    setDataAppVizUuid: vi.fn(),
+                    setDataAppVizUuid,
                     setField: vi.fn(),
                     setOption,
                 },
             },
         } as unknown as ReturnType<typeof useVisualizationContext>);
+
+    beforeEach(() => {
+        fieldSelectItems.length = 0;
+        pickerProps.length = 0;
+        setOption.mockClear();
+        setDataAppVizUuid.mockClear();
+        mockSchema([]);
+        mockContext(queryColumns);
     });
 
     it('matches Explorer field visibility', () => {
@@ -184,6 +203,44 @@ describe('DataAppVizConfigTabs', () => {
         await user.click(screen.getByRole('tab', { name: 'Colours' }));
 
         expect(screen.getByTestId('color-palette-section')).toBeInTheDocument();
+    });
+
+    it('binds the picked viz contract to the query columns', () => {
+        renderWithProviders(<ConfigTabs />);
+
+        const picked = {
+            dataAppVizUuid: 'picked-uuid',
+            schema: {
+                fields: [
+                    ...declaredFields,
+                    {
+                        name: 'breakdown',
+                        label: 'Breakdown',
+                        type: 'series',
+                        required: false,
+                    },
+                ],
+                configOptions: [],
+                colorPalette: null,
+            },
+        } as unknown as DataAppViz;
+        act(() => pickerProps[pickerProps.length - 1].onSelect(picked));
+
+        expect(setDataAppVizUuid).toHaveBeenCalledWith('picked-uuid', {
+            source: 'orders_visible',
+            value: 'orders_visible_metric',
+            breakdown: 'custom-dimension',
+        });
+    });
+
+    it('will not offer the picker before the query has columns', () => {
+        mockContext({});
+        renderWithProviders(<ConfigTabs />);
+
+        expect(pickerProps[pickerProps.length - 1].disabled).toBe(true);
+        expect(
+            screen.getByText('Run your query to pick a visualization.'),
+        ).toBeInTheDocument();
     });
 
     it('fires setOption when a control changes', async () => {
