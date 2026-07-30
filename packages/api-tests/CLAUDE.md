@@ -11,7 +11,7 @@ backend.
 
 **Put a test here when it only needs the API.** If a behaviour can be verified
 through HTTP requests and assertions on the responses, it belongs in this
-package — not in a browser test. Reach for `packages/e2e` (Cypress) only when
+package — not in a browser test. Reach for `packages/e2e` (Playwright) only when
 the test genuinely needs the rendered UI (DOM assertions, clicks, drag-and-drop,
 chart rendering).
 

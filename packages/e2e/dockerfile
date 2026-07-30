@@ -1,3 +1,0 @@
-FROM cypress/browsers:node-24.13.1-chrome-144.0.7559.132-1-ff-147.0.3-edge-144.0.3719.115-1
-
-RUN apt-get update && apt-get install build-essential -y

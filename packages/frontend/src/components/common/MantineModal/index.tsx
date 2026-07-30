@@ -355,9 +355,14 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                     />
                                 </Paper>
                             ) : null}
-                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                            <Modal.Title
+                                c="ldDark.9"
+                                fw={700}
+                                fz="md"
+                                lh="28px"
+                            >
                                 {title}
-                            </Text>
+                            </Modal.Title>
                         </Group>
                         {headerActions ? (
                             <Group gap="sm" mr="md">
@@ -424,9 +429,14 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             px="xl"
                             py="md"
                         >
-                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                            <Modal.Title
+                                c="ldDark.9"
+                                fw={700}
+                                fz="md"
+                                lh="28px"
+                            >
                                 Unsaved changes
-                            </Text>
+                            </Modal.Title>
                             <Modal.CloseButton />
                         </Modal.Header>
                         <Modal.Body p={0}>

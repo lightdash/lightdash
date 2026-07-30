@@ -141,6 +141,7 @@ const UserAttributesPanel: FC = () => {
                                         variant="transparent"
                                         size="sm"
                                         color="ldGray.6"
+                                        aria-label={`Actions for ${attribute.name}`}
                                     >
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>

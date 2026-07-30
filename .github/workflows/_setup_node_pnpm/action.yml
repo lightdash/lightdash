@@ -1,0 +1,27 @@
+name: Setup Node and PNPM
+
+description: Sets up Node.js and PNPM.
+
+runs:
+    using: 'composite'
+    steps:
+        - name: Checkout
+          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+        - name: Setup Socket Firewall
+          uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+          with:
+              mode: firewall-free
+
+        - name: Setup PNPM
+          uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        - name: Setup Node
+          uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+          with:
+              node-version-file: '.nvmrc'
+              cache: 'pnpm'
+              cache-dependency-path: 'pnpm-lock.yaml'
+
+        - name: Install Dependencies
+          run: sfw pnpm install --frozen-lockfile --prefer-offline
+          shell: bash

@@ -129,7 +129,7 @@ const ExplorerHeader: FC = memo(() => {
               : 'Back to Dashboard';
 
     return (
-        <Group justify="space-between">
+        <Group justify="space-between" data-testid="ExplorerHeader">
             {typeof onBackToDashboard === 'function' && (
                 <Button
                     variant="light"
