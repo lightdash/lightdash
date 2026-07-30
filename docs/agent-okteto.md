@@ -10,6 +10,10 @@ Each opted-in session atomically claims a ready namespace from a shared pool, so
 multiple tasks can run without overwriting one another. The namespace remains
 claimed after the agent finishes so you can test the result.
 
+The manifest uses the stable development environment name `lightdash` so pool
+provisioning and agent synchronization update the same Okteto environment
+record regardless of the checkout directory name.
+
 ## What you need
 
 Ask a Lightdash administrator for the shared coding-agent Okteto token. This is
