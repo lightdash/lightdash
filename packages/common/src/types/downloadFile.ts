@@ -31,4 +31,7 @@ export type DownloadOptions = {
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    // Table chart "Show column total" — appends a warehouse-computed totals row
+    // to unpivoted exports. Pivoted exports carry it in `pivotConfig`.
+    showColumnTotals?: boolean;
 };

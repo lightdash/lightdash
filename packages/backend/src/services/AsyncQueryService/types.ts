@@ -60,6 +60,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     attachmentDownloadName?: string;
     expirationSecondsOverride?: number;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
 };
 
 export type ScheduleDownloadAsyncQueryResultsArgs = Omit<

@@ -12,6 +12,7 @@ import {
     getItemId,
     getItemMap,
     getPivotConfig,
+    getShowColumnTotalsFromChartConfig,
     getTotalFilterRules,
     getVisibleFields,
     isCartesianChartConfig,
@@ -1852,6 +1853,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
+                    showColumnTotals={getShowColumnTotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                 />
                 <ExportImageModal
                     echartRef={echartRef}
@@ -2145,6 +2149,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
+                    showColumnTotals={getShowColumnTotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                 />
             )}
             {canExportImages && (

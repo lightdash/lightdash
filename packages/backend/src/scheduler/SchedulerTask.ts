@@ -42,6 +42,7 @@ import {
     getRequestMethod,
     getSchedulerResourceTypeAndId,
     getSchedulerUuid,
+    getShowColumnTotalsFromChartConfig,
     getSourceSchedulerUuid,
     GoogleSheetsQuotaError,
     GoogleSheetsTransientError,
@@ -961,6 +962,10 @@ export default class SchedulerTask {
                                         getConditionalFormattingsFromChartConfig(
                                             chart.chartConfig.config,
                                         ),
+                                    showColumnTotals:
+                                        getShowColumnTotalsFromChartConfig(
+                                            chart.chartConfig.config,
+                                        ),
                                     expirationSecondsOverride,
                                 },
                                 SCHEDULER_POLLING_OPTIONS,
@@ -1150,6 +1155,10 @@ export default class SchedulerTask {
                                             chart.tableConfig.columnOrder,
                                         conditionalFormattings:
                                             getConditionalFormattingsFromChartConfig(
+                                                chart.chartConfig.config,
+                                            ),
+                                        showColumnTotals:
+                                            getShowColumnTotalsFromChartConfig(
                                                 chart.chartConfig.config,
                                             ),
                                         expirationSecondsOverride,

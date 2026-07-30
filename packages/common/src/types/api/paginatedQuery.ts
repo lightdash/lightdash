@@ -134,6 +134,7 @@ export type DownloadAsyncQueryResultsRequestParams = {
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
 };
 
 export type ExecuteAsyncFieldValueSearchRequestParams =

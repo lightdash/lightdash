@@ -796,6 +796,7 @@ export class ExcelService {
         timezone?: string,
         conditionalFormattings?: ConditionalFormattingConfig[],
         minMaxMap?: ConditionalFormattingMinMaxMap,
+        columnTotals?: Record<string, number>,
     ): Promise<{ truncated: boolean }> {
         // Use the same approach as our working tests - direct filename instead of stream
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
@@ -883,6 +884,22 @@ export class ExcelService {
             maxLines: ExcelService.EXCEL_ROW_LIMIT,
         });
 
+        if (columnTotals && Object.keys(columnTotals).length > 0) {
+            const totalsRow: Record<string, string | number> = {};
+            sortedFieldIds.forEach((fieldId, colIndex) => {
+                const total = columnTotals[fieldId];
+                if (total !== undefined) {
+                    totalsRow[`col_${colIndex}`] = total;
+                }
+            });
+            // Label the row like the table footer does, as long as the first
+            // column has no total of its own to show.
+            if (totalsRow.col_0 === undefined) {
+                totalsRow.col_0 = 'Total';
+            }
+            worksheet.addRow(totalsRow).commit();
+        }
+
         // Commit Excel to temp file
         worksheet.commit();
         await workbook.commit();
@@ -909,6 +926,8 @@ export class ExcelService {
             hiddenFields?: string[];
             attachmentDownloadName?: string;
             conditionalFormattings?: ConditionalFormattingConfig[];
+            // Warehouse-computed totals appended as a final row, keyed by field id
+            columnTotals?: Record<string, number>;
         } = {},
         timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
@@ -921,6 +940,7 @@ export class ExcelService {
             hiddenFields = [],
             attachmentDownloadName,
             conditionalFormattings,
+            columnTotals,
         } = options;
 
         const { resultsStorageClient, exportsStorageClient } = clients;
@@ -968,6 +988,7 @@ export class ExcelService {
                 timezone,
                 conditionalFormattings,
                 minMaxMap,
+                columnTotals,
             );
 
             // Generate filename with truncated flag

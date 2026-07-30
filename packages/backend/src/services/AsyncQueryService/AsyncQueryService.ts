@@ -1348,6 +1348,41 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * Column totals for an export, keyed by field id. For a pivoted source this
+     * is one total per rendered value column; for a plain table the
+     * `calculate-total` query collapses to a single grand-total row, which is
+     * exactly the footer the table chart shows. Returns undefined when the
+     * totals query fails so the export still succeeds without them.
+     */
+    private async getExportColumnTotals({
+        account,
+        projectUuid,
+        sourceQueryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        sourceQueryUuid: string;
+    }): Promise<Record<string, number> | undefined> {
+        try {
+            const { rows, fields } =
+                await this.executeCalculateTotalAndGetResults({
+                    account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                    kind: 'columnTotal',
+                });
+            return buildWarehouseColumnTotals(formatRows(rows, fields));
+        } catch (error) {
+            this.logger.warn('Failed to compute column totals for export', {
+                projectUuid,
+                sourceQueryUuid,
+                error: getErrorMessage(error),
+            });
+            return undefined;
+        }
+    }
+
+    /**
      * Pivot totals are exclusively warehouse-computed — the export renderer has
      * no client-side fallback, so without this they come out blank. Mirrors the
      * UI: re-run the source query collapsed across the pivot (`calculate-total`)
@@ -1377,27 +1412,11 @@ export class AsyncQueryService extends ProjectService {
         let warehouseGrandTotals: Record<string, number> | undefined;
 
         if (pivotConfig.columnTotals) {
-            try {
-                const { rows, fields } =
-                    await this.executeCalculateTotalAndGetResults({
-                        account,
-                        projectUuid,
-                        queryUuid: sourceQueryUuid,
-                        kind: 'columnTotal',
-                    });
-                warehouseColumnTotals = buildWarehouseColumnTotals(
-                    formatRows(rows, fields),
-                );
-            } catch (error) {
-                this.logger.warn(
-                    'Failed to compute column totals for pivot export',
-                    {
-                        projectUuid,
-                        sourceQueryUuid,
-                        error: getErrorMessage(error),
-                    },
-                );
-            }
+            warehouseColumnTotals = await this.getExportColumnTotals({
+                account,
+                projectUuid,
+                sourceQueryUuid,
+            });
         }
 
         const { indexColumn } = pivotDetails;
@@ -1477,6 +1496,7 @@ export class AsyncQueryService extends ProjectService {
         attachmentDownloadName,
         expirationSecondsOverride,
         conditionalFormattings,
+        showColumnTotals = false,
     }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
 
@@ -1771,6 +1791,13 @@ export class AsyncQueryService extends ProjectService {
                               hiddenFields,
                               attachmentDownloadName,
                               conditionalFormattings,
+                              columnTotals: showColumnTotals
+                                  ? await this.getExportColumnTotals({
+                                        account,
+                                        projectUuid,
+                                        sourceQueryUuid: queryUuid,
+                                    })
+                                  : undefined,
                           },
                           displayTimezone ?? undefined,
                       );
