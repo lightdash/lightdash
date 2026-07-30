@@ -1,4 +1,4 @@
-import { Knex } from 'knex';
+import type { Knex } from 'knex';
 
 const aiOrganizationSettings = 'ai_organization_settings';
 

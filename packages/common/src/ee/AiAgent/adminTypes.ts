@@ -324,7 +324,7 @@ export type AiOrganizationSettings = {
     aiAgentsVisible: boolean;
     aiAgentReviewsEnabled: boolean;
     mcpContentWritesEnabled: boolean;
-    requireExplicitSlackChannelLinking: boolean;
+    requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
     modelVisibility?: AiOrgModelVisibility | null;

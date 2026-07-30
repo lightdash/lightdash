@@ -33,6 +33,7 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
+import classes from './AiGeneralSettingsPage.module.css';
 import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
@@ -371,12 +372,7 @@ export const AiGeneralSettingsPage = () => {
                     </SettingsCard>
 
                     <SettingsCard>
-                        <Group
-                            justify="space-between"
-                            wrap="nowrap"
-                            align="flex-start"
-                            gap="md"
-                        >
+                        <Group className={classes.settingRow}>
                             <Box maw={620}>
                                 <Title order={5} mb={4}>
                                     Disable adding AI agents to channels from
@@ -395,7 +391,8 @@ export const AiGeneralSettingsPage = () => {
                             <Switch
                                 size="md"
                                 checked={
-                                    settings.requireExplicitSlackChannelLinking
+                                    settings.requireExplicitSlackChannelLinking ??
+                                    false
                                 }
                                 disabled={isUpdatingSettings}
                                 onChange={(event) =>

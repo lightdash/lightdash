@@ -1,6 +1,5 @@
 import {
     defineUserAbility,
-    ForbiddenError,
     OrganizationMemberRole,
     type SessionUser,
 } from '@lightdash/common';
@@ -109,7 +108,12 @@ describe('linkAgentToSlackChannel strict mode', () => {
 
         await expect(
             service.linkAgentToSlackChannel(adminUser, AGENT_UUID, CHANNEL_ID),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toMatchObject({
+            message: expect.stringContaining(
+                'requires channels to be added from the agent settings page',
+            ),
+            data: { reason: 'explicit_slack_channel_linking_required' },
+        });
         expect(aiAgentModel.addSlackChannelIntegration).not.toHaveBeenCalled();
     });
 
