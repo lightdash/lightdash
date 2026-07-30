@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { mergeChatMessages, type ChatMessage } from './mergeChatMessages';
+import { mergeChatMessages, type ChatMessage } from './chatMessage';
 
 const baseMessage: ChatMessage = {
     role: 'user',
+    status: null,
     content: '',
     imagePreviewUrls: [],
     imageResourceIds: [],
@@ -11,7 +12,6 @@ const baseMessage: ChatMessage = {
     externalConnections: [],
     dashboardName: null,
     clarifications: [],
-    appUuid: null,
     version: null,
     timestamp: new Date('2026-05-15T10:00:00Z'),
     userName: 'Test User',
