@@ -1,3 +1,10 @@
+## [1.38.2](https://github.com/lightdash/lightdash/compare/1.38.1...1.38.2) (2026-07-30)
+
+
+### Bug Fixes
+
+* scope data app bridge queries to their project ([#26511](https://github.com/lightdash/lightdash/issues/26511)) ([c61f990](https://github.com/lightdash/lightdash/commit/c61f990744fc6a201de296b238244489342f1fd6))
+
 ## [1.38.1](https://github.com/lightdash/lightdash/compare/1.38.0...1.38.1) (2026-07-29)
 
 
