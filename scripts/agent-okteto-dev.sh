@@ -616,9 +616,10 @@ start_environment() {
         save_active_namespace
         ensure_namespace
         echo "No ready pooled environment was available; deploying one now..."
-        if ! DEV_WARM_IMAGE="$ACTIVE_WARM_IMAGE" okteto deploy \
+        if ! okteto deploy \
             -f "$OKTETO_MANIFEST" \
             -n "$OKTETO_NAMESPACE" \
+            --var "DEV_WARM_IMAGE=$ACTIVE_WARM_IMAGE" \
             --wait \
             --timeout 8m; then
             fail "Okteto deployment failed in $OKTETO_NAMESPACE."
