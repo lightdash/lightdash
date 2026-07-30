@@ -91,6 +91,9 @@ export type AgentOnboardingRun = {
 
 export type ApiAgentOnboardingRunResponse = ApiSuccess<AgentOnboardingRun>;
 
+export type ApiAgentOnboardingActiveRunResponse =
+    ApiSuccess<AgentOnboardingRun | null>;
+
 export type ApiAgentOnboardingFileResponse =
     ApiSuccess<AgentOnboardingFileContent>;
 
