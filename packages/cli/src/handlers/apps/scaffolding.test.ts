@@ -86,6 +86,16 @@ describe('buildStaticAuthoringFiles', () => {
         expect(text('.gitignore')).toContain('node_modules');
     });
 
+    it('uses npm for the standard local workflow', () => {
+        expect(text('README.md')).toContain('npm install && npm run build');
+        expect(text('AGENTS.md')).toContain('npm install && npm run build');
+        expect(
+            text('.claude/skills/developing-data-apps-locally/SKILL.md'),
+        ).toContain('`npm install` then `npm run build`');
+        expect(text('.npmrc')).toContain('ignore-scripts=true');
+        expect(text('.npmrc')).not.toContain('shamefully-hoist');
+    });
+
     it('never writes app source (no src/ files)', () => {
         expect(files.every((f) => !f.path.startsWith('src/'))).toBe(true);
     });

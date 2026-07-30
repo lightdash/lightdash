@@ -445,17 +445,30 @@ describe('useAppSdkBridge', () => {
         );
     });
 
-    it('blocks SDK queries targeting a different project', () => {
+    it('blocks SDK routes aimed at a different project', async () => {
         renderBridge(() => undefined);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
 
         dispatchFetchMessage({
             type: 'lightdash:sdk:fetch',
             id: POST_ID,
             method: 'POST',
-            path: '/api/v2/projects/another-project/query/metric-query',
+            path: '/api/v2/projects/other-project/query/metric-query',
             body: { query: METRIC_QUERY },
         });
 
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: expect.stringContaining(
+                        'request targets project other-project',
+                    ),
+                }),
+                '*',
+            ),
+        );
         expect(fetch).not.toHaveBeenCalled();
     });
 
