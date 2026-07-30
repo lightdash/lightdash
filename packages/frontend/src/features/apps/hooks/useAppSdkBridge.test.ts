@@ -1323,7 +1323,13 @@ describe('delivery capture accumulator integration', () => {
         pollQueryResult();
         await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
 
-        const manifest = await deliveryCapture.getManifest();
+        // fetch having been called doesn't mean the bridge has read the body
+        // yet, so wait on the accumulator rather than on the fetch count.
+        const manifest = await vi.waitFor(async () => {
+            const current = await deliveryCapture.getManifest();
+            expect(current.items[0]?.status).toBe('ready');
+            return current;
+        });
         expect(manifest.items).toHaveLength(1);
         expect(manifest.items[0]).toMatchObject({
             status: 'ready',
@@ -1404,7 +1410,11 @@ describe('delivery capture accumulator integration', () => {
         });
         await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
 
-        const manifest = await deliveryCapture.getManifest();
+        const manifest = await vi.waitFor(async () => {
+            const current = await deliveryCapture.getManifest();
+            expect(current.items[0]?.status).toBe('ready');
+            return current;
+        });
         expect(manifest.items).toHaveLength(1);
         expect(manifest.items[0]).toMatchObject({
             status: 'ready',

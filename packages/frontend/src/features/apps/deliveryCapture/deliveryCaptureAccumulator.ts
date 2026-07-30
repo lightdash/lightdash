@@ -6,6 +6,7 @@ import {
     type DeliveryCaptureManifest,
 } from '@lightdash/common';
 import isPlainObject from 'lodash/isPlainObject';
+import { sha256Hex } from './sha256';
 import { stableStringify, stripCaptureBodyFields } from './stableStringify';
 
 export type DeliveryCaptureAccumulator = {
@@ -31,7 +32,7 @@ export type DeliveryCaptureAccumulator = {
             | { status: 'ready'; rowCount: number | null }
             | { status: 'error'; error: string },
     ): void;
-    /** Awaits in-flight sha256 work, applies display-label suffixes, caps.
+    /** Applies display-label suffixes and caps.
      *  A partial capture must never look complete: entries still `pending`
      *  when this resolves are surfaced as `error` items, not dropped. */
     getManifest(): Promise<DeliveryCaptureManifest>;
@@ -46,20 +47,11 @@ type CaptureEntry = {
     exploreName: string | null;
     limit: number | undefined;
     status: 'pending' | 'ready' | 'error';
-    /** Filled in once the async digest resolves; null briefly after creation. */
-    captureKey: string | null;
+    captureKey: string;
     queryUuid: string | null;
     rowCount: number | null;
     limitReached: boolean;
     error: string | null;
-};
-
-const sha256Hex = async (input: string): Promise<string> => {
-    const bytes = new TextEncoder().encode(input);
-    const digest = await crypto.subtle.digest('SHA-256', bytes);
-    return Array.from(new Uint8Array(digest))
-        .map((byte) => byte.toString(16).padStart(2, '0'))
-        .join('');
 };
 
 /** Metric-query bodies carry `query.exploreName`/`query.limit` synchronously
@@ -96,13 +88,12 @@ const applyDisplaySuffix = (base: string, occurrence: number): string => {
 
 export const createDeliveryCaptureAccumulator =
     (): DeliveryCaptureAccumulator => {
-        // Keyed by the pre-hash stableStringify input (synchronous) — lets
-        // onInitiation dedupe/replace-in-place without waiting on the digest.
+        // Keyed by the pre-hash stableStringify input — cheaper to compare than
+        // the digest, and lets onInitiation dedupe/replace-in-place.
         let entriesByRawKey = new Map<string, CaptureEntry>();
         let requestIdToEntry = new Map<string, CaptureEntry>();
         let uuidToEntry = new Map<string, CaptureEntry>();
         let droppedKeys = new Set<string>();
-        let pendingHashWork = new Set<Promise<void>>();
         let nextOrder = 0;
 
         const onInitiation: DeliveryCaptureAccumulator['onInitiation'] = ({
@@ -131,7 +122,7 @@ export const createDeliveryCaptureAccumulator =
                     exploreName: null,
                     limit: undefined,
                     status: 'pending',
-                    captureKey: null,
+                    captureKey: `${CAPTURE_KEY_VERSION}:${sha256Hex(rawKey)}`,
                     queryUuid: null,
                     rowCount: null,
                     limitReached: false,
@@ -139,15 +130,6 @@ export const createDeliveryCaptureAccumulator =
                 };
                 nextOrder += 1;
                 entriesByRawKey.set(rawKey, entry);
-
-                // Same rawKey always hashes to the same value, so writing
-                // captureKey here is race-free regardless of resolution order.
-                const settledEntry = entry;
-                const work = sha256Hex(rawKey).then((hex) => {
-                    settledEntry.captureKey = `${CAPTURE_KEY_VERSION}:${hex}`;
-                });
-                pendingHashWork.add(work);
-                void work.finally(() => pendingHashWork.delete(work));
             }
 
             // Replace in place: keep `order`/`captureKey`, reset per-execution
@@ -229,8 +211,6 @@ export const createDeliveryCaptureAccumulator =
 
         const getManifest: DeliveryCaptureAccumulator['getManifest'] =
             async () => {
-                await Promise.all(pendingHashWork);
-
                 const ordered = [...entriesByRawKey.values()].sort(
                     (a, b) => a.order - b.order,
                 );
@@ -243,7 +223,7 @@ export const createDeliveryCaptureAccumulator =
                         (labelOccurrences.get(baseLabel) ?? 0) + 1;
                     labelOccurrences.set(baseLabel, occurrence);
                     const label = applyDisplaySuffix(baseLabel, occurrence);
-                    const captureKey = entry.captureKey ?? '';
+                    const { captureKey } = entry;
 
                     if (entry.status === 'ready') {
                         items.push({
@@ -286,7 +266,6 @@ export const createDeliveryCaptureAccumulator =
             requestIdToEntry = new Map();
             uuidToEntry = new Map();
             droppedKeys = new Set();
-            pendingHashWork = new Set();
             // So a post-reset capture's first unlabeled query reads "Query 1"
             // again, not a number carried over from the previous capture.
             nextOrder = 0;

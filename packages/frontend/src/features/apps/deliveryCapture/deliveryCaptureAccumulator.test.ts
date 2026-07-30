@@ -256,18 +256,11 @@ describe('deliveryCaptureAccumulator', () => {
         expect(manifest.items[0].queryUuid).toBe('u2');
     });
 
-    it('order is assigned synchronously in onInitiation, independent of hash resolution order', async () => {
-        // Mock digest so the SECOND initiation's hash resolves before the FIRST's,
-        // and confirm capture order still reflects call order, not resolution order.
-        const resolvers: Array<(value: ArrayBuffer) => void> = [];
-        const digestSpy = vi
-            .spyOn(globalThis.crypto.subtle, 'digest')
-            .mockImplementation(
-                () =>
-                    new Promise<ArrayBuffer>((resolve) => {
-                        resolvers.push(resolve);
-                    }),
-            );
+    it('captureKey and order are assigned synchronously in onInitiation, without crypto.subtle', async () => {
+        // crypto.subtle is undefined outside secure contexts, and the headless
+        // browser loads the minimal app over plain HTTP — hashing must be
+        // synchronous and pure JS, with no digest work left to await.
+        const digestSpy = vi.spyOn(globalThis.crypto.subtle, 'digest');
 
         const acc = createDeliveryCaptureAccumulator();
         acc.onInitiation({
@@ -285,26 +278,33 @@ describe('deliveryCaptureAccumulator', () => {
             label: null,
         });
 
-        expect(resolvers).toHaveLength(2);
-        // Resolve out of call order: second's digest settles first.
-        const fakeDigest = (byte: number) => {
-            const buf = new Uint8Array(32).fill(byte);
-            return buf.buffer;
-        };
-        resolvers[1](fakeDigest(2));
-        resolvers[0](fakeDigest(1));
-
         acc.onPostResponse('first', { queryUuid: 'u-first' });
         acc.onPostResponse('second', { queryUuid: 'u-second' });
         acc.onTerminal('u-first', { status: 'ready', rowCount: 1 });
         acc.onTerminal('u-second', { status: 'ready', rowCount: 2 });
 
-        const manifest = await acc.getManifest();
+        // getManifest() awaits nothing, so its continuation is queued ahead of
+        // a microtask scheduled right after it.
+        const settleOrder: string[] = [];
+        const manifestPromise = acc.getManifest().then((manifest) => {
+            settleOrder.push('manifest');
+            return manifest;
+        });
+        void Promise.resolve().then(() => settleOrder.push('microtask'));
+
+        const manifest = await manifestPromise;
+        expect(settleOrder).toEqual(['manifest', 'microtask']);
+        expect(digestSpy).not.toHaveBeenCalled();
+
         expect(manifest.items).toHaveLength(2);
         const first = manifest.items.find((i) => i.queryUuid === 'u-first');
         const second = manifest.items.find((i) => i.queryUuid === 'u-second');
         expect(first?.order).toBe(0);
         expect(second?.order).toBe(1);
+        const keyPattern = new RegExp(`^${CAPTURE_KEY_VERSION}:[0-9a-f]{64}$`);
+        expect(first?.captureKey).toMatch(keyPattern);
+        expect(second?.captureKey).toMatch(keyPattern);
+        expect(first?.captureKey).not.toBe(second?.captureKey);
 
         digestSpy.mockRestore();
     });
