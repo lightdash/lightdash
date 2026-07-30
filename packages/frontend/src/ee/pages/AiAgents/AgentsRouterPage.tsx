@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
@@ -14,7 +15,11 @@ import {
     Title,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconChevronRight, IconInfoCircle } from '@tabler/icons-react';
+import {
+    IconChevronRight,
+    IconInfoCircle,
+    IconNotebook,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     useLocation,
@@ -25,6 +30,7 @@ import {
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AgentSettingsSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
@@ -35,6 +41,7 @@ import {
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { getPromptContextItemKey } from '../../features/aiCopilot/components/ChatElements/contentReferenceUtils';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
+import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
@@ -69,6 +76,10 @@ const AgentsRouterPage = () => {
     });
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
+    const { data: memoryFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAgentMemory,
+    );
 
     const [sqlMode, setSqlMode] = useState(true);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
@@ -288,14 +299,37 @@ const AgentsRouterPage = () => {
             }
         >
             <Box className={classes.routerView}>
-                {canManageAgents && (
-                    <AgentSettingsSelector
-                        agents={agents ?? []}
-                        projectUuid={projectUuid!}
-                        askAiSettingsHref={settingsHref}
-                        className={classes.routerSettingsButton}
-                    />
-                )}
+                <Group gap={4} className={classes.routerActions}>
+                    {memoryFlag?.enabled && (
+                        <UnstyledButton
+                            type="button"
+                            className={classes.memoriesButton}
+                            onClick={() => setIsMemoriesModalOpen(true)}
+                        >
+                            <Group gap={6} wrap="nowrap" align="center">
+                                <MantineIcon
+                                    icon={IconNotebook}
+                                    size="sm"
+                                    color="ldGray.6"
+                                />
+                                <Text size="xs">Memories</Text>
+                            </Group>
+                        </UnstyledButton>
+                    )}
+                    {canManageAgents && (
+                        <AgentSettingsSelector
+                            agents={agents ?? []}
+                            projectUuid={projectUuid!}
+                            askAiSettingsHref={settingsHref}
+                        />
+                    )}
+                </Group>
+
+                <MyMemoriesModal
+                    opened={isMemoriesModalOpen}
+                    onClose={() => setIsMemoriesModalOpen(false)}
+                    projectUuid={projectUuid!}
+                />
 
                 <Center h="100%">
                     <Stack

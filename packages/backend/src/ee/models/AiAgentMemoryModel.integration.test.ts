@@ -643,6 +643,123 @@ describe('AiAgentMemoryModel integration', () => {
         );
     });
 
+    it('paginates only the owner active memories in the project', async () => {
+        const [
+            newerThread,
+            olderThread,
+            retiredThread,
+            supersededThread,
+            otherUserThread,
+        ] = await Promise.all([
+            createThread(),
+            createThread(),
+            createThread(),
+            createThread(),
+            createThread(),
+        ]);
+        const newerActive = await model.upsertSourceThreadMemory(
+            memoryInput(newerThread, {
+                title: 'Net revenue convention',
+                generatedAt: new Date('2026-07-22T12:00:00Z'),
+            }),
+        );
+        const olderActive = await model.upsertSourceThreadMemory(
+            memoryInput(olderThread, {
+                title: 'Fiscal year offset',
+                generatedAt: new Date('2026-07-22T11:00:00Z'),
+            }),
+        );
+        const retired = await model.upsertSourceThreadMemory(
+            memoryInput(retiredThread, {
+                title: 'Legacy tiering',
+                generatedAt: new Date('2026-07-22T10:00:00Z'),
+            }),
+        );
+        const superseded = await model.upsertSourceThreadMemory(
+            memoryInput(supersededThread, {
+                title: 'Replaced convention',
+                generatedAt: new Date('2026-07-22T09:00:00Z'),
+            }),
+        );
+        const otherUserActive = await model.upsertSourceThreadMemory(
+            memoryInput(otherUserThread, {
+                title: 'Editor convention',
+                userUuid: SEED_ORG_1_EDITOR.user_uuid,
+                generatedAt: new Date('2026-07-22T13:00:00Z'),
+            }),
+        );
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', retired.ai_agent_memory_uuid)
+            .update({ status: 'retired' });
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', superseded.ai_agent_memory_uuid)
+            .update({
+                status: 'superseded',
+                superseded_by_uuid: newerActive.ai_agent_memory_uuid,
+            });
+        await database(AiAgentMemoryTableName)
+            .where('ai_agent_memory_uuid', olderActive.ai_agent_memory_uuid)
+            .update({ cited_count: 5 });
+
+        const ownerArgs = {
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: SEED_ORG_1_ADMIN.user_uuid,
+        };
+        const listAll = await model.findUserMemoriesPaginated({
+            ...ownerArgs,
+            paginateArgs: { page: 1, pageSize: 50 },
+        });
+        const listedUuids = listAll.data.memories.map((memory) => memory.uuid);
+        const created = [
+            newerActive.ai_agent_memory_uuid,
+            olderActive.ai_agent_memory_uuid,
+            retired.ai_agent_memory_uuid,
+            superseded.ai_agent_memory_uuid,
+            otherUserActive.ai_agent_memory_uuid,
+        ];
+        // cited_count desc first (older memory has 5), generated_at desc breaks ties
+        expect(listedUuids.filter((uuid) => created.includes(uuid))).toEqual([
+            olderActive.ai_agent_memory_uuid,
+            newerActive.ai_agent_memory_uuid,
+        ]);
+        expect(listedUuids).not.toContain(retired.ai_agent_memory_uuid);
+        expect(listedUuids).not.toContain(superseded.ai_agent_memory_uuid);
+        expect(listedUuids).not.toContain(otherUserActive.ai_agent_memory_uuid);
+        expect(
+            listAll.data.memories.every((memory) => memory.status === 'active'),
+        ).toBe(true);
+        expect(listAll.data.memories[0]).toMatchObject({
+            uuid: olderActive.ai_agent_memory_uuid,
+            slug: olderActive.slug,
+            title: 'Fiscal year offset',
+            status: 'active',
+            sourceThreadUuid: olderThread,
+            citedCount: 5,
+        });
+
+        // the count query is built from the same predicates
+        expect(listAll.pagination?.totalResults).toBe(listedUuids.length);
+
+        const firstPage = await model.findUserMemoriesPaginated({
+            ...ownerArgs,
+            paginateArgs: { page: 1, pageSize: 1 },
+        });
+        expect(firstPage.data.memories.map((memory) => memory.uuid)).toEqual([
+            olderActive.ai_agent_memory_uuid,
+        ]);
+        expect(firstPage.pagination?.totalResults).toBe(
+            listAll.pagination?.totalResults,
+        );
+
+        const otherProject = await model.findUserMemoriesPaginated({
+            ...ownerArgs,
+            projectUuid: crypto.randomUUID(),
+            paginateArgs: { page: 1, pageSize: 50 },
+        });
+        expect(otherProject.data.memories).toEqual([]);
+    });
+
     it('returns only active project memories in citation then generation order', async () => {
         const [firstThread, secondThread, thirdThread, retiredThread] =
             await Promise.all([

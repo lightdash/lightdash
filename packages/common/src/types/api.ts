@@ -36,6 +36,7 @@ import type {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
+    ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
@@ -1254,6 +1255,7 @@ type ApiResults =
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
     | ApiAiAgentMemoryResponse['results']
+    | ApiAiAgentUserMemoriesResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiAiAgentArtifactVizQueryResponse['results']

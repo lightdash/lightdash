@@ -377,6 +377,37 @@ export type AiAgentMemory = {
 
 export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
 
+/** A memory list row as its owner sees it. Not shared with the admin list row. */
+export type AiAgentUserMemoryItem = {
+    uuid: string;
+    slug: string;
+    title: string;
+    // Memory body, truncated server-side for the list view
+    summary: string;
+    status: AiAgentMemoryStatus;
+    scope: AiAgentMemoryScope;
+    // Null when the memory was consolidated across agents
+    agent: {
+        uuid: string;
+        name: string;
+        imageUrl: string | null;
+    } | null;
+    sourceThreadUuid: string | null;
+    citedCount: number;
+    lastCitedAt: string | null;
+    pulledCount: number;
+    lastPulledAt: string | null;
+    generatedAt: string;
+};
+
+export type AiAgentUserMemoriesSummary = {
+    memories: AiAgentUserMemoryItem[];
+};
+
+export type ApiAiAgentUserMemoriesResponse = ApiSuccess<
+    KnexPaginatedData<AiAgentUserMemoriesSummary>
+>;
+
 /**
  * One curated memory as the consolidation curator sees it. Slug is the only
  * identifier; thread summaries and usage counters are deliberately absent.
