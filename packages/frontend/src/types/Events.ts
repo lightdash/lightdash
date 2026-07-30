@@ -212,5 +212,9 @@ export enum EventName {
     HOMEPAGE_RECOMMENDED_ACTION_RESTORED = 'homepage_recommended_action.restored',
     HOMEPAGE_STARS_MEDIA_CARD_CLICKED = 'homepage_stars_media_card.clicked',
     AGENT_SETUP_PROMPT_COPIED = 'agent_setup_prompt.copied',
+    AGENT_ONBOARDING_DEMO_OFFER_SHOWN = 'agent_onboarding_demo_offer.shown',
+    AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED = 'agent_onboarding_demo_offer.accepted',
+    AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN = 'agent_onboarding_completion_toast.shown',
+    AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED = 'agent_onboarding_completion_toast.clicked',
     CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED = 'create_project_columns_defined_button.click',
 }

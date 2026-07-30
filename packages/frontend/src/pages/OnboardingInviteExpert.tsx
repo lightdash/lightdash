@@ -277,7 +277,9 @@ const OnboardingInviteExpert: FC = () => {
 
     const preparePlayground = async () => {
         try {
-            const { projectUuid } = await ensurePlaygroundAsync();
+            const { projectUuid } = await ensurePlaygroundAsync({
+                trigger: 'invite_expert',
+            });
             track({
                 name: EventName.PLAYGROUND_PROJECT_ENTERED,
                 properties: {

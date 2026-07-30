@@ -817,11 +817,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         user,
                         projectService,
                         canViewProject,
+                        trigger,
                     }) =>
                         provisionPlaygroundProject({
                             user,
                             projectService,
                             canViewProject,
+                            trigger,
                             featureFlagService:
                                 repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),

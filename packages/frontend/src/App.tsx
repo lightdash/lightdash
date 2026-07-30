@@ -7,6 +7,7 @@ import {
     CommercialMobileRoutes,
     CommercialWebAppRoutes,
 } from './ee/CommercialRoutes';
+import { AgentOnboardingCompletionWatcher } from './ee/features/agentOnboarding/AgentOnboardingCompletionWatcher';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
 import { installChunkLoadErrorHandler } from './features/chunkErrorHandler';
@@ -70,6 +71,7 @@ const router = sentryCreateBrowserRouter([
                                             <ChartColorMappingContextProvider>
                                                 <SourceCodeEditorProvider>
                                                     <AiAgentsGlobalProvider>
+                                                        <AgentOnboardingCompletionWatcher />
                                                         <Outlet />
                                                     </AiAgentsGlobalProvider>
                                                 </SourceCodeEditorProvider>

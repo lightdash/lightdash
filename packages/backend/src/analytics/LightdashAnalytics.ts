@@ -45,6 +45,7 @@ import {
     type AppVersionDependencyEntry,
     type DataAppClaudeModel,
     type DataAppTemplate,
+    type PlaygroundProjectTrigger,
     type PullRequestProvider,
 } from '@lightdash/common';
 import Analytics, {
@@ -942,7 +943,7 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
-        trigger: 'invite_expert';
+        trigger: PlaygroundProjectTrigger;
         onboardingFlow: OnboardingFlow;
         catalogIndexErrorType: string | null;
     };
@@ -961,7 +962,7 @@ type PlaygroundProjectSkippedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string | null;
-        trigger: 'invite_expert';
+        trigger: PlaygroundProjectTrigger;
         onboardingFlow: OnboardingFlow;
         reason: PlaygroundProjectSkippedReason;
     };
@@ -973,7 +974,7 @@ type PlaygroundProjectFailedEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string | null;
-        trigger: 'invite_expert';
+        trigger: PlaygroundProjectTrigger;
         onboardingFlow: OnboardingFlow;
         errorType: string;
     };

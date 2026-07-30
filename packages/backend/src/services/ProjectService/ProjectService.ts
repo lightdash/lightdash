@@ -129,6 +129,7 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    PlaygroundProjectTrigger,
     PreAggregateCheckResult,
     PreAggregateMatchMiss,
     PreAggregateMissReason,
@@ -369,6 +370,7 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectService: ProjectService;
         canViewProject: (project: OrganizationProject) => boolean;
+        trigger: PlaygroundProjectTrigger;
     }) => Promise<EnsurePlaygroundProjectResults>;
 };
 
@@ -583,6 +585,7 @@ export class ProjectService extends BaseService {
 
     async ensurePlaygroundProject(
         user: SessionUser,
+        trigger: PlaygroundProjectTrigger = 'invite_expert',
     ): Promise<EnsurePlaygroundProjectResults> {
         if (!this.provisionPlaygroundProject) {
             throw new NotFoundError('Playground projects are not available');
@@ -617,6 +620,7 @@ export class ProjectService extends BaseService {
                         createdByUserUuid: project.createdByUserUuid,
                     }),
                 ),
+            trigger,
         });
     }
 

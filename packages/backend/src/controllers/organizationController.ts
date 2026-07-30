@@ -20,6 +20,7 @@ import {
     CreateColorPalette,
     CreateGroup,
     CreateOrganization,
+    EnsurePlaygroundProjectRequest,
     getRequestMethod,
     KnexPaginateArgs,
     LightdashRequestMethodHeader,
@@ -795,6 +796,7 @@ export class OrganizationController extends BaseController {
     @OperationId('EnsurePlaygroundProject')
     async ensurePlaygroundProject(
         @Request() req: express.Request,
+        @Body() body?: EnsurePlaygroundProjectRequest,
     ): Promise<ApiEnsurePlaygroundProjectResponse> {
         assertRegisteredAccount(req.account);
         const user = toSessionUser(req.account);
@@ -802,7 +804,7 @@ export class OrganizationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .ensurePlaygroundProject(user),
+                .ensurePlaygroundProject(user, body?.trigger),
         };
     }
 
