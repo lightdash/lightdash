@@ -53,6 +53,7 @@ import {
     readLastLoginMethod,
     writeLastLoginMethod,
 } from '../utils/lastLoginMethod';
+import styles from './LoginLanding.module.css';
 import LoginWithEmailOtp from './LoginWithEmailOtp';
 
 const Login: FC<{}> = () => {
@@ -302,8 +303,15 @@ const Login: FC<{}> = () => {
             <Box mx="auto" my="lg">
                 <LightdashLogo />
             </Box>
-            <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
-                <Title order={3} ta="center" mb="md">
+            <Card
+                id={LOGIN_PAGE_ID}
+                p="xl"
+                radius="xs"
+                withBorder
+                shadow="xs"
+                className={styles.loginCard}
+            >
+                <Title order={3} ta="center" mb="md" className={styles.title}>
                     Sign in
                 </Title>
                 <form
@@ -357,11 +365,14 @@ const Login: FC<{}> = () => {
                                     inherit
                                     href="/recover-password"
                                     mx="auto"
+                                    c="violet.6"
                                 >
                                     Forgot your password?
                                 </Anchor>
                                 <Button
                                     type="submit"
+                                    variant="filled"
+                                    color="violet"
                                     loading={isFormLoading}
                                     disabled={isFormLoading}
                                     data-cy="signin-button"
@@ -385,6 +396,8 @@ const Login: FC<{}> = () => {
                         {formStage === 'precheck' && (
                             <Button
                                 type="submit"
+                                variant="filled"
+                                color="violet"
                                 loading={isFormLoading}
                                 disabled={isFormLoading}
                                 data-cy="signin-button"
@@ -450,6 +463,7 @@ const Login: FC<{}> = () => {
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
                                 fz="sm"
+                                c="violet.6"
                             >
                                 Sign up
                             </Anchor>

@@ -1,0 +1,26 @@
+.loginCard {
+    border-color: var(--mantine-color-violet-3);
+    border-top: 3px solid var(--mantine-color-violet-6);
+    background: linear-gradient(
+        180deg,
+        var(--mantine-color-violet-0) 0%,
+        var(--mantine-color-body) 60%
+    );
+
+    @mixin dark {
+        border-color: var(--mantine-color-violet-8);
+        background: linear-gradient(
+            180deg,
+            rgba(118, 65, 192, 0.15) 0%,
+            var(--mantine-color-body) 60%
+        );
+    }
+}
+
+.title {
+    color: var(--mantine-color-violet-7);
+
+    @mixin dark {
+        color: var(--mantine-color-violet-4);
+    }
+}
