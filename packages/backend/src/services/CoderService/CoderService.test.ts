@@ -9,6 +9,7 @@ import {
     DashboardTileTypes,
 } from '@lightdash/common';
 import { CoderService } from './CoderService';
+import { withTileWarnings } from './dashboardReferences';
 
 describe('CoderService', () => {
     describe('transformChart', () => {
@@ -954,6 +955,124 @@ describe('CoderService', () => {
 
             expect(tiles).toEqual([]);
             expect(warnings).toHaveLength(1);
+        });
+
+        it('resolves a chart tile and a data app tile together (main return path)', async () => {
+            const service = new CoderService({
+                analytics: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+                dashboardModel: {} as AnyType,
+                lightdashConfig: {} as AnyType,
+                projectModel: {} as AnyType,
+                promoteService: {} as AnyType,
+                savedChartModel: {
+                    find: vi.fn(async () => [
+                        { uuid: 'chart-uuid', slug: 'revenue-chart' },
+                    ]),
+                } as AnyType,
+                savedSqlModel: { find: vi.fn(async () => []) } as AnyType,
+                appModel: {
+                    findAppsBySlugs: vi.fn(async () => [
+                        { app_id: 'target-app-uuid', slug: 'revenue-explorer' },
+                    ]),
+                    findAppsByUuids: vi.fn(async () => []),
+                } as AnyType,
+                schedulerModel: {} as AnyType,
+                schedulerService: {} as AnyType,
+                savedChartService: {} as AnyType,
+                dashboardService: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                spaceModel: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                groupsModel: {} as AnyType,
+                organizationMemberProfileModel: {} as AnyType,
+                userModel: {} as AnyType,
+            });
+
+            const { tiles, warnings } =
+                await service.convertTileWithSlugsToUuids('project-uuid', [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        x: 0,
+                        y: 0,
+                        h: 2,
+                        w: 4,
+                        tabUuid: null,
+                        properties: {
+                            chartSlug: 'revenue-chart',
+                            chartName: 'Revenue',
+                        },
+                    },
+                    dataAppTile({
+                        title: 'Revenue explorer',
+                        appSlug: 'revenue-explorer',
+                    }),
+                ] as AnyType);
+
+            expect(warnings).toEqual([]);
+            expect(tiles).toHaveLength(2);
+            expect(tiles[0].properties).toMatchObject({
+                chartSlug: 'revenue-chart',
+                savedChartUuid: 'chart-uuid',
+            });
+            expect(tiles[1].properties).toMatchObject({
+                appUuid: 'target-app-uuid',
+                appSlug: 'revenue-explorer',
+            });
+        });
+
+        it('produces one warning per skipped data app tile when there are multiple', async () => {
+            const service = buildServiceWithApps([]);
+
+            const { tiles, warnings } =
+                await service.convertTileWithSlugsToUuids('project-uuid', [
+                    dataAppTile({ title: 'Gone 1', appSlug: 'app-one' }),
+                    dataAppTile({ title: 'Gone 2', appSlug: 'app-two' }),
+                ] as AnyType);
+
+            expect(tiles).toEqual([]);
+            expect(warnings).toEqual([
+                'Data app "app-one" was not found in this project — tile skipped. Upload the app first, then re-upload the dashboard.',
+                'Data app "app-two" was not found in this project — tile skipped. Upload the app first, then re-upload the dashboard.',
+            ]);
+        });
+
+        it('names the tile by title when it has no app reference to resolve', async () => {
+            const service = buildServiceWithApps([]);
+
+            const { tiles, warnings } =
+                await service.convertTileWithSlugsToUuids('project-uuid', [
+                    dataAppTile({ title: 'Orphaned tile', appSlug: null }),
+                ] as AnyType);
+
+            expect(tiles).toEqual([]);
+            expect(warnings).toEqual([
+                'Data app tile "Orphaned tile" has no app reference to resolve — tile skipped.',
+            ]);
+        });
+    });
+
+    describe('withTileWarnings', () => {
+        it('omits the key when there is nothing to report', () => {
+            expect(withTileWarnings({ dashboards: [] } as AnyType, [])).toEqual(
+                {
+                    dashboards: [],
+                },
+            );
+        });
+
+        it('attaches warnings when tiles were skipped', () => {
+            expect(
+                withTileWarnings({ dashboards: [] } as AnyType, ['nope']),
+            ).toEqual({ dashboards: [], warnings: ['nope'] });
+        });
+
+        it('does not mutate the changes it was given', () => {
+            const changes = { dashboards: [] } as AnyType;
+            withTileWarnings(changes, ['nope']);
+            expect(changes).not.toHaveProperty('warnings');
         });
     });
 

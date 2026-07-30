@@ -1,6 +1,7 @@
 import {
     DashboardTileTypes,
     type DashboardAsCode,
+    type DashboardAsCodeUpsertResult,
     type DashboardConfig,
     type DashboardDAO,
     type DashboardTile,
@@ -8,6 +9,7 @@ import {
     type DashboardTileTarget,
     type DashboardTileWithSlug,
     type DateZoomTileTarget,
+    type PromotionChanges,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -114,6 +116,13 @@ export const getConfigWithDateZoomTileSlugs = (
         dateZoomConfig: { ...config.dateZoomConfig, tileTargets },
     };
 };
+
+/** Attaches skipped-tile warnings to a promotion result, omitting the key when there are none. */
+export const withTileWarnings = (
+    changes: PromotionChanges,
+    warnings: string[],
+): DashboardAsCodeUpsertResult =>
+    warnings.length > 0 ? { ...changes, warnings } : changes;
 
 export const getConfigWithDateZoomTileUuids = (
     config: DashboardConfig,

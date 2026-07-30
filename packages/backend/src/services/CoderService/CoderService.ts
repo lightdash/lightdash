@@ -28,6 +28,7 @@ import {
     currentVersion,
     DashboardAsCode,
     DashboardAsCodeInternalization,
+    DashboardAsCodeUpsertResult,
     DashboardChartTileAsCode,
     DashboardDAO,
     DashboardDataAppTileAsCode,
@@ -128,6 +129,7 @@ import {
     getFiltersWithTileSlugs,
     getFiltersWithTileUuids,
     isAnyChartTile,
+    withTileWarnings,
 } from './dashboardReferences';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
 import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
@@ -1771,9 +1773,11 @@ export class CoderService extends BaseService {
                 }
                 if (!resolvedAppUuid) {
                     warnings.push(
-                        `Data app "${
-                            appSlug ?? legacyAppUuid ?? 'unknown'
-                        }" was not found in this project — tile skipped. Upload the app first, then re-upload the dashboard.`,
+                        appSlug || legacyAppUuid
+                            ? `Data app "${
+                                  appSlug ?? legacyAppUuid
+                              }" was not found in this project — tile skipped. Upload the app first, then re-upload the dashboard.`
+                            : `Data app tile "${tile.properties.title}" has no app reference to resolve — tile skipped.`,
                     );
                     return null;
                 }
@@ -3573,7 +3577,7 @@ export class CoderService extends BaseService {
         slug: string,
         dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
-    ): Promise<PromotionChanges> {
+    ): Promise<DashboardAsCodeUpsertResult> {
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -3625,7 +3629,7 @@ export class CoderService extends BaseService {
             ...dashboardWithDefaults,
             tabs: tabsWithUuids,
         };
-        const { tiles: tilesWithUuids } =
+        const { tiles: tilesWithUuids, warnings: tileWarnings } =
             await this.convertTileWithSlugsToUuids(
                 projectUuid,
                 dashboardWithResolvedTabs.tiles,
@@ -3707,24 +3711,27 @@ export class CoderService extends BaseService {
                 verified: dashboardAsCode.verified,
             });
 
-            return {
-                dashboards: [
-                    {
-                        action: PromotionAction.CREATE,
-                        data: {
-                            ...newDashboard,
-                            spaceSlug: dashboardWithDefaults.spaceSlug,
-                            spacePath: getContentAsCodePathFromLtreePath(
-                                dashboardWithDefaults.spaceSlug,
-                            ),
+            return withTileWarnings(
+                {
+                    dashboards: [
+                        {
+                            action: PromotionAction.CREATE,
+                            data: {
+                                ...newDashboard,
+                                spaceSlug: dashboardWithDefaults.spaceSlug,
+                                spacePath: getContentAsCodePathFromLtreePath(
+                                    dashboardWithDefaults.spaceSlug,
+                                ),
+                            },
                         },
-                    },
-                ],
-                charts: [],
-                spaces: spaceCreated
-                    ? [{ action: PromotionAction.CREATE, data: space }]
-                    : [],
-            };
+                    ],
+                    charts: [],
+                    spaces: spaceCreated
+                        ? [{ action: PromotionAction.CREATE, data: space }]
+                        : [],
+                },
+                tileWarnings,
+            );
         }
         // Use promote service to update existing dashboard
 
@@ -3861,6 +3868,6 @@ export class CoderService extends BaseService {
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
         );
-        return promotionChanges;
+        return withTileWarnings(promotionChanges, tileWarnings);
     }
 }

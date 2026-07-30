@@ -170,7 +170,12 @@ export type ApiDashboardAsCodeListResponse = {
         offset: number;
     };
 };
+export type DashboardAsCodeUpsertResult = PromotionChanges & {
+    /** Non-fatal issues, e.g. a data app tile whose app is not in this project. */
+    warnings?: string[];
+};
+
 export type ApiDashboardAsCodeUpsertResponse = {
     status: 'ok';
-    results: PromotionChanges;
+    results: DashboardAsCodeUpsertResult;
 };
