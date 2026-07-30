@@ -613,6 +613,39 @@ describe('downloadAppsToDir', () => {
         ).toBe(true);
     });
 
+    it('writes server-provided dependencies over the scaffold template package.json', async () => {
+        const appsDir = tmpDir();
+        const packageJson = JSON.stringify({
+            name: 'server-provided',
+            dependencies: {},
+        });
+        const lockfile = 'lockfileVersion: 6.0\nserver: provided\n';
+
+        const outcome = await downloadAppsToDir({
+            appRefs: ['deps-app'],
+            projectId: 'project-uuid',
+            appsDir,
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async (_p, ref) => ({
+                ...codeFor(ref),
+                dependencies: { packageJson, lockfile },
+            }),
+        });
+
+        expect(outcome.successCount).toBe(1);
+        const writtenPackageJson = fs.readFileSync(
+            path.join(appsDir, 'deps-app', 'package.json'),
+            'utf-8',
+        );
+        expect(writtenPackageJson).toBe(packageJson);
+        const writtenLockfile = fs.readFileSync(
+            path.join(appsDir, 'deps-app', 'pnpm-lock.yaml'),
+            'utf-8',
+        );
+        expect(writtenLockfile).toBe(lockfile);
+    });
+
     it('counts an app with no ready version as skipped, not failed', async () => {
         const outcome = await downloadAppsToDir({
             appRefs: ['half-built'],

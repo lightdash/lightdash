@@ -6,6 +6,7 @@ import {
     LightdashError,
     SpaceAsCodeAction,
     SpaceMemberRole,
+    type AnyType,
     type CartesianChartConfig,
     type ChartAsCode,
     type DataAppManifest,
@@ -402,6 +403,40 @@ describe('getDashboardChartSlugs', () => {
         ]);
         const slugs = await getDashboardChartSlugs([], tmpDir, [loose]);
         expect(slugs).toEqual(['real-chart']);
+    });
+});
+
+describe('extractAppSlugsFromDashboards', () => {
+    const dashboard = (tiles: AnyType[]): AnyType => ({ slug: 'd', tiles });
+
+    it('collects app slugs and ignores other tile types', () => {
+        expect(
+            testHelpers.extractAppSlugsFromDashboards([
+                dashboard([
+                    {
+                        type: 'data_app',
+                        properties: { appSlug: 'revenue-explorer' },
+                    },
+                    {
+                        type: 'saved_chart',
+                        properties: { chartSlug: 'a-chart' },
+                    },
+                    { type: 'markdown', properties: { content: 'hi' } },
+                ]),
+            ]),
+        ).toEqual(['revenue-explorer']);
+    });
+
+    it('dedupes and drops null slugs', () => {
+        expect(
+            testHelpers.extractAppSlugsFromDashboards([
+                dashboard([
+                    { type: 'data_app', properties: { appSlug: 'one' } },
+                    { type: 'data_app', properties: { appSlug: 'one' } },
+                    { type: 'data_app', properties: { appSlug: null } },
+                ]),
+            ]),
+        ).toEqual(['one']);
     });
 });
 

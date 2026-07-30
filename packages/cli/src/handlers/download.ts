@@ -76,6 +76,7 @@ import {
     appsDownloadSummary,
     capListedApps,
     downloadAppsToDir,
+    getDataAppReference,
     getDataAppUploadFilter,
     matchedUploadRefs,
     preSlugServerHint,
@@ -753,6 +754,22 @@ const extractChartSlugsFromDashboards = (
         return [...acc, ...slugs];
     }, []);
 
+const extractAppSlugsFromDashboards = (
+    dashboards: DashboardAsCode[],
+): string[] => [
+    ...new Set(
+        dashboards.flatMap((dashboard) =>
+            dashboard.tiles.reduce<string[]>((acc, tile) => {
+                const slug =
+                    'appSlug' in tile.properties
+                        ? (tile.properties.appSlug as string | null)
+                        : null;
+                return slug ? [...acc, slug] : acc;
+            }, []),
+        ),
+    ),
+];
+
 export type DownloadContentResult = {
     total: number;
     chartSlugs: string[];
@@ -781,6 +798,7 @@ export const downloadContent = async (
     let offset = 0;
     let total = 0;
     let chartSlugs: string[] = [];
+    let appSlugs: string[] = [];
     let allMetadataEntries: MetadataEntry[] = [];
     let allSpaces: SpaceAsCode[] = [];
 
@@ -861,6 +879,10 @@ export const downloadContent = async (
                 ...chartSlugs,
                 ...extractChartSlugsFromDashboards(results.dashboards),
             ];
+            appSlugs = [
+                ...appSlugs,
+                ...extractAppSlugsFromDashboards(results.dashboards),
+            ];
         } else {
             const chartsBySpace = groupBySpace(results.charts);
             for (const [spaceSlug, chartsInSpace] of Object.entries(
@@ -909,7 +931,7 @@ export const downloadContent = async (
     return {
         total,
         chartSlugs: [...new Set(chartSlugs)],
-        appSlugs: [],
+        appSlugs: [...new Set(appSlugs)],
         metadataEntries: allMetadataEntries,
         spaces: allSpaces,
     };
@@ -1744,6 +1766,9 @@ export const downloadHandler = async (
     });
     try {
         let allMetadataEntries: MetadataEntry[] = [];
+        // Shared across the linked-apps step and the explicit apps step so
+        // the same app is never written to two different folder names.
+        const downloadedAppFolders = new Set<string>();
 
         if (shouldDownloadSpaces) {
             output.startItem('Spaces');
@@ -1863,11 +1888,13 @@ export const downloadHandler = async (
                 );
             } else {
                 let chartSlugs: string[] = [];
+                let appSlugs: string[] = [];
 
                 let dashMeta: MetadataEntry[];
                 ({
                     total: dashboardTotal,
                     chartSlugs,
+                    appSlugs,
                     metadataEntries: dashMeta,
                 } = await output.runItem({
                     label: 'Dashboards',
@@ -1940,6 +1967,46 @@ export const downloadHandler = async (
 
                     output.completeItem(
                         `${regularCharts + sqlCharts} downloaded`,
+                    );
+                }
+
+                // The --include-apps listing already covers every app in the
+                // project, so it handles apps referenced by dashboards too.
+                const explicitAppRefs = new Set(
+                    (Array.isArray(options.apps) ? options.apps : []).map(
+                        getDataAppReference,
+                    ),
+                );
+                const linkedAppSlugs = includeApps
+                    ? []
+                    : appSlugs.filter((slug) => !explicitAppRefs.has(slug));
+
+                if (linkedAppSlugs.length > 0) {
+                    output.startItem('Linked data apps');
+                    const appsDir = path.join(
+                        getDownloadFolder(options.path),
+                        'apps',
+                    );
+                    const outcome = await downloadAppsToDir({
+                        appRefs: linkedAppSlugs,
+                        projectId,
+                        appsDir,
+                        takenFolders: downloadedAppFolders,
+                        cliVersion: CLI_VERSION,
+                        fetchApp: (fetchProjectId, appRef) =>
+                            lightdashApi<DataAppCodeDownload>({
+                                method: 'GET',
+                                url: `/api/v1/ee/projects/${fetchProjectId}/apps/${appRef}/download`,
+                                body: undefined,
+                            }),
+                        onProgress: (processed, total) =>
+                            output.updateActive(
+                                `${processed} of ${total} processed`,
+                            ),
+                    });
+                    output.completeItem(
+                        `${outcome.successCount} downloaded`,
+                        outcome.failures.length > 0 ? 'warning' : undefined,
                     );
                 }
             }
@@ -2117,14 +2184,13 @@ export const downloadHandler = async (
                 );
                 const baseDir = getDownloadFolder(options.path);
                 const appsDir = path.join(baseDir, 'apps');
-                const takenFolders = new Set<string>();
 
                 const { successCount, skippedNotBuiltCount, failures } =
                     await downloadAppsToDir({
                         appRefs: appRefsToDownload,
                         projectId,
                         appsDir,
-                        takenFolders,
+                        takenFolders: downloadedAppFolders,
                         cliVersion: CLI_VERSION,
                         fetchApp: (fetchProjectId, appRef) =>
                             lightdashApi<DataAppCodeDownload>({
@@ -3434,6 +3500,7 @@ export const uploadHandler = async (
 export const testHelpers = {
     assertUniqueSpacePaths,
     downloadSpaces,
+    extractAppSlugsFromDashboards,
     getFlatSpaceFileNames,
     getDashboardChartSlugs,
     hasContentFilters,
