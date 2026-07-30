@@ -90,7 +90,10 @@ export const getRunMetricQuery = ({
 
     return tool({
         ...toolDefinition,
-        execute: async (toolArgs, { experimental_context: context }) => {
+        execute: async (
+            toolArgs,
+            { abortSignal, experimental_context: context },
+        ) => {
             try {
                 const ctx = AgentContext.from(context);
                 const vizTool =
@@ -110,13 +113,18 @@ export const getRunMetricQuery = ({
                     ),
                 });
 
-                const results = await runAsyncQuery(
-                    query,
-                    populateCustomMetricsSQL(
-                        filterAggregationCustomMetrics(vizTool.customMetrics),
-                        explore,
-                    ),
+                const additionalMetrics = populateCustomMetricsSQL(
+                    filterAggregationCustomMetrics(vizTool.customMetrics),
+                    explore,
                 );
+                const results = abortSignal
+                    ? await runAsyncQuery(
+                          query,
+                          additionalMetrics,
+                          undefined,
+                          abortSignal,
+                      )
+                    : await runAsyncQuery(query, additionalMetrics);
 
                 if (results.rows.length === 0) {
                     return {

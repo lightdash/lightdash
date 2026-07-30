@@ -270,7 +270,10 @@ describe('resolveMcpTools', () => {
 
     it('keeps healthy MCP tools when another MCP fails', async () => {
         const close = vi.fn().mockResolvedValue(undefined);
-        const healthyServer = getMcpServer({ name: 'Docs MCP' });
+        const healthyServer = getMcpServer({
+            name: 'Docs MCP',
+            enabledToolNames: ['search'],
+        });
         const brokenServer = getMcpServer({
             uuid: 'broken-server',
             name: 'Broken MCP',
@@ -295,7 +298,19 @@ describe('resolveMcpTools', () => {
                         },
                     ],
                 },
-                tools: async () => ({
+                listTools: async () => ({
+                    tools: [
+                        {
+                            name: 'search',
+                            inputSchema: {
+                                type: 'object',
+                                properties: {},
+                            },
+                            annotations: { readOnlyHint: true },
+                        },
+                    ],
+                }),
+                toolsFromDefinitions: () => ({
                     search: { description: 'search tool' },
                 }),
                 close,
@@ -312,6 +327,9 @@ describe('resolveMcpTools', () => {
         expect(result.mcpToolNameToServerUuid).toEqual({
             mcp_docs_mcp__search: healthyServer.uuid,
         });
+        expect(result.readOnlyMcpToolNames).toEqual(
+            new Set(['mcp_docs_mcp__search']),
+        );
         expect(result.unavailableMcpServers).toEqual([
             {
                 serverUuid: 'broken-server',
@@ -339,6 +357,37 @@ describe('resolveMcpTools', () => {
 
         await result.closeMcpClients();
         expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it('releases cleanup after five seconds when an MCP client stalls', async () => {
+        vi.useFakeTimers();
+        const close = vi.fn(() => new Promise<void>(() => {}));
+        const mcpServer = getMcpServer({ name: 'Docs MCP' });
+
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+            serverInfo: {
+                name: 'Docs MCP',
+                version: '1.0.0',
+            },
+            tools: async () => ({}),
+            close,
+        } as unknown as MCPClient);
+
+        try {
+            const result = await runtimeClient.resolveTools({
+                mcpServers: [mcpServer],
+                userUuid: 'user-uuid',
+                debugLoggingEnabled: false,
+            });
+            const cleanup = result.closeMcpClients();
+
+            await vi.advanceTimersByTimeAsync(5_000);
+
+            await expect(cleanup).resolves.toBeUndefined();
+            expect(close).toHaveBeenCalledOnce();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('rejects non-image data URI MCP icons', async () => {
@@ -414,6 +463,88 @@ describe('resolveMcpTools', () => {
         await result.closeMcpClients();
         expect(close).toHaveBeenCalledTimes(1);
     });
+
+    it.each([
+        {
+            name: 'keeps a tool standard-only when persisted approval metadata is absent',
+            enabledToolNames: undefined,
+            readOnlyHint: true,
+            expectedStandardTools: ['mcp_docs_mcp__search'],
+            expectedDeepResearchTools: [],
+        },
+        {
+            name: 'excludes a server-hinted tool without persisted admin approval',
+            enabledToolNames: [] as string[],
+            readOnlyHint: true,
+            expectedStandardTools: [],
+            expectedDeepResearchTools: [],
+        },
+        {
+            name: 'keeps an admin-approved tool standard-only without the read-only hint',
+            enabledToolNames: ['search'],
+            readOnlyHint: false,
+            expectedStandardTools: ['mcp_docs_mcp__search'],
+            expectedDeepResearchTools: [],
+        },
+        {
+            name: 'approves a tool for Deep Research only when both gates pass',
+            enabledToolNames: ['search'],
+            readOnlyHint: true,
+            expectedStandardTools: ['mcp_docs_mcp__search'],
+            expectedDeepResearchTools: ['mcp_docs_mcp__search'],
+        },
+    ])(
+        '$name',
+        async ({
+            enabledToolNames,
+            readOnlyHint,
+            expectedStandardTools,
+            expectedDeepResearchTools,
+        }) => {
+            const close = vi.fn().mockResolvedValue(undefined);
+            const server = getMcpServer({
+                name: 'Docs MCP',
+                enabledToolNames,
+            });
+
+            vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+                serverInfo: {
+                    name: 'Docs MCP',
+                    version: '1.0.0',
+                },
+                listTools: async () => ({
+                    tools: [
+                        {
+                            name: 'search',
+                            inputSchema: {
+                                type: 'object',
+                                properties: {},
+                            },
+                            annotations: { readOnlyHint },
+                        },
+                    ],
+                }),
+                toolsFromDefinitions: () => ({
+                    search: { description: 'search tool' },
+                }),
+                close,
+            } as unknown as MCPClient);
+
+            const result = await runtimeClient.resolveTools({
+                mcpServers: [server],
+                userUuid: 'user-uuid',
+                debugLoggingEnabled: false,
+            });
+
+            expect(Object.keys(result.tools)).toEqual(expectedStandardTools);
+            expect([...result.readOnlyMcpToolNames]).toEqual(
+                expectedDeepResearchTools,
+            );
+
+            await result.closeMcpClients();
+            expect(close).toHaveBeenCalledTimes(1);
+        },
+    );
 
     it('preserves not_connected for authorization-required OAuth servers', async () => {
         const oauthServer = getMcpServer({

@@ -203,6 +203,86 @@ function makeRuntimeContext(
 }
 
 describe('AiAgentToolsService', () => {
+    describe('warehouse query cancellation', () => {
+        it('passes the query signal to semantic query polling', async () => {
+            const executeMetricQueryAndGetResults = vi.fn().mockResolvedValue({
+                rows: [],
+                cacheMetadata: {},
+                fields: {},
+            });
+            const service = makeService({
+                explores: {
+                    orders: makeExplore({ name: 'orders' }),
+                },
+                asyncQueryService: {
+                    executeMetricQueryAndGetResults,
+                },
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const controller = new AbortController();
+            const metricQuery = {
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: [],
+                sorts: [],
+                limit: 10,
+                filters: {},
+            } as unknown as Parameters<typeof runtime.runAsyncQuery>[0];
+
+            await runtime.runAsyncQuery(
+                metricQuery,
+                undefined,
+                undefined,
+                controller.signal,
+            );
+
+            expect(executeMetricQueryAndGetResults).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    account,
+                    projectUuid,
+                    metricQuery: expect.objectContaining(metricQuery),
+                }),
+                { signal: controller.signal },
+            );
+        });
+
+        it('cancels an in-flight SQL query when its signal is aborted', async () => {
+            const abortReason = new Error('Deep Research timed out');
+            const getAsyncQueryResults = vi.fn().mockResolvedValue({
+                status: 'executing',
+            });
+            const cancelAsyncQuery = vi.fn().mockResolvedValue(undefined);
+            const service = makeService({
+                asyncQueryService: {
+                    executeAsyncSqlQuery: vi
+                        .fn()
+                        .mockResolvedValue({ queryUuid: 'query-uuid' }),
+                    getAsyncQueryResults,
+                    cancelAsyncQuery,
+                },
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const controller = new AbortController();
+
+            const result = runtime.runSqlJob({
+                sql: 'select 1',
+                limit: 10,
+                signal: controller.signal,
+            });
+            await vi.waitFor(() => {
+                expect(getAsyncQueryResults).toHaveBeenCalled();
+            });
+            controller.abort(abortReason);
+
+            await expect(result).rejects.toBe(abortReason);
+            expect(cancelAsyncQuery).toHaveBeenCalledWith({
+                account,
+                projectUuid,
+                queryUuid: 'query-uuid',
+            });
+        });
+    });
+
     describe('Deep Research knowledge documents', () => {
         const run = {
             ai_deep_research_run_uuid: 'run-uuid',

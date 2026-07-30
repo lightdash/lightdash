@@ -1,6 +1,33 @@
+import { QueryHistoryStatus } from '@lightdash/common';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
 describe('QueryHistoryModel', () => {
+    describe('pollForQueryCompletion', () => {
+        it('stops polling when the signal is aborted', async () => {
+            const model = new QueryHistoryModel({ database: {} as never });
+            const abortController = new AbortController();
+            const abortReason = new Error('Deep Research timed out');
+            const get = vi.spyOn(model, 'get').mockResolvedValue({
+                status: QueryHistoryStatus.EXECUTING,
+            } as never);
+
+            const result = model.pollForQueryCompletion({
+                queryUuid: 'query-uuid',
+                account: {} as never,
+                projectUuid: 'project-uuid',
+                initialBackoffMs: 10_000,
+                signal: abortController.signal,
+            });
+            await vi.waitFor(() => {
+                expect(get).toHaveBeenCalled();
+            });
+            abortController.abort(abortReason);
+
+            await expect(result).rejects.toBe(abortReason);
+            expect(get).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe('getCacheKey', () => {
         const projectUuid = 'test-project-uuid';
         const sql = 'SELECT * FROM test_table';

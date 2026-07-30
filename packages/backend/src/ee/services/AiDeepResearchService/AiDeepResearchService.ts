@@ -16,6 +16,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     spliceDeepResearchRanges,
+    TimeoutError,
     UnexpectedServerError,
     type Account,
     type AiDeepResearchBudget,
@@ -40,6 +41,7 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type SessionUser,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { createInterface } from 'readline';
 import { validate as isValidUuid } from 'uuid';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -61,6 +63,11 @@ import {
 } from '../../models/AiDeepResearchRunModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import { getDeepResearchCheckpoint } from './AiDeepResearchCheckpoint';
+import {
+    AI_DEEP_RESEARCH_CLEANUP_GRACE_MS,
+    AI_DEEP_RESEARCH_HARD_LIMIT_MS,
+} from './AiDeepResearchTimeout';
 import { isDeepResearchWarehouseTool } from './toolClassification';
 
 const MAX_EVENT_PAGE_SIZE = 100;
@@ -70,10 +77,43 @@ const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
 const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
+const TIMED_OUT_RUN_ERROR_MESSAGE =
+    'Deep Research reached its one-hour limit before it could finish.';
 const OMITTED_CHARTS_CAVEAT =
     'Some proposed charts were omitted because their query evidence could not be verified.';
 const OMITTED_CHART_REF_REPLACEMENT =
     '*(chart omitted: its query evidence could not be verified)*';
+
+export const recordDeepResearchQueueTelemetry = async (
+    run: Pick<
+        DbAiDeepResearchRun,
+        'ai_deep_research_run_uuid' | 'created_at' | 'started_at'
+    >,
+): Promise<void> => {
+    await Sentry.startSpan(
+        {
+            name: 'ai.deep_research.queue',
+            op: 'queue.wait',
+            startTime: run.created_at,
+            attributes: {
+                'ai.deep_research.run_uuid': run.ai_deep_research_run_uuid,
+                'ai.deep_research.workflow_phase': 'investigation',
+                'ai.deep_research.latency_phase': 'queue',
+                'ai.deep_research.step_id': 'queue',
+                'ai.deep_research.attempt_id': 'queue:1',
+                'ai.deep_research.started_at': run.created_at.toISOString(),
+                'ai.deep_research.ended_at':
+                    run.started_at?.toISOString() ?? new Date().toISOString(),
+                'ai.deep_research.outcome': 'success',
+                'ai.deep_research.will_retry': false,
+                'ai.deep_research.aborted': false,
+                'ai.deep_research.tokens_available': false,
+            },
+        },
+        () => undefined,
+    );
+};
+
 const isChartConfigCompatible = (
     chart: AiDeepResearchWarehouseChart,
     metricQuery: {
@@ -182,6 +222,82 @@ export type AiDeepResearchExecutor = (
     context: { signal: AbortSignal },
 ) => Promise<AiDeepResearchExecutorResult>;
 
+const normalizeTimedOutResult = (
+    result: AiDeepResearchExecutorResult,
+    timeoutReason: unknown,
+): AiDeepResearchExecutorResult => {
+    if (
+        result.status === 'completed' ||
+        result.status === 'partially_completed'
+    ) {
+        return {
+            ...result,
+            status: 'partially_completed',
+            terminalReason: 'timeout',
+        };
+    }
+    return {
+        status: 'failed',
+        errorMessage: getErrorMessage(timeoutReason),
+        terminalReason: 'timeout',
+    };
+};
+
+type PromiseOutcome<T> =
+    | { status: 'resolved'; value: T }
+    | { status: 'rejected'; error: unknown };
+
+const observePromise = <T>(promise: Promise<T>): Promise<PromiseOutcome<T>> =>
+    promise.then(
+        (value) => ({ status: 'resolved', value }),
+        (error: unknown) => ({ status: 'rejected', error }),
+    );
+
+const waitForTimeout = (signal: AbortSignal): Promise<void> =>
+    new Promise((resolve) => {
+        const resolveIfTimedOut = () => {
+            if (signal.reason?.name === 'TimeoutError') {
+                resolve();
+            }
+        };
+
+        if (signal.aborted) {
+            resolveIfTimedOut();
+            return;
+        }
+        signal.addEventListener('abort', resolveIfTimedOut, { once: true });
+    });
+
+const waitForGracePeriod = (): Promise<void> =>
+    new Promise((resolve) => {
+        const timer = setTimeout(resolve, AI_DEEP_RESEARCH_CLEANUP_GRACE_MS);
+        timer.unref();
+    });
+
+const parseJson = (value: string): unknown => {
+    try {
+        return JSON.parse(value) as unknown;
+    } catch {
+        return value;
+    }
+};
+
+const findStringValues = (value: unknown, key: string): string[] => {
+    if (Array.isArray(value)) {
+        return value.flatMap((item) => findStringValues(item, key));
+    }
+    if (value === null || typeof value !== 'object') {
+        return [];
+    }
+
+    return Object.entries(value).flatMap(([entryKey, entryValue]) => [
+        ...(entryKey === key && typeof entryValue === 'string'
+            ? [entryValue]
+            : []),
+        ...findStringValues(entryValue, key),
+    ]);
+};
+
 type Dependencies = {
     analytics: LightdashAnalytics;
     aiDeepResearchRunModel: AiDeepResearchRunModel;
@@ -232,13 +348,13 @@ export const AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT: Record<
         maxToolCalls: 250,
         maxWarehouseQueries: 50,
         maxResultRows: 25_000,
-        maxHypotheses: 4,
+        maxHypotheses: 3,
     },
     xhigh: {
         maxToolCalls: 500,
         maxWarehouseQueries: 100,
         maxResultRows: 50_000,
-        maxHypotheses: 6,
+        maxHypotheses: 3,
     },
 };
 
@@ -1038,132 +1154,345 @@ export class AiDeepResearchService extends BaseService {
         payload: AiDeepResearchJobPayload,
         signal: AbortSignal = new AbortController().signal,
     ): Promise<void> {
-        await this.aiDeepResearchRunModel.recordRunAccepted(
-            payload.aiDeepResearchRunUuid,
-        );
-        const run = await this.aiDeepResearchRunModel.claimQueuedRun(
-            payload.aiDeepResearchRunUuid,
-        );
-        if (!run) {
-            await this.dispatchPendingLifecycleAnalytics(
-                payload.aiDeepResearchRunUuid,
+        const hardLimitController = new AbortController();
+        const hardLimitTimer = setTimeout(() => {
+            hardLimitController.abort(
+                new TimeoutError(
+                    `Deep Research timed out after ${AI_DEEP_RESEARCH_HARD_LIMIT_MS}ms`,
+                ),
             );
-            this.logger.info(
-                `Deep Research run ${payload.aiDeepResearchRunUuid} was already claimed or is terminal`,
-            );
-            return;
-        }
-        await this.dispatchPendingLifecycleAnalytics(
-            payload.aiDeepResearchRunUuid,
-        );
-
-        if (!this.executor) {
-            await this.aiDeepResearchRunModel.markFailed(
-                payload.aiDeepResearchRunUuid,
-                'Deep Research executor is not configured',
-                'internal_error',
-            );
-            await this.dispatchPendingLifecycleAnalytics(
-                payload.aiDeepResearchRunUuid,
-            );
-            throw new Error('Deep Research executor is not configured');
-        }
+        }, AI_DEEP_RESEARCH_HARD_LIMIT_MS);
+        hardLimitTimer.unref();
+        const executionSignal = AbortSignal.any([
+            signal,
+            hardLimitController.signal,
+        ]);
+        const finalizeStartupTimeout = async (): Promise<boolean> => {
+            if (
+                !executionSignal.aborted ||
+                executionSignal.reason?.name !== 'TimeoutError'
+            ) {
+                return false;
+            }
+            await this.markRunTimedOut(payload.aiDeepResearchRunUuid);
+            return true;
+        };
 
         try {
-            const result = await this.executor(run, { signal });
-            if (result.status === 'completed') {
-                const report = await this.prepareEvidenceReport(
-                    run,
-                    result.report,
-                    new Set(result.warehouseQueryUuids),
-                );
-                const completed =
-                    await this.aiDeepResearchRunModel.markCompleted(
-                        payload.aiDeepResearchRunUuid,
-                        report.markdown,
-                        report.chartData,
-                    );
-                if (!completed) {
-                    await this.markCancelledAfterCompletedExecution(
-                        payload.aiDeepResearchRunUuid,
-                    );
-                } else {
-                    await this.dispatchPendingLifecycleAnalytics(
-                        payload.aiDeepResearchRunUuid,
-                    );
-                }
+            await this.aiDeepResearchRunModel.recordRunAccepted(
+                payload.aiDeepResearchRunUuid,
+            );
+            if (await finalizeStartupTimeout()) {
                 return;
             }
-            if (result.status === 'partially_completed') {
-                const report = await this.prepareEvidenceReport(
-                    run,
-                    result.report,
-                    new Set(result.warehouseQueryUuids),
-                );
-                const completed =
-                    await this.aiDeepResearchRunModel.markPartiallyCompleted(
-                        payload.aiDeepResearchRunUuid,
-                        report.markdown,
-                        report.chartData,
-                        result.terminalReason,
-                    );
-                if (!completed) {
-                    await this.markCancelledAfterCompletedExecution(
-                        payload.aiDeepResearchRunUuid,
-                    );
-                } else {
-                    await this.dispatchPendingLifecycleAnalytics(
-                        payload.aiDeepResearchRunUuid,
-                    );
-                }
-                return;
-            }
-            if (result.status === 'failed') {
-                this.logger.error(
-                    `Deep Research run ${payload.aiDeepResearchRunUuid} failed: ${result.errorMessage}`,
-                );
-                await this.aiDeepResearchRunModel.markFailed(
-                    payload.aiDeepResearchRunUuid,
-                    FAILED_RUN_ERROR_MESSAGE,
-                    result.terminalReason,
-                );
+            const run = await this.aiDeepResearchRunModel.claimQueuedRun(
+                payload.aiDeepResearchRunUuid,
+            );
+            if (!run) {
                 await this.dispatchPendingLifecycleAnalytics(
                     payload.aiDeepResearchRunUuid,
                 );
+                this.logger.info(
+                    `Deep Research run ${payload.aiDeepResearchRunUuid} was already claimed or is terminal`,
+                );
+                return;
+            }
+            if (await finalizeStartupTimeout()) {
+                return;
+            }
+            await recordDeepResearchQueueTelemetry(run);
+            await this.dispatchPendingLifecycleAnalytics(
+                payload.aiDeepResearchRunUuid,
+            );
+            if (await finalizeStartupTimeout()) {
                 return;
             }
 
-            const cancelled = await this.aiDeepResearchRunModel.markCancelled(
-                payload.aiDeepResearchRunUuid,
-                result.terminalReason,
-            );
-            if (cancelled) {
-                await this.dispatchPendingLifecycleAnalytics(
-                    payload.aiDeepResearchRunUuid,
-                );
-            } else {
+            const { executor } = this;
+            if (!executor) {
                 await this.aiDeepResearchRunModel.markFailed(
                     payload.aiDeepResearchRunUuid,
-                    'Deep Research stopped without a cancellation request',
+                    'Deep Research executor is not configured',
                     'internal_error',
                 );
                 await this.dispatchPendingLifecycleAnalytics(
                     payload.aiDeepResearchRunUuid,
                 );
+                throw new Error('Deep Research executor is not configured');
+            }
+            const executionOutcome = observePromise(
+                (async () => {
+                    try {
+                        const executorResult = await executor(run, {
+                            signal: executionSignal,
+                        });
+                        const didTimeOut =
+                            executionSignal.aborted &&
+                            executionSignal.reason?.name === 'TimeoutError';
+                        const result = didTimeOut
+                            ? normalizeTimedOutResult(
+                                  executorResult,
+                                  executionSignal.reason,
+                              )
+                            : executorResult;
+                        if (result.status === 'completed') {
+                            const report = await this.prepareEvidenceReport(
+                                run,
+                                result.report,
+                                new Set(result.warehouseQueryUuids),
+                                executionSignal,
+                            );
+                            const completed =
+                                await this.aiDeepResearchRunModel.markCompleted(
+                                    payload.aiDeepResearchRunUuid,
+                                    report.markdown,
+                                    report.chartData,
+                                );
+                            if (!completed) {
+                                await this.markCancelledAfterCompletedExecution(
+                                    payload.aiDeepResearchRunUuid,
+                                );
+                            } else {
+                                await this.dispatchPendingLifecycleAnalytics(
+                                    payload.aiDeepResearchRunUuid,
+                                );
+                            }
+                            return;
+                        }
+                        if (result.status === 'partially_completed') {
+                            const report = await this.prepareEvidenceReport(
+                                run,
+                                result.report,
+                                new Set(result.warehouseQueryUuids),
+                                executionSignal,
+                            );
+                            const completed =
+                                await this.aiDeepResearchRunModel.markPartiallyCompleted(
+                                    payload.aiDeepResearchRunUuid,
+                                    report.markdown,
+                                    report.chartData,
+                                    result.terminalReason,
+                                );
+                            if (!completed) {
+                                await this.markCancelledAfterCompletedExecution(
+                                    payload.aiDeepResearchRunUuid,
+                                );
+                            } else {
+                                await this.dispatchPendingLifecycleAnalytics(
+                                    payload.aiDeepResearchRunUuid,
+                                );
+                            }
+                            return;
+                        }
+                        if (result.status === 'failed') {
+                            this.logger.error(
+                                `Deep Research run ${payload.aiDeepResearchRunUuid} failed: ${result.errorMessage}`,
+                            );
+                            const failed =
+                                await this.aiDeepResearchRunModel.markFailed(
+                                    payload.aiDeepResearchRunUuid,
+                                    result.terminalReason === 'timeout'
+                                        ? TIMED_OUT_RUN_ERROR_MESSAGE
+                                        : FAILED_RUN_ERROR_MESSAGE,
+                                    result.terminalReason,
+                                );
+                            if (failed) {
+                                await this.dispatchPendingLifecycleAnalytics(
+                                    payload.aiDeepResearchRunUuid,
+                                );
+                            }
+                            return;
+                        }
+
+                        const cancelled =
+                            await this.aiDeepResearchRunModel.markCancelled(
+                                payload.aiDeepResearchRunUuid,
+                                result.terminalReason,
+                            );
+                        if (cancelled) {
+                            await this.dispatchPendingLifecycleAnalytics(
+                                payload.aiDeepResearchRunUuid,
+                            );
+                        } else {
+                            await this.aiDeepResearchRunModel.markFailed(
+                                payload.aiDeepResearchRunUuid,
+                                'Deep Research stopped without a cancellation request',
+                                'internal_error',
+                            );
+                            await this.dispatchPendingLifecycleAnalytics(
+                                payload.aiDeepResearchRunUuid,
+                            );
+                        }
+                    } catch (error) {
+                        if (
+                            executionSignal.aborted &&
+                            executionSignal.reason?.name === 'TimeoutError'
+                        ) {
+                            this.logger.warn(
+                                `Deep Research run ${payload.aiDeepResearchRunUuid} timed out`,
+                            );
+                            const timedOut =
+                                await this.aiDeepResearchRunModel.markFailed(
+                                    payload.aiDeepResearchRunUuid,
+                                    TIMED_OUT_RUN_ERROR_MESSAGE,
+                                    'timeout',
+                                );
+                            if (timedOut) {
+                                await this.dispatchPendingLifecycleAnalytics(
+                                    payload.aiDeepResearchRunUuid,
+                                );
+                            }
+                            return;
+                        }
+                        this.logger.error(
+                            `Deep Research run ${payload.aiDeepResearchRunUuid} threw: ${getErrorMessage(error)}`,
+                        );
+                        await this.aiDeepResearchRunModel.markFailed(
+                            payload.aiDeepResearchRunUuid,
+                            FAILED_RUN_ERROR_MESSAGE,
+                            'internal_error',
+                        );
+                        await this.dispatchPendingLifecycleAnalytics(
+                            payload.aiDeepResearchRunUuid,
+                        );
+                        throw error;
+                    }
+                })(),
+            );
+            const timeoutOutcome = Promise.race([
+                waitForTimeout(signal),
+                waitForTimeout(hardLimitController.signal),
+            ]).then(() => ({ status: 'timeout' }) as const);
+
+            {
+                const firstOutcome = await Promise.race([
+                    executionOutcome,
+                    timeoutOutcome,
+                ]);
+                if (firstOutcome.status === 'resolved') {
+                    return;
+                }
+                if (firstOutcome.status === 'rejected') {
+                    throw firstOutcome.error;
+                }
+
+                const abortReaction = await Promise.race([
+                    executionOutcome,
+                    waitForGracePeriod().then(
+                        () => ({ status: 'cleanup_timeout' }) as const,
+                    ),
+                ]);
+                if (abortReaction.status === 'resolved') {
+                    return;
+                }
+                if (abortReaction.status === 'rejected') {
+                    throw abortReaction.error;
+                }
+
+                const finalizationOutcome = observePromise(
+                    this.markRunTimedOut(payload.aiDeepResearchRunUuid),
+                );
+                const cleanupOutcome = await Promise.race([
+                    finalizationOutcome,
+                    waitForGracePeriod().then(
+                        () => ({ status: 'cleanup_timeout' }) as const,
+                    ),
+                ]);
+                if (cleanupOutcome.status === 'resolved') {
+                    return;
+                }
+                if (cleanupOutcome.status === 'rejected') {
+                    throw cleanupOutcome.error;
+                }
+
+                this.logger.warn(
+                    `Deep Research run ${payload.aiDeepResearchRunUuid} did not stop and finalize during timeout cleanup grace`,
+                );
+                void finalizationOutcome.then((lateOutcome) => {
+                    if (lateOutcome.status === 'rejected') {
+                        this.logger.error(
+                            `Deep Research run ${payload.aiDeepResearchRunUuid} timeout finalization rejected after its cleanup grace: ${getErrorMessage(lateOutcome.error)}`,
+                        );
+                    }
+                });
+                void executionOutcome.then((lateOutcome) => {
+                    if (lateOutcome.status === 'rejected') {
+                        this.logger.error(
+                            `Deep Research run ${payload.aiDeepResearchRunUuid} rejected after timeout finalization: ${getErrorMessage(lateOutcome.error)}`,
+                        );
+                    }
+                });
+            }
+        } finally {
+            clearTimeout(hardLimitTimer);
+        }
+    }
+
+    async markRunTimedOut(aiDeepResearchRunUuid: string): Promise<void> {
+        const run = await this.aiDeepResearchRunModel.findByUuid(
+            aiDeepResearchRunUuid,
+        );
+        if (!run || isAiDeepResearchRunTerminal(run.status)) {
+            return;
+        }
+
+        try {
+            const provenance =
+                await this.aiAgentModel.getToolCallsAndResultsForPrompt(
+                    run.prompt_uuid,
+                    { includeSubagentToolCalls: true },
+                );
+            const checkpoint = getDeepResearchCheckpoint({
+                run,
+                provenance,
+                partialReason:
+                    'The hard time limit was reached before report synthesis completed.',
+            });
+
+            if (checkpoint.report) {
+                const preparedReport = await this.prepareEvidenceReport(
+                    run,
+                    checkpoint.report,
+                    new Set(checkpoint.warehouseQueryUuids),
+                    AbortSignal.timeout(AI_DEEP_RESEARCH_CLEANUP_GRACE_MS),
+                );
+                const partiallyCompleted =
+                    await this.aiDeepResearchRunModel.markPartiallyCompleted(
+                        aiDeepResearchRunUuid,
+                        preparedReport.markdown,
+                        preparedReport.chartData,
+                        'timeout',
+                    );
+                if (partiallyCompleted) {
+                    void this.dispatchPendingLifecycleAnalytics(
+                        aiDeepResearchRunUuid,
+                    ).catch((error: unknown) => {
+                        this.logger.error(
+                            `Deep Research run ${aiDeepResearchRunUuid} could not dispatch timeout analytics: ${getErrorMessage(error)}`,
+                        );
+                    });
+                }
+                return;
             }
         } catch (error) {
-            this.logger.error(
-                `Deep Research run ${payload.aiDeepResearchRunUuid} threw: ${getErrorMessage(error)}`,
+            this.logger.warn(
+                `Deep Research run ${aiDeepResearchRunUuid} could not recover its checkpointed report after timeout: ${getErrorMessage(error)}`,
             );
-            await this.aiDeepResearchRunModel.markFailed(
-                payload.aiDeepResearchRunUuid,
-                FAILED_RUN_ERROR_MESSAGE,
-                'internal_error',
-            );
-            await this.dispatchPendingLifecycleAnalytics(
-                payload.aiDeepResearchRunUuid,
-            );
-            throw error;
+        }
+
+        const timedOut = await this.aiDeepResearchRunModel.markFailed(
+            aiDeepResearchRunUuid,
+            TIMED_OUT_RUN_ERROR_MESSAGE,
+            'timeout',
+        );
+        if (timedOut) {
+            void this.dispatchPendingLifecycleAnalytics(
+                aiDeepResearchRunUuid,
+            ).catch((error: unknown) => {
+                this.logger.error(
+                    `Deep Research run ${aiDeepResearchRunUuid} could not dispatch timeout analytics: ${getErrorMessage(error)}`,
+                );
+            });
         }
     }
 
@@ -1177,34 +1506,46 @@ export class AiDeepResearchService extends BaseService {
         run: DbAiDeepResearchRun,
         report: AiDeepResearchSubmittedReport,
         runQueryUuids: Set<string>,
+        signal: AbortSignal,
     ): Promise<{ markdown: string; chartData: AiDeepResearchChartDataMap }> {
         const chartData: AiDeepResearchChartDataMap = {};
         const omittedKeys = new Set<string>();
 
+        if (signal.aborted) {
+            report.charts.forEach((chart) => {
+                omittedKeys.add(getDeepResearchChartKey(chart));
+            });
+        }
+
         await Promise.all(
-            report.charts.map(async (chart) => {
-                const key = getDeepResearchChartKey(chart);
-                try {
-                    const entry =
-                        chart.source === 'warehouse'
-                            ? await this.buildWarehouseChartData(
-                                  run,
-                                  chart,
-                                  runQueryUuids,
-                              )
-                            : buildInlineChartData(chart, runQueryUuids);
-                    if (entry) {
-                        chartData[key] = entry;
-                    } else {
+            report.charts
+                .filter(
+                    (chart) => !omittedKeys.has(getDeepResearchChartKey(chart)),
+                )
+                .map(async (chart) => {
+                    const key = getDeepResearchChartKey(chart);
+                    try {
+                        const entry =
+                            chart.source === 'warehouse'
+                                ? await this.buildWarehouseChartData(
+                                      run,
+                                      chart,
+                                      runQueryUuids,
+                                      signal,
+                                  )
+                                : buildInlineChartData(chart, runQueryUuids);
+                        if (entry) {
+                            chartData[key] = entry;
+                        } else {
+                            omittedKeys.add(key);
+                        }
+                    } catch (error) {
+                        this.logger.error(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${key}: ${getErrorMessage(error)}`,
+                        );
                         omittedKeys.add(key);
                     }
-                } catch (error) {
-                    this.logger.error(
-                        `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${key}: ${getErrorMessage(error)}`,
-                    );
-                    omittedKeys.add(key);
-                }
-            }),
+                }),
         );
 
         if (omittedKeys.size === 0) {
@@ -1231,7 +1572,9 @@ export class AiDeepResearchService extends BaseService {
         run: DbAiDeepResearchRun,
         chart: AiDeepResearchWarehouseChart,
         runQueryUuids: Set<string>,
+        signal: AbortSignal,
     ): Promise<AiDeepResearchChartData | null> {
+        signal.throwIfAborted();
         // The UUID set is built from this run's persisted warehouse-tool results.
         if (!runQueryUuids.has(chart.queryUuid)) {
             return null;
@@ -1272,6 +1615,7 @@ export class AiDeepResearchService extends BaseService {
                 queryHistory.resultsFileName,
                 queryHistory.metricQuery,
                 queryHistory.totalRowCount,
+                signal,
             ),
         };
     }
@@ -1281,12 +1625,18 @@ export class AiDeepResearchService extends BaseService {
         resultsFileName: string,
         metricQuery: { dimensions: string[]; metrics: string[] },
         totalRowCount: number | null,
+        signal: AbortSignal,
     ): Promise<AiDeepResearchChartSnapshot> {
+        signal.throwIfAborted();
         const columnOrder = [...metricQuery.dimensions, ...metricQuery.metrics];
         const stream =
             await this.resultsFileStorageClient.getDownloadStream(
                 resultsFileName,
             );
+        const destroyStream = () => {
+            stream.destroy(signal.reason);
+        };
+        signal.addEventListener('abort', destroyStream, { once: true });
         const lineReader = createInterface({
             input: stream,
             crlfDelay: Infinity,
@@ -1317,6 +1667,7 @@ export class AiDeepResearchService extends BaseService {
                 );
             }
         } finally {
+            signal.removeEventListener('abort', destroyStream);
             lineReader.close();
             stream.destroy();
         }

@@ -2598,6 +2598,56 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    it('cancels a metric query when result polling is aborted', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const abortController = new AbortController();
+        const abortReason = new Error('Deep Research timed out');
+        vi.spyOn(service, 'executeAsyncMetricQuery').mockResolvedValue({
+            queryUuid: 'query-uuid',
+            cacheMetadata: { cacheHit: false },
+            metricQuery: {} as never,
+            fields: {},
+            warnings: [],
+            parameterReferences: [],
+            usedParametersValues: {},
+            resolvedTimezone: null,
+        });
+        const pollForQueryCompletion = vi
+            .spyOn(service, 'pollForQueryCompletion')
+            .mockImplementation(
+                async ({ signal }) =>
+                    new Promise<void>((_resolve, reject) => {
+                        signal?.addEventListener(
+                            'abort',
+                            () => reject(signal.reason),
+                            { once: true },
+                        );
+                    }),
+            );
+        const cancelAsyncQuery = vi
+            .spyOn(service, 'cancelAsyncQuery')
+            .mockResolvedValue(undefined);
+
+        const result = service.executeMetricQueryAndGetResults(
+            {
+                account: buildAccount(),
+                projectUuid: 'project-uuid',
+            } as never,
+            { signal: abortController.signal },
+        );
+        await vi.waitFor(() => {
+            expect(pollForQueryCompletion).toHaveBeenCalled();
+        });
+        abortController.abort(abortReason);
+
+        await expect(result).rejects.toBe(abortReason);
+        expect(cancelAsyncQuery).toHaveBeenCalledWith({
+            account: expect.any(Object),
+            projectUuid: 'project-uuid',
+            queryUuid: 'query-uuid',
+        });
+    });
+
     describe('getRawAsyncQueryResults', () => {
         it('rejects raw query results without project or explore access', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);

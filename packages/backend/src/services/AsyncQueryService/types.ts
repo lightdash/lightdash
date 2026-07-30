@@ -193,6 +193,7 @@ export type PollingOptions = {
     initialBackoffMs?: number;
     maxBackoffMs?: number;
     timeoutMs?: number;
+    signal?: AbortSignal;
 };
 
 /**

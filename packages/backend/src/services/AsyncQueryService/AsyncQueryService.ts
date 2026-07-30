@@ -6439,6 +6439,7 @@ export class AsyncQueryService extends ProjectService {
         initialBackoffMs = 500,
         maxBackoffMs = 2000,
         timeoutMs = 5 * 60 * 1000, // 5 min default
+        signal,
     }: {
         account: Account;
         projectUuid: string;
@@ -6446,6 +6447,7 @@ export class AsyncQueryService extends ProjectService {
         initialBackoffMs?: number;
         maxBackoffMs?: number;
         timeoutMs?: number;
+        signal?: AbortSignal;
     }): Promise<void> {
         await this.queryHistoryModel.pollForQueryCompletion({
             queryUuid,
@@ -6454,6 +6456,7 @@ export class AsyncQueryService extends ProjectService {
             initialBackoffMs,
             maxBackoffMs,
             timeoutMs,
+            signal,
         });
     }
 
@@ -6525,15 +6528,34 @@ export class AsyncQueryService extends ProjectService {
     }> {
         const { account, projectUuid } = args;
 
+        pollingOptions?.signal?.throwIfAborted();
         const { queryUuid, cacheMetadata, fields } =
             await this.executeAsyncMetricQuery(args);
 
-        await this.pollForQueryCompletion({
-            account,
-            projectUuid,
-            queryUuid,
-            ...pollingOptions,
-        });
+        try {
+            await this.pollForQueryCompletion({
+                account,
+                projectUuid,
+                queryUuid,
+                ...pollingOptions,
+            });
+        } catch (error) {
+            if (pollingOptions?.signal?.aborted) {
+                await this.cancelAsyncQuery({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                }).catch((cancelError) => {
+                    this.logger.warn(
+                        `Failed to cancel aborted query ${queryUuid}: ${getErrorMessage(
+                            cancelError,
+                        )}`,
+                    );
+                });
+                throw pollingOptions.signal.reason ?? error;
+            }
+            throw error;
+        }
 
         return this.getReadyQueryResults({
             account,

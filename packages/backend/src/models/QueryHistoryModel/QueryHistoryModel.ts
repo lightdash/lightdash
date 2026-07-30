@@ -18,6 +18,28 @@ import {
     QueryHistoryTableName,
 } from '../../database/entities/queryHistory';
 
+const sleepForPolling = async (ms: number, signal?: AbortSignal) => {
+    if (!signal) {
+        await sleep(ms);
+        return;
+    }
+
+    signal.throwIfAborted();
+    await new Promise<void>((resolve, reject) => {
+        // eslint-disable-next-line prefer-const -- assigned below; onAbort closure needs the binding first
+        let timeout: ReturnType<typeof setTimeout>;
+        const onAbort = () => {
+            clearTimeout(timeout);
+            reject(signal.reason);
+        };
+        timeout = setTimeout(() => {
+            signal.removeEventListener('abort', onAbort);
+            resolve();
+        }, ms);
+        signal.addEventListener('abort', onAbort, { once: true });
+    });
+};
+
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
 ): QueryHistory {
@@ -376,6 +398,7 @@ export class QueryHistoryModel {
         timeoutMs = 5 * 60 * 1000,
         throwOnCancelled = true,
         throwOnError = true,
+        signal,
     }: {
         queryUuid: string;
         account: Account;
@@ -385,18 +408,20 @@ export class QueryHistoryModel {
         timeoutMs?: number;
         throwOnCancelled?: boolean;
         throwOnError?: boolean;
+        signal?: AbortSignal;
     }): Promise<QueryHistory> {
         const startTime = Date.now();
         const getQueryHistory = () => this.get(queryUuid, projectUuid, account);
 
         const poll = async (backoffMs: number): Promise<QueryHistory> => {
+            signal?.throwIfAborted();
             if (Date.now() - startTime > timeoutMs) {
                 throw new Error(`Query polling timed out after ${timeoutMs}ms`);
             }
 
             const queryHistory = await getQueryHistory();
             if (!queryHistory) {
-                await sleep(backoffMs);
+                await sleepForPolling(backoffMs, signal);
                 return poll(Math.min(backoffMs * 2, maxBackoffMs));
             }
 
@@ -417,7 +442,7 @@ export class QueryHistoryModel {
                 case QueryHistoryStatus.PENDING:
                 case QueryHistoryStatus.QUEUED:
                 case QueryHistoryStatus.EXECUTING:
-                    await sleep(backoffMs);
+                    await sleepForPolling(backoffMs, signal);
                     return poll(Math.min(backoffMs * 2, maxBackoffMs));
                 case QueryHistoryStatus.READY:
                     return queryHistory;

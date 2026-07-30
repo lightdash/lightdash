@@ -74,5 +74,7 @@ describe('getAiDeepResearchJudgeInstructions', () => {
         expect(instructions).toContain('correlation');
         expect(instructions).toContain('untrusted');
         expect(instructions).toContain('submitResearchReport');
+        expect(instructions).toContain('under 1,000 words');
+        expect(instructions).toContain('no more than 10 findings');
     });
 });

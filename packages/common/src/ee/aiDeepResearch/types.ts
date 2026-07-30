@@ -34,6 +34,7 @@ export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
     'permission_revoked',
     'tool_limit',
     'query_limit',
+    'timeout',
     'provider_error',
     'internal_error',
 ] as const;

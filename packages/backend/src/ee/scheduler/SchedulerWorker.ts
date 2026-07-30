@@ -27,6 +27,7 @@ import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassif
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { type AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
+import { AI_DEEP_RESEARCH_SCHEDULER_WATCHDOG_MS } from '../services/AiDeepResearchService/AiDeepResearchTimeout';
 import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
@@ -652,13 +653,37 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 );
             },
             [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: async (payload, helpers) => {
-                await SchedulerClient.processJob(
+                const executionPromise = SchedulerClient.processJob(
                     EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
                     helpers.job.id,
                     helpers.job.run_at,
                     payload,
                     async () => {
                         await this.aiDeepResearchService.executeRun(payload);
+                    },
+                );
+                await tryJobOrTimeout(
+                    executionPromise,
+                    helpers.job,
+                    AI_DEEP_RESEARCH_SCHEDULER_WATCHDOG_MS,
+                    async () => {
+                        void executionPromise.catch(
+                            (executionError: unknown) => {
+                                Logger.error(
+                                    `Deep Research job ${helpers.job.id} rejected after its emergency watchdog released the worker: ${getErrorMessage(executionError)}`,
+                                );
+                            },
+                        );
+                        void this.aiDeepResearchService
+                            .markRunTimedOut(payload.aiDeepResearchRunUuid)
+                            .catch((finalizationError: unknown) => {
+                                Logger.error(
+                                    `Deep Research job ${helpers.job.id} could not run emergency timeout finalization: ${getErrorMessage(finalizationError)}`,
+                                );
+                            });
+                        Logger.info(
+                            `Released Deep Research job ${helpers.job.id} after its emergency timeout watchdog`,
+                        );
                     },
                 );
             },

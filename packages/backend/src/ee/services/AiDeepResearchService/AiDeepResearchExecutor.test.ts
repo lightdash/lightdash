@@ -8,7 +8,6 @@ import {
 import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import {
     AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
-    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     getAiDeepResearchPhaseBudgets,
 } from './AiDeepResearchAgent';
@@ -368,7 +367,23 @@ describe('AiDeepResearchExecutor', () => {
                         toolName: 'runSql',
                         toolCallId: 'query-1',
                         toolArgs: {},
-                        result: JSON.stringify({ queryUuid }),
+                        result: JSON.stringify({
+                            queryUuid,
+                            untrusted: {
+                                queryUuid:
+                                    '<script>malicious-query-id</script>',
+                            },
+                            rows: [
+                                {
+                                    revenue: 1_200,
+                                    apiKey: 'sk-live-never-replay',
+                                },
+                            ],
+                            metadata: {
+                                rawHistory:
+                                    'raw-tool-history-must-not-be-replayed',
+                            },
+                        }),
                     }),
                     reportSubmission(),
                 ],
@@ -417,6 +432,10 @@ describe('AiDeepResearchExecutor', () => {
         ]);
         investigatorCalls.forEach(([, options]: AnyType[]) => {
             expect(options.execution.selectedMcpServerUuids).toEqual(['mcp-1']);
+            expect(options.execution.maxSteps).toBe(5);
+            expect(options.execution.compactedEvidence).toContain(
+                'compact evidence checkpoint',
+            );
             expect(options.execution.budget).toMatchObject({
                 maxToolCalls: 7,
                 maxWarehouseQueries: 5,
@@ -427,6 +446,19 @@ describe('AiDeepResearchExecutor', () => {
         // receives every investigation report.
         expect(judgeCalls[0][1].execution.initialTokenUsage).toBe(200);
         expect(judgeCalls[0][1].execution.parentToolCallId).toBeUndefined();
+        const synthesisCheckpoint =
+            judgeCalls[0][1].execution.compactedEvidence;
+        expect(synthesisCheckpoint).toContain(queryUuid);
+        expect(synthesisCheckpoint).not.toContain('malicious-query-id');
+        expect(synthesisCheckpoint).toContain('result.rows[0].revenue=1200');
+        expect(synthesisCheckpoint).toContain(
+            'The evidence supports the claim.',
+        );
+        expect(synthesisCheckpoint).toContain('runSql (query-1)');
+        expect(synthesisCheckpoint).not.toContain(
+            'raw-tool-history-must-not-be-replayed',
+        );
+        expect(synthesisCheckpoint).not.toContain('sk-live-never-replay');
         expect(
             judgeCalls[0][1].execution.research.investigations.map(
                 (investigation: AnyType) => ({
@@ -494,7 +526,13 @@ describe('AiDeepResearchExecutor', () => {
         });
 
         const result = await executor.execute(
-            run({ budget_snapshot: { ...budget, maxHypotheses: 3 } }),
+            run({
+                budget_snapshot: {
+                    ...budget,
+                    maxToolCalls: 125,
+                    maxHypotheses: 3,
+                },
+            }),
             { signal: new AbortController().signal },
         );
 
@@ -678,7 +716,7 @@ describe('AiDeepResearchExecutor', () => {
         ).toContain('maxWarehouseQueries');
     });
 
-    it('retries each investigator once with forced submission before giving up on it', async () => {
+    it('runs each investigator once within the aggregate model-step budget', async () => {
         const attemptsByHypothesis = new Map<string, number>();
         const generateAgentThreadResponse = respondByRole({
             onInvestigate: (options: AnyType) => {
@@ -686,11 +724,7 @@ describe('AiDeepResearchExecutor', () => {
                 const attempts =
                     (attemptsByHypothesis.get(research.hypothesis.id) ?? 0) + 1;
                 attemptsByHypothesis.set(research.hypothesis.id, attempts);
-                if (attempts === 2) {
-                    expect(options.toolHints).toEqual([
-                        AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-                    ]);
-                    expect(options.forceToolHints).toBe(true);
+                if (research.hypothesis.id !== 'hypothesis-2') {
                     research.onReport(investigationReport());
                 }
                 return 'investigated';
@@ -698,12 +732,202 @@ describe('AiDeepResearchExecutor', () => {
         });
         const { executor } = buildExecutor({ generateAgentThreadResponse });
 
-        const result = await executor.execute(run(), {
-            signal: new AbortController().signal,
-        });
+        const result = await executor.execute(
+            run({
+                budget_snapshot: {
+                    maxToolCalls: 125,
+                    maxWarehouseQueries: 25,
+                    maxResultRows: 10_000,
+                    maxHypotheses: 3,
+                },
+            }),
+            {
+                signal: new AbortController().signal,
+            },
+        );
 
         expect(result).toMatchObject({ status: 'completed' });
-        expect([...attemptsByHypothesis.values()]).toEqual([2, 2]);
+        expect([...attemptsByHypothesis.values()]).toEqual([1, 1, 1]);
+        const plannerCall = callsByRole(
+            generateAgentThreadResponse,
+            'planner',
+        )[0];
+        const investigatorCalls = callsByRole(
+            generateAgentThreadResponse,
+            'investigator',
+        );
+        const judgeCall = callsByRole(generateAgentThreadResponse, 'judge')[0];
+        const aggregateMaxSteps =
+            plannerCall[1].execution.maxSteps +
+            investigatorCalls.reduce(
+                (total: number, [, options]: AnyType[]) =>
+                    total + options.execution.maxSteps,
+                0,
+            ) +
+            judgeCall[1].execution.maxSteps;
+        expect(plannerCall[1].execution.maxSteps).toBe(1);
+        expect(
+            investigatorCalls.map(
+                ([, options]: AnyType[]) => options.execution.maxSteps,
+            ),
+        ).toEqual([7, 7, 7]);
+        expect(judgeCall[1].execution.maxSteps).toBe(2);
+        expect(aggregateMaxSteps).toBe(24);
+    });
+
+    it.each([
+        {
+            name: 'low',
+            runBudget: {
+                maxToolCalls: 50,
+                maxWarehouseQueries: 10,
+                maxResultRows: 5_000,
+                maxHypotheses: 2,
+            },
+            investigatorSteps: 5,
+            aggregateMaxSteps: 13,
+        },
+        {
+            name: 'high',
+            runBudget: {
+                maxToolCalls: 250,
+                maxWarehouseQueries: 50,
+                maxResultRows: 25_000,
+                maxHypotheses: 4,
+            },
+            investigatorSteps: 9,
+            aggregateMaxSteps: 30,
+        },
+        {
+            name: 'xhigh',
+            runBudget: {
+                maxToolCalls: 500,
+                maxWarehouseQueries: 100,
+                maxResultRows: 50_000,
+                maxHypotheses: 6,
+            },
+            investigatorSteps: 12,
+            aggregateMaxSteps: 39,
+        },
+    ])(
+        'keeps the $name workflow within its declared aggregate model-step cap',
+        async ({ runBudget, investigatorSteps, aggregateMaxSteps }) => {
+            const generateAgentThreadResponse = respondByRole();
+            const { executor } = buildExecutor({
+                generateAgentThreadResponse,
+            });
+
+            await executor.execute(run({ budget_snapshot: runBudget }), {
+                signal: new AbortController().signal,
+            });
+
+            const plannerCall = callsByRole(
+                generateAgentThreadResponse,
+                'planner',
+            )[0];
+            const investigatorCalls = callsByRole(
+                generateAgentThreadResponse,
+                'investigator',
+            );
+            const judgeCall = callsByRole(
+                generateAgentThreadResponse,
+                'judge',
+            )[0];
+            expect(investigatorCalls).toHaveLength(
+                Math.min(3, runBudget.maxHypotheses),
+            );
+            expect(
+                investigatorCalls.map(
+                    ([, options]: AnyType[]) => options.execution.maxSteps,
+                ),
+            ).toEqual(
+                Array(Math.min(3, runBudget.maxHypotheses)).fill(
+                    investigatorSteps,
+                ),
+            );
+            expect(
+                plannerCall[1].execution.maxSteps +
+                    investigatorCalls.length * investigatorSteps +
+                    judgeCall[1].execution.maxSteps,
+            ).toBe(aggregateMaxSteps);
+        },
+    );
+
+    it('rejects queries beyond the Medium target without cancelling investigator reports', async () => {
+        const queryUuids = Array.from(
+            { length: 15 },
+            (_, index) =>
+                `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+        );
+        const queryProvenance = queryUuids.map((queryUuid, index) =>
+            toolProvenance({
+                toolName: 'runSql',
+                toolCallId: `query-${index + 1}`,
+                toolArgs: { query: `SELECT ${index + 1}` },
+                result: JSON.stringify({
+                    queryUuid,
+                    rows: [{ value: index + 1 }],
+                }),
+            }),
+        );
+        let attemptedQueries = 0;
+        let acceptedQueries = 0;
+        let rejectedQueries = 0;
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: async (options: AnyType) => {
+                await Promise.all(
+                    Array.from({ length: 6 }, async () => {
+                        attemptedQueries += 1;
+                        const toolCallId = `attempt-${attemptedQueries}`;
+                        try {
+                            await options.onStepProgress(
+                                '',
+                                'runSql',
+                                toolCallId,
+                                'in_progress',
+                            );
+                            options.execution.onWarehouseQuery();
+                            acceptedQueries += 1;
+                        } catch {
+                            rejectedQueries += 1;
+                        }
+                    }),
+                );
+                options.execution.research.onReport(investigationReport());
+                return 'investigated';
+            },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            childProvenance: [reportSubmission(), ...queryProvenance],
+        });
+
+        const result = await executor.execute(
+            run({
+                budget_snapshot: {
+                    maxToolCalls: 125,
+                    maxWarehouseQueries: 25,
+                    maxResultRows: 10_000,
+                    maxHypotheses: 3,
+                },
+            }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(attemptedQueries).toBe(18);
+        expect(acceptedQueries).toBe(15);
+        expect(rejectedQueries).toBe(3);
+        expect(result).toMatchObject({
+            status: 'completed',
+            report: { markdown: expect.stringContaining('Revenue remained') },
+            warehouseQueryUuids: queryUuids,
+        });
+        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
+        expect(
+            judgeCalls[0][1].execution.research.investigations.every(
+                (investigation: AnyType) => investigation.report !== null,
+            ),
+        ).toBe(true);
     });
 
     it('keeps a submitted investigation report when the call crashes after submission', async () => {
@@ -728,30 +952,27 @@ describe('AiDeepResearchExecutor', () => {
         ).toBe(true);
     });
 
-    it('retries the judge once with forced report submission when no report was submitted', async () => {
+    it('invokes the judge only once when its bounded repair does not produce a report', async () => {
         const generateAgentThreadResponse = respondByRole();
-        const { executor, aiAgentModel } = buildExecutor({
+        const { executor } = buildExecutor({
             generateAgentThreadResponse,
             provenance: [],
-            childProvenance: [reportSubmission()],
+            childProvenance: [],
         });
-        // First top-level read (post-judge check) finds nothing; the forced
-        // retry submits, and the final child-inclusive read returns it.
-        aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
-            async (_promptUuid: string, options?: AnyType) =>
-                options?.includeSubagentToolCalls ? [reportSubmission()] : [],
-        );
 
         const result = await executor.execute(run(), {
             signal: new AbortController().signal,
         });
 
-        expect(result).toMatchObject({ status: 'completed', report });
+        expect(result).toMatchObject({
+            status: 'failed',
+            terminalReason: 'provider_error',
+        });
         const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
-        expect(judgeCalls).toHaveLength(2);
-        expect(judgeCalls[1][1]).toMatchObject({
-            toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
-            forceToolHints: true,
+        expect(judgeCalls).toHaveLength(1);
+        expect(judgeCalls[0][1].execution).toMatchObject({
+            phase: 'synthesis',
+            maxSteps: 2,
         });
     });
 
@@ -818,6 +1039,244 @@ describe('AiDeepResearchExecutor', () => {
             warehouseQueryUuids: [],
             terminalReason: null,
         });
+    });
+
+    it('stops hypothesis investigation and starts bounded synthesis at the soft limit', async () => {
+        vi.useFakeTimers();
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: (options: AnyType) =>
+                new Promise<string>((_resolve, reject) => {
+                    options.execution.abortSignal.addEventListener(
+                        'abort',
+                        () => reject(options.execution.abortSignal.reason),
+                        { once: true },
+                    );
+                }),
+        });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+        const execution = executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        try {
+            await vi.advanceTimersByTimeAsync(30 * 60 * 1_000 - 1);
+            const investigatorCalls = callsByRole(
+                generateAgentThreadResponse,
+                'investigator',
+            );
+            expect(investigatorCalls).toHaveLength(2);
+            expect(
+                investigatorCalls.every(
+                    ([, options]: AnyType[]) =>
+                        !options.execution.abortSignal.aborted,
+                ),
+            ).toBe(true);
+            expect(
+                callsByRole(generateAgentThreadResponse, 'judge'),
+            ).toHaveLength(0);
+
+            await vi.advanceTimersByTimeAsync(1);
+            await expect(execution).resolves.toMatchObject({
+                status: 'completed',
+            });
+            const judgeCalls = callsByRole(
+                generateAgentThreadResponse,
+                'judge',
+            );
+            expect(judgeCalls).toHaveLength(1);
+            expect(judgeCalls[0][1].execution).toMatchObject({
+                phase: 'synthesis',
+                maxSteps: 2,
+            });
+            expect(judgeCalls[0][1].execution.compactedEvidence).toContain(
+                'compact evidence checkpoint',
+            );
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('starts synthesis when the planner reaches the soft limit', async () => {
+        vi.useFakeTimers();
+        const generateAgentThreadResponse = vi.fn(
+            async (_user: SessionUser, options: AnyType) => {
+                if (researchRole(options) === 'planner') {
+                    return new Promise<string>((_resolve, reject) => {
+                        options.execution.abortSignal.addEventListener(
+                            'abort',
+                            () => reject(options.execution.abortSignal.reason),
+                            { once: true },
+                        );
+                    });
+                }
+                return 'judged';
+            },
+        );
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+        const execution = executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        try {
+            await vi.advanceTimersByTimeAsync(30 * 60 * 1_000);
+            await expect(execution).resolves.toMatchObject({
+                status: 'completed',
+            });
+            expect(
+                callsByRole(generateAgentThreadResponse, 'investigator'),
+            ).toHaveLength(0);
+            expect(
+                callsByRole(generateAgentThreadResponse, 'judge'),
+            ).toHaveLength(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it.each([
+        {
+            name: 'returns a checkpointed report',
+            provenance: [reportSubmission()],
+            expected: {
+                status: 'partially_completed',
+                report,
+                warehouseQueryUuids: [],
+                terminalReason: 'timeout',
+            },
+        },
+        {
+            name: 'fails when no report was checkpointed',
+            provenance: [],
+            expected: {
+                status: 'failed',
+                errorMessage: 'Job timed out after 3600000ms',
+                terminalReason: 'timeout',
+            },
+        },
+    ])('$name at the hard limit', async ({ provenance, expected }) => {
+        const controller = new AbortController();
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: (options: AnyType) =>
+                new Promise<string>((_resolve, reject) => {
+                    options.execution.abortSignal.addEventListener(
+                        'abort',
+                        () => reject(options.execution.abortSignal.reason),
+                        { once: true },
+                    );
+                }),
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance,
+            childProvenance: provenance,
+        });
+        const execution = executor.execute(run(), {
+            signal: controller.signal,
+        });
+        await vi.waitFor(() => {
+            expect(
+                callsByRole(generateAgentThreadResponse, 'investigator'),
+            ).toHaveLength(2);
+        });
+
+        controller.abort(
+            new DOMException('Job timed out after 3600000ms', 'TimeoutError'),
+        );
+
+        await expect(execution).resolves.toEqual(expected);
+        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
+            0,
+        );
+    });
+
+    it('returns checkpointed evidence as a partial report at the hard limit', async () => {
+        const controller = new AbortController();
+        const evidence = toolProvenance({
+            toolName: 'readContent',
+            toolCallId: 'content-1',
+            toolArgs: {},
+            result: JSON.stringify({
+                region: 'Europe',
+                revenue: 1_200,
+            }),
+        });
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: (options: AnyType) =>
+                new Promise<string>((_resolve, reject) => {
+                    options.execution.abortSignal.addEventListener(
+                        'abort',
+                        () => reject(options.execution.abortSignal.reason),
+                        { once: true },
+                    );
+                }),
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [evidence],
+        });
+        const execution = executor.execute(run(), {
+            signal: controller.signal,
+        });
+        await vi.waitFor(() => {
+            expect(
+                callsByRole(generateAgentThreadResponse, 'investigator'),
+            ).toHaveLength(2);
+        });
+
+        controller.abort(
+            new DOMException('Job timed out after 3600000ms', 'TimeoutError'),
+        );
+
+        const result = await execution;
+        expect(result).toMatchObject({
+            status: 'partially_completed',
+            terminalReason: 'timeout',
+        });
+        expect(
+            result.status === 'partially_completed' && result.report.markdown,
+        ).toContain('result.revenue=1200');
+    });
+
+    it('redacts sensitive values from an evidence-derived fallback report', async () => {
+        const evidence = toolProvenance({
+            toolName: 'readContent',
+            toolCallId: 'content-1',
+            toolArgs: {},
+            result: JSON.stringify({
+                revenue: 1_200,
+                apiKey: 'sk-live-123',
+                notes: 'Authorization: Bearer top-secret-auth',
+                nested: { password: 'hunter2', region: 'Europe' },
+            }),
+        });
+        const invalidReport = (toolCallId: string) =>
+            reportSubmission(toolCallId, {
+                markdown: 'Invalid unstructured draft',
+                charts: [],
+            });
+        const { executor } = buildExecutor({
+            provenance: [
+                evidence,
+                invalidReport('report-invalid-1'),
+                invalidReport('report-invalid-2'),
+            ],
+        });
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result.status).toBe('partially_completed');
+        if (result.status !== 'partially_completed') {
+            return;
+        }
+        expect(result.report.markdown).toContain('result.revenue=1200');
+        expect(result.report.markdown).toContain('result.notes=[REDACTED]');
+        expect(result.report.markdown).toContain('result.nested.region=Europe');
+        expect(result.report.markdown).not.toContain('sk-live-123');
+        expect(result.report.markdown).not.toContain('top-secret-auth');
+        expect(result.report.markdown).not.toContain('hunter2');
     });
 
     it('fails when execution ends without a valid submitted report', async () => {

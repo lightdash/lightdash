@@ -126,7 +126,7 @@ export const getRunSql = ({
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
         needsApproval: usesNativeApproval,
-        execute: async ({ sql, limit }, { toolCallId }) => {
+        execute: async ({ sql, limit }, { abortSignal, toolCallId }) => {
             const prompt = await getPrompt();
             const isSlack = isSlackPrompt(prompt);
             const slackAutoApproved =
@@ -265,6 +265,7 @@ export const getRunSql = ({
                 const { rows, columns, rowCount } = await runSqlJob({
                     sql,
                     limit: effectiveLimit,
+                    ...(abortSignal ? { signal: abortSignal } : {}),
                 });
 
                 if (!isSlack) {

@@ -9,13 +9,21 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    TimeoutError,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
 import { Readable } from 'stream';
-import { AiDeepResearchService } from './AiDeepResearchService';
+import {
+    AiDeepResearchService,
+    type AiDeepResearchExecutorResult,
+} from './AiDeepResearchService';
+import {
+    AI_DEEP_RESEARCH_CLEANUP_GRACE_MS,
+    AI_DEEP_RESEARCH_HARD_LIMIT_MS,
+} from './AiDeepResearchTimeout';
 
 const budget: AiDeepResearchBudget = {
     maxToolCalls: 20,
@@ -97,7 +105,7 @@ const effortBudgets = [
             maxToolCalls: 250,
             maxWarehouseQueries: 50,
             maxResultRows: 25_000,
-            maxHypotheses: 4,
+            maxHypotheses: 3,
         },
     },
     {
@@ -106,7 +114,7 @@ const effortBudgets = [
             maxToolCalls: 500,
             maxWarehouseQueries: 100,
             maxResultRows: 50_000,
-            maxHypotheses: 6,
+            maxHypotheses: 3,
         },
     },
 ] as const;
@@ -147,6 +155,31 @@ The baseline trend is stable.
 `;
 
 const report = { markdown: reportMarkdown, charts: [] };
+
+const reportSubmission = (input: unknown = report, toolCallId = 'report-1') =>
+    ({
+        toolCall: {
+            uuid: `call-${toolCallId}`,
+            promptUuid: 'prompt-1',
+            toolCallId,
+            parentToolCallId: null,
+            createdAt: new Date('2026-07-13T12:30:00.000Z'),
+            toolType: 'built-in',
+            toolName: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+            toolArgs: input,
+        },
+        toolResult: {
+            uuid: `result-${toolCallId}`,
+            promptUuid: 'prompt-1',
+            toolCallId,
+            createdAt: new Date('2026-07-13T12:30:01.000Z'),
+            result: JSON.stringify({ submitted: true }),
+            metadata: { status: 'success' },
+            toolType: 'built-in',
+            toolName: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+        },
+        approvalDecision: null,
+    }) as AnyType;
 
 const chartReportMarkdown = reportMarkdown.replace(
     'The baseline trend is stable.',
@@ -1735,8 +1768,540 @@ describe('AiDeepResearchService', () => {
                 expect.objectContaining({
                     ai_deep_research_run_uuid: 'run-1',
                 }),
-                { signal: abortController.signal },
+                { signal: expect.any(AbortSignal) },
             );
+            const executionSignal = executor.mock.calls[0][1].signal;
+            expect(executionSignal).not.toBe(abortController.signal);
+        });
+
+        it('persists a partial report returned when the run times out', async () => {
+            const abortController = new AbortController();
+            const { service, model } = buildService({
+                executor: vi.fn().mockImplementation(async () => {
+                    abortController.abort(new TimeoutError('Job timed out'));
+                    return {
+                        status: 'partially_completed',
+                        report,
+                        warehouseQueryUuids: [],
+                        terminalReason: 'timeout',
+                    };
+                }),
+            });
+
+            await service.executeRun(
+                { aiDeepResearchRunUuid: 'run-1' },
+                abortController.signal,
+            );
+
+            expect(model.markPartiallyCompleted).toHaveBeenCalledWith(
+                'run-1',
+                reportMarkdown,
+                {},
+                'timeout',
+            );
+            expect(model.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('persists the timeout error returned when no partial report is available', async () => {
+            const { service, model } = buildService({
+                executor: vi.fn().mockResolvedValue({
+                    status: 'failed',
+                    errorMessage: 'Job timed out after 3600000ms',
+                    terminalReason: 'timeout',
+                }),
+            });
+
+            await service.executeRun(
+                { aiDeepResearchRunUuid: 'run-1' },
+                new AbortController().signal,
+            );
+
+            expect(model.markFailed).toHaveBeenCalledExactlyOnceWith(
+                'run-1',
+                'Deep Research reached its one-hour limit before it could finish.',
+                'timeout',
+            );
+            expect(model.markCompleted).not.toHaveBeenCalled();
+            expect(model.markPartiallyCompleted).not.toHaveBeenCalled();
+        });
+
+        it('marks an aborted run as timed out when no partial report is available', async () => {
+            const abortController = new AbortController();
+            const executor = vi.fn(
+                async (
+                    _run: unknown,
+                    context: { signal: AbortSignal },
+                ): Promise<never> => {
+                    if (context.signal.aborted) {
+                        throw context.signal.reason;
+                    }
+                    return new Promise((_resolve, reject) => {
+                        context.signal.addEventListener(
+                            'abort',
+                            () => reject(context.signal.reason),
+                            { once: true },
+                        );
+                    });
+                },
+            );
+            const { service, model } = buildService({ executor });
+            const execution = service.executeRun(
+                { aiDeepResearchRunUuid: 'run-1' },
+                abortController.signal,
+            );
+
+            abortController.abort(new TimeoutError('Job timed out'));
+            await execution;
+
+            expect(model.markFailed).toHaveBeenCalledExactlyOnceWith(
+                'run-1',
+                'Deep Research reached its one-hour limit before it could finish.',
+                'timeout',
+            );
+            expect(model.markCompleted).not.toHaveBeenCalled();
+            expect(model.markPartiallyCompleted).not.toHaveBeenCalled();
+        });
+
+        it('owns the one-hour deadline when no caller signal is provided', async () => {
+            vi.useFakeTimers();
+            const executor = vi.fn(
+                async (_run: unknown, context: { signal: AbortSignal }) =>
+                    new Promise<{
+                        status: 'failed';
+                        errorMessage: string;
+                        terminalReason: 'timeout';
+                    }>((resolve) => {
+                        context.signal.addEventListener(
+                            'abort',
+                            () =>
+                                resolve({
+                                    status: 'failed',
+                                    errorMessage: 'execution timed out',
+                                    terminalReason: 'timeout',
+                                }),
+                            { once: true },
+                        );
+                    }),
+            );
+            const { service, model } = buildService({ executor });
+            const execution = service.executeRun({
+                aiDeepResearchRunUuid: 'run-1',
+            });
+
+            try {
+                await vi.advanceTimersByTimeAsync(60 * 60 * 1_000 - 1);
+                const executionSignal = executor.mock.calls[0][1].signal;
+                expect(executionSignal.aborted).toBe(false);
+                expect(model.markFailed).not.toHaveBeenCalled();
+                expect(model.markPartiallyCompleted).not.toHaveBeenCalled();
+
+                await vi.advanceTimersByTimeAsync(1);
+                await execution;
+
+                expect(executionSignal).toMatchObject({
+                    aborted: true,
+                    reason: expect.objectContaining({
+                        name: 'TimeoutError',
+                    }),
+                });
+                expect(model.markFailed).toHaveBeenCalledExactlyOnceWith(
+                    'run-1',
+                    'Deep Research reached its one-hour limit before it could finish.',
+                    'timeout',
+                );
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('does not start the executor when startup finishes after the hard deadline', async () => {
+            vi.useFakeTimers();
+            const recordRunAccepted = vi.fn(
+                async () =>
+                    new Promise<void>((resolve) => {
+                        setTimeout(
+                            resolve,
+                            AI_DEEP_RESEARCH_HARD_LIMIT_MS +
+                                AI_DEEP_RESEARCH_CLEANUP_GRACE_MS +
+                                1_000,
+                        );
+                    }),
+            );
+            const { service, model, executor } = buildService({
+                model: { recordRunAccepted },
+            });
+            const execution = service.executeRun({
+                aiDeepResearchRunUuid: 'run-1',
+            });
+
+            try {
+                await vi.advanceTimersByTimeAsync(
+                    AI_DEEP_RESEARCH_HARD_LIMIT_MS +
+                        AI_DEEP_RESEARCH_CLEANUP_GRACE_MS +
+                        1_000,
+                );
+                await execution;
+
+                expect(model.claimQueuedRun).not.toHaveBeenCalled();
+                expect(executor).not.toHaveBeenCalled();
+                expect(model.markFailed).toHaveBeenCalledExactlyOnceWith(
+                    'run-1',
+                    'Deep Research reached its one-hour limit before it could finish.',
+                    'timeout',
+                );
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('waits for report persistence during abort cleanup before checkpoint fallback', async () => {
+            vi.useFakeTimers();
+            let reportPersisted = false;
+            const executor = vi.fn(
+                async () => new Promise<AiDeepResearchExecutorResult>(() => {}),
+            );
+            const getToolCallsAndResultsForPrompt = vi.fn(async () =>
+                reportPersisted ? [reportSubmission()] : [],
+            );
+            const { service, model } = buildService({
+                executor,
+                aiAgentModel: { getToolCallsAndResultsForPrompt },
+            });
+            const execution = service.executeRun({
+                aiDeepResearchRunUuid: 'run-1',
+            });
+            setTimeout(() => {
+                reportPersisted = true;
+            }, AI_DEEP_RESEARCH_HARD_LIMIT_MS + 1_000);
+
+            try {
+                await vi.advanceTimersByTimeAsync(
+                    AI_DEEP_RESEARCH_HARD_LIMIT_MS +
+                        AI_DEEP_RESEARCH_CLEANUP_GRACE_MS,
+                );
+                await execution;
+
+                expect(
+                    model.markPartiallyCompleted,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    'run-1',
+                    reportMarkdown,
+                    {},
+                    'timeout',
+                );
+                expect(model.markFailed).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('recovers a persisted valid report when executor work ignores abort', async () => {
+            vi.useFakeTimers();
+            let resolveExecutor: (
+                result: AiDeepResearchExecutorResult,
+            ) => void = () => {};
+            const executor = vi.fn(
+                async () =>
+                    new Promise<AiDeepResearchExecutorResult>((resolve) => {
+                        resolveExecutor = resolve;
+                    }),
+            );
+            let terminalStatus = 'running';
+            const markFailed = vi.fn().mockImplementation(async () => {
+                if (terminalStatus !== 'running') {
+                    return false;
+                }
+                terminalStatus = 'failed';
+                return true;
+            });
+            const markPartiallyCompleted = vi
+                .fn()
+                .mockImplementation(async () => {
+                    if (terminalStatus !== 'running') {
+                        return false;
+                    }
+                    terminalStatus = 'partially_completed';
+                    return true;
+                });
+            const markCompleted = vi.fn().mockImplementation(async () => {
+                if (terminalStatus !== 'running') {
+                    return false;
+                }
+                terminalStatus = 'completed';
+                return true;
+            });
+            const { service } = buildService({
+                executor,
+                model: {
+                    markFailed,
+                    markPartiallyCompleted,
+                    markCompleted,
+                },
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi
+                        .fn()
+                        .mockResolvedValue([reportSubmission()]),
+                },
+            });
+            const execution = service.executeRun({
+                aiDeepResearchRunUuid: 'run-1',
+            });
+
+            try {
+                await vi.advanceTimersByTimeAsync(60 * 60 * 1_000);
+                await vi.advanceTimersToNextTimerAsync();
+                await execution;
+
+                expect(terminalStatus).toBe('partially_completed');
+                expect(markPartiallyCompleted).toHaveBeenCalledExactlyOnceWith(
+                    'run-1',
+                    reportMarkdown,
+                    {},
+                    'timeout',
+                );
+                expect(markFailed).not.toHaveBeenCalled();
+
+                resolveExecutor({
+                    status: 'completed',
+                    report,
+                    warehouseQueryUuids: [],
+                    terminalReason: null,
+                });
+                await vi.runAllTimersAsync();
+
+                expect(terminalStatus).toBe('partially_completed');
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('recovers the latest valid report when a newer submission is invalid', async () => {
+            const { service, model } = buildService({
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([
+                        reportSubmission(report, 'report-1'),
+                        reportSubmission(
+                            {
+                                markdown: 'Missing required structure',
+                                charts: [],
+                            },
+                            'report-2',
+                        ),
+                    ]),
+                },
+            });
+
+            await service.markRunTimedOut('run-1');
+
+            expect(
+                model.markPartiallyCompleted,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'run-1',
+                reportMarkdown,
+                {},
+                'timeout',
+            );
+            expect(model.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('recovers child evidence as a partial report during emergency finalization', async () => {
+            const evidence = reportSubmission({}, 'evidence-1');
+            evidence.toolCall.toolName = 'readContent';
+            evidence.toolResult.toolName = 'readContent';
+            evidence.toolResult.result = JSON.stringify({
+                region: 'Europe',
+                revenue: 1_200,
+            });
+            const getToolCallsAndResultsForPrompt = vi
+                .fn()
+                .mockResolvedValue([evidence]);
+            const { service, model } = buildService({
+                aiAgentModel: { getToolCallsAndResultsForPrompt },
+            });
+
+            await service.markRunTimedOut('run-1');
+
+            expect(getToolCallsAndResultsForPrompt).toHaveBeenCalledWith(
+                'prompt-1',
+                { includeSubagentToolCalls: true },
+            );
+            expect(model.markPartiallyCompleted).toHaveBeenCalledWith(
+                'run-1',
+                expect.stringContaining('result.revenue=1200'),
+                {},
+                'timeout',
+            );
+            expect(model.markFailed).not.toHaveBeenCalled();
+        });
+
+        it('bounds report snapshot cleanup that ignores abort', async () => {
+            vi.useFakeTimers();
+            const { service, model } = buildService({
+                executor: vi.fn().mockResolvedValue({
+                    status: 'completed',
+                    report: chartReport,
+                    warehouseQueryUuids: [chart.queryUuid],
+                    terminalReason: null,
+                }),
+                queryHistoryModel: {
+                    getByQueryUuid: vi.fn().mockResolvedValue({
+                        queryUuid: chart.queryUuid,
+                        createdAt: new Date('2026-07-13T12:30:00.000Z'),
+                        context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                        projectUuid: 'project-1',
+                        organizationUuid: 'org-1',
+                        createdByUserUuid: 'user-1',
+                        createdByActorType: 'pat',
+                        status: QueryHistoryStatus.READY,
+                        resultsFileName: 'evidence.jsonl',
+                        resultsExpiresAt: null,
+                        totalRowCount: 1,
+                        metricQuery: {
+                            dimensions: ['orders_order_month'],
+                            metrics: ['orders_total_revenue'],
+                        },
+                        fields: {},
+                    }),
+                },
+                resultsFileStorageClient: {
+                    getDownloadStream: vi.fn(
+                        async () =>
+                            new Promise<Readable>(() => {
+                                // The storage request intentionally ignores cancellation.
+                            }),
+                    ),
+                },
+            });
+            const execution = service.executeRun({
+                aiDeepResearchRunUuid: 'run-1',
+            });
+
+            try {
+                await vi.advanceTimersByTimeAsync(60 * 60 * 1_000);
+                await vi.advanceTimersToNextTimerAsync();
+                await vi.advanceTimersToNextTimerAsync();
+                await execution;
+
+                expect(model.markFailed).toHaveBeenCalledExactlyOnceWith(
+                    'run-1',
+                    'Deep Research reached its one-hour limit before it could finish.',
+                    'timeout',
+                );
+                expect(model.markCompleted).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('preserves a checkpointed report when the service deadline fires', async () => {
+            vi.useFakeTimers();
+            const executor = vi.fn(
+                async (_run: unknown, context: { signal: AbortSignal }) =>
+                    new Promise<{
+                        status: 'partially_completed';
+                        report: typeof report;
+                        warehouseQueryUuids: string[];
+                        terminalReason: 'timeout';
+                    }>((resolve) => {
+                        context.signal.addEventListener(
+                            'abort',
+                            () =>
+                                resolve({
+                                    status: 'partially_completed',
+                                    report,
+                                    warehouseQueryUuids: [],
+                                    terminalReason: 'timeout',
+                                }),
+                            { once: true },
+                        );
+                    }),
+            );
+            const { service, model } = buildService({ executor });
+            const execution = service.executeRun({
+                aiDeepResearchRunUuid: 'run-1',
+            });
+
+            try {
+                await vi.advanceTimersByTimeAsync(60 * 60 * 1_000);
+                await execution;
+
+                expect(
+                    model.markPartiallyCompleted,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    'run-1',
+                    reportMarkdown,
+                    {},
+                    'timeout',
+                );
+                expect(model.markFailed).not.toHaveBeenCalled();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('finalizes once when the caller and service deadlines race a late completion', async () => {
+            vi.useFakeTimers();
+            const callerController = new AbortController();
+            setTimeout(
+                () => {
+                    callerController.abort(
+                        new TimeoutError('Scheduler job timed out'),
+                    );
+                },
+                60 * 60 * 1_000,
+            );
+            const executor = vi.fn(
+                async (_run: unknown, context: { signal: AbortSignal }) =>
+                    new Promise<{
+                        status: 'completed';
+                        report: typeof report;
+                        warehouseQueryUuids: string[];
+                        terminalReason: null;
+                    }>((resolve) => {
+                        context.signal.addEventListener(
+                            'abort',
+                            () =>
+                                resolve({
+                                    status: 'completed',
+                                    report,
+                                    warehouseQueryUuids: [],
+                                    terminalReason: null,
+                                }),
+                            { once: true },
+                        );
+                    }),
+            );
+            const { service, model } = buildService({ executor });
+            const execution = service.executeRun(
+                {
+                    aiDeepResearchRunUuid: 'run-1',
+                },
+                callerController.signal,
+            );
+
+            try {
+                await vi.advanceTimersByTimeAsync(60 * 60 * 1_000);
+                await execution;
+
+                expect(
+                    model.markPartiallyCompleted,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    'run-1',
+                    reportMarkdown,
+                    {},
+                    'timeout',
+                );
+                expect(model.markCompleted).not.toHaveBeenCalled();
+                expect(model.markFailed).not.toHaveBeenCalled();
+                expect(
+                    model.markCompleted.mock.calls.length +
+                        model.markPartiallyCompleted.mock.calls.length +
+                        model.markFailed.mock.calls.length +
+                        model.markCancelled.mock.calls.length,
+                ).toBe(1);
+            } finally {
+                vi.useRealTimers();
+            }
         });
     });
 

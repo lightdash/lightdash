@@ -9,10 +9,13 @@ import {
 import * as Sentry from '@sentry/node';
 import {
     generateText,
+    hasToolCall,
     smoothStream,
     stepCountIs,
     streamText,
     StreamTextResult,
+    wrapLanguageModel,
+    type LanguageModelMiddleware,
     type ModelMessage,
     type Output,
     type ToolSet,
@@ -27,6 +30,7 @@ import {
     getAiDeepResearchJudgeInstructions,
     getAiDeepResearchPlannerInstructions,
 } from '../../AiDeepResearchService/AiDeepResearchAgent';
+import { isDeepResearchInvestigationTargetReachedError } from '../deepResearchErrors';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
@@ -112,6 +116,250 @@ const createAiAgentLogger =
 export const DEFAULT_AGENT_MAX_STEPS = 40;
 
 const PERSIST_TIMEOUT_MS = 10_000;
+const DEEP_RESEARCH_REQUEST_TIMEOUT_MS = 3 * 60 * 1_000;
+const DEEP_RESEARCH_STEP_TIMEOUT_MS = 8 * 60 * 1_000;
+
+type DeepResearchRetryReason =
+    | 'provider_transient'
+    | 'provider_timeout'
+    | 'rate_limit';
+
+type DeepResearchAttemptContext = {
+    runUuid: string;
+    phase: 'investigation' | 'synthesis';
+};
+
+type DeepResearchToolTelemetryContext = {
+    runUuid: string;
+    workflowPhase: 'investigation' | 'synthesis';
+};
+
+const DEEP_RESEARCH_RETRY_BACKOFF_BASE_MS = 250;
+const DEEP_RESEARCH_RETRY_BACKOFF_MAX_MS = 2_000;
+
+const getErrorProperty = (error: unknown, property: string): unknown =>
+    error !== null && typeof error === 'object' && property in error
+        ? error[property as keyof typeof error]
+        : undefined;
+
+const errorChainIncludes = (
+    error: unknown,
+    predicate: (value: unknown) => boolean,
+): boolean => {
+    const visited = new Set<unknown>();
+    let current: unknown = error;
+
+    while (current !== null && typeof current === 'object') {
+        if (visited.has(current)) {
+            return false;
+        }
+        visited.add(current);
+
+        if (predicate(current)) {
+            return true;
+        }
+        current = getErrorProperty(current, 'cause');
+    }
+
+    return false;
+};
+
+const isProviderResponseValidationError = (error: unknown): boolean =>
+    errorChainIncludes(error, (value) =>
+        [
+            'InvalidResponseDataError',
+            'JSONParseError',
+            'TypeValidationError',
+        ].includes(String(getErrorProperty(value, 'name'))),
+    );
+
+export const classifyDeepResearchRetry = (
+    error: unknown,
+): { reason: DeepResearchRetryReason; maxRetries: number } | null => {
+    const isDeterministicFailure = errorChainIncludes(error, (value) =>
+        [
+            'AbortError',
+            'InvalidArgumentError',
+            'InvalidPromptError',
+            'InvalidResponseDataError',
+            'JSONParseError',
+            'TypeValidationError',
+        ].includes(String(getErrorProperty(value, 'name'))),
+    );
+    if (isDeterministicFailure) {
+        return null;
+    }
+
+    const isTimeout = errorChainIncludes(
+        error,
+        (value) =>
+            getErrorProperty(value, 'code') === 'ETIMEDOUT' ||
+            getErrorProperty(value, 'name') === 'TimeoutError',
+    );
+    if (isTimeout) {
+        return { reason: 'provider_timeout', maxRetries: 1 };
+    }
+
+    const statusCode = getErrorProperty(error, 'statusCode');
+    if (statusCode === 429) {
+        return { reason: 'rate_limit', maxRetries: 2 };
+    }
+
+    const isTransientStatus =
+        typeof statusCode === 'number' &&
+        (statusCode === 408 ||
+            statusCode === 409 ||
+            statusCode === 425 ||
+            statusCode >= 500);
+    if (
+        typeof statusCode === 'number' &&
+        statusCode >= 400 &&
+        statusCode < 500 &&
+        !isTransientStatus
+    ) {
+        return null;
+    }
+
+    if (isTransientStatus || getErrorProperty(error, 'isRetryable') === true) {
+        return { reason: 'provider_transient', maxRetries: 2 };
+    }
+
+    return null;
+};
+
+const getDeepResearchAbortSource = ({
+    callerSignal,
+    requestTimeoutSignal,
+}: {
+    callerSignal: AbortSignal | undefined;
+    requestTimeoutSignal: AbortSignal;
+}): 'caller' | 'request_timeout' | null => {
+    if (callerSignal?.aborted) {
+        return 'caller';
+    }
+    if (requestTimeoutSignal.aborted) {
+        return 'request_timeout';
+    }
+    return null;
+};
+
+const getDeepResearchRetry = ({
+    error,
+    abortSource,
+}: {
+    error: unknown;
+    abortSource: ReturnType<typeof getDeepResearchAbortSource>;
+}) => {
+    if (abortSource === 'caller') {
+        return null;
+    }
+    if (abortSource === 'request_timeout') {
+        return {
+            reason: 'provider_timeout' as const,
+            maxRetries: 1,
+        };
+    }
+    return classifyDeepResearchRetry(error);
+};
+
+export const getDeepResearchRetryBackoffMs = (attemptNumber: number): number =>
+    Math.min(
+        DEEP_RESEARCH_RETRY_BACKOFF_BASE_MS * 2 ** (attemptNumber - 1),
+        DEEP_RESEARCH_RETRY_BACKOFF_MAX_MS,
+    );
+
+const waitForDeepResearchRetryBackoff = async ({
+    durationMs,
+    signal,
+}: {
+    durationMs: number;
+    signal?: AbortSignal;
+}): Promise<void> => {
+    if (signal?.aborted) {
+        throw signal.reason;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+        const state: { timeout?: NodeJS.Timeout } = {};
+        const onAbort = () => {
+            if (state.timeout) {
+                clearTimeout(state.timeout);
+            }
+            signal?.removeEventListener('abort', onAbort);
+            reject(signal?.reason);
+        };
+        state.timeout = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, durationMs);
+        signal?.addEventListener('abort', onAbort, { once: true });
+        state.timeout.unref();
+    });
+};
+
+export const closeDeepResearchMcpClients = async ({
+    context,
+    closeMcpClients,
+}: {
+    context: DeepResearchToolTelemetryContext;
+    closeMcpClients: () => Promise<void>;
+}): Promise<void> => {
+    await Sentry.startSpan(
+        {
+            name: 'ai.deep_research.cleanup',
+            op: 'ai.cleanup',
+            attributes: {
+                'ai.deep_research.run_uuid': context.runUuid,
+                'ai.deep_research.workflow_phase': context.workflowPhase,
+                'ai.deep_research.latency_phase': 'cleanup',
+                'ai.deep_research.step_id': 'cleanup',
+                'ai.deep_research.attempt_id': 'cleanup:1',
+                'ai.deep_research.started_at': new Date().toISOString(),
+                'ai.deep_research.tokens_available': false,
+            },
+        },
+        async (span) => {
+            let cleanupTimeout: NodeJS.Timeout | undefined;
+            try {
+                const outcome = await Promise.race([
+                    closeMcpClients().then(
+                        () => ({ status: 'success' as const }),
+                        (error: unknown) => ({
+                            status: 'error' as const,
+                            error,
+                        }),
+                    ),
+                    new Promise<{ status: 'timeout' }>((resolve) => {
+                        cleanupTimeout = setTimeout(
+                            () => resolve({ status: 'timeout' }),
+                            5_000,
+                        );
+                        cleanupTimeout.unref();
+                    }),
+                ]);
+                if (outcome.status === 'error') {
+                    throw outcome.error;
+                }
+                span.setAttributes({
+                    'ai.deep_research.ended_at': new Date().toISOString(),
+                    'ai.deep_research.outcome': outcome.status,
+                    'ai.deep_research.aborted': outcome.status === 'timeout',
+                });
+            } catch (error) {
+                span.setAttributes({
+                    'ai.deep_research.ended_at': new Date().toISOString(),
+                    'ai.deep_research.outcome': 'error',
+                    'ai.deep_research.aborted': false,
+                });
+                throw error;
+            } finally {
+                if (cleanupTimeout) {
+                    clearTimeout(cleanupTimeout);
+                }
+            }
+        },
+    );
+};
 
 /**
  * Decorates updatePrompt with the stream-close contract: awaiting it never
@@ -244,6 +492,7 @@ const withPreGrepCandidates = (
 export type AgentMcpToolSetup = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
+    readOnlyMcpToolNames?: Set<string>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
@@ -283,7 +532,10 @@ export const buildDeepResearchExecutionContextSnapshot = (
             enabledToolNames: Object.entries(
                 mcpToolSetup.mcpToolNameToServerUuid,
             )
-                .filter(([, serverUuid]) => serverUuid === server.uuid)
+                .filter(
+                    ([toolName, serverUuid]) =>
+                        serverUuid === server.uuid && toolName in tools,
+                )
                 .map(([toolName]) => toolName)
                 .sort(),
         })),
@@ -380,6 +632,417 @@ export const defaultAgentOptions = {
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
+export const withDeepResearchRequestTimeout = (
+    model: AiAgentArgs['model'],
+    timeoutMs = DEEP_RESEARCH_REQUEST_TIMEOUT_MS,
+    context: DeepResearchAttemptContext = {
+        runUuid: 'unknown',
+        phase: 'investigation',
+    },
+): AiAgentArgs['model'] => {
+    if (model.specificationVersion !== 'v3') {
+        return model;
+    }
+
+    let stepNumber = 0;
+    const middleware: LanguageModelMiddleware = {
+        specificationVersion: 'v3',
+        wrapStream: async ({ model: providerModel, params }) => {
+            stepNumber += 1;
+            const stepId = `${context.runUuid}:${context.phase}:${stepNumber}`;
+
+            const executeAttempt = async (
+                attemptNumber: number,
+            ): Promise<Awaited<ReturnType<typeof providerModel.doStream>>> => {
+                const attemptId = `${stepId}:${attemptNumber}`;
+                const requestTimeoutSignal = AbortSignal.timeout(timeoutMs);
+                const attemptSignal = AbortSignal.any([
+                    ...(params.abortSignal ? [params.abortSignal] : []),
+                    requestTimeoutSignal,
+                ]);
+                const { span, finish } = Sentry.startSpanManual(
+                    {
+                        name: 'ai.deep_research.provider_attempt',
+                        op: 'ai.run',
+                        attributes: {
+                            'ai.deep_research.run_uuid': context.runUuid,
+                            'ai.deep_research.workflow_phase': context.phase,
+                            'ai.deep_research.latency_phase':
+                                context.phase === 'synthesis'
+                                    ? 'synthesis'
+                                    : 'provider_wait',
+                            'ai.deep_research.step_id': stepId,
+                            'ai.deep_research.attempt_id': attemptId,
+                            'ai.deep_research.attempt_number': attemptNumber,
+                            'ai.deep_research.started_at':
+                                new Date().toISOString(),
+                            'ai.deep_research.first_byte_observed': false,
+                        },
+                    },
+                    (attemptSpan, finishAttempt) => ({
+                        span: attemptSpan,
+                        finish: finishAttempt,
+                    }),
+                );
+                let isFinished = false;
+                const finishAttempt = (
+                    attributes: Record<string, string | number | boolean>,
+                ) => {
+                    if (isFinished) {
+                        return;
+                    }
+                    isFinished = true;
+                    span.setAttributes({
+                        'ai.deep_research.ended_at': new Date().toISOString(),
+                        ...attributes,
+                    });
+                    finish();
+                };
+                const retryAfterError = async (
+                    error: unknown,
+                ): Promise<Awaited<
+                    ReturnType<typeof providerModel.doStream>
+                > | null> => {
+                    const abortSource = getDeepResearchAbortSource({
+                        callerSignal: params.abortSignal,
+                        requestTimeoutSignal,
+                    });
+                    const retry = getDeepResearchRetry({
+                        error,
+                        abortSource,
+                    });
+                    const willRetry =
+                        retry !== null && attemptNumber <= retry.maxRetries;
+                    finishAttempt({
+                        'ai.deep_research.outcome':
+                            abortSource === null ? 'error' : 'aborted',
+                        'ai.deep_research.abort_source': abortSource ?? 'none',
+                        'ai.deep_research.response_validation_failed':
+                            isProviderResponseValidationError(error),
+                        'ai.deep_research.retry_reason':
+                            retry?.reason ?? 'not_retryable',
+                        'ai.deep_research.will_retry': willRetry,
+                    });
+
+                    if (!willRetry) {
+                        return null;
+                    }
+
+                    await waitForDeepResearchRetryBackoff({
+                        durationMs:
+                            getDeepResearchRetryBackoffMs(attemptNumber),
+                        signal: params.abortSignal,
+                    });
+                    return executeAttempt(attemptNumber + 1);
+                };
+
+                let result: Awaited<ReturnType<typeof providerModel.doStream>>;
+                try {
+                    result = await providerModel.doStream({
+                        ...params,
+                        abortSignal: attemptSignal,
+                    });
+                } catch (error) {
+                    const retriedResult = await retryAfterError(error);
+                    if (retriedResult) {
+                        return retriedResult;
+                    }
+                    throw error;
+                }
+
+                const reader = result.stream.getReader();
+                const chunks: NonNullable<
+                    Awaited<ReturnType<typeof reader.read>>['value']
+                >[] = [];
+                let usage:
+                    | Extract<
+                          NonNullable<(typeof chunks)[number]>,
+                          { type: 'finish' }
+                      >['usage']
+                    | undefined;
+
+                const readAttemptStream = async (): Promise<Awaited<
+                    ReturnType<typeof providerModel.doStream>
+                > | null> => {
+                    const next = await reader.read();
+                    if (next.done) {
+                        return null;
+                    }
+                    if (chunks.length === 0) {
+                        span.setAttributes({
+                            'ai.deep_research.first_byte_at':
+                                new Date().toISOString(),
+                            'ai.deep_research.first_byte_observed': true,
+                        });
+                    }
+                    chunks.push(next.value);
+                    if (next.value.type === 'finish') {
+                        usage = next.value.usage;
+                    }
+                    if (next.value.type === 'error') {
+                        return retryAfterError(next.value.error);
+                    }
+                    return readAttemptStream();
+                };
+
+                try {
+                    const retriedResult = await readAttemptStream();
+                    if (retriedResult) {
+                        return retriedResult;
+                    }
+                } catch (error) {
+                    const retriedResult = await retryAfterError(error);
+                    if (retriedResult) {
+                        return retriedResult;
+                    }
+                    throw error;
+                }
+
+                finishAttempt({
+                    'ai.deep_research.outcome': 'success',
+                    'ai.deep_research.input_tokens':
+                        usage?.inputTokens.total ?? 0,
+                    'ai.deep_research.output_tokens':
+                        usage?.outputTokens.total ?? 0,
+                    'ai.deep_research.total_tokens':
+                        (usage?.inputTokens.total ?? 0) +
+                        (usage?.outputTokens.total ?? 0),
+                    'ai.deep_research.will_retry': false,
+                });
+
+                return {
+                    ...result,
+                    stream: new ReadableStream({
+                        start: (controller) => {
+                            chunks.forEach((chunk) =>
+                                controller.enqueue(chunk),
+                            );
+                            controller.close();
+                        },
+                    }),
+                };
+            };
+
+            return executeAttempt(1);
+        },
+        wrapGenerate: async ({ model: providerModel, params }) => {
+            stepNumber += 1;
+            const stepId = `${context.runUuid}:${context.phase}:${stepNumber}`;
+
+            const executeAttempt = async (attemptNumber: number) => {
+                const attemptId = `${stepId}:${attemptNumber}`;
+                const startedAt = new Date().toISOString();
+                const requestTimeoutSignal = AbortSignal.timeout(timeoutMs);
+                const attemptSignal = AbortSignal.any([
+                    ...(params.abortSignal ? [params.abortSignal] : []),
+                    requestTimeoutSignal,
+                ]);
+
+                const outcome = await Sentry.startSpan(
+                    {
+                        name: 'ai.deep_research.provider_attempt',
+                        op: 'ai.run',
+                        attributes: {
+                            'ai.deep_research.run_uuid': context.runUuid,
+                            'ai.deep_research.workflow_phase': context.phase,
+                            'ai.deep_research.latency_phase':
+                                context.phase === 'synthesis'
+                                    ? 'synthesis'
+                                    : 'provider_wait',
+                            'ai.deep_research.step_id': stepId,
+                            'ai.deep_research.attempt_id': attemptId,
+                            'ai.deep_research.attempt_number': attemptNumber,
+                            'ai.deep_research.started_at': startedAt,
+                            // doGenerate is non-streaming, so the provider
+                            // adapter exposes completion but no honest
+                            // first-byte timestamp.
+                            'ai.deep_research.first_byte_observed': false,
+                        },
+                    },
+                    async (span) => {
+                        try {
+                            const result = await providerModel.doGenerate({
+                                ...params,
+                                abortSignal: attemptSignal,
+                            });
+                            span.setAttributes({
+                                'ai.deep_research.ended_at':
+                                    new Date().toISOString(),
+                                'ai.deep_research.outcome': 'success',
+                                'ai.deep_research.input_tokens':
+                                    result.usage.inputTokens.total ?? 0,
+                                'ai.deep_research.output_tokens':
+                                    result.usage.outputTokens.total ?? 0,
+                                'ai.deep_research.total_tokens':
+                                    (result.usage.inputTokens.total ?? 0) +
+                                    (result.usage.outputTokens.total ?? 0),
+                                'ai.deep_research.will_retry': false,
+                            });
+                            return { status: 'success' as const, result };
+                        } catch (error) {
+                            const abortSource = getDeepResearchAbortSource({
+                                callerSignal: params.abortSignal,
+                                requestTimeoutSignal,
+                            });
+                            const retry = getDeepResearchRetry({
+                                error,
+                                abortSource,
+                            });
+                            const willRetry =
+                                retry !== null &&
+                                attemptNumber <= retry.maxRetries;
+                            span.setAttributes({
+                                'ai.deep_research.ended_at':
+                                    new Date().toISOString(),
+                                'ai.deep_research.outcome':
+                                    abortSource === null ? 'error' : 'aborted',
+                                'ai.deep_research.abort_source':
+                                    abortSource ?? 'none',
+                                'ai.deep_research.response_validation_failed':
+                                    isProviderResponseValidationError(error),
+                                'ai.deep_research.retry_reason':
+                                    retry?.reason ?? 'not_retryable',
+                                'ai.deep_research.will_retry': willRetry,
+                            });
+
+                            return {
+                                status: 'failed' as const,
+                                error,
+                                willRetry,
+                            };
+                        }
+                    },
+                );
+
+                if (outcome.status === 'success') {
+                    return outcome.result;
+                }
+                if (outcome.willRetry) {
+                    const backoffMs =
+                        getDeepResearchRetryBackoffMs(attemptNumber);
+                    await Sentry.startSpan(
+                        {
+                            name: 'ai.deep_research.retry_backoff',
+                            op: 'ai.wait',
+                            attributes: {
+                                'ai.deep_research.run_uuid': context.runUuid,
+                                'ai.deep_research.workflow_phase':
+                                    context.phase,
+                                'ai.deep_research.latency_phase':
+                                    'retry_backoff',
+                                'ai.deep_research.step_id': stepId,
+                                'ai.deep_research.attempt_id': attemptId,
+                                'ai.deep_research.attempt_number':
+                                    attemptNumber,
+                                'ai.deep_research.retry_backoff_ms': backoffMs,
+                                'ai.deep_research.started_at':
+                                    new Date().toISOString(),
+                            },
+                        },
+                        async (span) => {
+                            try {
+                                await waitForDeepResearchRetryBackoff({
+                                    durationMs: backoffMs,
+                                    signal: params.abortSignal,
+                                });
+                                span.setAttributes({
+                                    'ai.deep_research.ended_at':
+                                        new Date().toISOString(),
+                                    'ai.deep_research.outcome': 'success',
+                                    'ai.deep_research.aborted': false,
+                                });
+                            } catch (error) {
+                                span.setAttributes({
+                                    'ai.deep_research.ended_at':
+                                        new Date().toISOString(),
+                                    'ai.deep_research.outcome': 'aborted',
+                                    'ai.deep_research.aborted': true,
+                                });
+                                throw error;
+                            }
+                        },
+                    );
+                    return executeAttempt(attemptNumber + 1);
+                }
+                throw outcome.error;
+            };
+
+            return executeAttempt(1);
+        },
+    };
+
+    return wrapLanguageModel({ model, middleware });
+};
+
+export const hasValidToolCall =
+    (toolName: string) =>
+    (options: Parameters<ReturnType<typeof hasToolCall>>[0]): boolean =>
+        hasToolCall(toolName)(options) &&
+        (options.steps
+            .at(-1)
+            ?.toolResults.some(
+                (toolResult) =>
+                    toolResult.toolName === toolName &&
+                    normalizeToolOutput(toolResult.output).metadata?.status ===
+                        'success',
+            ) ??
+            false);
+
+export const getDeepResearchStopCondition = (args: AiAgentArgs) => {
+    if (args.execution.mode !== 'deep_research') {
+        return null;
+    }
+
+    const toolName = (() => {
+        switch (args.execution.research?.role) {
+            case 'planner':
+                return 'submitResearchHypotheses';
+            case 'investigator':
+                return 'submitInvestigationReport';
+            case 'judge':
+            case undefined:
+                return 'submitResearchReport';
+            default:
+                return assertUnreachable(
+                    args.execution.research,
+                    'Unknown research role',
+                );
+        }
+    })();
+
+    return hasValidToolCall(toolName);
+};
+
+export const getDeepResearchGenerationOptions = (
+    args: AiAgentArgs,
+): {
+    activeTools?: ['submitResearchReport'];
+    maxRetries?: number;
+    model?: AiAgentArgs['model'];
+    timeout?: { stepMs: number };
+} => {
+    if (args.execution.mode !== 'deep_research') {
+        return {};
+    }
+
+    return {
+        activeTools:
+            args.execution.phase === 'synthesis'
+                ? ['submitResearchReport']
+                : undefined,
+        maxRetries: 0,
+        model: withDeepResearchRequestTimeout(
+            args.model,
+            DEEP_RESEARCH_REQUEST_TIMEOUT_MS,
+            {
+                runUuid: args.execution.runUuid,
+                phase: args.execution.phase,
+            },
+        ),
+        timeout: { stepMs: DEEP_RESEARCH_STEP_TIMEOUT_MS },
+    };
+};
+
 const buildStopWhenPromptInterrupted =
     (
         args: AiAgentArgs,
@@ -400,19 +1063,43 @@ const buildStopWhenPromptInterrupted =
     };
 
 /**
- * When forceToolHints is set, force the first hinted tool on the opening step
- * (toolChoice) and release to auto afterwards. Used by the review Build-fix run
- * to guarantee the agent opens a PR via editDbtProject rather than just
- * discussing the fix. No-op if the forced tool isn't in the registered set.
+ * Forces terminal tools at the deterministic boundaries where a workflow
+ * requires them. Build-fix forces its hinted tool on the opening step;
+ * Deep Research synthesis does the same, while investigators reserve their
+ * final step for submitting the evidence gathered by earlier steps.
  */
 export const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
-    if (!args.forceToolHints) return undefined;
-    const forcedTool = args.toolHints[0];
-    if (!forcedTool || !(forcedTool in tools)) return undefined;
-    return ({ stepNumber }: { stepNumber: number }) =>
-        stepNumber === 0
-            ? { toolChoice: { type: 'tool' as const, toolName: forcedTool } }
-            : {};
+    const getForcedTool = (stepNumber: number) => {
+        if (
+            args.execution.mode === 'deep_research' &&
+            args.execution.phase === 'synthesis'
+        ) {
+            return stepNumber === 0 ? 'submitResearchReport' : undefined;
+        }
+        if (
+            args.execution.mode === 'deep_research' &&
+            args.execution.research?.role === 'investigator'
+        ) {
+            return stepNumber === args.execution.maxSteps - 1
+                ? 'submitInvestigationReport'
+                : undefined;
+        }
+        return args.forceToolHints && stepNumber === 0
+            ? args.toolHints[0]
+            : undefined;
+    };
+    return ({ stepNumber }: { stepNumber: number }) => {
+        const forcedTool = getForcedTool(stepNumber);
+        if (!forcedTool || !(forcedTool in tools)) {
+            return {};
+        }
+        return {
+            ...(forcedTool === 'submitInvestigationReport'
+                ? { activeTools: [forcedTool] }
+                : {}),
+            toolChoice: { type: 'tool' as const, toolName: forcedTool },
+        };
+    };
 };
 
 const buildPrepareStep = ({
@@ -447,11 +1134,15 @@ const buildPrepareStep = ({
 
         // ZAP-574: bound repeated query-tool failures so a slow/looping
         // visualization can't stack multi-minute warehouse scans in one turn.
-        const retryOverride = buildQueryRetryStepOverride(
-            messages,
-            Object.keys(tools),
-            invalidToolCallIds,
-        );
+        const retryOverride =
+            args.execution.mode === 'deep_research' &&
+            args.execution.phase === 'synthesis'
+                ? null
+                : buildQueryRetryStepOverride(
+                      messages,
+                      Object.keys(tools),
+                      invalidToolCallIds,
+                  );
         if (retryOverride) {
             activeTools = retryOverride.activeTools;
             extraMessages.push({
@@ -506,8 +1197,10 @@ const buildPrepareStep = ({
         }
 
         return {
-            ...forced,
             ...(activeTools !== undefined ? { activeTools } : {}),
+            // A mandatory workflow boundary takes precedence over retry-cap
+            // tool filtering, while retaining any messages it injected.
+            ...forced,
             messages: [...messages, ...extraMessages],
         };
     };
@@ -900,6 +1593,52 @@ export const getAgentTools = (
     };
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
+    // Investigators may observe data but cannot mutate Lightdash or external
+    // systems. runSql enforces SELECT/WITH-only SQL; MCP tools additionally
+    // require the persisted allow grant and a live read-only annotation.
+    const deepResearchInvestigationToolNames = new Set([
+        'findContent',
+        'discoverFields',
+        'grepFields',
+        'getMetadata',
+        'analyzeFieldImpact',
+        'searchSemanticLayer',
+        'listProjects',
+        'getProjectInfo',
+        'listKnowledgeDocuments',
+        'getKnowledgeDocumentContent',
+        'readPinnedThread',
+        'resolveUrl',
+        'readContent',
+        'listContent',
+        'runContentQuery',
+        'getDashboardCharts',
+        'runSavedChart',
+        'runSql',
+        'searchFieldValues',
+        'listWarehouseTables',
+        'describeWarehouseTable',
+        'loadSkill',
+        'loadProjectContext',
+        'submitResearchReport',
+    ]);
+    const deepResearchInvestigationTools = Object.fromEntries(
+        Object.entries(mergedTools).filter(
+            ([toolName]) =>
+                deepResearchInvestigationToolNames.has(toolName) ||
+                mcpToolSetup.readOnlyMcpToolNames?.has(toolName) === true,
+        ),
+    );
+    let availableTools = mergedTools;
+    if (args.execution.mode === 'deep_research') {
+        if (args.execution.phase === 'synthesis') {
+            availableTools = submitResearchReport
+                ? { submitResearchReport }
+                : {};
+        } else {
+            availableTools = deepResearchInvestigationTools;
+        }
+    }
 
     // Structured deep-research phases replace the toolset: planner and judge
     // are single-purpose model calls, and investigators trade the report tool
@@ -921,7 +1660,7 @@ export const getAgentTools = (
                 return submitResearchReport ? { submitResearchReport } : null;
             case 'investigator': {
                 const { submitResearchReport: omitted, ...investigatorTools } =
-                    mergedTools;
+                    availableTools;
                 return {
                     ...investigatorTools,
                     submitInvestigationReport: getSubmitInvestigationReport({
@@ -935,7 +1674,7 @@ export const getAgentTools = (
                 return assertUnreachable(research, 'Unknown research role');
         }
     };
-    const finalTools = getResearchTools() ?? mergedTools;
+    const finalTools = getResearchTools() ?? availableTools;
 
     logger(
         'Agent Tools',
@@ -970,6 +1709,7 @@ export const withEarlyToolProgress = (
     tools: ToolSet,
     updateProgress: AiAgentDependencies['updateProgress'],
     waitForProgress: boolean,
+    deepResearchTelemetry?: DeepResearchToolTelemetryContext,
 ): ToolSet =>
     Object.fromEntries(
         Object.entries(tools).map(([toolName, toolDef]) => {
@@ -990,10 +1730,104 @@ export const withEarlyToolProgress = (
                             'in_progress',
                         );
                         if (waitForProgress) {
-                            return progress.then(() =>
-                                getFinalAsyncIterableOutput(
-                                    originalExecute(input, options),
-                                ),
+                            return progress.then(
+                                () =>
+                                    deepResearchTelemetry
+                                        ? Sentry.startSpan(
+                                              {
+                                                  name: 'ai.deep_research.tool_execution',
+                                                  op: 'ai.tool',
+                                                  attributes: {
+                                                      'ai.deep_research.run_uuid':
+                                                          deepResearchTelemetry.runUuid,
+                                                      'ai.deep_research.workflow_phase':
+                                                          deepResearchTelemetry.workflowPhase,
+                                                      'ai.deep_research.latency_phase':
+                                                          'tool_execution',
+                                                      'ai.deep_research.step_id':
+                                                          options?.toolCallId ??
+                                                          'unknown',
+                                                      'ai.deep_research.attempt_id':
+                                                          options?.toolCallId ??
+                                                          'unknown',
+                                                      'ai.deep_research.tool_name':
+                                                          toolName,
+                                                      'ai.deep_research.started_at':
+                                                          new Date().toISOString(),
+                                                      'ai.deep_research.tokens_available': false,
+                                                  },
+                                              },
+                                              async (span) => {
+                                                  try {
+                                                      const output =
+                                                          await getFinalAsyncIterableOutput(
+                                                              originalExecute(
+                                                                  input,
+                                                                  options,
+                                                              ),
+                                                          );
+                                                      const reportStatus =
+                                                          toolName ===
+                                                          'submitResearchReport'
+                                                              ? normalizeToolOutput(
+                                                                    output,
+                                                                ).metadata
+                                                                    ?.status
+                                                              : undefined;
+                                                      span.setAttributes({
+                                                          'ai.deep_research.ended_at':
+                                                              new Date().toISOString(),
+                                                          'ai.deep_research.outcome':
+                                                              'success',
+                                                          ...(reportStatus
+                                                              ? {
+                                                                    'ai.deep_research.report_submission':
+                                                                        reportStatus ===
+                                                                        'success'
+                                                                            ? 'valid'
+                                                                            : 'invalid',
+                                                                }
+                                                              : {}),
+                                                      });
+                                                      return output;
+                                                  } catch (error) {
+                                                      span.setAttributes({
+                                                          'ai.deep_research.ended_at':
+                                                              new Date().toISOString(),
+                                                          'ai.deep_research.outcome':
+                                                              options
+                                                                  ?.abortSignal
+                                                                  ?.aborted
+                                                                  ? 'aborted'
+                                                                  : 'error',
+                                                          'ai.deep_research.aborted':
+                                                              options
+                                                                  ?.abortSignal
+                                                                  ?.aborted ??
+                                                              false,
+                                                      });
+                                                      throw error;
+                                                  }
+                                              },
+                                          )
+                                        : getFinalAsyncIterableOutput(
+                                              originalExecute(input, options),
+                                          ),
+                                (error: unknown) => {
+                                    if (
+                                        isDeepResearchInvestigationTargetReachedError(
+                                            error,
+                                        )
+                                    ) {
+                                        return {
+                                            result: error.message,
+                                            metadata: {
+                                                status: 'error' as const,
+                                            },
+                                        };
+                                    }
+                                    throw error;
+                                },
                             );
                         }
 
@@ -1235,6 +2069,12 @@ export const generateAgentResponse = async ({
             ),
             dependencies.updateProgress,
             args.execution.mode === 'deep_research',
+            args.execution.mode === 'deep_research'
+                ? {
+                      runUuid: args.execution.runUuid,
+                      workflowPhase: args.execution.phase,
+                  }
+                : undefined,
         );
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
@@ -1265,17 +2105,24 @@ export const generateAgentResponse = async ({
             dependencies,
             logger,
         );
-        const result = await generateText({
+        const deepResearchGenerationOptions =
+            getDeepResearchGenerationOptions(args);
+        const deepResearchStopCondition = getDeepResearchStopCondition(args);
+        const generationOptions = {
             ...defaultAgentOptions,
             ...args.callOptions,
+            ...deepResearchGenerationOptions,
             prepareStep,
             stopWhen: [
                 stepCountIs(args.execution.maxSteps),
                 stopWhenPromptInterrupted,
+                ...(deepResearchStopCondition
+                    ? [deepResearchStopCondition]
+                    : []),
             ],
             abortSignal,
             providerOptions: args.providerOptions,
-            model: args.model,
+            model: deepResearchGenerationOptions.model ?? args.model,
             tools,
             messages,
             experimental_context: new AgentContext(availableExplores),
@@ -1456,7 +2303,29 @@ export const generateAgentResponse = async ({
                 await args.execution.onStepUsage?.(stepTokens);
             },
             experimental_telemetry: telemetry,
-        });
+        } satisfies Parameters<typeof generateText>[0];
+        const result =
+            args.execution.mode === 'deep_research'
+                ? await (async () => {
+                      const streamedResult = streamText(generationOptions);
+                      const [text, finishReason, steps, usage, totalUsage] =
+                          await Promise.all([
+                              streamedResult.text,
+                              streamedResult.finishReason,
+                              streamedResult.steps,
+                              streamedResult.usage,
+                              streamedResult.totalUsage,
+                          ]);
+
+                      return {
+                          text,
+                          finishReason,
+                          steps,
+                          usage,
+                          totalUsage,
+                      };
+                  })()
+                : await generateText(generationOptions);
 
         emitAiUsage(telemetry, languageModelUsageToTokens(result.totalUsage));
 
@@ -1474,7 +2343,18 @@ export const generateAgentResponse = async ({
         const isStructuredResearchPhase =
             args.execution.mode === 'deep_research' &&
             args.execution.research !== undefined;
-        if (!result.text.trim() && !isStructuredResearchPhase) {
+        const submittedResearchReport =
+            args.execution.mode === 'deep_research' &&
+            result.steps.some((_, index) =>
+                hasValidToolCall('submitResearchReport')({
+                    steps: result.steps.slice(0, index + 1),
+                }),
+            );
+        if (
+            !result.text.trim() &&
+            !isStructuredResearchPhase &&
+            !submittedResearchReport
+        ) {
             if (result.steps.length >= args.execution.maxSteps) {
                 throw new AiAgentStepCapReachedError(result.steps.length);
             }
@@ -1526,7 +2406,17 @@ export const generateAgentResponse = async ({
 
         throw error;
     } finally {
-        await mcpToolSetup.closeMcpClients();
+        if (args.execution.mode === 'deep_research') {
+            await closeDeepResearchMcpClients({
+                context: {
+                    runUuid: args.execution.runUuid,
+                    workflowPhase: args.execution.phase,
+                },
+                closeMcpClients: mcpToolSetup.closeMcpClients,
+            });
+        } else {
+            await mcpToolSetup.closeMcpClients();
+        }
     }
 };
 

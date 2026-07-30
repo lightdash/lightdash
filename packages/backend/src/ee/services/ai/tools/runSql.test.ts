@@ -14,13 +14,18 @@ type MakeToolOptions = {
     maxQueryLimit?: number;
 };
 
-const executeRunSql = (tool: RunSqlTool, toolCallId: string = 'tool-call-1') =>
+const executeRunSql = (
+    tool: RunSqlTool,
+    toolCallId: string = 'tool-call-1',
+    abortSignal?: AbortSignal,
+) =>
     tool.execute!(
         {
             sql: 'select 1 as answer',
             limit: 500,
         },
         {
+            abortSignal,
             messages: [],
             toolCallId,
         },
@@ -115,6 +120,21 @@ describe('getRunSql', () => {
             'Awaiting approval to run SQL...',
         );
         expect(output.metadata?.status).toBe('success');
+    });
+
+    it('passes the tool abort signal to the SQL job', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+        });
+        const controller = new AbortController();
+
+        await executeRunSql(tool, 'tool-call-1', controller.signal);
+
+        expect(dependencies.runSqlJob).toHaveBeenCalledWith({
+            sql: 'select 1 as answer',
+            limit: 500,
+            signal: controller.signal,
+        });
     });
 
     it('waits for approval by default', async () => {

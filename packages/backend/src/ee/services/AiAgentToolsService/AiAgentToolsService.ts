@@ -539,12 +539,18 @@ export class AiAgentToolsService extends BaseService {
             analyzeFieldImpact: (args) =>
                 this.analyzeFieldImpact(context, args),
             syncDbtProject: (args) => this.syncDbtProject(context, args),
-            runAsyncQuery: (metricQuery, additionalMetrics, parameters) =>
+            runAsyncQuery: (
+                metricQuery,
+                additionalMetrics,
+                parameters,
+                signal,
+            ) =>
                 this.runAsyncQuery(
                     context,
                     metricQuery,
                     additionalMetrics,
                     parameters,
+                    signal,
                 ),
             runSavedChartQuery: (args) =>
                 this.runSavedChartQuery(context, args),
@@ -1835,11 +1841,13 @@ export class AiAgentToolsService extends BaseService {
         metricQuery: Parameters<RunAsyncQueryFn>[0],
         _additionalMetrics: Parameters<RunAsyncQueryFn>[1],
         parameters: Parameters<RunAsyncQueryFn>[2],
+        signal: Parameters<RunAsyncQueryFn>[3],
     ): ReturnType<RunAsyncQueryFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runAsyncQuery`,
             metricQuery,
             async () => {
+                signal?.throwIfAborted();
                 const explore = await this.getExploreForRuntime(context, {
                     table: metricQuery.exploreName,
                 });
@@ -1856,20 +1864,23 @@ export class AiAgentToolsService extends BaseService {
                 );
 
                 await context.onWarehouseQuery?.();
-                return this.asyncQueryService.executeMetricQueryAndGetResults({
-                    account: context.account,
-                    projectUuid: context.projectUuid,
-                    metricQuery: {
-                        ...metricQuery,
-                        additionalMetrics: populateCustomMetricsSQL(
-                            metricQuery.additionalMetrics,
-                            explore,
-                        ),
+                return this.asyncQueryService.executeMetricQueryAndGetResults(
+                    {
+                        account: context.account,
+                        projectUuid: context.projectUuid,
+                        metricQuery: {
+                            ...metricQuery,
+                            additionalMetrics: populateCustomMetricsSQL(
+                                metricQuery.additionalMetrics,
+                                explore,
+                            ),
+                        },
+                        context: context.defaultQueryExecutionContext,
+                        parameters,
+                        userAttributeOverrides: context.userAttributeOverrides,
                     },
-                    context: context.defaultQueryExecutionContext,
-                    parameters,
-                    userAttributeOverrides: context.userAttributeOverrides,
-                });
+                    { signal },
+                );
             },
         );
     }
@@ -1954,12 +1965,13 @@ export class AiAgentToolsService extends BaseService {
 
     private runSqlJob(
         context: AiAgentToolsRuntimeContext,
-        { sql, limit }: Parameters<RunSqlJobFn>[0],
+        { sql, limit, signal }: Parameters<RunSqlJobFn>[0],
     ): ReturnType<RunSqlJobFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlJob`,
             { sql: sql.slice(0, 500), limit },
             async () => {
+                signal?.throwIfAborted();
                 await context.onWarehouseQuery?.();
                 const { queryUuid } =
                     await this.asyncQueryService.executeAsyncSqlQuery({
@@ -1970,67 +1982,100 @@ export class AiAgentToolsService extends BaseService {
                         context: context.defaultQueryExecutionContext,
                     });
 
-                const maxWaitMs = 5 * 60 * 1000;
-                const startTime = Date.now();
-                let delayMs = 500;
+                try {
+                    const maxWaitMs = 5 * 60 * 1000;
+                    const startTime = Date.now();
+                    let delayMs = 500;
 
-                // eslint-disable-next-line no-constant-condition
-                while (true) {
-                    if (Date.now() - startTime > maxWaitMs) {
-                        throw new TimeoutError(
-                            'SQL query timed out after 5 minutes',
-                        );
-                    }
+                    // eslint-disable-next-line no-constant-condition
+                    while (true) {
+                        signal?.throwIfAborted();
+                        if (Date.now() - startTime > maxWaitMs) {
+                            throw new TimeoutError(
+                                'SQL query timed out after 5 minutes',
+                            );
+                        }
 
-                    const queryResults =
+                        const queryResults =
+                            // eslint-disable-next-line no-await-in-loop
+                            await this.asyncQueryService.getAsyncQueryResults({
+                                account: context.account,
+                                projectUuid: context.projectUuid,
+                                queryUuid,
+                                page: 1,
+                                pageSize: limit,
+                            });
+
+                        if (queryResults.status === QueryHistoryStatus.READY) {
+                            const wrappedRows = (queryResults.rows ??
+                                []) as Record<string, AnyType>[];
+                            const rows = wrappedRows.map((row) =>
+                                Object.fromEntries(
+                                    Object.entries(row).map(([k, v]) => [
+                                        k,
+                                        AiAgentToolsService.unwrapCell(v),
+                                    ]),
+                                ),
+                            );
+                            return {
+                                queryUuid,
+                                rows,
+                                columns: Object.keys(queryResults.columns),
+                                rowCount: rows.length,
+                            };
+                        }
+
+                        if (queryResults.status === QueryHistoryStatus.ERROR) {
+                            throw new WarehouseQueryError(
+                                `SQL query failed: ${queryResults.error ?? 'Unknown error'}`,
+                            );
+                        }
+
+                        if (
+                            queryResults.status === QueryHistoryStatus.CANCELLED
+                        ) {
+                            throw new WarehouseQueryError(
+                                'SQL query was cancelled',
+                            );
+                        }
+
+                        const localDelay = delayMs;
                         // eslint-disable-next-line no-await-in-loop
-                        await this.asyncQueryService.getAsyncQueryResults({
-                            account: context.account,
-                            projectUuid: context.projectUuid,
-                            queryUuid,
-                            page: 1,
-                            pageSize: limit,
+                        await new Promise<void>((resolve, reject) => {
+                            // eslint-disable-next-line prefer-const -- assigned below; onAbort closure needs the binding first
+                            let timeout: ReturnType<typeof setTimeout>;
+                            const onAbort = () => {
+                                clearTimeout(timeout);
+                                reject(signal?.reason);
+                            };
+                            timeout = setTimeout(() => {
+                                signal?.removeEventListener('abort', onAbort);
+                                resolve();
+                            }, localDelay);
+                            signal?.addEventListener('abort', onAbort, {
+                                once: true,
+                            });
                         });
-
-                    if (queryResults.status === QueryHistoryStatus.READY) {
-                        const wrappedRows = (queryResults.rows ?? []) as Record<
-                            string,
-                            AnyType
-                        >[];
-                        const rows = wrappedRows.map((row) =>
-                            Object.fromEntries(
-                                Object.entries(row).map(([k, v]) => [
-                                    k,
-                                    AiAgentToolsService.unwrapCell(v),
-                                ]),
-                            ),
-                        );
-                        return {
-                            queryUuid,
-                            rows,
-                            columns: Object.keys(queryResults.columns),
-                            rowCount: rows.length,
-                        };
+                        delayMs = Math.min(delayMs * 2, 2000);
                     }
-
-                    if (queryResults.status === QueryHistoryStatus.ERROR) {
-                        throw new WarehouseQueryError(
-                            `SQL query failed: ${queryResults.error ?? 'Unknown error'}`,
-                        );
+                } catch (error) {
+                    if (signal?.aborted) {
+                        await this.asyncQueryService
+                            .cancelAsyncQuery({
+                                account: context.account,
+                                projectUuid: context.projectUuid,
+                                queryUuid,
+                            })
+                            .catch((cancelError) => {
+                                this.logger.warn(
+                                    `Failed to cancel aborted SQL query ${queryUuid}: ${getErrorMessage(
+                                        cancelError,
+                                    )}`,
+                                );
+                            });
+                        throw signal.reason ?? error;
                     }
-
-                    if (queryResults.status === QueryHistoryStatus.CANCELLED) {
-                        throw new WarehouseQueryError(
-                            'SQL query was cancelled',
-                        );
-                    }
-
-                    const localDelay = delayMs;
-                    // eslint-disable-next-line no-await-in-loop
-                    await new Promise<void>((resolve) => {
-                        setTimeout(resolve, localDelay);
-                    });
-                    delayMs = Math.min(delayMs * 2, 2000);
+                    throw error;
                 }
             },
         );

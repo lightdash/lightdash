@@ -411,7 +411,11 @@ type GenerateAgentExecutionOptions =
     | { mode: 'standard' }
     | {
           mode: 'deep_research';
+          runUuid: string;
+          phase: 'investigation' | 'synthesis';
           budget: AiDeepResearchBudget;
+          maxSteps?: number;
+          compactedEvidence?: string;
           selectedMcpServerUuids: string[];
           abortSignal?: AbortSignal;
           initialTokenUsage?: number;
@@ -4737,11 +4741,13 @@ export class AiAgentService extends BaseService {
             threadUuid,
             promptUuid,
             retrieveRelevantArtifacts = true,
+            currentPromptContext,
         }: {
             agentUuid: string;
             threadUuid: string;
             promptUuid?: string;
             retrieveRelevantArtifacts?: boolean;
+            currentPromptContext?: string;
         },
     ) {
         if (!user.organizationUuid) {
@@ -4840,6 +4846,7 @@ export class AiAgentService extends BaseService {
                     this.getIsVerifiedArtifactsEnabled(),
                 compaction: applicableCompaction,
                 currentPromptUuid: prompt.promptUuid,
+                currentPromptContext,
             },
         );
 
@@ -5363,6 +5370,10 @@ export class AiAgentService extends BaseService {
                 agentUuid,
                 threadUuid,
                 promptUuid,
+                currentPromptContext:
+                    execution.mode === 'deep_research'
+                        ? execution.compactedEvidence
+                        : undefined,
             });
             if (!user.organizationUuid) {
                 throw new ForbiddenError();
@@ -7114,6 +7125,41 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
     }
 
+    static buildDeepResearchEvidenceCheckpointMessages(
+        checkpoint: string,
+    ): ModelMessage[] {
+        const toolCallId = 'deep-research-evidence-checkpoint';
+        const toolName = 'loadDeepResearchEvidenceCheckpoint';
+
+        return [
+            {
+                role: 'assistant',
+                content: [
+                    {
+                        type: 'tool-call',
+                        toolCallId,
+                        toolName,
+                        input: {},
+                    },
+                ],
+            } satisfies AssistantModelMessage,
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId,
+                        toolName,
+                        output: {
+                            type: 'json',
+                            value: checkpoint,
+                        },
+                    },
+                ],
+            } satisfies ToolModelMessage,
+        ];
+    }
+
     // Final safety net over the fully-assembled history: any assistant
     // `tool-call` with no following `tool-result` makes the provider reject the
     // whole request (400 "tool_use ids were found without tool_result blocks").
@@ -7237,6 +7283,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             retrieveRelevantArtifacts: boolean;
             compaction: ThreadCompaction | null;
             currentPromptUuid: string;
+            currentPromptContext?: string;
         },
     ): Promise<ModelMessage[]> {
         const promptUuids = threadMessages.map(
@@ -7298,12 +7345,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 const isCurrentPrompt =
                     message.ai_prompt_uuid === options.currentPromptUuid;
-                messages.push(
-                    ...AiAgentService.buildToolCallTurnMessages(
-                        toolCallsAndResults,
-                        isCurrentPrompt,
-                    ),
-                );
+                if (isCurrentPrompt && options.currentPromptContext) {
+                    messages.push(
+                        ...AiAgentService.buildDeepResearchEvidenceCheckpointMessages(
+                            options.currentPromptContext,
+                        ),
+                    );
+                } else {
+                    messages.push(
+                        ...AiAgentService.buildToolCallTurnMessages(
+                            toolCallsAndResults,
+                            isCurrentPrompt,
+                        ),
+                    );
+                }
 
                 // The current prompt resuming mid SQL-approval has only a
                 // partial `response`; skip it so the resumed run regenerates.
@@ -7317,6 +7372,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 if (
                     message.response &&
                     !message.error_message &&
+                    !(isCurrentPrompt && options.currentPromptContext) &&
                     (!hasUnresolvedApproval || !isCurrentPrompt)
                 ) {
                     messages.push({
@@ -9066,7 +9122,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             };
             execution = {
                 mode: 'deep_research',
-                maxSteps: getMaxSteps(),
+                runUuid: responseExecution.runUuid,
+                phase: responseExecution.phase,
+                maxSteps:
+                    responseExecution.maxSteps ??
+                    (responseExecution.phase === 'synthesis'
+                        ? 2
+                        : getMaxSteps()),
                 budget: responseExecution.budget,
                 initialTokenUsage: responseExecution.initialTokenUsage ?? 0,
                 onStepUsage: responseExecution.onStepUsage,

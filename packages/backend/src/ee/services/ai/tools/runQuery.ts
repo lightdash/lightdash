@@ -175,7 +175,10 @@ export const getRunQuery = ({
 }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async (toolArgs, { experimental_context: context }) => {
+        execute: async (
+            toolArgs,
+            { abortSignal, experimental_context: context },
+        ) => {
             try {
                 await updateProgress('Running your query...');
 
@@ -267,10 +270,14 @@ export const getRunQuery = ({
                     ),
                 };
 
-                const queryResults = await runAsyncQuery(
-                    metricQuery,
-                    populatedCustomMetrics,
-                );
+                const queryResults = abortSignal
+                    ? await runAsyncQuery(
+                          metricQuery,
+                          populatedCustomMetrics,
+                          undefined,
+                          abortSignal,
+                      )
+                    : await runAsyncQuery(metricQuery, populatedCustomMetrics);
 
                 if (queryResults.rows.length === 0) {
                     return {

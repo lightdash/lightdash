@@ -146,6 +146,8 @@ export type AiAgentExecutionConfig =
       }
     | {
           mode: 'deep_research';
+          runUuid: string;
+          phase: 'investigation' | 'synthesis';
           maxSteps: number;
           budget: AiDeepResearchBudget;
           initialTokenUsage: number;

@@ -133,4 +133,6 @@ Compare the hypotheses against each other:
 - Call out claims in any report that its own evidence does not support, and carry each unavailable investigation into the report as an explicit caveat about untested alternatives.
 - Only reference charts whose queryUuid appears in the investigators' evidence.
 
-Synthesize the final report and submit it with ${AI_DEEP_RESEARCH_REPORT_TOOL_NAME}, following the report format rules. Structure the findings as a comparison of the competing hypotheses, with a confidence tag per finding.`;
+Synthesize the final report and submit it with ${AI_DEEP_RESEARCH_REPORT_TOOL_NAME}, following the report format rules. Structure the findings as a comparison of the competing hypotheses, with a confidence tag per finding.
+
+The report must fit in this response: keep the markdown under 1,000 words and use no more than 10 findings. Prioritize quantified evidence, the hypothesis comparison, caveats, and actions; omit repeated background, methodology, and evidence already captured by a stronger finding.`;

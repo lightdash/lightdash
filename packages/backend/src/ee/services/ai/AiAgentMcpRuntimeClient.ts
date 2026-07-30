@@ -44,6 +44,7 @@ type Dependencies = {
 export type ResolvedMcpTools = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
+    readOnlyMcpToolNames: Set<string>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
@@ -63,6 +64,8 @@ type McpServerInfoWithIcons = Configuration & {
     icons?: McpServerIcon[];
     websiteUrl?: string;
 };
+
+const MCP_CLIENT_CLEANUP_TIMEOUT_MS = 5_000;
 
 const buildDefaultClientMetadata = (
     redirectUrl: string,
@@ -1167,6 +1170,7 @@ export class AiAgentMcpRuntimeClient {
             return {
                 tools: {},
                 mcpToolNameToServerUuid: {},
+                readOnlyMcpToolNames: new Set(),
                 unavailableMcpServers: [],
                 closeMcpClients: async () => undefined,
             };
@@ -1176,6 +1180,7 @@ export class AiAgentMcpRuntimeClient {
         const usedToolNames = new Set<string>();
         const resolvedTools: ToolSet = {};
         const mcpToolNameToServerUuid: Record<string, string> = {};
+        const deepResearchApprovedReadOnlyMcpToolNames = new Set<string>();
         const unavailableMcpServers: UnavailableMcpServer[] = [];
 
         const serverResults = await Promise.all(
@@ -1195,11 +1200,24 @@ export class AiAgentMcpRuntimeClient {
                         },
                     );
 
-                    const tools = await withMcpTimeout(
-                        mcpClient.tools(),
-                        this.lightdashConfig.ai.copilot.mcpConnectionTimeoutMs,
-                        `tool discovery for "${mcpServer.name}"`,
-                    );
+                    const definitions =
+                        typeof mcpClient.listTools === 'function' &&
+                        typeof mcpClient.toolsFromDefinitions === 'function'
+                            ? await withMcpTimeout(
+                                  mcpClient.listTools(),
+                                  this.lightdashConfig.ai.copilot
+                                      .mcpConnectionTimeoutMs,
+                                  `tool discovery for "${mcpServer.name}"`,
+                              )
+                            : null;
+                    const tools = definitions
+                        ? mcpClient.toolsFromDefinitions(definitions)
+                        : await withMcpTimeout(
+                              mcpClient.tools(),
+                              this.lightdashConfig.ai.copilot
+                                  .mcpConnectionTimeoutMs,
+                              `tool discovery for "${mcpServer.name}"`,
+                          );
                     await this.persistRuntimeState({
                         serverUuid: mcpServer.uuid,
                         connectionStatus: 'connected',
@@ -1219,6 +1237,14 @@ export class AiAgentMcpRuntimeClient {
                         mcpServer,
                         mcpClient,
                         tools,
+                        serverReadOnlyHintToolNames: new Set(
+                            (definitions?.tools ?? [])
+                                .filter(
+                                    (tool) =>
+                                        tool.annotations?.readOnlyHint === true,
+                                )
+                                .map((tool) => tool.name),
+                        ),
                         unavailableMcpServer: null,
                     };
                 } catch (error) {
@@ -1285,7 +1311,10 @@ export class AiAgentMcpRuntimeClient {
                 const serverPrefix = sanitizeMcpToolKeyPart(
                     serverResult.mcpServer.name,
                 );
-                const enabledToolNames = new Set(
+                // These names come from the agent's persisted `always_allow`
+                // settings. A server's readOnlyHint is advisory and cannot
+                // admit a tool unless an agent admin already allowed it.
+                const adminAllowedToolNames = new Set(
                     serverResult.mcpServer.enabledToolNames ?? [],
                 );
 
@@ -1294,7 +1323,7 @@ export class AiAgentMcpRuntimeClient {
                 )) {
                     if (
                         serverResult.mcpServer.enabledToolNames &&
-                        !enabledToolNames.has(toolName)
+                        !adminAllowedToolNames.has(toolName)
                     ) {
                         // eslint-disable-next-line no-continue
                         continue;
@@ -1315,6 +1344,17 @@ export class AiAgentMcpRuntimeClient {
                         serverResult.mcpServer.uuid;
                     resolvedTools[namespacedToolName] =
                         toolDefinition as ToolSet[string];
+                    // Deep Research admission is deliberately conjunctive:
+                    // persisted admin approval AND the live server read-only
+                    // declaration. Missing either side fails closed.
+                    if (
+                        adminAllowedToolNames.has(toolName) &&
+                        serverResult.serverReadOnlyHintToolNames.has(toolName)
+                    ) {
+                        deepResearchApprovedReadOnlyMcpToolNames.add(
+                            namespacedToolName,
+                        );
+                    }
                 }
             }
         }
@@ -1322,11 +1362,33 @@ export class AiAgentMcpRuntimeClient {
         return {
             tools: resolvedTools,
             mcpToolNameToServerUuid,
+            readOnlyMcpToolNames: deepResearchApprovedReadOnlyMcpToolNames,
             unavailableMcpServers,
             closeMcpClients: async () => {
-                const results = await Promise.allSettled(
+                const closeClients = Promise.allSettled(
                     connectedClients.map((client) => client.close()),
                 );
+                let cleanupTimeout: NodeJS.Timeout | undefined;
+                const results = await Promise.race([
+                    closeClients,
+                    new Promise<null>((resolve) => {
+                        cleanupTimeout = setTimeout(
+                            () => resolve(null),
+                            MCP_CLIENT_CLEANUP_TIMEOUT_MS,
+                        );
+                        cleanupTimeout.unref();
+                    }),
+                ]);
+                if (cleanupTimeout) {
+                    clearTimeout(cleanupTimeout);
+                }
+
+                if (!results) {
+                    Logger.warn(
+                        '[AiAgent][MCP] Timed out while closing MCP clients',
+                    );
+                    return;
+                }
 
                 for (const result of results) {
                     if (result.status === 'rejected') {

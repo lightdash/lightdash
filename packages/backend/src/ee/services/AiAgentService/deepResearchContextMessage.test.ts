@@ -118,4 +118,85 @@ describe('AiAgentService deep research conversation history', () => {
             { role: 'assistant', content: 'The ordinary response' },
         ]);
     });
+
+    it('replaces current-run raw tool history with the compact evidence checkpoint', async () => {
+        const getToolCallsAndResultsForPrompt = vi.fn().mockResolvedValue([
+            {
+                toolCall: {
+                    toolCallId: 'query-1',
+                    toolName: 'runSql',
+                    toolArgs: { sql: 'SELECT * FROM large_table' },
+                },
+                toolResult: {
+                    toolCallId: 'query-1',
+                    toolName: 'runSql',
+                    result: 'raw-result-that-must-not-be-replayed',
+                    metadata: {},
+                },
+                approvalDecision: null,
+            },
+        ]);
+        const service = new AiAgentService({
+            aiAgentModel: {
+                getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
+                getToolCallsAndResultsForPrompt,
+            },
+            lightdashConfig: {},
+        } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+
+        const history = await service.getChatHistoryFromThreadMessages(
+            [
+                {
+                    ai_prompt_uuid: 'research-prompt',
+                    prompt: 'Research retention',
+                    response: 'Stale wave response',
+                    error_message: null,
+                    human_score: null,
+                    human_feedback: null,
+                },
+            ] as never,
+            {
+                organizationUuid: 'organization-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                retrieveRelevantArtifacts: false,
+                compaction: null,
+                currentPromptUuid: 'research-prompt',
+                currentPromptContext:
+                    'Evidence checkpoint: query-1 retained revenue=1200.',
+            },
+        );
+
+        expect(history).toEqual([
+            { role: 'user', content: 'Research retention' },
+            {
+                role: 'assistant',
+                content: [
+                    {
+                        type: 'tool-call',
+                        toolCallId: 'deep-research-evidence-checkpoint',
+                        toolName: 'loadDeepResearchEvidenceCheckpoint',
+                        input: {},
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId: 'deep-research-evidence-checkpoint',
+                        toolName: 'loadDeepResearchEvidenceCheckpoint',
+                        output: {
+                            type: 'json',
+                            value: 'Evidence checkpoint: query-1 retained revenue=1200.',
+                        },
+                    },
+                ],
+            },
+        ]);
+        expect(JSON.stringify(history)).not.toContain(
+            'raw-result-that-must-not-be-replayed',
+        );
+    });
 });

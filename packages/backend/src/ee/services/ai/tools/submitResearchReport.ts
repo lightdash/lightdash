@@ -1,6 +1,5 @@
 import {
     aiDeepResearchReportSchema,
-    getErrorMessage,
     submitResearchReportToolDefinition,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -17,7 +16,16 @@ export const getSubmitResearchReport = () =>
                       metadata: { status: 'success' as const },
                   }
                 : {
-                      result: getErrorMessage(report.error),
+                      result: JSON.stringify({
+                          submitted: false,
+                          errors: report.error.issues.map((issue) => ({
+                              field:
+                                  issue.path.length > 0
+                                      ? issue.path.join('.')
+                                      : 'report',
+                              message: issue.message,
+                          })),
+                      }),
                       metadata: { status: 'error' as const },
                   };
         },

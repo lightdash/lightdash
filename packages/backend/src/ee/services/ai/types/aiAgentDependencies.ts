@@ -370,6 +370,7 @@ export type RunAsyncQueryFn = (
     metricQuery: AiMetricQueryWithFilters,
     additionalMetrics?: AdditionalMetric[],
     parameters?: ParametersValuesMap,
+    signal?: AbortSignal,
 ) => Promise<{
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
@@ -483,7 +484,11 @@ export type CheckUserPermissionFn = (args: {
     permission: string;
 }) => Promise<boolean>;
 
-export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
+export type RunSqlJobFn = (args: {
+    sql: string;
+    limit: number;
+    signal?: AbortSignal;
+}) => Promise<{
     queryUuid: string;
     rows: Record<string, AnyType>[];
     columns: string[];
