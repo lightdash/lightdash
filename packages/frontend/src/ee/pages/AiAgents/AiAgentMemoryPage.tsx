@@ -59,13 +59,11 @@ const AiAgentMemoryPage = () => {
                         />
                     </Group>
                     <Divider />
-                    <Box className={styles.body}>
-                        <MemoryDetails
-                            memory={memoryQuery.data}
-                            projectUuid={projectUuid}
-                            agentUuid={agentUuid}
-                        />
-                    </Box>
+                    <MemoryDetails
+                        memory={memoryQuery.data}
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                    />
                 </Paper>
             </Stack>
         </Box>

@@ -20,6 +20,7 @@ import {
     IconExternalLink,
     IconHistory,
     IconInfoCircle,
+    IconNotebook,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -377,13 +378,10 @@ export const MemoryDetailsModal: FC<MemoryDetailsModalProps> = ({
         opened={opened}
         onClose={onClose}
         size="72rem"
-        title={
-            <Text component="span" className={styles.modalTitle} lineClamp={2}>
-                {memory.title}
-            </Text>
-        }
+        icon={IconNotebook}
+        title={memory.title}
         cancelLabel={false}
-        modalBodyProps={{ py: 'lg' }}
+        modalBodyProps={{ px: 0, py: 0 }}
         bodyScrollAreaMaxHeight="calc(85vh - 120px)"
         headerActions={
             <MemoryStatusAction

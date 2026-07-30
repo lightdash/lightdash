@@ -97,7 +97,6 @@
 .detailBody {
     min-height: 0;
     flex: 1;
-    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
     overflow-y: auto;
 }
 

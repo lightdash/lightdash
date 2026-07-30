@@ -42,17 +42,12 @@
     line-height: 1.4;
 }
 
-.body {
-    padding: 24px;
-}
-
 @media (max-width: 820px) {
     .page {
         padding-inline: 16px;
     }
 
-    .header,
-    .body {
+    .header {
         padding-inline: 18px;
     }
 }
