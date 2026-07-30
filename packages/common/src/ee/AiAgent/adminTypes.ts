@@ -127,6 +127,8 @@ export type AiAgentAdminMemorySort = {
     direction: 'asc' | 'desc';
 };
 
+// Admin list row. Independent from the owner-facing AiAgentUserMemoryItem:
+// separate API surfaces, free to diverge
 export type AiAgentAdminMemoryItem = {
     uuid: string;
     slug: string;

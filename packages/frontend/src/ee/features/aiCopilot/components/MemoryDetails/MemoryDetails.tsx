@@ -36,7 +36,8 @@ type Memory = ApiAiAgentMemoryResponse['results'];
 type MemoryDetailsProps = {
     memory: Memory;
     projectUuid: string;
-    agentUuid: string;
+    // Null when the memory isn't being viewed through an agent
+    agentUuid: string | null;
 };
 
 const getObjectLabel = (object: AiProjectContextTypedObjectRef) =>
@@ -104,9 +105,10 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
     projectUuid,
     agentUuid,
 }) => {
-    const replacementPath = memory.replacementSlug
-        ? `/projects/${projectUuid}/ai-agents/${agentUuid}/memories/${memory.replacementSlug}`
-        : null;
+    const replacementPath =
+        memory.replacementSlug && agentUuid
+            ? `/projects/${projectUuid}/ai-agents/${agentUuid}/memories/${memory.replacementSlug}`
+            : null;
     const sources =
         memory.provenance.type === 'source_thread'
             ? [memory.provenance.source]

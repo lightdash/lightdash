@@ -16,9 +16,12 @@ import {
     type AiAgentMemoryDistillJobPayload,
     type AiAgentMemoryEditableStatus,
     type AiAgentMemorySource,
+    type AiAgentUserMemoriesSummary,
     type AiProjectContextTypedObjectRef,
     type Explore,
     type ExploreError,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
     type SessionUser,
     type UUID,
 } from '@lightdash/common';
@@ -391,10 +394,11 @@ export class AiAgentMemoryService extends BaseService {
         }
     }
 
+    /** Shared gate for every memory read: project access + both feature flags. */
     private async getMemoryAccessContext(
         user: SessionUser,
         projectUuid: string,
-        identifier: string,
+        notFoundMessage: string,
     ): Promise<string> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -418,7 +422,7 @@ export class AiAgentMemoryService extends BaseService {
             }),
         ]);
         if (!copilot.enabled || !memoryFlag.enabled) {
-            throw new NotFoundError(`Memory not found: ${identifier}`);
+            throw new NotFoundError(notFoundMessage);
         }
 
         return organizationUuid;
@@ -454,7 +458,7 @@ export class AiAgentMemoryService extends BaseService {
         const organizationUuid = await this.getMemoryAccessContext(
             user,
             projectUuid,
-            slug,
+            `Memory not found: ${slug}`,
         );
 
         const result = await this.aiAgentMemoryModel.findByProjectAndSlug({
@@ -525,6 +529,26 @@ export class AiAgentMemoryService extends BaseService {
         return response;
     }
 
+    /** Own active memories in a project; ownership comes from the session. */
+    async listMyMemories(
+        user: SessionUser,
+        projectUuid: string,
+        paginateArgs: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<AiAgentUserMemoriesSummary>> {
+        const organizationUuid = await this.getMemoryAccessContext(
+            user,
+            projectUuid,
+            `Memories not found for project: ${projectUuid}`,
+        );
+
+        return this.aiAgentMemoryModel.findUserMemoriesPaginated({
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            paginateArgs,
+        });
+    }
+
     async updateMemoryStatus(
         user: SessionUser,
         projectUuid: string,
@@ -534,7 +558,7 @@ export class AiAgentMemoryService extends BaseService {
         const organizationUuid = await this.getMemoryAccessContext(
             user,
             projectUuid,
-            memoryUuid,
+            `Memory not found: ${memoryUuid}`,
         );
         const memory = await this.requireReadableMemory(
             user,

@@ -165,6 +165,15 @@ describe('AiAgentMemoryService', () => {
             .fn()
             .mockResolvedValue('none');
         const updateStatus = vi.fn().mockResolvedValue(true);
+        const findUserMemoriesPaginated = vi.fn().mockResolvedValue({
+            data: { memories: [] },
+            pagination: {
+                page: 1,
+                pageSize: 50,
+                totalPageCount: 0,
+                totalResults: 0,
+            },
+        });
         const findConsolidationCandidates = vi.fn().mockResolvedValue([]);
         const findLatestConsolidationRun = vi.fn().mockResolvedValue(undefined);
         const recordConsolidationRun = vi.fn().mockResolvedValue({});
@@ -220,6 +229,7 @@ describe('AiAgentMemoryService', () => {
                 findActiveBySourceThread,
                 resolveSourceThreadMemoryState,
                 updateStatus,
+                findUserMemoriesPaginated,
                 findConsolidationCandidates,
                 findLatestConsolidationRun,
                 recordConsolidationRun,
@@ -252,6 +262,7 @@ describe('AiAgentMemoryService', () => {
             findActiveBySourceThread,
             resolveSourceThreadMemoryState,
             updateStatus,
+            findUserMemoriesPaginated,
             findConsolidationCandidates,
             findLatestConsolidationRun,
             recordConsolidationRun,
@@ -1320,5 +1331,64 @@ describe('AiAgentMemoryService', () => {
         ).rejects.toThrow('Cannot view project');
         expect(getFlag).not.toHaveBeenCalled();
         expect(findByProjectAndSlug).not.toHaveBeenCalled();
+    });
+
+    // status scoping is a model predicate, covered in AiAgentMemoryModel.integration.test.ts
+    it('scopes the memory list to the session user and the requested project', async () => {
+        const { service, findUserMemoriesPaginated } = build();
+        const user = buildUser(true);
+        findUserMemoriesPaginated.mockResolvedValue({
+            data: { memories: [{ uuid: 'memory-1', slug: 'net-revenue' }] },
+            pagination: {
+                page: 1,
+                pageSize: 50,
+                totalPageCount: 1,
+                totalResults: 1,
+            },
+        });
+
+        const result = await service.listMyMemories(user, 'project-enabled', {
+            page: 1,
+            pageSize: 50,
+        });
+
+        expect(findUserMemoriesPaginated).toHaveBeenCalledWith({
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'current-user',
+            paginateArgs: { page: 1, pageSize: 50 },
+        });
+        expect(result.data.memories).toEqual([
+            { uuid: 'memory-1', slug: 'net-revenue' },
+        ]);
+    });
+
+    it('returns not found for the memory list when the flag is off', async () => {
+        const { service, findUserMemoriesPaginated } = build({
+            enabledOrganization: 'none',
+        });
+        const user = buildUser(true);
+
+        await expect(
+            service.listMyMemories(user, 'project-enabled', {
+                page: 1,
+                pageSize: 50,
+            }),
+        ).rejects.toThrow('Memories not found for project: project-enabled');
+        expect(findUserMemoriesPaginated).not.toHaveBeenCalled();
+    });
+
+    it('rejects a memory list request from a non project member', async () => {
+        const { service, getFlag, findUserMemoriesPaginated } = build();
+        const user = buildUser(false);
+
+        await expect(
+            service.listMyMemories(user, 'project-enabled', {
+                page: 1,
+                pageSize: 50,
+            }),
+        ).rejects.toThrow('Cannot view project');
+        expect(getFlag).not.toHaveBeenCalled();
+        expect(findUserMemoriesPaginated).not.toHaveBeenCalled();
     });
 });

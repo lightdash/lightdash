@@ -2,25 +2,25 @@ import { Box, Loader, Text } from '@mantine-8/core';
 import { type FC } from 'react';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
-import { MemoryDetailsModal } from '../MemoryDetails/MemoryDetails';
+import { MemoryDetailsModal } from './MemoryDetails';
 
-export type AdminMemorySelection = {
+export type MemorySlugSelection = {
     projectUuid: string;
     agentUuid: string;
     slug: string;
     title: string;
 };
 
-type AdminMemoryDetailsModalProps = {
-    selection: AdminMemorySelection;
+type MemoryDetailsBySlugModalProps = {
+    selection: MemorySlugSelection;
     onClose: () => void;
 };
 
 /**
- * The admin list carries only a summary, so the full memory is fetched on open
- * and handed to the shared details modal.
+ * Memory lists carry only a summary, so the full memory is fetched on open and
+ * handed to the shared details modal.
  */
-export const AdminMemoryDetailsModal: FC<AdminMemoryDetailsModalProps> = ({
+export const MemoryDetailsBySlugModal: FC<MemoryDetailsBySlugModalProps> = ({
     selection,
     onClose,
 }) => {
@@ -40,12 +40,7 @@ export const AdminMemoryDetailsModal: FC<AdminMemoryDetailsModalProps> = ({
     }
 
     return (
-        <MantineModal
-            opened
-            onClose={onClose}
-            title={title}
-            cancelLabel={false}
-        >
+        <MantineModal opened onClose={onClose} title={title}>
             <Box py="xl" ta="center">
                 {memoryQuery.isError ? (
                     <Text c="dimmed" fz="sm">

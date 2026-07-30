@@ -5,12 +5,15 @@ import {
     ProjectType,
     type AiAgentAdminMemoriesSummary,
     type AiAgentAdminMemoryFilters,
+    type AiAgentAdminMemoryItem,
     type AiAgentAdminMemorySort,
     type AiAgentMemoryConsolidationMergeOperation,
     type AiAgentMemoryConsolidationOperation,
     type AiAgentMemoryConsolidationRejection,
     type AiAgentMemoryConsolidationRunStatus,
     type AiAgentMemoryScope,
+    type AiAgentUserMemoriesSummary,
+    type AiAgentUserMemoryItem,
     type AiProjectContextTypedObjectRef,
     type AiThreadCreatedFrom,
     type KnexPaginateArgs,
@@ -44,8 +47,8 @@ import {
     type DbAiAgentThreadDistill,
 } from '../database/entities/aiAgentMemory';
 
-// Keeps the admin list payload bounded; the memory page shows the full body
-const ADMIN_MEMORY_SUMMARY_MAX_LENGTH = 280;
+// Keeps list payloads bounded; the memory page shows the full body
+const MEMORY_LIST_SUMMARY_MAX_LENGTH = 280;
 
 export const AI_AGENT_MEMORY_THREAD_SOURCES = [
     'web_app',
@@ -196,6 +199,72 @@ type ConsolidationSourceRow = Pick<
 >;
 
 const CONSOLIDATION_LOCK_CLASS = 4;
+
+/** One row of the projection shared by every memory list query. */
+type MemoryListRow = {
+    ai_agent_memory_uuid: string;
+    slug: string;
+    title: string;
+    summary: string;
+    status: DbAiAgentMemory['status'];
+    scope: DbAiAgentMemory['scope'];
+    project_uuid: string;
+    project_name: string;
+    agent_uuid: string | null;
+    agent_name: string | null;
+    agent_image_url: string | null;
+    user_uuid: string | null;
+    user_name: string | null;
+    user_email: string | null;
+    source_thread_uuid: string | null;
+    cited_count: number;
+    last_cited_at: Date | null;
+    pulled_count: number;
+    last_pulled_at: Date | null;
+    generated_at: Date;
+};
+
+type MemoryListSort = {
+    field: 'generatedAt' | 'citedCount';
+    direction: 'asc' | 'desc';
+};
+
+const toUserMemoryItem = (row: MemoryListRow): AiAgentUserMemoryItem => ({
+    uuid: row.ai_agent_memory_uuid,
+    slug: row.slug,
+    title: row.title,
+    summary: row.summary,
+    status: row.status,
+    scope: row.scope,
+    agent: row.agent_uuid
+        ? {
+              uuid: row.agent_uuid,
+              name: row.agent_name ?? 'Unknown agent',
+              imageUrl: row.agent_image_url,
+          }
+        : null,
+    sourceThreadUuid: row.source_thread_uuid,
+    citedCount: row.cited_count,
+    lastCitedAt: row.last_cited_at?.toISOString() ?? null,
+    pulledCount: row.pulled_count,
+    lastPulledAt: row.last_pulled_at?.toISOString() ?? null,
+    generatedAt: row.generated_at.toISOString(),
+});
+
+const toAdminMemoryItem = (row: MemoryListRow): AiAgentAdminMemoryItem => ({
+    ...toUserMemoryItem(row),
+    project: {
+        uuid: row.project_uuid,
+        name: row.project_name,
+    },
+    user: row.user_uuid
+        ? {
+              uuid: row.user_uuid,
+              name: row.user_name ?? row.user_email ?? 'Unknown user',
+              email: row.user_email,
+          }
+        : null,
+});
 
 export class AiAgentMemoryModel {
     private readonly database: Knex;
@@ -612,22 +681,24 @@ export class AiAgentMemoryModel {
         return query;
     }
 
-    async findAdminMemoriesPaginated(args: {
-        organizationUuid: string;
+    /**
+     * Display joins, truncated summary and ordering shared by every memory list.
+     * Counting off the un-joined base query is safe: the project join never drops a row.
+     */
+    private async paginateMemoryList<T>(args: {
+        buildBaseQuery: () => Knex.QueryBuilder<AiAgentMemoryTable>;
+        mapRow: (row: MemoryListRow) => T;
         paginateArgs?: KnexPaginateArgs;
-        filters?: AiAgentAdminMemoryFilters;
-        sort?: AiAgentAdminMemorySort;
-    }): Promise<KnexPaginatedData<AiAgentAdminMemoriesSummary>> {
+        sort?: MemoryListSort;
+    }): Promise<KnexPaginatedData<{ memories: T[] }>> {
         const sortColumn = {
             generatedAt: 'generated_at',
             citedCount: 'cited_count',
         }[args.sort?.field ?? 'generatedAt'];
         const direction = args.sort?.direction ?? 'desc';
 
-        const query = this.buildAdminMemoriesQuery(
-            args.organizationUuid,
-            args.filters,
-        )
+        const query = args
+            .buildBaseQuery()
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_uuid`,
@@ -650,36 +721,13 @@ export class AiAgentMemoryModel {
                     `${UserTableName}.user_id`,
                 ).andOnVal(`${EmailTableName}.is_primary`, true);
             })
-            .select<
-                Array<{
-                    ai_agent_memory_uuid: string;
-                    slug: string;
-                    title: string;
-                    summary: string;
-                    status: DbAiAgentMemory['status'];
-                    scope: DbAiAgentMemory['scope'];
-                    project_uuid: string;
-                    project_name: string;
-                    agent_uuid: string | null;
-                    agent_name: string | null;
-                    agent_image_url: string | null;
-                    user_uuid: string | null;
-                    user_name: string | null;
-                    user_email: string | null;
-                    source_thread_uuid: string | null;
-                    cited_count: number;
-                    last_cited_at: Date | null;
-                    pulled_count: number;
-                    last_pulled_at: Date | null;
-                    generated_at: Date;
-                }>
-            >([
+            .select<MemoryListRow[]>([
                 `${AiAgentMemoryTableName}.ai_agent_memory_uuid`,
                 `${AiAgentMemoryTableName}.slug`,
                 `${AiAgentMemoryTableName}.title`,
                 this.database.raw('LEFT(??, ?) as summary', [
                     `${AiAgentMemoryTableName}.raw_memory`,
-                    ADMIN_MEMORY_SUMMARY_MAX_LENGTH,
+                    MEMORY_LIST_SUMMARY_MAX_LENGTH,
                 ]),
                 `${AiAgentMemoryTableName}.status`,
                 `${AiAgentMemoryTableName}.scope`,
@@ -700,68 +748,86 @@ export class AiAgentMemoryModel {
                 `${AiAgentMemoryTableName}.last_pulled_at`,
                 `${AiAgentMemoryTableName}.generated_at`,
             ])
-            // uuid tie-breaker keeps pagination stable when sort values collide
+            // generated_at breaks sort-value ties (newest first); uuid keeps
+            // pagination stable when both collide
             .orderBy([
                 {
                     column: `${AiAgentMemoryTableName}.${sortColumn}`,
                     order: direction,
                     nulls: 'last',
                 },
+                ...(sortColumn !== 'generated_at'
+                    ? [
+                          {
+                              column: `${AiAgentMemoryTableName}.generated_at`,
+                              order: 'desc' as const,
+                          },
+                      ]
+                    : []),
                 {
                     column: `${AiAgentMemoryTableName}.ai_agent_memory_uuid`,
                     order: 'asc',
                 },
             ]);
 
-        // Counting the un-joined base query skips the display joins. Row count
-        // is identical: project_uuid is NOT NULL with a CASCADE FK, so the
-        // project inner join never drops a memory.
         const { data, pagination } = await KnexPaginate.paginate(
             query,
             args.paginateArgs,
-            this.buildAdminMemoriesQuery(args.organizationUuid, args.filters),
+            args.buildBaseQuery(),
         );
 
         return {
-            data: {
-                memories: data.map((row) => ({
-                    uuid: row.ai_agent_memory_uuid,
-                    slug: row.slug,
-                    title: row.title,
-                    summary: row.summary,
-                    status: row.status,
-                    scope: row.scope,
-                    project: {
-                        uuid: row.project_uuid,
-                        name: row.project_name,
-                    },
-                    agent: row.agent_uuid
-                        ? {
-                              uuid: row.agent_uuid,
-                              name: row.agent_name ?? 'Unknown agent',
-                              imageUrl: row.agent_image_url,
-                          }
-                        : null,
-                    user: row.user_uuid
-                        ? {
-                              uuid: row.user_uuid,
-                              name:
-                                  row.user_name ??
-                                  row.user_email ??
-                                  'Unknown user',
-                              email: row.user_email,
-                          }
-                        : null,
-                    sourceThreadUuid: row.source_thread_uuid,
-                    citedCount: row.cited_count,
-                    lastCitedAt: row.last_cited_at?.toISOString() ?? null,
-                    pulledCount: row.pulled_count,
-                    lastPulledAt: row.last_pulled_at?.toISOString() ?? null,
-                    generatedAt: row.generated_at.toISOString(),
-                })),
-            },
+            data: { memories: data.map(args.mapRow) },
             pagination,
         };
+    }
+
+    async findAdminMemoriesPaginated(args: {
+        organizationUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        filters?: AiAgentAdminMemoryFilters;
+        sort?: AiAgentAdminMemorySort;
+    }): Promise<KnexPaginatedData<AiAgentAdminMemoriesSummary>> {
+        return this.paginateMemoryList({
+            buildBaseQuery: () =>
+                this.buildAdminMemoriesQuery(
+                    args.organizationUuid,
+                    args.filters,
+                ),
+            mapRow: toAdminMemoryItem,
+            paginateArgs: args.paginateArgs,
+            sort: args.sort,
+        });
+    }
+
+    /**
+     * Owner-scoped list: project, owner and active status are predicates, never
+     * filters — owners only see the memories the agents are still using.
+     * Most-cited first, so the list mirrors what the agent leans on.
+     */
+    async findUserMemoriesPaginated(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        userUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+    }): Promise<KnexPaginatedData<AiAgentUserMemoriesSummary>> {
+        return this.paginateMemoryList({
+            buildBaseQuery: () =>
+                this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+                    .where(
+                        `${AiAgentMemoryTableName}.organization_uuid`,
+                        args.organizationUuid,
+                    )
+                    .where(
+                        `${AiAgentMemoryTableName}.project_uuid`,
+                        args.projectUuid,
+                    )
+                    .where(`${AiAgentMemoryTableName}.user_uuid`, args.userUuid)
+                    .where(`${AiAgentMemoryTableName}.status`, 'active'),
+            mapRow: toUserMemoryItem,
+            paginateArgs: args.paginateArgs,
+            sort: { field: 'citedCount', direction: 'desc' },
+        });
     }
 
     async findByProjectAndSlug(args: {

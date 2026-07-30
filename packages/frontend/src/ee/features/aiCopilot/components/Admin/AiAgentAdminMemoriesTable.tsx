@@ -19,9 +19,9 @@ import {
     IconArrowsSort,
     IconArrowUp,
     IconBox,
-    IconBrain,
     IconCircleDotted,
     IconClock,
+    IconNotebook,
     IconQuote,
     IconRobotFace,
     IconTrash,
@@ -46,9 +46,9 @@ import { useInfiniteAiAgentAdminMemories } from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminMemoryFilters } from '../../hooks/useAiAgentAdminMemoryFilters';
 import { AgentNamePill } from '../AgentNamePill';
 import {
-    AdminMemoryDetailsModal,
-    type AdminMemorySelection,
-} from './AdminMemoryDetailsModal';
+    MemoryDetailsBySlugModal,
+    type MemorySlugSelection,
+} from '../MemoryDetails/MemoryDetailsBySlugModal';
 import styles from './AiAgentAdminMemoriesTable.module.css';
 import MemoryScopeFilter from './MemoryScopeFilter';
 import { MEMORY_STATUS_COLORS, MEMORY_STATUS_LABELS } from './memoryStatus';
@@ -71,7 +71,7 @@ const formatDate = (value: string | null) =>
 const AiAgentAdminMemoriesTable = () => {
     const theme = useMantineTheme();
     const [selectedMemory, setSelectedMemory] =
-        useState<AdminMemorySelection | null>(null);
+        useState<MemorySlugSelection | null>(null);
 
     const {
         search,
@@ -178,7 +178,7 @@ const AiAgentAdminMemoriesTable = () => {
                 size: 320,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconBrain} color="ldGray.6" />
+                        <MantineIcon icon={IconNotebook} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -531,7 +531,7 @@ const AiAgentAdminMemoriesTable = () => {
         <>
             <ContentTable table={table} />
             {selectedMemory && (
-                <AdminMemoryDetailsModal
+                <MemoryDetailsBySlugModal
                     selection={selectedMemory}
                     onClose={() => setSelectedMemory(null)}
                 />
