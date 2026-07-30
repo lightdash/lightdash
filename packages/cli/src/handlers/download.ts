@@ -763,6 +763,14 @@ const extractChartSlugsFromDashboards = (
         return [...acc, ...slugs];
     }, []);
 
+export type DownloadContentResult = {
+    total: number;
+    chartSlugs: string[];
+    appSlugs: string[];
+    metadataEntries: MetadataEntry[];
+    spaces: SpaceAsCode[];
+};
+
 export const downloadContent = async (
     ids: string[],
     type: DownloadContentType,
@@ -775,7 +783,7 @@ export const downloadContent = async (
     stripPivotSeries: boolean = false,
     rootSpaces: boolean = false,
     onProgress?: (detail: string) => void,
-): Promise<[number, string[], MetadataEntry[], SpaceAsCode[]]> => {
+): Promise<DownloadContentResult> => {
     const contentFilters = parseContentFilters(ids);
     const folderScheme: FolderScheme = nested ? 'nested' : 'flat';
     const config = getContentTypeConfig(type, projectId);
@@ -908,7 +916,13 @@ export const downloadContent = async (
         );
     }
 
-    return [total, [...new Set(chartSlugs)], allMetadataEntries, allSpaces];
+    return {
+        total,
+        chartSlugs: [...new Set(chartSlugs)],
+        appSlugs: [],
+        metadataEntries: allMetadataEntries,
+        spaces: allSpaces,
+    };
 };
 
 const getScheduledDeliveriesFolder = (customPath?: string): string =>
@@ -1800,48 +1814,51 @@ export const downloadHandler = async (
                     styles.warning(`No charts filters provided, skipping`),
                 );
             } else {
-                const [regularChartTotal, , regularChartMeta] =
-                    await output.runItem({
-                        label: 'Charts',
-                        action: () =>
-                            downloadContent(
-                                options.charts,
-                                'charts',
-                                projectId,
-                                projectName,
-                                options.path,
-                                options.languageMap,
-                                options.nested,
-                                skipEmbeddedSpaces,
-                                options.stripPivotSeries,
-                                options.rootSpaces,
-                                output.updateActive,
-                            ),
-                        detail: ([total]) => `${total} downloaded`,
-                    });
-                allMetadataEntries = [
-                    ...allMetadataEntries,
-                    ...regularChartMeta,
-                ];
-
-                const [sqlChartTotal, , sqlChartMeta] = await output.runItem({
-                    label: 'SQL charts',
+                const {
+                    total: regularChartTotal,
+                    metadataEntries: regularChartMeta,
+                } = await output.runItem({
+                    label: 'Charts',
                     action: () =>
                         downloadContent(
                             options.charts,
-                            'sqlCharts',
+                            'charts',
                             projectId,
                             projectName,
                             options.path,
                             options.languageMap,
                             options.nested,
                             skipEmbeddedSpaces,
-                            false,
+                            options.stripPivotSeries,
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ([total]) => `${total} downloaded`,
+                    detail: ({ total }) => `${total} downloaded`,
                 });
+                allMetadataEntries = [
+                    ...allMetadataEntries,
+                    ...regularChartMeta,
+                ];
+
+                const { total: sqlChartTotal, metadataEntries: sqlChartMeta } =
+                    await output.runItem({
+                        label: 'SQL charts',
+                        action: () =>
+                            downloadContent(
+                                options.charts,
+                                'sqlCharts',
+                                projectId,
+                                projectName,
+                                options.path,
+                                options.languageMap,
+                                options.nested,
+                                skipEmbeddedSpaces,
+                                false,
+                                options.rootSpaces,
+                                output.updateActive,
+                            ),
+                        detail: ({ total }) => `${total} downloaded`,
+                    });
                 allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
 
                 chartTotal = regularChartTotal + sqlChartTotal;
@@ -1858,7 +1875,11 @@ export const downloadHandler = async (
                 let chartSlugs: string[] = [];
 
                 let dashMeta: MetadataEntry[];
-                [dashboardTotal, chartSlugs, dashMeta] = await output.runItem({
+                ({
+                    total: dashboardTotal,
+                    chartSlugs,
+                    metadataEntries: dashMeta,
+                } = await output.runItem({
                     label: 'Dashboards',
                     action: () =>
                         downloadContent(
@@ -1874,8 +1895,8 @@ export const downloadHandler = async (
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ([total]) => `${total} downloaded`,
-                });
+                    detail: ({ total }) => `${total} downloaded`,
+                }));
                 allMetadataEntries = [...allMetadataEntries, ...dashMeta];
 
                 if (
@@ -1887,38 +1908,41 @@ export const downloadHandler = async (
                     output.updateActive(
                         `${chartSlugs.length} dashboard dependencies`,
                     );
-                    const [regularCharts, , linkedChartMeta] =
-                        await downloadContent(
-                            chartSlugs,
-                            'charts',
-                            projectId,
-                            projectName,
-                            options.path,
-                            options.languageMap,
-                            options.nested,
-                            skipEmbeddedSpaces,
-                            options.stripPivotSeries,
-                            options.rootSpaces,
-                            output.updateActive,
-                        );
-                    allMetadataEntries = [
-                        ...allMetadataEntries,
-                        ...linkedChartMeta,
-                    ];
-
-                    const [sqlCharts, , linkedSqlMeta] = await downloadContent(
+                    const {
+                        total: regularCharts,
+                        metadataEntries: linkedChartMeta,
+                    } = await downloadContent(
                         chartSlugs,
-                        'sqlCharts',
+                        'charts',
                         projectId,
                         projectName,
                         options.path,
                         options.languageMap,
                         options.nested,
                         skipEmbeddedSpaces,
-                        false,
+                        options.stripPivotSeries,
                         options.rootSpaces,
                         output.updateActive,
                     );
+                    allMetadataEntries = [
+                        ...allMetadataEntries,
+                        ...linkedChartMeta,
+                    ];
+
+                    const { total: sqlCharts, metadataEntries: linkedSqlMeta } =
+                        await downloadContent(
+                            chartSlugs,
+                            'sqlCharts',
+                            projectId,
+                            projectName,
+                            options.path,
+                            options.languageMap,
+                            options.nested,
+                            skipEmbeddedSpaces,
+                            false,
+                            options.rootSpaces,
+                            output.updateActive,
+                        );
                     allMetadataEntries = [
                         ...allMetadataEntries,
                         ...linkedSqlMeta,
