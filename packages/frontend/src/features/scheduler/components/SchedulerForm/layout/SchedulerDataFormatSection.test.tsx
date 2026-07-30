@@ -4,9 +4,11 @@ import {
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
-import { type FC, type ReactNode } from 'react';
+import userEvent from '@testing-library/user-event';
+import { type FC, type MutableRefObject, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
+import { Limit, Values } from '../../types';
 import {
     DEFAULT_VALUES,
     getFormValuesFromScheduler,
@@ -15,6 +17,8 @@ import {
     type SchedulerFormValues,
 } from '../schedulerFormContext';
 import { SchedulerDataFormatSection } from './SchedulerDataFormatSection';
+
+type SchedulerForm = ReturnType<typeof useSchedulerForm>;
 
 vi.mock('../../../../../hooks/health/useHealth', () => ({
     default: vi.fn(() => ({
@@ -31,9 +35,11 @@ vi.mock('../../../../../hooks/useProjectUuid', () => ({
 
 const FormWrapper: FC<{
     initialValues: SchedulerFormValues;
+    formRef?: MutableRefObject<SchedulerForm | null>;
     children: ReactNode;
-}> = ({ initialValues, children }) => {
+}> = ({ initialValues, formRef, children }) => {
     const form = useSchedulerForm({ initialValues });
+    if (formRef) formRef.current = form;
     return (
         <SchedulerFormProvider form={form}>{children}</SchedulerFormProvider>
     );
@@ -44,9 +50,10 @@ const renderSection = (
         React.ComponentProps<typeof SchedulerDataFormatSection>
     > = {},
     initialValues: SchedulerFormValues = DEFAULT_VALUES,
+    formRef?: MutableRefObject<SchedulerForm | null>,
 ) =>
     renderWithProviders(
-        <FormWrapper initialValues={initialValues}>
+        <FormWrapper initialValues={initialValues} formRef={formRef}>
             <SchedulerDataFormatSection
                 dashboard={undefined}
                 savedSchedulerData={undefined}
@@ -147,5 +154,89 @@ describe('SchedulerDataFormatSection - app formats', () => {
         );
 
         expect(screen.getByText('Limit')).toBeInTheDocument();
+    });
+
+    describe('format-switch side effect', () => {
+        const createFormRef = (): MutableRefObject<SchedulerForm | null> => ({
+            current: null,
+        });
+
+        // Deliberately NOT the app-legal csv shape (formatted/limit differ
+        // from DEFAULT_VALUES.options) — otherwise a no-op switch handler
+        // would pass these assertions by coincidence.
+        const nonLegalCsvOptions: SchedulerFormValues['options'] = {
+            ...DEFAULT_VALUES.options,
+            formatted: Values.RAW,
+            limit: Limit.ALL,
+        };
+
+        it('sets options to the only backend-legal csv shape when switched to csv', async () => {
+            const formRef = createFormRef();
+            const user = userEvent.setup();
+            renderSection(
+                { capturedQueryCount: 3 },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.IMAGE,
+                    options: nonLegalCsvOptions,
+                },
+                formRef,
+            );
+
+            await user.click(screen.getByRole('radio', { name: '.csv' }));
+
+            expect(formRef.current?.values.format).toBe(SchedulerFormat.CSV);
+            expect(formRef.current?.values.options).toMatchObject({
+                formatted: Values.FORMATTED,
+                limit: Limit.TABLE,
+            });
+        });
+
+        it('sets options to the only backend-legal xlsx shape when switched to xlsx', async () => {
+            const formRef = createFormRef();
+            const user = userEvent.setup();
+            renderSection(
+                { capturedQueryCount: 3 },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.IMAGE,
+                    options: nonLegalCsvOptions,
+                },
+                formRef,
+            );
+
+            await user.click(screen.getByRole('radio', { name: '.xlsx' }));
+
+            expect(formRef.current?.values.format).toBe(SchedulerFormat.XLSX);
+            expect(formRef.current?.values.options).toMatchObject({
+                formatted: Values.FORMATTED,
+                limit: Limit.TABLE,
+            });
+        });
+
+        it('restores the image-appropriate options when switched back to image', async () => {
+            const formRef = createFormRef();
+            const user = userEvent.setup();
+            renderSection(
+                { capturedQueryCount: 3 },
+                {
+                    ...DEFAULT_VALUES,
+                    format: SchedulerFormat.IMAGE,
+                    options: nonLegalCsvOptions,
+                },
+                formRef,
+            );
+
+            await user.click(screen.getByRole('radio', { name: '.csv' }));
+            await user.click(screen.getByRole('radio', { name: 'Image' }));
+
+            expect(formRef.current?.values.format).toBe(SchedulerFormat.IMAGE);
+            // Switching to csv/xlsx only ever touches `formatted`/`limit` —
+            // the image-specific fields must still hold the form's defaults.
+            expect(formRef.current?.values.options).toMatchObject({
+                withPdf: DEFAULT_VALUES.options.withPdf,
+                pagePerTab: DEFAULT_VALUES.options.pagePerTab,
+            });
+        });
     });
 });

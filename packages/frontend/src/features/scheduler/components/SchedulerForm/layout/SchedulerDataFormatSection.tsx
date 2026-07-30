@@ -52,8 +52,7 @@ type Props = {
     /** App deliveries only: the app state currently reflected in the page URL. */
     currentAppState?: SchedulerAppState | null;
     /** App deliveries only: count of ready queries captured by the live preview.
-     *  Undefined when the host page has no live query data (e.g. editing without
-     *  a preview open) — csv/xlsx are then left enabled rather than gated shut. */
+     *  Undefined (no live data) leaves csv/xlsx enabled rather than gated shut. */
     capturedQueryCount?: number;
     isDashboardTabsAvailable: boolean;
     currentParameterValues?: ParametersValuesMap;
