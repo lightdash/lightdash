@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OKTETO_CONTEXT_URL="${OKTETO_CONTEXT:-https://lightdash.okteto.dev}"
 OKTETO_MANIFEST="$REPO_ROOT/okteto.dev.yaml"
-POOL_NAMESPACE_PREFIX="agent-pool-"
+POOL_NAMESPACE_PREFIX="dev-warm-"
 POOL_CLAIM_CONFIGMAP="lightdash-agent-claim"
 POOL_READY_CONFIGMAP="lightdash-agent-ready"
 TARGET_SIZE="${1:-${LIGHTDASH_AGENT_POOL_SIZE:-3}}"
@@ -135,19 +135,34 @@ create_pool_namespace() {
     local namespace="$1"
 
     echo "Creating pooled namespace $namespace..."
-    okteto namespace create "$namespace" --use=false
+    if ! okteto namespace create "$namespace" --use=false; then
+        echo "Namespace $namespace was created concurrently; trying another."
+        return 1
+    fi
     configure_kubectl_access "$namespace"
     deploy_namespace "$namespace"
     return 0
 }
 
+next_pool_index() {
+    local highest
+
+    highest="$(
+        list_namespaces |
+            sed -nE "s/^${POOL_NAMESPACE_PREFIX}([0-9]+)$/\\1/p" |
+            sort -n |
+            tail -n 1
+    )"
+    printf '%s' "$(( ${highest:-0} + 1 ))"
+}
+
 main() {
-    local available=0 attempts=0 created=0 namespace run_key max_attempts
-    local first_pool_namespace
+    local available=0 attempts=0 created=0 namespace max_attempts
+    local first_pool_namespace next_index
 
     [[ "$TARGET_SIZE" =~ ^[1-9][0-9]*$ ]] ||
         fail "Pool size must be a positive integer."
-    max_attempts="$TARGET_SIZE"
+    max_attempts=$((TARGET_SIZE + 3))
 
     for command_name in jq kubectl okteto; do
         require_command "$command_name"
@@ -195,12 +210,12 @@ main() {
         fi
     done < <(list_namespaces | grep "^${POOL_NAMESPACE_PREFIX}" | sort)
 
-    run_key="${GITHUB_RUN_ID:-$(date -u +%Y%m%d%H%M%S)-$$}-${GITHUB_RUN_ATTEMPT:-1}"
-    run_key="$(printf '%s' "$run_key" | tr -cd 'a-zA-Z0-9-' | tr 'A-Z' 'a-z')"
+    next_index="$(next_pool_index)"
 
     while ((available < TARGET_SIZE && attempts < max_attempts)); do
         attempts=$((attempts + 1))
-        namespace="${POOL_NAMESPACE_PREFIX}${run_key}-${attempts}"
+        namespace="${POOL_NAMESPACE_PREFIX}${next_index}"
+        next_index=$((next_index + 1))
 
         if create_pool_namespace "$namespace" &&
             namespace_is_ready "$namespace"; then

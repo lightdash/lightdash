@@ -164,7 +164,8 @@ variable.
 
 The `Agent Okteto Pool` GitHub Actions workflow runs hourly and can also be
 started manually. It keeps at least three unclaimed namespaces deployed and
-healthy. Configure these GitHub Actions secrets:
+healthy. Pooled namespaces use short sequential names such as `dev-warm-1`.
+Configure these GitHub Actions secrets:
 
 ```text
 LIGHTDASH_OKTETO_TOKEN=<shared automation token>
@@ -180,6 +181,9 @@ synchronization and `/api/v1/health`. Claimed namespaces are excluded when the
 workflow replenishes the pool. The same hash is available inside the
 development container as `LIGHTDASH_AGENT_SESSION_HASH`.
 
+If no warm namespace is available, the launcher creates an on-demand namespace
+named `dev-cold-<8-character-session-hash>`.
+
 The workflow uses `scripts/maintain-agent-okteto-pool.sh`. Run it manually with
 the desired minimum pool size when testing administrator changes:
 
@@ -192,8 +196,10 @@ the desired minimum pool size when testing administrator changes:
 The agent's final response includes a URL like:
 
 ```text
-https://<deployment>-agent-pool-<pool-id>.lightdash.okteto.dev
+https://<deployment>-dev-warm-<number>.lightdash.okteto.dev
 ```
+
+An on-demand fallback URL contains `dev-cold-<session-hash>` instead.
 
 Use these credentials:
 

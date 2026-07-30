@@ -8,7 +8,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OKTETO_CONTEXT_URL="${OKTETO_CONTEXT:-https://lightdash.okteto.dev}"
 OKTETO_MANIFEST="$REPO_ROOT/okteto.dev.yaml"
 OKTETO_SERVICE="lightdash-dev"
-POOL_NAMESPACE_PREFIX="agent-pool-"
+POOL_NAMESPACE_PREFIX="dev-warm-"
+COLD_NAMESPACE_PREFIX="dev-cold-"
 POOL_CLAIM_CONFIGMAP="lightdash-agent-claim"
 POOL_READY_CONFIGMAP="lightdash-agent-ready"
 READY_TIMEOUT_SECONDS="${OKTETO_READY_TIMEOUT_SECONDS:-300}"
@@ -148,7 +149,7 @@ load_session_config() {
     if [[ "$saved_namespace" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; then
         set_active_namespace "$saved_namespace"
     else
-        set_active_namespace "agent-$SESSION_HASH"
+        set_active_namespace "${COLD_NAMESPACE_PREFIX}${SESSION_HASH:0:8}"
     fi
 
     saved_url=""
@@ -440,7 +441,7 @@ start_environment() {
     if claim_pool_namespace; then
         echo "Claimed a ready environment from the shared pool."
     else
-        set_active_namespace "agent-$SESSION_HASH"
+        set_active_namespace "${COLD_NAMESPACE_PREFIX}${SESSION_HASH:0:8}"
         save_active_namespace
         ensure_namespace
         echo "No ready pooled environment was available; deploying one now..."
