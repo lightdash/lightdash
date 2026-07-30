@@ -3,9 +3,8 @@
 #   okteto deploy -f okteto.dev.yaml --wait   # create/update the environment
 #   okteto up -f okteto.dev.yaml              # sync code + start dev servers
 #
-# The public endpoint is https://lightdash-<namespace>.lightdash.okteto.dev
-# (named after the dev environment, "lightdash") and serves the Vite dev
-# server, so synced changes hot-reload in the browser.
+# Okteto derives the public endpoint from the deployment and namespace names.
+# The agent launcher discovers it from the ingress before starting sync.
 deploy:
     commands:
         - name: Configuring database...
@@ -43,6 +42,8 @@ deploy:
                 echo "Reusing existing database volume (or starting blank if no snapshot is ready)"
               fi
 
+              # The agent launcher overrides this with the discovered ingress
+              # URL when it runs okteto up.
               echo "SITE_URL=https://lightdash-${OKTETO_NAMESPACE}.${OKTETO_DOMAIN}" >> "$OKTETO_ENV"
         - name: Deploying compose...
           command: |

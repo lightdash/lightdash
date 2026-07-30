@@ -171,13 +171,14 @@ LIGHTDASH_OKTETO_TOKEN=<shared automation token>
 OKTETO_CONTEXT=https://lightdash.okteto.dev
 ```
 
-The maintainer marks a namespace ready only after
-`/api/v1/health` succeeds. An agent claims it by atomically creating the
+The maintainer marks a namespace ready after its base pods and public ingress
+are available. An agent claims it by atomically creating the
 `lightdash-agent-claim` ConfigMap with its session hash. Kubernetes allows only
 one creation to succeed, preventing two simultaneous sessions from selecting
-the same namespace. Claimed namespaces are excluded when the workflow
-replenishes the pool. The same hash is available inside the development
-container as `LIGHTDASH_AGENT_SESSION_HASH`.
+the same namespace. After `okteto up`, the launcher waits for file
+synchronization and `/api/v1/health`. Claimed namespaces are excluded when the
+workflow replenishes the pool. The same hash is available inside the
+development container as `LIGHTDASH_AGENT_SESSION_HASH`.
 
 The workflow uses `scripts/maintain-agent-okteto-pool.sh`. Run it manually with
 the desired minimum pool size when testing administrator changes:
@@ -191,7 +192,7 @@ the desired minimum pool size when testing administrator changes:
 The agent's final response includes a URL like:
 
 ```text
-https://lightdash-agent-pool-<pool-id>.lightdash.okteto.dev
+https://<deployment>-agent-pool-<pool-id>.lightdash.okteto.dev
 ```
 
 Use these credentials:

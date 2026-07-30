@@ -11,6 +11,9 @@ POOL_NAMESPACE_PREFIX="agent-pool-"
 POOL_CLAIM_CONFIGMAP="lightdash-agent-claim"
 POOL_READY_CONFIGMAP="lightdash-agent-ready"
 TARGET_SIZE="${1:-${LIGHTDASH_AGENT_POOL_SIZE:-3}}"
+READY_TIMEOUT_SECONDS="${OKTETO_POOL_READY_TIMEOUT_SECONDS:-600}"
+POLL_INTERVAL_SECONDS="${OKTETO_POOL_POLL_INTERVAL_SECONDS:-10}"
+KUBECTL_CONFIGURED=false
 
 fail() {
     echo "ERROR: $*" >&2
@@ -41,11 +44,14 @@ list_namespaces() {
 }
 
 namespace_url() {
-    local namespace="$1" context_host
+    local namespace="$1" host
 
-    context_host="${OKTETO_CONTEXT_URL#*://}"
-    context_host="${context_host%%/*}"
-    printf 'https://lightdash-%s.%s' "$namespace" "$context_host"
+    host="$(
+        kubectl -n "$namespace" get ingress -o json 2>/dev/null |
+            jq -r '.items[0].spec.rules[0].host // empty'
+    )"
+    [ -n "$host" ] || return 1
+    printf 'https://%s' "$host"
 }
 
 namespace_is_claimed() {
@@ -57,8 +63,46 @@ namespace_is_ready() {
 
     kubectl -n "$namespace" get configmap "$POOL_READY_CONFIGMAP" \
         >/dev/null 2>&1 &&
-        curl --fail --silent --show-error --max-time 10 \
-            "$(namespace_url "$namespace")/api/v1/health" >/dev/null 2>&1
+        namespace_resources_are_ready "$namespace"
+}
+
+namespace_resources_are_ready() {
+    local namespace="$1" pod_status
+
+    pod_status="$(
+        kubectl -n "$namespace" get pods -o json 2>/dev/null |
+            jq -r '
+                if (.items | length) == 0 then "false"
+                else ([.items[].status.containerStatuses[]?.ready] | all)
+                end
+            '
+    )"
+    [ "$pod_status" = "true" ] && namespace_url "$namespace" >/dev/null
+}
+
+wait_for_namespace_ready() {
+    local namespace="$1" deadline
+
+    deadline=$((SECONDS + READY_TIMEOUT_SECONDS))
+    while ((SECONDS < deadline)); do
+        if namespace_resources_are_ready "$namespace"; then
+            return 0
+        fi
+        echo "Waiting for $namespace pods and ingress..."
+        sleep "$POLL_INTERVAL_SECONDS"
+    done
+
+    echo "ERROR: Timed out waiting for $namespace pods and ingress." >&2
+    return 1
+}
+
+configure_kubectl_access() {
+    local namespace="$1"
+
+    [ "$KUBECTL_CONFIGURED" = false ] || return 0
+    okteto namespace use "$namespace" >/dev/null
+    okteto kubeconfig >/dev/null
+    KUBECTL_CONFIGURED=true
 }
 
 mark_namespace_ready() {
@@ -80,6 +124,9 @@ deploy_namespace() {
         -n "$namespace" \
         --wait \
         --timeout 20m
+    if ! wait_for_namespace_ready "$namespace"; then
+        return 1
+    fi
     namespace_is_claimed "$namespace" || mark_namespace_ready "$namespace"
     return 0
 }
@@ -89,18 +136,20 @@ create_pool_namespace() {
 
     echo "Creating pooled namespace $namespace..."
     okteto namespace create "$namespace" --use=false
+    configure_kubectl_access "$namespace"
     deploy_namespace "$namespace"
     return 0
 }
 
 main() {
     local available=0 attempts=0 created=0 namespace run_key max_attempts
+    local first_pool_namespace
 
     [[ "$TARGET_SIZE" =~ ^[1-9][0-9]*$ ]] ||
         fail "Pool size must be a positive integer."
-    max_attempts=$((TARGET_SIZE + 6))
+    max_attempts="$TARGET_SIZE"
 
-    for command_name in curl jq kubectl okteto; do
+    for command_name in jq kubectl okteto; do
         require_command "$command_name"
     done
     [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] ||
@@ -115,10 +164,27 @@ main() {
     okteto context use "$OKTETO_CONTEXT_URL" \
         --token "$LIGHTDASH_OKTETO_TOKEN" >/dev/null
 
+    first_pool_namespace="$(
+        list_namespaces |
+            grep "^${POOL_NAMESPACE_PREFIX}" |
+            sort |
+            head -n 1 ||
+            true
+    )"
+    if [ -n "$first_pool_namespace" ]; then
+        configure_kubectl_access "$first_pool_namespace"
+    fi
+
     while IFS= read -r namespace; do
         namespace_is_claimed "$namespace" && continue
 
         if namespace_is_ready "$namespace"; then
+            available=$((available + 1))
+            continue
+        fi
+
+        if namespace_resources_are_ready "$namespace"; then
+            mark_namespace_ready "$namespace"
             available=$((available + 1))
             continue
         fi

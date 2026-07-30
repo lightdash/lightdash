@@ -16,6 +16,7 @@ SYNC_START_TIMEOUT_SECONDS="${OKTETO_SYNC_START_TIMEOUT_SECONDS:-600}"
 POLL_INTERVAL_SECONDS="${OKTETO_POLL_INTERVAL_SECONDS:-5}"
 SETUP_DOC="docs/agent-okteto.md"
 TOKEN_ENV_VAR="LIGHTDASH_OKTETO_TOKEN"
+KUBECTL_CONFIGURED=false
 
 fail() {
     echo "ERROR: $*" >&2
@@ -129,7 +130,7 @@ hash_value() {
 }
 
 load_session_config() {
-    local id saved_namespace
+    local id saved_namespace saved_url
 
     id="$(agent_session_id)"
     SESSION_HASH="$(hash_value "$id")"
@@ -138,6 +139,7 @@ load_session_config() {
     RUN_DIR="${TMPDIR:-/tmp}/lightdash-agent-okteto/$SESSION_HASH"
     LOG_FILE="$RUN_DIR/okteto-up.log"
     NAMESPACE_FILE="$RUN_DIR/namespace"
+    URL_FILE="$RUN_DIR/url"
 
     saved_namespace=""
     if [ -f "$NAMESPACE_FILE" ]; then
@@ -147,6 +149,14 @@ load_session_config() {
         set_active_namespace "$saved_namespace"
     else
         set_active_namespace "agent-$SESSION_HASH"
+    fi
+
+    saved_url=""
+    if [ -f "$URL_FILE" ]; then
+        saved_url="$(cat "$URL_FILE" 2>/dev/null || true)"
+    fi
+    if [[ "$saved_url" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
+        PUBLIC_URL="$saved_url"
     fi
 }
 
@@ -162,6 +172,7 @@ set_active_namespace() {
 save_active_namespace() {
     mkdir -p "$RUN_DIR"
     printf '%s\n' "$OKTETO_NAMESPACE" >"$NAMESPACE_FILE"
+    printf '%s\n' "$PUBLIC_URL" >"$URL_FILE"
 }
 
 require_client_runtime() {
@@ -229,14 +240,38 @@ ensure_namespace() {
     okteto namespace create "$OKTETO_NAMESPACE" --use=false
 }
 
-pool_namespace_is_healthy() {
-    local namespace="$1" context_host
+configure_kubectl_access() {
+    local namespace="$1"
 
-    context_host="${OKTETO_CONTEXT_URL#*://}"
-    context_host="${context_host%%/*}"
-    curl --fail --silent --show-error --max-time 10 \
-        "https://lightdash-${namespace}.${context_host}/api/v1/health" \
-        >/dev/null 2>&1
+    [ "$KUBECTL_CONFIGURED" = false ] || return 0
+    okteto namespace use "$namespace" >/dev/null
+    okteto kubeconfig >/dev/null
+    KUBECTL_CONFIGURED=true
+}
+
+discover_public_url() {
+    local namespace="$1" host
+
+    host="$(
+        kubectl -n "$namespace" get ingress -o json 2>/dev/null |
+            jq -r '.items[0].spec.rules[0].host // empty'
+    )"
+    [ -n "$host" ] || return 1
+    PUBLIC_URL="https://$host"
+}
+
+pool_namespace_resources_are_ready() {
+    local namespace="$1" pod_status
+
+    pod_status="$(
+        kubectl -n "$namespace" get pods -o json 2>/dev/null |
+            jq -r '
+                if (.items | length) == 0 then "false"
+                else ([.items[].status.containerStatuses[]?.ready] | all)
+                end
+            '
+    )"
+    [ "$pod_status" = "true" ] && discover_public_url "$namespace"
 }
 
 pool_namespace_is_ready() {
@@ -244,7 +279,7 @@ pool_namespace_is_ready() {
 
     kubectl -n "$namespace" get configmap "$POOL_READY_CONFIGMAP" \
         >/dev/null 2>&1 &&
-        pool_namespace_is_healthy "$namespace"
+        pool_namespace_resources_are_ready "$namespace"
 }
 
 claim_owner() {
@@ -258,18 +293,30 @@ use_claimed_namespace() {
     local namespace="$1"
 
     set_active_namespace "$namespace"
+    discover_public_url "$namespace" || return 1
     save_active_namespace
     echo "Using pre-provisioned Okteto namespace $OKTETO_NAMESPACE."
 }
 
 claim_pool_namespace() {
-    local namespace owner
+    local namespace owner first_pool_namespace
+
+    first_pool_namespace="$(
+        list_namespaces |
+            grep "^${POOL_NAMESPACE_PREFIX}" |
+            sort |
+            head -n 1 ||
+            true
+    )"
+    [ -n "$first_pool_namespace" ] || return 1
+    configure_kubectl_access "$first_pool_namespace"
 
     while IFS= read -r namespace; do
         owner="$(claim_owner "$namespace")"
         if [ "$owner" = "$SESSION_HASH" ]; then
-            use_claimed_namespace "$namespace"
-            return 0
+            if use_claimed_namespace "$namespace"; then
+                return 0
+            fi
         fi
     done < <(list_namespaces | grep "^${POOL_NAMESPACE_PREFIX}" | sort)
 
@@ -283,8 +330,10 @@ claim_pool_namespace() {
             >/dev/null 2>&1; then
             kubectl -n "$namespace" delete configmap "$POOL_READY_CONFIGMAP" \
                 --ignore-not-found >/dev/null 2>&1 || true
-            use_claimed_namespace "$namespace"
-            return 0
+            if use_claimed_namespace "$namespace"; then
+                return 0
+            fi
+            return 1
         fi
     done < <(list_namespaces | grep "^${POOL_NAMESPACE_PREFIX}" | sort)
 
@@ -360,11 +409,12 @@ start_tmux_session() {
     : >"$LOG_FILE"
 
     printf -v up_command \
-        'exec okteto up %q -f %q -n %q --env %q' \
+        'exec okteto up %q -f %q -n %q --env %q --env %q' \
         "$OKTETO_SERVICE" \
         "$OKTETO_MANIFEST" \
         "$OKTETO_NAMESPACE" \
-        "LIGHTDASH_AGENT_SESSION_HASH=$SESSION_HASH"
+        "LIGHTDASH_AGENT_SESSION_HASH=$SESSION_HASH" \
+        "SITE_URL=$PUBLIC_URL"
     printf -v pipe_command 'cat >> %q' "$LOG_FILE"
 
     echo "Starting Okteto file synchronization..."
@@ -399,6 +449,10 @@ start_environment() {
             -n "$OKTETO_NAMESPACE" \
             --wait \
             --timeout 8m
+        configure_kubectl_access "$OKTETO_NAMESPACE"
+        discover_public_url "$OKTETO_NAMESPACE" ||
+            fail "No public ingress found in $OKTETO_NAMESPACE."
+        save_active_namespace
     fi
 
     start_tmux_session
@@ -423,6 +477,9 @@ wait_for_environment() {
 
     if [ -f "$NAMESPACE_FILE" ]; then
         set_active_namespace "$(cat "$NAMESPACE_FILE")"
+    fi
+    if [ -f "$URL_FILE" ]; then
+        PUBLIC_URL="$(cat "$URL_FILE")"
     fi
     wait_until_ready
 }
