@@ -18,6 +18,7 @@ import { registerPreAggregateStream } from '../nats/natsConfig';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { DeployService } from '../services/DeployService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
+import { OrganizationService } from '../services/OrganizationService/OrganizationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
@@ -89,6 +90,7 @@ import { EnterpriseLicenseService } from './services/LicenseService/LicenseServi
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
+import { provisionOnboardingOrgFlags } from './services/OrganizationService/provisionOnboardingOrgFlags';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
@@ -725,6 +727,29 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     unfurlService: repository.getUnfurlService(),
                     projectService: repository.getProjectService(),
                     lightdashConfig: context.lightdashConfig,
+                }),
+            organizationService: ({ models, context, repository }) =>
+                new OrganizationService({
+                    lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
+                    organizationModel: models.getOrganizationModel(),
+                    projectModel: models.getProjectModel(),
+                    onboardingModel: models.getOnboardingModel(),
+                    organizationMemberProfileModel:
+                        models.getOrganizationMemberProfileModel(),
+                    userModel: models.getUserModel(),
+                    organizationAllowedEmailDomainsModel:
+                        models.getOrganizationAllowedEmailDomainsModel(),
+                    groupsModel: models.getGroupsModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    onOrganizationCreated: ({ user, organizationUuid }) =>
+                        provisionOnboardingOrgFlags({
+                            user,
+                            organizationUuid,
+                            featureFlagService:
+                                repository.getFeatureFlagService(),
+                            analytics: context.lightdashAnalytics,
+                        }),
                 }),
             organizationWarehouseCredentialsService: ({ models, context }) =>
                 new OrganizationWarehouseCredentialsService({
