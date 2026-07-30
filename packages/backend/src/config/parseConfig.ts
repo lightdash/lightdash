@@ -2851,7 +2851,7 @@ export const parseConfig = (): LightdashConfig => {
             signingSecret: process.env.SLACK_SIGNING_SECRET,
             clientId: process.env.SLACK_CLIENT_ID,
             clientSecret: process.env.SLACK_CLIENT_SECRET,
-            stateSecret: process.env.SLACK_STATE_SECRET || 'slack-state-secret',
+            stateSecret: process.env.SLACK_STATE_SECRET || lightdashSecret,
             appToken: process.env.SLACK_APP_TOKEN,
             port: parseInt(process.env.SLACK_PORT || '4351', 10),
             socketMode: process.env.SLACK_SOCKET_MODE === 'true',

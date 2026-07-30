@@ -238,6 +238,19 @@ test('Should include secret in output', () => {
     expect(parseConfig().lightdashSecret).toEqual('so very secret');
 });
 
+test('Should use the Lightdash secret as the Slack state secret fallback', () => {
+    process.env.LIGHTDASH_SECRET = 'instance-specific-secret';
+    expect(parseConfig().slack?.stateSecret).toEqual(
+        'instance-specific-secret',
+    );
+});
+
+test('Should prefer an explicit Slack state secret', () => {
+    process.env.LIGHTDASH_SECRET = 'instance-specific-secret';
+    process.env.SLACK_STATE_SECRET = 'slack-specific-secret';
+    expect(parseConfig().slack?.stateSecret).toEqual('slack-specific-secret');
+});
+
 test('Should parse bedrock inference profile prefix from env', () => {
     process.env.BEDROCK_API_KEY = 'test-bedrock-key';
     process.env.BEDROCK_REGION = 'ap-northeast-1';
