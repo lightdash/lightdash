@@ -619,7 +619,6 @@ start_environment() {
         if ! DEV_WARM_IMAGE="$ACTIVE_WARM_IMAGE" okteto deploy \
             -f "$OKTETO_MANIFEST" \
             -n "$OKTETO_NAMESPACE" \
-            --env "DEV_WARM_IMAGE=$ACTIVE_WARM_IMAGE" \
             --wait \
             --timeout 8m; then
             fail "Okteto deployment failed in $OKTETO_NAMESPACE."
