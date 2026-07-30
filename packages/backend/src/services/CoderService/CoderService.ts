@@ -30,6 +30,7 @@ import {
     DashboardAsCodeInternalization,
     DashboardChartTileAsCode,
     DashboardDAO,
+    DashboardDataAppTileAsCode,
     DashboardFilterRule,
     DashboardGoogleSheetsSyncAsCode,
     DashboardMarkdownTileAsCode,
@@ -1562,6 +1563,23 @@ export class CoderService extends BaseService {
                         },
                     };
                     return markdownTile;
+                }
+
+                if (tile.type === DashboardTileTypes.DATA_APP) {
+                    const dataAppTile: DashboardDataAppTileAsCode = {
+                        ...tile,
+                        type: DashboardTileTypes.DATA_APP,
+                        uuid: undefined,
+                        tabUuid: undefined,
+                        tabSlug,
+                        tileSlug: undefined,
+                        properties: {
+                            title: tile.properties.title,
+                            hideTitle: tile.properties.hideTitle,
+                            appSlug: tile.properties.appSlug ?? null,
+                        },
+                    };
+                    return dataAppTile;
                 }
 
                 // Other non-chart tiles already match the as-code shape

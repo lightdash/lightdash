@@ -946,4 +946,87 @@ describe('CoderService', () => {
             );
         });
     });
+
+    describe('transformDashboard - data app tiles', () => {
+        const spaceSummary = [
+            { uuid: 'space-uuid', name: 'My space', path: 'my_space' },
+        ];
+
+        const transform = (tiles: AnyType[]) =>
+            (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                {
+                    name: 'Dash',
+                    description: '',
+                    slug: 'dash',
+                    spaceUuid: 'space-uuid',
+                    tabs: [],
+                    tiles,
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    updatedAt: new Date('2026-01-01'),
+                },
+                spaceSummary,
+                new Map(),
+            );
+
+        it('emits appSlug and drops appUuid and appDeletedAt', () => {
+            const result = transform([
+                {
+                    uuid: 'tile-uuid',
+                    type: DashboardTileTypes.DATA_APP,
+                    x: 0,
+                    y: 0,
+                    h: 9,
+                    w: 18,
+                    tabUuid: null,
+                    properties: {
+                        title: 'Revenue explorer',
+                        hideTitle: false,
+                        appUuid: 'app-uuid',
+                        appSlug: 'revenue-explorer',
+                        appDeletedAt: null,
+                    },
+                },
+            ]);
+
+            expect(result.tiles[0].properties).toEqual({
+                title: 'Revenue explorer',
+                hideTitle: false,
+                appSlug: 'revenue-explorer',
+            });
+            expect(result.tiles[0].uuid).toBeUndefined();
+        });
+
+        it('emits a null appSlug when the app row is gone', () => {
+            const result = transform([
+                {
+                    uuid: 'tile-uuid',
+                    type: DashboardTileTypes.DATA_APP,
+                    x: 0,
+                    y: 0,
+                    h: 9,
+                    w: 18,
+                    tabUuid: null,
+                    properties: {
+                        title: 'Orphaned',
+                        appUuid: 'app-uuid',
+                        appSlug: null,
+                        appDeletedAt: '2026-01-01T00:00:00.000Z',
+                    },
+                },
+            ]);
+
+            expect(result.tiles[0].properties.appSlug).toBeNull();
+            expect(result.tiles[0].properties).not.toHaveProperty(
+                'appDeletedAt',
+            );
+        });
+    });
 });

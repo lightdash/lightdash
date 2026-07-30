@@ -162,12 +162,10 @@
                 },
                 "properties": {
                     "additionalProperties": false,
+                    "description": "From T, pick a set of properties whose keys are in the union K",
                     "properties": {
-                        "appDeletedAt": {
+                        "appSlug": {
                             "type": ["string", "null"]
-                        },
-                        "appUuid": {
-                            "type": "string"
                         },
                         "hideTitle": {
                             "type": "boolean"
@@ -176,7 +174,7 @@
                             "type": "string"
                         }
                     },
-                    "required": ["appUuid", "title"],
+                    "required": ["title", "appSlug"],
                     "type": "object"
                 },
                 "tabSlug": {
@@ -864,6 +862,19 @@
                     "type": "string"
                 }
             },
+            "type": "object"
+        },
+        "Pick_DashboardDataAppTileProperties-at-properties.title-or-hideTitle_": {
+            "description": "From T, pick a set of properties whose keys are in the union K",
+            "properties": {
+                "hideTitle": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            },
+            "required": ["title"],
             "type": "object"
         },
         "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {

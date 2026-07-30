@@ -79,7 +79,10 @@ export type DashboardHeadingTileAsCode = DashboardTileAsCodeBase & {
 
 export type DashboardDataAppTileAsCode = DashboardTileAsCodeBase & {
     type: DashboardTileTypes.DATA_APP;
-    properties: DashboardDataAppTileProperties['properties'];
+    properties: Pick<
+        DashboardDataAppTileProperties['properties'],
+        'title' | 'hideTitle'
+    > & { appSlug: string | null };
 };
 
 export type DashboardTileAsCode =
