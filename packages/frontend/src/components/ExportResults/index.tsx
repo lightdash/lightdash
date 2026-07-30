@@ -134,9 +134,10 @@ const ExportResults: FC<ExportResultsProps> = memo(
                             ? undefined
                             : conditionalFormattings,
                         // Pivoted exports get their totals from `pivotConfig`
-                        showColumnTotals: exportPivotedData
-                            ? undefined
-                            : showColumnTotals,
+                        showColumnTotals:
+                            exportPivotedData && pivotConfig
+                                ? undefined
+                                : showColumnTotals,
                     };
 
                     return scheduleDownloadQuery(
