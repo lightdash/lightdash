@@ -78,6 +78,12 @@ services:
             GROUPS_ENABLED: true
             EXTENDED_USAGE_ANALYTICS: true
 
+            # Enable most feature flags and the feature-flag management API so
+            # recent features can be tested here. On by default in preview
+            # (LIGHTDASH_MODE=pr) envs, so this is only needed for dev mode.
+            # See docs/preview-feature-flags.md
+            LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED: true
+
             HEADLESS_BROWSER_HOST: headless-browser
             HEADLESS_BROWSER_PORT: 3000
             INTERNAL_LIGHTDASH_HOST: http://lightdash-dev:3000

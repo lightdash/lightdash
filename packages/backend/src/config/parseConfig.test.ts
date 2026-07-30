@@ -1472,6 +1472,20 @@ describe('feature flag env-var allowlists', () => {
         expect(config.disabledFeatureFlags.has('killed-flag')).toBe(true);
     });
 
+    test('previewFeatureFlags is off by default and on in PR mode', () => {
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(false);
+        process.env.LIGHTDASH_MODE = LightdashMode.PR;
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(true);
+    });
+
+    test('LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED overrides the mode default', () => {
+        process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = 'true';
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(true);
+        process.env.LIGHTDASH_MODE = LightdashMode.PR;
+        process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = 'false';
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(false);
+    });
+
     test('dashboardComments.enabled defaults to true when DISABLE_DASHBOARD_COMMENTS is unset', () => {
         delete process.env.DISABLE_DASHBOARD_COMMENTS;
         const config = parseConfig();

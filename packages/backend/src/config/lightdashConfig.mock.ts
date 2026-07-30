@@ -445,4 +445,5 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
+    previewFeatureFlags: { enabled: false },
 };

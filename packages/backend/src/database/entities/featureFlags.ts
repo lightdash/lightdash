@@ -31,5 +31,6 @@ export type FeatureFlagOverridesTable = Knex.CompositeTableType<
     DbFeatureFlagOverride,
     Pick<DbFeatureFlagOverride, 'flag_id' | 'enabled'> &
         Partial<Pick<DbFeatureFlagOverride, 'user_uuid' | 'organization_uuid'>>,
-    Pick<DbFeatureFlagOverride, 'enabled'>
+    Pick<DbFeatureFlagOverride, 'enabled'> &
+        Partial<Pick<DbFeatureFlagOverride, 'updated_at'>>
 >;
