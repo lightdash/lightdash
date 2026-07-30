@@ -10,8 +10,12 @@ export const buildFailureCountPhrase = (failures: PartialFailure[]): string => {
             f.type === PartialFailureType.DASHBOARD_CHART ||
             f.type === PartialFailureType.DASHBOARD_SQL_CHART,
     ).length;
+    // APP_QUERY_MISSING counts as a failing query here too, matching how
+    // RunDetailsModal tallies it.
     const queryCount = failures.filter(
-        (f) => f.type === PartialFailureType.APP_QUERY,
+        (f) =>
+            f.type === PartialFailureType.APP_QUERY ||
+            f.type === PartialFailureType.APP_QUERY_MISSING,
     ).length;
     const otherCount = failures.length - chartCount - queryCount;
 

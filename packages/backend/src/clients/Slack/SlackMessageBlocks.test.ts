@@ -620,6 +620,38 @@ describe('SlackMessageBlocks', () => {
             expect(text).toContain('2 charts and 1 query failed to export');
         });
 
+        it('counts APP_QUERY_MISSING as a failing query in the headline', () => {
+            const failures: PartialFailure[] = [
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'render',
+                    captureKey: 'v1:abc123',
+                    label: 'Revenue by region',
+                    error: 'Query timed out',
+                },
+                {
+                    type: PartialFailureType.APP_QUERY_MISSING,
+                    captureKey: 'v1:def456',
+                    label: 'Signups by week',
+                    identityChanged: false,
+                },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                failures,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const text = sections.map((s) => s.text?.text ?? '').join('\n');
+            expect(text).toContain('2 queries failed to export');
+            expect(text).not.toContain('issue');
+        });
+
         it('renders notices as a separate info section, not the failure block', () => {
             const notices: DeliveryNotice[] = [
                 {
