@@ -359,6 +359,20 @@ describe('useAppSdkBridge', () => {
         );
     });
 
+    it('blocks SDK queries targeting a different project', () => {
+        renderBridge(() => undefined);
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: '/api/v2/projects/another-project/query/metric-query',
+            body: { query: METRIC_QUERY },
+        });
+
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
     it('allows SDK download scheduling and job polling through the bridge', async () => {
         renderBridge(() => undefined);
 
