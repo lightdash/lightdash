@@ -43,9 +43,8 @@ require_command() {
 }
 
 extract_session_id() {
-    local hook_input session_id
+    local hook_input="$1" session_id
 
-    hook_input="$(cat)"
     session_id="$(
         printf '%s\n' "$hook_input" |
             sed -nE 's/.*"session_id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' |
@@ -58,50 +57,114 @@ extract_session_id() {
     printf '%s' "$session_id"
 }
 
-capture_session_env() {
-    local session_id
-
-    [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] || return 0
-
-    [ -n "${CLAUDE_ENV_FILE:-}" ] ||
-        fail "CLAUDE_ENV_FILE is unavailable in the SessionStart hook."
-
-    session_id="$(extract_session_id)" ||
-        fail "Claude SessionStart input has no usable session_id."
-
-    printf 'export LIGHTDASH_AGENT_SESSION_ID=%s\n' "$session_id" >>"$CLAUDE_ENV_FILE"
-}
-
 hook_start() {
-    local session_id pidfile pid
+    local hook_input hook_output ready_line session_id
 
     [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] || return 0
 
-    session_id="$(extract_session_id)" || return 0
-    [ -n "$session_id" ] || return 0
+    hook_input="$(cat)"
+    if [ -z "${CLAUDE_ENV_FILE:-}" ]; then
+        hook_setup_failed "CLAUDE_ENV_FILE is unavailable."
+        return
+    fi
+    if ! session_id="$(extract_session_id "$hook_input")"; then
+        hook_setup_failed "Claude SessionStart input has no usable session_id."
+        return
+    fi
 
     export LIGHTDASH_AGENT_SESSION_ID="$session_id"
-    load_session_config
-    mkdir -p "$RUN_DIR"
-
-    if tmux_session_exists; then
-        return 0
+    if ! printf 'export LIGHTDASH_AGENT_SESSION_ID=%s\n' \
+        "$session_id" >>"$CLAUDE_ENV_FILE"; then
+        hook_setup_failed "Could not persist the Claude session ID."
+        return
     fi
 
-    pidfile="$RUN_DIR/hook-start.pid"
-    if [ -f "$pidfile" ]; then
-        pid="$(cat "$pidfile" 2>/dev/null || true)"
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            return 0
-        fi
+    if ! hook_output="$(bash "$SCRIPT_DIR/agent-okteto-dev.sh" start 2>&1)"; then
+        printf '%s\n' "$hook_output" >&2
+        hook_setup_failed "Okteto startup failed."
+        return
     fi
 
-    nohup bash "$SCRIPT_DIR/agent-okteto-dev.sh" start \
-        </dev/null >>"$RUN_DIR/hook-start.log" 2>&1 &
-    printf '%s\n' "$!" >"$pidfile"
-    disown 2>/dev/null || true
+    ready_line="$(
+        printf '%s\n' "$hook_output" |
+            grep '^READY: https://' |
+            tail -n 1 ||
+            true
+    )"
+    if [ -z "$ready_line" ]; then
+        printf '%s\n' "$hook_output" >&2
+        hook_setup_failed "Okteto startup finished without a ready URL."
+        return
+    fi
 
-    echo "Okteto development environment starting in the background."
+    printf '%s\n' "$ready_line"
+}
+
+hook_setup_failed() {
+    local detail="$1"
+
+    printf '%s\n' "$detail" >&2
+    printf '%s\n' \
+        '{"continue":false,"stopReason":"Lightdash Okteto setup failed before Claude could start. Check the SessionStart hook error and docs/agent-okteto.md, fix the setup, then resume the session."}'
+}
+
+hook_prompt() {
+    local hook_input session_id
+
+    [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] || return 0
+
+    hook_input="$(cat)"
+    session_id="$(extract_session_id "$hook_input")" || {
+        echo "Lightdash Okteto setup is not ready: no usable Claude session ID." >&2
+        exit 2
+    }
+
+    export LIGHTDASH_AGENT_SESSION_ID="$session_id"
+    if ! bash "$SCRIPT_DIR/agent-okteto-dev.sh" check-ready >/dev/null 2>&1; then
+        echo "Lightdash Okteto setup did not reach READY. Fix the SessionStart setup error, then resubmit the prompt." >&2
+        exit 2
+    fi
+}
+
+hook_stop() {
+    local hook_input hook_output last_message ready_line ready_url session_id
+
+    [ -n "${LIGHTDASH_OKTETO_TOKEN:-}" ] || return 0
+
+    hook_input="$(cat)"
+    session_id="$(extract_session_id "$hook_input")" || {
+        echo "Cannot verify Lightdash Okteto readiness: no usable Claude session ID." >&2
+        exit 2
+    }
+    export LIGHTDASH_AGENT_SESSION_ID="$session_id"
+
+    if ! hook_output="$(bash "$SCRIPT_DIR/agent-okteto-dev.sh" start 2>&1)"; then
+        printf '%s\n' "$hook_output" >&2
+        echo "The Lightdash Okteto environment must be ready before the final response." >&2
+        exit 2
+    fi
+
+    ready_line="$(
+        printf '%s\n' "$hook_output" |
+            grep '^READY: https://' |
+            tail -n 1 ||
+            true
+    )"
+    ready_url="${ready_line#READY: }"
+    last_message="$(
+        printf '%s\n' "$hook_input" |
+            jq -r '.last_assistant_message // empty'
+    )" || {
+        echo "Cannot inspect the final response. See $SETUP_DOC." >&2
+        exit 2
+    }
+
+    if [ -z "$ready_line" ] ||
+        ! printf '%s' "$last_message" | grep -Fq "$ready_url"; then
+        printf '%s\n' "$ready_line" >&2
+        echo "The final response must include the ready testing URL." >&2
+        exit 2
+    fi
 }
 
 agent_session_id() {
@@ -141,6 +204,7 @@ load_session_config() {
     LOG_FILE="$RUN_DIR/okteto-up.log"
     NAMESPACE_FILE="$RUN_DIR/namespace"
     URL_FILE="$RUN_DIR/url"
+    READY_FILE="$RUN_DIR/ready"
 
     saved_namespace=""
     if [ -f "$NAMESPACE_FILE" ]; then
@@ -386,6 +450,8 @@ wait_until_ready() {
         if sync_is_ready && app_is_healthy; then
             sleep 2
             if sync_is_ready && app_is_healthy; then
+                mkdir -p "$RUN_DIR"
+                printf 'READY: %s\n' "$PUBLIC_URL" >"$READY_FILE"
                 echo "READY: $PUBLIC_URL"
                 return
             fi
@@ -428,6 +494,7 @@ start_tmux_session() {
 }
 
 start_environment() {
+    rm -f "$READY_FILE"
     require_runtime
     prepare_runtime_dir
     authenticate
@@ -489,13 +556,16 @@ main() {
     local command_name="${1:-}"
 
     case "$command_name" in
-        hook-env)
-            capture_session_env
-            ;;
         hook-start)
             hook_start
             ;;
-        start | wait | url)
+        hook-prompt)
+            hook_prompt
+            ;;
+        hook-stop)
+            hook_stop
+            ;;
+        start | wait | url | check-ready)
             if [ -z "${LIGHTDASH_OKTETO_TOKEN:-}" ]; then
                 echo "SKIPPED: $TOKEN_ENV_VAR is not set."
                 return
@@ -506,6 +576,7 @@ main() {
                 start) start_environment ;;
                 wait) wait_for_environment ;;
                 url) echo "$PUBLIC_URL" ;;
+                check-ready) [ -s "$READY_FILE" ] ;;
             esac
             ;;
         -h | --help | help | "")

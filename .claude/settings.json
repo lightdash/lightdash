@@ -12,16 +12,32 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-env"
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-start",
+            "timeout": 1800,
+            "statusMessage": "Preparing the Lightdash Okteto development environment"
           }
         ]
-      },
+      }
+    ],
+    "UserPromptSubmit": [
       {
-        "matcher": "startup|resume",
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-start"
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-prompt",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-stop",
+            "timeout": 600,
+            "statusMessage": "Verifying the Lightdash Okteto development environment"
           }
         ]
       }
