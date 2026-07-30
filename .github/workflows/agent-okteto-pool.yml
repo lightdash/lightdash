@@ -2,7 +2,7 @@ name: Agent Okteto Pool
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 permissions:

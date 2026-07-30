@@ -12,7 +12,8 @@ up`, and reports the public test URL. See
 ### `maintain-agent-okteto-pool.sh [minimum_ready]`
 
 Repairs and replenishes the pool of unclaimed agent development environments.
-The hourly `agent-okteto-pool.yml` workflow runs it with a minimum of three.
+The `agent-okteto-pool.yml` workflow runs it every 30 minutes with a minimum of
+three.
 
 ## Okteto Preview Environment
 

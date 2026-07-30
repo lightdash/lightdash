@@ -162,9 +162,9 @@ variable.
 
 ## Ready environment pool
 
-The `Agent Okteto Pool` GitHub Actions workflow runs hourly and can also be
-started manually. It keeps at least three unclaimed namespaces deployed and
-healthy. Pooled namespaces use short sequential names such as `dev-warm-1`.
+The `Agent Okteto Pool` GitHub Actions workflow runs every 30 minutes and can
+also be started manually. It keeps at least three unclaimed namespaces deployed
+and healthy. Pooled namespaces use short sequential names such as `dev-warm-1`.
 Configure these GitHub Actions secrets:
 
 ```text
