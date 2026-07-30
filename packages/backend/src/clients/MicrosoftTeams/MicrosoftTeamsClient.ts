@@ -17,6 +17,15 @@ import Logger from '../../logging/logger';
 import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
+// Adaptive Card TextBlocks render a markdown subset (links, emphasis, code) and
+// ignore HTML, and app delivery labels/errors are authored by app code — strip
+// tags, then escape the metacharacters that could still form live markup.
+const stripMarkup = (text: string): string =>
+    sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} }).replace(
+        /[\\`*_[\]~]/g,
+        (character) => `\\${character}`,
+    );
+
 export const redactWebhookIdentity = (webhookUrl: string) => {
     try {
         const parsed = new URL(webhookUrl);
@@ -399,16 +408,18 @@ export class MicrosoftTeamsClient {
                                     case PartialFailureType.APP_QUERY:
                                         return {
                                             type: 'TextBlock',
-                                            text: `- **${f.label}:** ${f.error}`,
+                                            text: `- **${stripMarkup(
+                                                f.label,
+                                            )}:** ${stripMarkup(f.error)}`,
                                             wrap: true,
                                             spacing: 'None',
                                         };
                                     case PartialFailureType.APP_QUERY_MISSING:
                                         return {
                                             type: 'TextBlock',
-                                            text: `- **${
-                                                f.label
-                                            }:** did not run in this delivery${
+                                            text: `- **${stripMarkup(
+                                                f.label,
+                                            )}:** did not run in this delivery${
                                                 f.identityChanged
                                                     ? ' (query changed since it was selected)'
                                                     : ''
@@ -476,16 +487,18 @@ export class MicrosoftTeamsClient {
                                 case PartialFailureType.APP_QUERY:
                                     return {
                                         type: 'TextBlock',
-                                        text: `- **${f.label}:** ${f.error}`,
+                                        text: `- **${stripMarkup(
+                                            f.label,
+                                        )}:** ${stripMarkup(f.error)}`,
                                         wrap: true,
                                         spacing: 'None',
                                     };
                                 case PartialFailureType.APP_QUERY_MISSING:
                                     return {
                                         type: 'TextBlock',
-                                        text: `- **${
-                                            f.label
-                                        }:** did not run in this delivery${
+                                        text: `- **${stripMarkup(
+                                            f.label,
+                                        )}:** did not run in this delivery${
                                             f.identityChanged
                                                 ? ' (query changed since it was selected)'
                                                 : ''

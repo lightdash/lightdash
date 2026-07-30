@@ -14,6 +14,11 @@ import Logger from '../../logging/logger';
 import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
+// Google Chat renders a subset of HTML in textParagraph.text, and app delivery
+// labels/errors are authored by app code, so strip markup before interpolating.
+const stripMarkup = (text: string): string =>
+    sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} });
+
 /* eslint-disable class-methods-use-this */
 export class GoogleChatClient {
     private async sendWebhook(webhookUrl: string, payload: AnyType) {
@@ -282,11 +287,13 @@ export class GoogleChatClient {
                         case PartialFailureType.AI_AUGMENTATION:
                             return `- <b>AI summary could not be generated</b>`;
                         case PartialFailureType.APP_QUERY:
-                            return `- <b>${f.label}:</b> ${f.error}`;
+                            return `- <b>${stripMarkup(
+                                f.label,
+                            )}:</b> ${stripMarkup(f.error)}`;
                         case PartialFailureType.APP_QUERY_MISSING:
-                            return `- <b>${
-                                f.label
-                            }:</b> did not run in this delivery${
+                            return `- <b>${stripMarkup(
+                                f.label,
+                            )}:</b> did not run in this delivery${
                                 f.identityChanged
                                     ? ' (query changed since it was selected)'
                                     : ''
@@ -365,20 +372,11 @@ export class GoogleChatClient {
         contentName: string | null;
         contactSentence: string | null;
     }): Promise<void> {
-        // Google Chat renders a subset of HTML in textParagraph.text, so
-        // strip any markup from admin-supplied strings before interpolating
-        // into the template (which uses static <b> tags around contentName).
-        const safeContentName = contentName
-            ? sanitizeHtml(contentName, {
-                  allowedTags: [],
-                  allowedAttributes: {},
-              })
-            : null;
+        // The template wraps contentName in static <b> tags, so admin-supplied
+        // strings must not carry markup of their own.
+        const safeContentName = contentName ? stripMarkup(contentName) : null;
         const safeContactSentence = contactSentence
-            ? sanitizeHtml(contactSentence, {
-                  allowedTags: [],
-                  allowedAttributes: {},
-              })
+            ? stripMarkup(contactSentence)
             : null;
         const baseSentence = safeContentName
             ? `The scheduled delivery for <b>"${safeContentName}"</b> failed to run, and the delivery owner has been notified.`
