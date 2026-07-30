@@ -234,7 +234,7 @@ describe('CoderService', () => {
         });
     });
 
-    describe('getChartSlugForTileUuid', () => {
+    describe('getTileSlugForTileUuid', () => {
         it('should return undefined when chart tile slug is null', () => {
             const mockDashboard = {
                 tiles: [
@@ -247,7 +247,58 @@ describe('CoderService', () => {
             } as AnyType;
 
             expect(
-                CoderService.getChartSlugForTileUuid(mockDashboard, 'uuid-1'),
+                CoderService.getTileSlugForTileUuid(mockDashboard, 'uuid-1'),
+            ).toBeUndefined();
+        });
+    });
+
+    describe('getTileSlugForTileUuid - data app tiles', () => {
+        const dashboardWith = (tiles: AnyType[]) => ({ tiles }) as AnyType;
+
+        it('returns the app slug for a data app tile', () => {
+            const dashboard = dashboardWith([
+                {
+                    uuid: 'tile-1',
+                    type: DashboardTileTypes.DATA_APP,
+                    properties: { appSlug: 'revenue-explorer' },
+                },
+            ]);
+
+            expect(
+                CoderService.getTileSlugForTileUuid(dashboard, 'tile-1'),
+            ).toBe('revenue-explorer');
+        });
+
+        it('suffixes when one app appears in two tiles', () => {
+            const dashboard = dashboardWith([
+                {
+                    uuid: 'tile-1',
+                    type: DashboardTileTypes.DATA_APP,
+                    properties: { appSlug: 'revenue-explorer' },
+                },
+                {
+                    uuid: 'tile-2',
+                    type: DashboardTileTypes.DATA_APP,
+                    properties: { appSlug: 'revenue-explorer' },
+                },
+            ]);
+
+            expect(
+                CoderService.getTileSlugForTileUuid(dashboard, 'tile-2'),
+            ).toBe('revenue-explorer-2');
+        });
+
+        it('returns undefined when the app slug is missing', () => {
+            const dashboard = dashboardWith([
+                {
+                    uuid: 'tile-1',
+                    type: DashboardTileTypes.DATA_APP,
+                    properties: { appSlug: null },
+                },
+            ]);
+
+            expect(
+                CoderService.getTileSlugForTileUuid(dashboard, 'tile-1'),
             ).toBeUndefined();
         });
     });

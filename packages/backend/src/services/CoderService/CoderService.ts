@@ -123,11 +123,11 @@ import {
     type CurrentChartSqlItems,
 } from './chartPermissions';
 import {
-    getChartSlugForTileUuid,
     getConfigWithDateZoomTileSlugs,
     getConfigWithDateZoomTileUuids,
     getFiltersWithTileSlugs,
     getFiltersWithTileUuids,
+    getTileSlugForTileUuid,
     isAnyChartTile,
     withTileWarnings,
 } from './dashboardReferences';
@@ -1477,7 +1477,7 @@ export class CoderService extends BaseService {
         );
     }
 
-    static getChartSlugForTileUuid = getChartSlugForTileUuid;
+    static getTileSlugForTileUuid = getTileSlugForTileUuid;
 
     static getFiltersWithTileSlugs = getFiltersWithTileSlugs;
 
@@ -1521,7 +1521,7 @@ export class CoderService extends BaseService {
                             uuid: undefined,
                             tabUuid: undefined,
                             tabSlug,
-                            tileSlug: CoderService.getChartSlugForTileUuid(
+                            tileSlug: CoderService.getTileSlugForTileUuid(
                                 dashboard,
                                 tile.uuid,
                             ),
@@ -1542,7 +1542,7 @@ export class CoderService extends BaseService {
                         uuid: undefined,
                         tabUuid: undefined,
                         tabSlug,
-                        tileSlug: CoderService.getChartSlugForTileUuid(
+                        tileSlug: CoderService.getTileSlugForTileUuid(
                             dashboard,
                             tile.uuid,
                         ),
