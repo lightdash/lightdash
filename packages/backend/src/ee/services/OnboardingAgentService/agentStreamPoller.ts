@@ -42,30 +42,37 @@ const parseInteger = (value: string, field: string): number => {
     return Number.parseInt(trimmed, 10);
 };
 
+// Only the first occurrence of each separator is trusted: everything after the
+// process separator is agent-controlled stream output, which may itself contain
+// the separator strings.
 const parsePollTick = (stdout: string): PollTick => {
     const exitSeparator = `\n${EXIT_SEPARATOR}\n`;
     const processSeparator = `\n${PROCESS_SEPARATOR}\n`;
-    const exitSections = stdout.split(exitSeparator);
-    if (exitSections.length !== 2) {
+    const exitIndex = stdout.indexOf(exitSeparator);
+    if (exitIndex === -1) {
         throw new SandboxConnectionError(
             'Received an invalid response from the onboarding agent workspace',
         );
     }
-    const processSections = exitSections[1].split(processSeparator);
-    if (processSections.length !== 2) {
+    const afterExit = stdout.slice(exitIndex + exitSeparator.length);
+    const processIndex = afterExit.indexOf(processSeparator);
+    if (processIndex === -1) {
         throw new SandboxConnectionError(
             'Received an invalid response from the onboarding agent workspace',
         );
     }
 
-    const exitCodeText = exitSections[0].trim();
+    const exitCodeText = stdout.slice(0, exitIndex).trim();
     return {
         exitCode:
             exitCodeText.length > 0
                 ? parseInteger(exitCodeText, 'exit code')
                 : null,
-        processCount: parseInteger(processSections[0], 'process count'),
-        tail: processSections[1],
+        processCount: parseInteger(
+            afterExit.slice(0, processIndex),
+            'process count',
+        ),
+        tail: afterExit.slice(processIndex + processSeparator.length),
     };
 };
 

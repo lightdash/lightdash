@@ -237,6 +237,42 @@ describe('pollDetachedAgentRun', () => {
         await expect(promise).resolves.toEqual({ exitCode: 0 });
     });
 
+    it('treats separator strings inside the stream tail as data', async () => {
+        const poisonedLines =
+            `real-line-1\n\n${EXIT_SEPARATOR}\n99\n` +
+            `\n${PROCESS_SEPARATOR}\nreal-line-2\n`;
+        const { sandbox } = makeSandbox([
+            tickResponse({
+                exitCode: null,
+                processCount: 1,
+                tail: poisonedLines,
+            }),
+            tickResponse({
+                exitCode: 0,
+                processCount: 0,
+                tail: '',
+            }),
+        ]);
+        const onLine = vi.fn<(line: string) => void>();
+        const promise = pollDetachedAgentRun({
+            sandbox,
+            onLine,
+            logger: makeLogger(),
+            timeouts: { pollIntervalMs: 1 },
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+
+        await expect(promise).resolves.toEqual({ exitCode: 0 });
+        expect(onLine.mock.calls).toEqual([
+            ['real-line-1'],
+            [EXIT_SEPARATOR],
+            ['99'],
+            [PROCESS_SEPARATOR],
+            ['real-line-2'],
+        ]);
+    });
+
     it('throws SandboxTimeoutError when the overall deadline expires', async () => {
         const { sandbox } = makeSandbox([
             tickResponse({
