@@ -14,6 +14,15 @@ The manifest uses the stable development environment name `lightdash` so pool
 provisioning and agent synchronization update the same Okteto environment
 record regardless of the checkout directory name.
 
+The warm image is only a startup cache; the checked-out branch is the source of
+truth. Before live editing begins, initial synchronization must reconcile the
+development container with the files tracked by commits at the branch's
+`HEAD`. Files that exist only in the warm image, including changes from a newer
+`main`, must be removed from the container rather than copied into the
+workspace, shown as untracked changes, or committed to the task branch. After
+that reconciliation, edits made in the workspace continue to synchronize
+normally.
+
 ## What you need
 
 Ask a Lightdash administrator for the shared coding-agent Okteto token. This is

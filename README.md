@@ -104,6 +104,13 @@ cd lightdash
 
 See the [contributing guide](https://github.com/lightdash/lightdash/blob/main/.github/CONTRIBUTING.md) for the full local setup, package scripts, and development workflow.
 
+Coding-agent sessions that use the shared Okteto environment treat its warm
+image only as a startup cache. Initial synchronization uses the files tracked
+by commits on the checked-out branch as its source of truth, even when the warm
+image contains newer changes from `main`; subsequent workspace edits continue
+to synchronize normally. See the
+[coding-agent Okteto guide](docs/agent-okteto.md) for details.
+
 ## Stack
 
 Lightdash is a TypeScript monorepo built with:
