@@ -30,6 +30,7 @@ import {
     computeCustomDependencies,
     ContentAsCodeType as ContentAsCodeTypeEnum,
     DashboardAsCode,
+    DashboardTileTypes,
     ExternalConnectionAsCode,
     generateSlug,
     getErrorMessage,
@@ -75,6 +76,7 @@ import {
 import {
     appsDownloadSummary,
     capListedApps,
+    computeLinkedAppSlugs,
     downloadAppsToDir,
     getDataAppReference,
     getDataAppUploadFilter,
@@ -760,11 +762,10 @@ const extractAppSlugsFromDashboards = (
     ...new Set(
         dashboards.flatMap((dashboard) =>
             dashboard.tiles.reduce<string[]>((acc, tile) => {
-                const slug =
-                    'appSlug' in tile.properties
-                        ? (tile.properties.appSlug as string | null)
-                        : null;
-                return slug ? [...acc, slug] : acc;
+                if (tile.type !== DashboardTileTypes.DATA_APP) return acc;
+                return tile.properties.appSlug
+                    ? [...acc, tile.properties.appSlug]
+                    : acc;
             }, []),
         ),
     ),
@@ -1598,12 +1599,14 @@ const upsertScheduledContent = async (
     return changes;
 };
 
+type ListedApp = { appUuid: string; slug: string };
+
 // Space-scoped fallback listing for servers without the project-wide apps
 // endpoint; omits apps that were never added to a space.
-const listAppUuidsViaContentApi = async (
+const listAppsViaContentApi = async (
     projectId: string,
-): Promise<string[]> => {
-    const listedAppUuids: string[] = [];
+): Promise<ListedApp[]> => {
+    const listedApps: ListedApp[] = [];
     let page = 1;
     let totalPageCount = 1;
     do {
@@ -1614,15 +1617,15 @@ const listAppUuidsViaContentApi = async (
                 body: undefined,
             },
         );
-        listedAppUuids.push(
+        listedApps.push(
             ...contentResult.data
                 .filter((item) => item.contentType === 'data_app')
-                .map((item) => item.uuid),
+                .map((item) => ({ appUuid: item.uuid, slug: item.slug })),
         );
         totalPageCount = contentResult.pagination?.totalPageCount ?? 1;
         page += 1;
     } while (page <= totalPageCount);
-    return listedAppUuids;
+    return listedApps;
 };
 
 export const downloadHandler = async (
@@ -1766,9 +1769,17 @@ export const downloadHandler = async (
     });
     try {
         let allMetadataEntries: MetadataEntry[] = [];
-        // Shared across the linked-apps step and the explicit apps step so
-        // the same app is never written to two different folder names.
+        // Shared across both apps-download steps so two different apps whose
+        // names collide under the pre-slug fallback naming don't clobber each other.
         const downloadedAppFolders = new Set<string>();
+        // App slugs referenced by downloaded dashboards' tiles, populated by
+        // the Dashboards step and consumed by the Linked data apps step.
+        let dashboardAppSlugs: string[] = [];
+        const explicitAppRefs = new Set(
+            (Array.isArray(options.apps) ? options.apps : []).map(
+                getDataAppReference,
+            ),
+        );
 
         if (shouldDownloadSpaces) {
             output.startItem('Spaces');
@@ -1970,45 +1981,8 @@ export const downloadHandler = async (
                     );
                 }
 
-                // The --include-apps listing already covers every app in the
-                // project, so it handles apps referenced by dashboards too.
-                const explicitAppRefs = new Set(
-                    (Array.isArray(options.apps) ? options.apps : []).map(
-                        getDataAppReference,
-                    ),
-                );
-                const linkedAppSlugs = includeApps
-                    ? []
-                    : appSlugs.filter((slug) => !explicitAppRefs.has(slug));
-
-                if (linkedAppSlugs.length > 0) {
-                    output.startItem('Linked data apps');
-                    const appsDir = path.join(
-                        getDownloadFolder(options.path),
-                        'apps',
-                    );
-                    const outcome = await downloadAppsToDir({
-                        appRefs: linkedAppSlugs,
-                        projectId,
-                        appsDir,
-                        takenFolders: downloadedAppFolders,
-                        cliVersion: CLI_VERSION,
-                        fetchApp: (fetchProjectId, appRef) =>
-                            lightdashApi<DataAppCodeDownload>({
-                                method: 'GET',
-                                url: `/api/v1/ee/projects/${fetchProjectId}/apps/${appRef}/download`,
-                                body: undefined,
-                            }),
-                        onProgress: (processed, total) =>
-                            output.updateActive(
-                                `${processed} of ${total} processed`,
-                            ),
-                    });
-                    output.completeItem(
-                        `${outcome.successCount} downloaded`,
-                        outcome.failures.length > 0 ? 'warning' : undefined,
-                    );
-                }
+                // Consumed after the explicit apps step (see cappedAppSlugs).
+                dashboardAppSlugs = appSlugs;
             }
         }
 
@@ -2113,6 +2087,9 @@ export const downloadHandler = async (
             apps: Array.isArray(options.apps) ? options.apps : undefined,
             includeApps,
         });
+        // Slugs covered by a (possibly --apps-limit-truncated) --include-apps
+        // listing, so the Linked data apps step knows what fell outside the cap.
+        let cappedAppSlugs = new Set<string>();
 
         if (appsSelection.mode !== 'none') {
             output.startItem('Data apps');
@@ -2124,7 +2101,7 @@ export const downloadHandler = async (
             } else {
                 // List every app in the project (includes apps not in any space)
                 output.updateActive('listing project apps…');
-                let listedAppUuids: string[];
+                let listedApps: ListedApp[];
                 try {
                     const projectApps = await lightdashApi<
                         ApiEmbedProjectAppsResponse['results']
@@ -2133,34 +2110,45 @@ export const downloadHandler = async (
                         url: `/api/v1/ee/projects/${projectId}/apps`,
                         body: undefined,
                     });
-                    listedAppUuids = projectApps.map((app) => app.appUuid);
+                    listedApps = projectApps.map((app) => ({
+                        appUuid: app.appUuid,
+                        slug: app.slug,
+                    }));
                 } catch (listErr) {
                     if (!shouldFallBackToSpaceScopedListing(listErr)) {
                         if (!includeAllOptionalContent) {
                             throw listErr;
                         }
                         appListingError = getErrorMessage(listErr);
-                        listedAppUuids = [];
+                        listedApps = [];
                     } else {
                         GlobalState.log(
                             styles.warning(
                                 'This server does not support project-wide app listing; only apps that are in a space will be included.',
                             ),
                         );
-                        listedAppUuids =
-                            await listAppUuidsViaContentApi(projectId);
+                        listedApps = await listAppsViaContentApi(projectId);
                     }
                 }
 
                 const { appUuids: cappedAppUuids, truncatedCount } =
-                    capListedApps(listedAppUuids, appsLimit);
+                    capListedApps(
+                        listedApps.map((app) => app.appUuid),
+                        appsLimit,
+                    );
                 if (truncatedCount > 0) {
                     GlobalState.log(
                         styles.warning(
-                            `Found ${listedAppUuids.length} data apps, downloading the first ${appsLimit}. Pass --apps-limit <n> to raise the cap.`,
+                            `Found ${listedApps.length} data apps, downloading the first ${appsLimit}. Pass --apps-limit <n> to raise the cap.`,
                         ),
                     );
                 }
+                const cappedAppUuidSet = new Set(cappedAppUuids);
+                cappedAppSlugs = new Set(
+                    listedApps
+                        .filter((app) => cappedAppUuidSet.has(app.appUuid))
+                        .map((app) => app.slug),
+                );
                 appRefsToDownload = [
                     ...new Set([
                         ...cappedAppUuids,
@@ -2227,6 +2215,38 @@ export const downloadHandler = async (
                     );
                 }
             }
+        }
+
+        // Dashboard-referenced apps not already covered above (explicit
+        // --apps ref, or a non-truncated slot in the --include-apps cap).
+        const linkedAppSlugs = computeLinkedAppSlugs({
+            appSlugs: dashboardAppSlugs,
+            explicitRefs: explicitAppRefs,
+            includeApps,
+            cappedAppSlugs,
+        });
+        if (linkedAppSlugs.length > 0) {
+            output.startItem('Linked data apps');
+            const appsDir = path.join(getDownloadFolder(options.path), 'apps');
+            const outcome = await downloadAppsToDir({
+                appRefs: linkedAppSlugs,
+                projectId,
+                appsDir,
+                takenFolders: downloadedAppFolders,
+                cliVersion: CLI_VERSION,
+                fetchApp: (fetchProjectId, appRef) =>
+                    lightdashApi<DataAppCodeDownload>({
+                        method: 'GET',
+                        url: `/api/v1/ee/projects/${fetchProjectId}/apps/${appRef}/download`,
+                        body: undefined,
+                    }),
+                onProgress: (processed, total) =>
+                    output.updateActive(`${processed} of ${total} processed`),
+            });
+            output.completeItem(
+                `${outcome.successCount} downloaded`,
+                outcome.failures.length > 0 ? 'warning' : undefined,
+            );
         }
 
         // Write metadata file with all downloadedAt timestamps

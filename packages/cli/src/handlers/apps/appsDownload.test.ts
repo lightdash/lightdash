@@ -12,6 +12,7 @@ import {
     appsDownloadSummary,
     capListedApps,
     classifyAppDownloadError,
+    computeLinkedAppSlugs,
     computeUpsertedTotal,
     DEFAULT_APPS_LIMIT,
     downloadAppsToDir,
@@ -233,6 +234,77 @@ describe('capListedApps', () => {
             appUuids: ['a', 'b'],
             truncatedCount: 0,
         });
+    });
+});
+
+describe('computeLinkedAppSlugs', () => {
+    it('returns dashboard-referenced slugs unchanged when apps are not opted in at all', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer', 'sales-dash'],
+                explicitRefs: new Set(),
+                includeApps: false,
+                cappedAppSlugs: new Set(),
+            }),
+        ).toEqual(['revenue-explorer', 'sales-dash']);
+    });
+
+    it('excludes slugs already covered by an explicit --apps ref', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer', 'sales-dash'],
+                explicitRefs: new Set(['revenue-explorer']),
+                includeApps: false,
+                cappedAppSlugs: new Set(),
+            }),
+        ).toEqual(['sales-dash']);
+    });
+
+    it('excludes everything already inside an untruncated --include-apps listing', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer', 'sales-dash'],
+                explicitRefs: new Set(),
+                includeApps: true,
+                cappedAppSlugs: new Set(['revenue-explorer', 'sales-dash']),
+            }),
+        ).toEqual([]);
+    });
+
+    // PROD-9089 regression: --include-apps caps its listing at --apps-limit,
+    // so a dashboard's app can fall outside the capped set. It must still be
+    // downloaded via the linked step rather than silently dropped.
+    it('keeps slugs that fell outside a truncated --include-apps listing', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer', 'sales-dash'],
+                explicitRefs: new Set(),
+                includeApps: true,
+                cappedAppSlugs: new Set(['sales-dash']),
+            }),
+        ).toEqual(['revenue-explorer']);
+    });
+
+    it('an explicit ref wins over include-apps capping (never double counted)', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer'],
+                explicitRefs: new Set(['revenue-explorer']),
+                includeApps: true,
+                cappedAppSlugs: new Set(),
+            }),
+        ).toEqual([]);
+    });
+
+    it('returns an empty array when no dashboards reference any app', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: [],
+                explicitRefs: new Set(['other-app']),
+                includeApps: true,
+                cappedAppSlugs: new Set(),
+            }),
+        ).toEqual([]);
     });
 });
 

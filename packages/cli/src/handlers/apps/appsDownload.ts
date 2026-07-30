@@ -161,6 +161,24 @@ export const capListedApps = (
 });
 
 /**
+ * Data apps a dashboard needs that aren't already covered by an explicit
+ * --apps ref, or by a (possibly --apps-limit-truncated) --include-apps listing.
+ */
+export const computeLinkedAppSlugs = (args: {
+    appSlugs: string[];
+    explicitRefs: Set<string>;
+    includeApps: boolean;
+    cappedAppSlugs: Set<string>;
+}): string[] => {
+    const { appSlugs, explicitRefs, includeApps, cappedAppSlugs } = args;
+    return appSlugs.filter(
+        (slug) =>
+            !explicitRefs.has(slug) &&
+            !(includeApps && cappedAppSlugs.has(slug)),
+    );
+};
+
+/**
  * Pre-context servers return a download payload without `context`.
  */
 export const ensureDownloadedAppContext = (
