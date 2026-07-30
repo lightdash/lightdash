@@ -39,6 +39,8 @@ import {
 import {
     createSandboxManager,
     S3SnapshotStore,
+    SandboxConnectionError,
+    SandboxNotRunningError,
     type PersistentWorkspace,
     type SandboxHandle,
     type SandboxManager,
@@ -1004,11 +1006,21 @@ export class OnboardingAgentService extends BaseService {
                     run.agent_onboarding_run_uuid,
                 );
             } else {
-                const message = sanitizeOnboardingMessage(
+                const sanitizedMessage = sanitizeOnboardingMessage(
                     getErrorMessage(error),
                     sensitiveValues(),
                 );
-                this.logger.error(`OnboardingAgent run failed: ${message}`);
+                const sandboxConnectionFailure =
+                    error instanceof SandboxConnectionError ||
+                    error instanceof SandboxNotRunningError;
+                const message = sandboxConnectionFailure
+                    ? "Lightdash lost the connection to the onboarding agent's workspace. Any progress was saved. Please try running the onboarding agent again."
+                    : sanitizedMessage;
+                this.logger.error(
+                    sandboxConnectionFailure
+                        ? `OnboardingAgent run failed (sandbox connection): ${sanitizedMessage}`
+                        : `OnboardingAgent run failed: ${sanitizedMessage}`,
+                );
                 await this.agentOnboardingRunModel.markFailed(
                     run.agent_onboarding_run_uuid,
                     message,

@@ -23,3 +23,19 @@ export class SandboxTimeoutError extends Error {
         this.name = 'SandboxTimeoutError';
     }
 }
+
+/** Thrown when communication with the sandbox fails at the transport level. */
+export class SandboxConnectionError extends Error {
+    constructor(message = 'Lost connection to the sandbox') {
+        super(message);
+        this.name = 'SandboxConnectionError';
+    }
+}
+
+/** Thrown when the sandbox backing a run is no longer running. */
+export class SandboxNotRunningError extends Error {
+    constructor(message = 'The sandbox is no longer running') {
+        super(message);
+        this.name = 'SandboxNotRunningError';
+    }
+}
