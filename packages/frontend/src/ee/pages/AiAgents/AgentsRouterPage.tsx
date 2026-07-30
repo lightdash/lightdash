@@ -6,7 +6,6 @@ import {
     ActionIcon,
     Badge,
     Box,
-    Button,
     Center,
     Group,
     Popover,
@@ -15,14 +14,9 @@ import {
     Title,
     UnstyledButton,
 } from '@mantine-8/core';
-import {
-    IconChevronRight,
-    IconInfoCircle,
-    IconSettings,
-} from '@tabler/icons-react';
+import { IconChevronRight, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Link,
     useLocation,
     useNavigate,
     useParams,
@@ -31,6 +25,7 @@ import {
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
+import { AgentSettingsSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
@@ -294,16 +289,12 @@ const AgentsRouterPage = () => {
         >
             <Box className={classes.routerView}>
                 {canManageAgents && (
-                    <Button
-                        component={Link}
-                        to={settingsHref}
-                        variant="default"
-                        size="xs"
-                        leftSection={<MantineIcon icon={IconSettings} />}
+                    <AgentSettingsSelector
+                        agents={agents ?? []}
+                        projectUuid={projectUuid!}
+                        askAiSettingsHref={settingsHref}
                         className={classes.routerSettingsButton}
-                    >
-                        Settings
-                    </Button>
+                    />
                 )}
 
                 <Center h="100%">
