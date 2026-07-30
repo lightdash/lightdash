@@ -2,7 +2,7 @@ import { type ApiError, type FeatureFlag } from '@lightdash/common';
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 
-export const FEATURE_FLAG_QUERY_KEY = 'feature-flag';
+const FEATURE_FLAG_QUERY_KEY = 'feature-flag';
 
 /**
  * Flags resolve per user/organization on the server, so anything that changes
