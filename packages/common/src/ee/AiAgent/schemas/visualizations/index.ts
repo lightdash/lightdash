@@ -181,6 +181,8 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         getKnowledgeDocumentContent: 'Read knowledge document',
         readPinnedThread: 'Read pinned conversation',
         submitResearchReport: 'Saved research report',
+        submitResearchHypotheses: 'Planned research hypotheses',
+        submitInvestigationReport: 'Saved investigation findings',
     });
 
 export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;
