@@ -5,8 +5,9 @@ import {
     isAllowedAppSdkRoute,
     JWT_HEADER_NAME,
     LightdashAppUuidHeader,
-    type DataAppVizContext,
     type DashboardFilters,
+    type DataAppVizContext,
+    type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
@@ -16,6 +17,7 @@ import {
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
 import useApp from '../../../providers/App/useApp';
+import type { DeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
 import {
     handleGsheetExport,
     type GsheetExportColumn,
@@ -248,6 +250,12 @@ export type UseAppSdkBridgeParams = {
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
+    /** When set, every metric/chart query POST is recorded into this accumulator
+     *  (initiation, response, terminal) — the delivery/preview capture source. */
+    deliveryCapture?: DeliveryCaptureAccumulator;
+    /** When set, stamped as `context` onto metric/chart POST bodies (delivery
+     *  renders send SCHEDULED_DELIVERY for honest attribution). */
+    queryContextOverride?: QueryExecutionContext;
 };
 
 export function useAppSdkBridge({
@@ -268,6 +276,8 @@ export function useAppSdkBridge({
     dataAppVizContext,
     onUrlStateChange,
     onSdkManifest,
+    deliveryCapture,
+    queryContextOverride,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -660,13 +670,30 @@ export function useAppSdkBridge({
                 return;
             }
 
-            // Stamp dashboard filters and the cache-invalidation flag onto
-            // outgoing query bodies. The backend drops filters whose fields
-            // aren't in the query's/chart's explore, so it's safe to send the
-            // full set on every call. Both `dashboardFilters` and
-            // `invalidateCache` apply to inline metric queries AND linked
-            // (/query/chart) charts, so a dashboard filter or refresh reaches
-            // linked charts too. App attribution rides on the
+            // Record the pre-stamp body — dashboard filters/invalidateCache/
+            // context are per-render decoration, not part of the query's identity.
+            if (
+                isMetricQueryPost(method, path) ||
+                isChartQueryPost(method, path)
+            ) {
+                deliveryCapture?.onInitiation({
+                    requestId: id,
+                    method,
+                    path,
+                    body,
+                    label:
+                        ((metadata as Record<string, unknown> | undefined)
+                            ?.label as string | undefined) ?? null,
+                });
+            }
+
+            // Stamp dashboard filters, the cache-invalidation flag, and a
+            // query-context override onto outgoing query bodies. The backend
+            // drops filters whose fields aren't in the query's/chart's
+            // explore, so it's safe to send the full set on every call. All
+            // three apply to inline metric queries AND linked (/query/chart)
+            // charts, so a dashboard filter, refresh, or delivery-capture
+            // context reaches linked charts too. App attribution rides on the
             // LightdashAppUuidHeader instead (see the fetch below).
             const stampFilters =
                 (isMetricQueryPost(method, path) ||
@@ -676,12 +703,19 @@ export function useAppSdkBridge({
                 (isMetricQueryPost(method, path) ||
                     isChartQueryPost(method, path)) &&
                 !!invalidateCache;
+            const stampContext =
+                (isMetricQueryPost(method, path) ||
+                    isChartQueryPost(method, path)) &&
+                !!queryContextOverride;
             const effectiveBody =
-                stampFilters || stampInvalidate
+                stampFilters || stampInvalidate || stampContext
                     ? {
                           ...(body as Record<string, unknown> | undefined),
                           ...(stampFilters ? { dashboardFilters } : {}),
                           ...(stampInvalidate ? { invalidateCache } : {}),
+                          ...(stampContext
+                              ? { context: queryContextOverride }
+                              : {}),
                       }
                     : body;
 
@@ -739,11 +773,12 @@ export function useAppSdkBridge({
             // for the POST.
             const emitPostFailure = (errorMessage: string) => {
                 if (
-                    (!isMetricQueryPost(method, path) &&
-                        !isChartQueryPost(method, path)) ||
-                    !onQueryEvent
+                    !isMetricQueryPost(method, path) &&
+                    !isChartQueryPost(method, path)
                 )
                     return;
+                deliveryCapture?.onPostFailure(id, errorMessage);
+                if (!onQueryEvent) return;
                 onQueryEvent({
                     id,
                     timestamp: Date.now(),
@@ -790,6 +825,16 @@ export function useAppSdkBridge({
                 const json = await res.json();
 
                 if (json.status === 'ok') {
+                    if (
+                        isMetricQueryPost(method, path) ||
+                        isChartQueryPost(method, path)
+                    ) {
+                        deliveryCapture?.onPostResponse(
+                            id,
+                            json.results ?? null,
+                        );
+                    }
+
                     // Track metric query initiation response (has queryUuid)
                     if (
                         (isMetricQueryPost(method, path) ||
@@ -851,7 +896,7 @@ export function useAppSdkBridge({
                     }
 
                     // Track query result polling responses
-                    if (isQueryResultGet(method, path) && onQueryEvent) {
+                    if (isQueryResultGet(method, path)) {
                         const result = json.results;
                         // Re-key terminal events to the POST id so consumers
                         // see a single stable id across the pending →
@@ -868,7 +913,11 @@ export function useAppSdkBridge({
                             queryUuidToPostIdRef.current.delete(
                                 result.queryUuid,
                             );
-                            onQueryEvent({
+                            deliveryCapture?.onTerminal(result.queryUuid, {
+                                status: 'ready',
+                                rowCount: result.totalResults ?? null,
+                            });
+                            onQueryEvent?.({
                                 ...TERMINAL_EVENT_DEFAULTS,
                                 id: lifecycleId,
                                 timestamp: Date.now(),
@@ -891,7 +940,11 @@ export function useAppSdkBridge({
                             queryUuidToPostIdRef.current.delete(
                                 result.queryUuid,
                             );
-                            onQueryEvent({
+                            deliveryCapture?.onTerminal(result.queryUuid, {
+                                status: 'error',
+                                error: result.error ?? 'Query failed',
+                            });
+                            onQueryEvent?.({
                                 ...TERMINAL_EVENT_DEFAULTS,
                                 id: lifecycleId,
                                 timestamp: Date.now(),
@@ -940,6 +993,8 @@ export function useAppSdkBridge({
             onSdkManifest,
             health.data,
             user.data,
+            deliveryCapture,
+            queryContextOverride,
         ],
     );
 
