@@ -400,6 +400,32 @@ describe('ProjectModel', () => {
             expect(result.oauthClientId).toEqual('client-id');
             expect(result.oauthClientSecret).toEqual('client-secret');
         });
+
+        test('should merge assumeRoleExternalId when missing in the new config', async () => {
+            const completeAthenaCredentials: CreateAthenaCredentials = {
+                type: WarehouseTypes.ATHENA,
+                region: 'us-east-1',
+                database: 'AwsDataCatalog',
+                schema: 'default',
+                s3StagingDir: 's3://test-results/',
+                assumeRoleArn: 'arn:aws:iam::111:role/test-role',
+                assumeRoleExternalId: 'test-external-id',
+            };
+            const incompleteAthenaCredentials: CreateAthenaCredentials = {
+                ...completeAthenaCredentials,
+                assumeRoleExternalId: undefined,
+            };
+
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                incompleteAthenaCredentials,
+                completeAthenaCredentials,
+            );
+
+            expect(result.assumeRoleArn).toEqual(
+                'arn:aws:iam::111:role/test-role',
+            );
+            expect(result.assumeRoleExternalId).toEqual('test-external-id');
+        });
     });
 
     describe('removing sensitive credentials from API', () => {
@@ -445,6 +471,37 @@ describe('ProjectModel', () => {
             expect(
                 (project.warehouseConnection as AnyType).sslrootcert,
             ).toBeUndefined();
+        });
+
+        test('should remove assumeRoleExternalId but keep assumeRoleArn', async () => {
+            const athenaProjectMock = {
+                ...projectMock,
+                warehouse_type: WarehouseTypes.ATHENA,
+                encrypted_credentials: Buffer.from(
+                    JSON.stringify({
+                        type: WarehouseTypes.ATHENA,
+                        region: 'us-east-1',
+                        database: 'AwsDataCatalog',
+                        schema: 'default',
+                        s3StagingDir: 's3://test-results/',
+                        assumeRoleArn: 'arn:aws:iam::111:role/test-role',
+                        assumeRoleExternalId: 'test-external-id',
+                    }),
+                ),
+            };
+            tracker.on
+                .select(queryMatcher(ProjectTableName, [projectUuid]))
+                .response([athenaProjectMock]);
+
+            const project = await model.get(projectUuid);
+
+            expect(project.warehouseConnection).toBeDefined();
+            expect(
+                (project.warehouseConnection as AnyType).assumeRoleExternalId,
+            ).toBeUndefined();
+            expect(
+                (project.warehouseConnection as AnyType).assumeRoleArn,
+            ).toEqual('arn:aws:iam::111:role/test-role');
         });
     });
 

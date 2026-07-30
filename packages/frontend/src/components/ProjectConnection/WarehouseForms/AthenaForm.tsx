@@ -214,10 +214,15 @@ const AthenaForm: FC<{
                             placeholder="arn:aws:iam::123456789012:role/my-athena-role"
                             disabled={disabled}
                         />
-                        <TextInput
+                        <PasswordInput
                             name="warehouse.assumeRoleExternalId"
                             label="Assume Role External ID"
                             description="Optional external ID for the assume role trust policy."
+                            placeholder={
+                                disabled || !requireSecrets
+                                    ? '**************'
+                                    : undefined
+                            }
                             {...form.getInputProps(
                                 'warehouse.assumeRoleExternalId',
                             )}
