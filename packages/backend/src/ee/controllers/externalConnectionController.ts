@@ -2,6 +2,8 @@ import {
     assertRegisteredAccount,
     type ApiErrorPayload,
     type ApiListExternalConnectionSamplesResponse,
+    type ApiProposeExternalConnectionConfigRequest,
+    type ApiProposeExternalConnectionConfigResponse,
     type ApiSaveExternalConnectionSampleRequest,
     type ApiSaveExternalConnectionSampleResponse,
     type ApiTestExternalConnectionConfigRequest,
@@ -407,6 +409,37 @@ export class ExternalConnectionController extends BaseController {
             },
         );
         return { status: 'ok', results };
+    }
+
+    /**
+     * Ask AI to propose a connection config from a prose description. Returns
+     * a proposal to prefill the create wizard — persists nothing and never
+     * includes a secret. Admin-only.
+     * @summary Propose an external connection config
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('external-connections/propose-config')
+    @OperationId('proposeExternalConnectionConfig')
+    async proposeExternalConnectionConfig(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiProposeExternalConnectionConfigRequest,
+    ): Promise<ApiProposeExternalConnectionConfigResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().proposeConfig(
+                req.account,
+                projectUuid,
+                body.description,
+            ),
+        };
     }
 
     /**

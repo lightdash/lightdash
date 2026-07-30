@@ -2,12 +2,15 @@ import { subject } from '@casl/ability';
 import {
     EXTERNAL_CONNECTION_DEFAULTS,
     ForbiddenError,
+    getErrorMessage,
+    MissingConfigError,
     NotFoundError,
     ParameterError,
     TooManyRequestsError,
     type ApiSaveExternalConnectionSampleRequest,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionConfigProposal,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
@@ -27,6 +30,10 @@ import {
     SecureFetchError,
 } from '../../../utils/secureFetch/secureFetch';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+import { generateExternalConnectionConfigProposal } from '../ai/agents/externalConnectionConfigGenerator';
+import { getModel } from '../ai/models';
+import { type GeneratorModelOptions } from '../ai/models/types';
+import { type OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { assertCanViewApp } from '../AppGenerateService/appAuthz';
 import {
     validateExternalConnectionConfig,
@@ -48,6 +55,7 @@ type ExternalConnectionServiceArguments = {
     appModel: AppModel;
     spacePermissionService: SpacePermissionService;
     googleTokenProvider: GoogleServiceAccountTokenProvider;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 export class ExternalConnectionService extends BaseService {
@@ -61,7 +69,11 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly googleTokenProvider: GoogleServiceAccountTokenProvider;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
+
+    private static readonly MAX_PROPOSAL_DESCRIPTION_CHARS = 2_000;
 
     constructor(args: ExternalConnectionServiceArguments) {
         super();
@@ -70,6 +82,7 @@ export class ExternalConnectionService extends BaseService {
         this.appModel = args.appModel;
         this.spacePermissionService = args.spacePermissionService;
         this.googleTokenProvider = args.googleTokenProvider;
+        this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
     }
 
     private assertCanManage(
@@ -1227,6 +1240,76 @@ export class ExternalConnectionService extends BaseService {
             query: req.query,
             body: req.body,
         });
+    }
+
+    /**
+     * Admin-only. Ask an LLM to propose a connection config (plus a credential
+     * how-to guide) from a prose description. Persists nothing and never
+     * touches secrets — the proposal prefills the create wizard, where the
+     * user reviews every field and pastes the credential themselves.
+     */
+    async proposeConfig(
+        account: RegisteredAccount,
+        projectUuid: string,
+        description: string,
+    ): Promise<ExternalConnectionConfigProposal> {
+        // Derive the org from the project — never trust the caller — so an org
+        // admin cannot propose against another org's project.
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+
+        const trimmed = description.trim();
+        if (!trimmed) {
+            throw new ParameterError('Description is required');
+        }
+        if (
+            trimmed.length >
+            ExternalConnectionService.MAX_PROPOSAL_DESCRIPTION_CHARS
+        ) {
+            throw new ParameterError(
+                `Description must be at most ${ExternalConnectionService.MAX_PROPOSAL_DESCRIPTION_CHARS} characters`,
+            );
+        }
+
+        const copilot =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        const provider: 'anthropic' | 'bedrock' =
+            copilot.defaultProvider === 'bedrock' ? 'bedrock' : 'anthropic';
+
+        let modelOptions: GeneratorModelOptions;
+        try {
+            modelOptions = {
+                ...getModel(copilot, {
+                    provider,
+                    modelName: 'claude-sonnet-4-5',
+                    enableReasoning: false,
+                }),
+                telemetry: {
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: account.user.id,
+                },
+            };
+        } catch (error) {
+            this.logger.info(
+                `Cannot propose connection config: ${provider} not configured (${getErrorMessage(
+                    error,
+                )})`,
+            );
+            throw new MissingConfigError(
+                'AI is not configured for this organization',
+            );
+        }
+
+        return generateExternalConnectionConfigProposal(modelOptions, trimmed);
     }
 
     /**

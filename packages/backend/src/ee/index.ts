@@ -689,6 +689,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getSpacePermissionService(),
                     googleTokenProvider:
                         new GoogleServiceAccountTokenProvider(),
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
+                    }),
                 }),
             externalConnectionCoderService: ({ models, context, repository }) =>
                 new ExternalConnectionCoderService({
