@@ -1,3 +1,10 @@
+## [1.39.1](https://github.com/lightdash/lightdash/compare/1.39.0...1.39.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* **data-apps:** drain in-flight query tracking when POSTs share a queryUuid ([#26479](https://github.com/lightdash/lightdash/issues/26479)) ([6659e9d](https://github.com/lightdash/lightdash/commit/6659e9ddb672b445adf97fd758d90a53a9ea56e3))
+
 # [1.39.0](https://github.com/lightdash/lightdash/compare/1.38.2...1.39.0) (2026-07-30)
 
 
