@@ -1,3 +1,13 @@
+## [1.39.2](https://github.com/lightdash/lightdash/compare/1.39.1...1.39.2) (2026-07-30)
+
+
+### Bug Fixes
+
+* apply AI agent field tag filtering ([#26522](https://github.com/lightdash/lightdash/issues/26522)) ([bac1a33](https://github.com/lightdash/lightdash/commit/bac1a33b7c84f30f95e3a5040d0909e472371bf9)), closes [#26327](https://github.com/lightdash/lightdash/issues/26327)
+* **apps:** offer the visualization library to whoever can build a chart ([#26476](https://github.com/lightdash/lightdash/issues/26476)) ([db98c96](https://github.com/lightdash/lightdash/commit/db98c966b253c440bad509a372aace0c24f18531))
+* quote AI writeback project paths in shell commands ([#26513](https://github.com/lightdash/lightdash/issues/26513)) ([ec63820](https://github.com/lightdash/lightdash/commit/ec6382017f8c4e9a7cad1ca6c4a3912f7d828b85))
+* use application secret for Slack OAuth state ([#26517](https://github.com/lightdash/lightdash/issues/26517)) ([eabde14](https://github.com/lightdash/lightdash/commit/eabde14183d3cc150b88e2a8b6e4322c0dffb14e))
+
 ## [1.39.1](https://github.com/lightdash/lightdash/compare/1.39.0...1.39.1) (2026-07-30)
 
 
