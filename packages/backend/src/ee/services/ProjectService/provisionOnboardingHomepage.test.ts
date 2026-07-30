@@ -265,7 +265,7 @@ describe('provisionOnboardingHomepage', () => {
         });
     });
 
-    it('skips provisioning when this is not the organization first project', async () => {
+    it('skips provisioning for a non-playground project when this is not the organization first project', async () => {
         const mocks = buildArguments();
         mocks.getAllByOrganizationUuid.mockResolvedValue([
             makeProject(PROJECT_UUID),
@@ -288,6 +288,41 @@ describe('provisionOnboardingHomepage', () => {
                 homepageBuilderEnablement: null,
                 codingAgentOnboardingEnablement: null,
                 reason: 'not_first_project',
+            },
+        });
+    });
+
+    it('provisions a playground project when this is not the organization first project', async () => {
+        const mocks = buildArguments();
+        mocks.getAllByOrganizationUuid.mockResolvedValue([
+            makeProject(PROJECT_UUID),
+            makeProject(OTHER_PROJECT_UUID),
+        ]);
+
+        await provisionOnboardingHomepage({
+            ...mocks.args,
+            provisioningSource: 'playground',
+        });
+
+        expect(mocks.createHomepage).toHaveBeenCalledWith({
+            projectUuid: PROJECT_UUID,
+            name: 'Getting started',
+            draftConfig: buildOnboardingHomepageConfig(),
+            createdByUserUuid: USER_UUID,
+        });
+        expect(mocks.publishHomepage).toHaveBeenCalledWith(HOMEPAGE_UUID, {
+            type: 'everyone',
+        });
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+            event: 'onboarding_homepage.provisioned',
+            userId: USER_UUID,
+            properties: {
+                organizationId: ORGANIZATION_UUID,
+                projectId: PROJECT_UUID,
+                homepageUuid: HOMEPAGE_UUID,
+                onboardingFlow: 'new',
+                homepageBuilderEnablement: 'enabled',
+                codingAgentOnboardingEnablement: 'enabled',
             },
         });
     });

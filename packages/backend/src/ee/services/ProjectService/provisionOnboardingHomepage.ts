@@ -22,6 +22,7 @@ export type ProvisionOnboardingHomepageArguments = {
     user: SessionUser;
     projectUuid: string;
     projectType: ProjectType;
+    provisioningSource?: 'playground';
     featureFlagService: Pick<
         FeatureFlagService,
         'get' | 'ensureOrganizationOverrideEnabled'
@@ -38,6 +39,7 @@ export const provisionOnboardingHomepage = async ({
     user,
     projectUuid,
     projectType,
+    provisioningSource,
     featureFlagService,
     projectModel,
     projectHomepageModel,
@@ -80,9 +82,11 @@ export const provisionOnboardingHomepage = async ({
     try {
         const organizationProjects =
             await projectModel.getAllByOrganizationUuid(organizationUuid);
+        const isPlayground = provisioningSource === 'playground';
         if (
-            organizationProjects.length !== 1 ||
-            organizationProjects[0].projectUuid !== projectUuid
+            !isPlayground &&
+            (organizationProjects.length !== 1 ||
+                organizationProjects[0].projectUuid !== projectUuid)
         ) {
             trackSkipped('not_first_project');
             return;

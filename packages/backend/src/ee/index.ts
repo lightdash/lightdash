@@ -801,11 +801,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAppGenerateService<AppGenerateService>(),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
-                    onProjectCreated: ({ user, projectUuid, projectType }) =>
+                    onProjectCreated: ({
+                        user,
+                        projectUuid,
+                        projectType,
+                        provisioningSource,
+                    }) =>
                         provisionOnboardingHomepage({
                             user,
                             projectUuid,
                             projectType,
+                            provisioningSource,
                             featureFlagService:
                                 repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),

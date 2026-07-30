@@ -365,6 +365,7 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectUuid: string;
         projectType: ProjectType;
+        provisioningSource?: 'playground';
     }) => Promise<void>;
     provisionPlaygroundProject?: (args: {
         user: SessionUser;
@@ -689,11 +690,17 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
+        provisioningSource?: 'playground',
     ): Promise<void> {
         await this.provisionDefaultAiAgent(user, projectUuid, projectType);
 
         try {
-            await this.onProjectCreated?.({ user, projectUuid, projectType });
+            await this.onProjectCreated?.({
+                user,
+                projectUuid,
+                projectType,
+                provisioningSource,
+            });
         } catch (error) {
             // Provisioning failures must not fail project creation
             Sentry.captureException(error);
@@ -2511,6 +2518,7 @@ export class ProjectService extends BaseService {
             user,
             projectUuid,
             createProject.type,
+            internalProvisioning?.source,
         );
 
         // For preview projects: if the upstream requires user warehouse credentials
