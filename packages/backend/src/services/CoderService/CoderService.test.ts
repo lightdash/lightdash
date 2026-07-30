@@ -726,6 +726,9 @@ describe('CoderService', () => {
                 savedSqlModel: {
                     find: vi.fn(),
                 } as AnyType,
+                appModel: {
+                    findAppsBySlugs: vi.fn(async () => []),
+                } as AnyType,
                 schedulerModel: {} as AnyType,
                 schedulerService: {} as AnyType,
                 savedChartService: {} as AnyType,
@@ -738,7 +741,7 @@ describe('CoderService', () => {
                 userModel: {} as AnyType,
             });
 
-            const result = await service.convertTileWithSlugsToUuids(
+            const { tiles: result } = await service.convertTileWithSlugsToUuids(
                 'project-uuid',
                 [
                     {
@@ -802,6 +805,9 @@ describe('CoderService', () => {
                 promoteService: {} as AnyType,
                 savedChartModel: { find: vi.fn() } as AnyType,
                 savedSqlModel: { find: vi.fn() } as AnyType,
+                appModel: {
+                    findAppsBySlugs: vi.fn(async () => []),
+                } as AnyType,
                 schedulerModel: {} as AnyType,
                 schedulerService: {} as AnyType,
                 savedChartService: {} as AnyType,
@@ -814,7 +820,7 @@ describe('CoderService', () => {
                 userModel: {} as AnyType,
             });
 
-            const result = await service.convertTileWithSlugsToUuids(
+            const { tiles: result } = await service.convertTileWithSlugsToUuids(
                 'project-uuid',
                 [
                     {
@@ -836,6 +842,118 @@ describe('CoderService', () => {
                 { tabUuid: 'legacy-tab-uuid' },
             ]);
             expect(result[0]).not.toHaveProperty('tabSlug');
+        });
+
+        const buildServiceWithApps = (
+            apps: { app_id: string; slug: string }[],
+        ) =>
+            new CoderService({
+                analytics: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+                dashboardModel: {} as AnyType,
+                lightdashConfig: {} as AnyType,
+                projectModel: {} as AnyType,
+                promoteService: {} as AnyType,
+                savedChartModel: { find: vi.fn(async () => []) } as AnyType,
+                savedSqlModel: { find: vi.fn(async () => []) } as AnyType,
+                appModel: {
+                    findAppsBySlugs: vi.fn(async () => apps),
+                    findAppsByUuids: vi.fn(async () => apps),
+                } as AnyType,
+                schedulerModel: {} as AnyType,
+                schedulerService: {} as AnyType,
+                savedChartService: {} as AnyType,
+                dashboardService: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                spaceModel: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                groupsModel: {} as AnyType,
+                organizationMemberProfileModel: {} as AnyType,
+                userModel: {} as AnyType,
+            });
+
+        const dataAppTile = (properties: AnyType) => ({
+            type: DashboardTileTypes.DATA_APP,
+            uuid: undefined,
+            tileSlug: undefined,
+            x: 0,
+            y: 0,
+            h: 9,
+            w: 18,
+            tabUuid: null,
+            properties,
+        });
+
+        it('resolves appSlug to the target project app uuid', async () => {
+            const service = buildServiceWithApps([
+                { app_id: 'target-app-uuid', slug: 'revenue-explorer' },
+            ]);
+
+            const { tiles, warnings } =
+                await service.convertTileWithSlugsToUuids('project-uuid', [
+                    dataAppTile({
+                        title: 'Revenue explorer',
+                        appSlug: 'revenue-explorer',
+                    }),
+                ] as AnyType);
+
+            expect(warnings).toEqual([]);
+            expect(tiles).toHaveLength(1);
+            expect(tiles[0].properties).toMatchObject({
+                appUuid: 'target-app-uuid',
+                appSlug: 'revenue-explorer',
+            });
+            expect(tiles[0].uuid).toEqual(expect.any(String));
+        });
+
+        it('skips a tile whose app is missing and warns', async () => {
+            const service = buildServiceWithApps([]);
+
+            const { tiles, warnings } =
+                await service.convertTileWithSlugsToUuids('project-uuid', [
+                    dataAppTile({ title: 'Gone', appSlug: 'revenue-explorer' }),
+                ] as AnyType);
+
+            expect(tiles).toEqual([]);
+            expect(warnings).toEqual([
+                'Data app "revenue-explorer" was not found in this project — tile skipped. Upload the app first, then re-upload the dashboard.',
+            ]);
+        });
+
+        it('falls back to a legacy appUuid when the tile has no appSlug', async () => {
+            const service = buildServiceWithApps([
+                { app_id: 'legacy-app-uuid', slug: 'legacy-app' },
+            ]);
+
+            const { tiles, warnings } =
+                await service.convertTileWithSlugsToUuids('project-uuid', [
+                    dataAppTile({
+                        title: 'Legacy',
+                        appUuid: 'legacy-app-uuid',
+                    }),
+                ] as AnyType);
+
+            expect(warnings).toEqual([]);
+            expect(tiles[0].properties).toMatchObject({
+                appUuid: 'legacy-app-uuid',
+            });
+        });
+
+        it('skips a legacy appUuid that is not in the target project', async () => {
+            const service = buildServiceWithApps([
+                { app_id: 'some-other-app', slug: 'other' },
+            ]);
+
+            const { tiles, warnings } =
+                await service.convertTileWithSlugsToUuids('project-uuid', [
+                    dataAppTile({
+                        title: 'Foreign',
+                        appUuid: 'foreign-app-uuid',
+                    }),
+                ] as AnyType);
+
+            expect(tiles).toEqual([]);
+            expect(warnings).toHaveLength(1);
         });
     });
 

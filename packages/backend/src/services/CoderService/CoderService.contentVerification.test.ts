@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { AppModel } from '../../models/AppModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -79,6 +80,7 @@ const buildService = () =>
         projectModel: {} as unknown as ProjectModel,
         savedChartModel: {} as unknown as SavedChartModel,
         savedSqlModel: {} as unknown as SavedSqlModel,
+        appModel: {} as unknown as AppModel,
         dashboardModel: {} as unknown as DashboardModel,
         spaceModel: {} as unknown as SpaceModel,
         schedulerModel: {} as unknown as SchedulerModel,

@@ -93,6 +93,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import { AppModel } from '../../models/AppModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -154,6 +155,7 @@ type CoderServiceArguments = {
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
+    appModel: AppModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     schedulerModel: SchedulerModel;
@@ -188,6 +190,8 @@ export class CoderService extends BaseService {
     savedChartModel: SavedChartModel;
 
     savedSqlModel: SavedSqlModel;
+
+    appModel: AppModel;
 
     dashboardModel: DashboardModel;
 
@@ -234,6 +238,7 @@ export class CoderService extends BaseService {
         projectModel,
         savedChartModel,
         savedSqlModel,
+        appModel,
         dashboardModel,
         spaceModel,
         schedulerModel,
@@ -255,6 +260,7 @@ export class CoderService extends BaseService {
         this.projectModel = projectModel;
         this.savedChartModel = savedChartModel;
         this.savedSqlModel = savedSqlModel;
+        this.appModel = appModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.schedulerModel = schedulerModel;
@@ -1689,7 +1695,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         tiles: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
-    ): Promise<DashboardTileWithSlug[]> {
+    ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
@@ -1698,10 +1704,45 @@ export class CoderService extends BaseService {
             return [...acc, tile.properties.chartSlug];
         }, []);
 
+        const appTiles = tiles.filter(
+            (tile) => tile.type === DashboardTileTypes.DATA_APP,
+        );
+        const appSlugs = appTiles.reduce<string[]>((acc, tile) => {
+            const { appSlug } = tile.properties as { appSlug?: string | null };
+            return appSlug ? [...acc, appSlug] : acc;
+        }, []);
+        // Pre-slug YAML carries appUuid instead of appSlug; resolve those too
+        // so legacy content-as-code files keep working.
+        const legacyAppUuids = appTiles.reduce<string[]>((acc, tile) => {
+            const props = tile.properties as {
+                appSlug?: string | null;
+                appUuid?: string;
+            };
+            return !props.appSlug && props.appUuid
+                ? [...acc, props.appUuid]
+                : acc;
+        }, []);
+        const [slugRows, legacyRows] =
+            appTiles.length > 0
+                ? await Promise.all([
+                      this.appModel.findAppsBySlugs(projectUuid, appSlugs),
+                      this.appModel.findAppsByUuids(
+                          projectUuid,
+                          legacyAppUuids,
+                      ),
+                  ])
+                : [[], []];
+        const appRows = [...slugRows, ...legacyRows];
+        const appUuidBySlug = new Map(
+            appRows.map((row) => [row.slug, row.app_id]),
+        );
+        const knownAppUuids = new Set(appRows.map((row) => row.app_id));
+        const warnings: string[] = [];
+
         const withResolvedTileUuid = (
             tile: DashboardTileAsCode,
             chartInfo?: { uuid: string; isSql: boolean },
-        ): DashboardTileWithSlug => {
+        ): DashboardTileWithSlug | null => {
             const { tabSlug, ...tileWithoutTabSlug } = tile;
             let { tabUuid } = tile;
             if (tabSlug === null) {
@@ -1713,6 +1754,38 @@ export class CoderService extends BaseService {
                 throw new NotFoundError(
                     `Dashboard tab "${tabSlug}" referenced by tile was not found`,
                 );
+            }
+
+            if (tile.type === DashboardTileTypes.DATA_APP) {
+                const { appSlug, appUuid: legacyAppUuid } = tile.properties as {
+                    appSlug?: string | null;
+                    appUuid?: string;
+                };
+                // Pre-slug YAML carries appUuid; accept it only when the app
+                // actually lives in this project.
+                let resolvedAppUuid: string | undefined;
+                if (appSlug) {
+                    resolvedAppUuid = appUuidBySlug.get(appSlug);
+                } else if (legacyAppUuid && knownAppUuids.has(legacyAppUuid)) {
+                    resolvedAppUuid = legacyAppUuid;
+                }
+                if (!resolvedAppUuid) {
+                    warnings.push(
+                        `Data app "${
+                            appSlug ?? legacyAppUuid ?? 'unknown'
+                        }" was not found in this project — tile skipped. Upload the app first, then re-upload the dashboard.`,
+                    );
+                    return null;
+                }
+                return {
+                    ...tileWithoutTabSlug,
+                    tabUuid,
+                    uuid: tile.uuid ?? uuidv4(),
+                    properties: {
+                        ...tile.properties,
+                        appUuid: resolvedAppUuid,
+                    },
+                } as DashboardTileWithSlug;
             }
 
             if (!isAnyChartTile(tile)) {
@@ -1754,7 +1827,14 @@ export class CoderService extends BaseService {
         };
 
         if (chartSlugs.length === 0) {
-            return tiles.map((tile) => withResolvedTileUuid(tile));
+            return {
+                tiles: tiles
+                    .map((tile) => withResolvedTileUuid(tile))
+                    .filter(
+                        (tile): tile is DashboardTileWithSlug => tile !== null,
+                    ),
+                warnings,
+            };
         }
 
         // Query both regular charts and SQL charts in parallel
@@ -1786,18 +1866,23 @@ export class CoderService extends BaseService {
             }),
         );
 
-        return tiles.map((tile) => {
-            if (isAnyChartTile(tile)) {
-                const { chartSlug } = tile.properties;
-                if (chartSlug == null) {
-                    return withResolvedTileUuid(tile);
-                }
-                const chartInfo = chartSlugToInfo.get(chartSlug);
-                return withResolvedTileUuid(tile, chartInfo);
-            }
+        return {
+            tiles: tiles
+                .map((tile) => {
+                    if (isAnyChartTile(tile)) {
+                        const { chartSlug } = tile.properties;
+                        if (chartSlug == null) {
+                            return withResolvedTileUuid(tile);
+                        }
+                        const chartInfo = chartSlugToInfo.get(chartSlug);
+                        return withResolvedTileUuid(tile, chartInfo);
+                    }
 
-            return withResolvedTileUuid(tile);
-        });
+                    return withResolvedTileUuid(tile);
+                })
+                .filter((tile): tile is DashboardTileWithSlug => tile !== null),
+            warnings,
+        };
     }
 
     /*
@@ -3540,11 +3625,12 @@ export class CoderService extends BaseService {
             ...dashboardWithDefaults,
             tabs: tabsWithUuids,
         };
-        const tilesWithUuids = await this.convertTileWithSlugsToUuids(
-            projectUuid,
-            dashboardWithResolvedTabs.tiles,
-            tabUuidsBySlug,
-        );
+        const { tiles: tilesWithUuids } =
+            await this.convertTileWithSlugsToUuids(
+                projectUuid,
+                dashboardWithResolvedTabs.tiles,
+                tabUuidsBySlug,
+            );
         if (!canUploadAnyContent) {
             await this.assertTileChartsViewAccess({
                 userUuid: user.userUuid,
