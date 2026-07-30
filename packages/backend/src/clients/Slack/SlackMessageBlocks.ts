@@ -3,9 +3,11 @@ import {
     assertUnreachable,
     friendlyName,
     LightdashPage,
+    MAX_DELIVERY_QUERIES,
     operatorActionValue,
     PartialFailureType,
     ThresholdOptions,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import {
@@ -14,6 +16,7 @@ import {
     SectionBlock,
     SectionBlockAccessory,
 } from '@slack/bolt';
+import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
 
 // Slack Block Kit text and structural limits
@@ -474,6 +477,7 @@ type GetDashboardCsvResultsBlocksArgs = {
     csvUrls: AttachmentUrl[];
     footerMarkdown?: string;
     failures?: PartialFailure[];
+    notices?: DeliveryNotice[];
 };
 export const getDashboardCsvResultsBlocks = ({
     title,
@@ -484,6 +488,7 @@ export const getDashboardCsvResultsBlocks = ({
     footerMarkdown,
     ctaUrl,
     failures,
+    notices,
 }: GetDashboardCsvResultsBlocksArgs): KnownBlock[] => {
     const getFailureBlock = ():
         | { type: 'section'; text: { type: 'mrkdwn'; text: string } }
@@ -506,6 +511,20 @@ export const getDashboardCsvResultsBlocks = ({
                             return `\t• No targets found for this scheduled delivery`;
                         case PartialFailureType.AI_AUGMENTATION:
                             return `\t• AI summary could not be generated`;
+                        case PartialFailureType.APP_QUERY:
+                            return `\t• *${sanitizeText(
+                                f.label,
+                            )}:* ${sanitizeText(f.error)}`;
+                        case PartialFailureType.APP_QUERY_MISSING:
+                            return `\t• ${sanitizeText(
+                                f.label,
+                            )}: did not run in this delivery${
+                                f.identityChanged
+                                    ? ' (query changed since it was selected)'
+                                    : ''
+                            }`;
+                        case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                            return `\t• ${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`;
                         default:
                             return assertUnreachable(
                                 f,
@@ -538,6 +557,20 @@ export const getDashboardCsvResultsBlocks = ({
                         return `\t• No targets found for this scheduled delivery`;
                     case PartialFailureType.AI_AUGMENTATION:
                         return `\t• AI summary could not be generated`;
+                    case PartialFailureType.APP_QUERY:
+                        return `\t• ${sanitizeText(
+                            f.label,
+                        )}: ${sanitizeText(f.error)}`;
+                    case PartialFailureType.APP_QUERY_MISSING:
+                        return `\t• ${sanitizeText(
+                            f.label,
+                        )}: did not run in this delivery${
+                            f.identityChanged
+                                ? ' (query changed since it was selected)'
+                                : ''
+                        }`;
+                    case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                        return `\t• ${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`;
                     default:
                         return assertUnreachable(
                             f,
@@ -551,7 +584,37 @@ export const getDashboardCsvResultsBlocks = ({
             text: {
                 type: 'mrkdwn',
                 text: truncateText(
-                    `:warning: *Warning:* ${failures.length} chart(s) failed to export:\n${errorText}`,
+                    `:warning: *Warning:* ${buildFailureCountPhrase(
+                        failures,
+                    )} failed to export:\n${errorText}`,
+                    SLACK_LIMITS.SECTION_TEXT,
+                ),
+            },
+        };
+    };
+
+    const getNoticesBlock = ():
+        | { type: 'section'; text: { type: 'mrkdwn'; text: string } }
+        | undefined => {
+        if (!notices || notices.length === 0) {
+            return undefined;
+        }
+        const noticeText = notices
+            .map(
+                (n) =>
+                    `\t• ${sanitizeText(
+                        n.label,
+                    )} reached its query limit; additional rows may exist (${
+                        n.rowCount
+                    } rows delivered)`,
+            )
+            .join('\n');
+        return {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: truncateText(
+                    `:information_source: ${noticeText}`,
                     SLACK_LIMITS.SECTION_TEXT,
                 ),
             },
@@ -717,6 +780,7 @@ export const getDashboardCsvResultsBlocks = ({
         },
         ...csvSections,
         getFailureBlock(),
+        getNoticesBlock(),
         footerMarkdown?.trim()
             ? {
                   type: 'context',
