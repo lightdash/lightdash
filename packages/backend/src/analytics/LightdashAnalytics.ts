@@ -928,6 +928,17 @@ type OnboardingHomepageFailedEvent = BaseTrack & {
     };
 };
 
+type OnboardingOrgFlagsProvisionedEvent = BaseTrack & {
+    event: 'onboarding_org_flags.provisioned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        onboardingFlow: OnboardingFlow;
+        homepageBuilderEnablement: HomepageBuilderEnablement;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
+    };
+};
+
 export type HomepageBuilderEnablement =
     | EnsureOrganizationOverrideOutcome
     | 'failed';
@@ -3169,6 +3180,7 @@ type TypedEvent =
     | OnboardingHomepageProvisionedEvent
     | OnboardingHomepageSkippedEvent
     | OnboardingHomepageFailedEvent
+    | OnboardingOrgFlagsProvisionedEvent
     | PlaygroundProjectProvisionedEvent
     | PlaygroundProjectSkippedEvent
     | PlaygroundProjectFailedEvent
