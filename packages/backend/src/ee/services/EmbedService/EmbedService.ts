@@ -2005,6 +2005,31 @@ export class EmbedService extends BaseService {
     }
 
     /**
+     * Raw metric queries are only available to embed tokens granted `canExplore`,
+     * which is what backs `view:Explore` in the JWT ability.
+     */
+    private assertCanExploreProject(
+        account: AnonymousAccount,
+        organizationUuid: string,
+        projectUuid: string,
+    ) {
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to explore this project',
+            );
+        }
+    }
+
+    /**
      * Calculate totals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
      * @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory.
@@ -2016,6 +2041,8 @@ export class EmbedService extends BaseService {
     ): Promise<Record<string, number>> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+
+        this.assertCanExploreProject(account, organizationUuid, projectUuid);
 
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
@@ -2096,6 +2123,8 @@ export class EmbedService extends BaseService {
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+
+        this.assertCanExploreProject(account, organizationUuid, projectUuid);
 
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,

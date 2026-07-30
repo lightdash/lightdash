@@ -1,7 +1,9 @@
+import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
     type AnonymousAccount,
     type CreateEmbedJwt,
+    type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
 import { EmbedService } from './EmbedService';
@@ -411,6 +413,105 @@ describe('EmbedService', () => {
                     email: "x''/**/OR/**/1=1/**/--@example.com",
                 },
             });
+        });
+    });
+
+    describe('raw metric queries', () => {
+        const buildEmbedAccount = (canExplore: boolean) =>
+            ({
+                authentication: { type: 'jwt', source: 'embed-token' },
+                access: { content: { dashboardUuid: 'dashboard-1' } },
+                user: {
+                    id: mockUserUuid,
+                    ability: new Ability<PossibleAbilities>(
+                        canExplore
+                            ? [
+                                  {
+                                      subject: 'Explore',
+                                      action: ['view'],
+                                      conditions: {
+                                          organizationUuid:
+                                              mockOrganizationUuid,
+                                          projectUuid: mockProjectUuid,
+                                      },
+                                  },
+                              ]
+                            : [],
+                    ),
+                },
+                organization: { organizationUuid: mockOrganizationUuid },
+                isAnonymousUser: vi.fn().mockReturnValue(true),
+            }) as unknown as AnonymousAccount;
+
+        // Reaching the explore lookup means the permission gate let the request through
+        const getExploreFromCache = vi
+            .fn()
+            .mockRejectedValue(new Error('reached explore lookup'));
+
+        const gatedService = () =>
+            new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        projectUuid: mockProjectUuid,
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                    getExploreFromCache,
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+        const totalsQuery = {
+            explore: 'customers',
+            metricQuery: {} as never,
+        } as never;
+        const subtotalsQuery = {
+            explore: 'customers',
+            metricQuery: {} as never,
+            columnOrder: [],
+        } as never;
+
+        test('calculateTotalFromQuery rejects tokens without explore access', async () => {
+            await expect(
+                gatedService().calculateTotalFromQuery(
+                    buildEmbedAccount(false),
+                    mockProjectUuid,
+                    totalsQuery,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(getExploreFromCache).not.toHaveBeenCalled();
+        });
+
+        test('calculateSubtotalsFromQuery rejects tokens without explore access', async () => {
+            await expect(
+                gatedService().calculateSubtotalsFromQuery(
+                    buildEmbedAccount(false),
+                    mockProjectUuid,
+                    subtotalsQuery,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(getExploreFromCache).not.toHaveBeenCalled();
+        });
+
+        test('calculateTotalFromQuery allows tokens with explore access', async () => {
+            await expect(
+                gatedService().calculateTotalFromQuery(
+                    buildEmbedAccount(true),
+                    mockProjectUuid,
+                    totalsQuery,
+                ),
+            ).rejects.toThrow('reached explore lookup');
+        });
+
+        test('calculateSubtotalsFromQuery allows tokens with explore access', async () => {
+            await expect(
+                gatedService().calculateSubtotalsFromQuery(
+                    buildEmbedAccount(true),
+                    mockProjectUuid,
+                    subtotalsQuery,
+                ),
+            ).rejects.toThrow('reached explore lookup');
         });
     });
 
