@@ -1,4 +1,5 @@
 import { Box, Loader, Text } from '@mantine-8/core';
+import { IconNotebook } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { useAiAgentMemory } from '../../hooks/useAiAgentMemory';
@@ -40,7 +41,12 @@ export const MemoryDetailsBySlugModal: FC<MemoryDetailsBySlugModalProps> = ({
     }
 
     return (
-        <MantineModal opened onClose={onClose} title={title}>
+        <MantineModal
+            opened
+            onClose={onClose}
+            icon={IconNotebook}
+            title={title}
+        >
             <Box py="xl" ta="center">
                 {memoryQuery.isError ? (
                     <Text c="dimmed" fz="sm">

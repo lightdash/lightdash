@@ -90,10 +90,12 @@ const MemoryDetailPane: FC<{
                         agentUuid={memory.agent?.uuid ?? null}
                     />
                 ) : memoryQuery.isError ? (
-                    <InlineErrorState
-                        message="Unable to load this memory."
-                        onRetry={() => void memoryQuery.refetch()}
-                    />
+                    <Box p="xl">
+                        <InlineErrorState
+                            message="Unable to load this memory."
+                            onRetry={() => void memoryQuery.refetch()}
+                        />
+                    </Box>
                 ) : (
                     <EmptyStateLoader py="xl" />
                 )}
