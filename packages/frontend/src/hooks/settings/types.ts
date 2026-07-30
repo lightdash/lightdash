@@ -70,6 +70,7 @@ export type SettingsContext = {
     isScimTokenManagementEnabled: FeatureFlag | undefined;
     isServiceAccountsEnabled: boolean;
     isAiCopilotEnabledOrTrial: boolean;
+    isDeepResearchEnabled: boolean;
     shouldShowAiAgentReviews: boolean;
     shouldShowAiAgentMemories: boolean;
     // Org-level AI settings access (router config, org settings, review queue).
@@ -78,6 +79,7 @@ export type SettingsContext = {
     // least one project they can reach. Gates visibility of the "Ask AI" area.
     hasAnyAiAgentAccess: boolean;
     isAiOrganizationSettingsLoading: boolean;
+    isDeepResearchFlagLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
     embeddingEnabled: FeatureFlag | undefined;

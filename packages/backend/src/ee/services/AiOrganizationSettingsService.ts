@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AiOrganizationSettings,
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
@@ -11,6 +12,7 @@ import {
     UpdateAiOrganizationSettings,
     UpdateAiProviderApiKeys,
     type AiAgentModelConfig,
+    type AiDeepResearchLimits,
     type AiModelOption,
     type AiOrgModelVisibility,
     type ByoAiProvider,
@@ -119,6 +121,18 @@ export const findUnconfiguredProviderKeyWrites = (
             typeof providerApiKeys[provider] === 'string' &&
             !configuredProviders[provider],
     );
+
+export const validateDeepResearchLimits = (
+    limits: AiDeepResearchLimits,
+): void => {
+    (
+        Object.entries(limits) as Array<[keyof AiDeepResearchLimits, number]>
+    ).forEach(([key, value]) => {
+        if (!Number.isInteger(value) || value <= 0) {
+            throw new ParameterError(`${key} must be a positive integer`);
+        }
+    });
+};
 
 /**
  * Reviews run on the org's own key when it has one (never the instance
@@ -330,6 +344,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 isCopilotEnabled,
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
+                deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 mcpContentWritesEnabled: true,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
@@ -371,6 +386,10 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         this.checkManageAiAgentAccess(user);
+
+        if (data.deepResearchLimits !== undefined) {
+            validateDeepResearchLimits(data.deepResearchLimits);
+        }
 
         // Set when hiding models orphans the org's configured default, so the
         // write can repoint it in the same upsert.

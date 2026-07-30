@@ -1,4 +1,5 @@
 import {
+    AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     ForbiddenError,
     ProjectType,
     type AiAgentReviewClassifierJudgeOutput,
@@ -302,6 +303,7 @@ describe('AiAgentReviewClassifierService', () => {
             organizationUuid: ORGANIZATION_UUID,
             aiAgentsVisible: true,
             aiAgentReviewsEnabled: true,
+            deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
             mcpContentWritesEnabled: true,
             requireExplicitSlackChannelLinking: false,
             defaultAiAgentModelConfig: null,
@@ -371,6 +373,7 @@ describe('AiAgentReviewClassifierService', () => {
                 organizationUuid: ORGANIZATION_UUID,
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
+                deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 mcpContentWritesEnabled: true,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,

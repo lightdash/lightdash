@@ -1,4 +1,5 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
+import type { AiDeepResearchLimits } from '../aiDeepResearch/types';
 import type { DataAppModelVisibility } from '../apps/types';
 import type {
     AiAgentEvaluationRunSummary,
@@ -325,6 +326,7 @@ export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
     aiAgentReviewsEnabled: boolean;
+    deepResearchLimits: AiDeepResearchLimits;
     mcpContentWritesEnabled: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
@@ -347,6 +349,7 @@ export type CreateAiOrganizationSettings = Omit<
 export type UpdateAiOrganizationSettings = {
     aiAgentsVisible?: boolean;
     aiAgentReviewsEnabled?: boolean;
+    deepResearchLimits?: AiDeepResearchLimits;
     mcpContentWritesEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;

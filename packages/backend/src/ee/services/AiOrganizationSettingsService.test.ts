@@ -1,4 +1,8 @@
-import { AiOrganizationSettings } from '@lightdash/common';
+import {
+    AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+    AiOrganizationSettings,
+    ParameterError,
+} from '@lightdash/common';
 import type { ModelPreset, ModelPresetProvider } from './ai/models/presets';
 import {
     AiOrganizationSettingsService,
@@ -7,12 +11,14 @@ import {
     isModelConfigAvailable,
     maskProviderKeyExposure,
     pickReplacementDefaultModelConfig,
+    validateDeepResearchLimits,
 } from './AiOrganizationSettingsService';
 
 const settingsWithKeys: AiOrganizationSettings = {
     organizationUuid: 'org-uuid',
     aiAgentsVisible: true,
     aiAgentReviewsEnabled: false,
+    deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     mcpContentWritesEnabled: true,
     requireExplicitSlackChannelLinking: false,
     defaultAiAgentModelConfig: null,
@@ -20,6 +26,28 @@ const settingsWithKeys: AiOrganizationSettings = {
     providerApiKeysSet: { anthropic: true, openai: false },
     providerApiKeyHints: { anthropic: 'sk-ant-api03-R2D...igAA', openai: null },
 };
+
+describe('validateDeepResearchLimits', () => {
+    it('accepts the default limits', () => {
+        expect(() =>
+            validateDeepResearchLimits(AI_DEEP_RESEARCH_DEFAULT_LIMITS),
+        ).not.toThrow();
+    });
+
+    it.each([
+        ['maxTokens', 0],
+        ['maxToolCalls', -1],
+        ['maxWarehouseQueries', 0],
+        ['maxHypotheses', 2.5],
+    ] as const)('rejects invalid %s', (key, value) => {
+        expect(() =>
+            validateDeepResearchLimits({
+                ...AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                [key]: value,
+            }),
+        ).toThrow(ParameterError);
+    });
+});
 
 describe('maskProviderKeyExposure', () => {
     it('returns the settings untouched for org admins', () => {
@@ -350,6 +378,38 @@ describe('upsertSettings model validation', () => {
             defaultAiAgentModelConfig: null,
         });
         expect(upsert).toHaveBeenCalled();
+    });
+
+    it('rejects invalid Deep Research limits before writing', async () => {
+        const { service, upsert } = buildService();
+
+        await expect(
+            service.upsertSettings(user, {
+                deepResearchLimits: {
+                    maxTokens: 10_000_000,
+                    maxToolCalls: 0,
+                    maxWarehouseQueries: 7,
+                    maxHypotheses: 3,
+                },
+            }),
+        ).rejects.toThrow('maxToolCalls must be a positive integer');
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('forwards valid Deep Research limits to the model', async () => {
+        const { service, upsert } = buildService();
+        const deepResearchLimits = {
+            maxTokens: 9_000_000,
+            maxToolCalls: 42,
+            maxWarehouseQueries: 7,
+            maxHypotheses: 3,
+        };
+
+        await service.upsertSettings(user, { deepResearchLimits });
+
+        expect(upsert).toHaveBeenCalledWith('org-uuid', {
+            deepResearchLimits,
+        });
     });
 
     it('repoints a stored default that the new visibility hides', async () => {
