@@ -144,6 +144,7 @@ import {
     parsePullNumber,
     parsePullRequestUrl,
     progressTextForStage,
+    quoteShellArgument,
     resolvePrMetadataValue,
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
@@ -3422,7 +3423,7 @@ export class AiWritebackService extends BaseService {
             const base =
                 projectSubPath === '.' ? CWD : `${CWD}/${projectSubPath}`;
             const found = await sandbox.commands.run(
-                `find ${base} -maxdepth 2 -name profiles.yml 2>/dev/null | head -1`,
+                `find ${quoteShellArgument(base)} -maxdepth 2 -name profiles.yml 2>/dev/null | head -1`,
                 { cwd: CWD },
             );
             const profilesPath = found.stdout.trim();
@@ -3904,7 +3905,7 @@ export class AiWritebackService extends BaseService {
         // resolve, and we're no worse off than before this ran.
         try {
             await sandbox.commands.run(
-                `env ${unsetFlags} PATH="${dbtBin}:$PATH" dbt deps --project-dir ${JSON.stringify(
+                `env ${unsetFlags} PATH="${dbtBin}:$PATH" dbt deps --project-dir ${quoteShellArgument(
                     `${CWD}/${turn.gitConnection.projectSubPath}`,
                 )}`,
             );
@@ -3917,9 +3918,11 @@ export class AiWritebackService extends BaseService {
             // `dbt_packages/` stays installed, so compile is unaffected.
             const lockfile = `${turn.gitConnection.projectSubPath}/package-lock.yml`;
             await sandbox.commands.run(
-                `git -C ${CWD} checkout -- ${JSON.stringify(
+                `git -C ${CWD} checkout -- ${quoteShellArgument(
                     lockfile,
-                )} 2>/dev/null || rm -f ${JSON.stringify(`${CWD}/${lockfile}`)}`,
+                )} 2>/dev/null || rm -f ${quoteShellArgument(
+                    `${CWD}/${lockfile}`,
+                )}`,
             );
         } catch (error) {
             this.logger.warn(

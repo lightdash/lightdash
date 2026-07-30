@@ -5,7 +5,7 @@ import type { SandboxHandle } from '../../SandboxRuntime';
 import { CWD } from '../constants';
 import { DeniedPathError, findDeniedCommitPaths } from '../deniedPaths';
 import type { GitCommitAuthor } from '../types';
-import { parseGitNameStatus } from '../utils';
+import { parseGitNameStatus, quoteShellArgument } from '../utils';
 
 // Default dbt package install directory, relative to the project dir. Overridable
 // in dbt_project.yml via `packages-install-path`; see resolveDbtProjectPaths.
@@ -139,10 +139,13 @@ export const resolveDbtProjectPaths = async (
     // inside the repo. Vendored hub packages are real dirs (`-L` fails) and are
     // skipped. All interpolated values are charset-validated above.
     const packageList = [...packageNames].join(' ');
+    const packagesDirectory = quoteShellArgument(
+        `${CWD}/${projectSubPath}/${installPath}/`,
+    );
     const script = [
         `cwd_real=$(readlink -f ${JSON.stringify(CWD)})`,
         `for p in ${packageList}; do`,
-        `  link="${CWD}/${projectSubPath}/${installPath}/$p"`,
+        `  link=${packagesDirectory}$p`,
         `  [ -L "$link" ] || continue`,
         `  real=$(readlink -f "$link" 2>/dev/null) || continue`,
         `  [ -n "$real" ] || continue`,
