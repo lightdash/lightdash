@@ -4414,11 +4414,6 @@ const models: TsoaRoute.Models = {
         enums: ['vertical_bar'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ChartKind.LINE': {
-        dataType: 'refEnum',
-        enums: ['line'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     VizIndexType: {
         dataType: 'refEnum',
         enums: ['time', 'category'],
@@ -4625,7 +4620,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizCartesianChartConfig: {
+    VizBarChartConfig: {
         dataType: 'refAlias',
         type: {
             dataType: 'intersection',
@@ -4650,14 +4645,45 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
-                        type: {
+                        type: { ref: 'ChartKind.VERTICAL_BAR', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartKind.LINE': {
+        dataType: 'refEnum',
+        enums: ['line'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizLineChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'VizBaseConfig' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        display: {
                             dataType: 'union',
                             subSchemas: [
-                                { ref: 'ChartKind.VERTICAL_BAR' },
-                                { ref: 'ChartKind.LINE' },
+                                { ref: 'CartesianChartDisplay' },
+                                { dataType: 'undefined' },
                             ],
                             required: true,
                         },
+                        fieldConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'PivotChartLayout' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        type: { ref: 'ChartKind.LINE', required: true },
                     },
                 },
             ],
@@ -4705,6 +4731,61 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         type: { ref: 'ChartKind.PIE', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ChartKind.BIG_NUMBER': {
+        dataType: 'refEnum',
+        enums: ['big_number'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizBigNumberDisplay: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                flipColors: { dataType: 'boolean' },
+                comparisonLabel: { dataType: 'string' },
+                comparisonFormat: { ref: 'ComparisonFormatTypes' },
+                showComparison: { dataType: 'boolean' },
+                style: { ref: 'CompactOrAlias' },
+                showLabel: { dataType: 'boolean' },
+                label: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    VizBigNumberConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'VizBaseConfig' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        display: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'VizBigNumberDisplay' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        fieldConfig: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'PivotChartLayout' },
+                                { dataType: 'undefined' },
+                            ],
+                            required: true,
+                        },
+                        type: { ref: 'ChartKind.BIG_NUMBER', required: true },
                     },
                 },
             ],
@@ -4793,6 +4874,21 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AllVizChartConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'VizBarChartConfig' },
+                { ref: 'VizLineChartConfig' },
+                { ref: 'VizPieChartConfig' },
+                { ref: 'VizBigNumberConfig' },
+                { ref: 'VizTableConfig' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SqlChart.name-or-description-or-slug-or-sql-or-limit-or-config-or-chartKind_':
         {
             dataType: 'refAlias',
@@ -4810,21 +4906,7 @@ const models: TsoaRoute.Models = {
                     },
                     slug: { dataType: 'string', required: true },
                     limit: { dataType: 'double', required: true },
-                    config: {
-                        dataType: 'intersection',
-                        subSchemas: [
-                            { ref: 'VizBaseConfig' },
-                            {
-                                dataType: 'union',
-                                subSchemas: [
-                                    { ref: 'VizCartesianChartConfig' },
-                                    { ref: 'VizPieChartConfig' },
-                                    { ref: 'VizTableConfig' },
-                                ],
-                            },
-                        ],
-                        required: true,
-                    },
+                    config: { ref: 'AllVizChartConfig', required: true },
                     sql: { dataType: 'string', required: true },
                     chartKind: { ref: 'ChartKind', required: true },
                 },
@@ -14115,21 +14197,7 @@ const models: TsoaRoute.Models = {
                 },
                 createdAt: { dataType: 'datetime', required: true },
                 chartKind: { ref: 'ChartKind', required: true },
-                config: {
-                    dataType: 'intersection',
-                    subSchemas: [
-                        { ref: 'VizBaseConfig' },
-                        {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'VizCartesianChartConfig' },
-                                { ref: 'VizPieChartConfig' },
-                                { ref: 'VizTableConfig' },
-                            ],
-                        },
-                    ],
-                    required: true,
-                },
+                config: { ref: 'AllVizChartConfig', required: true },
                 limit: { dataType: 'double', required: true },
                 sql: { dataType: 'string', required: true },
                 slug: { dataType: 'string', required: true },
@@ -36626,86 +36694,6 @@ const models: TsoaRoute.Models = {
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizBarChartConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'VizBaseConfig' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        display: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'CartesianChartDisplay' },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
-                        fieldConfig: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'PivotChartLayout' },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
-                        type: { ref: 'ChartKind.VERTICAL_BAR', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    VizLineChartConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'VizBaseConfig' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        display: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'CartesianChartDisplay' },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
-                        fieldConfig: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { ref: 'PivotChartLayout' },
-                                { dataType: 'undefined' },
-                            ],
-                            required: true,
-                        },
-                        type: { ref: 'ChartKind.LINE', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AllVizChartConfig: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { ref: 'VizBarChartConfig' },
-                { ref: 'VizLineChartConfig' },
-                { ref: 'VizPieChartConfig' },
-                { ref: 'VizTableConfig' },
-            ],
             validators: {},
         },
     },

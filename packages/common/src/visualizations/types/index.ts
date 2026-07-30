@@ -1,10 +1,15 @@
 import { type AnyType } from '../../types/any';
-import { DimensionType, TableCalculationType } from '../../types/field';
+import {
+    DimensionType,
+    TableCalculationType,
+    type CompactOrAlias,
+} from '../../types/field';
 import { type PivotSortAnchor } from '../../types/metricQuery';
 import { type PivotConfiguration } from '../../types/pivot';
 import { type RawResultRow } from '../../types/results';
 import {
     ChartKind,
+    type ComparisonFormatTypes,
     type PivotReference,
     type Series,
 } from '../../types/savedCharts';
@@ -118,6 +123,20 @@ export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
 
+export type VizBigNumberDisplay = {
+    /** Custom label rendered under the value. Falls back to the field name. */
+    label?: string;
+    showLabel?: boolean;
+    /** Compact notation applied to the value (K/M/B/T). */
+    style?: CompactOrAlias;
+    /** Compares the value against the second selected field. */
+    showComparison?: boolean;
+    comparisonFormat?: ComparisonFormatTypes;
+    comparisonLabel?: string;
+    /** Colours an increase red and a decrease green. */
+    flipColors?: boolean;
+};
+
 export type VizTableDisplay = {
     // TODO: split table display config out of table config
     // On vis column config, visible, label and frozen, at least seem like display options
@@ -201,6 +220,11 @@ export type VizPieChartOptions = {
     customMetricFieldOptions: VizCustomMetricLayoutOptions[];
 };
 
+export type VizBigNumberOptions = {
+    metricFieldOptions: VizValuesLayoutOptions[];
+    customMetricFieldOptions: VizCustomMetricLayoutOptions[];
+};
+
 export type VizColumnConfig = {
     visible: boolean;
     reference: string;
@@ -258,6 +282,16 @@ export type VizPieChartConfig = VizBaseConfig & {
     display: VizPieChartDisplay | undefined;
 };
 
+export type VizBigNumberConfig = VizBaseConfig & {
+    type: ChartKind.BIG_NUMBER;
+    /**
+     * Big numbers aggregate every row, so `x` is always undefined and `y`
+     * holds the value field followed by the optional comparison field.
+     */
+    fieldConfig: PivotChartLayout | undefined;
+    display: VizBigNumberDisplay | undefined;
+};
+
 export type VizTableConfig = VizBaseConfig & {
     type: ChartKind.TABLE;
     columns: VizTableColumnsConfig['columns'];
@@ -292,6 +326,11 @@ export const isVizPieChartConfig = (
 export const isVizTableConfig = (
     value: VizBaseConfig | undefined,
 ): value is VizTableConfig => !!value && value.type === ChartKind.TABLE;
+
+export const isVizBigNumberConfig = (
+    value: VizBaseConfig | undefined,
+): value is VizBigNumberConfig =>
+    !!value && value.type === ChartKind.BIG_NUMBER;
 
 export type VizConfigErrors = {
     indexFieldError?: {
