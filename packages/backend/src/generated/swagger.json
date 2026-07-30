@@ -4661,10 +4661,6 @@
                 "enum": ["vertical_bar"],
                 "type": "string"
             },
-            "ChartKind.LINE": {
-                "enum": ["line"],
-                "type": "string"
-            },
             "VizIndexType": {
                 "enum": ["time", "category"],
                 "type": "string"
@@ -4878,7 +4874,7 @@
                 },
                 "type": "object"
             },
-            "VizCartesianChartConfig": {
+            "VizBarChartConfig": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/VizBaseConfig"
@@ -4892,14 +4888,33 @@
                                 "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/ChartKind.LINE"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ChartKind.LINE": {
+                "enum": ["line"],
+                "type": "string"
+            },
+            "VizLineChartConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/PivotChartLayout"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.LINE"
                             }
                         },
                         "required": ["type"],
@@ -4934,6 +4949,63 @@
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.PIE"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ChartKind.BIG_NUMBER": {
+                "enum": ["big_number"],
+                "type": "string"
+            },
+            "VizBigNumberDisplay": {
+                "properties": {
+                    "flipColors": {
+                        "type": "boolean",
+                        "description": "Colours an increase red and a decrease green."
+                    },
+                    "comparisonLabel": {
+                        "type": "string"
+                    },
+                    "comparisonFormat": {
+                        "$ref": "#/components/schemas/ComparisonFormatTypes"
+                    },
+                    "showComparison": {
+                        "type": "boolean",
+                        "description": "Compares the value against the second selected field."
+                    },
+                    "style": {
+                        "$ref": "#/components/schemas/CompactOrAlias",
+                        "description": "Compact notation applied to the value (K/M/B/T)."
+                    },
+                    "showLabel": {
+                        "type": "boolean"
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Custom label rendered under the value. Falls back to the field name."
+                    }
+                },
+                "type": "object"
+            },
+            "VizBigNumberConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/VizBigNumberDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/PivotChartLayout",
+                                "description": "Big numbers aggregate every row, so `x` is always undefined and `y`\nholds the value field followed by the optional comparison field."
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.BIG_NUMBER"
                             }
                         },
                         "required": ["type"],
@@ -5023,6 +5095,25 @@
                     }
                 ]
             },
+            "AllVizChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBarChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizLineChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizPieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizBigNumberConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizTableConfig"
+                    }
+                ]
+            },
             "Pick_SqlChart.name-or-description-or-slug-or-sql-or-limit-or-config-or-chartKind_": {
                 "properties": {
                     "name": {
@@ -5040,24 +5131,7 @@
                         "format": "double"
                     },
                     "config": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/VizBaseConfig"
-                            },
-                            {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizPieChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizTableConfig"
-                                    }
-                                ]
-                            }
-                        ]
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "sql": {
                         "type": "string"
@@ -15389,24 +15463,7 @@
                         "$ref": "#/components/schemas/ChartKind"
                     },
                     "config": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/VizBaseConfig"
-                            },
-                            {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizPieChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizTableConfig"
-                                    }
-                                ]
-                            }
-                        ]
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -36710,66 +36767,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "VizBarChartConfig": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBaseConfig"
-                    },
-                    {
-                        "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/CartesianChartDisplay"
-                            },
-                            "fieldConfig": {
-                                "$ref": "#/components/schemas/PivotChartLayout"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "VizLineChartConfig": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBaseConfig"
-                    },
-                    {
-                        "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/CartesianChartDisplay"
-                            },
-                            "fieldConfig": {
-                                "$ref": "#/components/schemas/PivotChartLayout"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/ChartKind.LINE"
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "AllVizChartConfig": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBarChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizLineChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizPieChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizTableConfig"
-                    }
-                ]
             },
             "CreateSqlChart": {
                 "properties": {
