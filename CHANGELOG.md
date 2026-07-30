@@ -1,3 +1,19 @@
+# [1.41.0](https://github.com/lightdash/lightdash/compare/1.40.0...1.41.0) (2026-07-30)
+
+
+### Bug Fixes
+
+* **apps:** keep loaded versions when the build poller refreshes ([#26337](https://github.com/lightdash/lightdash/issues/26337)) ([00b20ec](https://github.com/lightdash/lightdash/commit/00b20ecb18f5cc5e9cb903cde0082d11221b7747))
+* correct data-app link on homepage content cards ([#26543](https://github.com/lightdash/lightdash/issues/26543)) ([06ef4c6](https://github.com/lightdash/lightdash/commit/06ef4c6a482810d286384115e3bc94ea456f7268))
+* restore invite step when adding a non-member to a project ([#26537](https://github.com/lightdash/lightdash/issues/26537)) ([6b0a226](https://github.com/lightdash/lightdash/commit/6b0a2261cb9abdd63c2058f03b1ddcfb530ad89b))
+* survive transient sandbox disconnects in the onboarding agent run ([#26538](https://github.com/lightdash/lightdash/issues/26538)) ([751ada2](https://github.com/lightdash/lightdash/commit/751ada2c715b7c1c5098e673f737d692a29125bb))
+
+
+### Features
+
+* add strict Slack channel control for AI agents ([#26081](https://github.com/lightdash/lightdash/issues/26081)) ([a76f718](https://github.com/lightdash/lightdash/commit/a76f718b17bcd9add34d34da4751856de4eae6d1))
+* **apps:** bind viz slots to the query's result columns ([#26329](https://github.com/lightdash/lightdash/issues/26329)) ([ebbaaba](https://github.com/lightdash/lightdash/commit/ebbaaba047aed2eba513e7a7e60d2fdd8a61e15e))
+
 # [1.40.0](https://github.com/lightdash/lightdash/compare/1.39.2...1.40.0) (2026-07-30)
 
 

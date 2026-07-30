@@ -33717,6 +33717,9 @@
                         ],
                         "nullable": true
                     },
+                    "requireExplicitSlackChannelLinking": {
+                        "type": "boolean"
+                    },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
                     },
@@ -33855,6 +33858,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "requireExplicitSlackChannelLinking": {
+                        "type": "boolean"
                     },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
@@ -51031,7 +51037,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.40.0",
+        "version": "1.41.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -62258,7 +62264,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -62419,7 +62425,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -62427,7 +62433,7 @@
                         "name": "roleUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -81182,7 +81188,7 @@
                         "name": "userId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -81239,7 +81245,7 @@
                         "name": "userId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -81288,7 +81294,7 @@
                         "name": "groupId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -81345,7 +81351,7 @@
                         "name": "groupId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -81402,7 +81408,7 @@
                         "name": "groupId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -81443,7 +81449,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -81484,7 +81490,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -81492,7 +81498,7 @@
                         "name": "userId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -81549,7 +81555,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {

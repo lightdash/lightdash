@@ -33579,6 +33579,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                requireExplicitSlackChannelLinking: { dataType: 'boolean' },
                 mcpContentWritesEnabled: {
                     dataType: 'boolean',
                     required: true,
@@ -33717,6 +33718,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
+                requireExplicitSlackChannelLinking: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
                 aiAgentReviewsEnabled: { dataType: 'boolean' },
                 aiAgentsVisible: { dataType: 'boolean' },
@@ -95379,12 +95381,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        userId: {
-            in: 'path',
-            name: 'userId',
-            required: true,
-            dataType: 'string',
-        },
+        userId: { in: 'path', name: 'userId', required: true, ref: 'UUID' },
         body: {
             in: 'body',
             name: 'body',
@@ -95452,12 +95449,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        groupId: {
-            in: 'path',
-            name: 'groupId',
-            required: true,
-            dataType: 'string',
-        },
+        groupId: { in: 'path', name: 'groupId', required: true, ref: 'UUID' },
         body: {
             in: 'body',
             name: 'body',
@@ -95525,12 +95517,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        groupId: {
-            in: 'path',
-            name: 'groupId',
-            required: true,
-            dataType: 'string',
-        },
+        groupId: { in: 'path', name: 'groupId', required: true, ref: 'UUID' },
         body: {
             in: 'body',
             name: 'body',
@@ -95598,12 +95585,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        userId: {
-            in: 'path',
-            name: 'userId',
-            required: true,
-            dataType: 'string',
-        },
+        userId: { in: 'path', name: 'userId', required: true, ref: 'UUID' },
     };
     app.delete(
         '/api/v2/projects/:projectId/roles/assignments/user/:userId',
@@ -95665,12 +95647,7 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        groupId: {
-            in: 'path',
-            name: 'groupId',
-            required: true,
-            dataType: 'string',
-        },
+        groupId: { in: 'path', name: 'groupId', required: true, ref: 'UUID' },
     };
     app.delete(
         '/api/v2/projects/:projectId/roles/assignments/group/:groupId',
@@ -95726,12 +95703,7 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        orgUuid: {
-            in: 'path',
-            name: 'orgUuid',
-            required: true,
-            dataType: 'string',
-        },
+        orgUuid: { in: 'path', name: 'orgUuid', required: true, ref: 'UUID' },
         load: { in: 'query', name: 'load', dataType: 'string' },
         roleTypeFilter: {
             in: 'query',
@@ -95793,12 +95765,7 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        orgUuid: {
-            in: 'path',
-            name: 'orgUuid',
-            required: true,
-            dataType: 'string',
-        },
+        orgUuid: { in: 'path', name: 'orgUuid', required: true, ref: 'UUID' },
     };
     app.get(
         '/api/v2/orgs/:orgUuid/roles/assignments',
@@ -95855,18 +95822,8 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        orgUuid: {
-            in: 'path',
-            name: 'orgUuid',
-            required: true,
-            dataType: 'string',
-        },
-        roleUuid: {
-            in: 'path',
-            name: 'roleUuid',
-            required: true,
-            dataType: 'string',
-        },
+        orgUuid: { in: 'path', name: 'orgUuid', required: true, ref: 'UUID' },
+        roleUuid: { in: 'path', name: 'roleUuid', required: true, ref: 'UUID' },
     };
     app.get(
         '/api/v2/orgs/:orgUuid/roles/:roleUuid',
@@ -95922,18 +95879,8 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        orgUuid: {
-            in: 'path',
-            name: 'orgUuid',
-            required: true,
-            dataType: 'string',
-        },
-        userId: {
-            in: 'path',
-            name: 'userId',
-            required: true,
-            dataType: 'string',
-        },
+        orgUuid: { in: 'path', name: 'orgUuid', required: true, ref: 'UUID' },
+        userId: { in: 'path', name: 'userId', required: true, ref: 'UUID' },
         body: {
             in: 'body',
             name: 'body',
@@ -95999,12 +95946,7 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        orgUuid: {
-            in: 'path',
-            name: 'orgUuid',
-            required: true,
-            dataType: 'string',
-        },
+        orgUuid: { in: 'path', name: 'orgUuid', required: true, ref: 'UUID' },
         roleId: {
             in: 'path',
             name: 'roleId',
