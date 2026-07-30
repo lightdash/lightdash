@@ -1,0 +1,17 @@
+.card {
+    background-color: var(--mantine-color-pink-0);
+    border-color: var(--mantine-color-pink-3);
+}
+
+.title {
+    color: var(--mantine-color-pink-7);
+}
+
+[data-mantine-color-scheme='dark'] .card {
+    background-color: var(--mantine-color-pink-9);
+    border-color: var(--mantine-color-pink-7);
+}
+
+[data-mantine-color-scheme='dark'] .title {
+    color: var(--mantine-color-pink-2);
+}

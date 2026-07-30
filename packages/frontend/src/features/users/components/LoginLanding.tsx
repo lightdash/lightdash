@@ -54,6 +54,7 @@ import {
     writeLastLoginMethod,
 } from '../utils/lastLoginMethod';
 import LoginWithEmailOtp from './LoginWithEmailOtp';
+import classes from './LoginLanding.module.css';
 
 const Login: FC<{}> = () => {
     const { health } = useApp();
@@ -302,8 +303,15 @@ const Login: FC<{}> = () => {
             <Box mx="auto" my="lg">
                 <LightdashLogo />
             </Box>
-            <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
-                <Title order={3} ta="center" mb="md">
+            <Card
+                id={LOGIN_PAGE_ID}
+                p="xl"
+                radius="xs"
+                withBorder
+                shadow="xs"
+                className={classes.card}
+            >
+                <Title order={3} ta="center" mb="md" className={classes.title}>
                     Sign in
                 </Title>
                 <form
@@ -357,11 +365,13 @@ const Login: FC<{}> = () => {
                                     inherit
                                     href="/recover-password"
                                     mx="auto"
+                                    c="pink"
                                 >
                                     Forgot your password?
                                 </Anchor>
                                 <Button
                                     type="submit"
+                                    color="pink"
                                     loading={isFormLoading}
                                     disabled={isFormLoading}
                                     data-cy="signin-button"
@@ -385,6 +395,7 @@ const Login: FC<{}> = () => {
                         {formStage === 'precheck' && (
                             <Button
                                 type="submit"
+                                color="pink"
                                 loading={isFormLoading}
                                 disabled={isFormLoading}
                                 data-cy="signin-button"
@@ -450,6 +461,7 @@ const Login: FC<{}> = () => {
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
                                 fz="sm"
+                                c="pink"
                             >
                                 Sign up
                             </Anchor>
