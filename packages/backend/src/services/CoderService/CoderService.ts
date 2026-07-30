@@ -1710,22 +1710,18 @@ export class CoderService extends BaseService {
         }, []);
 
         const appTiles = tiles.filter(
-            (tile) => tile.type === DashboardTileTypes.DATA_APP,
+            (tile): tile is DashboardDataAppTileAsCode =>
+                tile.type === DashboardTileTypes.DATA_APP,
         );
         const appSlugs = appTiles.reduce<string[]>((acc, tile) => {
-            const { appSlug } = tile.properties as { appSlug?: string | null };
+            const { appSlug } = tile.properties;
             return appSlug ? [...acc, appSlug] : acc;
         }, []);
         // Pre-slug YAML carries appUuid instead of appSlug; resolve those too
         // so legacy content-as-code files keep working.
         const legacyAppUuids = appTiles.reduce<string[]>((acc, tile) => {
-            const props = tile.properties as {
-                appSlug?: string | null;
-                appUuid?: string;
-            };
-            return !props.appSlug && props.appUuid
-                ? [...acc, props.appUuid]
-                : acc;
+            const { appSlug, appUuid } = tile.properties;
+            return !appSlug && appUuid ? [...acc, appUuid] : acc;
         }, []);
         const [slugRows, legacyRows] =
             appTiles.length > 0
@@ -1762,10 +1758,7 @@ export class CoderService extends BaseService {
             }
 
             if (tile.type === DashboardTileTypes.DATA_APP) {
-                const { appSlug, appUuid: legacyAppUuid } = tile.properties as {
-                    appSlug?: string | null;
-                    appUuid?: string;
-                };
+                const { appSlug, appUuid: legacyAppUuid } = tile.properties;
                 // Pre-slug YAML carries appUuid; accept it only when the app
                 // actually lives in this project.
                 let resolvedAppUuid: string | undefined;

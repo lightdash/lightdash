@@ -82,7 +82,14 @@ export type DashboardDataAppTileAsCode = DashboardTileAsCodeBase & {
     properties: Pick<
         DashboardDataAppTileProperties['properties'],
         'title' | 'hideTitle'
-    > & { appSlug: string | null };
+    > & {
+        /** Portable project-scoped reference written by download. */
+        appSlug?: string | null;
+        /** Legacy project-local reference. Accepted on upload, never written by download. */
+        appUuid?: string;
+        /** Legacy read-only deletion marker. Ignored on upload, never written by download. */
+        appDeletedAt?: string | null;
+    };
 };
 
 export type DashboardTileAsCode =

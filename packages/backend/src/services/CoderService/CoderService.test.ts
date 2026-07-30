@@ -1101,10 +1101,16 @@ describe('CoderService', () => {
             expect(result[0]).not.toHaveProperty('tabSlug');
         });
 
-        const buildServiceWithApps = (
-            apps: { app_id: string; slug: string }[],
-        ) =>
-            new CoderService({
+        type AppRow = { app_id: string; slug: string };
+        const buildAppModelMock = (apps: AppRow[]) => ({
+            findAppsBySlugs: vi.fn(async (): Promise<AppRow[]> => apps),
+            findAppsByUuids: vi.fn(async (): Promise<AppRow[]> => apps),
+        });
+        let appModelMock = buildAppModelMock([]);
+
+        const buildServiceWithApps = (apps: AppRow[]) => {
+            appModelMock = buildAppModelMock(apps);
+            return new CoderService({
                 analytics: {} as AnyType,
                 contentVerificationModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
@@ -1113,10 +1119,7 @@ describe('CoderService', () => {
                 promoteService: {} as AnyType,
                 savedChartModel: { find: vi.fn(async () => []) } as AnyType,
                 savedSqlModel: { find: vi.fn(async () => []) } as AnyType,
-                appModel: {
-                    findAppsBySlugs: vi.fn(async () => apps),
-                    findAppsByUuids: vi.fn(async () => apps),
-                } as AnyType,
+                appModel: appModelMock as AnyType,
                 schedulerModel: {} as AnyType,
                 schedulerService: {} as AnyType,
                 savedChartService: {} as AnyType,
@@ -1128,6 +1131,7 @@ describe('CoderService', () => {
                 organizationMemberProfileModel: {} as AnyType,
                 userModel: {} as AnyType,
             });
+        };
 
         const dataAppTile = (properties: AnyType) => ({
             type: DashboardTileTypes.DATA_APP,
@@ -1161,6 +1165,11 @@ describe('CoderService', () => {
                 appSlug: 'revenue-explorer',
             });
             expect(tiles[0].uuid).toEqual(expect.any(String));
+            // App lookups must be scoped to the target project
+            expect(appModelMock.findAppsBySlugs).toHaveBeenCalledWith(
+                'project-uuid',
+                ['revenue-explorer'],
+            );
         });
 
         it('skips a tile whose app is missing and warns', async () => {
@@ -1194,6 +1203,10 @@ describe('CoderService', () => {
             expect(tiles[0].properties).toMatchObject({
                 appUuid: 'legacy-app-uuid',
             });
+            expect(appModelMock.findAppsByUuids).toHaveBeenCalledWith(
+                'project-uuid',
+                ['legacy-app-uuid'],
+            );
         });
 
         it('skips a legacy appUuid that is not in the target project', async () => {

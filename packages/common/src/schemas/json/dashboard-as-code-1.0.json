@@ -164,8 +164,17 @@
                     "additionalProperties": false,
                     "description": "From T, pick a set of properties whose keys are in the union K",
                     "properties": {
-                        "appSlug": {
+                        "appDeletedAt": {
+                            "description": "Legacy read-only deletion marker. Ignored on upload, never written by download.",
                             "type": ["string", "null"]
+                        },
+                        "appSlug": {
+                            "description": "Portable project-scoped reference written by download.",
+                            "type": ["string", "null"]
+                        },
+                        "appUuid": {
+                            "description": "Legacy project-local reference. Accepted on upload, never written by download.",
+                            "type": "string"
                         },
                         "hideTitle": {
                             "type": "boolean"
@@ -174,7 +183,7 @@
                             "type": "string"
                         }
                     },
-                    "required": ["title", "appSlug"],
+                    "required": ["title"],
                     "type": "object"
                 },
                 "tabSlug": {
