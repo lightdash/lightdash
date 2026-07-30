@@ -67,7 +67,9 @@ export const useTrackedAppQueries = (
     // queryUuids of entries wiped by resetQueries(). A late event can arrive
     // under a DIFFERENT id than the one we interrupted (results-cache dedupe
     // folds a second POST onto the same queryUuid) — id-only exclusion misses
-    // that case, so terminal events are also checked against this set.
+    // that case, so terminal events are also checked against this set. Not
+    // permanent: handleQueryEvent hands a uuid back to a live request that
+    // the backend gave the same uuid to, so a valid new version isn't muted.
     const interruptedQueryUuidsRef = useRef<Set<string>>(new Set());
 
     const clearQueries = useCallback(() => {
@@ -133,15 +135,21 @@ export const useTrackedAppQueries = (
         if (interruptedRequestIdsRef.current.has(event.id)) {
             return;
         }
-        // Same drop, keyed by queryUuid — catches a late event arriving under
-        // a fresh id that a dedupe fold ties back to an already-wiped query.
-        if (
-            event.queryUuid &&
-            interruptedQueryUuidsRef.current.has(event.queryUuid)
-        ) {
-            return;
-        }
         setQueries((prev) => {
+            // Same drop, keyed by queryUuid — but reclaimable, because the
+            // backend can hand a NEW submission a recycled uuid: a tracked id
+            // or a non-terminal event means a live request owns it now.
+            if (
+                event.queryUuid &&
+                interruptedQueryUuidsRef.current.has(event.queryUuid)
+            ) {
+                const isLiveRequest =
+                    event.status === 'pending' ||
+                    event.status === 'running' ||
+                    prev.some((q) => q.id === event.id);
+                if (!isLiveRequest) return prev;
+                interruptedQueryUuidsRef.current.delete(event.queryUuid);
+            }
             // If this event has a queryUuid, merge it with an existing entry
             if (event.queryUuid) {
                 const existing = prev.find(

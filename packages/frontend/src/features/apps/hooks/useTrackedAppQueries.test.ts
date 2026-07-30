@@ -246,6 +246,197 @@ describe('useTrackedAppQueries', () => {
             expect(result.current.queries).toHaveLength(0);
         });
 
+        // The backend can hand a NEW submission the SAME queryUuid as a wiped
+        // one (results-cache dedupe). A permanent uuid blacklist would accept
+        // the new request's pending event and drop its running/ready ones,
+        // stranding it pending and zeroing capturedQueryCount for a valid app.
+        it('reclaims an excluded queryUuid recycled by a live post-reset request', () => {
+            const { result, rerender } = renderHook(
+                (resetKey: number | undefined) =>
+                    useTrackedAppQueries(resetKey),
+                { initialProps: 1 },
+            );
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({ id: POST_ID_A, status: 'pending' }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_A,
+                        status: 'running',
+                        queryUuid: QUERY_UUID,
+                    }),
+                );
+            });
+
+            rerender(2);
+            expect(result.current.queries).toHaveLength(0);
+
+            // New version's identical query: fresh request id, recycled uuid.
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({ id: POST_ID_B, status: 'pending' }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_B,
+                        status: 'running',
+                        queryUuid: QUERY_UUID,
+                    }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_B,
+                        status: 'ready',
+                        queryUuid: QUERY_UUID,
+                        rowCount: 7,
+                    }),
+                );
+            });
+
+            expect(result.current.queries).toHaveLength(1);
+            expect(result.current.queries[0]).toMatchObject({
+                id: POST_ID_B,
+                status: 'ready',
+                queryUuid: QUERY_UUID,
+                rowCount: 7,
+            });
+            expect(
+                countReadyQueriesSinceBoundary(result.current.queries, 0),
+            ).toBe(1);
+        });
+
+        // Ordering matters: the pre-reset request's own late terminal must not
+        // reclaim the uuid on its way out, or the new request that recycles it
+        // afterwards inherits a phantom row instead of its own entry.
+        it('drops the old late terminal first, then still lets the recycled uuid through', () => {
+            const { result, rerender } = renderHook(
+                (resetKey: number | undefined) =>
+                    useTrackedAppQueries(resetKey),
+                { initialProps: 1 },
+            );
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({ id: POST_ID_A, status: 'pending' }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_A,
+                        status: 'running',
+                        queryUuid: QUERY_UUID,
+                    }),
+                );
+            });
+
+            rerender(2);
+
+            // Late terminal for the PRE-reset request, re-keyed to its POST id.
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_A,
+                        status: 'ready',
+                        queryUuid: QUERY_UUID,
+                        rowCount: 99,
+                    }),
+                );
+            });
+            expect(result.current.queries).toHaveLength(0);
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({ id: POST_ID_B, status: 'pending' }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_B,
+                        status: 'running',
+                        queryUuid: QUERY_UUID,
+                    }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_B,
+                        status: 'ready',
+                        queryUuid: QUERY_UUID,
+                        rowCount: 7,
+                    }),
+                );
+            });
+
+            expect(result.current.queries).toHaveLength(1);
+            expect(result.current.queries[0]).toMatchObject({
+                id: POST_ID_B,
+                status: 'ready',
+                rowCount: 7,
+            });
+        });
+
+        // Linked charts emit no `pending` placeholder — their first event is
+        // the POST-response `running`, so reclamation can't require a tracked
+        // entry to already exist under the fresh id.
+        it('reclaims a recycled uuid for a chart query whose first event is running', () => {
+            const { result, rerender } = renderHook(
+                (resetKey: number | undefined) =>
+                    useTrackedAppQueries(resetKey),
+                { initialProps: 1 },
+            );
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_A,
+                        status: 'running',
+                        queryUuid: QUERY_UUID,
+                    }),
+                );
+            });
+
+            rerender(2);
+            expect(result.current.queries).toHaveLength(0);
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_B,
+                        status: 'running',
+                        queryUuid: QUERY_UUID,
+                    }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: POST_ID_B,
+                        status: 'ready',
+                        queryUuid: QUERY_UUID,
+                        rowCount: 4,
+                    }),
+                );
+            });
+
+            expect(result.current.queries).toHaveLength(1);
+            expect(result.current.queries[0]).toMatchObject({
+                id: POST_ID_B,
+                status: 'ready',
+                rowCount: 4,
+            });
+        });
+
         it('resetQueries() called directly also blocks a late event for a previously-tracked id', () => {
             const { result } = renderHook(() => useTrackedAppQueries());
 
