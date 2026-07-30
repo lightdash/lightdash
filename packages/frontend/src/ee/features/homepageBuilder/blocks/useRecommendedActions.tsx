@@ -200,13 +200,14 @@ export const useRecommendedActions = (projectUuid: string | null) => {
     const visibleActions = isPlaygroundProject
         ? []
         : RECOMMENDED_ACTION_KEYS.filter((key) => statuses[key].isVisible);
+    const skippedActionKeys = new Set<string>(skippedActions);
     const hasPendingActions =
         newOnboardingFlag.data?.enabled === true &&
         !isLoading &&
         !skippedActionsLoading &&
         canManageProject &&
         visibleActions.some(
-            (key) => !statuses[key].isComplete && !skippedActions.includes(key),
+            (key) => !statuses[key].isComplete && !skippedActionKeys.has(key),
         );
 
     return {
