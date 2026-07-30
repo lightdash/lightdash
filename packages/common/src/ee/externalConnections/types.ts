@@ -157,6 +157,37 @@ export type ApiTestExternalConnectionResponse = {
     results: ExternalFetchResponse;
 };
 
+export type ApiProposeExternalConnectionConfigRequest = {
+    description: string;
+};
+
+/** AI-proposed connection config, shaped to prefill the create wizard. Never
+ *  carries a secret — the user pastes the credential themselves on the Auth
+ *  step. Kept flat for the same TSOA reason as
+ *  ApiTestExternalConnectionConfigRequest. */
+export type ExternalConnectionConfigProposal = {
+    name: string;
+    origin: string;
+    type: ExternalConnectionAuthType;
+    apiKeyName: string | null;
+    apiKeyLocation: ApiKeyLocation | null;
+    oauthScopes: string[] | null;
+    customHeaders: Record<string, string> | null;
+    allowedMethods: ExternalConnectionMethod[];
+    allowedPathPrefixes: string[];
+    instructions: string | null;
+    /** Markdown steps for obtaining the credential; null when type is 'none'. */
+    credentialGuide: string | null;
+    docsUrl: string | null;
+    /** Caveats the user should double-check before saving. */
+    notes: string | null;
+};
+
+export type ApiProposeExternalConnectionConfigResponse = {
+    status: 'ok';
+    results: ExternalConnectionConfigProposal;
+};
+
 /** The request that produced a sample (stored alongside the response). */
 export type ExternalConnectionSampleRequest = {
     method: ExternalConnectionMethod;
