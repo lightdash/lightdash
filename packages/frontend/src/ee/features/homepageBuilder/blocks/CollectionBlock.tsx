@@ -41,6 +41,7 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import {
+    IconFolder,
     IconLayoutGrid,
     IconPin,
     IconPlus,
@@ -50,7 +51,10 @@ import { useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { NumberInput } from '../../../../components/common/NumberInput';
-import { ResourceIcon } from '../../../../components/common/ResourceIcon';
+import {
+    IconBox,
+    ResourceIcon,
+} from '../../../../components/common/ResourceIcon';
 import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
 import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../../hooks/favorites/useFavorites';
@@ -138,15 +142,48 @@ const ContentRow: FC<{
     </Group>
 );
 
+// The space itself as a selectable row — adds the space as a card in the
+// collection, so spaces don't need their own picker tab.
+const SpaceItselfRow: FC<{
+    spaceName: string;
+    checked: boolean;
+    onToggle: () => void;
+}> = ({ spaceName, checked, onToggle }) => (
+    <Group
+        gap="sm"
+        wrap="nowrap"
+        className={classes.pickerRow}
+        onClick={onToggle}
+    >
+        <Checkbox size="xs" checked={checked} readOnly />
+        <IconBox icon={IconFolder} color="violet.6" />
+        <Text size="sm" truncate flex={1}>
+            {spaceName}
+        </Text>
+        <Text size="xs" c="dimmed">
+            Add the space itself
+        </Text>
+    </Group>
+);
+
 // The right pane: the selected space's charts/dashboards, fetched lazily so
 // only the open space ever loads (scales to large projects).
 const SpaceContent: FC<{
     projectUuid: string;
-    spaceUuid: string;
+    space: { uuid: string; name: string };
     selected: Map<string, HomepageCollectionItemRef>;
     onToggleItem: (content: SummaryContent) => void;
     onToggleMany: (items: SummaryContent[]) => void;
-}> = ({ projectUuid, spaceUuid, selected, onToggleItem, onToggleMany }) => {
+    onToggleSpace: (spaceUuid: string) => void;
+}> = ({
+    projectUuid,
+    space,
+    selected,
+    onToggleItem,
+    onToggleMany,
+    onToggleSpace,
+}) => {
+    const spaceUuid = space.uuid;
     const { data, isFetching, hasNextPage, fetchNextPage, isFetchingNextPage } =
         useInfiniteContent(
             {
@@ -166,69 +203,74 @@ const SpaceContent: FC<{
         [data],
     );
 
-    if (isFetching && items.length === 0) {
-        return (
-            <Stack gap={4} p="xs">
-                <Skeleton h={24} />
-                <Skeleton h={24} />
-                <Skeleton h={24} />
-            </Stack>
-        );
-    }
-    if (items.length === 0) {
-        return (
-            <Text size="sm" c="dimmed" p="sm">
-                This space has no charts or dashboards.
-            </Text>
-        );
-    }
     const selectedCount = items.filter((content) =>
         selected.has(content.uuid),
     ).length;
 
     return (
         <Stack gap={2}>
-            <Group gap="sm" wrap="nowrap" className={classes.pickerRow}>
-                <Checkbox
-                    size="xs"
-                    checked={selectedCount === items.length}
-                    indeterminate={
-                        selectedCount > 0 && selectedCount < items.length
-                    }
-                    onChange={() => onToggleMany(items)}
-                />
-                <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-                    Select all ({items.length})
+            <SpaceItselfRow
+                spaceName={space.name}
+                checked={selected.has(spaceUuid)}
+                onToggle={() => onToggleSpace(spaceUuid)}
+            />
+            <Divider my={4} />
+            {isFetching && items.length === 0 ? (
+                <Stack gap={4} p="xs">
+                    <Skeleton h={24} />
+                    <Skeleton h={24} />
+                    <Skeleton h={24} />
+                </Stack>
+            ) : items.length === 0 ? (
+                <Text size="sm" c="dimmed" p="sm">
+                    This space has no charts or dashboards.
                 </Text>
-            </Group>
-            {items.map((content) => (
-                <ContentRow
-                    key={content.uuid}
-                    content={content}
-                    checked={selected.has(content.uuid)}
-                    onToggle={() => onToggleItem(content)}
-                />
-            ))}
-            {hasNextPage && (
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    w="fit-content"
-                    loading={isFetchingNextPage}
-                    onClick={() => void fetchNextPage()}
-                >
-                    Load more
-                </Button>
+            ) : (
+                <>
+                    <Group gap="sm" wrap="nowrap" className={classes.pickerRow}>
+                        <Checkbox
+                            size="xs"
+                            checked={selectedCount === items.length}
+                            indeterminate={
+                                selectedCount > 0 &&
+                                selectedCount < items.length
+                            }
+                            onChange={() => onToggleMany(items)}
+                        />
+                        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+                            Select all ({items.length})
+                        </Text>
+                    </Group>
+                    {items.map((content) => (
+                        <ContentRow
+                            key={content.uuid}
+                            content={content}
+                            checked={selected.has(content.uuid)}
+                            onToggle={() => onToggleItem(content)}
+                        />
+                    ))}
+                    {hasNextPage && (
+                        <Button
+                            variant="subtle"
+                            size="xs"
+                            w="fit-content"
+                            loading={isFetchingNextPage}
+                            onClick={() => void fetchNextPage()}
+                        >
+                            Load more
+                        </Button>
+                    )}
+                </>
             )}
         </Stack>
     );
 };
 
-// A flat, search-driven list for a single content type (data apps or spaces),
+// A flat, search-driven list for a single content type (data apps),
 // which — unlike charts/dashboards — aren't naturally browsed by space.
 const SearchContentList: FC<{
     projectUuid: string;
-    contentType: ContentType.DATA_APP | ContentType.SPACE;
+    contentType: ContentType.DATA_APP;
     placeholder: string;
     emptyLabel: string;
     selected: Map<string, HomepageCollectionItemRef>;
@@ -307,7 +349,7 @@ const SearchContentList: FC<{
     );
 };
 
-type PickerTab = 'content' | 'apps' | 'spaces';
+type PickerTab = 'content' | 'apps';
 
 const CollectionPicker: FC<{
     projectUuid: string;
@@ -330,12 +372,28 @@ const CollectionPicker: FC<{
     registerApply(() => onApply([...selected.values()]));
 
     const { data: spaces } = useSpaceSummaries(projectUuid, true);
+    const selectedSpace = useMemo(() => {
+        const match = spaces?.find((space) => space.uuid === selectedSpaceUuid);
+        return match ? { uuid: match.uuid, name: match.name } : null;
+    }, [spaces, selectedSpaceUuid]);
 
     const toggleItem = (content: SummaryContent) =>
         setSelected((prev) => {
             const next = new Map(prev);
             if (next.has(content.uuid)) next.delete(content.uuid);
             else next.set(content.uuid, toItemRef(content));
+            return next;
+        });
+
+    const toggleSpace = (spaceUuid: string) =>
+        setSelected((prev) => {
+            const next = new Map(prev);
+            if (next.has(spaceUuid)) next.delete(spaceUuid);
+            else
+                next.set(spaceUuid, {
+                    contentType: ContentType.SPACE,
+                    uuid: spaceUuid,
+                });
             return next;
         });
 
@@ -362,7 +420,6 @@ const CollectionPicker: FC<{
                     data={[
                         { label: 'Charts & dashboards', value: 'content' },
                         { label: 'Data apps', value: 'apps' },
-                        { label: 'Spaces', value: 'spaces' },
                     ]}
                 />
                 <Text size="sm" c="dimmed">
@@ -388,19 +445,20 @@ const CollectionPicker: FC<{
                             miw={0}
                             className={classes.pickerScrollList}
                         >
-                            {selectedSpaceUuid == null ? (
+                            {selectedSpace == null ? (
                                 <Text size="sm" c="dimmed" p="sm">
-                                    Pick a space on the left to see its charts
-                                    and dashboards.
+                                    Pick a space on the left to add it, or to
+                                    see its charts and dashboards.
                                 </Text>
                             ) : (
                                 <SpaceContent
-                                    key={selectedSpaceUuid}
+                                    key={selectedSpace.uuid}
                                     projectUuid={projectUuid}
-                                    spaceUuid={selectedSpaceUuid}
+                                    space={selectedSpace}
                                     selected={selected}
                                     onToggleItem={toggleItem}
                                     onToggleMany={toggleMany}
+                                    onToggleSpace={toggleSpace}
                                 />
                             )}
                         </Box>
@@ -412,16 +470,6 @@ const CollectionPicker: FC<{
                         contentType={ContentType.DATA_APP}
                         placeholder="Search data apps..."
                         emptyLabel="No data apps found."
-                        selected={selected}
-                        onToggleItem={toggleItem}
-                    />
-                )}
-                {tab === 'spaces' && (
-                    <SearchContentList
-                        projectUuid={projectUuid}
-                        contentType={ContentType.SPACE}
-                        placeholder="Search spaces..."
-                        emptyLabel="No spaces found."
                         selected={selected}
                         onToggleItem={toggleItem}
                     />
