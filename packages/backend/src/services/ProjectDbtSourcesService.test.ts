@@ -157,6 +157,27 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('createProjectDbtSource', () => {
+        it('rejects unsafe dbt environment variables', async () => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'unsafe-source',
+                    dbtConnection: {
+                        ...githubConnection,
+                        environment: [
+                            {
+                                key: 'GIT_SSH_COMMAND',
+                                value: 'echo unsafe',
+                            },
+                        ],
+                    } as never,
+                }),
+            ).rejects.toThrow(/GIT_SSH_COMMAND/);
+
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
         it('rejects non-GitHub connection types', async () => {
             const service = getService();
 
@@ -212,6 +233,36 @@ describe('ProjectDbtSourcesService', () => {
     });
 
     describe('updateProjectDbtSource', () => {
+        it('rejects unsafe dbt environment variables', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                    {
+                        dbtConnection: {
+                            ...githubConnection,
+                            environment: [
+                                {
+                                    key: 'GIT_CONFIG_COUNT',
+                                    value: '1',
+                                },
+                            ],
+                        } as never,
+                    },
+                ),
+            ).rejects.toThrow(/GIT_CONFIG_COUNT/);
+
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
         it('rejects non-GitHub connection types on update, matching create', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
