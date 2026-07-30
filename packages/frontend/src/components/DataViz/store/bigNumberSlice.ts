@@ -5,6 +5,7 @@ import {
     type CompactOrAlias,
     type ComparisonFormatTypes,
     type VizAggregationOptions,
+    type VizBigNumberConditionalRule,
     type VizBigNumberConfig,
     type VizBigNumberOptions,
     type VizConfigErrors,
@@ -166,6 +167,41 @@ export const bigNumberConfigSlice = createSlice({
         setFlipColors: (state, action: PayloadAction<boolean>) => {
             state.display = { ...state.display, flipColors: action.payload };
         },
+        addConditionalFormattingRule: (
+            state,
+            action: PayloadAction<VizBigNumberConditionalRule>,
+        ) => {
+            state.display = {
+                ...state.display,
+                conditionalFormatting: [
+                    ...(state.display?.conditionalFormatting ?? []),
+                    action.payload,
+                ],
+            };
+        },
+        updateConditionalFormattingRule: (
+            state,
+            action: PayloadAction<{
+                index: number;
+                rule: VizBigNumberConditionalRule;
+            }>,
+        ) => {
+            const rules = [...(state.display?.conditionalFormatting ?? [])];
+            if (!rules[action.payload.index]) return;
+            rules[action.payload.index] = action.payload.rule;
+            state.display = { ...state.display, conditionalFormatting: rules };
+        },
+        removeConditionalFormattingRule: (
+            state,
+            action: PayloadAction<number>,
+        ) => {
+            state.display = {
+                ...state.display,
+                conditionalFormatting: (
+                    state.display?.conditionalFormatting ?? []
+                ).filter((_, index) => index !== action.payload),
+            };
+        },
     },
     extraReducers: (builder) => {
         builder.addCase(prepareAndFetchChartData.pending, (state) => {
@@ -219,4 +255,7 @@ export const {
     setComparisonFormat,
     setComparisonLabel,
     setFlipColors,
+    addConditionalFormattingRule,
+    updateConditionalFormattingRule,
+    removeConditionalFormattingRule,
 } = bigNumberConfigSlice.actions;

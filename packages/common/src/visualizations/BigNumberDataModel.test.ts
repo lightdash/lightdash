@@ -1,4 +1,5 @@
 import { Compact, DimensionType } from '../types/field';
+import { FilterOperator } from '../types/filter';
 import {
     ChartKind,
     ComparisonDiffTypes,
@@ -365,6 +366,67 @@ describe('BigNumberDataModel', () => {
                 direction: ComparisonDiffTypes.NONE,
                 formattedValue: '+0',
             });
+        });
+
+        it('colours the value with the first matching rule', async () => {
+            const model = await buildSpecModel({ revenue_sum: 120 }, [
+                'revenue',
+            ]);
+
+            expect(
+                model.getSpec({
+                    conditionalFormatting: [
+                        {
+                            operator: FilterOperator.GREATER_THAN,
+                            value: 500,
+                            color: '#ff0000',
+                        },
+                        {
+                            operator: FilterOperator.GREATER_THAN,
+                            value: 100,
+                            color: '#00ff00',
+                            darkColor: '#88ff88',
+                        },
+                        {
+                            operator: FilterOperator.GREATER_THAN,
+                            value: 0,
+                            color: '#0000ff',
+                        },
+                    ],
+                })?.valueColor,
+            ).toBe('light-dark(#00ff00, #88ff88)');
+        });
+
+        it('reuses the light colour when no dark colour is set', async () => {
+            const model = await buildSpecModel({ revenue_sum: 5 }, ['revenue']);
+
+            expect(
+                model.getSpec({
+                    conditionalFormatting: [
+                        {
+                            operator: FilterOperator.LESS_THAN_OR_EQUAL,
+                            value: 5,
+                            color: '#ff0000',
+                        },
+                    ],
+                })?.valueColor,
+            ).toBe('light-dark(#ff0000, #ff0000)');
+        });
+
+        it('leaves the value uncoloured when no rule matches', async () => {
+            const model = await buildSpecModel({ revenue_sum: 5 }, ['revenue']);
+
+            expect(
+                model.getSpec({
+                    conditionalFormatting: [
+                        {
+                            operator: FilterOperator.GREATER_THAN,
+                            value: 10,
+                            color: '#ff0000',
+                        },
+                    ],
+                })?.valueColor,
+            ).toBeUndefined();
         });
 
         it('handles a missing comparison value', async () => {

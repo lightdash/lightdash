@@ -10,6 +10,7 @@ const spec: BigNumberSpec = {
     label: 'Revenue',
     showLabel: true,
     flipColors: false,
+    valueColor: undefined,
     comparison: undefined,
 };
 

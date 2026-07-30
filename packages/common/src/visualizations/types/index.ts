@@ -4,6 +4,7 @@ import {
     TableCalculationType,
     type CompactOrAlias,
 } from '../../types/field';
+import { type FilterOperator } from '../../types/filter';
 import { type PivotSortAnchor } from '../../types/metricQuery';
 import { type PivotConfiguration } from '../../types/pivot';
 import { type RawResultRow } from '../../types/results';
@@ -123,6 +124,23 @@ export type VizPieChartDisplay = {
     isDonut?: boolean;
 };
 
+/** Operators a big number threshold can be expressed with. */
+export type VizBigNumberConditionalOperator =
+    | FilterOperator.EQUALS
+    | FilterOperator.NOT_EQUALS
+    | FilterOperator.LESS_THAN
+    | FilterOperator.LESS_THAN_OR_EQUAL
+    | FilterOperator.GREATER_THAN
+    | FilterOperator.GREATER_THAN_OR_EQUAL;
+
+export type VizBigNumberConditionalRule = {
+    operator: VizBigNumberConditionalOperator;
+    value: number;
+    /** Applied in the light colour scheme, and in dark when darkColor is unset. */
+    color: string;
+    darkColor?: string;
+};
+
 export type VizBigNumberDisplay = {
     /** Custom label rendered under the value. Falls back to the field name. */
     label?: string;
@@ -135,6 +153,8 @@ export type VizBigNumberDisplay = {
     comparisonLabel?: string;
     /** Colours an increase red and a decrease green. */
     flipColors?: boolean;
+    /** Colours the value; the first matching rule wins. */
+    conditionalFormatting?: VizBigNumberConditionalRule[];
 };
 
 export type VizTableDisplay = {

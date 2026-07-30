@@ -2,7 +2,9 @@ import {
     ChartKind,
     Compact,
     ComparisonFormatTypes,
+    FilterOperator,
     VizAggregationOptions,
+    type VizBigNumberConditionalRule,
     type VizBigNumberConfig,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -12,7 +14,9 @@ import {
     setChartOptionsAndConfig,
 } from './actions/commonChartActions';
 import {
+    addConditionalFormattingRule,
     bigNumberConfigSlice,
+    removeConditionalFormattingRule,
     setComparisonAggregation,
     setComparisonFormat,
     setComparisonLabel,
@@ -24,6 +28,7 @@ import {
     setStyle,
     setValueAggregation,
     setValueReference,
+    updateConditionalFormattingRule,
 } from './bigNumberSlice';
 
 const { reducer } = bigNumberConfigSlice;
@@ -207,6 +212,59 @@ describe('bigNumberConfigSlice', () => {
                     setComparisonAggregation(VizAggregationOptions.MIN),
                 ).fieldConfig?.y[1].aggregation,
             ).toBe(VizAggregationOptions.MIN);
+        });
+    });
+
+    describe('conditional formatting', () => {
+        const rule: VizBigNumberConditionalRule = {
+            operator: FilterOperator.GREATER_THAN,
+            value: 100,
+            color: '#00ff00',
+        };
+
+        it('adds, updates and removes rules in order', () => {
+            let state = reducer(undefined, addConditionalFormattingRule(rule));
+            state = reducer(
+                state,
+                addConditionalFormattingRule({ ...rule, value: 200 }),
+            );
+
+            expect(state.display?.conditionalFormatting).toHaveLength(2);
+
+            state = reducer(
+                state,
+                updateConditionalFormattingRule({
+                    index: 0,
+                    rule: { ...rule, color: '#ff0000' },
+                }),
+            );
+
+            expect(state.display?.conditionalFormatting?.[0].color).toBe(
+                '#ff0000',
+            );
+
+            state = reducer(state, removeConditionalFormattingRule(0));
+
+            expect(state.display?.conditionalFormatting).toEqual([
+                { ...rule, value: 200 },
+            ]);
+        });
+
+        it('ignores an update for a rule that is gone', () => {
+            const withRule = reducer(
+                undefined,
+                addConditionalFormattingRule(rule),
+            );
+
+            expect(
+                reducer(
+                    withRule,
+                    updateConditionalFormattingRule({
+                        index: 5,
+                        rule: { ...rule, color: '#ff0000' },
+                    }),
+                ).display?.conditionalFormatting,
+            ).toEqual([rule]);
         });
     });
 
