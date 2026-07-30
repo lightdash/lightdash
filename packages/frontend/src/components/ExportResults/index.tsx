@@ -64,6 +64,7 @@ export type ExportResultsProps = {
     chartName?: string;
     pivotConfig?: PivotConfig;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
@@ -83,6 +84,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         chartName,
         pivotConfig,
         conditionalFormattings,
+        showColumnTotals,
         hideLimitSelection = false,
         forceShowLimitSelection = false,
         renderDialogActions,
@@ -131,6 +133,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         conditionalFormattings: exportPivotedData
                             ? undefined
                             : conditionalFormattings,
+                        // Pivoted exports get their totals from `pivotConfig`
+                        showColumnTotals:
+                            exportPivotedData && pivotConfig
+                                ? undefined
+                                : showColumnTotals,
                     };
 
                     return scheduleDownloadQuery(

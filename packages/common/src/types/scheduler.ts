@@ -881,6 +881,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
     encodedJwt?: string;
 };
 

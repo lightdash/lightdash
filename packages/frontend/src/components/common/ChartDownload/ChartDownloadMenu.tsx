@@ -163,6 +163,10 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                 visualizationConfig.chartConfig
                                     .conditionalFormattings
                             }
+                            showColumnTotals={
+                                visualizationConfig.chartConfig
+                                    .showColumnCalculation
+                            }
                             getGsheetLink={
                                 getGsheetLink === undefined
                                     ? undefined
