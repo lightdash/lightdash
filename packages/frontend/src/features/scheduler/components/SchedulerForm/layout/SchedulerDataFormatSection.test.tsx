@@ -186,10 +186,14 @@ describe('SchedulerDataFormatSection - app formats', () => {
             await user.click(screen.getByRole('radio', { name: '.csv' }));
 
             expect(formRef.current?.values.format).toBe(SchedulerFormat.CSV);
-            expect(formRef.current?.values.options).toMatchObject({
-                formatted: Values.FORMATTED,
-                limit: Limit.TABLE,
-            });
+            // Full-object equality (not toMatchObject): a handler that drops
+            // customLimit/exportPivotedData/xlsxFileLayout etc. from the
+            // spread must fail this, not just the two fields the switch cares
+            // about. nonLegalCsvOptions only perturbs formatted/limit, so the
+            // normalized result is exactly DEFAULT_VALUES.options.
+            expect(formRef.current?.values.options).toEqual(
+                DEFAULT_VALUES.options,
+            );
         });
 
         it('sets options to the only backend-legal xlsx shape when switched to xlsx', async () => {
@@ -208,10 +212,9 @@ describe('SchedulerDataFormatSection - app formats', () => {
             await user.click(screen.getByRole('radio', { name: '.xlsx' }));
 
             expect(formRef.current?.values.format).toBe(SchedulerFormat.XLSX);
-            expect(formRef.current?.values.options).toMatchObject({
-                formatted: Values.FORMATTED,
-                limit: Limit.TABLE,
-            });
+            expect(formRef.current?.values.options).toEqual(
+                DEFAULT_VALUES.options,
+            );
         });
 
         it('restores the image-appropriate options when switched back to image', async () => {
@@ -231,12 +234,13 @@ describe('SchedulerDataFormatSection - app formats', () => {
             await user.click(screen.getByRole('radio', { name: 'Image' }));
 
             expect(formRef.current?.values.format).toBe(SchedulerFormat.IMAGE);
-            // Switching to csv/xlsx only ever touches `formatted`/`limit` —
-            // the image-specific fields must still hold the form's defaults.
-            expect(formRef.current?.values.options).toMatchObject({
-                withPdf: DEFAULT_VALUES.options.withPdf,
-                pagePerTab: DEFAULT_VALUES.options.pagePerTab,
-            });
+            // Switching format to Image is a no-op on `options` — the whole
+            // object must still be exactly what the csv switch normalized it
+            // to (DEFAULT_VALUES.options), not just the withPdf/pagePerTab
+            // fields the Image checkbox happens to read.
+            expect(formRef.current?.values.options).toEqual(
+                DEFAULT_VALUES.options,
+            );
         });
     });
 });
