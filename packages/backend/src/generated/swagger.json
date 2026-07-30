@@ -29246,6 +29246,28 @@
             "ApiAgentOnboardingRunResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingRun_"
             },
+            "ApiSuccess_AgentOnboardingRun-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingRun"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAgentOnboardingActiveRunResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingRun-or-null_"
+            },
             "AgentOnboardingFileContent": {
                 "allOf": [
                     {
@@ -51009,7 +51031,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.39.2",
+        "version": "1.40.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -61942,6 +61964,44 @@
                 },
                 "description": "Start a server-side agent onboarding run for a prepared project.\nReturns the existing run when one is already active for the project.",
                 "summary": "Start agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "get": {
+                "operationId": "getActiveAgentOnboardingRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingActiveRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the agent onboarding run that is currently queued or running for a\nproject, if any.",
+                "summary": "Get active agent onboarding run",
                 "security": [],
                 "parameters": [
                     {

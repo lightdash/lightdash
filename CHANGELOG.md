@@ -1,3 +1,20 @@
+# [1.40.0](https://github.com/lightdash/lightdash/compare/1.39.2...1.40.0) (2026-07-30)
+
+
+### Bug Fixes
+
+* **data-apps:** surface model default/required filters to the app generator ([#26531](https://github.com/lightdash/lightdash/issues/26531)) ([6c9c901](https://github.com/lightdash/lightdash/commit/6c9c9012ee13234443108d6dbe972d878fe7ef9f))
+* **frontend:** make onboarding tour card pop in light and dark mode ([#26521](https://github.com/lightdash/lightdash/issues/26521)) ([fb41fa0](https://github.com/lightdash/lightdash/commit/fb41fa0a3196cc6fa924f9ab299bef4dbf526d12)), closes [/linear.app/lightdash/issue/ZAP-729/improve-onboarding-tour-modal-visibility-in-light-and-dark-mode#agent-session-939afb06](https://github.com//linear.app/lightdash/issue/ZAP-729/improve-onboarding-tour-modal-visibility-in-light-and-dark-mode/issues/agent-session-939afb06) [/linear.app/lightdash/issue/ZAP-729/improve-onboarding-tour-modal-visibility-in-light-and-dark-mode#agent-session-939afb06](https://github.com//linear.app/lightdash/issue/ZAP-729/improve-onboarding-tour-modal-visibility-in-light-and-dark-mode/issues/agent-session-939afb06)
+* **query-sdk:** fail fast when query() gets a non-string model name ([#26534](https://github.com/lightdash/lightdash/issues/26534)) ([9e0f8fc](https://github.com/lightdash/lightdash/commit/9e0f8fc0a490d95b76a64c5406058e6ba9517853))
+* refresh feature flags when org context changes ([#26530](https://github.com/lightdash/lightdash/issues/26530)) ([5556b12](https://github.com/lightdash/lightdash/commit/5556b12945534dfc16ba65f84ccafb826c47a57d)), closes [/linear.app/lightdash/issue/PROD-9354/old-homepage-flashes-after-org-creation-in-new-onboarding#agent-session-22c088c9](https://github.com//linear.app/lightdash/issue/PROD-9354/old-homepage-flashes-after-org-creation-in-new-onboarding/issues/agent-session-22c088c9)
+* safely clean stale dev instance volumes ([#26535](https://github.com/lightdash/lightdash/issues/26535)) ([691f2ea](https://github.com/lightdash/lightdash/commit/691f2eade79b8cce59e241b83630220821c6a07a))
+
+
+### Features
+
+* **ai:** clearer settings entry point in AI router auto mode ([#26533](https://github.com/lightdash/lightdash/issues/26533)) ([b64c420](https://github.com/lightdash/lightdash/commit/b64c4202d163a691dd4b30df1c11b0278b1043f9))
+* show Resume on the semantic layer step card ([#26529](https://github.com/lightdash/lightdash/issues/26529)) ([46c0e10](https://github.com/lightdash/lightdash/commit/46c0e1053cbca0d1504f574ef27642079f8b512d)), closes [/linear.app/lightdash/issue/PROD-9353/show-resume-on-the-semantic-layer-step-card#agent-session-bdc8eb15](https://github.com//linear.app/lightdash/issue/PROD-9353/show-resume-on-the-semantic-layer-step-card/issues/agent-session-bdc8eb15)
+
 ## [1.39.2](https://github.com/lightdash/lightdash/compare/1.39.1...1.39.2) (2026-07-30)
 
 
