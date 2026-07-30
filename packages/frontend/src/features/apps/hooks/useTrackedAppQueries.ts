@@ -1,5 +1,5 @@
 import { useLocalStorage } from '@mantine-8/hooks';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { QueryEvent } from './useAppSdkBridge';
 
 const PERSIST_LOGS_STORAGE_KEY = 'data-apps:persist-logs';
@@ -14,6 +14,18 @@ export type UseTrackedAppQueriesResult = {
 };
 
 /**
+ * Count of `ready` entries beyond a previously-recorded boundary. Used to
+ * scope a live query count (e.g. the scheduler's app csv/xlsx gate) to "since
+ * the last version switch" while the full list — kept around for "Persist" —
+ * still carries earlier versions' entries.
+ */
+export const countReadyQueriesSinceBoundary = (
+    queries: QueryEvent[],
+    boundary: number,
+): number =>
+    Math.max(0, queries.filter((q) => q.status === 'ready').length - boundary);
+
+/**
  * Tracks metric queries emitted by the app preview iframe SDK bridge.
  *
  * Owns the merge logic that turns POST initiations + poll results into a
@@ -22,11 +34,17 @@ export type UseTrackedAppQueriesResult = {
  *
  * Shared between the builder (`AppGenerate`) where the queries panel is
  * always-on, and the preview (`AppPreviewTest`) where it's opt-in via a menu.
- * Preview uses only `queries`, `handleQueryEvent`, and `clearQueries` — the
- * persist/interrupt machinery is builder-specific (preview iframe never
- * reloads mid-session) but is harmless to expose.
+ * Preview uses only `queries`, `handleQueryEvent`, `clearQueries`, and
+ * `resetKey` — the persist/interrupt machinery is builder-specific (the
+ * builder handles its own version-switch reset because it must choose
+ * between clearing and interrupting based on "Persist").
+ *
+ * @param resetKey - When this changes (e.g. the previewed app version),
+ * queries are cleared automatically. Omit to manage resets manually.
  */
-export const useTrackedAppQueries = (): UseTrackedAppQueriesResult => {
+export const useTrackedAppQueries = (
+    resetKey?: string | number,
+): UseTrackedAppQueriesResult => {
     const [queries, setQueries] = useState<QueryEvent[]>([]);
     // Mirrors Chrome DevTools "Preserve log". When off (default), the queries
     // panel is cleared on iframe refresh and on new-version load — fresh
@@ -48,6 +66,15 @@ export const useTrackedAppQueries = (): UseTrackedAppQueriesResult => {
     const clearQueries = useCallback(() => {
         setQueries([]);
     }, []);
+
+    // Clears on every resetKey change but not on mount, so a caller passing
+    // e.g. the previewed version never loses queries fired during initial load.
+    const previousResetKeyRef = useRef(resetKey);
+    useEffect(() => {
+        if (previousResetKeyRef.current === resetKey) return;
+        previousResetKeyRef.current = resetKey;
+        clearQueries();
+    }, [resetKey, clearQueries]);
 
     // Move pending/running entries into a terminal `error` state. Used when
     // the preview iframe reloads with persistLogs on — the iframe that would

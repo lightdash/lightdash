@@ -1,7 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { QueryEvent } from './useAppSdkBridge';
-import { useTrackedAppQueries } from './useTrackedAppQueries';
+import {
+    countReadyQueriesSinceBoundary,
+    useTrackedAppQueries,
+} from './useTrackedAppQueries';
 
 const QUERY_UUID = 'q-shared-uuid';
 const POST_ID_A = 'post-a';
@@ -105,5 +108,96 @@ describe('useTrackedAppQueries', () => {
 
         // No blank ghost rows left over from the displaced-close signal.
         expect(result.current.queries).toHaveLength(1);
+    });
+
+    describe('resetKey', () => {
+        it('does not clear on mount', () => {
+            const { result } = renderHook(() => useTrackedAppQueries(1));
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: 'q1',
+                        status: 'ready',
+                        queryUuid: 'q1-uuid',
+                    }),
+                );
+            });
+
+            expect(result.current.queries).toHaveLength(1);
+        });
+
+        it('clears queries when the reset key changes (e.g. app version navigation)', () => {
+            const { result, rerender } = renderHook(
+                (resetKey: number | undefined) =>
+                    useTrackedAppQueries(resetKey),
+                { initialProps: 1 },
+            );
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: 'q1',
+                        status: 'ready',
+                        queryUuid: 'q1-uuid',
+                    }),
+                );
+            });
+            expect(result.current.queries).toHaveLength(1);
+
+            rerender(2);
+
+            expect(result.current.queries).toHaveLength(0);
+        });
+
+        it('does not clear queries when the reset key is unchanged across a rerender', () => {
+            const { result, rerender } = renderHook(
+                (resetKey: number | undefined) =>
+                    useTrackedAppQueries(resetKey),
+                { initialProps: 1 },
+            );
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: 'q1',
+                        status: 'ready',
+                        queryUuid: 'q1-uuid',
+                    }),
+                );
+            });
+
+            rerender(1);
+
+            expect(result.current.queries).toHaveLength(1);
+        });
+    });
+});
+
+describe('countReadyQueriesSinceBoundary', () => {
+    const readyQuery = (id: string) =>
+        baseEvent({ id, status: 'ready', queryUuid: `${id}-uuid` });
+    const pendingQuery = (id: string) => baseEvent({ id, status: 'pending' });
+
+    it('counts all ready queries when the boundary is zero', () => {
+        expect(
+            countReadyQueriesSinceBoundary(
+                [readyQuery('a'), readyQuery('b'), pendingQuery('c')],
+                0,
+            ),
+        ).toBe(2);
+    });
+
+    it('subtracts the boundary from the ready count', () => {
+        expect(
+            countReadyQueriesSinceBoundary(
+                [readyQuery('a'), readyQuery('b'), readyQuery('c')],
+                2,
+            ),
+        ).toBe(1);
+    });
+
+    it('never goes negative', () => {
+        expect(countReadyQueriesSinceBoundary([readyQuery('a')], 5)).toBe(0);
     });
 });

@@ -109,8 +109,12 @@ export default function AppPreviewTest() {
     // Query tracking from the preview iframe. The panel is opt-in (hidden by
     // default in preview because most viewers aren't technical), but we wire
     // up the SDK bridge callback unconditionally so queries that run before
-    // the user opens the panel are still captured.
-    const { queries, handleQueryEvent, clearQueries } = useTrackedAppQueries();
+    // the user opens the panel are still captured. `version` as the reset key
+    // clears stale entries on version navigation — this component re-renders
+    // rather than remounting, so without it a previous version's queries
+    // would survive and corrupt the live capturedQueryCount gate.
+    const { queries, handleQueryEvent, clearQueries } =
+        useTrackedAppQueries(version);
     const {
         externalRequests,
         handleExternalRequestEvent,
