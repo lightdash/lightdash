@@ -476,7 +476,9 @@ sync_process_exists() {
 
     pid="$(cat "$SYNC_PID_FILE" 2>/dev/null)" || return 1
     [[ "$pid" =~ ^[0-9]+$ ]] || return 1
-    ps -p "$pid" -o comm= 2>/dev/null | grep -q okteto
+    # The recorded pid is the script(1) pty wrapper, which exits when okteto
+    # does; older pidfiles may point at okteto directly
+    ps -p "$pid" -o comm= 2>/dev/null | grep -Eq 'script|okteto'
 }
 
 sync_is_ready() {
@@ -585,7 +587,7 @@ debug_forward_port() {
 }
 
 start_sync_process() {
-    local debug_port up_command
+    local debug_port up_command pty_command
 
     mkdir -p "$RUN_DIR"
     : >"$LOG_FILE"
@@ -603,13 +605,21 @@ start_sync_process() {
         "SITE_URL=$PUBLIC_URL" \
         "DEV_WARM_IMAGE=$ACTIVE_WARM_IMAGE"
 
+    # okteto up requires a terminal; script(1) supplies a pty without tmux.
+    # util-linux script (Linux) and BSD script (macOS) take different args.
+    if script --version >/dev/null 2>&1; then
+        printf -v pty_command 'exec script -qefc %q /dev/null' "$up_command"
+    else
+        printf -v pty_command 'exec script -q /dev/null bash -c %q' "$up_command"
+    fi
+
     echo "Starting Okteto file synchronization..."
     # setsid detaches the sync from the hook's process group so it survives
     # the SessionStart hook; unavailable on macOS, where nohup+disown suffices
     if command -v setsid >/dev/null 2>&1; then
-        setsid nohup bash -c "$up_command" >>"$LOG_FILE" 2>&1 </dev/null &
+        setsid nohup bash -c "$pty_command" >>"$LOG_FILE" 2>&1 </dev/null &
     else
-        nohup bash -c "$up_command" >>"$LOG_FILE" 2>&1 </dev/null &
+        nohup bash -c "$pty_command" >>"$LOG_FILE" 2>&1 </dev/null &
     fi
     printf '%s\n' "$!" >"$SYNC_PID_FILE"
     disown

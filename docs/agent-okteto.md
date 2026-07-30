@@ -115,7 +115,9 @@ remain available to later shell commands.
 
 One hook invocation copies Claude's `session_id` into
 `LIGHTDASH_AGENT_SESSION_ID` through `CLAUDE_ENV_FILE`, claims or reuses a
-namespace, starts `okteto up` as a detached background process, and waits until synchronization and
+namespace, starts `okteto up` as a detached background process under a
+`script(1)` pseudo-terminal (`okteto up` requires a terminal), and waits until
+synchronization and
 application health are stable. Its `READY:` output is added to Claude's
 SessionStart context. `BASH_MAX_TIMEOUT_MS` does not control hook execution;
 the timeout is set directly on the hook.
