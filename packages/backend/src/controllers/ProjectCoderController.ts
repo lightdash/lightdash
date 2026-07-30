@@ -10,6 +10,7 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentSlugUpdateResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
     type ApiErrorPayload,
@@ -550,6 +551,42 @@ export class ProjectCoderController extends BaseController {
                     spaceNames: chart.spaceNames,
                 },
             ),
+        );
+    }
+
+    /**
+     * Rename a content slug and its references
+     * @summary Update a content slug
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/slugs')
+    @OperationId('updateCodeContentSlug')
+    async updateContentSlug(
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            contentType: ContentAsCodeType;
+            oldSlug: string;
+            newSlug: string;
+            dryRun?: boolean;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiContentSlugUpdateResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .updateContentSlug(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body.contentType,
+                    body.oldSlug,
+                    body.newSlug,
+                    body.dryRun ?? false,
+                ),
         );
     }
 

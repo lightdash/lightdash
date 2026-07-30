@@ -45,6 +45,7 @@ import { renameProjectHandler } from './handlers/renameProject';
 import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
+import { slugUpdateHandler } from './handlers/slugUpdate';
 import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
@@ -1417,6 +1418,35 @@ program
     .option('--list', 'List all charts and dashboards that are renamed', false)
 
     .action(renameHandler);
+
+program
+    .command('slug-update')
+    .description('Rename a content slug and update its local references')
+    .option('--verbose', undefined, false)
+    .option(
+        '-p, --project <project uuid>',
+        'specify a project UUID',
+        parseProjectArgument,
+        undefined,
+    )
+    .option(
+        '--path <path>',
+        'specify the local content-as-code path to update',
+        undefined,
+    )
+    .requiredOption(
+        '-t, --type <type>',
+        'content type to rename (currently: chart)',
+    )
+    .requiredOption('--from <slug>', 'current content slug')
+    .requiredOption('--to <slug>', 'new content slug')
+    .option(
+        '--dry-run',
+        'show slug and file changes without applying them',
+        false,
+    )
+    .option('-y, --assume-yes', 'apply without confirmation', false)
+    .action(slugUpdateHandler);
 
 program
     .command('generate-exposures')

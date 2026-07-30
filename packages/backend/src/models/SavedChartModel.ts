@@ -50,6 +50,7 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    type ContentSlugRename,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -129,6 +130,50 @@ type DbSavedChartDetails = {
     dashboard_uuid: string | null;
     timezone: TimezoneSetting;
     color_palette_uuid: string | null;
+};
+
+type ChartSlugRenameCandidate = Pick<
+    DbSavedChart,
+    'saved_query_uuid' | 'name' | 'slug' | 'deleted_at'
+>;
+
+export const getChartSlugRenamePlan = (
+    charts: ChartSlugRenameCandidate[],
+    oldSlug: string,
+    newSlug: string,
+): ContentSlugRename[] => {
+    if (oldSlug === newSlug) {
+        throw new ParameterError(`Chart already has the slug "${oldSlug}"`);
+    }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(newSlug) || newSlug.length > 255) {
+        throw new ParameterError(
+            `Invalid chart slug "${newSlug}". Slugs must contain only lowercase letters, numbers, and single hyphens, up to 255 characters`,
+        );
+    }
+
+    const activeChartsBySlug = new Map(
+        charts
+            .filter((chart) => chart.deleted_at === null)
+            .map((chart) => [chart.slug, chart]),
+    );
+    const chart = activeChartsBySlug.get(oldSlug);
+    if (chart === undefined) {
+        throw new NotFoundError(
+            `Active chart with slug "${oldSlug}" was not found`,
+        );
+    }
+    if (charts.some((candidate) => candidate.slug === newSlug)) {
+        throw new ConflictError(`Chart slug "${newSlug}" is already in use`);
+    }
+
+    return [
+        {
+            contentUuid: chart.saved_query_uuid,
+            name: chart.name,
+            oldSlug,
+            newSlug,
+        },
+    ];
 };
 
 const getSavedChartPivotConfig = (
@@ -824,6 +869,44 @@ export class SavedChartModel {
             data,
         );
         return this.get(newSavedChartUuid);
+    }
+
+    async updateChartSlug(
+        projectUuid: string,
+        oldSlug: string,
+        newSlug: string,
+        dryRun: boolean,
+    ): Promise<ContentSlugRename[]> {
+        return this.database.transaction(async (trx) => {
+            await acquireProjectSlugLock(trx, projectUuid, 'update-chart-slug');
+
+            const charts = await trx(SavedChartsTableName)
+                .select<
+                    Array<
+                        Pick<
+                            DbSavedChart,
+                            'saved_query_uuid' | 'name' | 'slug' | 'deleted_at'
+                        >
+                    >
+                >(['saved_query_uuid', 'name', 'slug', 'deleted_at'])
+                .where('project_uuid', projectUuid)
+                .orderBy('slug', 'asc')
+                .forUpdate();
+
+            const changes = getChartSlugRenamePlan(charts, oldSlug, newSlug);
+
+            if (!dryRun && changes.length > 0) {
+                for (const change of changes) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await trx(SavedChartsTableName)
+                        .update({ slug: change.newSlug })
+                        .where('project_uuid', projectUuid)
+                        .where('saved_query_uuid', change.contentUuid);
+                }
+            }
+
+            return changes;
+        });
     }
 
     async createVersion(

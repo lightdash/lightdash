@@ -58,6 +58,7 @@ import {
     isSlackTarget,
     NotFoundError,
     NotificationFrequency,
+    NotSupportedError,
     OrganizationMemberRole,
     ParameterError,
     Project,
@@ -2860,6 +2861,64 @@ export class CoderService extends BaseService {
         );
 
         return promotionChanges;
+    }
+
+    async updateContentSlug(
+        user: SessionUser,
+        projectUuid: string,
+        contentType: ContentAsCodeType,
+        oldSlug: string,
+        newSlug: string,
+        dryRun: boolean,
+    ) {
+        if (contentType !== ContentAsCodeType.CHART) {
+            throw new NotSupportedError(
+                `Slug updates for content type "${contentType}" are not supported yet`,
+            );
+        }
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        const { canUploadAnyContent } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug: oldSlug,
+            });
+
+        const preview = await this.savedChartModel.updateChartSlug(
+            projectUuid,
+            oldSlug,
+            newSlug,
+            true,
+        );
+        if (!canUploadAnyContent && preview.length > 0) {
+            const charts = await this.savedChartModel.find({
+                projectUuid,
+                slugs: preview.map((change) => change.oldSlug),
+                excludeChartsSavedInDashboard: false,
+                includeOrphanChartsWithinDashboard: true,
+            });
+            const spaceUuids = charts.map((chart) => chart.spaceUuid);
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'SavedChart',
+                spaceUuids,
+                errorMessage: `You don't have access to update chart "${oldSlug}"`,
+            });
+        }
+
+        return {
+            changes: dryRun
+                ? preview
+                : await this.savedChartModel.updateChartSlug(
+                      projectUuid,
+                      oldSlug,
+                      newSlug,
+                      false,
+                  ),
+        };
     }
 
     async upsertSqlChart(
