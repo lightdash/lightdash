@@ -226,6 +226,7 @@ const FiltersCard: FC = memo(() => {
         customDimensions,
         additionalMetrics,
         tableCalculations,
+        includeHiddenFields: false,
     });
 
     // Pre-compute filter rule labels for tooltip

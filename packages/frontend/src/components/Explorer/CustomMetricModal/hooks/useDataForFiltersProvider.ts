@@ -31,6 +31,8 @@ export const useDataForFiltersProvider = () => {
         customDimensions,
         additionalMetrics,
         tableCalculations,
+        // Metric filters can target hidden dimensions, so they must resolve here
+        includeHiddenFields: true,
     });
 
     return {

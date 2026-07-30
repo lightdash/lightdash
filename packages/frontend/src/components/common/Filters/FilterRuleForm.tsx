@@ -6,6 +6,7 @@ import {
     getFilterTypeFromItem,
     getItemId,
     isDateItem,
+    isField,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
@@ -28,6 +29,9 @@ type Props = {
     onDelete: () => void;
     onConvertToGroup?: () => void;
 };
+
+const isHiddenField = (field: FilterableField) =>
+    isField(field) && field.hidden;
 
 const FilterRuleForm: FC<Props> = memo(
     ({
@@ -92,10 +96,16 @@ const FilterRuleForm: FC<Props> = memo(
             : '';
 
         const availableFields = useMemo(() => {
-            if (!isRequired) return fields;
-            // For required filters, restrict to same-type sub-dimensions
             const baseFieldId = filterRule.target.fieldId;
-            return fields.filter(
+            // Hidden fields aren't offered as options, but the rule's own field
+            // stays selectable so filters on hidden fields still render
+            const selectableFields = fields.filter(
+                (field) =>
+                    !isHiddenField(field) || getItemId(field) === baseFieldId,
+            );
+            if (!isRequired) return selectableFields;
+            // For required filters, restrict to same-type sub-dimensions
+            return selectableFields.filter(
                 (field) =>
                     getItemId(field).startsWith(baseFieldId) &&
                     getFilterTypeFromItem(field) === filterType,
