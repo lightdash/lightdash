@@ -470,6 +470,10 @@ import {
     ExternalConnectionsTableName,
 } from '../ee/database/entities/externalConnections';
 import {
+    HomepageRecommendedActionSkipsTable,
+    HomepageRecommendedActionSkipsTableName,
+} from '../ee/database/entities/homepageRecommendedActionSkips';
+import {
     ManagedAgentActionsTable,
     ManagedAgentActionsTableName,
     ManagedAgentRunsTable,
@@ -623,6 +627,7 @@ declare module 'knex/types/tables' {
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiWritebackThreadTableName]: AiWritebackThreadTable;
         [AgentOnboardingRunsTableName]: AgentOnboardingRunsTable;
+        [HomepageRecommendedActionSkipsTableName]: HomepageRecommendedActionSkipsTable;
         [ProjectCiStatusTableName]: ProjectCiStatusTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;

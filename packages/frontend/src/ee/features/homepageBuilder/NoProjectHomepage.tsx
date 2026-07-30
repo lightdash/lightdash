@@ -90,10 +90,7 @@ const NoProjectHomepage: FC = () => {
                             </Stack>
                         )}
                         {actions.hasPendingActions && (
-                            <RecommendedActionsChecklist
-                                projectUuid={null}
-                                actions={actions}
-                            />
+                            <RecommendedActionsChecklist actions={actions} />
                         )}
                     </Stack>
                 </Box>

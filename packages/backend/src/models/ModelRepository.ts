@@ -150,6 +150,7 @@ export type ModelManifest = {
     /** An implementation signature for these models are not available at this stage */
     aiAgentMemoryModel: unknown;
     aiAgentModel: unknown;
+    homepageRecommendedActionSkipsModel: unknown;
     projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
     aiWritebackThreadModel: unknown;
@@ -819,6 +820,10 @@ export class ModelRepository
 
     public getProjectHomepageModel<ModelImplT>(): ModelImplT {
         return this.getModel('projectHomepageModel');
+    }
+
+    public getHomepageRecommendedActionSkipsModel<ModelImplT>(): ModelImplT {
+        return this.getModel('homepageRecommendedActionSkipsModel');
     }
 
     public getMcpToolCallModel<ModelImplT>(): ModelImplT {

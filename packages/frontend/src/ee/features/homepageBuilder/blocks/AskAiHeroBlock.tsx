@@ -41,12 +41,7 @@ export const AskAiHero: FC<{
             <Box w="100%">
                 <DayOneAskInput projectUuid={projectUuid} preview={preview} />
             </Box>
-            {showChecklist && (
-                <RecommendedActionsChecklist
-                    projectUuid={projectUuid}
-                    actions={actions}
-                />
-            )}
+            {showChecklist && <RecommendedActionsChecklist actions={actions} />}
         </Stack>
     );
 };
