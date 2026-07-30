@@ -141,6 +141,34 @@ describe('PostgresWarehouseClient', () => {
         const warehouse = new PostgresWarehouseClient(credentials);
         expect(await warehouse.getCatalog([])).toEqual({});
     });
+
+    it('binds catalog filter values as query parameters', async () => {
+        const warehouse = new PostgresWarehouseClient(credentials);
+        const database =
+            "missing') OR (SELECT CAST(current_database() AS integer)=0) OR ('x'='x";
+        const runQuery = vi
+            .spyOn(warehouse, 'runQuery')
+            .mockResolvedValueOnce({
+                rows: [{ version: 'PostgreSQL 15.4' }],
+                fields: {},
+            })
+            .mockResolvedValueOnce({ rows: [], fields: {} });
+
+        await warehouse.getCatalog([
+            { database, schema: 'public', table: 'orders' },
+        ]);
+
+        const catalogQuery = runQuery.mock.calls[1][0];
+        expect(catalogQuery).toContain('table_catalog IN ($1)');
+        expect(catalogQuery).toContain('table_schema IN ($2)');
+        expect(catalogQuery).toContain('table_name IN ($3)');
+        expect(catalogQuery).not.toContain(database);
+        expect(runQuery.mock.calls[1][3]).toEqual([
+            database,
+            'public',
+            'orders',
+        ]);
+    });
 });
 
 describe('PostgresWarehouseClient statement timeout', () => {

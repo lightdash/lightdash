@@ -226,6 +226,13 @@ export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+type CatalogQueryFilters = {
+    databaseFilters: string[];
+    schemaFilters: string[];
+    tableFilters: string[];
+    values: string[] | undefined;
+};
+
 export class PostgresClient<
     T extends CreatePostgresLikeCredentials,
 > extends WarehouseBaseClient<T> {
@@ -234,6 +241,19 @@ export class PostgresClient<
     constructor(credentials: T, config: pg.PoolConfig) {
         super(credentials, new PostgresSqlBuilder(credentials.startOfWeek));
         this.config = config;
+    }
+
+    protected getCatalogQueryFilters(
+        databases: Set<string>,
+        schemas: Set<string>,
+        tables: Set<string>,
+    ): CatalogQueryFilters {
+        return {
+            databaseFilters: [...databases].map((value) => `'${value}'`),
+            schemaFilters: [...schemas].map((value) => `'${value}'`),
+            tableFilters: [...tables].map((value) => `'${value}'`),
+            values: undefined,
+        };
     }
 
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
@@ -529,9 +549,9 @@ export class PostgresClient<
             tables: Set<string>;
         }>(
             (acc, { database, schema, table }) => ({
-                databases: acc.databases.add(`'${database}'`),
-                schemas: acc.schemas.add(`'${schema}'`),
-                tables: acc.tables.add(`'${table}'`),
+                databases: acc.databases.add(database),
+                schemas: acc.schemas.add(schema),
+                tables: acc.tables.add(table),
             }),
             {
                 databases: new Set(),
@@ -539,7 +559,13 @@ export class PostgresClient<
                 tables: new Set(),
             },
         );
-        if (databases.size <= 0 || schemas.size <= 0 || tables.size <= 0) {
+        const { databaseFilters, schemaFilters, tableFilters, values } =
+            this.getCatalogQueryFilters(databases, schemas, tables);
+        if (
+            databaseFilters.length <= 0 ||
+            schemaFilters.length <= 0 ||
+            tableFilters.length <= 0
+        ) {
             return {};
         }
 
@@ -559,9 +585,9 @@ export class PostgresClient<
                    column_name,
                    data_type
             FROM information_schema.columns
-            WHERE table_catalog IN (${Array.from(databases)})
-              AND table_schema IN (${Array.from(schemas)})
-              AND table_name IN (${Array.from(tables)})
+            WHERE table_catalog IN (${databaseFilters})
+              AND table_schema IN (${schemaFilters})
+              AND table_name IN (${tableFilters})
             ${
                 supportsMatviews
                     ? `
@@ -578,15 +604,18 @@ export class PostgresClient<
             JOIN pg_catalog.pg_namespace n ON c.relnamespace = n.oid
             JOIN pg_catalog.pg_matviews mv ON n.nspname = mv.schemaname AND c.relname = mv.matviewname
             WHERE c.relkind = 'm'
-            AND current_database() IN (${Array.from(databases)})
-            AND n.nspname IN (${Array.from(schemas)})
-            AND c.relname IN (${Array.from(tables)})
+            AND current_database() IN (${databaseFilters})
+            AND n.nspname IN (${schemaFilters})
+            AND c.relname IN (${tableFilters})
             AND a.attnum > 0
             AND NOT a.attisdropped`
                     : ''
             }`;
 
-        const { rows } = await this.runQuery(query);
+        const { rows } =
+            values === undefined
+                ? await this.runQuery(query)
+                : await this.runQuery(query, {}, undefined, values);
         const catalog = rows.reduce(
             (
                 acc,
@@ -785,6 +814,25 @@ const getSSLConfigFromMode = ({
 };
 
 export class PostgresWarehouseClient extends PostgresClient<CreatePostgresCredentials> {
+    protected getCatalogQueryFilters(
+        databases: Set<string>,
+        schemas: Set<string>,
+        tables: Set<string>,
+    ): CatalogQueryFilters {
+        const values = [...databases, ...schemas, ...tables];
+
+        return {
+            databaseFilters: [...databases].map((_, index) => `$${index + 1}`),
+            schemaFilters: [...schemas].map(
+                (_, index) => `$${databases.size + index + 1}`,
+            ),
+            tableFilters: [...tables].map(
+                (_, index) => `$${databases.size + schemas.size + index + 1}`,
+            ),
+            values,
+        };
+    }
+
     constructor(credentials: CreatePostgresCredentials) {
         const ssl = getSSLConfigFromMode(credentials);
         super(credentials, {
