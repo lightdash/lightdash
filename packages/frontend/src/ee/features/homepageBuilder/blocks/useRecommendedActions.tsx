@@ -20,10 +20,14 @@ import { useProjects } from '../../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { isPlaygroundProvisioningSource } from '../../../../utils/playgroundProject';
+import { useActiveAgentOnboardingRun } from '../../agentOnboarding/hooks/useAgentOnboarding';
+import { getAgentOnboardingRunUrl } from '../../agentOnboarding/utils';
 import {
     RECOMMENDED_ACTION_KEYS,
     readSkippedActions,
 } from './recommendedActionDefaults';
+
+const DEFAULT_CTA_LABEL = 'Set up';
 
 export type ActionStatus = {
     isVisible: boolean;
@@ -32,6 +36,7 @@ export type ActionStatus = {
     /** Replaces the default icon once the action is complete */
     doneIcon: ReactNode | null;
     url: string;
+    ctaLabel: string;
 };
 
 const useActionStatuses = (
@@ -59,6 +64,14 @@ const useActionStatuses = (
         newOnboardingFlag.data?.enabled === true &&
         codingAgentOnboardingFlag.data?.enabled === true;
 
+    // An agent run left mid-flight is resumable, so the step points at the run
+    // instead of restarting the flow
+    const activeAgentRunQuery = useActiveAgentOnboardingRun(
+        projectUuid ?? undefined,
+        { enabled: hasAgentSemanticLayerEntry },
+    );
+    const activeAgentRun = activeAgentRunQuery.data ?? null;
+
     const hasGithub = !!health.data?.hasGithub;
     const hasGitlab = !!health.data?.hasGitlab;
     const gitlabQuery = useGitlabRepositories({
@@ -76,6 +89,7 @@ const useActionStatuses = (
         projectsQuery.isInitialLoading ||
         (hasGithub && githubConfigQuery.isInitialLoading) ||
         (hasGitlab && gitlabQuery.isInitialLoading) ||
+        activeAgentRunQuery.isInitialLoading ||
         (!!health.data?.hasSlack && slackQuery.isInitialLoading);
 
     const dbtConnection = project?.dbtConnection;
@@ -113,6 +127,7 @@ const useActionStatuses = (
                     ? getWarehouseIcon(warehouseType, 'sm')
                     : null,
                 url: '/onboarding/data-source',
+                ctaLabel: DEFAULT_CTA_LABEL,
             },
             'add-semantic-layer': {
                 isVisible: !!projectUuid,
@@ -121,9 +136,15 @@ const useActionStatuses = (
                     ? DbtProjectTypeLabels[dbtConnection.type]
                     : null,
                 doneIcon: null,
-                url: hasAgentSemanticLayerEntry
-                    ? `/projects/${projectUuid}/onboarding/agent`
-                    : `/generalSettings/projectManagement/${projectUuid}/settings`,
+                url: activeAgentRun
+                    ? getAgentOnboardingRunUrl(
+                          activeAgentRun.agentOnboardingRunUuid,
+                          activeAgentRun.projectUuid,
+                      )
+                    : hasAgentSemanticLayerEntry
+                      ? `/projects/${projectUuid}/onboarding/agent`
+                      : `/generalSettings/projectManagement/${projectUuid}/settings`,
+                ctaLabel: activeAgentRun ? 'Resume' : DEFAULT_CTA_LABEL,
             },
             'connect-source-control': {
                 isVisible: hasGithub || hasGitlab,
@@ -135,6 +156,7 @@ const useActionStatuses = (
                       : null,
                 doneIcon: null,
                 url: '/generalSettings/integrations',
+                ctaLabel: DEFAULT_CTA_LABEL,
             },
             'connect-slack': {
                 isVisible: !!health.data?.hasSlack,
@@ -142,6 +164,7 @@ const useActionStatuses = (
                 annotation: slack?.slackTeamName ?? 'Connected',
                 doneIcon: null,
                 url: '/generalSettings/integrations',
+                ctaLabel: DEFAULT_CTA_LABEL,
             },
         },
     };

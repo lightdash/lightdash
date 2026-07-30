@@ -3,6 +3,7 @@ import {
     type AgentOnboardingFile,
     type AgentOnboardingFileContent,
     type AgentOnboardingRun,
+    type ApiAgentOnboardingActiveRunResponse,
     type ApiAgentOnboardingFileResponse,
     type ApiAgentOnboardingRunResponse,
     type ApiError,
@@ -33,6 +34,13 @@ const getAgentOnboardingRefetchInterval = (
 const getRun = async (projectUuid: string, runUuid: string) =>
     lightdashApi<ApiAgentOnboardingRunResponse['results']>({
         url: `/ee/projects/${projectUuid}/agent-onboarding/${runUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const getActiveRun = async (projectUuid: string) =>
+    lightdashApi<ApiAgentOnboardingActiveRunResponse['results']>({
+        url: `/ee/projects/${projectUuid}/agent-onboarding`,
         method: 'GET',
         body: undefined,
     });
@@ -71,6 +79,19 @@ export const useAgentOnboardingRun = (
         enabled: !!projectUuid && !!runUuid && (options?.enabled ?? true),
         refetchInterval: getAgentOnboardingRefetchInterval,
         refetchIntervalInBackground: true,
+    });
+
+export const useActiveAgentOnboardingRun = (
+    projectUuid: string | undefined,
+    options?: Pick<
+        UseQueryOptions<AgentOnboardingRun | null, ApiError>,
+        'enabled'
+    >,
+) =>
+    useQuery<AgentOnboardingRun | null, ApiError>({
+        queryKey: ['agent-onboarding-active-run', projectUuid],
+        queryFn: () => getActiveRun(projectUuid!),
+        enabled: !!projectUuid && (options?.enabled ?? true),
     });
 
 export const useAgentOnboardingFile = (

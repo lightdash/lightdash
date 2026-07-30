@@ -12,6 +12,7 @@ import { useProject } from '../../../../hooks/useProject';
 import { useProjects } from '../../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
+import { useActiveAgentOnboardingRun } from '../../agentOnboarding/hooks/useAgentOnboarding';
 import { useRecommendedActions } from './useRecommendedActions';
 
 vi.mock(
@@ -26,6 +27,7 @@ vi.mock('../../../../hooks/useProject');
 vi.mock('../../../../hooks/useProjects');
 vi.mock('../../../../providers/App/useApp');
 vi.mock('../../../../hooks/useServerOrClientFeatureFlag');
+vi.mock('../../agentOnboarding/hooks/useAgentOnboarding');
 
 const organizationProject = (
     overrides: Partial<OrganizationProject>,
@@ -73,6 +75,9 @@ describe('useRecommendedActions', () => {
         vi.mocked(useServerFeatureFlag).mockReturnValue({
             data: undefined,
         } as ReturnType<typeof useServerFeatureFlag>);
+        vi.mocked(useActiveAgentOnboardingRun).mockReturnValue({
+            data: null,
+        } as ReturnType<typeof useActiveAgentOnboardingRun>);
         localStorage.clear();
     });
 
@@ -251,6 +256,35 @@ describe('useRecommendedActions', () => {
             expect(
                 result.current.statuses['add-semantic-layer'].url,
             ).toStrictEqual('/projects/project-uuid/onboarding/agent');
+            expect(
+                result.current.statuses['add-semantic-layer'].ctaLabel,
+            ).toStrictEqual('Set up');
+        });
+
+        it('resumes an in-flight agent run instead of restarting the flow', () => {
+            vi.mocked(useServerFeatureFlag).mockImplementation(
+                () =>
+                    ({
+                        data: { enabled: true },
+                    }) as ReturnType<typeof useServerFeatureFlag>,
+            );
+            vi.mocked(useActiveAgentOnboardingRun).mockReturnValue({
+                data: {
+                    agentOnboardingRunUuid: 'run-uuid',
+                    projectUuid: 'project-uuid',
+                },
+            } as ReturnType<typeof useActiveAgentOnboardingRun>);
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
+            );
+
+            expect(
+                result.current.statuses['add-semantic-layer'].url,
+            ).toStrictEqual('/projects/project-uuid/onboarding/runs/run-uuid');
+            expect(
+                result.current.statuses['add-semantic-layer'].ctaLabel,
+            ).toStrictEqual('Resume');
         });
 
         it('keeps the settings link when coding-agent onboarding is disabled', () => {

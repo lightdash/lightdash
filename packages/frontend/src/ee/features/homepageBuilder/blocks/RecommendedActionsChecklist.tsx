@@ -180,7 +180,7 @@ const ActionRow: FC<{
                             })
                         }
                     >
-                        Set up
+                        {status.ctaLabel}
                     </Button>
                     {SKIPPABLE_ACTION_KEYS.includes(actionKey) && (
                         <Tooltip label="Skip this step" withinPortal>
