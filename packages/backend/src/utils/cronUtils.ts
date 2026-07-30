@@ -71,12 +71,11 @@ export function getAdjustedCronByOffset(
         fields.hour[0] = offsetHour.hour;
     }
 
-    if (fields.dayOfWeek.length === 1) {
-        // Adjust day of the week based on hour overflow which crossed full day thresholds
-        fields.dayOfWeek[0] = getOffsetWeekDay(
-            fields.dayOfWeek[0],
-            dayOverflow,
-        );
+    if (fields.dayOfWeek.length < 7) {
+        // Adjust days of the week based on hour overflow which crossed full day thresholds
+        fields.dayOfWeek = fields.dayOfWeek
+            .map((dayOfWeek) => getOffsetWeekDay(dayOfWeek, dayOverflow))
+            .sort((a, b) => a - b);
     }
 
     return arrayToString([
