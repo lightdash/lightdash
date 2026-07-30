@@ -2183,7 +2183,9 @@ export const downloadHandler = async (
                         fetchApp: (fetchProjectId, appRef) =>
                             lightdashApi<DataAppCodeDownload>({
                                 method: 'GET',
-                                url: `/api/v1/ee/projects/${fetchProjectId}/apps/${appRef}/download`,
+                                url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                                    appRef,
+                                )}/download`,
                                 body: undefined,
                             }),
                         onProgress: (processed, total) =>
@@ -2237,16 +2239,38 @@ export const downloadHandler = async (
                 fetchApp: (fetchProjectId, appRef) =>
                     lightdashApi<DataAppCodeDownload>({
                         method: 'GET',
-                        url: `/api/v1/ee/projects/${fetchProjectId}/apps/${appRef}/download`,
+                        url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                            appRef,
+                        )}/download`,
                         body: undefined,
                     }),
                 onProgress: (processed, total) =>
                     output.updateActive(`${processed} of ${total} processed`),
             });
-            output.completeItem(
-                `${outcome.successCount} downloaded`,
-                outcome.failures.length > 0 ? 'warning' : undefined,
+            const linkedSummary = appsDownloadSummary(
+                outcome.successCount,
+                linkedAppSlugs.length,
+                outcome.failures,
+                appsDir,
+                outcome.skippedNotBuiltCount,
             );
+            output.completeItem(
+                `${outcome.successCount} downloaded${
+                    outcome.skippedNotBuiltCount > 0
+                        ? `, ${outcome.skippedNotBuiltCount} skipped`
+                        : ''
+                }${
+                    outcome.failures.length > 0
+                        ? `, ${outcome.failures.length} failed`
+                        : ''
+                }`,
+                linkedSummary.ok ? undefined : 'warning',
+            );
+            if (!linkedSummary.ok) {
+                linkedSummary.failureLines.forEach((line) =>
+                    GlobalState.log(styles.warning(line)),
+                );
+            }
         }
 
         // Write metadata file with all downloadedAt timestamps
