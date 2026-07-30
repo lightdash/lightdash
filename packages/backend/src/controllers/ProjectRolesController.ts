@@ -7,6 +7,7 @@ import {
     CreateUserRoleAssignmentRequest,
     UpdateRoleAssignmentRequest,
     UpsertUserRoleAssignmentRequest,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -99,7 +100,7 @@ export class ProjectRolesController extends BaseController {
     async upsertProjectUserRoleAssignment(
         @Request() req: express.Request,
         @Path() projectId: string,
-        @Path() userId: string,
+        @Path() userId: UUID,
         @Body() body: UpsertUserRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
@@ -132,7 +133,7 @@ export class ProjectRolesController extends BaseController {
     async upsertProjectGroupRoleAssignment(
         @Request() req: express.Request,
         @Path() projectId: string,
-        @Path() groupId: string,
+        @Path() groupId: UUID,
         @Body() body: UpsertUserRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
@@ -165,7 +166,7 @@ export class ProjectRolesController extends BaseController {
     async updateProjectGroupRoleAssignment(
         @Request() req: express.Request,
         @Path() projectId: string,
-        @Path() groupId: string,
+        @Path() groupId: UUID,
         @Body() body: UpdateRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
@@ -199,7 +200,7 @@ export class ProjectRolesController extends BaseController {
     async deleteProjectUserRoleAssignment(
         @Request() req: express.Request,
         @Path() projectId: string,
-        @Path() userId: string,
+        @Path() userId: UUID,
     ): Promise<ApiUnassignRoleFromUserResponse> {
         await this.getRolesService().deleteProjectRoleAssignment(
             req.account!,
@@ -230,7 +231,7 @@ export class ProjectRolesController extends BaseController {
     async deleteProjectGroupRoleAssignment(
         @Request() req: express.Request,
         @Path() projectId: string,
-        @Path() groupId: string,
+        @Path() groupId: UUID,
     ): Promise<ApiUnassignRoleFromUserResponse> {
         await this.getRolesService().deleteProjectRoleAssignment(
             req.account!,

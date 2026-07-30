@@ -1,9 +1,14 @@
 import { subject } from '@casl/ability';
-import { validateEmail, type InviteLink } from '@lightdash/common';
+import {
+    OrganizationMemberRole,
+    validateEmail,
+    type InviteLink,
+} from '@lightdash/common';
 import { Button, Group, Select } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
+import { useCreateInviteLinkMutation } from '../../hooks/useInviteLink';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { useUpsertProjectUserRoleAssignmentMutation } from '../../hooks/useProjectRoles';
 import useApp from '../../providers/App/useApp';
@@ -36,6 +41,12 @@ const CreateProjectAccessModal: FC<Props> = ({
     const { mutateAsync: upsertMutation, isLoading } =
         useUpsertProjectUserRoleAssignmentMutation(projectUuid);
 
+    const {
+        mutateAsync: inviteMutation,
+        isLoading: isInvitationLoading,
+        reset: resetInvitation,
+    } = useCreateInviteLinkMutation({ showSuccessToast: false });
+
     const { data: organizationUsers } = useOrganizationUsers();
 
     const form = useForm<{ userId: string; roleId: string }>({
@@ -46,20 +57,16 @@ const CreateProjectAccessModal: FC<Props> = ({
     });
 
     const [inviteLink, setInviteLink] = useState<InviteLink | undefined>();
-    const [emailOptions, setEmailOptions] = useState<
-        { value: string; label: string }[]
-    >([]);
     const [emailSearch, setEmailSearch] = useState('');
 
-    useEffect(() => {
-        if (organizationUsers) {
-            const userData = organizationUsers.map((us) => ({
+    const emailOptions = useMemo(
+        () =>
+            (organizationUsers ?? []).map((us) => ({
                 value: us.userUuid,
                 label: us.email,
-            }));
-            setEmailOptions(userData);
-        }
-    }, [organizationUsers]);
+            })),
+        [organizationUsers],
+    );
 
     const handleSubmit = async (formData: {
         userId: string;
@@ -70,11 +77,33 @@ const CreateProjectAccessModal: FC<Props> = ({
         });
         setInviteLink(undefined);
 
-        await upsertMutation({
-            ...formData,
-            sendEmail: true,
-        });
+        // Existing members are selected by uuid; a new member is selected by email
+        const isExistingMember = emailOptions.some(
+            ({ value }) => value === formData.userId,
+        );
+
+        if (isExistingMember) {
+            await upsertMutation({
+                userId: formData.userId,
+                roleId: formData.roleId,
+                sendEmail: true,
+            });
+        } else {
+            const invite = await inviteMutation({
+                email: formData.userId,
+                role: OrganizationMemberRole.MEMBER,
+            });
+            await upsertMutation({
+                userId: invite.userUuid,
+                roleId: formData.roleId,
+                sendEmail: false,
+            });
+            setInviteLink(invite);
+            resetInvitation();
+        }
+
         form.reset();
+        setEmailSearch('');
     };
 
     const userCanInviteUsersToOrganization = user.data?.ability.can(
@@ -100,6 +129,8 @@ const CreateProjectAccessModal: FC<Props> = ({
           ]
         : emailOptions;
 
+    const isSubmitting = isLoading || isInvitationLoading;
+
     const formId = 'add-user-to-project';
 
     return (
@@ -113,8 +144,8 @@ const CreateProjectAccessModal: FC<Props> = ({
                 <Button
                     type="submit"
                     form={formId}
-                    disabled={isLoading}
-                    loading={isLoading}
+                    disabled={isSubmitting}
+                    loading={isSubmitting}
                 >
                     Give access
                 </Button>
@@ -148,7 +179,7 @@ const CreateProjectAccessModal: FC<Props> = ({
                             }
                             searchable
                             required
-                            disabled={isLoading}
+                            disabled={isSubmitting}
                             searchValue={emailSearch}
                             onSearchChange={setEmailSearch}
                             data={userOptions}
@@ -172,7 +203,7 @@ const CreateProjectAccessModal: FC<Props> = ({
                         <Select
                             allowDeselect={false}
                             data={groupComboboxItems(roles)}
-                            disabled={isLoading}
+                            disabled={isSubmitting}
                             required
                             radius="md"
                             placeholder="Select role"

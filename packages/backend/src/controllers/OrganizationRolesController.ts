@@ -5,6 +5,7 @@ import {
     ApiRoleAssignmentResponse,
     ApiRoleWithScopesResponse,
     CreateRole,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -61,7 +62,7 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('GetOrganizationRoles')
     async getOrganizationRoles(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
+        @Path() orgUuid: UUID,
         @Query() load?: string,
         @Query() roleTypeFilter?: string,
     ): Promise<ApiGetRolesResponse | ApiRoleWithScopesResponse> {
@@ -90,7 +91,7 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('GetOrganizationRoleAssignments')
     async getOrganizationRoleAssignments(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
+        @Path() orgUuid: UUID,
     ): Promise<ApiRoleAssignmentListResponse> {
         const assignments =
             await this.getRolesService().getOrganizationRoleAssignments(
@@ -115,8 +116,8 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('GetCustomRoleByUuid')
     async getCustomRoleByUuid(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() roleUuid: string,
+        @Path() orgUuid: UUID,
+        @Path() roleUuid: UUID,
     ): Promise<ApiRoleWithScopesResponse> {
         const role = await this.getRolesService().getRoleByUuid(
             req.account!,
@@ -144,8 +145,8 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('UpsertOrganizationUserRoleAssignment')
     async upsertOrganizationUserRoleAssignment(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
-        @Path() userId: string,
+        @Path() orgUuid: UUID,
+        @Path() userId: UUID,
         @Body() body: { roleId: string },
     ): Promise<ApiRoleAssignmentResponse> {
         const assignment =
@@ -177,7 +178,7 @@ export class OrganizationRolesController extends BaseController {
     @OperationId('DuplicateRole')
     async duplicateRole(
         @Request() req: express.Request,
-        @Path() orgUuid: string,
+        @Path() orgUuid: UUID,
         @Path() roleId: string,
         @Body() body: CreateRole,
     ): Promise<ApiRoleWithScopesResponse> {
