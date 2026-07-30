@@ -302,8 +302,15 @@ const Login: FC<{}> = () => {
             <Box mx="auto" my="lg">
                 <LightdashLogo />
             </Box>
-            <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
-                <Title order={3} ta="center" mb="md">
+            <Card
+                id={LOGIN_PAGE_ID}
+                p="xl"
+                radius="xs"
+                withBorder
+                shadow="xs"
+                bg="violet.0"
+            >
+                <Title order={3} ta="center" mb="md" c="violet.7">
                     Sign in
                 </Title>
                 <form
@@ -357,6 +364,7 @@ const Login: FC<{}> = () => {
                                     inherit
                                     href="/recover-password"
                                     mx="auto"
+                                    c="violet.7"
                                 >
                                     Forgot your password?
                                 </Anchor>
@@ -365,6 +373,7 @@ const Login: FC<{}> = () => {
                                     loading={isFormLoading}
                                     disabled={isFormLoading}
                                     data-cy="signin-button"
+                                    color="violet"
                                 >
                                     Sign in
                                 </Button>
@@ -388,6 +397,7 @@ const Login: FC<{}> = () => {
                                 loading={isFormLoading}
                                 disabled={isFormLoading}
                                 data-cy="signin-button"
+                                color="violet"
                             >
                                 Continue
                             </Button>
@@ -450,6 +460,7 @@ const Login: FC<{}> = () => {
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
                                 fz="sm"
+                                c="violet.7"
                             >
                                 Sign up
                             </Anchor>
