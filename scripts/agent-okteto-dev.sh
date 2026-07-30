@@ -29,13 +29,18 @@ fail() {
 
 usage() {
     cat <<'EOF'
-Usage: ./scripts/agent-okteto-dev.sh <start|wait|url>
+Usage: ./scripts/agent-okteto-dev.sh <start|wait|url|okteto>
 
 Requires LIGHTDASH_OKTETO_TOKEN. Commands safely skip when it is unset.
 
-  start  Claim or create this agent session's Okteto environment.
-  wait   Wait for file synchronization and application health.
-  url    Print the public URL for this Claude session.
+  start          Claim or create this agent session's Okteto environment.
+  wait           Wait for file synchronization and application health.
+  url            Print the public URL for this Claude session.
+  okteto <args>  Run any `okteto` CLI command with this session's
+                 OKTETO_HOME, KUBECONFIG, authenticated context, and
+                 namespace already wired up (e.g. `okteto status`,
+                 `okteto namespace list`). Adds -n <namespace> unless you
+                 already pass -n/--namespace yourself.
 EOF
 }
 
@@ -661,6 +666,52 @@ wait_for_environment() {
     wait_until_ready
 }
 
+okteto_subcommand_takes_manifest_flags() {
+    case "$1" in
+        up | down | deploy | destroy | exec | doctor | endpoints | build | status)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+run_okteto_passthrough() {
+    local arg has_namespace_flag=false has_file_flag=false args=("$@")
+
+    [ "$#" -gt 0 ] || fail "Usage: ./scripts/agent-okteto-dev.sh okteto <args...>"
+
+    require_client_runtime
+    prepare_runtime_dir
+    authenticate
+
+    okteto namespace use "$OKTETO_NAMESPACE" >/dev/null 2>&1 || true
+    okteto kubeconfig >/dev/null 2>&1 || true
+
+    if okteto_subcommand_takes_manifest_flags "$1"; then
+        for arg in "$@"; do
+            case "$arg" in
+                -n | --namespace | --namespace=*)
+                    has_namespace_flag=true
+                    ;;
+                -f | --file | --file=*)
+                    has_file_flag=true
+                    ;;
+            esac
+        done
+
+        if [ "$has_file_flag" = false ]; then
+            args=("${args[0]}" -f "$OKTETO_MANIFEST" "${args[@]:1}")
+        fi
+        if [ "$has_namespace_flag" = false ]; then
+            args=("${args[0]}" -n "$OKTETO_NAMESPACE" "${args[@]:1}")
+        fi
+    fi
+
+    exec okteto "${args[@]}"
+}
+
 setup_status() {
     local detail state
 
@@ -696,6 +747,15 @@ main() {
             ;;
         hook-stop)
             hook_stop
+            ;;
+        okteto)
+            shift
+            if [ -z "${LIGHTDASH_OKTETO_TOKEN:-}" ]; then
+                echo "SKIPPED: $TOKEN_ENV_VAR is not set."
+                return
+            fi
+            load_session_config
+            run_okteto_passthrough "$@"
             ;;
         start | wait | url | check-ready | setup-status)
             if [ -z "${LIGHTDASH_OKTETO_TOKEN:-}" ]; then
