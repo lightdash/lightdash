@@ -151,9 +151,10 @@ deploy_namespace() {
 
     kubectl -n "$namespace" delete configmap "$POOL_READY_CONFIGMAP" \
         --ignore-not-found >/dev/null 2>&1 || true
-    DEV_WARM_IMAGE="$WARM_IMAGE" okteto deploy \
+    okteto deploy \
         -f "$OKTETO_MANIFEST" \
         -n "$namespace" \
+        --var "DEV_WARM_IMAGE=$WARM_IMAGE" \
         --wait \
         --timeout 20m
     if [ "$FORCE_REFRESH" = "true" ]; then
