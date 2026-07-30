@@ -213,9 +213,9 @@ load_session_config() {
     id="$(agent_session_id)"
     SESSION_HASH="$(hash_value "$id")"
     SESSION_HASH="${SESSION_HASH:0:16}"
-    TMUX_SESSION="ld-okteto-$SESSION_HASH"
     RUN_DIR="${TMPDIR:-/tmp}/lightdash-agent-okteto/$SESSION_HASH"
     LOG_FILE="$RUN_DIR/okteto-up.log"
+    SYNC_PID_FILE="$RUN_DIR/okteto-up.pid"
     NAMESPACE_FILE="$RUN_DIR/namespace"
     URL_FILE="$RUN_DIR/url"
     READY_FILE="$RUN_DIR/ready"
@@ -293,11 +293,6 @@ require_client_runtime() {
     require_command jq
     require_command kubectl
     require_command okteto
-}
-
-require_runtime() {
-    require_client_runtime
-    require_command tmux
 }
 
 prepare_runtime_dir() {
@@ -476,8 +471,12 @@ claim_pool_namespace() {
     return 1
 }
 
-tmux_session_exists() {
-    tmux has-session -t "$TMUX_SESSION" 2>/dev/null
+sync_process_exists() {
+    local pid
+
+    pid="$(cat "$SYNC_PID_FILE" 2>/dev/null)" || return 1
+    [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+    ps -p "$pid" -o comm= 2>/dev/null | grep -q okteto
 }
 
 sync_is_ready() {
@@ -541,7 +540,7 @@ wait_until_ready() {
     last_report=$((SECONDS - 30))
 
     while ((SECONDS < deadline)); do
-        if ! tmux_session_exists; then
+        if ! sync_process_exists; then
             show_log_tail
             fail "Okteto file synchronization stopped. See $LOG_FILE."
         fi
@@ -585,15 +584,16 @@ debug_forward_port() {
     printf '%s' "$port"
 }
 
-start_tmux_session() {
-    local debug_port up_command pipe_command
+start_sync_process() {
+    local debug_port up_command
 
     mkdir -p "$RUN_DIR"
     : >"$LOG_FILE"
 
     debug_port="$(debug_forward_port)"
     printf -v up_command \
-        'DEV_WARM_IMAGE=%q OKTETO_DEBUG_PORT=%q exec okteto up %q -f %q -n %q --env %q --env %q --env %q' \
+        'cd %q && DEV_WARM_IMAGE=%q OKTETO_DEBUG_PORT=%q exec okteto up %q -f %q -n %q --log-output plain --env %q --env %q --env %q' \
+        "$REPO_ROOT" \
         "$ACTIVE_WARM_IMAGE" \
         "$debug_port" \
         "$OKTETO_SERVICE" \
@@ -602,26 +602,28 @@ start_tmux_session() {
         "LIGHTDASH_AGENT_SESSION_HASH=$SESSION_HASH" \
         "SITE_URL=$PUBLIC_URL" \
         "DEV_WARM_IMAGE=$ACTIVE_WARM_IMAGE"
-    printf -v pipe_command 'cat >> %q' "$LOG_FILE"
 
     echo "Starting Okteto file synchronization..."
-    tmux new-session \
-        -d \
-        -s "$TMUX_SESSION" \
-        -c "$REPO_ROOT" \
-        "$up_command"
-    tmux pipe-pane -o -t "$TMUX_SESSION" "$pipe_command"
+    # setsid detaches the sync from the hook's process group so it survives
+    # the SessionStart hook; unavailable on macOS, where nohup+disown suffices
+    if command -v setsid >/dev/null 2>&1; then
+        setsid nohup bash -c "$up_command" >>"$LOG_FILE" 2>&1 </dev/null &
+    else
+        nohup bash -c "$up_command" >>"$LOG_FILE" 2>&1 </dev/null &
+    fi
+    printf '%s\n' "$!" >"$SYNC_PID_FILE"
+    disown
 }
 
 start_environment() {
     START_DEADLINE=$((SECONDS + READY_TIMEOUT_SECONDS))
     rm -f "$READY_FILE"
     write_setup_state "STARTING"
-    require_runtime
+    require_client_runtime
     prepare_runtime_dir
     authenticate
 
-    if tmux_session_exists; then
+    if sync_process_exists; then
         echo "Reusing the active Okteto sync process."
         wait_until_ready
         return
@@ -650,19 +652,19 @@ start_environment() {
         save_active_namespace
     fi
 
-    start_tmux_session
+    start_sync_process
     wait_until_ready
 }
 
 wait_for_environment() {
     local deadline
 
-    require_runtime
+    require_client_runtime
     prepare_runtime_dir
     authenticate
 
     deadline=$((SECONDS + SYNC_START_TIMEOUT_SECONDS))
-    while ! tmux_session_exists; do
+    while ! sync_process_exists; do
         if ((SECONDS >= deadline)); then
             fail "No active Okteto sync process after ${SYNC_START_TIMEOUT_SECONDS}s. See logs in $RUN_DIR and $SETUP_DOC."
         fi

@@ -78,23 +78,26 @@ KUBECTL_VERSION=v1.35.0
 
 curl -sSfL \
   "https://downloads.okteto.com/cli/stable/${OKTETO_VERSION}/okteto-Linux-x86_64" \
-  -o /tmp/okteto
-echo "${OKTETO_SHA256}  /tmp/okteto" | sha256sum --check
-install -m 0755 /tmp/okteto /usr/local/bin/okteto
+  -o /tmp/okteto &
+okteto_pid=$!
 
 curl -sSfL \
   "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
-  -o /tmp/kubectl
+  -o /tmp/kubectl &
+kubectl_pid=$!
+
 curl -sSfL \
   "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256" \
   -o /tmp/kubectl.sha256
+
+wait "$okteto_pid"
+wait "$kubectl_pid"
+
+echo "${OKTETO_SHA256}  /tmp/okteto" | sha256sum --check
+install -m 0755 /tmp/okteto /usr/local/bin/okteto
+
 echo "$(cat /tmp/kubectl.sha256)  /tmp/kubectl" | sha256sum --check
 install -m 0755 /tmp/kubectl /usr/local/bin/kubectl
-
-command -v tmux >/dev/null || {
-  apt-get update
-  apt-get install -y tmux
-}
 ```
 
 Start a new Claude Code session after saving the environment. Before processing
@@ -112,7 +115,7 @@ remain available to later shell commands.
 
 One hook invocation copies Claude's `session_id` into
 `LIGHTDASH_AGENT_SESSION_ID` through `CLAUDE_ENV_FILE`, claims or reuses a
-namespace, starts `okteto up` in tmux, and waits until synchronization and
+namespace, starts `okteto up` as a detached background process, and waits until synchronization and
 application health are stable. Its `READY:` output is added to Claude's
 SessionStart context. `BASH_MAX_TIMEOUT_MS` does not control hook execution;
 the timeout is set directly on the hook.
@@ -138,7 +141,7 @@ unset.
 ## Other coding agents
 
 Make the same `LIGHTDASH_OKTETO_TOKEN` variable available to the agent process
-and install Okteto, `kubectl`, `jq`, and `tmux` in its environment. Agents use
+and install Okteto, `kubectl`, and `jq` in its environment. Agents use
 `LIGHTDASH_AGENT_SESSION_ID` when their platform provides one; otherwise the
 launcher derives a stable identity from the current workspace.
 
@@ -147,7 +150,7 @@ launcher derives a stable identity from the current workspace.
 Install the required tools on macOS:
 
 ```bash
-brew install okteto tmux kubectl jq
+brew install okteto kubectl jq
 ```
 
 Make `LIGHTDASH_OKTETO_TOKEN` available to the process that launches Claude

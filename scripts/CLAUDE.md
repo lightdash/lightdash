@@ -5,7 +5,8 @@
 ### `agent-okteto-dev.sh <start|wait|url>`
 
 When `LIGHTDASH_OKTETO_TOKEN` is set, atomically claims a ready Okteto namespace
-for the session, keeps source changes synchronized through `okteto up` in tmux,
+for the session, keeps source changes synchronized through a detached
+`okteto up` process,
 waits for synchronization and application health, and reports the public test
 URL. See
 `docs/agent-okteto.md` for setup.
