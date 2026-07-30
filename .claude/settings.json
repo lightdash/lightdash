@@ -4,5 +4,27 @@
       "Read(packages/formula-tests/**)",
       "Edit(packages/formula-tests/**)"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-env"
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-start"
+          }
+        ]
+      }
+    ]
   }
 }
