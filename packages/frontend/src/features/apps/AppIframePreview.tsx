@@ -1,6 +1,7 @@
 import {
     type DataAppVizContext,
     type DashboardFilters,
+    type QueryExecutionContext,
 } from '@lightdash/common';
 import {
     forwardRef,
@@ -10,6 +11,7 @@ import {
     useMemo,
     useRef,
 } from 'react';
+import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
     useAppSdkBridge,
     type ElementSelectedEvent,
@@ -88,6 +90,12 @@ type Props = {
      *  Set by `DashboardDataAppTile` after a dashboard refresh, mirroring what
      *  chart tiles send; left undefined elsewhere. */
     invalidateCache?: boolean;
+    /** Accumulates a delivery-capture manifest from the bridge's query
+     *  lifecycle events. Set by `MinimalApp` in capture modes only. */
+    deliveryCapture?: DeliveryCaptureAccumulator;
+    /** Overrides the query-execution-context stamped onto every metric
+     *  query the iframe runs, e.g. scheduled-delivery capture. */
+    queryContextOverride?: QueryExecutionContext;
     /** Fired on every iframe `onload` (including the initial about:blank).
      *  Used by `MinimalApp` to gate the screenshot readiness signal. */
     onIframeLoad?: () => void;
@@ -147,6 +155,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageCancelled,
             dashboardFilters,
             invalidateCache,
+            deliveryCapture,
+            queryContextOverride,
             onIframeLoad,
             capabilities,
             dataAppVizContext,
@@ -197,6 +207,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onScreenshotAvailable: handleScreenshotAnnounce,
             dashboardFilters,
             invalidateCache,
+            deliveryCapture,
+            queryContextOverride,
             capabilities,
             onLineageAvailable: handleLineageAnnounce,
             onLineageSelected,

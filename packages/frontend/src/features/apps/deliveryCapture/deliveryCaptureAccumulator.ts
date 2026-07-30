@@ -36,6 +36,9 @@ export type DeliveryCaptureAccumulator = {
      *  A partial capture must never look complete: entries still `pending`
      *  when this resolves are surfaced as `error` items, not dropped. */
     getManifest(): Promise<DeliveryCaptureManifest>;
+    /** Readiness source for capture renders: fires with the current `pending`
+     *  entry count immediately and on every change. Returns an unsubscribe. */
+    subscribe(listener: (pendingCount: number) => void): () => void;
     reset(): void;
 };
 
@@ -95,6 +98,17 @@ export const createDeliveryCaptureAccumulator =
         let uuidToEntry = new Map<string, CaptureEntry>();
         let droppedKeys = new Set<string>();
         let nextOrder = 0;
+        const pendingListeners = new Set<(pendingCount: number) => void>();
+        let lastPendingCount = 0;
+
+        const notifyPendingCount = () => {
+            const pendingCount = [...entriesByRawKey.values()].filter(
+                (entry) => entry.status === 'pending',
+            ).length;
+            if (pendingCount === lastPendingCount) return;
+            lastPendingCount = pendingCount;
+            pendingListeners.forEach((listener) => listener(pendingCount));
+        };
 
         const onInitiation: DeliveryCaptureAccumulator['onInitiation'] = ({
             requestId,
@@ -151,6 +165,7 @@ export const createDeliveryCaptureAccumulator =
                 typeof query?.limit === 'number' ? query.limit : undefined;
 
             requestIdToEntry.set(requestId, entry);
+            notifyPendingCount();
         };
 
         const onPostResponse: DeliveryCaptureAccumulator['onPostResponse'] = (
@@ -188,6 +203,7 @@ export const createDeliveryCaptureAccumulator =
             entry.status = 'error';
             entry.queryUuid = null;
             entry.error = error;
+            notifyPendingCount();
         };
 
         const onTerminal: DeliveryCaptureAccumulator['onTerminal'] = (
@@ -207,6 +223,17 @@ export const createDeliveryCaptureAccumulator =
                 entry.status = 'error';
                 entry.error = outcome.error;
             }
+            notifyPendingCount();
+        };
+
+        const subscribe: DeliveryCaptureAccumulator['subscribe'] = (
+            listener,
+        ) => {
+            pendingListeners.add(listener);
+            listener(lastPendingCount);
+            return () => {
+                pendingListeners.delete(listener);
+            };
         };
 
         const getManifest: DeliveryCaptureAccumulator['getManifest'] =
@@ -269,6 +296,8 @@ export const createDeliveryCaptureAccumulator =
             // So a post-reset capture's first unlabeled query reads "Query 1"
             // again, not a number carried over from the previous capture.
             nextOrder = 0;
+            // Listeners survive a reset — the subscriber outlives the capture.
+            notifyPendingCount();
         };
 
         return {
@@ -277,6 +306,7 @@ export const createDeliveryCaptureAccumulator =
             onPostFailure,
             onTerminal,
             getManifest,
+            subscribe,
             reset,
         };
     };

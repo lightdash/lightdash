@@ -564,4 +564,63 @@ describe('deliveryCaptureAccumulator', () => {
         });
         expect(parseDeliveryCaptureManifest(manifest)).not.toBeNull();
     });
+
+    describe('subscribe', () => {
+        it('reports the pending count on subscribe and across the entry lifecycle', () => {
+            const acc = createDeliveryCaptureAccumulator();
+            const counts: number[] = [];
+            const unsubscribe = acc.subscribe((count) => counts.push(count));
+            expect(counts).toEqual([0]);
+
+            acc.onInitiation({
+                requestId: 'r1',
+                method: 'POST',
+                path: CHART_PATH,
+                body: { chartUuid: 'c1' },
+                label: null,
+            });
+            // onPostResponse doesn't settle the entry — no notification.
+            acc.onPostResponse('r1', { queryUuid: 'u1' });
+            expect(counts).toEqual([0, 1]);
+
+            acc.onTerminal('u1', { status: 'ready', rowCount: 1 });
+            expect(counts).toEqual([0, 1, 0]);
+
+            unsubscribe();
+            acc.onInitiation({
+                requestId: 'r2',
+                method: 'POST',
+                path: METRIC_PATH,
+                body: { query: baseMetricQuery() },
+                label: null,
+            });
+            expect(counts).toEqual([0, 1, 0]);
+        });
+
+        it('a post failure and a reset both drain the pending count', () => {
+            const acc = createDeliveryCaptureAccumulator();
+            const counts: number[] = [];
+            acc.subscribe((count) => counts.push(count));
+
+            acc.onInitiation({
+                requestId: 'r1',
+                method: 'POST',
+                path: METRIC_PATH,
+                body: { query: baseMetricQuery() },
+                label: null,
+            });
+            acc.onPostFailure('r1', 'boom');
+            expect(counts).toEqual([0, 1, 0]);
+
+            acc.onInitiation({
+                requestId: 'r2',
+                method: 'POST',
+                path: CHART_PATH,
+                body: { chartUuid: 'c1' },
+                label: null,
+            });
+            acc.reset();
+            expect(counts).toEqual([0, 1, 0, 1, 0]);
+        });
+    });
 });
