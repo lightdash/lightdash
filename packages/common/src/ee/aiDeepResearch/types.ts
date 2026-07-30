@@ -52,6 +52,53 @@ export type AiDeepResearchBudget = {
     maxToolCalls: number;
     maxWarehouseQueries: number;
     maxResultRows: number;
+    maxHypotheses: number;
+};
+
+export type AiDeepResearchHypothesis = {
+    id: string;
+    claim: string;
+    /** Why the claim is plausible given what is already known. */
+    rationale: string;
+    /** Evidence that would support the claim if found. */
+    supportingEvidence: string;
+    /** Evidence that would falsify the claim if found. */
+    falsifyingEvidence: string;
+};
+
+export const AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS = [
+    'supported',
+    'refuted',
+    'inconclusive',
+] as const;
+
+export type AiDeepResearchHypothesisVerdict =
+    (typeof AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS)[number];
+
+export type AiDeepResearchInvestigationEvidence = {
+    finding: string;
+    /** Warehouse query executions this finding is grounded in. */
+    queryUuids: string[];
+    /** Non-warehouse references (documents, URLs, MCP sources). */
+    sources: string[];
+};
+
+export type AiDeepResearchInvestigationReport = {
+    verdict: AiDeepResearchHypothesisVerdict;
+    summary: string;
+    evidence: AiDeepResearchInvestigationEvidence[];
+    alternativeExplanations: string[];
+    /** Why the evidence does or does not establish causation. */
+    causalLimitations: string[];
+    confidence: AiDeepResearchConfidence;
+};
+
+/** One hypothesis and what its isolated investigation produced. */
+export type AiDeepResearchInvestigation = {
+    hypothesis: AiDeepResearchHypothesis;
+    report: AiDeepResearchInvestigationReport | null;
+    /** Set when the investigator failed; the judge treats it as a gap. */
+    failureReason: string | null;
 };
 
 export type AiDeepResearchExecutionContextSnapshot = {

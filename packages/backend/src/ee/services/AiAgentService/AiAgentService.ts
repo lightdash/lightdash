@@ -296,6 +296,7 @@ import {
     type AiAgentMcpServer,
     type AiAgentRequestingUser,
     type AiAgentRequestingUserRole,
+    type AiDeepResearchExecutionRole,
 } from '../ai/types/aiAgent';
 import {
     ClosePullRequestFn,
@@ -419,7 +420,14 @@ type GenerateAgentExecutionOptions =
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
           ) => void | Promise<void>;
+          research?: AiDeepResearchExecutionRole;
+          parentToolCallId?: string | null;
       };
+
+// Planner and judge are single-purpose structured calls: enough steps for a
+// submission plus schema-correction retries, nothing more.
+const DEEP_RESEARCH_PLANNER_MAX_STEPS = 4;
+const DEEP_RESEARCH_JUDGE_MAX_STEPS = 8;
 
 export const shouldEnqueueReviewClassifierForPromptUpdate = (
     update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -9035,18 +9043,37 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         let execution: AiAgentExecutionConfig;
         if (responseExecution.mode === 'deep_research') {
+            const getMaxSteps = () => {
+                switch (responseExecution.research?.role) {
+                    case 'planner':
+                        return DEEP_RESEARCH_PLANNER_MAX_STEPS;
+                    case 'judge':
+                        return DEEP_RESEARCH_JUDGE_MAX_STEPS;
+                    case 'investigator':
+                    case undefined:
+                        // The executor counts tool calls directly. Leave room
+                        // for planning and the final report-only model step.
+                        return (
+                            responseExecution.budget.maxToolCalls +
+                            DEEP_RESEARCH_STEP_HEADROOM
+                        );
+                    default:
+                        return assertUnreachable(
+                            responseExecution.research,
+                            'Unknown research role',
+                        );
+                }
+            };
             execution = {
                 mode: 'deep_research',
-                // The executor counts tool calls directly. Leave room for
-                // planning and the final report-only model step.
-                maxSteps:
-                    responseExecution.budget.maxToolCalls +
-                    DEEP_RESEARCH_STEP_HEADROOM,
+                maxSteps: getMaxSteps(),
                 budget: responseExecution.budget,
                 initialTokenUsage: responseExecution.initialTokenUsage ?? 0,
                 onStepUsage: responseExecution.onStepUsage,
                 onExecutionContextResolved:
                     responseExecution.onExecutionContextResolved,
+                research: responseExecution.research,
+                parentToolCallId: responseExecution.parentToolCallId ?? null,
             };
         } else {
             execution = {
