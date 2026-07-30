@@ -100,6 +100,7 @@ export const VisualizationSwitcher = ({
         { label: 'Bar chart', value: ChartKind.VERTICAL_BAR },
         { label: 'Line chart', value: ChartKind.LINE },
         { label: 'Pie chart', value: ChartKind.PIE },
+        { label: 'Big value', value: ChartKind.BIG_NUMBER },
     ];
 
     return (

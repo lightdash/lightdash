@@ -1,4 +1,5 @@
 import {
+    calculateComparisonValue,
     applyCustomFormat,
     ComparisonFormatTypes,
     CustomFormatType,
@@ -43,7 +44,6 @@ import {
     useRunMetricSeries,
     useRunMetricTotal,
 } from '../../../../features/metricsCatalog/hooks/useRunMetricExplorerQuery';
-import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import MetricSparkline from './MetricSparkline';

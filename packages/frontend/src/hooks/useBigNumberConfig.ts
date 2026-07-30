@@ -1,4 +1,5 @@
 import {
+    calculateComparisonValue,
     applyCustomFormat,
     ComparisonDiffTypes,
     ComparisonFormatTypes,
@@ -30,21 +31,6 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { type InfiniteQueryResults } from './useQueryResults';
-
-export const calculateComparisonValue = (
-    a: number,
-    b: number,
-    format: ComparisonFormatTypes | undefined,
-) => {
-    const rawValue = a - b;
-    switch (format) {
-        case ComparisonFormatTypes.PERCENTAGE:
-            return rawValue / Math.abs(b);
-        case ComparisonFormatTypes.RAW:
-        default:
-            return rawValue;
-    }
-};
 
 const NOT_APPLICABLE = 'n/a';
 const UNDEFINED = 'undefined';

@@ -1,5 +1,6 @@
 import {
     getParameterReferences,
+    isVizBigNumberConfig,
     isVizTableConfig,
     type ParameterValue,
 } from '@lightdash/common';
@@ -20,6 +21,7 @@ import { ConditionalVisibility } from '../components/common/ConditionalVisibilit
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
+import BigNumberView from '../components/DataViz/visualizations/BigNumberView';
 import { ChartDataTable } from '../components/DataViz/visualizations/ChartDataTable';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
@@ -176,7 +178,10 @@ const ViewSqlChart = () => {
                             />
                             {(activeTab === TabOption.RESULTS ||
                                 (activeTab === TabOption.CHART &&
-                                    isVizTableConfig(chartData?.config))) &&
+                                    (isVizTableConfig(chartData?.config) ||
+                                        isVizBigNumberConfig(
+                                            chartData?.config,
+                                        )))) &&
                                 params.projectUuid && (
                                     <ResultsDownloadButton
                                         projectUuid={params.projectUuid}
@@ -254,7 +259,28 @@ const ViewSqlChart = () => {
                                                     }}
                                                 />
                                             )}
+                                        {isVizBigNumberConfig(
+                                            chartData.config,
+                                        ) && (
+                                            <BigNumberView
+                                                spec={
+                                                    chartResultsData?.chartSpec
+                                                }
+                                                isLoading={
+                                                    isChartLoading ||
+                                                    isChartResultsFetching
+                                                }
+                                                error={chartResultsError?.error}
+                                                hasValueField={
+                                                    !!chartData.config
+                                                        .fieldConfig?.y?.length
+                                                }
+                                            />
+                                        )}
                                         {!isVizTableConfig(chartData.config) &&
+                                            !isVizBigNumberConfig(
+                                                chartData.config,
+                                            ) &&
                                             params.slug &&
                                             chartData.sql && (
                                                 <ChartView

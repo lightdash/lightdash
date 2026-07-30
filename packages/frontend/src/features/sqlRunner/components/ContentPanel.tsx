@@ -2,6 +2,7 @@ import {
     ChartKind,
     getFirstIndexColumns,
     getParameterReferences,
+    isVizBigNumberConfig,
     isVizTableConfig,
     MAX_SAFE_INTEGER,
     type VizTableConfig,
@@ -52,7 +53,6 @@ import {
     selectPivotChartDataByKind,
 } from '../../../components/DataViz/store/selectors';
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
-import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
@@ -91,6 +91,7 @@ import styles from './ResizeHandle.module.css';
 import { SqlEditor } from './SqlEditor';
 import { SqlEditorPreferencesPopover } from './SqlEditorPreferencesPopover';
 import { SqlQueryHistory } from './SqlQueryHistory';
+import { SqlRunnerChart } from './SqlRunnerChart';
 
 export const ContentPanel: FC = () => {
     // State we need from redux
@@ -577,6 +578,7 @@ export const ContentPanel: FC = () => {
                             )}
                             {activeEditorTab === EditorTabs.VISUALIZATION &&
                             !isVizTableConfig(currentVizConfig) &&
+                            !isVizBigNumberConfig(currentVizConfig) &&
                             selectedChartType ? (
                                 <ChartDownload
                                     chartName={savedSqlChart?.name}
@@ -702,7 +704,6 @@ export const ContentPanel: FC = () => {
                                                             style={styles}
                                                         >
                                                             {activeConfigs.chartConfigs.map(
-                                                                // TODO: are we rendering all charts here?
                                                                 (c) => (
                                                                     <ConditionalVisibility
                                                                         key={
@@ -713,7 +714,7 @@ export const ContentPanel: FC = () => {
                                                                             c.type
                                                                         }
                                                                     >
-                                                                        <ChartView
+                                                                        <SqlRunnerChart
                                                                             config={
                                                                                 c
                                                                             }
@@ -726,11 +727,13 @@ export const ContentPanel: FC = () => {
                                                                             error={
                                                                                 pivotedChartInfo?.error
                                                                             }
-                                                                            style={{
-                                                                                height: inputSectionHeight,
-                                                                                flex: inputSectionWidth,
-                                                                            }}
-                                                                            onChartReady={(
+                                                                            height={
+                                                                                inputSectionHeight
+                                                                            }
+                                                                            width={
+                                                                                inputSectionWidth
+                                                                            }
+                                                                            onEchartsReady={(
                                                                                 instance,
                                                                             ) => {
                                                                                 if (

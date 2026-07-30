@@ -302,6 +302,7 @@ export type AllVizChartConfig =
     | VizBarChartConfig
     | VizLineChartConfig
     | VizPieChartConfig
+    | VizBigNumberConfig
     | VizTableConfig;
 
 export const isVizBarChartConfig = (

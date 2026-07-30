@@ -3,6 +3,7 @@ import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { Config } from '../VisualizationConfigs/common/Config';
 import { getVizConfigThemeOverride } from '../VisualizationConfigs/mantineTheme';
+import { BigNumberConfiguration } from './config/BigNumberConfiguration';
 import { CartesianChartConfig } from './config/CartesianChartConfiguration';
 import { PieChartConfiguration } from './config/PieChartConfiguration';
 import TableVisConfiguration from './config/TableVisConfiguration';
@@ -47,6 +48,9 @@ export const VisualizationConfigPanel: FC<{
             )}
             {selectedChartType === ChartKind.PIE && (
                 <PieChartConfiguration columns={columns} />
+            )}
+            {selectedChartType === ChartKind.BIG_NUMBER && (
+                <BigNumberConfiguration columns={columns} />
             )}
         </MantineProvider>
     );
