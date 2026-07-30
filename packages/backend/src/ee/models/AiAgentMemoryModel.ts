@@ -27,6 +27,7 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiPromptInterruptTableName,
+    AiPromptSteerTableName,
     AiPromptTableName,
     AiThreadTableName,
 } from '../database/entities/ai';
@@ -117,6 +118,7 @@ export type AiAgentMemoryThread = AiAgentMemoryThreadCandidate & {
         respondedAt: Date | null;
         interrupted: boolean;
         feedback: { score: number; comment: string | null } | null;
+        steers: string[];
         tools: Array<{
             toolCallId: string;
             name: string;
@@ -314,6 +316,31 @@ export class AiAgentMemoryModel {
         const first = promptRows[0];
         if (!first) return undefined;
         const visiblePromptRows = promptRows.filter((row) => !row.hidden);
+        const visiblePromptUuids = visiblePromptRows.map(
+            (row) => row.promptUuid,
+        );
+
+        type SteerRow = {
+            promptUuid: string;
+            message: string;
+        };
+        const steerRows =
+            visiblePromptUuids.length > 0
+                ? await this.database(AiPromptSteerTableName)
+                      .whereIn('ai_prompt_uuid', visiblePromptUuids)
+                      .orderBy('created_at', 'asc')
+                      .orderBy('ai_prompt_steer_uuid', 'asc')
+                      .select<SteerRow[]>({
+                          promptUuid: 'ai_prompt_uuid',
+                          message: 'message',
+                      })
+                : [];
+        const steersByPrompt = steerRows.reduce((map, row) => {
+            const steers = map.get(row.promptUuid) ?? [];
+            steers.push(row.message);
+            map.set(row.promptUuid, steers);
+            return map;
+        }, new Map<string, string[]>());
 
         type ToolRow = {
             promptUuid: string;
@@ -392,6 +419,7 @@ export class AiAgentMemoryModel {
                               comment: row.humanFeedback,
                           }
                         : null,
+                steers: steersByPrompt.get(row.promptUuid) ?? [],
                 tools: (toolsByPrompt.get(row.promptUuid) ?? []).map(
                     (tool: ToolRow) => ({
                         toolCallId: tool.toolCallId,
