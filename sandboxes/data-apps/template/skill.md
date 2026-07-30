@@ -238,6 +238,8 @@ const bySegment = base.label('Revenue by Segment').dimensions(['customer_segment
 const byRegion = base.label('Revenue by Region').dimensions(['region']);
 ```
 
+**Sharing the explore-name constant:** define it in the component that uses it, or in its own module (e.g. `src/lib/constants.js`). Never export it from a component file that imports its consumers — that circular import evaluates the consumer first, the constant is `undefined` when a module-scope `query(...)` runs, and the app crashes on load.
+
 KPI cards — metrics without dimensions gives a single aggregated row:
 ```ts
 query('orders').label('KPI Summary').metrics(['total_revenue', 'order_count']).limit(1);
