@@ -1580,7 +1580,10 @@ export class CoderService extends BaseService {
                         uuid: undefined,
                         tabUuid: undefined,
                         tabSlug,
-                        tileSlug: undefined,
+                        tileSlug: CoderService.getTileSlugForTileUuid(
+                            dashboard,
+                            tile.uuid,
+                        ),
                         properties: {
                             title: tile.properties.title,
                             hideTitle: tile.properties.hideTitle,
