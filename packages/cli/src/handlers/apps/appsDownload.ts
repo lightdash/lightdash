@@ -207,6 +207,33 @@ export const preSlugUploadHint = (args: {
             : ''
     }. Uploads keep working via uuid matching meanwhile.`;
 
+export type AppPresence =
+    // Slugs the target project already has. Authoritative.
+    | { kind: 'known'; slugs: Set<string> }
+    // Listing unavailable or slug-less (older server): fall back to comparing
+    // the manifest's source project against the upload target.
+    | { kind: 'unknown'; targetProjectUuid: string };
+
+/**
+ * Auto-pushed apps normally upload only when the folder changed, because every
+ * upload triggers a sandbox rebuild. The exception is an app the target project
+ * does not have yet — without it a dashboard moved to a new project or instance
+ * lands with its tile skipped.
+ */
+export const shouldAutoPushApp = (args: {
+    manifest: Pick<DataAppManifest, 'slug' | 'projectUuid'>;
+    presence: AppPresence;
+    folderChanged: boolean;
+    force: boolean;
+}): boolean => {
+    if (args.force || args.folderChanged) return true;
+    if (args.manifest.slug === undefined) return true;
+    if (args.presence.kind === 'known') {
+        return !args.presence.slugs.has(args.manifest.slug);
+    }
+    return args.manifest.projectUuid !== args.presence.targetProjectUuid;
+};
+
 export type AppDownloadFailure = { appRef: string; message: string };
 
 export type AppDownloadErrorOutcome =

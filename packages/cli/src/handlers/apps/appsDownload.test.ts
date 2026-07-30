@@ -24,6 +24,7 @@ import {
     preSlugUploadHint,
     resolveAppsLimit,
     selectAppsToDownload,
+    shouldAutoPushApp,
     shouldFallBackToSpaceScopedListing,
     shouldWarnAllSkipped,
     unmatchedUploadRefsWarning,
@@ -737,5 +738,97 @@ describe('downloadAppsToDir', () => {
 
         expect(outcome.skippedNotBuiltCount).toBe(1);
         expect(outcome.failures).toEqual([]);
+    });
+});
+
+describe('shouldAutoPushApp', () => {
+    const manifest = {
+        slug: 'revenue-explorer',
+        projectUuid: 'source-project',
+    };
+    const known = (...slugs: string[]): AnyType => ({
+        kind: 'known',
+        slugs: new Set(slugs),
+    });
+
+    it('pushes when the target project does not have the app', () => {
+        expect(
+            shouldAutoPushApp({
+                manifest,
+                presence: known(),
+                folderChanged: false,
+                force: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('pushes when the app exists and the folder changed', () => {
+        expect(
+            shouldAutoPushApp({
+                manifest,
+                presence: known('revenue-explorer'),
+                folderChanged: true,
+                force: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('skips when the app exists and nothing changed', () => {
+        expect(
+            shouldAutoPushApp({
+                manifest,
+                presence: known('revenue-explorer'),
+                folderChanged: false,
+                force: false,
+            }),
+        ).toBe(false);
+    });
+
+    it('pushes an unchanged existing app under --force', () => {
+        expect(
+            shouldAutoPushApp({
+                manifest,
+                presence: known('revenue-explorer'),
+                folderChanged: false,
+                force: true,
+            }),
+        ).toBe(true);
+    });
+
+    it('falls back to the project comparison when presence is unknown', () => {
+        expect(
+            shouldAutoPushApp({
+                manifest,
+                presence: {
+                    kind: 'unknown',
+                    targetProjectUuid: 'other-project',
+                },
+                folderChanged: false,
+                force: false,
+            }),
+        ).toBe(true);
+
+        expect(
+            shouldAutoPushApp({
+                manifest,
+                presence: {
+                    kind: 'unknown',
+                    targetProjectUuid: 'source-project',
+                },
+                folderChanged: false,
+                force: false,
+            }),
+        ).toBe(false);
+    });
+
+    it('pushes a slug-less manifest so a pre-slug bundle still lands', () => {
+        expect(
+            shouldAutoPushApp({
+                manifest: { slug: undefined, projectUuid: 'source-project' },
+                presence: known('revenue-explorer'),
+                folderChanged: false,
+                force: false,
+            }),
+        ).toBe(true);
     });
 });
