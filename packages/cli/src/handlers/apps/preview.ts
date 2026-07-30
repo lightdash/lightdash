@@ -12,7 +12,7 @@ import { readManifestFromDir } from './appCodeFiles';
 import { startPreviewProxy } from './previewProxy';
 
 /**
- * Environment passed to the `pnpm dev` child process. Only the small set of
+ * Environment passed to the `npm run dev` child process. Only the small set of
  * host variables needed to launch a portable child process is inherited. In
  * particular, no Lightdash credential or unrelated parent-process secret is
  * copied into vite. The nonce is exposed to browser code as a run-scoped,
@@ -123,7 +123,7 @@ export const assertNodeModulesPresent = async (
         .catch(() => false);
     if (!isDir) {
         throw new Error(
-            `Dependencies are not installed. Run 'pnpm install' in ${appDir} first (preview does not auto-install).`,
+            `Dependencies are not installed. Run 'npm install' in ${appDir} first (preview does not auto-install).`,
         );
     }
 };
@@ -311,7 +311,7 @@ export const appsPreviewHandler = async (
     GlobalState.log(`Starting dev server (Ctrl-C to stop)…`);
 
     try {
-        await execa('pnpm', ['dev'], {
+        await execa('npm', ['run', 'dev'], {
             cwd: target.appDir,
             stdio: 'inherit',
             extendEnv: false,

@@ -143,10 +143,10 @@ describe('assertNodeModulesPresent', () => {
         await expect(assertNodeModulesPresent(dir)).resolves.toBeUndefined();
     });
 
-    it('errors telling the user to pnpm install, without installing', async () => {
+    it('errors telling the user to npm install, without installing', async () => {
         const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
         await expect(assertNodeModulesPresent(dir)).rejects.toThrow(
-            /Run 'pnpm install' in .* \(preview does not auto-install\)/,
+            /Run 'npm install' in .* \(preview does not auto-install\)/,
         );
     });
 });

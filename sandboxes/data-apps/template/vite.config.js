@@ -195,7 +195,7 @@ export default defineConfig(({ mode }) => {
                     // loopback proxy, which checks the route against the
                     // data-app SDK allowlist and attaches the credential
                     // before forwarding to Lightdash. Without the CLI (bare
-                    // `pnpm dev`) requests go to the instance uncredentialed
+                    // `npm run dev`) requests go to the instance uncredentialed
                     // and fail with 401 — preview requires the CLI command.
                     target: previewProxyTarget || lightdashUrl,
                     changeOrigin: true,

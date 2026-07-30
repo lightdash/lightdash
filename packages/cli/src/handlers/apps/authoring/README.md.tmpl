@@ -4,8 +4,8 @@ Downloaded with the Lightdash CLI (`lightdash download`).
 
 ## Edit → build → upload
 1. Edit files under `src/`.
-2. Optionally, `pnpm install && pnpm build` to check it compiles locally. If install fails in your environment, skip it — the server build on upload is authoritative and surfaces errors on the app page. Don't change machine or registry config to force it.
-3. Optionally, preview against real data: `lightdash apps preview` (needs a successful `pnpm install`).
+2. Optionally, `npm install && npm run build` to check it compiles locally. If install fails in your environment, skip it — the server build on upload is authoritative and surfaces errors on the app page. Don't change machine or registry config to force it.
+3. Optionally, preview against real data: `lightdash apps preview` (needs a successful `npm install`).
 4. `lightdash upload --apps` — Lightdash rebuilds and serves the app.
 
 Local preview uses your existing CLI login through a project- and route-restricted loopback proxy; the credential is not written into this folder or exposed to browser code. It runs local tooling as your OS user (with access to that user's files, including the existing CLI config) and shows data under your own permissions, so preview only source/dependencies you trust. Host-mediated features such as external connections and data-app-viz context still need testing after upload.
@@ -13,8 +13,8 @@ Local preview uses your existing CLI login through a project- and route-restrict
 ## What's read-only
 Most root config is read-only: `vite.config.js`, `tailwind.config.js`, `tsconfig.json`, etc. The server rebuilds against a trusted template, so local edits to those files don't change the deployed app.
 
-The app builds against the template's fixed dependency set (see `package.json`) — design within it. Only when custom dependencies are enabled on your Lightdash instance (most instances: not enabled), `package.json` becomes partially editable: run `pnpm add <pkg>` to declare extra npm dependencies (registry packages, plain semver versions only, up to 60 direct deps). `pnpm-lock.yaml` must be updated to match — `pnpm add` does this; if you edit `package.json` by hand, run `pnpm install --lockfile-only`. Upload rejects new dependencies without a matching lockfile. On upload the CLI warns which packages will be installed in the build sandbox; install scripts never run, and the server replaces `scripts` with the trusted template's (the sandbox build command is not uploader-controlled). The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading.
+The app builds against the template's fixed dependency set (see `package.json`) — design within it. Only when custom dependencies are enabled on your Lightdash instance (most instances: not enabled), `package.json` becomes partially editable. This is the one workflow that still requires pnpm: run `pnpm add <pkg>` to declare extra npm dependencies (registry packages, plain semver versions only, up to 60 direct deps). `pnpm-lock.yaml` must be updated to match — `pnpm add` does this; if you edit `package.json` by hand, run `pnpm install --lockfile-only`. Upload rejects new dependencies without a matching lockfile. On upload the CLI warns which packages will be installed in the build sandbox; install scripts never run, and the server replaces `scripts` with the trusted template's (the sandbox build command is not uploader-controlled). The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading.
 
-`.npmrc` sets `ignore-scripts=true` so dependencies' lifecycle scripts never run on your machine either — downloaded apps may be authored by someone else. Keep it; explicit `pnpm build`/`pnpm dev` still work.
+`.npmrc` sets `ignore-scripts=true` so dependencies' lifecycle scripts never run on your machine either — downloaded apps may be authored by someone else. Keep it; explicit commands such as `npm run build` still work.
 
 `.lightdash/context/` is a point-in-time snapshot of the source project; re-download to refresh it.

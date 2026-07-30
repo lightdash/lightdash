@@ -1070,11 +1070,11 @@ All scaffolding and context files are read-only reference — see [Upload is sou
 #### The local loop
 
 ```sh
-edit src/  →  pnpm install && pnpm build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
+edit src/  →  npm install && npm run build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
 ```
 
 1. Edit files under `src/`.
-2. Run `pnpm install && pnpm build` as a pre-flight compile check against the downloaded scaffolding.
+2. Run `npm install && npm run build` as a pre-flight compile check against the downloaded scaffolding.
 3. Optionally run `lightdash apps preview` to test against real data using the current CLI login.
 4. Upload with `lightdash upload --apps <slug>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
 
@@ -1097,7 +1097,7 @@ If the org design linked to the app has more than **30 asset files**, the theme 
 `lightdash apps preview [path]` starts the downloaded app's Vite server and connects its SDK to the project in
 `lightdash-app.yml` (override with `--project`). It pre-flights both the CLI credential and project before starting, so
 an expired login or an app downloaded from another instance fails with an actionable error instead of an in-app query
-failure. Bare `pnpm dev` has no authenticated data access.
+failure. Bare `npm run dev` has no authenticated data access.
 
 Preview does not copy or pass the durable CLI credential to the app. A loopback-only proxy injects the canonical PAT or
 service-account authorization header (plus configured reverse-proxy authorization) after enforcing the shared data-app
