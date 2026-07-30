@@ -1,10 +1,31 @@
-import { getAiAgentMemoryPreview, parseAiAgentMemorySections } from './memory';
+import {
+    getAiAgentMemoryPreview,
+    getMarkdownPlainText,
+    parseAiAgentMemorySections,
+} from './memory';
 
 describe('getAiAgentMemoryPreview', () => {
     it('preserves markdown and limits the preview to 256 characters', () => {
         const memory = `**Revenue definition** ${'a'.repeat(300)}`;
 
         expect(getAiAgentMemoryPreview(memory)).toBe(memory.slice(0, 256));
+    });
+});
+
+describe('getMarkdownPlainText', () => {
+    it('flattens lists, emphasis and code to one line', () => {
+        expect(
+            getMarkdownPlainText(`- The user preferred the **direct** join.
+- The query failed with \`bytesBilledLimitExceeded\`.`),
+        ).toBe(
+            'The user preferred the direct join. The query failed with bytesBilledLimitExceeded.',
+        );
+    });
+
+    it('drops link syntax but keeps the link text', () => {
+        expect(getMarkdownPlainText('See [the thread](/threads/1).')).toBe(
+            'See the thread.',
+        );
     });
 });
 

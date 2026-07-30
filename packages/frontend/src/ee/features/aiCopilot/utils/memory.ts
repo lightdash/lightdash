@@ -3,6 +3,40 @@ import { unified } from 'unified';
 
 export const getAiAgentMemoryPreview = (value: string) => value.slice(0, 256);
 
+type MarkdownNode = {
+    type: string;
+    value?: string;
+    children?: MarkdownNode[];
+};
+
+// Runs of text within these read as one sentence; anything else is a block and
+// gets a space so a list doesn't collapse into "join.The query failed"
+const INLINE_CONTAINER_TYPES = new Set([
+    'paragraph',
+    'heading',
+    'emphasis',
+    'strong',
+    'delete',
+    'link',
+    'linkReference',
+    'tableCell',
+]);
+
+/** Flattens markdown to one line of prose, for collapsed previews. */
+export const getMarkdownPlainText = (value: string): string => {
+    const collect = (node: MarkdownNode): string => {
+        if (typeof node.value === 'string') return node.value;
+
+        return (node.children ?? [])
+            .map(collect)
+            .join(INLINE_CONTAINER_TYPES.has(node.type) ? '' : ' ');
+    };
+
+    return collect(markdownParser.parse(value) as MarkdownNode)
+        .replace(/\s+/g, ' ')
+        .trim();
+};
+
 export type AiAgentMemorySections = {
     memory: string;
     evidence: string | null;

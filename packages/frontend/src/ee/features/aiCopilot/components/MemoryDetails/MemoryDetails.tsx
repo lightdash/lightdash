@@ -21,12 +21,15 @@ import {
     IconHistory,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import Callout from '../../../../../components/common/Callout';
 import MantineModal from '../../../../../components/common/MantineModal';
-import { parseAiAgentMemorySections } from '../../utils/memory';
+import {
+    getMarkdownPlainText,
+    parseAiAgentMemorySections,
+} from '../../utils/memory';
 import { MEMORY_SCOPE_LABELS } from '../Admin/memoryScope';
 import styles from './MemoryDetails.module.css';
 import { MemoryStatusAction, MemoryStatusMenu } from './MemoryStatusControls';
@@ -56,14 +59,26 @@ const RailRow: FC<{ label: ReactNode; children: ReactNode }> = ({
     </Group>
 );
 
-const DisclosureLabel: FC<{ title: string; description: string }> = ({
-    title,
-    description,
-}) => (
-    <Box>
-        <Text className={styles.disclosureTitle}>{title}</Text>
-        <Text className={styles.disclosureDescription}>{description}</Text>
-    </Box>
+const Disclosure: FC<{
+    value: string;
+    label: string;
+    preview: string;
+    isOpen: boolean;
+    children: ReactNode;
+}> = ({ value, label, preview, isOpen, children }) => (
+    <Accordion.Item value={value}>
+        <Accordion.Control>
+            <Box className={styles.disclosureRow}>
+                <Text className={styles.disclosureLabelText}>{label}</Text>
+                {isOpen ? null : (
+                    <Text className={styles.disclosurePreview} lineClamp={1}>
+                        {preview}
+                    </Text>
+                )}
+            </Box>
+        </Accordion.Control>
+        <Accordion.Panel>{children}</Accordion.Panel>
+    </Accordion.Item>
 );
 
 const SourceRow: FC<{
@@ -105,6 +120,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
     projectUuid,
     agentUuid,
 }) => {
+    const [openSections, setOpenSections] = useState<string[]>([]);
     const replacementPath =
         memory.replacementSlug && agentUuid
             ? `/projects/${projectUuid}/ai-agents/${agentUuid}/memories/${memory.replacementSlug}`
@@ -114,12 +130,12 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
             ? [memory.provenance.source]
             : memory.provenance.sources;
     const sections = parseAiAgentMemorySections(memory.rawMemory);
-    const sourceDescription =
-        memory.provenance.type === 'consolidated'
-            ? sources.length > 0
-                ? `Consolidated from ${sources.length} memories`
-                : 'Consolidated memory'
-            : 'Extracted from one thread';
+    const sourcePreview =
+        sources.length > 0
+            ? sources
+                  .map((source) => source.threadTitle ?? 'AI agent thread')
+                  .join(', ')
+            : 'No source threads recorded';
 
     return (
         <Box className={styles.layout}>
@@ -161,77 +177,66 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
 
                 <Accordion
                     multiple
-                    defaultValue={[]}
+                    value={openSections}
+                    onChange={setOpenSections}
                     className={styles.disclosures}
                     classNames={{
                         item: styles.disclosureItem,
                         control: styles.disclosureControl,
                         label: styles.disclosureLabel,
                         chevron: styles.disclosureChevron,
+                        panel: styles.disclosurePanel,
                         content: styles.disclosureContent,
                     }}
                 >
                     {sections.evidence ? (
-                        <Accordion.Item value="evidence">
-                            <Accordion.Control>
-                                <DisclosureLabel
-                                    title="Evidence"
-                                    description="Why this memory was learned"
-                                />
-                            </Accordion.Control>
-                            <Accordion.Panel>
-                                <AiMarkdown
-                                    className={styles.disclosureMarkdown}
-                                >
-                                    {sections.evidence}
-                                </AiMarkdown>
-                            </Accordion.Panel>
-                        </Accordion.Item>
+                        <Disclosure
+                            value="evidence"
+                            label="Evidence"
+                            preview={getMarkdownPlainText(sections.evidence)}
+                            isOpen={openSections.includes('evidence')}
+                        >
+                            <AiMarkdown className={styles.disclosureMarkdown}>
+                                {sections.evidence}
+                            </AiMarkdown>
+                        </Disclosure>
                     ) : null}
 
                     {sections.apply ? (
-                        <Accordion.Item value="apply">
-                            <Accordion.Control>
-                                <DisclosureLabel
-                                    title="Apply"
-                                    description="When and how to use it"
-                                />
-                            </Accordion.Control>
-                            <Accordion.Panel>
-                                <AiMarkdown
-                                    className={styles.disclosureMarkdown}
-                                >
-                                    {sections.apply}
-                                </AiMarkdown>
-                            </Accordion.Panel>
-                        </Accordion.Item>
+                        <Disclosure
+                            value="apply"
+                            label="Apply"
+                            preview={getMarkdownPlainText(sections.apply)}
+                            isOpen={openSections.includes('apply')}
+                        >
+                            <AiMarkdown className={styles.disclosureMarkdown}>
+                                {sections.apply}
+                            </AiMarkdown>
+                        </Disclosure>
                     ) : null}
 
-                    <Accordion.Item value="source">
-                        <Accordion.Control>
-                            <DisclosureLabel
-                                title="Source"
-                                description={sourceDescription}
-                            />
-                        </Accordion.Control>
-                        <Accordion.Panel>
-                            <Box className={styles.sourceList}>
-                                {sources.length > 0 ? (
-                                    sources.map((source) => (
-                                        <SourceRow
-                                            key={source.slug}
-                                            source={source}
-                                            projectUuid={projectUuid}
-                                        />
-                                    ))
-                                ) : (
-                                    <Text size="xs" c="dimmed" p="md">
-                                        No source threads recorded
-                                    </Text>
-                                )}
-                            </Box>
-                        </Accordion.Panel>
-                    </Accordion.Item>
+                    <Disclosure
+                        value="source"
+                        label="Source"
+                        preview={sourcePreview}
+                        isOpen={openSections.includes('source')}
+                    >
+                        <Box className={styles.sourceList}>
+                            {sources.length > 0 ? (
+                                sources.map((source) => (
+                                    <SourceRow
+                                        key={source.slug}
+                                        source={source}
+                                        projectUuid={projectUuid}
+                                    />
+                                ))
+                            ) : (
+                                <Text size="xs" c="dimmed" p="md">
+                                    No source threads recorded
+                                </Text>
+                            )}
+                        </Box>
+                    </Disclosure>
                 </Accordion>
             </Stack>
 

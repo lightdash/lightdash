@@ -160,13 +160,19 @@ describe('MemoryCitation', () => {
         expect(evidenceControl).toHaveAttribute('aria-expanded', 'false');
         expect(applyControl).toHaveAttribute('aria-expanded', 'false');
         expect(sourceControl).toHaveAttribute('aria-expanded', 'false');
-        expect(
-            within(dialog).getByText('Extracted from one thread'),
-        ).toBeInTheDocument();
+        // collapsed rows preview their own content, not a static description
+        expect(evidenceControl).toHaveTextContent(
+            'The user explicitly adopted this definition.',
+        );
+        expect(applyControl).toHaveTextContent(
+            'Use net revenue for future revenue questions.',
+        );
+        expect(sourceControl).toHaveTextContent('Revenue conventions');
 
         fireEvent.click(sourceControl);
 
         expect(sourceControl).toHaveAttribute('aria-expanded', 'true');
+        expect(sourceControl).not.toHaveTextContent('Revenue conventions');
         expect(within(dialog).getByText('Defined')).toHaveAttribute(
             'data-streamdown',
             'strong',

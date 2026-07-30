@@ -41,6 +41,10 @@
 }
 
 .disclosures {
+    --disclosure-label-width: 84px;
+    --disclosure-gap: var(--mantine-spacing-md);
+    --disclosure-line-height: 20px;
+
     margin-top: 28px;
     border-top: 1px solid var(--mantine-color-ldGray-2);
 }
@@ -50,9 +54,19 @@
 }
 
 .disclosureControl {
-    min-height: 60px;
-    padding: 10px 4px;
+    padding: 12px 4px;
     border-radius: 8px;
+}
+
+.disclosureControl[data-active] {
+    padding-bottom: 0;
+}
+
+/* Open: the panel rides up onto the label's line so the label reads as that
+   row's heading. Its gutter is click-through, so the control stays toggleable. */
+.disclosureItem[data-active] .disclosurePanel {
+    margin-top: calc(-1 * var(--disclosure-line-height));
+    pointer-events: none;
 }
 
 .disclosureControl:hover {
@@ -71,21 +85,32 @@
 }
 
 .disclosureContent {
-    padding: 2px 28px 20px 4px;
+    padding: 0 28px 20px
+        calc(var(--disclosure-label-width) + var(--disclosure-gap) + 4px);
 }
 
-.disclosureTitle {
+.disclosureContent > * {
+    pointer-events: auto;
+}
+
+.disclosureRow {
+    display: grid;
+    grid-template-columns: var(--disclosure-label-width) minmax(0, 1fr);
+    gap: var(--disclosure-gap);
+    align-items: baseline;
+}
+
+.disclosureLabelText {
     color: var(--mantine-color-ldGray-9);
     font-size: 13px;
-    font-weight: 550;
-    line-height: 1.4;
+    font-weight: 600;
+    line-height: var(--disclosure-line-height);
 }
 
-.disclosureDescription {
-    margin-top: 2px;
+.disclosurePreview {
     color: var(--mantine-color-ldGray-6);
-    font-size: 11.5px;
-    line-height: 1.4;
+    font-size: 13px;
+    line-height: var(--disclosure-line-height);
 }
 
 .disclosureMarkdown {
