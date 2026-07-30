@@ -2,11 +2,14 @@ import { Ability } from '@casl/ability';
 import {
     ChartType,
     ContentType,
+    CustomDimensionType,
+    DimensionType,
     ForbiddenError,
     OrganizationMemberRole,
     PossibleAbilities,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromSession } from '../../auth/account';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -125,10 +128,15 @@ const spacePermissionService = {
         inheritsFromOrgOrProject: true,
         access: [],
     })),
+    getFirstViewableSpaceUuid: vi.fn(async () => 'space-uuid'),
 };
 
 const projectModel = {
     getExploreFromCache: vi.fn(async () => null),
+    getSummary: vi.fn(async () => ({
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+    })),
 };
 
 vi.spyOn(analyticsMock, 'track');
@@ -209,6 +217,84 @@ describe('SavedChartService - Content Verification', () => {
             ).rejects.toThrow(ForbiddenError);
 
             expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('custom SQL permissions on create', () => {
+        const chartCreator = {
+            ...editorUser,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'create' },
+            ]),
+        };
+        const account = fromSession(chartCreator, 'session-cookie');
+        const baseChart = {
+            name: 'Custom SQL chart',
+            tableName: 'orders',
+            metricQuery: {
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            },
+            chartConfig: {
+                type: ChartType.TABLE,
+            },
+            tableConfig: {
+                columnOrder: [],
+            },
+            spaceUuid: 'space-uuid',
+            dashboardUuid: null,
+        };
+
+        it('rejects custom SQL dimensions without CustomFields permission', async () => {
+            await expect(
+                service.create(account, 'project-uuid', {
+                    ...baseChart,
+                    metricQuery: {
+                        ...baseChart.metricQuery,
+                        customDimensions: [
+                            {
+                                id: 'custom_sql',
+                                name: 'Custom SQL',
+                                table: 'orders',
+                                type: CustomDimensionType.SQL,
+                                sql: "'value'",
+                                dimensionType: DimensionType.STRING,
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toThrow(
+                'User cannot save queries with custom SQL dimensions',
+            );
+
+            expect(savedChartModel.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects SQL table calculations without CustomSqlTableCalculations permission', async () => {
+            await expect(
+                service.create(account, 'project-uuid', {
+                    ...baseChart,
+                    metricQuery: {
+                        ...baseChart.metricQuery,
+                        tableCalculations: [
+                            {
+                                name: 'custom_sql',
+                                displayName: 'Custom SQL',
+                                sql: "'value'",
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toThrow(
+                'User cannot save queries with SQL table calculations',
+            );
+
+            expect(savedChartModel.create).not.toHaveBeenCalled();
         });
     });
 
