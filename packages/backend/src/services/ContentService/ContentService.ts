@@ -438,8 +438,7 @@ export class ContentService extends BaseService {
         filters: DeletedContentFilters,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<DeletedContentWithDescendants[]>> {
-        const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
+        if (user.organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
         }
 
@@ -448,7 +447,7 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Project UUID is required');
         }
 
-        const { name: projectName } =
+        const { name: projectName, organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
 
