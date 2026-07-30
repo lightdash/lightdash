@@ -1,5 +1,7 @@
 import {
     ChartKind,
+    Compact,
+    ComparisonFormatTypes,
     VizAggregationOptions,
     type VizBigNumberConfig,
 } from '@lightdash/common';
@@ -11,6 +13,15 @@ import {
 } from './actions/commonChartActions';
 import {
     bigNumberConfigSlice,
+    setComparisonAggregation,
+    setComparisonFormat,
+    setComparisonLabel,
+    setComparisonReference,
+    setFlipColors,
+    setLabel,
+    setShowComparison,
+    setShowLabel,
+    setStyle,
     setValueAggregation,
     setValueReference,
 } from './bigNumberSlice';
@@ -132,5 +143,101 @@ describe('bigNumberConfigSlice', () => {
         expect(
             reducer(withConfig, resetChartState()).fieldConfig,
         ).toBeUndefined();
+    });
+
+    describe('comparison field', () => {
+        const withOptions = () =>
+            reducer(undefined, setChartOptionsAndConfig(optionsAndConfig));
+
+        it('adds the comparison field after the value field', () => {
+            const state = reducer(
+                withOptions(),
+                setComparisonReference('target'),
+            );
+
+            expect(state.fieldConfig?.y).toEqual([
+                {
+                    reference: 'revenue',
+                    aggregation: VizAggregationOptions.SUM,
+                },
+                { reference: 'target', aggregation: VizAggregationOptions.MAX },
+            ]);
+        });
+
+        it('clears the comparison field', () => {
+            const withComparison = reducer(
+                withOptions(),
+                setComparisonReference('target'),
+            );
+
+            expect(
+                reducer(withComparison, setComparisonReference(undefined))
+                    .fieldConfig?.y,
+            ).toHaveLength(1);
+        });
+
+        it('drops the comparison field when the comparison is switched off', () => {
+            const withComparison = reducer(
+                reducer(withOptions(), setShowComparison(true)),
+                setComparisonReference('target'),
+            );
+
+            const state = reducer(withComparison, setShowComparison(false));
+
+            expect(state.display?.showComparison).toBe(false);
+            expect(state.fieldConfig?.y).toHaveLength(1);
+        });
+
+        it('keeps the value field when the comparison is switched on', () => {
+            const state = reducer(withOptions(), setShowComparison(true));
+
+            expect(state.display?.showComparison).toBe(true);
+            expect(state.fieldConfig?.y).toHaveLength(1);
+        });
+
+        it('overrides the comparison aggregation', () => {
+            const withComparison = reducer(
+                withOptions(),
+                setComparisonReference('target'),
+            );
+
+            expect(
+                reducer(
+                    withComparison,
+                    setComparisonAggregation(VizAggregationOptions.MIN),
+                ).fieldConfig?.y[1].aggregation,
+            ).toBe(VizAggregationOptions.MIN);
+        });
+    });
+
+    describe('display options', () => {
+        it('updates each display option without touching the others', () => {
+            let state = reducer(undefined, setLabel('Total revenue'));
+            state = reducer(state, setShowLabel(false));
+            state = reducer(state, setStyle(Compact.MILLIONS));
+            state = reducer(
+                state,
+                setComparisonFormat(ComparisonFormatTypes.PERCENTAGE),
+            );
+            state = reducer(state, setComparisonLabel('vs target'));
+            state = reducer(state, setFlipColors(true));
+
+            expect(state.display).toEqual({
+                label: 'Total revenue',
+                showLabel: false,
+                style: Compact.MILLIONS,
+                comparisonFormat: ComparisonFormatTypes.PERCENTAGE,
+                comparisonLabel: 'vs target',
+                flipColors: true,
+            });
+        });
+
+        it('clears the label back to the default', () => {
+            const withLabel = reducer(undefined, setLabel('Total revenue'));
+
+            expect(
+                reducer(withLabel, setLabel(undefined)).display?.label,
+            ).toBeUndefined();
+        });
     });
 });
