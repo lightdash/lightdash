@@ -161,3 +161,9 @@ scripts/playground-bundle/.venv/
 
 # Local pnpm store (also keeps it out of Okteto file sync via .stignore)
 .pnpm-store/
+
+# Heavy local paths already ignored via nested .gitignore or .git/info/exclude.
+# Repeated here because Okteto file sync (.stignore) only reads this root file.
+scripts/k8s-dev/terraform/.terraform/
+examples/metricflow-demo/.fusion/
+.claude/worktrees/
