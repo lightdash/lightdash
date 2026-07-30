@@ -123,6 +123,7 @@ export * from './types/email';
 export * from './types/errors';
 export * from './types/explore';
 export * from './types/favorites';
+export * from './featureFlags/previewFeatureFlags';
 export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';

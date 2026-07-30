@@ -115,6 +115,12 @@ services:
             # network. Production requires PGWIRE_SSL_CERT_PATH/KEY_PATH.
             PGWIRE_SSL_MODE: disabled
 
+            # Most feature flags are enabled automatically in LIGHTDASH_MODE=pr,
+            # and admins can toggle them at runtime via /api/v2/feature-flag.
+            # See docs/preview-feature-flags.md. The legacy per-flag env vars
+            # below are still needed because they also set config fields (e.g.
+            # the health endpoint), not just the feature flag.
+
             # Force-enable embedding flag in preview envs so e2e tests work.
             # Picked up via LEGACY_ENABLE_ENV_VARS in parseConfig.ts → unified
             # enabledFeatureFlags allowlist (step 1a).
