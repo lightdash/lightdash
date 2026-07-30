@@ -1101,8 +1101,10 @@ failure. Bare `pnpm dev` has no authenticated data access.
 
 Preview does not copy or pass the durable CLI credential to the app. A loopback-only proxy injects the canonical PAT or
 service-account authorization header (plus configured reverse-proxy authorization) after enforcing the shared data-app
-SDK route allowlist and the selected project. Vite knows only the proxy address and a random per-run nonce; browser code
-gets a non-authenticating sentinel. The Vite child is started with a minimal environment so `LIGHTDASH_API_KEY` and
+SDK route allowlist and the selected project. Vite and browser code receive only a random per-run nonce scoped to that
+allowlist and project, never the durable credential. Cross-origin browser access to Vite is disabled, and Vite only adds
+authentication to proxy traffic when the SDK presents that nonce. The Vite child is started with a minimal environment
+so `LIGHTDASH_API_KEY` and
 unrelated parent-process secrets are not inherited. The dev CSP limits network requests to the local origin, forcing SDK
 API calls through that proxy. The deployed postMessage bridge enforces the same route and project boundary.
 

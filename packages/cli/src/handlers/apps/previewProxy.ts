@@ -5,9 +5,9 @@ import {
 import * as http from 'http';
 import * as https from 'https';
 
-// Per-run shared secret between the CLI proxy and the vite dev server's /api
-// proxy. Requests without it are rejected, so a drive-by page (or another
-// local process) that discovers the loopback port cannot use the proxy.
+// Per-run shared secret between the browser, Vite, and the CLI proxy. Vite
+// forwards the browser's scoped Authorization value and adds this header;
+// both must match before the durable credential is attached upstream.
 export const PREVIEW_PROXY_NONCE_HEADER = 'x-lightdash-preview-nonce';
 
 // Hop-by-hop headers are connection-scoped and must not be forwarded.
@@ -23,7 +23,7 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 // Client → upstream: host is derived from the upstream URL; the browser-side
-// authorization sentinel and the nonce must not travel upstream, and
+// scoped preview capability and the nonce must not travel upstream, and
 // localhost cookies are not the instance's business.
 const DROPPED_REQUEST_HEADERS = new Set([
     'host',
@@ -88,7 +88,11 @@ export const startPreviewProxy = (args: {
     const server = http.createServer((req, res) => {
         const method = req.method ?? 'GET';
         const nonceHeader = req.headers[PREVIEW_PROXY_NONCE_HEADER];
-        if (nonceHeader !== args.nonce) {
+        const browserAuthorization = req.headers.authorization;
+        if (
+            nonceHeader !== args.nonce ||
+            browserAuthorization !== `ApiKey ${args.nonce}`
+        ) {
             sendJsonError(res, 401, 'Preview proxy: missing or invalid nonce');
             return;
         }

@@ -11,17 +11,12 @@ import { getAuthHeader } from '../utils';
 import { readManifestFromDir } from './appCodeFiles';
 import { startPreviewProxy } from './previewProxy';
 
-// Non-secret placeholder inlined into the browser in place of the real key.
-// The CLI's loopback proxy replaces the Authorization header with the real
-// credential before forwarding upstream, so this value never authenticates.
-export const PREVIEW_API_KEY_SENTINEL = 'preview-proxy-injected';
-
 /**
  * Environment passed to the `pnpm dev` child process. Only the small set of
  * host variables needed to launch a portable child process is inherited. In
  * particular, no Lightdash credential or unrelated parent-process secret is
- * copied into vite. The nonce is a run-scoped capability for the proxy's
- * allowlisted routes; it is not exposed to browser code.
+ * copied into vite. The nonce is exposed to browser code as a run-scoped,
+ * project- and route-limited capability; it is not a Lightdash credential.
  */
 export const buildPreviewChildEnv = (args: {
     serverUrl: string;
@@ -67,7 +62,7 @@ export const buildPreviewChildEnv = (args: {
     return {
         ...childEnv,
         VITE_LIGHTDASH_URL: args.serverUrl.replace(/\/+$/, ''),
-        VITE_LIGHTDASH_API_KEY: PREVIEW_API_KEY_SENTINEL,
+        VITE_LIGHTDASH_API_KEY: args.proxyNonce,
         VITE_LIGHTDASH_PROJECT_UUID: args.projectUuid,
         LIGHTDASH_PREVIEW_PROXY_TARGET: `http://127.0.0.1:${args.proxyPort}`,
         LIGHTDASH_PREVIEW_PROXY_NONCE: args.proxyNonce,

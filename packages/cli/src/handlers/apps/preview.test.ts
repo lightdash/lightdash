@@ -8,7 +8,6 @@ import {
     assertNodeModulesPresent,
     assertScaffoldingSupportsPreviewProxy,
     buildPreviewChildEnv,
-    PREVIEW_API_KEY_SENTINEL,
     projectNotFoundMessage,
     resolvePreviewTarget,
 } from './preview';
@@ -57,7 +56,7 @@ describe('buildPreviewChildEnv', () => {
             HOME: '/home/developer',
             PATH: '/usr/bin',
             VITE_LIGHTDASH_URL: 'http://localhost:3000',
-            VITE_LIGHTDASH_API_KEY: PREVIEW_API_KEY_SENTINEL,
+            VITE_LIGHTDASH_API_KEY: 'nonce-abc',
             VITE_LIGHTDASH_PROJECT_UUID: 'proj-uuid-1',
             LIGHTDASH_PREVIEW_PROXY_TARGET: 'http://127.0.0.1:45678',
             LIGHTDASH_PREVIEW_PROXY_NONCE: 'nonce-abc',

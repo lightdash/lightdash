@@ -63,11 +63,21 @@ describe('startPreviewProxy', () => {
 
     const proxyFetch = (
         path: string,
-        init: RequestInit & { nonce?: string | null } = {},
+        init: RequestInit & {
+            nonce?: string | null;
+            authorization?: string | null;
+        } = {},
     ) => {
-        const { nonce = NONCE, ...rest } = init;
+        const {
+            nonce = NONCE,
+            authorization = `ApiKey ${NONCE}`,
+            ...rest
+        } = init;
         const headers = new Headers(rest.headers);
         if (nonce !== null) headers.set(PREVIEW_PROXY_NONCE_HEADER, nonce);
+        if (authorization !== null) {
+            headers.set('authorization', authorization);
+        }
         return fetch(`http://127.0.0.1:${proxy.port}${path}`, {
             ...rest,
             headers,
@@ -96,7 +106,7 @@ describe('startPreviewProxy', () => {
                 method: 'POST',
                 headers: {
                     'content-type': 'application/json',
-                    authorization: 'ApiKey preview-proxy-injected',
+                    authorization: `ApiKey ${NONCE}`,
                 },
                 body: JSON.stringify({ exploreName: 'orders' }),
             },
@@ -106,7 +116,7 @@ describe('startPreviewProxy', () => {
         const forwarded = upstream.seen[0];
         expect(forwarded.method).toBe('POST');
         expect(forwarded.body).toBe('{"exploreName":"orders"}');
-        // The browser-side sentinel is replaced by the real credential…
+        // The browser-side scoped capability is replaced by the real credential…
         expect(forwarded.headers.authorization).toBe(AUTHORIZATION);
         // …and the run-scoped nonce never travels upstream.
         expect(forwarded.headers[PREVIEW_PROXY_NONCE_HEADER]).toBeUndefined();
@@ -155,6 +165,18 @@ describe('startPreviewProxy', () => {
         expect(upstream.seen).toHaveLength(0);
     });
 
+    it('rejects requests without the browser-side scoped capability', async () => {
+        const missing = await proxyFetch('/api/v1/user', {
+            authorization: null,
+        });
+        expect(missing.status).toBe(401);
+        const wrong = await proxyFetch('/api/v1/user', {
+            authorization: 'ApiKey guessed',
+        });
+        expect(wrong.status).toBe(401);
+        expect(upstream.seen).toHaveLength(0);
+    });
+
     it('does not pass upstream cookies back to the page', async () => {
         const res = await proxyFetch('/api/v1/user');
         expect(res.status).toBe(200);
@@ -176,6 +198,7 @@ describe('startPreviewProxy', () => {
                 {
                     headers: {
                         [PREVIEW_PROXY_NONCE_HEADER]: 'service-nonce',
+                        authorization: 'ApiKey service-nonce',
                     },
                 },
             );

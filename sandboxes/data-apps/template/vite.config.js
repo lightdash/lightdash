@@ -147,9 +147,8 @@ export default defineConfig(({ mode }) => {
     // envPrefix defaults to 'VITE_'). `lightdash apps preview` starts a
     // loopback proxy that holds the real credential and enforces the data-app
     // SDK route allowlist; this dev server only ever learns the proxy's
-    // address and a run-scoped nonce. The browser gets a non-secret sentinel
-    // as VITE_LIGHTDASH_API_KEY, so no usable credential is passed to this
-    // process or inlined into the page.
+    // address and a run-scoped nonce. The browser receives that nonce as a
+    // project- and route-limited capability, never the durable credential.
     const env = loadEnv(mode, process.cwd(), ['VITE_', 'LIGHTDASH_PREVIEW_']);
     const previewProxyTarget = env.LIGHTDASH_PREVIEW_PROXY_TARGET;
     const previewProxyNonce = env.LIGHTDASH_PREVIEW_PROXY_NONCE;
@@ -185,6 +184,10 @@ export default defineConfig(({ mode }) => {
             },
         },
         server: {
+            host: '127.0.0.1',
+            // Vite otherwise permits every localhost origin. Preview is a
+            // credentialed endpoint, so only the page's own origin may read it.
+            cors: false,
             headers: { 'Content-Security-Policy': previewCsp },
             proxy: {
                 '/api': {
@@ -199,11 +202,21 @@ export default defineConfig(({ mode }) => {
                     secure: true,
                     configure: (proxy) => {
                         if (!previewProxyNonce) return;
-                        proxy.on('proxyReq', (proxyReq) => {
-                            proxyReq.setHeader(
-                                'x-lightdash-preview-nonce',
-                                previewProxyNonce,
-                            );
+                        proxy.on('proxyReq', (proxyReq, req) => {
+                            // Do not turn Vite into an unauthenticated front
+                            // door to the nonce-protected CLI proxy. The SDK
+                            // presents the run-scoped nonce as its local API
+                            // key; only matching requests receive the inner
+                            // proxy header.
+                            if (
+                                req.headers.authorization ===
+                                `ApiKey ${previewProxyNonce}`
+                            ) {
+                                proxyReq.setHeader(
+                                    'x-lightdash-preview-nonce',
+                                    previewProxyNonce,
+                                );
+                            }
                         });
                     },
                 },
