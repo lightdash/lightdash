@@ -302,7 +302,14 @@ const Login: FC<{}> = () => {
             <Box mx="auto" my="lg">
                 <LightdashLogo />
             </Box>
-            <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
+            <Card
+                id={LOGIN_PAGE_ID}
+                p="xl"
+                radius="xs"
+                withBorder
+                shadow="xs"
+                bg="pink.5"
+            >
                 <Title order={3} ta="center" mb="md">
                     Sign in
                 </Title>
