@@ -115,6 +115,11 @@ export const loadVendoredTemplate = (): DataAppCodeFile[] => {
     return walkDir(templateDir, templateDir, SKIP);
 };
 
+export const loadVendoredStarterSource = (): DataAppCodeFile[] => {
+    const { templateDir } = resolveVendorDirs();
+    return walkDir(path.join(templateDir, 'src'), templateDir, new Set());
+};
+
 /**
  * Assembles static authoring files (configs, skills, templates) to deploy alongside a data app.
  */
