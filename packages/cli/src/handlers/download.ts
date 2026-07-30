@@ -2777,59 +2777,81 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     return { changes, total: filteredItems.length };
 };
 
-const getDashboardChartSlugs = async (
-    dashboardSlugs: string[],
+// readCodeFiles walks the whole download folder recursively, so callers that
+// need both chart and app slugs should read once and reuse the result.
+const readDashboardItems = async (
     customPath?: string,
     looseDashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [],
-) => {
+): Promise<DashboardAsCode[]> => {
     const folderDashboards = await readCodeFiles<DashboardAsCode>(
         'dashboards',
         customPath,
     );
-    const dashboardItems = [...folderDashboards, ...looseDashboards];
-
-    const filteredDashboardItems =
-        dashboardSlugs.length > 0
-            ? dashboardItems.filter((dashboard) =>
-                  dashboardSlugs.includes(dashboard.slug),
-              )
-            : dashboardItems;
-
-    return filteredDashboardItems.reduce<string[]>((acc, dashboard) => {
-        const dashboardChartSlugs = dashboard.tiles
-            .map((tile) =>
-                'chartSlug' in tile.properties
-                    ? tile.properties.chartSlug
-                    : undefined,
-            )
-            .filter(
-                (dashboardChartSlug): dashboardChartSlug is string =>
-                    !!dashboardChartSlug,
-            );
-
-        return [...acc, ...dashboardChartSlugs];
-    }, []);
+    return [...folderDashboards, ...looseDashboards];
 };
+
+const selectDashboards = (
+    dashboardItems: DashboardAsCode[],
+    dashboardSlugs: string[],
+): DashboardAsCode[] =>
+    dashboardSlugs.length > 0
+        ? dashboardItems.filter((dashboard) =>
+              dashboardSlugs.includes(dashboard.slug),
+          )
+        : dashboardItems;
+
+const selectDashboardChartSlugs = (
+    dashboardItems: DashboardAsCode[],
+    dashboardSlugs: string[],
+): string[] =>
+    selectDashboards(dashboardItems, dashboardSlugs).reduce<string[]>(
+        (acc, dashboard) => {
+            const dashboardChartSlugs = dashboard.tiles
+                .map((tile) =>
+                    'chartSlug' in tile.properties
+                        ? tile.properties.chartSlug
+                        : undefined,
+                )
+                .filter(
+                    (dashboardChartSlug): dashboardChartSlug is string =>
+                        !!dashboardChartSlug,
+                );
+
+            return [...acc, ...dashboardChartSlugs];
+        },
+        [],
+    );
+
+const selectDashboardAppSlugs = (
+    dashboardItems: DashboardAsCode[],
+    dashboardSlugs: string[],
+): string[] => [
+    ...new Set(
+        extractAppSlugsFromDashboards(
+            selectDashboards(dashboardItems, dashboardSlugs),
+        ),
+    ),
+];
+
+const getDashboardChartSlugs = async (
+    dashboardSlugs: string[],
+    customPath?: string,
+    looseDashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [],
+): Promise<string[]> =>
+    selectDashboardChartSlugs(
+        await readDashboardItems(customPath, looseDashboards),
+        dashboardSlugs,
+    );
 
 const getDashboardAppSlugs = async (
     dashboardSlugs: string[],
     customPath?: string,
     looseDashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [],
-): Promise<string[]> => {
-    const folderDashboards = await readCodeFiles<DashboardAsCode>(
-        'dashboards',
-        customPath,
+): Promise<string[]> =>
+    selectDashboardAppSlugs(
+        await readDashboardItems(customPath, looseDashboards),
+        dashboardSlugs,
     );
-    const dashboardItems = [...folderDashboards, ...looseDashboards];
-    const selected =
-        dashboardSlugs.length > 0
-            ? dashboardItems.filter((dashboard) =>
-                  dashboardSlugs.includes(dashboard.slug),
-              )
-            : dashboardItems;
-
-    return [...new Set(extractAppSlugsFromDashboards(selected))];
-};
 
 // Mirrors the Dashboards phase's own guard: a filtered upload with no
 // dashboard slugs uploads no dashboards, so there is nothing to derive from.
@@ -3033,6 +3055,43 @@ export const uploadHandler = async (
             }
         }
 
+        // Apps resolve their external connection links by slug in the target
+        // project, so connections must exist before any app is uploaded.
+        if (!options.skipExternalConnections) {
+            if (hasFilters && options.externalConnections.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No external connection filters provided, skipping`,
+                    ),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'External connections',
+                    changes,
+                    action: () =>
+                        upsertExternalConnections(
+                            projectId,
+                            options.externalConnections,
+                            changes,
+                            options.force,
+                            uploadPermissions.externalConnections,
+                            options.path,
+                        ),
+                });
+            }
+        }
+
+        // Both the Data apps and Charts phases derive slugs from the same
+        // dashboard YAML; read the download folder once and share it.
+        let dashboardItemsPromise: Promise<DashboardAsCode[]> | undefined;
+        const loadDashboardItems = () => {
+            dashboardItemsPromise =
+                dashboardItemsPromise ??
+                readDashboardItems(options.path, looseFiles.dashboards);
+            return dashboardItemsPromise;
+        };
+
         // Upload data apps (enterprise; explicit --apps/--include-apps, or
         // auto-pushed for a dashboard's apps). Must land before dashboards.
         const explicitAppReferences = Array.isArray(options.apps)
@@ -3045,10 +3104,9 @@ export const uploadHandler = async (
             options.dashboards,
         )
             ? []
-            : await getDashboardAppSlugs(
+            : selectDashboardAppSlugs(
+                  await loadDashboardItems(),
                   options.dashboards,
-                  options.path,
-                  looseFiles.dashboards,
               );
         const shouldUploadApps =
             isExplicitAppSelection || autoPushAppSlugs.length > 0;
@@ -3058,6 +3116,7 @@ export const uploadHandler = async (
         let appsUnchanged = 0;
         let appsFailed = 0;
         let appsSkipped = 0;
+        let eeAppRoutesUnavailable = false;
         const changesBeforeApps = { ...changes };
 
         if (shouldUploadApps && !uploadPermissions.dataApps) {
@@ -3121,11 +3180,6 @@ export const uploadHandler = async (
                 });
             } catch (err) {
                 if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-                    GlobalState.log(
-                        styles.warning(
-                            `No apps directory found at ${appsDir}. Run 'lightdash download --include-apps' first.`,
-                        ),
-                    );
                     appFolderEntries = [];
                 } else {
                     throw err;
@@ -3136,7 +3190,11 @@ export const uploadHandler = async (
 
             if (subDirs.length === 0) {
                 GlobalState.log(
-                    styles.warning(`No app folders found in ${appsDir}.`),
+                    styles.warning(
+                        isExplicitAppSelection
+                            ? `No app folders found in ${appsDir}. Run 'lightdash download --include-apps' first.`
+                            : `No app folders found in ${appsDir} for the dashboard(s) being uploaded. Re-run 'lightdash download' to fetch their apps.`,
+                    ),
                 );
             }
 
@@ -3374,11 +3432,22 @@ export const uploadHandler = async (
                         );
                     }
                 } catch (appErr) {
-                    appsFailed += 1;
                     const status =
                         appErr instanceof LightdashError
                             ? appErr.statusCode
                             : undefined;
+                    // Auto-push is flag-free, so a server without the EE app
+                    // routes must not fail an upload the user never asked for.
+                    if (!isExplicitAppSelection && status === 404) {
+                        eeAppRoutesUnavailable = true;
+                        GlobalState.log(
+                            styles.warning(
+                                `Skipping data apps: the enterprise "data apps" feature is not available on this instance. Dashboard tiles will resolve only if their apps already exist in this project.`,
+                            ),
+                        );
+                        break;
+                    }
+                    appsFailed += 1;
                     const hint =
                         status === 404
                             ? ' — the enterprise "data apps" feature may not be enabled on this instance'
@@ -3412,7 +3481,11 @@ export const uploadHandler = async (
                 changesBeforeApps,
                 changes,
             );
-            output.completeItem(appSummary.detail, appSummary.variant);
+            if (eeAppRoutesUnavailable) {
+                output.completeItem('not available on this server', 'warning');
+            } else {
+                output.completeItem(appSummary.detail, appSummary.variant);
+            }
 
             if (appsFailed > 0) {
                 // App uploads are fire-and-forget per folder, so failures are
@@ -3436,11 +3509,10 @@ export const uploadHandler = async (
                     ? Array.from(
                           new Set([
                               ...options.charts,
-                              ...(await getDashboardChartSlugs(
+                              ...selectDashboardChartSlugs(
+                                  await loadDashboardItems(),
                                   options.dashboards,
-                                  options.path,
-                                  looseFiles.dashboards,
-                              )),
+                              ),
                           ]),
                       )
                     : options.charts;
@@ -3600,31 +3672,6 @@ export const uploadHandler = async (
                             options.force,
                             ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
                             uploadPermissions.googleSheets,
-                            options.path,
-                        ),
-                });
-            }
-        }
-
-        if (!options.skipExternalConnections) {
-            if (hasFilters && options.externalConnections.length === 0) {
-                GlobalState.log(
-                    styles.warning(
-                        `No external connection filters provided, skipping`,
-                    ),
-                );
-            } else {
-                changes = await runUploadChangesPhase({
-                    output,
-                    label: 'External connections',
-                    changes,
-                    action: () =>
-                        upsertExternalConnections(
-                            projectId,
-                            options.externalConnections,
-                            changes,
-                            options.force,
-                            uploadPermissions.externalConnections,
                             options.path,
                         ),
                 });
