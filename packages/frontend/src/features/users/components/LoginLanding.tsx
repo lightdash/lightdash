@@ -56,7 +56,7 @@ import {
 import styles from './LoginLanding.module.css';
 import LoginWithEmailOtp from './LoginWithEmailOtp';
 
-const FUCHSIA = '#d926e9';
+const BLUE = '#2563eb';
 
 const Login: FC<{}> = () => {
     const { health } = useApp();
@@ -303,7 +303,7 @@ const Login: FC<{}> = () => {
     return (
         <>
             <Box mx="auto" my="lg">
-                <LightdashLogo color={FUCHSIA} />
+                <LightdashLogo color={BLUE} />
             </Box>
             <Card
                 id={LOGIN_PAGE_ID}
