@@ -12,6 +12,7 @@ import confetti from 'canvas-confetti';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { getProject, useCreateMutation } from '../../hooks/useProject';
+import { refetchFeatureFlags } from '../../hooks/useServerOrClientFeatureFlag';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -172,9 +173,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
         // Warm the caches the home reads before we land there, so it doesn't
         // flash the stale "connect your warehouse" checklist (the projects/org
-        // lists still show no warehouse) or a cold project spinner. The button
-        // stays busy meanwhile, so it reads as one smooth step. Navigate even
-        // if priming fails.
+        // lists still show no warehouse), the pre-homepage-builder home (the
+        // org's onboarding flags are only enabled once this first project
+        // exists) or a cold project spinner. The button stays busy meanwhile,
+        // so it reads as one smooth step. Navigate even if priming fails.
         void (async () => {
             try {
                 await Promise.all([
@@ -186,6 +188,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         queryKey: ['organization'],
                         type: 'all',
                     }),
+                    refetchFeatureFlags(queryClient),
                     queryClient.prefetchQuery({
                         queryKey: ['project', projectUuid],
                         queryFn: () => getProject(projectUuid),
