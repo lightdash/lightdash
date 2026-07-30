@@ -30,10 +30,8 @@ describe('DeepResearchThreadRuns', () => {
         agentUuid: 'agent-1',
         threadUuid: 'thread-1',
         promptUuid: 'prompt-1',
-        mcpServerUuids: ['mcp-1'],
         userUuid: 'user-1',
         question: 'Why did enterprise retention fall in Q2?',
-        depth: 'standard',
         createdAt: '2026-07-15T09:00:00.000Z',
         state: 'started',
     };
@@ -132,9 +130,7 @@ describe('DeepResearchThreadRuns', () => {
 
         expect(continueDeepResearchMock).toHaveBeenCalledWith({
             question: registration.question,
-            depth: registration.depth,
             promptUuid: registration.promptUuid,
-            mcpServerUuids: registration.mcpServerUuids,
         });
     });
 });

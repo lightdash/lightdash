@@ -133,7 +133,7 @@
     margin-bottom: rem(8px);
 }
 
-.threadBelowControls {
+.belowComposerControls {
     display: flex;
     justify-content: flex-end;
     min-height: rem(30px);

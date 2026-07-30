@@ -246,7 +246,7 @@ const DayOneAskInputInner: FC<Props> = ({
     };
 
     const handleStartDeepResearch = useCallback(
-        async ({ question, depth, mcpServerUuids }: StartDeepResearchArgs) => {
+        async ({ question }: StartDeepResearchArgs) => {
             if (!projectUuid || !selectedAgent) {
                 return;
             }
@@ -257,11 +257,9 @@ const DayOneAskInputInner: FC<Props> = ({
             });
             await startDeepResearch({
                 question,
-                depth,
                 agentUuid: selectedAgent.uuid,
                 threadUuid: thread.uuid,
                 promptUuid: thread.firstMessage.uuid,
-                mcpServerUuids,
             });
         },
         [createAgentThread, projectUuid, selectedAgent, startDeepResearch],

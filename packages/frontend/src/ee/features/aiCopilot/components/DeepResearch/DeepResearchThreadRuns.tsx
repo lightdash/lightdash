@@ -54,9 +54,7 @@ const DeepResearchThreadRun = ({
                                 }
                                 continueMutation.mutate({
                                     question: registration.question,
-                                    depth: registration.depth,
                                     promptUuid: registration.promptUuid,
-                                    mcpServerUuids: registration.mcpServerUuids,
                                 });
                             }}
                         >

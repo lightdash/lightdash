@@ -1,14 +1,5 @@
 import { type AiDeepResearchChartDataMap } from '@lightdash/common';
 
-export const DEEP_RESEARCH_DEPTHS = [
-    'quick',
-    'standard',
-    'deep',
-    'exhaustive',
-] as const;
-
-export type DeepResearchDepth = (typeof DEEP_RESEARCH_DEPTHS)[number];
-
 export type DeepResearchRunStatus =
     | 'queued'
     | 'running'
@@ -31,7 +22,6 @@ export type DeepResearchRunView = {
     agentUuid: string;
     threadUuid: string;
     question: string;
-    depth: DeepResearchDepth;
     status: DeepResearchRunStatus;
     phase: string | null;
     startedAt: string | null;
@@ -68,10 +58,8 @@ export type DeepResearchRunRegistration = {
     agentUuid: string;
     threadUuid: string;
     promptUuid: string;
-    mcpServerUuids: string[];
     userUuid: string;
     question: string;
-    depth: DeepResearchDepth;
     createdAt: string;
     state: 'starting' | 'started' | 'start_failed';
     errorMessage?: string;
@@ -79,6 +67,4 @@ export type DeepResearchRunRegistration = {
 
 export type StartDeepResearchArgs = {
     question: string;
-    depth: DeepResearchDepth;
-    mcpServerUuids: string[];
 };

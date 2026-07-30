@@ -127,7 +127,6 @@ export const deepResearchRunFixture: DeepResearchRunView = {
     threadUuid: 'thread-quarterly-retention',
     question:
         'Why did enterprise retention fall in Q2 despite higher product adoption?',
-    depth: 'standard',
     status: 'completed',
     phase: 'Writing the report',
     startedAt: '2026-07-15T09:00:00.000Z',

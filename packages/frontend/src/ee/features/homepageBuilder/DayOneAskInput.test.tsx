@@ -242,8 +242,6 @@ describe('DayOneAskInput', () => {
         await act(async () => {
             await agentChatInputProps.current?.onStartDeepResearch?.({
                 question: 'Research churn',
-                depth: 'deep',
-                mcpServerUuids: ['mcp-1'],
             });
         });
 
@@ -254,11 +252,9 @@ describe('DayOneAskInput', () => {
         });
         expect(startDeepResearch).toHaveBeenCalledWith({
             question: 'Research churn',
-            depth: 'deep',
             agentUuid: 'agent-1',
             threadUuid: 'thread-1',
             promptUuid: 'prompt-1',
-            mcpServerUuids: ['mcp-1'],
         });
     });
 

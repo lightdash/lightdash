@@ -19,8 +19,6 @@ export const runDeepResearchAgain = async ({
     const promptUuid = (await createPrompt(registration.question)).uuid;
     await startRun({
         question: registration.question,
-        depth: registration.depth,
-        mcpServerUuids: registration.mcpServerUuids,
         promptUuid,
     });
 };

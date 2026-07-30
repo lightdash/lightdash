@@ -2,49 +2,15 @@ import {
     assertUnreachable,
     countDeepResearchFindings,
     type AiDeepResearchActivity,
-    type AiDeepResearchBudget,
     type AiDeepResearchEvent,
     type AiDeepResearchPhase,
     type AiDeepResearchRun,
 } from '@lightdash/common';
 import {
-    DEEP_RESEARCH_DEPTHS,
-    type DeepResearchDepth,
     type DeepResearchRunRegistration,
     type DeepResearchRunStatus,
     type DeepResearchRunView,
 } from './types';
-
-export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
-    DeepResearchDepth,
-    {
-        label: string;
-        warehouseQueries: number;
-        description: string;
-    }
-> = {
-    quick: {
-        label: 'Low',
-        warehouseQueries: 10,
-        description: 'A focused check of the strongest available evidence.',
-    },
-    standard: {
-        label: 'Medium',
-        warehouseQueries: 25,
-        description:
-            'A balanced investigation with validation and alternatives.',
-    },
-    deep: {
-        label: 'High',
-        warehouseQueries: 50,
-        description: 'A broad investigation with more competing explanations.',
-    },
-    exhaustive: {
-        label: 'Extra High',
-        warehouseQueries: 100,
-        description: 'The widest evidence review for high-stakes questions.',
-    },
-};
 
 const getActivityLabel = (activity: AiDeepResearchActivity | null): string => {
     switch (activity) {
@@ -114,14 +80,6 @@ export const isDeepResearchRunTerminal = (
         'waiting_for_reconnection',
     ].includes(status);
 
-/** The budget is a pure function of depth, so it round-trips a run's depth. */
-const getDepthFromBudget = (budget: AiDeepResearchBudget): DeepResearchDepth =>
-    DEEP_RESEARCH_DEPTHS.find(
-        (depth) =>
-            DEEP_RESEARCH_DEPTH_CONFIG[depth].warehouseQueries ===
-            budget.maxWarehouseQueries,
-    ) ?? 'standard';
-
 /** A registration equivalent for a run loaded from the server. */
 export const toDeepResearchRegistration = (
     run: AiDeepResearchRun,
@@ -132,10 +90,8 @@ export const toDeepResearchRegistration = (
     agentUuid: run.agentUuid,
     threadUuid: args.threadUuid,
     promptUuid: run.promptUuid,
-    mcpServerUuids: [],
     userUuid: args.userUuid,
     question: run.prompt,
-    depth: getDepthFromBudget(run.budget),
     createdAt: run.createdAt,
     state: 'started',
 });
@@ -176,7 +132,6 @@ export const adaptDeepResearchRun = ({
         agentUuid: run.agentUuid,
         threadUuid: registration.threadUuid,
         question: registration.question,
-        depth: registration.depth,
         status: run.status,
         phase: getPhaseLabel(
             latestProgress?.phase ?? null,

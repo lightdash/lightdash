@@ -303,8 +303,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     };
     const handleStartDeepResearch = async ({
         question,
-        depth,
-        mcpServerUuids,
     }: StartDeepResearchArgs) => {
         const retryableRun = findRetryableDeepResearchRun({
             projectUuid: projectUuid!,
@@ -326,8 +324,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             ).uuid;
         await startDeepResearch.mutateAsync({
             question,
-            depth,
-            mcpServerUuids,
             promptUuid,
         });
     };

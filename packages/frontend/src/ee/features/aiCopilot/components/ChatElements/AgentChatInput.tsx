@@ -24,10 +24,7 @@ import useUser from '../../../../../hooks/user/useUser';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
-import {
-    type DeepResearchDepth,
-    type StartDeepResearchArgs,
-} from '../../deepResearch/types';
+import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
 import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
@@ -42,7 +39,6 @@ import {
     DeepResearchModeControl,
     type AgentComposerMode,
 } from '../DeepResearch/DeepResearchModeControl';
-import { DeepResearchPreflight } from '../DeepResearch/DeepResearchPreflight';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import {
@@ -169,8 +165,6 @@ export const AgentChatInput = ({
         if (revealControlsOnFocus) setHasClickedInput(true);
     }, [revealControlsOnFocus]);
     const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
-    const [deepResearchDepth, setDeepResearchDepth] =
-        useState<DeepResearchDepth>('standard');
     const navigate = useNavigate();
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;
@@ -429,21 +423,11 @@ export const AgentChatInput = ({
     const canStartDeepResearch = Boolean(
         onStartDeepResearch && !isEmbedAiAgentRoute(),
     );
-    const {
-        isStarting: isStartingDeepResearch,
-        isLoadingMcpServers,
-        mcpServerError,
-        mcpServers,
-        selectedMcpServerUuids,
-        setSelectedMcpServerUuids,
-        startDeepResearch,
-    } = useDeepResearchComposer({
-        projectUuid,
-        agentUuid,
-        canStart: canStartDeepResearch && !disabled && !loading,
-        enabled: canStartDeepResearch && composerMode === 'deep_research',
-        onStart: onStartDeepResearch,
-    });
+    const { isStarting: isStartingDeepResearch, startDeepResearch } =
+        useDeepResearchComposer({
+            canStart: canStartDeepResearch && !disabled && !loading,
+            onStart: onStartDeepResearch,
+        });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
     const activeMessageUuid = threadStream?.isStreaming
         ? threadStream.messageUuid
@@ -467,14 +451,13 @@ export const AgentChatInput = ({
             return;
         }
 
-        const started = await startDeepResearch({
-            question,
-            depth: deepResearchDepth,
-            mcpServerUuids: selectedMcpServerUuids,
-        });
+        const started = await startDeepResearch({ question });
         if (started && clearOnSubmitRef.current) {
             ed?.commands.clearContent();
             setValueState('');
+        }
+        if (started) {
+            setComposerMode('ask');
         }
     };
 
@@ -540,23 +523,19 @@ export const AgentChatInput = ({
         }
     }, [canStartDeepResearch]);
 
-    const deepResearchPreflight =
-        composerMode === 'deep_research' && canStartDeepResearch ? (
-            <DeepResearchPreflight
-                depth={deepResearchDepth}
-                onDepthChange={setDeepResearchDepth}
-                mcpServers={mcpServers}
-                selectedMcpServerUuids={selectedMcpServerUuids}
-                onSelectedMcpServerUuidsChange={setSelectedMcpServerUuids}
-                isLoadingMcpServers={isLoadingMcpServers}
-                mcpServerError={mcpServerError}
-            />
-        ) : null;
     const deepResearchControl = canStartDeepResearch ? (
         <DeepResearchModeControl
             mode={composerMode}
             onModeChange={setComposerMode}
-            settings={deepResearchPreflight}
+        />
+    ) : null;
+    const compactDeepResearchControl = canStartDeepResearch ? (
+        <DeepResearchModeControl
+            mode={composerMode}
+            onModeChange={setComposerMode}
+            iconOnly
+            actionSize="sm"
+            iconSize={14}
         />
     ) : null;
     const chipRow = useMemo(() => {
@@ -639,6 +618,30 @@ export const AgentChatInput = ({
         );
     };
 
+    const renderExternalModeControls = ({
+        actionSize,
+        iconSize,
+    }: {
+        actionSize: number | 'sm' | 'md';
+        iconSize: number;
+    }) => {
+        if (
+            !isThreadInput ||
+            (!compactDeepResearchControl && !showSqlModeControl)
+        ) {
+            return null;
+        }
+
+        return (
+            <Box className={styles.belowComposerControls}>
+                <Group gap="xs" align="center" wrap="nowrap">
+                    {compactDeepResearchControl}
+                    {renderSqlModeControl({ actionSize, iconSize })}
+                </Group>
+            </Box>
+        );
+    };
+
     const renderComposerAction = (size: 'sm' | 'lg') => {
         if (canSteer && hasValue) {
             return (
@@ -714,21 +717,26 @@ export const AgentChatInput = ({
                         variant="inline"
                         toolbarRight={
                             <Group gap={4} align="center" wrap="nowrap">
-                                {deepResearchControl}
+                                {!isThreadInput && deepResearchControl}
                                 {renderComposerAction('sm')}
                             </Group>
                         }
                     />
                 </Box>
 
-                {showSqlModeControl && (
-                    <Box className={styles.threadBelowControls}>
-                        {renderSqlModeControl({
-                            actionSize: 'sm',
-                            iconSize: 14,
-                        })}
-                    </Box>
-                )}
+                {isThreadInput
+                    ? renderExternalModeControls({
+                          actionSize: 'sm',
+                          iconSize: 14,
+                      })
+                    : showSqlModeControl && (
+                          <Box className={styles.belowComposerControls}>
+                              {renderSqlModeControl({
+                                  actionSize: 'sm',
+                                  iconSize: 14,
+                              })}
+                          </Box>
+                      )}
 
                 {!isThreadInput &&
                     renderChipRow(
@@ -770,13 +778,14 @@ export const AgentChatInput = ({
                 }
                 toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
-                        {(deepResearchControl || showAgentSelector) && (
+                        {((!isThreadInput && deepResearchControl) ||
+                            showAgentSelector) && (
                             <Box
                                 className={styles.controlsReveal}
                                 data-visible={hasClickedInput}
                             >
                                 <Group gap="xs" align="center" wrap="nowrap">
-                                    {deepResearchControl}
+                                    {!isThreadInput && deepResearchControl}
 
                                     {showAgentSelector && (
                                         <AgentSelector
@@ -814,19 +823,16 @@ export const AgentChatInput = ({
                 }
             />
 
-            {isThreadInput
-                ? showSqlModeControl && (
-                      <Box className={styles.threadBelowControls}>
-                          {renderSqlModeControl({
-                              actionSize: 'sm',
-                              iconSize: 14,
-                          })}
-                      </Box>
-                  )
-                : renderChipRow(
-                      styles.chipTray,
-                      shouldReserveEmptyStateSuggestions,
-                  )}
+            {renderExternalModeControls({
+                actionSize: 'sm',
+                iconSize: 14,
+            })}
+
+            {!isThreadInput &&
+                renderChipRow(
+                    styles.chipTray,
+                    shouldReserveEmptyStateSuggestions,
+                )}
 
             {showDisabledBanner && (
                 <Paper className={styles.disabledBanner} px="md" py="xs">
