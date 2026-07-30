@@ -71,7 +71,9 @@ const router = sentryCreateBrowserRouter([
                                             <ChartColorMappingContextProvider>
                                                 <SourceCodeEditorProvider>
                                                     <AiAgentsGlobalProvider>
-                                                        <AgentOnboardingCompletionWatcher />
+                                                        {!isMinimalPage && (
+                                                            <AgentOnboardingCompletionWatcher />
+                                                        )}
                                                         <Outlet />
                                                     </AiAgentsGlobalProvider>
                                                 </SourceCodeEditorProvider>
