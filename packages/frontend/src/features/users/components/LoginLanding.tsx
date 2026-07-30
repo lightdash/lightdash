@@ -53,6 +53,7 @@ import {
     readLastLoginMethod,
     writeLastLoginMethod,
 } from '../utils/lastLoginMethod';
+import classes from './LoginLanding.module.css';
 import LoginWithEmailOtp from './LoginWithEmailOtp';
 
 const Login: FC<{}> = () => {
@@ -302,7 +303,14 @@ const Login: FC<{}> = () => {
             <Box mx="auto" my="lg">
                 <LightdashLogo />
             </Box>
-            <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
+            <Card
+                id={LOGIN_PAGE_ID}
+                className={classes.card}
+                p="xl"
+                radius="xs"
+                withBorder
+                shadow="xs"
+            >
                 <Title order={3} ta="center" mb="md">
                     Sign in
                 </Title>

@@ -1,0 +1,12 @@
+.card {
+    background-color: #d0208f;
+    border-color: #a01a6f;
+}
+
+.card :global(.mantine-Title-root),
+.card :global(.mantine-Text-root),
+.card :global(.mantine-Divider-label),
+.card :global(.mantine-InputWrapper-label),
+.card :global(.mantine-Anchor-root) {
+    color: white;
+}
