@@ -97,6 +97,7 @@ const LoginWithEmailOtp: FC<{
                     aria-label="One-time password"
                     name="passcode"
                     length={6}
+                    color="orange"
                     oneTimeCode
                     autoFocus
                     disabled={isVerifying || disabled}
@@ -112,6 +113,7 @@ const LoginWithEmailOtp: FC<{
             </Stack>
             <Button
                 fullWidth
+                color="orange"
                 loading={isVerifying}
                 disabled={disabled}
                 onClick={() => submitCode(form.values.passcode)}
@@ -122,6 +124,7 @@ const LoginWithEmailOtp: FC<{
             <Anchor
                 fz="sm"
                 mx="auto"
+                c="orange"
                 component="button"
                 type="button"
                 disabled={isRequesting}
