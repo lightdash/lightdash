@@ -111,6 +111,18 @@ export class AgentOnboardingRunModel {
             .first();
     }
 
+    async hasActiveRunForOrganization(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const run = await this.database<AgentOnboardingRunsTable>(
+            AgentOnboardingRunsTableName,
+        )
+            .where('organization_uuid', organizationUuid)
+            .whereIn('status', [...AGENT_ONBOARDING_ACTIVE_STATUSES])
+            .first();
+        return run !== undefined;
+    }
+
     async claimQueuedRun(
         agentOnboardingRunUuid: string,
     ): Promise<DbAgentOnboardingRun | undefined> {

@@ -824,6 +824,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             projectService,
                             canViewProject,
                             trigger,
+                            hasActiveAgentOnboardingRun: () =>
+                                user.organizationUuid
+                                    ? models
+                                          .getAgentOnboardingRunModel<AgentOnboardingRunModel>()
+                                          .hasActiveRunForOrganization(
+                                              user.organizationUuid,
+                                          )
+                                    : Promise.resolve(false),
                             featureFlagService:
                                 repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),

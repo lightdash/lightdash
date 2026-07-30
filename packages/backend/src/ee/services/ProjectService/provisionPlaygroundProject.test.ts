@@ -91,6 +91,7 @@ const buildArguments = () => {
         hasContentCopy: false,
     })) as unknown as ProvisionPlaygroundProjectArguments['projectService']['createWithoutCompile'];
     const track = vi.fn();
+    const hasActiveAgentOnboardingRun = vi.fn(async () => true);
     return {
         args: {
             user,
@@ -105,6 +106,7 @@ const buildArguments = () => {
             catalogService: { indexCatalog },
             analytics: { track },
             canViewProject,
+            hasActiveAgentOnboardingRun,
             playgroundDataDirectory: path.resolve(
                 __dirname,
                 '../../../../assets/playground',
@@ -121,6 +123,7 @@ const buildArguments = () => {
         createWithoutCompile,
         runInPlaygroundProvisioningLock,
         track,
+        hasActiveAgentOnboardingRun,
     };
 };
 
@@ -422,6 +425,31 @@ describe('provisionPlaygroundProject', () => {
                     trigger: 'agent_onboarding_wait',
                     onboardingFlow: 'new',
                     reason: 'playground_already_exists',
+                },
+            });
+        });
+
+        it('falls back to the existing-project guard when no run is active', async () => {
+            const mocks = buildArguments();
+            mocks.getAllByOrganizationUuid.mockResolvedValue([project()]);
+            mocks.hasActiveAgentOnboardingRun.mockResolvedValue(false);
+
+            await expect(
+                provisionPlaygroundProject({
+                    ...mocks.args,
+                    trigger: 'agent_onboarding_wait',
+                }),
+            ).resolves.toEqual({ projectUuid, created: false });
+            expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+            expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+                event: 'playground_project.skipped',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    trigger: 'agent_onboarding_wait',
+                    onboardingFlow: 'new',
+                    reason: 'organization_has_project',
                 },
             });
         });
