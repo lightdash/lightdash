@@ -1,3 +1,10 @@
+# [1.46.0](https://github.com/lightdash/lightdash/compare/1.45.0...1.46.0) (2026-07-30)
+
+
+### Features
+
+* **cli:** lightdash apps preview — local preview of data apps against real data [GLITCH-593] ([#25123](https://github.com/lightdash/lightdash/issues/25123)) ([9b74745](https://github.com/lightdash/lightdash/commit/9b747455816dffe892273676d5c40874ff5e7067))
+
 # [1.45.0](https://github.com/lightdash/lightdash/compare/1.44.0...1.45.0) (2026-07-30)
 
 
