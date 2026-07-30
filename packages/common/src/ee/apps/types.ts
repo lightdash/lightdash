@@ -579,6 +579,9 @@ export type ApiAppSummary = {
 export type EmbedProjectApp = {
     appUuid: string;
     name: string;
+    // Project-scoped identity, used by the CLI to tell whether a dashboard's
+    // app already exists in an upload target.
+    slug: string;
 };
 
 export type ApiEmbedProjectAppsResponse = ApiSuccess<EmbedProjectApp[]>;

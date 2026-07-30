@@ -7534,7 +7534,11 @@ export class AppGenerateService extends BaseService {
             throw new ForbiddenError('Insufficient permissions');
         }
         const apps = await this.appModel.listAppsByProject(projectUuid);
-        return apps.map((app) => ({ appUuid: app.app_id, name: app.name }));
+        return apps.map((app) => ({
+            appUuid: app.app_id,
+            name: app.name,
+            slug: app.slug,
+        }));
     }
 
     // Validate the generator's declared schema. Pure (no IO); null when the
