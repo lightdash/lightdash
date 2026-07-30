@@ -1261,6 +1261,20 @@ type ShareSlack = BaseTrack & {
     };
 };
 
+// Incidence measure for the app screenshot ready-indicator wait in
+// UnfurlService: whether the indicator was detected before the timeout, and
+// how long the wait took.
+type AppReadyWaitEvent = BaseTrack & {
+    event: 'headless_browser.app_ready_wait';
+    anonymousId: string;
+    properties: {
+        ready: boolean;
+        waitMs: number;
+        context: string;
+        imageId: string;
+    };
+};
+
 type SavedChartView = BaseTrack & {
     event: 'saved_chart.view';
     userId?: string;
@@ -3187,6 +3201,7 @@ type TypedEvent =
     | ShareUrl
     | AiAgentThreadShareEvent
     | ShareSlack
+    | AppReadyWaitEvent
     | SavedChartView
     | DashboardView
     | PromoteContent

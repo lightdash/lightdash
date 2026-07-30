@@ -73,6 +73,37 @@ export type QueryEvent = {
 };
 
 /**
+ * Shared null/empty field defaults for a terminal (ready/error) QueryEvent.
+ * A terminal event carries no query shape of its own — only the fields the
+ * emitter actually knows (id, queryUuid, status, rowCount/durationMs/error)
+ * vary between call sites.
+ */
+const TERMINAL_EVENT_DEFAULTS: Pick<
+    QueryEvent,
+    | 'label'
+    | 'exploreName'
+    | 'dimensions'
+    | 'metrics'
+    | 'filters'
+    | 'sorts'
+    | 'tableCalculations'
+    | 'additionalMetrics'
+    | 'limit'
+    | 'rawMetricQuery'
+> = {
+    label: null,
+    exploreName: '',
+    dimensions: [],
+    metrics: [],
+    filters: {},
+    sorts: [],
+    tableCalculations: [],
+    additionalMetrics: [],
+    limit: 0,
+    rawMetricQuery: null,
+};
+
+/**
  * A single external-connection fetch proxied through the bridge, reported for
  * the external-requests inspector tab. Single-shot lifecycle: one `pending`
  * event when the fetch starts, one terminal `ready`/`error` event when it
@@ -807,6 +838,24 @@ export function useAppSdkBridge({
                         const initLabel = (
                             metadata as Record<string, unknown> | undefined
                         )?.label as string | undefined;
+
+                        // Displaced by results-cache dedupe (see ref comment
+                        // above); `queryUuid: null` avoids masking the real terminal.
+                        const displacedId = queryUuidToPostIdRef.current.get(
+                            json.results.queryUuid,
+                        );
+                        if (displacedId !== undefined && displacedId !== id) {
+                            onQueryEvent({
+                                ...TERMINAL_EVENT_DEFAULTS,
+                                id: displacedId,
+                                timestamp: Date.now(),
+                                queryUuid: null,
+                                status: 'ready',
+                                rowCount: null,
+                                durationMs: null,
+                                error: null,
+                            });
+                        }
                         queryUuidToPostIdRef.current.set(
                             json.results.queryUuid,
                             id,
@@ -858,17 +907,9 @@ export function useAppSdkBridge({
                                 result.queryUuid,
                             );
                             onQueryEvent({
+                                ...TERMINAL_EVENT_DEFAULTS,
                                 id: lifecycleId,
                                 timestamp: Date.now(),
-                                label: null,
-                                exploreName: '',
-                                dimensions: [],
-                                metrics: [],
-                                filters: {},
-                                sorts: [],
-                                tableCalculations: [],
-                                additionalMetrics: [],
-                                limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'ready',
                                 // Use totalResults (full row count across all
@@ -880,7 +921,6 @@ export function useAppSdkBridge({
                                     result.metadata?.performance
                                         ?.initialQueryExecutionMs ?? null,
                                 error: null,
-                                rawMetricQuery: null,
                             });
                         } else if (
                             result?.status === 'error' ||
@@ -890,23 +930,14 @@ export function useAppSdkBridge({
                                 result.queryUuid,
                             );
                             onQueryEvent({
+                                ...TERMINAL_EVENT_DEFAULTS,
                                 id: lifecycleId,
                                 timestamp: Date.now(),
-                                label: null,
-                                exploreName: '',
-                                dimensions: [],
-                                metrics: [],
-                                filters: {},
-                                sorts: [],
-                                tableCalculations: [],
-                                additionalMetrics: [],
-                                limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'error',
                                 rowCount: null,
                                 durationMs: null,
                                 error: result.error ?? 'Query failed',
-                                rawMetricQuery: null,
                             });
                         }
                     }
