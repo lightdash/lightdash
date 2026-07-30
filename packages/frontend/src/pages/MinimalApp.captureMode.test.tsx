@@ -7,12 +7,15 @@ import type * as MantineHooks from '@mantine-8/hooks';
 import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as DeliveryCaptureAccumulatorModule from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
+import type { DeliveryCaptureAccumulator } from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
+import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { renderWithProviders } from '../testing/testUtils';
 
 type IframePreviewProps = {
     onScreenshotAvailabilityChange?: (available: boolean) => void;
     onIframeLoad?: () => void;
-    deliveryCapture?: unknown;
+    onQueryEvent?: (event: QueryEvent) => void;
+    deliveryCapture?: DeliveryCaptureAccumulator;
     invalidateCache?: boolean;
     queryContextOverride?: string;
 };
@@ -110,6 +113,43 @@ const readyIndicatorSelector = `#${SCREENSHOT_READY_INDICATOR_ID}`;
 
 const readGlobal = () =>
     (window as unknown as Record<string, unknown>)[DELIVERY_CAPTURE_GLOBAL];
+
+const CHART_PATH = '/api/v2/projects/project-uuid/query/chart';
+const METRIC_PATH = '/api/v2/projects/project-uuid/query/metric-query';
+
+const latestCapture = (): DeliveryCaptureAccumulator => {
+    const capture = latestIframeProps().deliveryCapture;
+    if (!capture) throw new Error('no accumulator passed to the iframe');
+    return capture;
+};
+
+const queryEvent = (
+    overrides: Partial<QueryEvent> & Pick<QueryEvent, 'id' | 'status'>,
+): QueryEvent => ({
+    timestamp: Date.now(),
+    label: null,
+    exploreName: 'orders',
+    dimensions: [],
+    metrics: [],
+    filters: {},
+    sorts: [],
+    tableCalculations: [],
+    additionalMetrics: [],
+    limit: 500,
+    queryUuid: null,
+    rowCount: null,
+    durationMs: null,
+    error: null,
+    rawMetricQuery: null,
+    ...overrides,
+});
+
+/** Lets any queued publish microtask run before asserting it did NOT happen. */
+const flushMicrotasks = async () => {
+    await act(async () => {
+        await Promise.resolve();
+    });
+};
 
 describe('MinimalApp capture modes', () => {
     beforeEach(() => {
@@ -209,6 +249,110 @@ describe('MinimalApp capture modes', () => {
         expect(container.querySelector(readyIndicatorSelector)).toBeNull();
 
         consoleError.mockRestore();
+    });
+
+    // A /query/chart POST emits no `pending` QueryEvent — the accumulator
+    // entry is the only in-flight signal until the POST resolves, so readiness
+    // has to consume it or an app of only saved charts publishes a manifest
+    // full of "did not settle" errors.
+    it('withholds the manifest while a chart-query POST is pending in the accumulator', async () => {
+        mocks.searchParams.set('captureMode', 'delivery');
+        const { container } = renderWithProviders(<MinimalApp />);
+
+        act(() => {
+            latestCapture().onInitiation({
+                requestId: 'chart-req',
+                method: 'POST',
+                path: CHART_PATH,
+                body: { chartUuid: 'chart-1' },
+                label: 'Revenue',
+            });
+        });
+        markSdkReady();
+        await flushMicrotasks();
+
+        expect(readGlobal()).toBeUndefined();
+        expect(container.querySelector(readyIndicatorSelector)).toBeNull();
+
+        act(() => {
+            latestCapture().onPostResponse('chart-req', {
+                queryUuid: 'chart-uuid',
+                metricQuery: { exploreName: 'orders', limit: 500 },
+            });
+            latestCapture().onTerminal('chart-uuid', {
+                status: 'ready',
+                rowCount: 12,
+            });
+        });
+
+        await waitFor(() => {
+            expect(readGlobal()).toBeDefined();
+        });
+        expect(readGlobal()).toMatchObject({
+            items: [
+                {
+                    status: 'ready',
+                    label: 'Revenue',
+                    queryUuid: 'chart-uuid',
+                    rowCount: 12,
+                },
+            ],
+        });
+        expect(container.querySelector(readyIndicatorSelector)).not.toBeNull();
+    });
+
+    // Unchanged behaviour: the QueryEvent in-flight set still gates on its own,
+    // so a settled accumulator entry can't publish ahead of a live metric query.
+    it('still gates on the QueryEvent in-flight set for metric queries', async () => {
+        mocks.searchParams.set('captureMode', 'delivery');
+        const { container } = renderWithProviders(<MinimalApp />);
+
+        act(() => {
+            latestCapture().onInitiation({
+                requestId: 'metric-req',
+                method: 'POST',
+                path: METRIC_PATH,
+                body: { query: { exploreName: 'orders', limit: 500 } },
+                label: null,
+            });
+            latestIframeProps().onQueryEvent?.(
+                queryEvent({ id: 'metric-req', status: 'pending' }),
+            );
+        });
+        markSdkReady();
+        await flushMicrotasks();
+
+        expect(readGlobal()).toBeUndefined();
+
+        act(() => {
+            latestCapture().onPostResponse('metric-req', {
+                queryUuid: 'metric-uuid',
+            });
+            latestCapture().onTerminal('metric-uuid', {
+                status: 'ready',
+                rowCount: 3,
+            });
+        });
+        await flushMicrotasks();
+
+        expect(readGlobal()).toBeUndefined();
+        expect(container.querySelector(readyIndicatorSelector)).toBeNull();
+
+        act(() => {
+            latestIframeProps().onQueryEvent?.(
+                queryEvent({
+                    id: 'metric-req',
+                    status: 'ready',
+                    queryUuid: 'metric-uuid',
+                    rowCount: 3,
+                }),
+            );
+        });
+
+        await waitFor(() => {
+            expect(readGlobal()).toBeDefined();
+        });
+        expect(container.querySelector(readyIndicatorSelector)).not.toBeNull();
     });
 
     it('clears the stale manifest and republishes after an iframe reload', async () => {

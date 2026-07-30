@@ -2,6 +2,7 @@ import {
     DELIVERY_CAPTURE_GLOBAL,
     FeatureFlags,
     QueryExecutionContext,
+    type DeliveryCaptureManifest,
 } from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
@@ -61,7 +62,10 @@ export default function MinimalApp() {
         () => (captureMode ? createDeliveryCaptureAccumulator() : undefined),
         [captureMode],
     );
-    const [manifestPublished, setManifestPublished] = useState(false);
+    // The published manifest doubles as the "already published" flag.
+    const [manifest, setManifest] = useState<DeliveryCaptureManifest | null>(
+        null,
+    );
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
@@ -85,12 +89,13 @@ export default function MinimalApp() {
     const [activeQueryIds, setActiveQueryIds] = useState<Set<string>>(
         () => new Set(),
     );
+    const [pendingCaptureCount, setPendingCaptureCount] = useState(0);
 
     const handleIframeLoad = useCallback(() => {
         setIframeLoaded(true);
         if (deliveryCapture) {
             deliveryCapture.reset();
-            setManifestPublished(false);
+            setManifest(null);
             delete (window as unknown as Record<string, unknown>)[
                 DELIVERY_CAPTURE_GLOBAL
             ];
@@ -128,6 +133,14 @@ export default function MinimalApp() {
         return () => clearTimeout(timer);
     }, [iframeLoaded]);
 
+    // In capture modes the accumulator — not the QueryEvent projection — is
+    // the delivery contract: a `/query/chart` POST is in-flight there before
+    // any QueryEvent exists for it, so readiness must consume it too.
+    useEffect(() => {
+        if (!deliveryCapture) return;
+        return deliveryCapture.subscribe(setPendingCaptureCount);
+    }, [deliveryCapture]);
+
     // Debounced ready signal: only true once the SDK has announced (or the
     // fallback timer has elapsed) AND in-flight query count has been zero
     // for APP_QUIET_DEBOUNCE_MS. Gating on the SDK announce — not the
@@ -135,24 +148,27 @@ export default function MinimalApp() {
     // between iframe HTML load and the SDK bundle bootstrapping, which
     // was the root cause of blank/mid-animation screenshots.
     const [isReady] = useDebouncedValue(
-        (sdkAlive || sdkAliveFallback) && activeQueryIds.size === 0,
+        (sdkAlive || sdkAliveFallback) &&
+            activeQueryIds.size === 0 &&
+            // Always 0 outside capture modes (no accumulator, no subscription).
+            pendingCaptureCount === 0,
         APP_QUIET_DEBOUNCE_MS,
     );
 
     // Publishes the captured manifest to the window global exactly once per
     // settle, before the indicator (which UnfurlService waits on) can mount.
     useEffect(() => {
-        if (!isReady || !captureMode || !deliveryCapture || manifestPublished)
+        if (!isReady || !captureMode || !deliveryCapture || manifest !== null)
             return;
         let cancelled = false;
         void deliveryCapture
             .getManifest()
-            .then((manifest) => {
+            .then((captured) => {
                 if (cancelled) return;
                 (window as unknown as Record<string, unknown>)[
                     DELIVERY_CAPTURE_GLOBAL
-                ] = manifest;
-                setManifestPublished(true);
+                ] = captured;
+                setManifest(captured);
             })
             // A rejection here would otherwise leave the indicator unmounted
             // until the render times out, with nothing in the logs.
@@ -162,8 +178,8 @@ export default function MinimalApp() {
         return () => {
             cancelled = true;
         };
-    }, [isReady, captureMode, deliveryCapture, manifestPublished]);
-    const indicatorReady = captureMode ? isReady && manifestPublished : isReady;
+    }, [isReady, captureMode, deliveryCapture, manifest]);
+    const indicatorReady = captureMode ? isReady && manifest !== null : isReady;
 
     if (dataAppsFlag.isLoading) return null;
     if (!dataAppsFlag.data?.enabled) {
