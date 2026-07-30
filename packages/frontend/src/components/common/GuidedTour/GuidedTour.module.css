@@ -18,10 +18,11 @@
 .dim {
     position: absolute;
     inset: 0;
-    background: light-dark(rgba(17, 24, 39, 0.55), rgba(0, 0, 0, 0.7));
+    background: light-dark(rgba(17, 24, 39, 0.62), rgba(0, 0, 0, 0.75));
 }
 
-/* the cutout: its huge box-shadow darkens the rest of the screen */
+/* the cutout: its huge box-shadow darkens the rest of the screen, and a ring
+   marks the showcased feature so it reads as highlighted, not just un-dimmed */
 .spotlight {
     position: fixed;
     top: var(--tour-top);
@@ -29,8 +30,10 @@
     width: var(--tour-width);
     height: var(--tour-height);
     border-radius: var(--mantine-radius-md);
-    box-shadow: 0 0 0 9999px
-        light-dark(rgba(17, 24, 39, 0.55), rgba(0, 0, 0, 0.7));
+    box-shadow:
+        0 0 0 2px var(--mantine-color-indigo-4),
+        0 0 0 6px light-dark(rgba(76, 87, 217, 0.25), rgba(129, 140, 248, 0.22)),
+        0 0 0 9999px light-dark(rgba(17, 24, 39, 0.62), rgba(0, 0, 0, 0.75));
     pointer-events: none;
     transition:
         top 0.2s ease,
@@ -43,8 +46,8 @@
     position: fixed;
     top: var(--tour-card-top);
     left: var(--tour-card-left);
-    width: 340px;
-    max-width: calc(100vw - 32px);
+    width: var(--tour-card-width);
+    max-width: calc(100vw - 24px);
     pointer-events: auto;
     z-index: 1101;
 }
@@ -54,10 +57,84 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 420px;
-    max-width: calc(100vw - 32px);
+    width: 460px;
+    max-width: calc(100vw - 24px);
     pointer-events: auto;
     z-index: 1101;
+}
+
+/* The card must not read as regular UI: accent ring, deep elevation and a
+   coachmark caret pointing back at the spotlight. */
+.paper {
+    position: relative;
+    background: light-dark(
+        var(--mantine-color-body),
+        var(--mantine-color-dark-6)
+    );
+    box-shadow:
+        0 0 0 1px
+            light-dark(
+                var(--mantine-color-indigo-2),
+                var(--mantine-color-indigo-8)
+            ),
+        0 18px 45px light-dark(rgba(17, 24, 39, 0.22), rgba(0, 0, 0, 0.6));
+    animation: ldTourCardIn 160ms ease-out;
+}
+
+/* accent bar along the top edge */
+.paper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--mantine-color-indigo-5);
+    border-top-left-radius: var(--mantine-radius-md);
+    border-top-right-radius: var(--mantine-radius-md);
+}
+
+@keyframes ldTourCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.caret {
+    position: absolute;
+    left: var(--tour-caret-left);
+    width: 0;
+    height: 0;
+    margin-left: -8px;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+}
+
+.caretTop {
+    top: -8px;
+    border-bottom: 8px solid var(--mantine-color-indigo-5);
+}
+
+.caretBottom {
+    bottom: -8px;
+    border-top: 8px solid
+        light-dark(var(--mantine-color-body), var(--mantine-color-dark-6));
+}
+
+.eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: light-dark(
+        var(--mantine-color-indigo-6),
+        var(--mantine-color-indigo-3)
+    );
 }
 
 .dots {
@@ -70,9 +147,18 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--mantine-color-ldGray-3);
+    background: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-dark-3)
+    );
 }
 
+/* light-dark() on both rules keeps them at the same specificity, so this one
+   still wins over .dot in either scheme. */
 .dotActive {
-    background: var(--mantine-color-ldGray-7);
+    background: light-dark(
+        var(--mantine-color-indigo-5),
+        var(--mantine-color-indigo-4)
+    );
+    transform: scale(1.15);
 }
