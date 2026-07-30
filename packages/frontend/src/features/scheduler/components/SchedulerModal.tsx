@@ -38,6 +38,7 @@ const SchedulersModal: FC<
         | 'isChart'
         | 'isApp'
         | 'currentAppState'
+        | 'capturedQueryCount'
         | 'currentParameterValues'
         | 'availableParameters'
     > & {
@@ -72,6 +73,7 @@ const SchedulersModal: FC<
     isThresholdAlert,
     itemsMap,
     currentAppState,
+    capturedQueryCount,
     currentParameterValues,
     availableParameters,
     onClose = () => {},
@@ -252,6 +254,7 @@ const SchedulersModal: FC<
                 isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
                 currentAppState={currentAppState}
+                capturedQueryCount={capturedQueryCount}
                 currentParameterValues={currentParameterValues}
                 availableParameters={availableParameters}
             />

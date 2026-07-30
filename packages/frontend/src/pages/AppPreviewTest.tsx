@@ -332,6 +332,10 @@ export default function AppPreviewTest() {
                     }}
                     rightSection={
                         <AppHeaderActions
+                            capturedQueryCount={
+                                queries.filter((q) => q.status === 'ready')
+                                    .length
+                            }
                             fullscreenToggle={
                                 isFullscreenFeatureEnabled &&
                                 document.fullscreenEnabled ? (

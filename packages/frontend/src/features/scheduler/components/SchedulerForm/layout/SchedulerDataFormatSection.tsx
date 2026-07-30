@@ -10,7 +10,6 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
-    Badge,
     Box,
     Checkbox,
     Code,
@@ -29,10 +28,21 @@ import { useMemo, type FC } from 'react';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
+import { Limit, Values } from '../../types';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import { SchedulerFormFiltersTab } from '../SchedulerFormFiltersTab';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
 import classes from './SchedulerDeliveryModal.module.css';
+
+const getAppQueryCountCaption = (
+    capturedQueryCount: number | undefined,
+): string | null => {
+    if (capturedQueryCount === undefined) return null;
+    if (capturedQueryCount === 0) return 'This app ran no data queries';
+    if (capturedQueryCount === 1)
+        return '1 data query detected — it becomes a file';
+    return `${capturedQueryCount} data queries detected — each becomes a file`;
+};
 
 type Props = {
     dashboard: Dashboard | undefined;
@@ -41,6 +51,10 @@ type Props = {
     appUuid?: string;
     /** App deliveries only: the app state currently reflected in the page URL. */
     currentAppState?: SchedulerAppState | null;
+    /** App deliveries only: count of ready queries captured by the live preview.
+     *  Undefined when the host page has no live query data (e.g. editing without
+     *  a preview open) — csv/xlsx are then left enabled rather than gated shut. */
+    capturedQueryCount?: number;
     isDashboardTabsAvailable: boolean;
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
@@ -53,6 +67,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     isApp,
     appUuid,
     currentAppState,
+    capturedQueryCount,
     isDashboardTabsAvailable,
     currentParameterValues,
     availableParameters,
@@ -91,6 +106,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     );
 
     const format = form.values.format;
+    const appQueryCountCaption = getAppQueryCountCaption(capturedQueryCount);
 
     return (
         <Stack gap="lg">
@@ -98,9 +114,46 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 <Input.Label>Format</Input.Label>
                 <Group gap="xs" wrap="nowrap">
                     {isApp ? (
-                        <Badge variant="light" radius="sm" size="lg" px="sm">
-                            Image
-                        </Badge>
+                        <SegmentedControl
+                            radius="md"
+                            fullWidth
+                            data={[
+                                {
+                                    label: '.csv',
+                                    value: SchedulerFormat.CSV,
+                                    disabled: capturedQueryCount === 0,
+                                },
+                                {
+                                    label: '.xlsx',
+                                    value: SchedulerFormat.XLSX,
+                                    disabled: capturedQueryCount === 0,
+                                },
+                                {
+                                    label: 'Image',
+                                    value: SchedulerFormat.IMAGE,
+                                    disabled: isImageDisabled,
+                                },
+                            ]}
+                            w="100%"
+                            value={format}
+                            onChange={(value) => {
+                                form.setFieldValue(
+                                    'format',
+                                    value as SchedulerFormat,
+                                );
+                                if (
+                                    value === SchedulerFormat.CSV ||
+                                    value === SchedulerFormat.XLSX
+                                ) {
+                                    // The only limit shape the backend accepts for app deliveries.
+                                    form.setFieldValue('options', {
+                                        ...form.values.options,
+                                        formatted: Values.FORMATTED,
+                                        limit: Limit.TABLE,
+                                    });
+                                }
+                            }}
+                        />
                     ) : (
                         <SegmentedControl
                             radius="md"
@@ -129,6 +182,11 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         />
                     )}
                 </Group>
+                {isApp && appQueryCountCaption && (
+                    <Text size="xs" c="ldGray.6">
+                        {appQueryCountCaption}
+                    </Text>
+                )}
                 {isImageDisabled && !isApp && (
                     <Text size="xs" c="ldGray.6">
                         You must enable the
@@ -254,6 +312,8 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                     value,
                                 )
                             }
+                            hideLimit={isApp}
+                            hideExportPivotedData={isApp}
                         />
                     </Box>
                 )}

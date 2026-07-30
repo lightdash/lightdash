@@ -89,6 +89,8 @@ interface AppSchedulersProps {
     onClose: () => void;
     /** If provided, opens directly in edit mode for this scheduler */
     initialSchedulerUuid?: string;
+    /** Count of ready queries captured by the live preview. */
+    capturedQueryCount?: number;
 }
 
 export const AppSchedulersModal: FC<AppSchedulersProps> = ({

@@ -100,6 +100,9 @@ type Props = {
      *  `useSdkUpgradeStatus`). Null on surfaces without an upgrade flow (the
      *  viewer). `disabled` while a build is already in flight. */
     upgrade: (SdkUpgradeOffer & { disabled: boolean }) | null;
+    /** Count of ready queries captured by the live preview, forwarded to the
+     *  scheduler modal so it can gate/caption csv/xlsx delivery formats. */
+    capturedQueryCount?: number;
 };
 
 /**
@@ -133,6 +136,7 @@ const AppHeaderActions: FC<Props> = ({
     captureThumbnail,
     capturePreviewScreenshot,
     upgrade,
+    capturedQueryCount,
 }) => {
     const navigate = useNavigate();
 
@@ -543,6 +547,7 @@ const AppHeaderActions: FC<Props> = ({
                     name={getAppDisplayName(appName, appUuid)}
                     isOpen
                     onClose={() => setSchedulerModalOpen(false)}
+                    capturedQueryCount={capturedQueryCount}
                 />
             )}
             {isPromoteModalOpen && (

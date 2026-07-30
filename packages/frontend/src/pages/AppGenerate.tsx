@@ -3286,6 +3286,11 @@ const AppGenerate: FC = () => {
                                             onViewNetwork={() =>
                                                 setNetworkPanelHidden(false)
                                             }
+                                            capturedQueryCount={
+                                                trackedQueries.filter(
+                                                    (q) => q.status === 'ready',
+                                                ).length
+                                            }
                                             onDeleted={() =>
                                                 void navigate(
                                                     `/projects/${projectUuid}/apps/generate`,
