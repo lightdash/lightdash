@@ -2,6 +2,8 @@ import {
     ChartKind,
     isVizBigNumberConfig,
     VIZ_DEFAULT_AGGREGATION,
+    type CompactOrAlias,
+    type ComparisonFormatTypes,
     type VizAggregationOptions,
     type VizBigNumberConfig,
     type VizBigNumberOptions,
@@ -53,6 +55,7 @@ const initialState: BigNumberState = {
 
 /** The value is always y[0]; the optional comparison field is always y[1]. */
 const VALUE_INDEX = 0;
+const COMPARISON_INDEX = 1;
 
 const defaultAggregationFor = (
     state: BigNumberState,
@@ -90,6 +93,78 @@ export const bigNumberConfigSlice = createSlice({
             const value = state.fieldConfig?.y[VALUE_INDEX];
             if (!value) return;
             value.aggregation = action.payload;
+        },
+        setComparisonReference: (
+            state,
+            action: PayloadAction<string | undefined>,
+        ) => {
+            if (!state.fieldConfig) return;
+            if (action.payload === undefined) {
+                state.fieldConfig.y = state.fieldConfig.y.slice(
+                    0,
+                    COMPARISON_INDEX,
+                );
+                return;
+            }
+            state.fieldConfig.y[COMPARISON_INDEX] = {
+                reference: action.payload,
+                aggregation: defaultAggregationFor(state, action.payload),
+            };
+        },
+        setComparisonAggregation: (
+            state,
+            action: PayloadAction<VizAggregationOptions>,
+        ) => {
+            const comparison = state.fieldConfig?.y[COMPARISON_INDEX];
+            if (!comparison) return;
+            comparison.aggregation = action.payload;
+        },
+        setLabel: (state, action: PayloadAction<string | undefined>) => {
+            state.display = { ...state.display, label: action.payload };
+        },
+        setShowLabel: (state, action: PayloadAction<boolean>) => {
+            state.display = { ...state.display, showLabel: action.payload };
+        },
+        setStyle: (
+            state,
+            action: PayloadAction<CompactOrAlias | undefined>,
+        ) => {
+            state.display = { ...state.display, style: action.payload };
+        },
+        setShowComparison: (state, action: PayloadAction<boolean>) => {
+            state.display = {
+                ...state.display,
+                showComparison: action.payload,
+            };
+            // Turning the comparison off drops the field so the query stops
+            // aggregating a column nothing reads.
+            if (!action.payload && state.fieldConfig) {
+                state.fieldConfig.y = state.fieldConfig.y.slice(
+                    0,
+                    COMPARISON_INDEX,
+                );
+            }
+        },
+        setComparisonFormat: (
+            state,
+            action: PayloadAction<ComparisonFormatTypes>,
+        ) => {
+            state.display = {
+                ...state.display,
+                comparisonFormat: action.payload,
+            };
+        },
+        setComparisonLabel: (
+            state,
+            action: PayloadAction<string | undefined>,
+        ) => {
+            state.display = {
+                ...state.display,
+                comparisonLabel: action.payload,
+            };
+        },
+        setFlipColors: (state, action: PayloadAction<boolean>) => {
+            state.display = { ...state.display, flipColors: action.payload };
         },
     },
     extraReducers: (builder) => {
@@ -132,5 +207,16 @@ export const bigNumberConfigSlice = createSlice({
     },
 });
 
-export const { setValueReference, setValueAggregation } =
-    bigNumberConfigSlice.actions;
+export const {
+    setValueReference,
+    setValueAggregation,
+    setComparisonReference,
+    setComparisonAggregation,
+    setLabel,
+    setShowLabel,
+    setStyle,
+    setShowComparison,
+    setComparisonFormat,
+    setComparisonLabel,
+    setFlipColors,
+} = bigNumberConfigSlice.actions;
