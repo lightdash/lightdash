@@ -154,7 +154,6 @@ deploy_namespace() {
     DEV_WARM_IMAGE="$WARM_IMAGE" okteto deploy \
         -f "$OKTETO_MANIFEST" \
         -n "$namespace" \
-        --env "DEV_WARM_IMAGE=$WARM_IMAGE" \
         --wait \
         --timeout 20m
     if [ "$FORCE_REFRESH" = "true" ]; then
