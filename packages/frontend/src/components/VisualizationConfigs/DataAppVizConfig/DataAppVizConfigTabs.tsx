@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
 import { MantineProvider, useMantineColorScheme } from '@mantine/core';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizBuildStatus from '../../../features/apps/components/DataAppVizBuildStatus';
 import DataAppVizComposer from '../../../features/apps/components/DataAppVizComposer';
@@ -44,10 +44,8 @@ export const ConfigTabs: FC = memo(() => {
         ? visualizationConfig.chartConfig.dataAppVizUuid
         : '';
 
-    const { data: dataAppViz } = useDataAppVisualization(
-        projectUuid,
-        dataAppVizUuid || undefined,
-    );
+    const { data: dataAppViz, isLoading: isDataAppVizLoading } =
+        useDataAppVisualization(projectUuid, dataAppVizUuid || undefined);
 
     const configOptions = useMemo(
         () => dataAppViz?.schema?.configOptions ?? [],
@@ -60,9 +58,12 @@ export const ConfigTabs: FC = memo(() => {
     const setDataAppVizUuidRef = isDataAppViz
         ? visualizationConfig.chartConfig.setDataAppVizUuid
         : undefined;
+    const [builtHere, setBuiltHere] = useState<string | null>(null);
     const handleCreated = useCallback(
-        (uuid: string, mapping: DataAppVizFieldMapping) =>
-            setDataAppVizUuidRef?.(uuid, mapping),
+        (uuid: string, mapping: DataAppVizFieldMapping) => {
+            setBuiltHere(uuid);
+            setDataAppVizUuidRef?.(uuid, mapping);
+        },
         [setDataAppVizUuidRef],
     );
     const build = useDataAppVizBuild({
@@ -81,7 +82,10 @@ export const ConfigTabs: FC = memo(() => {
     // restores, the way into the builder — so it is offered on the same rules
     // as the builder page: creating a new visualization, or managing the one
     // selected. Without either, the panel is the picker and the settings.
-    const canAuthor = dataAppVizUuid ? canEditSelected : canCreateApp;
+    const canAuthor = dataAppVizUuid
+        ? canEditSelected ||
+          (dataAppVizUuid === builtHere && isDataAppVizLoading)
+        : canCreateApp;
 
     if (!isDataAppViz) return null;
 

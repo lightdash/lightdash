@@ -45,6 +45,9 @@ vi.mock('../../../features/apps/components/DataAppVizLibraryPicker', () => ({
 vi.mock('../../../features/apps/hooks/useDataAppVisualization', () => ({
     useDataAppVisualization: vi.fn(),
 }));
+vi.mock('../../../features/apps/hooks/useDataAppVizBuild', () => ({
+    useDataAppVizBuild: vi.fn(),
+}));
 vi.mock('../../../features/apps/components/DataAppVizDock', () => ({
     default: () => <div data-testid="viz-dock" />,
 }));
@@ -68,6 +71,8 @@ vi.mock('../common/ColorPaletteSection', () => ({
 }));
 
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
+import { useDataAppVizBuild } from '../../../features/apps/hooks/useDataAppVizBuild';
+import { buildStub } from '../../../features/apps/testing/dataAppVizBuildStub';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({
@@ -178,13 +183,16 @@ describe('DataAppVizConfigTabs', () => {
     const setOption = vi.fn();
     const setDataAppVizUuid = vi.fn();
 
-    const mockContext = (itemsMap: ItemsMap) =>
+    const mockContext = (
+        itemsMap: ItemsMap,
+        dataAppVizUuid: string = 'data-app-viz-uuid',
+    ) =>
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap,
             visualizationConfig: {
                 chartType: ChartType.DATA_APP_VIZ,
                 chartConfig: {
-                    dataAppVizUuid: 'data-app-viz-uuid',
+                    dataAppVizUuid,
                     fieldMapping: {},
                     optionValues: {},
                     setDataAppVizUuid,
@@ -200,6 +208,7 @@ describe('DataAppVizConfigTabs', () => {
         setOption.mockClear();
         setDataAppVizUuid.mockClear();
         defaultAbility.update([]);
+        vi.mocked(useDataAppVizBuild).mockReturnValue(buildStub());
         mockSchema([]);
         mockContext(queryColumns);
     });
@@ -316,6 +325,62 @@ describe('DataAppVizConfigTabs', () => {
         expect(
             screen.getByText('Run your query to pick a visualization.'),
         ).toBeInTheDocument();
+    });
+
+    it('offers the dock to whoever can author a new visualization', async () => {
+        signInAs(OrganizationMemberRole.EDITOR);
+        mockContext(queryColumns, '');
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(await screen.findByTestId('viz-dock')).toBeInTheDocument();
+    });
+
+    it('withholds it from an interactive viewer with nothing selected', async () => {
+        signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
+        mockContext(queryColumns, '');
+
+        renderWithProviders(<ConfigTabs />);
+
+        expect(await screen.findByTestId('viz-picker')).toBeInTheDocument();
+        await expect(screen.findByTestId('viz-dock')).rejects.toThrow();
+    });
+
+    it('keeps the dock open while a new visualization loads', async () => {
+        signInAs(OrganizationMemberRole.EDITOR);
+        mockContext(queryColumns, '');
+        const { rerender } = renderWithProviders(<ConfigTabs />);
+        const onCreated =
+            vi.mocked(useDataAppVizBuild).mock.lastCall?.[0].onCreated;
+
+        act(() => onCreated?.('new-viz', {}));
+        mockContext(queryColumns, 'new-viz');
+        vi.mocked(useDataAppVisualization).mockReturnValue({
+            data: undefined,
+            isLoading: true,
+        } as unknown as ReturnType<typeof useDataAppVisualization>);
+        rerender(<ConfigTabs />);
+
+        expect(await screen.findByTestId('viz-dock')).toBeInTheDocument();
+    });
+
+    it('defers to loaded permissions after a new visualization loads', async () => {
+        signInAs(OrganizationMemberRole.EDITOR);
+        mockContext(queryColumns, '');
+        const { rerender } = renderWithProviders(<ConfigTabs />);
+        const onCreated =
+            vi.mocked(useDataAppVizBuild).mock.lastCall?.[0].onCreated;
+
+        act(() => onCreated?.('new-viz', {}));
+        signInAs(OrganizationMemberRole.INTERACTIVE_VIEWER);
+        mockContext(queryColumns, 'new-viz');
+        mockSchema([], null, {
+            spaceUuid: null,
+            createdByUserUuid: 'someone-else',
+        });
+        rerender(<ConfigTabs />);
+
+        await expect(screen.findByTestId('viz-dock')).rejects.toThrow();
     });
 
     it('fires setOption when a control changes', async () => {
