@@ -56,7 +56,7 @@ The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/mode
 Projects range from a handful of models to well over a thousand, so the directory is indexed rather than inlined:
 
 1. **Read `/tmp/dbt-repo/models/_index.md` first.** It lists every model, most-queried first, with its file name, dimension/metric counts, joined tables, and description.
-2. **Read only the model files the app actually needs**, e.g. `Read /tmp/dbt-repo/models/orders.yml`. Each file holds that model's complete dimensions, metrics, joins, and parameters.
+2. **Read only the model files the app actually needs**, e.g. `Read /tmp/dbt-repo/models/orders.yml`. Each file holds that model's complete dimensions, metrics, joins, parameters, and model-level filters.
 3. **Grep when the index isn't enough.** If you know a field name but not its model, `Grep` the directory for it. A wide model may be split across `<name>.yml`, `<name>.part2.yml`, … — the last line of each part points at the next.
 
 **Never read every model file, and never page through a file with `offset`/`limit`** — pick the model from the index and read that one file whole.
@@ -140,6 +140,16 @@ query('orders')
 **Never prefix joined table fields with the base explore name.** `'customers.name'` is correct. `'name'` alone would resolve to `orders_name` which doesn't exist.
 
 Each entry under `meta.joins` may carry a `relationship` (`one-to-many`, `many-to-one`, `one-to-one`, `many-to-many`) and a `sql_on` condition — either can be absent. When a `relationship` is present, use it to reason about grain and fan-out: joining a `one-to-many` table multiplies base rows, so aggregating a base metric across that join can double-count — prefer a metric defined on the "many" side, or aggregate before joining.
+
+### Model-level filters — check before querying
+
+Some models declare filters in their `meta:` block (the index marks them with `filters=…`). They change what every query against that model returns, so account for them when writing queries:
+
+- **`required_filters`** — the backend force-ANDs each of these onto every query against the model, **unless your query has its own filter on the same field** (another time interval of the same date field also counts: filtering `order_date_month` overrides a required filter on `order_date`). If the user asks for a range that conflicts with a required filter (e.g. "last 90 days" but the model requires the last 4 weeks), you MUST add your own filter on that field — without one, the backend's filter silently caps your results.
+- **`default_filters`** — NOT enforced by the backend, but Lightdash's own Explore UI pre-applies them. Apply them in your queries by default so the app's numbers match what users see in Lightdash; drop or replace one only when the user's request conflicts with it.
+- **`sql_filter`** — a raw SQL condition ANDed onto every query against the model. It cannot be overridden or removed. Factor it into naming and copy — a model filtered to `status = 'completed'` must not be labelled "all orders" — and consider it when results look narrower than expected.
+
+Entries under `required_filters` / `default_filters` use the SDK `Filter` shape (`field`, `operator`, `value`, `unit`) — pass them to `.filters([...])` as-is.
 
 ### Understanding data grain
 

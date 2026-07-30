@@ -150,6 +150,111 @@ describe('AppGenerateService.exploresToModelFiles', () => {
         expect(index).toContain('customers  customers.yml  dims=1 metrics=0');
     });
 
+    it('renders model-level filters on the explore model but not on inlined join targets', () => {
+        const explore = {
+            name: 'orders',
+            baseTable: 'orders',
+            joinedTables: [
+                {
+                    table: 'events',
+                    sqlOn: '${orders.id} = ${events.order_id}',
+                },
+            ],
+            tables: {
+                orders: {
+                    sqlWhere: '${TABLE}.deleted_at IS NULL',
+                    requiredFilters: [
+                        {
+                            id: 'a',
+                            target: { fieldRef: 'order_date' },
+                            operator: 'inThePast',
+                            values: [4],
+                            settings: { unitOfTime: 'weeks' },
+                            required: true,
+                        },
+                        {
+                            id: 'b',
+                            target: { fieldRef: 'status' },
+                            operator: 'equals',
+                            values: ['completed'],
+                            required: false,
+                        },
+                        {
+                            id: 'c',
+                            target: { fieldRef: 'deleted_at' },
+                            operator: 'isNull',
+                            values: [1],
+                            required: false,
+                        },
+                    ],
+                    metrics: {},
+                    dimensions: {
+                        order_date: { name: 'order_date', type: 'date' },
+                    },
+                },
+                events: {
+                    requiredFilters: [
+                        {
+                            id: 'd',
+                            target: { fieldRef: 'event_type' },
+                            operator: 'equals',
+                            values: ['click'],
+                            required: true,
+                        },
+                    ],
+                    sqlWhere: "${TABLE}.tenant = 'x'",
+                    metrics: {},
+                    dimensions: {
+                        event_type: { name: 'event_type', type: 'string' },
+                    },
+                },
+            },
+        } as unknown as Explore;
+
+        const result = exploresToModelFiles([explore]);
+
+        const orders = parseYaml(
+            result.files.find((file) => file.filename === 'orders.yml')!
+                .contents,
+        ) as {
+            models: Array<{
+                meta?: {
+                    sql_filter?: string;
+                    required_filters?: unknown[];
+                    default_filters?: unknown[];
+                };
+            }>;
+        };
+        expect(orders.models[0].meta?.sql_filter).toBe(
+            '${TABLE}.deleted_at IS NULL',
+        );
+        expect(orders.models[0].meta?.required_filters).toEqual([
+            {
+                field: 'order_date',
+                operator: 'inThePast',
+                value: [4],
+                unit: 'weeks',
+            },
+        ]);
+        expect(orders.models[0].meta?.default_filters).toEqual([
+            { field: 'status', operator: 'equals', value: ['completed'] },
+            // Null operators carry no meaningful value, so none is rendered.
+            { field: 'deleted_at', operator: 'isNull' },
+        ]);
+
+        // The join target's own filters never apply when queried through
+        // the orders explore, so its inlined model must not claim them.
+        const events = result.files.find(
+            (file) => file.filename === 'events.yml',
+        )!.contents;
+        expect(events).not.toContain('required_filters');
+        expect(events).not.toContain('sql_filter');
+
+        expect(indexOf(result.files)).toContain(
+            'orders  orders.yml  dims=1 metrics=0  joins=events  filters=required:1,default:2,sql',
+        );
+    });
+
     it('orders the index by chart usage so detail is shed from the least-queried models', () => {
         const explores = [
             buildExplore('rarely_used', 1),

@@ -24,6 +24,7 @@ import {
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     extractLockfilePackages,
     FeatureFlags,
+    FilterOperator,
     ForbiddenError,
     formatPromptWithClarifications,
     getEffectiveFieldAiHints,
@@ -85,6 +86,7 @@ import {
     type KnexPaginatedData,
     type LightdashProjectParameter,
     type MetricQuery,
+    type ModelRequiredFilterRule,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SavedChart,
@@ -318,6 +320,20 @@ type RenderedModel = {
     columnBlocks: string[][];
     dimensionCount: number;
     metricCount: number;
+    requiredFilterCount: number;
+    defaultFilterCount: number;
+    hasSqlFilter: boolean;
+};
+
+/**
+ * Model-level filters that apply when this model is queried as an explore.
+ * They live on the base table but only take effect for queries against the
+ * explore itself, so they're passed explicitly and omitted for join-target
+ * models inlined by pass 2 of exploresToRenderedModels.
+ */
+type RenderedModelFilters = {
+    requiredFilters: ModelRequiredFilterRule[];
+    sqlFilter: string | null;
 };
 
 type ModelFile = {
@@ -8465,17 +8481,49 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Render one model-level filter in the SDK `Filter` shape (field/operator/
+     * value/unit) so the agent can pass entries into `.filters([...])` as-is.
+     */
+    private static renderModelFilterYaml(
+        filter: ModelRequiredFilterRule,
+    ): string[] {
+        const lines: string[] = [
+            `        - field: ${filter.target.fieldRef}`,
+            `          operator: ${filter.operator}`,
+        ];
+        if (
+            filter.operator !== FilterOperator.NULL &&
+            filter.operator !== FilterOperator.NOT_NULL
+        ) {
+            const values = (filter.values ?? []).map((v: unknown) =>
+                typeof v === 'number' || typeof v === 'boolean'
+                    ? String(v)
+                    : AppGenerateService.yamlQuote(v),
+            );
+            lines.push(`          value: [${values.join(', ')}]`);
+        }
+        const unitOfTime: unknown = filter.settings?.unitOfTime;
+        if (typeof unitOfTime === 'string') {
+            lines.push(`          unit: ${unitOfTime}`);
+        }
+        return lines;
+    }
+
+    /**
      * Render one compiled table as a dbt-style model, carrying real
-     * metric/dimension types, join relationships (`meta.joins`), AI hints, and
-     * model-level parameters. Joins and parameters live on the explore rather
-     * than the table, so they're passed in explicitly. Hidden fields are
-     * skipped; descriptions are truncated to keep the output bounded.
+     * metric/dimension types, join relationships (`meta.joins`), AI hints,
+     * model-level parameters, and model-level filters (`sql_filter`,
+     * `required_filters`, `default_filters`). Joins, parameters, and filters
+     * are explore-scoped rather than table-scoped, so they're passed in
+     * explicitly. Hidden fields are skipped; descriptions are truncated to
+     * keep the output bounded.
      */
     private static renderTableModel(
         modelName: string,
         table: CompiledTable,
         joins: CompiledExploreJoin[],
         parameters: Record<string, LightdashProjectParameter> | undefined,
+        modelFilters: RenderedModelFilters,
     ): RenderedModel {
         const truncate = AppGenerateService.truncateDescription;
         const headerLines: string[] = [`  - name: ${modelName}`];
@@ -8490,11 +8538,22 @@ export class AppGenerateService extends BaseService {
             (d) => !d.hidden,
         );
         const parameterEntries = parameters ? Object.entries(parameters) : [];
+        // Same predicate MetricQueryBuilder uses to decide enforcement.
+        const requiredFilters = modelFilters.requiredFilters.filter(
+            (f) => f.required !== false,
+        );
+        const defaultFilters = modelFilters.requiredFilters.filter(
+            (f) => f.required === false,
+        );
+        const { sqlFilter } = modelFilters;
 
         if (
             metrics.length > 0 ||
             joins.length > 0 ||
-            parameterEntries.length > 0
+            parameterEntries.length > 0 ||
+            requiredFilters.length > 0 ||
+            defaultFilters.length > 0 ||
+            sqlFilter !== null
         ) {
             headerLines.push(`    meta:`);
             if (metrics.length > 0) {
@@ -8537,6 +8596,27 @@ export class AppGenerateService extends BaseService {
                             `          sql_on: ${AppGenerateService.yamlQuote(j.sqlOn)}`,
                         );
                     }
+                }
+            }
+            if (sqlFilter !== null) {
+                headerLines.push(
+                    `      sql_filter: ${AppGenerateService.yamlQuote(sqlFilter)}`,
+                );
+            }
+            if (requiredFilters.length > 0) {
+                headerLines.push(`      required_filters:`);
+                for (const filter of requiredFilters) {
+                    headerLines.push(
+                        ...AppGenerateService.renderModelFilterYaml(filter),
+                    );
+                }
+            }
+            if (defaultFilters.length > 0) {
+                headerLines.push(`      default_filters:`);
+                for (const filter of defaultFilters) {
+                    headerLines.push(
+                        ...AppGenerateService.renderModelFilterYaml(filter),
+                    );
                 }
             }
             if (parameterEntries.length > 0) {
@@ -8588,6 +8668,9 @@ export class AppGenerateService extends BaseService {
             columnBlocks,
             dimensionCount: dimensions.length,
             metricCount: metrics.length,
+            requiredFilterCount: requiredFilters.length,
+            defaultFilterCount: defaultFilters.length,
+            hasSqlFilter: sqlFilter !== null,
         };
     }
 
@@ -8621,6 +8704,10 @@ export class AppGenerateService extends BaseService {
                         baseTable,
                         joins,
                         explore.parameters,
+                        {
+                            requiredFilters: baseTable.requiredFilters ?? [],
+                            sqlFilter: baseTable.sqlWhere ?? null,
+                        },
                     ),
                 );
             }
@@ -8646,6 +8733,10 @@ export class AppGenerateService extends BaseService {
                             joinedTable,
                             [],
                             undefined,
+                            // A join target's own filters only apply when it
+                            // is queried as its own explore, which these are
+                            // not — rendering them here would be misleading.
+                            { requiredFilters: [], sqlFilter: null },
                         ),
                     );
                 }
@@ -8850,8 +8941,11 @@ export class AppGenerateService extends BaseService {
             'Every model in this project is listed below, most-queried first. Read',
             'only the model files you need — never the whole directory. To locate a',
             'field whose model you do not know, Grep this directory for its name.',
+            'A `filters=` marker means the model declares model-level filters',
+            '(required/default/sql_filter) that affect every query against it —',
+            'read that model file before querying it.',
             '',
-            'name  file  dims/metrics  joins  description',
+            'name  file  dims/metrics  joins  [filters]  description',
             '',
         ].join('\n');
 
@@ -8861,12 +8955,25 @@ export class AppGenerateService extends BaseService {
                 model.joinedTables.length > 0
                     ? model.joinedTables.join(',')
                     : '-';
+            const filterParts = [
+                model.requiredFilterCount > 0
+                    ? `required:${model.requiredFilterCount}`
+                    : null,
+                model.defaultFilterCount > 0
+                    ? `default:${model.defaultFilterCount}`
+                    : null,
+                model.hasSqlFilter ? 'sql' : null,
+            ].filter((part) => part !== null);
+            const filters =
+                filterParts.length > 0
+                    ? `  filters=${filterParts.join(',')}`
+                    : '';
             const description = model.description
                 ? `  ${model.description
                       .replace(/\s+/g, ' ')
                       .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
                 : '';
-            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${description}`;
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${description}`;
         };
 
         const compactLine = (entry: (typeof ranked)[number]): string =>
