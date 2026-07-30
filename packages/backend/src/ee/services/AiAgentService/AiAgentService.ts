@@ -383,6 +383,8 @@ type AgentResponseStream = {
 };
 
 const MAX_AI_PROMPT_CONTEXT_ITEMS = 10;
+const EXPLICIT_SLACK_CHANNEL_LINKING_REQUIRED_REASON =
+    'explicit_slack_channel_linking_required';
 const AGENT_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 const AGENT_AVATAR_SIZE_PX = 256;
 const AGENT_AVATAR_PERSISTENT_URL_EXPIRY_SECONDS = 10 * 365 * 24 * 60 * 60;
@@ -4331,6 +4333,19 @@ export class AiAgentService extends BaseService {
         const { organizationUuid, agent } =
             await this.getManageableAgentOrThrow(user, agentUuid);
 
+        // Slack-only path: the settings UI adds channels via updateAgent, so
+        // this guard never blocks explicit configuration.
+        if (
+            await this.aiOrganizationSettingsService.isExplicitSlackChannelLinkingRequired(
+                organizationUuid,
+            )
+        ) {
+            throw new ForbiddenError(
+                this.getExplicitSlackChannelLinkingMessage(),
+                { reason: EXPLICIT_SLACK_CHANNEL_LINKING_REQUIRED_REASON },
+            );
+        }
+
         await this.aiAgentModel.addSlackChannelIntegration({
             organizationUuid,
             agentUuid,
@@ -4348,6 +4363,10 @@ export class AiAgentService extends BaseService {
         });
 
         return agent;
+    }
+
+    private getExplicitSlackChannelLinkingMessage(): string {
+        return `🔒 No agent is configured for this channel, and this organization requires channels to be added from the agent settings page. Ask an admin to add one at ${this.lightdashConfig.siteUrl}/ai-agents`;
     }
 
     private async getManageableAgentOrThrow(
@@ -11964,6 +11983,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         channelId: string;
         threadTs: string;
         say: SayFn;
+        client: WebClient;
+        slackUserId: string;
         // Reuses the multi-agent channel "filter agents by project" setting.
         visibleProjectUuids?: string[] | null;
     }): Promise<AiAgent | undefined> {
@@ -11973,9 +11994,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             channelId,
             threadTs,
             say,
+            client,
+            slackUserId,
             visibleProjectUuids,
         } = args;
         const { siteUrl } = this.lightdashConfig;
+
+        if (
+            await this.aiOrganizationSettingsService.isExplicitSlackChannelLinkingRequired(
+                organizationUuid,
+            )
+        ) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: slackUserId,
+                thread_ts: threadTs,
+                text: this.getExplicitSlackChannelLinkingMessage(),
+            });
+            return undefined;
+        }
 
         // Drop deleted projects so a stale filter doesn't hide every agent.
         const validProjectUuids = visibleProjectUuids?.length
@@ -13476,7 +13513,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                 channel: channelId,
                                 user: body.user.id,
                                 thread_ts: threadTs,
-                                text: `⚠️ You don't have permission to link an agent to this channel. Ask an admin to set one up at ${this.lightdashConfig.siteUrl}/ai-agents`,
+                                text:
+                                    error.data.reason ===
+                                    EXPLICIT_SLACK_CHANNEL_LINKING_REQUIRED_REASON
+                                        ? error.message
+                                        : `⚠️ You don't have permission to link an agent to this channel. Ask an admin to set one up at ${this.lightdashConfig.siteUrl}/ai-agents`,
                             });
                             return;
                         }
@@ -13961,6 +14002,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         channelId,
                         threadTs: threadTs || messageTs,
                         say,
+                        client,
+                        slackUserId,
                         visibleProjectUuids:
                             slackSettings.aiMultiAgentProjectUuids,
                     });
@@ -14231,6 +14274,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             channelId: event.channel,
                             threadTs: event.thread_ts ?? event.ts,
                             say,
+                            client,
+                            slackUserId: event.user,
                             visibleProjectUuids:
                                 slackSettings.aiMultiAgentProjectUuids,
                         });

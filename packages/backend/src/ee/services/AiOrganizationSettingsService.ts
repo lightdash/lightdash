@@ -269,6 +269,16 @@ export class AiOrganizationSettingsService extends BaseService {
         return settings?.defaultAiAgentModelConfig ?? null;
     }
 
+    async isExplicitSlackChannelLinkingRequired(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.requireExplicitSlackChannelLinking ?? false;
+    }
+
     async getSettings(
         user: SessionUser,
     ): Promise<AiOrganizationSettings & ComputedAiOrganizationSettings> {
@@ -321,6 +331,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
                 mcpContentWritesEnabled: true,
+                requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
                 dataAppModelVisibility: null,

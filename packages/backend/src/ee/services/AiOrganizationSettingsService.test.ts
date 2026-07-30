@@ -14,6 +14,7 @@ const settingsWithKeys: AiOrganizationSettings = {
     aiAgentsVisible: true,
     aiAgentReviewsEnabled: false,
     mcpContentWritesEnabled: true,
+    requireExplicitSlackChannelLinking: false,
     defaultAiAgentModelConfig: null,
     modelVisibility: null,
     providerApiKeysSet: { anthropic: true, openai: false },
@@ -367,5 +368,42 @@ describe('upsertSettings model validation', () => {
                 modelProvider: 'anthropic',
             },
         });
+    });
+});
+
+describe('isExplicitSlackChannelLinkingRequired', () => {
+    const buildService = (settings: AiOrganizationSettings | null) =>
+        new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findByOrganizationUuid: vi.fn().mockResolvedValue(settings),
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
+
+    it('returns false when the organization has no settings row', async () => {
+        const service = buildService(null);
+        await expect(
+            service.isExplicitSlackChannelLinkingRequired('org-uuid'),
+        ).resolves.toBe(false);
+    });
+
+    it('returns false when the setting is off', async () => {
+        const service = buildService({
+            ...settingsWithKeys,
+            requireExplicitSlackChannelLinking: false,
+        });
+        await expect(
+            service.isExplicitSlackChannelLinkingRequired('org-uuid'),
+        ).resolves.toBe(false);
+    });
+
+    it('returns true when the setting is on', async () => {
+        const service = buildService({
+            ...settingsWithKeys,
+            requireExplicitSlackChannelLinking: true,
+        });
+        await expect(
+            service.isExplicitSlackChannelLinkingRequired('org-uuid'),
+        ).resolves.toBe(true);
     });
 });
