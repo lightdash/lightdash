@@ -45,6 +45,7 @@ import {
     SqlChartAsCode,
     validateDataAppDependencies,
     VirtualViewAsCode,
+    type DashboardAsCodeUpsertResult,
     type DataAppCodeDownload,
     type SpaceAsCode,
 } from '@lightdash/common';
@@ -66,6 +67,7 @@ import {
     type ContentAsCodeOutputVariant,
 } from '../terminal/contentAsCodeOutput';
 import {
+    appFolderNeedsUpdating,
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
@@ -85,9 +87,11 @@ import {
     preSlugUploadHint,
     resolveAppsLimit,
     selectAppsToDownload,
+    shouldAutoPushApp,
     shouldFallBackToSpaceScopedListing,
     unmatchedUploadRefsWarning,
     uploadFilterMatches,
+    type AppPresence,
 } from './apps/appsDownload';
 import { loadTemplateDependencies } from './apps/scaffolding';
 import {
@@ -2459,7 +2463,8 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             : `/api/v1/projects/${projectId}/code/${type}/${item.slug}`;
 
         const upsertData = await lightdashApi<
-            ApiChartAsCodeUpsertResponse['results']
+            ApiChartAsCodeUpsertResponse['results'] &
+                Pick<DashboardAsCodeUpsertResult, 'warnings'>
         >({
             method: 'POST',
             url: endpoint,
@@ -2475,6 +2480,9 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
 
         GlobalState.debug(
             `${type} "${item.name}": ${upsertData[type]?.[0].action}`,
+        );
+        (upsertData.warnings ?? []).forEach((warning) =>
+            GlobalState.log(styles.warning(`  ⚠ ${item.slug}: ${warning}`)),
         );
 
         // Merge storeUploadChanges result into changes in-place
@@ -2803,6 +2811,26 @@ const getDashboardChartSlugs = async (
     }, []);
 };
 
+const getDashboardAppSlugs = async (
+    dashboardSlugs: string[],
+    customPath?: string,
+    looseDashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [],
+): Promise<string[]> => {
+    const folderDashboards = await readCodeFiles<DashboardAsCode>(
+        'dashboards',
+        customPath,
+    );
+    const dashboardItems = [...folderDashboards, ...looseDashboards];
+    const selected =
+        dashboardSlugs.length > 0
+            ? dashboardItems.filter((dashboard) =>
+                  dashboardSlugs.includes(dashboard.slug),
+              )
+            : dashboardItems;
+
+    return [...new Set(extractAppSlugsFromDashboards(selected))];
+};
+
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
@@ -2998,217 +3026,22 @@ export const uploadHandler = async (
             }
         }
 
-        changes = await runUploadChangesPhase({
-            output,
-            label: 'Charts',
-            changes,
-            action: async () => {
-                const chartSlugs = options.includeCharts
-                    ? Array.from(
-                          new Set([
-                              ...options.charts,
-                              ...(await getDashboardChartSlugs(
-                                  options.dashboards,
-                                  options.path,
-                                  looseFiles.dashboards,
-                              )),
-                          ]),
-                      )
-                    : options.charts;
-                if (hasFilters && chartSlugs.length === 0) {
-                    GlobalState.log(
-                        styles.warning(`No charts filters provided, skipping`),
-                    );
-                    return changes;
-                }
-                const result = await upsertResources<ChartAsCode>(
-                    'charts',
-                    projectId,
-                    changes,
-                    options.force,
-                    chartSlugs,
-                    uploadPermissions.charts,
-                    options.path,
-                    options.skipSpaceCreate,
-                    options.public,
-                    options.validate,
-                    concurrency,
-                    looseFiles.charts,
-                    spaceNames,
-                );
-                chartTotal = result.total;
-                return result.changes;
-            },
-        });
-
-        changes = await runUploadChangesPhase({
-            output,
-            label: 'Dashboards',
-            changes,
-            action: async () => {
-                if (hasFilters && options.dashboards.length === 0) {
-                    GlobalState.log(
-                        styles.warning(
-                            `No dashboard filters provided, skipping`,
-                        ),
-                    );
-                    return changes;
-                }
-                const result = await upsertResources<DashboardAsCode>(
-                    'dashboards',
-                    projectId,
-                    changes,
-                    options.force,
-                    options.dashboards,
-                    uploadPermissions.dashboards,
-                    options.path,
-                    options.skipSpaceCreate,
-                    options.public,
-                    options.validate,
-                    concurrency,
-                    looseFiles.dashboards,
-                    spaceNames,
-                );
-                dashboardTotal = result.total;
-                return result.changes;
-            },
-        });
-
-        if (!options.skipAgents) {
-            if (hasFilters && options.agents.length === 0) {
-                GlobalState.log(
-                    styles.warning(`No AI agent filters provided, skipping`),
-                );
-            } else {
-                try {
-                    changes = await runUploadChangesPhase({
-                        output,
-                        label: 'AI agents',
-                        changes,
-                        action: () =>
-                            upsertAiAgents(
-                                projectId,
-                                options.agents,
-                                changes,
-                                options.force,
-                                options.path,
-                                options.agents.length === 0,
-                            ),
-                    });
-                } catch (error) {
-                    throw new AiAgentAsCodeUploadError(error);
-                }
-            }
-        }
-
-        if (!options.skipAlerts) {
-            if (hasFilters && options.alerts.length === 0) {
-                GlobalState.log(
-                    styles.warning(`No alert filters provided, skipping`),
-                );
-            } else {
-                changes = await runUploadChangesPhase({
-                    output,
-                    label: 'Alerts',
-                    changes,
-                    action: () =>
-                        upsertScheduledContent(
-                            projectId,
-                            options.alerts,
-                            changes,
-                            options.force,
-                            ContentAsCodeTypeEnum.ALERT,
-                            uploadPermissions.alerts,
-                            options.path,
-                        ),
-                });
-            }
-        }
-
-        if (!options.skipScheduledDeliveries) {
-            if (hasFilters && options.scheduledDeliveries.length === 0) {
-                GlobalState.log(
-                    styles.warning(
-                        `No scheduled delivery filters provided, skipping`,
-                    ),
-                );
-            } else {
-                changes = await runUploadChangesPhase({
-                    output,
-                    label: 'Scheduled deliveries',
-                    changes,
-                    action: () =>
-                        upsertScheduledContent(
-                            projectId,
-                            options.scheduledDeliveries,
-                            changes,
-                            options.force,
-                            ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
-                            uploadPermissions.scheduledDeliveries,
-                            options.path,
-                        ),
-                });
-            }
-        }
-
-        if (!options.skipGoogleSheets) {
-            if (hasFilters && options.googleSheets.length === 0) {
-                GlobalState.log(
-                    styles.warning(
-                        `No Google Sheets sync filters provided, skipping`,
-                    ),
-                );
-            } else {
-                changes = await runUploadChangesPhase({
-                    output,
-                    label: 'Google Sheets syncs',
-                    changes,
-                    action: () =>
-                        upsertScheduledContent(
-                            projectId,
-                            options.googleSheets,
-                            changes,
-                            options.force,
-                            ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
-                            uploadPermissions.googleSheets,
-                            options.path,
-                        ),
-                });
-            }
-        }
-
-        if (!options.skipExternalConnections) {
-            if (hasFilters && options.externalConnections.length === 0) {
-                GlobalState.log(
-                    styles.warning(
-                        `No external connection filters provided, skipping`,
-                    ),
-                );
-            } else {
-                changes = await runUploadChangesPhase({
-                    output,
-                    label: 'External connections',
-                    changes,
-                    action: () =>
-                        upsertExternalConnections(
-                            projectId,
-                            options.externalConnections,
-                            changes,
-                            options.force,
-                            uploadPermissions.externalConnections,
-                            options.path,
-                        ),
-                });
-            }
-        }
-
         // Upload data apps (enterprise, opt-in via --apps <references...> or
-        // --include-apps, fire-and-forget)
+        // --include-apps; also auto-pushed when a dashboard being uploaded
+        // references one, so its tiles resolve in the target project). Apps
+        // must land before dashboards — mirrors PromoteService.upsertDataApps.
         const explicitAppReferences = Array.isArray(options.apps)
             ? options.apps
             : [];
-        const shouldUploadApps =
+        const isExplicitAppSelection =
             options.includeApps === true || explicitAppReferences.length > 0;
+        const autoPushAppSlugs = await getDashboardAppSlugs(
+            options.dashboards,
+            options.path,
+            looseFiles.dashboards,
+        );
+        const shouldUploadApps =
+            isExplicitAppSelection || autoPushAppSlugs.length > 0;
 
         let appsCreated = 0;
         let appsUpdated = 0;
@@ -3220,19 +3053,54 @@ export const uploadHandler = async (
         if (shouldUploadApps && !uploadPermissions.dataApps) {
             output.startItem('Data apps');
             GlobalState.log(
-                styles.error(
-                    `Error uploading data apps: create:DataApp or manage:DataApp permission is required`,
+                styles.warning(
+                    `Skipping data apps: create:DataApp or manage:DataApp permission is required. Dashboard tiles will resolve only if their apps already exist in this project.`,
                 ),
             );
             output.completeItem('permission denied', 'warning');
         } else if (shouldUploadApps) {
             output.startItem('Data apps');
             // --include-apps uploads every folder on disk; explicit references
-            // filter folders by their manifest slug or appUuid
-            const uploadFilter = getDataAppUploadFilter(
-                explicitAppReferences,
-                options.includeApps === true,
-            );
+            // filter folders by their manifest slug or appUuid. A pure
+            // auto-push run keeps no filter here — candidacy is decided per
+            // folder below instead, against the dashboards' referenced slugs.
+            const uploadFilter = isExplicitAppSelection
+                ? getDataAppUploadFilter(
+                      explicitAppReferences,
+                      options.includeApps === true,
+                  )
+                : null;
+
+            // The manifest keeps naming the source project forever, so
+            // comparing it to the target would re-push on every run against
+            // prod. Listing the target's apps settles after the first push.
+            let presence: AppPresence = {
+                kind: 'unknown',
+                targetProjectUuid: projectId,
+            };
+            if (autoPushAppSlugs.length > 0) {
+                try {
+                    const projectApps = await lightdashApi<
+                        ApiEmbedProjectAppsResponse['results']
+                    >({
+                        method: 'GET',
+                        url: `/api/v1/ee/projects/${projectId}/apps`,
+                        body: undefined,
+                    });
+                    // An older server answers without slugs; that is not an
+                    // error, but it is not an answer either.
+                    if (projectApps.every((app) => app.slug !== undefined)) {
+                        presence = {
+                            kind: 'known',
+                            slugs: new Set(projectApps.map((app) => app.slug)),
+                        };
+                    }
+                } catch (listErr) {
+                    GlobalState.debug(
+                        `Could not list target project apps: ${getErrorMessage(listErr)}`,
+                    );
+                }
+            }
 
             const baseDir = getDownloadFolder(options.path);
             const appsDir = path.join(baseDir, 'apps');
@@ -3281,6 +3149,36 @@ export const uploadHandler = async (
                         matchedUploadRefs(uploadFilter, code.manifest).forEach(
                             (ref) => matchedRefs.add(ref),
                         );
+                    }
+
+                    if (!isExplicitAppSelection) {
+                        const isAutoPushCandidate =
+                            code.manifest.slug !== undefined &&
+                            autoPushAppSlugs.includes(code.manifest.slug);
+                        if (!isAutoPushCandidate) {
+                            // eslint-disable-next-line no-continue
+                            continue;
+                        }
+                        // eslint-disable-next-line no-await-in-loop
+                        const folderChanged = await appFolderNeedsUpdating(
+                            folderPath,
+                            code.manifest,
+                        );
+                        if (
+                            !shouldAutoPushApp({
+                                manifest: code.manifest,
+                                presence,
+                                folderChanged,
+                                force: options.force === true,
+                            })
+                        ) {
+                            GlobalState.debug(
+                                `Skipping app "${subDir.name}" — unchanged and already in the target project`,
+                            );
+                            appsSkipped += 1;
+                            // eslint-disable-next-line no-continue
+                            continue;
+                        }
                     }
 
                     // Read declared dependencies from the app folder (optional).
@@ -3509,6 +3407,210 @@ export const uploadHandler = async (
             }
         }
 
+        changes = await runUploadChangesPhase({
+            output,
+            label: 'Charts',
+            changes,
+            action: async () => {
+                const chartSlugs = options.includeCharts
+                    ? Array.from(
+                          new Set([
+                              ...options.charts,
+                              ...(await getDashboardChartSlugs(
+                                  options.dashboards,
+                                  options.path,
+                                  looseFiles.dashboards,
+                              )),
+                          ]),
+                      )
+                    : options.charts;
+                if (hasFilters && chartSlugs.length === 0) {
+                    GlobalState.log(
+                        styles.warning(`No charts filters provided, skipping`),
+                    );
+                    return changes;
+                }
+                const result = await upsertResources<ChartAsCode>(
+                    'charts',
+                    projectId,
+                    changes,
+                    options.force,
+                    chartSlugs,
+                    uploadPermissions.charts,
+                    options.path,
+                    options.skipSpaceCreate,
+                    options.public,
+                    options.validate,
+                    concurrency,
+                    looseFiles.charts,
+                    spaceNames,
+                );
+                chartTotal = result.total;
+                return result.changes;
+            },
+        });
+
+        changes = await runUploadChangesPhase({
+            output,
+            label: 'Dashboards',
+            changes,
+            action: async () => {
+                if (hasFilters && options.dashboards.length === 0) {
+                    GlobalState.log(
+                        styles.warning(
+                            `No dashboard filters provided, skipping`,
+                        ),
+                    );
+                    return changes;
+                }
+                const result = await upsertResources<DashboardAsCode>(
+                    'dashboards',
+                    projectId,
+                    changes,
+                    options.force,
+                    options.dashboards,
+                    uploadPermissions.dashboards,
+                    options.path,
+                    options.skipSpaceCreate,
+                    options.public,
+                    options.validate,
+                    concurrency,
+                    looseFiles.dashboards,
+                    spaceNames,
+                );
+                dashboardTotal = result.total;
+                return result.changes;
+            },
+        });
+
+        if (!options.skipAgents) {
+            if (hasFilters && options.agents.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No AI agent filters provided, skipping`),
+                );
+            } else {
+                try {
+                    changes = await runUploadChangesPhase({
+                        output,
+                        label: 'AI agents',
+                        changes,
+                        action: () =>
+                            upsertAiAgents(
+                                projectId,
+                                options.agents,
+                                changes,
+                                options.force,
+                                options.path,
+                                options.agents.length === 0,
+                            ),
+                    });
+                } catch (error) {
+                    throw new AiAgentAsCodeUploadError(error);
+                }
+            }
+        }
+
+        if (!options.skipAlerts) {
+            if (hasFilters && options.alerts.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No alert filters provided, skipping`),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Alerts',
+                    changes,
+                    action: () =>
+                        upsertScheduledContent(
+                            projectId,
+                            options.alerts,
+                            changes,
+                            options.force,
+                            ContentAsCodeTypeEnum.ALERT,
+                            uploadPermissions.alerts,
+                            options.path,
+                        ),
+                });
+            }
+        }
+
+        if (!options.skipScheduledDeliveries) {
+            if (hasFilters && options.scheduledDeliveries.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No scheduled delivery filters provided, skipping`,
+                    ),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Scheduled deliveries',
+                    changes,
+                    action: () =>
+                        upsertScheduledContent(
+                            projectId,
+                            options.scheduledDeliveries,
+                            changes,
+                            options.force,
+                            ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
+                            uploadPermissions.scheduledDeliveries,
+                            options.path,
+                        ),
+                });
+            }
+        }
+
+        if (!options.skipGoogleSheets) {
+            if (hasFilters && options.googleSheets.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No Google Sheets sync filters provided, skipping`,
+                    ),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'Google Sheets syncs',
+                    changes,
+                    action: () =>
+                        upsertScheduledContent(
+                            projectId,
+                            options.googleSheets,
+                            changes,
+                            options.force,
+                            ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
+                            uploadPermissions.googleSheets,
+                            options.path,
+                        ),
+                });
+            }
+        }
+
+        if (!options.skipExternalConnections) {
+            if (hasFilters && options.externalConnections.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No external connection filters provided, skipping`,
+                    ),
+                );
+            } else {
+                changes = await runUploadChangesPhase({
+                    output,
+                    label: 'External connections',
+                    changes,
+                    action: () =>
+                        upsertExternalConnections(
+                            projectId,
+                            options.externalConnections,
+                            changes,
+                            options.force,
+                            uploadPermissions.externalConnections,
+                            options.path,
+                        ),
+                });
+            }
+        }
+
         const end = Date.now();
 
         await LightdashAnalytics.track({
@@ -3546,6 +3648,7 @@ export const testHelpers = {
     downloadSpaces,
     extractAppSlugsFromDashboards,
     getFlatSpaceFileNames,
+    getDashboardAppSlugs,
     getDashboardChartSlugs,
     hasContentFilters,
     isAiAgentsUnavailableError,

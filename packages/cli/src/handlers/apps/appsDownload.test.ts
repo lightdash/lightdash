@@ -831,4 +831,18 @@ describe('shouldAutoPushApp', () => {
             }),
         ).toBe(true);
     });
+
+    it('pushes a slug-less manifest against an older server with unknown presence', () => {
+        expect(
+            shouldAutoPushApp({
+                manifest: { slug: undefined, projectUuid: 'source-project' },
+                presence: {
+                    kind: 'unknown',
+                    targetProjectUuid: 'source-project',
+                },
+                folderChanged: false,
+                force: false,
+            }),
+        ).toBe(true);
+    });
 });
