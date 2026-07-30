@@ -23,4 +23,12 @@ describe('spaceContentConfiguration.getSummaryQuery rootSpaces search', () => {
         const sql = buildSql({ ...baseFilters, search: 'nested space' });
         expect(sql).not.toContain('nlevel(path) = 1');
     });
+
+    it('matches spaces at any nesting level when looking up explicit uuids', () => {
+        const sql = buildSql({
+            ...baseFilters,
+            uuids: ['00000000-0000-0000-0000-000000000002'],
+        });
+        expect(sql).not.toContain('nlevel(path) = 1');
+    });
 });

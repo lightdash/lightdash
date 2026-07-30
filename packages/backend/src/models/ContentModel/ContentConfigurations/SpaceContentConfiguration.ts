@@ -248,10 +248,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                 `${SpaceTableName}.space_uuid`,
                                 filters.spaceUuids ?? [],
                             );
-                            // When searching, match spaces at any nesting level
-                            // to stay consistent with global search. The
-                            // space_uuid filter above already enforces access.
-                            if (!filters.search) {
+                            // When searching or looking up explicit uuids, match
+                            // spaces at any nesting level. The space_uuid filter
+                            // above already enforces access.
+                            if (!filters.search && !filters.uuids) {
                                 void builder.andWhereRaw('nlevel(path) = 1');
                             }
                         } else {
