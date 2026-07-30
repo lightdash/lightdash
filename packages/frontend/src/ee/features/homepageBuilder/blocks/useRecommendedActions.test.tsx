@@ -1,9 +1,10 @@
 import {
     FeatureFlags,
     ProjectType,
+    type HomepageRecommendedActionKey,
     type OrganizationProject,
 } from '@lightdash/common';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useGithubConfig } from '../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import { useGitlabRepositories } from '../../../../components/common/GitlabIntegration/hooks/useGitlabIntegration';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
@@ -13,6 +14,7 @@ import { useProjects } from '../../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { useActiveAgentOnboardingRun } from '../../agentOnboarding/hooks/useAgentOnboarding';
+import { useHomepageRecommendedActionSkips } from '../hooks/useHomepageRecommendedActionSkips';
 import { useRecommendedActions } from './useRecommendedActions';
 
 vi.mock(
@@ -28,6 +30,19 @@ vi.mock('../../../../hooks/useProjects');
 vi.mock('../../../../providers/App/useApp');
 vi.mock('../../../../hooks/useServerOrClientFeatureFlag');
 vi.mock('../../agentOnboarding/hooks/useAgentOnboarding');
+vi.mock('../hooks/useHomepageRecommendedActionSkips');
+
+const recommendedActionSkipsResult = (
+    overrides: Partial<
+        ReturnType<typeof useHomepageRecommendedActionSkips>
+    > = {},
+): ReturnType<typeof useHomepageRecommendedActionSkips> => ({
+    skippedActions: [],
+    isLoading: false,
+    skipAction: vi.fn(),
+    restoreAction: vi.fn(),
+    ...overrides,
+});
 
 const organizationProject = (
     overrides: Partial<OrganizationProject>,
@@ -78,17 +93,21 @@ describe('useRecommendedActions', () => {
         vi.mocked(useActiveAgentOnboardingRun).mockReturnValue({
             data: null,
         } as ReturnType<typeof useActiveAgentOnboardingRun>);
-        localStorage.clear();
+        vi.mocked(useHomepageRecommendedActionSkips).mockReturnValue(
+            recommendedActionSkipsResult(),
+        );
     });
 
-    it('reloads skipped actions when the project changes', async () => {
-        localStorage.setItem(
-            'lightdash:recommended-actions:skipped:no-project',
-            JSON.stringify(['connect-slack']),
-        );
-        localStorage.setItem(
-            'lightdash:recommended-actions:skipped:project-uuid',
-            JSON.stringify(['add-semantic-layer']),
+    it('reads skipped actions from the server query for each project context', () => {
+        vi.mocked(useHomepageRecommendedActionSkips).mockImplementation(
+            (projectUuid) =>
+                recommendedActionSkipsResult({
+                    skippedActions: [
+                        projectUuid === null
+                            ? 'connect-slack'
+                            : 'add-semantic-layer',
+                    ] satisfies HomepageRecommendedActionKey[],
+                }),
         );
 
         const { result, rerender } = renderHook(
@@ -101,11 +120,29 @@ describe('useRecommendedActions', () => {
 
         rerender({ projectUuid: 'project-uuid' });
 
-        await waitFor(() => {
-            expect(result.current.skippedActions).toEqual([
-                'add-semantic-layer',
-            ]);
-        });
+        expect(result.current.skippedActions).toEqual(['add-semantic-layer']);
+        expect(useHomepageRecommendedActionSkips).toHaveBeenLastCalledWith(
+            'project-uuid',
+            { enabled: true },
+        );
+    });
+
+    it('does not report pending actions while skipped actions are loading', () => {
+        vi.mocked(useServerFeatureFlag).mockImplementation(
+            (flag) =>
+                ({
+                    data: { enabled: flag === FeatureFlags.NewOnboarding },
+                }) as ReturnType<typeof useServerFeatureFlag>,
+        );
+        vi.mocked(useHomepageRecommendedActionSkips).mockReturnValue(
+            recommendedActionSkipsResult({ isLoading: true }),
+        );
+
+        const { result } = renderHook(() =>
+            useRecommendedActions('project-uuid'),
+        );
+
+        expect(result.current.hasPendingActions).toBe(false);
     });
 
     it('reports no pending actions while source control is still loading', () => {

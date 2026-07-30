@@ -42,6 +42,7 @@ import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuth
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ExternalConnectionModel } from './models/ExternalConnectionModel';
+import { HomepageRecommendedActionSkipsModel } from './models/HomepageRecommendedActionSkipsModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { McpToolCallModel } from './models/McpToolCallModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
@@ -83,6 +84,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
+import { HomepageRecommendedActionSkipsService } from './services/HomepageRecommendedActionSkipsService';
 import { EnterpriseLicenseService } from './services/LicenseService/LicenseService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
@@ -186,6 +188,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel(),
                     lightdashConfig: context.lightdashConfig,
+                }),
+            homepageRecommendedActionSkipsService: ({ models }) =>
+                new HomepageRecommendedActionSkipsService({
+                    homepageRecommendedActionSkipsModel:
+                        models.getHomepageRecommendedActionSkipsModel<HomepageRecommendedActionSkipsModel>(),
+                    projectModel: models.getProjectModel(),
                 }),
             aiDeepResearchService: ({
                 context,
@@ -1013,6 +1021,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         modelProviders: {
             projectHomepageModel: ({ database }) =>
                 new ProjectHomepageModel({ database }),
+            homepageRecommendedActionSkipsModel: ({ database }) =>
+                new HomepageRecommendedActionSkipsModel({ database }),
             aiAgentModel: ({ database, utils }) =>
                 new AiAgentModel({
                     database,

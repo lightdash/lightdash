@@ -6,7 +6,7 @@ import {
     ProjectType,
     type HomepageRecommendedActionKey,
 } from '@lightdash/common';
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useGithubConfig } from '../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import { useGitlabRepositories } from '../../../../components/common/GitlabIntegration/hooks/useGitlabIntegration';
 import {
@@ -22,10 +22,8 @@ import useApp from '../../../../providers/App/useApp';
 import { isPlaygroundProvisioningSource } from '../../../../utils/playgroundProject';
 import { useActiveAgentOnboardingRun } from '../../agentOnboarding/hooks/useAgentOnboarding';
 import { getAgentOnboardingRunUrl } from '../../agentOnboarding/utils';
-import {
-    RECOMMENDED_ACTION_KEYS,
-    readSkippedActions,
-} from './recommendedActionDefaults';
+import { useHomepageRecommendedActionSkips } from '../hooks/useHomepageRecommendedActionSkips';
+import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
 
 const DEFAULT_CTA_LABEL = 'Set up';
 
@@ -178,9 +176,6 @@ export const useRecommendedActions = (projectUuid: string | null) => {
     const isPlaygroundProject = isPlaygroundProvisioningSource(
         project?.provisioningSource,
     );
-    const [skippedActions, setSkippedActions] = useState<
-        HomepageRecommendedActionKey[]
-    >(() => readSkippedActions(projectUuid));
 
     const canManageProject =
         user.data?.ability?.can(
@@ -191,9 +186,14 @@ export const useRecommendedActions = (projectUuid: string | null) => {
             }),
         ) ?? false;
 
-    useEffect(() => {
-        setSkippedActions(readSkippedActions(projectUuid));
-    }, [projectUuid]);
+    const {
+        skippedActions = [],
+        isLoading: skippedActionsLoading,
+        skipAction,
+        restoreAction,
+    } = useHomepageRecommendedActionSkips(projectUuid, {
+        enabled: canManageProject,
+    });
 
     // The playground is a throwaway sample-data project — the setup checklist
     // has no place there, so nothing is offered and the block hides itself.
@@ -203,6 +203,7 @@ export const useRecommendedActions = (projectUuid: string | null) => {
     const hasPendingActions =
         newOnboardingFlag.data?.enabled === true &&
         !isLoading &&
+        !skippedActionsLoading &&
         canManageProject &&
         visibleActions.some(
             (key) => !statuses[key].isComplete && !skippedActions.includes(key),
@@ -211,7 +212,8 @@ export const useRecommendedActions = (projectUuid: string | null) => {
     return {
         statuses,
         skippedActions,
-        setSkippedActions,
+        skipAction,
+        restoreAction,
         visibleActions,
         hasPendingActions,
     };

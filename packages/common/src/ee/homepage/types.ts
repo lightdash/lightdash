@@ -194,6 +194,23 @@ export type HomepageRecommendedActionKey =
     | 'connect-source-control'
     | 'connect-slack';
 
+export const SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS = [
+    'add-semantic-layer',
+    'connect-source-control',
+    'connect-slack',
+] as const satisfies readonly HomepageRecommendedActionKey[];
+
+export type SkippableHomepageRecommendedActionKey =
+    (typeof SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS)[number];
+
+export type SkipHomepageRecommendedActionRequest = {
+    actionKey: HomepageRecommendedActionKey;
+};
+
+export type ApiHomepageRecommendedActionSkipsResponse = ApiSuccess<
+    SkippableHomepageRecommendedActionKey[]
+>;
+
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageAskAiHeroBlock
