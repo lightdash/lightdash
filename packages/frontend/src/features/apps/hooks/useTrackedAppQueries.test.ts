@@ -171,6 +171,107 @@ describe('useTrackedAppQueries', () => {
 
             expect(result.current.queries).toHaveLength(1);
         });
+
+        // The parent-owned fetch/poll isn't torn down by an iframe reload, so
+        // a query in flight at reset time can still deliver its terminal
+        // event afterwards — it must be dropped, not appended as a phantom
+        // row inflating the new boundary's count.
+        it('drops a late terminal event (same id) for a query that was in-flight before the reset', () => {
+            const { result, rerender } = renderHook(
+                (resetKey: number | undefined) =>
+                    useTrackedAppQueries(resetKey),
+                { initialProps: 1 },
+            );
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({ id: 'q1', status: 'pending' }),
+                );
+            });
+
+            rerender(2);
+            expect(result.current.queries).toHaveLength(0);
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: 'q1',
+                        status: 'ready',
+                        queryUuid: 'q1-uuid',
+                    }),
+                );
+            });
+
+            expect(result.current.queries).toHaveLength(0);
+        });
+
+        // Results-cache dedupe can fold a second POST onto the same
+        // queryUuid under a DIFFERENT id — id-only exclusion would miss this,
+        // so the late event must also be blocked by queryUuid.
+        it('drops a late terminal event (different id, same queryUuid) for a query in-flight before the reset', () => {
+            const { result, rerender } = renderHook(
+                (resetKey: number | undefined) =>
+                    useTrackedAppQueries(resetKey),
+                { initialProps: 1 },
+            );
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({ id: 'post-a', status: 'pending' }),
+                );
+            });
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: 'post-a',
+                        status: 'running',
+                        queryUuid: 'shared-uuid',
+                    }),
+                );
+            });
+
+            rerender(2);
+            expect(result.current.queries).toHaveLength(0);
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: 'post-b',
+                        status: 'ready',
+                        queryUuid: 'shared-uuid',
+                    }),
+                );
+            });
+
+            expect(result.current.queries).toHaveLength(0);
+        });
+
+        it('resetQueries() called directly also blocks a late event for a previously-tracked id', () => {
+            const { result } = renderHook(() => useTrackedAppQueries());
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({ id: 'q1', status: 'pending' }),
+                );
+            });
+
+            act(() => {
+                result.current.resetQueries();
+            });
+            expect(result.current.queries).toHaveLength(0);
+
+            act(() => {
+                result.current.handleQueryEvent(
+                    baseEvent({
+                        id: 'q1',
+                        status: 'ready',
+                        queryUuid: 'q1-uuid',
+                    }),
+                );
+            });
+
+            expect(result.current.queries).toHaveLength(0);
+        });
     });
 });
 

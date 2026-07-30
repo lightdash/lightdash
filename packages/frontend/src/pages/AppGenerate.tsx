@@ -608,6 +608,7 @@ const AppGenerate: FC = () => {
         setPersistLogs,
         handleQueryEvent,
         clearQueries,
+        resetQueries,
         interruptInFlightQueries,
     } = useTrackedAppQueries();
     const {
@@ -1343,15 +1344,20 @@ const AppGenerate: FC = () => {
                 (q) => q.status === 'ready',
             ).length;
         } else {
-            clearQueries();
+            // resetQueries (not clearQueries): the old version's fetch/poll
+            // isn't torn down by the iframe reload, so a still-in-flight
+            // query's late terminal event must not resurrect as a phantom row.
+            resetQueries();
             clearExternalRequests();
             versionQueryBoundaryRef.current = 0;
         }
+        // trackedQueries is read above (persistLogs branch) to snapshot the
+        // boundary; the guard above makes any extra re-invocation a no-op.
     }, [
         previewApp?.version,
         persistLogs,
         interruptInFlightQueries,
-        clearQueries,
+        resetQueries,
         interruptInFlightRequests,
         clearExternalRequests,
         trackedQueries,

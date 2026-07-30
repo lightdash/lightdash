@@ -10,6 +10,7 @@ export type UseTrackedAppQueriesResult = {
     setPersistLogs: (value: boolean) => void;
     handleQueryEvent: (event: QueryEvent) => void;
     clearQueries: () => void;
+    resetQueries: () => void;
     interruptInFlightQueries: () => void;
 };
 
@@ -40,7 +41,8 @@ export const countReadyQueriesSinceBoundary = (
  * between clearing and interrupting based on "Persist").
  *
  * @param resetKey - When this changes (e.g. the previewed app version),
- * queries are cleared automatically. Omit to manage resets manually.
+ * queries are reset automatically (see resetQueries). Omit to manage resets
+ * manually.
  */
 export const useTrackedAppQueries = (
     resetKey?: string | number,
@@ -62,19 +64,44 @@ export const useTrackedAppQueries = (
     // as a fresh ghost entry. The set grows for the page session; entries are
     // short request IDs, so the footprint is negligible.
     const interruptedRequestIdsRef = useRef<Set<string>>(new Set());
+    // queryUuids of entries wiped by resetQueries(). A late event can arrive
+    // under a DIFFERENT id than the one we interrupted (results-cache dedupe
+    // folds a second POST onto the same queryUuid) — id-only exclusion misses
+    // that case, so terminal events are also checked against this set.
+    const interruptedQueryUuidsRef = useRef<Set<string>>(new Set());
 
     const clearQueries = useCallback(() => {
         setQueries([]);
     }, []);
 
-    // Clears on every resetKey change but not on mount, so a caller passing
+    // Like clearQueries(), but for a resource-boundary reset (version switch)
+    // rather than an explicit "clear the log" action: the parent-owned
+    // fetch/poll isn't torn down by an iframe reload, so a query in flight at
+    // reset time can still deliver its terminal event afterwards. Without
+    // remembering the wiped entries' ids/queryUuids, that late event finds
+    // nothing to merge into and gets appended as a phantom row inflating the
+    // new boundary's count — mirroring why interruptInFlightQueries registers
+    // ids instead of just dropping entries.
+    const resetQueries = useCallback(() => {
+        setQueries((prev) => {
+            prev.forEach((q) => {
+                interruptedRequestIdsRef.current.add(q.id);
+                if (q.queryUuid) {
+                    interruptedQueryUuidsRef.current.add(q.queryUuid);
+                }
+            });
+            return [];
+        });
+    }, []);
+
+    // Resets on every resetKey change but not on mount, so a caller passing
     // e.g. the previewed version never loses queries fired during initial load.
     const previousResetKeyRef = useRef(resetKey);
     useEffect(() => {
         if (previousResetKeyRef.current === resetKey) return;
         previousResetKeyRef.current = resetKey;
-        clearQueries();
-    }, [resetKey, clearQueries]);
+        resetQueries();
+    }, [resetKey, resetQueries]);
 
     // Move pending/running entries into a terminal `error` state. Used when
     // the preview iframe reloads with persistLogs on — the iframe that would
@@ -104,6 +131,14 @@ export const useTrackedAppQueries = (
         // for requests we already marked interrupted — without this they
         // either un-terminal the entry or get appended as a ghost.
         if (interruptedRequestIdsRef.current.has(event.id)) {
+            return;
+        }
+        // Same drop, keyed by queryUuid — catches a late event arriving under
+        // a fresh id that a dedupe fold ties back to an already-wiped query.
+        if (
+            event.queryUuid &&
+            interruptedQueryUuidsRef.current.has(event.queryUuid)
+        ) {
             return;
         }
         setQueries((prev) => {
@@ -192,6 +227,7 @@ export const useTrackedAppQueries = (
         setPersistLogs,
         handleQueryEvent,
         clearQueries,
+        resetQueries,
         interruptInFlightQueries,
     };
 };
