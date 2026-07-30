@@ -301,7 +301,7 @@ describe('Embed Dashboard JWT API', () => {
                 tableCalculations: [],
             };
 
-            it('should calculate totals from raw metricQuery with embed JWT', async () => {
+            it('should fail to calculate totals from raw metricQuery without canExplore', async () => {
                 const client = embedClient();
                 const resp = await client.post<Body<unknown>>(
                     `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
@@ -314,13 +314,12 @@ describe('Embed Dashboard JWT API', () => {
                         failOnStatusCode: false,
                     },
                 );
-                // Should succeed - embed JWT can calculate totals from raw query
-                expect(resp.status).toBe(200);
-                expect(resp.body.status).toBe('ok');
-                expect(typeof resp.body.results).toBe('object');
+                // Raw metric queries require view:Explore, granted only by canExplore
+                expect(resp.status).toBe(403);
+                expect(resp.body).toHaveProperty('error');
             });
 
-            it('should calculate subtotals from raw metricQuery with embed JWT', async () => {
+            it('should fail to calculate subtotals from raw metricQuery without canExplore', async () => {
                 const client = embedClient();
                 const resp = await client.post<Body<unknown>>(
                     `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-subtotals`,
@@ -337,10 +336,9 @@ describe('Embed Dashboard JWT API', () => {
                         failOnStatusCode: false,
                     },
                 );
-                // Should succeed - embed JWT can calculate subtotals from raw query
-                expect(resp.status).toBe(200);
-                expect(resp.body.status).toBe('ok');
-                expect(typeof resp.body.results).toBe('object');
+                // Raw metric queries require view:Explore, granted only by canExplore
+                expect(resp.status).toBe(403);
+                expect(resp.body).toHaveProperty('error');
             });
 
             it('should fail to calculate totals without embed JWT', async () => {
