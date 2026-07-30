@@ -1,0 +1,46 @@
+/* Fuchsia theme for the login page */
+.card {
+    --fuchsia: #d926e9;
+    --fuchsia-hover: #b81dc9;
+
+    border-color: var(--fuchsia);
+}
+
+.title {
+    color: var(--fuchsia);
+}
+
+.input :global(.mantine-8-Input-input) {
+    border-color: var(--fuchsia);
+    color: var(--fuchsia);
+}
+
+.input :global(.mantine-8-Input-input):focus {
+    border-color: var(--fuchsia-hover);
+}
+
+.input :global(.mantine-8-InputWrapper-label) {
+    color: var(--fuchsia);
+}
+
+.button {
+    --button-bg: #d926e9;
+    --button-hover: #b81dc9;
+    --button-color: white;
+}
+
+.anchor {
+    color: var(--fuchsia);
+}
+
+.anchor:hover {
+    color: var(--fuchsia-hover);
+}
+
+.divider {
+    --divider-color: var(--fuchsia);
+}
+
+.mutedText {
+    color: var(--fuchsia);
+}

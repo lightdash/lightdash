@@ -53,7 +53,10 @@ import {
     readLastLoginMethod,
     writeLastLoginMethod,
 } from '../utils/lastLoginMethod';
+import styles from './LoginLanding.module.css';
 import LoginWithEmailOtp from './LoginWithEmailOtp';
+
+const FUCHSIA = '#d926e9';
 
 const Login: FC<{}> = () => {
     const { health } = useApp();
@@ -300,10 +303,17 @@ const Login: FC<{}> = () => {
     return (
         <>
             <Box mx="auto" my="lg">
-                <LightdashLogo />
+                <LightdashLogo color={FUCHSIA} />
             </Box>
-            <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
-                <Title order={3} ta="center" mb="md">
+            <Card
+                id={LOGIN_PAGE_ID}
+                p="xl"
+                radius="xs"
+                withBorder
+                shadow="xs"
+                className={styles.card}
+            >
+                <Title order={3} ta="center" mb="md" className={styles.title}>
                     Sign in
                 </Title>
                 <form
@@ -316,6 +326,7 @@ const Login: FC<{}> = () => {
                             name="email"
                             placeholder="Your email address"
                             required
+                            className={styles.input}
                             {...form.getInputProps('email')}
                             disabled={isFormLoading}
                             rightSectionPointerEvents="all"
@@ -350,6 +361,7 @@ const Login: FC<{}> = () => {
                                     autoComplete="current-password"
                                     required
                                     autoFocus
+                                    className={styles.input}
                                     {...form.getInputProps('password')}
                                     disabled={isFormLoading}
                                 />
@@ -357,6 +369,7 @@ const Login: FC<{}> = () => {
                                     inherit
                                     href="/recover-password"
                                     mx="auto"
+                                    className={styles.anchor}
                                 >
                                     Forgot your password?
                                 </Anchor>
@@ -365,6 +378,7 @@ const Login: FC<{}> = () => {
                                     loading={isFormLoading}
                                     disabled={isFormLoading}
                                     data-cy="signin-button"
+                                    className={styles.button}
                                 >
                                     Sign in
                                 </Button>
@@ -388,6 +402,7 @@ const Login: FC<{}> = () => {
                                 loading={isFormLoading}
                                 disabled={isFormLoading}
                                 data-cy="signin-button"
+                                className={styles.button}
                             >
                                 Continue
                             </Button>
@@ -400,11 +415,12 @@ const Login: FC<{}> = () => {
                                     <Divider
                                         my="sm"
                                         labelPosition="center"
+                                        className={styles.divider}
                                         label={
                                             <Text
-                                                c="ldGray.5"
                                                 size="sm"
                                                 fw={500}
+                                                className={styles.mutedText}
                                             >
                                                 OR
                                             </Text>
@@ -445,11 +461,17 @@ const Login: FC<{}> = () => {
                                 </Stack>
                             </>
                         )}
-                        <Text mx="auto" mt="md" fz="sm">
+                        <Text
+                            mx="auto"
+                            mt="md"
+                            fz="sm"
+                            className={styles.mutedText}
+                        >
                             Don't have an account?{' '}
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
                                 fz="sm"
+                                className={styles.anchor}
                             >
                                 Sign up
                             </Anchor>
