@@ -324,6 +324,7 @@ const Login: FC<{}> = () => {
                             name="email"
                             placeholder="Your email address"
                             required
+                            size="md"
                             {...form.getInputProps('email')}
                             disabled={isFormLoading}
                             rightSectionPointerEvents="all"
@@ -358,6 +359,7 @@ const Login: FC<{}> = () => {
                                     autoComplete="current-password"
                                     required
                                     autoFocus
+                                    size="md"
                                     {...form.getInputProps('password')}
                                     disabled={isFormLoading}
                                 />
@@ -372,6 +374,7 @@ const Login: FC<{}> = () => {
                                 <Button
                                     type="submit"
                                     color="pink"
+                                    size="md"
                                     loading={isFormLoading}
                                     disabled={isFormLoading}
                                     data-cy="signin-button"
@@ -396,6 +399,7 @@ const Login: FC<{}> = () => {
                             <Button
                                 type="submit"
                                 color="pink"
+                                size="md"
                                 loading={isFormLoading}
                                 disabled={isFormLoading}
                                 data-cy="signin-button"
@@ -456,11 +460,11 @@ const Login: FC<{}> = () => {
                                 </Stack>
                             </>
                         )}
-                        <Text mx="auto" mt="md" fz="sm">
+                        <Text mx="auto" mt="md" fz="md">
                             Don't have an account?{' '}
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
-                                fz="sm"
+                                fz="md"
                                 c="pink"
                             >
                                 Sign up

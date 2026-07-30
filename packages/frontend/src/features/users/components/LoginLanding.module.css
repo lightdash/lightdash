@@ -1,10 +1,12 @@
 .card {
     background-color: var(--mantine-color-pink-0);
     border-color: var(--mantine-color-pink-3);
+    font-size: var(--mantine-font-size-lg);
 }
 
 .title {
     color: var(--mantine-color-pink-7);
+    font-size: var(--mantine-font-size-xl);
 }
 
 [data-mantine-color-scheme='dark'] .card {
