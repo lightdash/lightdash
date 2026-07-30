@@ -1,3 +1,16 @@
+# [1.47.0](https://github.com/lightdash/lightdash/compare/1.46.0...1.47.0) (2026-07-30)
+
+
+### Bug Fixes
+
+* exclude heavy local paths from Okteto file sync ([#26594](https://github.com/lightdash/lightdash/issues/26594)) ([6b4bcfc](https://github.com/lightdash/lightdash/commit/6b4bcfcdb57e189d29da77ccb0832b36c82d079c))
+* **onboarding:** enable homepage-builder and coding-agent-onboarding flags at org creation ([#26586](https://github.com/lightdash/lightdash/issues/26586)) ([14ca8b3](https://github.com/lightdash/lightdash/commit/14ca8b3e683cff878de96b15b27344aed62802be))
+
+
+### Features
+
+* add okteto CLI passthrough to agent-okteto-dev.sh ([#26595](https://github.com/lightdash/lightdash/issues/26595)) ([bb25307](https://github.com/lightdash/lightdash/commit/bb25307cc34968053e345becd9183238d0702df3))
+
 # [1.46.0](https://github.com/lightdash/lightdash/compare/1.45.0...1.46.0) (2026-07-30)
 
 
