@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
+    HOMEPAGE_RECOMMENDED_ACTION_SCOPES,
     ParameterError,
     SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS,
     type HomepageRecommendedActionKey,
@@ -80,6 +81,24 @@ export class HomepageRecommendedActionSkipsService extends BaseService {
         return { organizationUuid, projectUuid };
     }
 
+    private static getStorageProjectUuid(
+        actionKey: SkippableHomepageRecommendedActionKey,
+        projectUuid: UUID | null,
+    ): UUID | null {
+        if (
+            HOMEPAGE_RECOMMENDED_ACTION_SCOPES[actionKey] === 'project' &&
+            projectUuid === null
+        ) {
+            throw new ParameterError(
+                'This homepage recommended action requires a project',
+            );
+        }
+
+        return HOMEPAGE_RECOMMENDED_ACTION_SCOPES[actionKey] === 'organization'
+            ? null
+            : projectUuid;
+    }
+
     async list(
         account: RegisteredAccount,
         projectUuid: UUID | null,
@@ -95,9 +114,15 @@ export class HomepageRecommendedActionSkipsService extends BaseService {
     ): Promise<void> {
         const validatedActionKey =
             HomepageRecommendedActionSkipsService.validateActionKey(actionKey);
+        const storageProjectUuid =
+            HomepageRecommendedActionSkipsService.getStorageProjectUuid(
+                validatedActionKey,
+                projectUuid,
+            );
         const scope = await this.getAuthorizedScope(account, projectUuid);
         await this.homepageRecommendedActionSkipsModel.create({
             ...scope,
+            projectUuid: storageProjectUuid,
             actionKey: validatedActionKey,
             createdByUserUuid: account.user.userUuid,
         });
@@ -110,9 +135,15 @@ export class HomepageRecommendedActionSkipsService extends BaseService {
     ): Promise<void> {
         const validatedActionKey =
             HomepageRecommendedActionSkipsService.validateActionKey(actionKey);
+        const storageProjectUuid =
+            HomepageRecommendedActionSkipsService.getStorageProjectUuid(
+                validatedActionKey,
+                projectUuid,
+            );
         const scope = await this.getAuthorizedScope(account, projectUuid);
         await this.homepageRecommendedActionSkipsModel.delete({
             ...scope,
+            projectUuid: storageProjectUuid,
             actionKey: validatedActionKey,
         });
     }

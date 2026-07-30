@@ -125,17 +125,31 @@ const organizationManager = makeAccount([
 const viewer = makeAccount([]);
 
 describe('HomepageRecommendedActionSkipsService', () => {
-    it('allows project managers to list project skips', async () => {
+    it('lists merged organization and project skips for a project context', async () => {
         const { model, projectModel, service } = makeService();
-        model.list.mockResolvedValue(['connect-slack']);
+        model.list.mockResolvedValue(['connect-slack', 'add-semantic-layer']);
 
         await expect(
             service.list(projectManager, PROJECT_UUID),
-        ).resolves.toEqual(['connect-slack']);
+        ).resolves.toEqual(['connect-slack', 'add-semantic-layer']);
         expect(projectModel.getSummary).toHaveBeenCalledWith(PROJECT_UUID);
         expect(model.list).toHaveBeenCalledWith({
             organizationUuid: ORGANIZATION_UUID,
             projectUuid: PROJECT_UUID,
+        });
+    });
+
+    it('lists only organization skips for the null-project context', async () => {
+        const { model, projectModel, service } = makeService();
+        model.list.mockResolvedValue(['connect-source-control']);
+
+        await expect(service.list(organizationManager, null)).resolves.toEqual([
+            'connect-source-control',
+        ]);
+        expect(projectModel.getSummary).not.toHaveBeenCalled();
+        expect(model.list).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: null,
         });
     });
 
@@ -177,6 +191,34 @@ describe('HomepageRecommendedActionSkipsService', () => {
         });
     });
 
+    it('stores organization action skips in the null scope after project-context auth', async () => {
+        const { model, projectModel, service } = makeService();
+
+        await service.skip(
+            projectManager,
+            PROJECT_UUID,
+            'connect-source-control',
+        );
+
+        expect(projectModel.getSummary).toHaveBeenCalledWith(PROJECT_UUID);
+        expect(model.create).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: null,
+            actionKey: 'connect-source-control',
+            createdByUserUuid: USER_UUID,
+        });
+    });
+
+    it('requires a project context for project action skips', async () => {
+        const { model, projectModel, service } = makeService();
+
+        await expect(
+            service.skip(organizationManager, null, 'add-semantic-layer'),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(projectModel.getSummary).not.toHaveBeenCalled();
+        expect(model.create).not.toHaveBeenCalled();
+    });
+
     it('does not allow project-only managers to modify the null-project context', async () => {
         const { model, service } = makeService();
 
@@ -199,19 +241,16 @@ describe('HomepageRecommendedActionSkipsService', () => {
         },
     );
 
-    it('deletes a validated skip from the authorized scope', async () => {
-        const { model, service } = makeService();
+    it('deletes organization action skips from the null scope after project-context auth', async () => {
+        const { model, projectModel, service } = makeService();
 
-        await service.unskip(
-            projectManager,
-            PROJECT_UUID,
-            'add-semantic-layer',
-        );
+        await service.unskip(projectManager, PROJECT_UUID, 'connect-slack');
 
+        expect(projectModel.getSummary).toHaveBeenCalledWith(PROJECT_UUID);
         expect(model.delete).toHaveBeenCalledWith({
             organizationUuid: ORGANIZATION_UUID,
-            projectUuid: PROJECT_UUID,
-            actionKey: 'add-semantic-layer',
+            projectUuid: null,
+            actionKey: 'connect-slack',
         });
     });
 });

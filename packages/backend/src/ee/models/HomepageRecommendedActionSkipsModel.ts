@@ -1,4 +1,6 @@
 import {
+    HOMEPAGE_RECOMMENDED_ACTION_SCOPES,
+    SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS,
     type SkippableHomepageRecommendedActionKey,
     type UUID,
 } from '@lightdash/common';
@@ -12,6 +14,14 @@ type HomepageRecommendedActionSkipScope = {
     organizationUuid: UUID;
     projectUuid: UUID | null;
 };
+
+const ORGANIZATION_ACTION_KEYS =
+    SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS.filter(
+        (key) => HOMEPAGE_RECOMMENDED_ACTION_SCOPES[key] === 'organization',
+    );
+const PROJECT_ACTION_KEYS = SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS.filter(
+    (key) => HOMEPAGE_RECOMMENDED_ACTION_SCOPES[key] === 'project',
+);
 
 export class HomepageRecommendedActionSkipsModel {
     private readonly database: Knex;
@@ -36,7 +46,24 @@ export class HomepageRecommendedActionSkipsModel {
     async list(
         scope: HomepageRecommendedActionSkipScope,
     ): Promise<SkippableHomepageRecommendedActionKey[]> {
-        const rows = await this.scopedQuery(scope)
+        const rows = await this.database<HomepageRecommendedActionSkipsTable>(
+            HomepageRecommendedActionSkipsTableName,
+        )
+            .where('organization_uuid', scope.organizationUuid)
+            .where((scopeQuery) => {
+                void scopeQuery.where((organizationQuery) => {
+                    void organizationQuery
+                        .whereNull('project_uuid')
+                        .whereIn('action_key', ORGANIZATION_ACTION_KEYS);
+                });
+                if (scope.projectUuid !== null) {
+                    void scopeQuery.orWhere((projectQuery) => {
+                        void projectQuery
+                            .where('project_uuid', scope.projectUuid)
+                            .whereIn('action_key', PROJECT_ACTION_KEYS);
+                    });
+                }
+            })
             .select('action_key')
             .orderBy('created_at', 'asc');
 

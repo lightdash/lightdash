@@ -1,4 +1,5 @@
 import {
+    HOMEPAGE_RECOMMENDED_ACTION_SCOPES,
     SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS,
     type ApiError,
     type ApiHomepageRecommendedActionSkipsResponse,
@@ -6,12 +7,23 @@ import {
     type SkippableHomepageRecommendedActionKey,
     type SkipHomepageRecommendedActionRequest,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type QueryKey,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
-const homepageRecommendedActionSkipsQueryKey = (projectUuid: string | null) =>
-    ['homepage-recommended-action-skips', projectUuid] as const;
+const HOMEPAGE_RECOMMENDED_ACTION_SKIPS_QUERY_KEY = [
+    'homepage-recommended-action-skips',
+] as const;
+
+const homepageRecommendedActionSkipsQueryKey = (projectUuid: string | null) => [
+    ...HOMEPAGE_RECOMMENDED_ACTION_SKIPS_QUERY_KEY,
+    projectUuid,
+];
 
 const scopeQuery = (projectUuid: string | null) =>
     projectUuid ? `?${new URLSearchParams({ projectUuid }).toString()}` : '';
@@ -53,7 +65,10 @@ type MutationVariables = {
 };
 
 type MutationContext = {
-    previous: SkippableHomepageRecommendedActionKey[] | undefined;
+    previousQueries: [
+        QueryKey,
+        SkippableHomepageRecommendedActionKey[] | undefined,
+    ][];
 };
 
 export const useHomepageRecommendedActionSkips = (
@@ -82,34 +97,56 @@ export const useHomepageRecommendedActionSkips = (
                 ? skipAction(projectUuid, actionKey)
                 : unskipAction(projectUuid, actionKey),
         onMutate: async ({ actionKey, skipped }) => {
-            await queryClient.cancelQueries(queryKey);
-            const previous =
-                queryClient.getQueryData<
+            const queryFilter =
+                HOMEPAGE_RECOMMENDED_ACTION_SCOPES[actionKey] === 'organization'
+                    ? {
+                          queryKey: HOMEPAGE_RECOMMENDED_ACTION_SKIPS_QUERY_KEY,
+                          exact: false,
+                      }
+                    : { queryKey, exact: true };
+            await queryClient.cancelQueries(queryFilter);
+            const previousQueries =
+                queryClient.getQueriesData<
                     ApiHomepageRecommendedActionSkipsResponse['results']
-                >(queryKey);
+                >(queryFilter);
             const skippableActionKey =
                 SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS.find(
                     (key) => key === actionKey,
                 );
-            queryClient.setQueryData<
+            queryClient.setQueriesData<
                 ApiHomepageRecommendedActionSkipsResponse['results']
-            >(queryKey, (current = []) =>
-                skipped && skippableActionKey
-                    ? current.includes(skippableActionKey)
-                        ? current
-                        : [...current, skippableActionKey]
-                    : current.filter((key) => key !== actionKey),
+            >(queryFilter, (current) =>
+                current === undefined
+                    ? current
+                    : skipped && skippableActionKey
+                      ? current.includes(skippableActionKey)
+                          ? current
+                          : [...current, skippableActionKey]
+                      : current.filter((key) => key !== actionKey),
             );
-            return { previous };
+            return { previousQueries };
         },
         onError: ({ error }, _variables, context) => {
-            queryClient.setQueryData(queryKey, context?.previous);
+            context?.previousQueries.forEach(([previousQueryKey, previous]) => {
+                if (previous === undefined) {
+                    queryClient.removeQueries({
+                        queryKey: previousQueryKey,
+                        exact: true,
+                    });
+                } else {
+                    queryClient.setQueryData(previousQueryKey, previous);
+                }
+            });
             showToastApiError({
                 title: 'Failed to update setup checklist',
                 apiError: error,
             });
         },
-        onSettled: () => queryClient.invalidateQueries(queryKey),
+        onSettled: () =>
+            queryClient.invalidateQueries({
+                queryKey: HOMEPAGE_RECOMMENDED_ACTION_SKIPS_QUERY_KEY,
+                exact: false,
+            }),
     });
     const skippedActions: HomepageRecommendedActionKey[] | undefined =
         query.data;
