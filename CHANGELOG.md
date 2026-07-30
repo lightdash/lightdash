@@ -1,3 +1,18 @@
+# [1.42.0](https://github.com/lightdash/lightdash/compare/1.41.0...1.42.0) (2026-07-30)
+
+
+### Features
+
+* add a big number data model for sql charts ([#26524](https://github.com/lightdash/lightdash/issues/26524)) ([3d0d62b](https://github.com/lightdash/lightdash/commit/3d0d62bcc2c0a38e2ed1d451bd945725f495481f)), closes [#11194](https://github.com/lightdash/lightdash/issues/11194)
+* add big number charts to the sql runner ([#26525](https://github.com/lightdash/lightdash/issues/26525)) ([af91c7c](https://github.com/lightdash/lightdash/commit/af91c7c7ab41b8f40d3326dddd30a68cd7c4b42e)), closes [#11194](https://github.com/lightdash/lightdash/issues/11194)
+* add conditional formatting to sql big numbers ([#26528](https://github.com/lightdash/lightdash/issues/26528)) ([9122b33](https://github.com/lightdash/lightdash/commit/9122b337b94549bebe1355efeadb1e26f137b065)), closes [#11194](https://github.com/lightdash/lightdash/issues/11194)
+* add display and comparison options to sql big numbers ([#26526](https://github.com/lightdash/lightdash/issues/26526)) ([daf8fa8](https://github.com/lightdash/lightdash/commit/daf8fa824c689305b20fb33f22d16139f3395998)), closes [#11194](https://github.com/lightdash/lightdash/issues/11194)
+* **ai:** deep research tests competing hypotheses in parallel ([#26545](https://github.com/lightdash/lightdash/issues/26545)) ([e821f8a](https://github.com/lightdash/lightdash/commit/e821f8a36792112e37196639367a7da3ff86c4b3))
+* complete big number parity for sql charts ([#26527](https://github.com/lightdash/lightdash/issues/26527)) ([94cd876](https://github.com/lightdash/lightdash/commit/94cd87668fbcd176e4befac322348d955a80e769)), closes [#11194](https://github.com/lightdash/lightdash/issues/11194)
+* manage feature flags in preview environments ([#26542](https://github.com/lightdash/lightdash/issues/26542)) ([5e3fa26](https://github.com/lightdash/lightdash/commit/5e3fa26f82316d5008b8182e4595d5b070895e66)), closes [/linear.app/lightdash/issue/SPK-741/add-programmatic-feature-flag-management-for-okteto-previews#agent-session-ef19aa39](https://github.com//linear.app/lightdash/issue/SPK-741/add-programmatic-feature-flag-management-for-okteto-previews/issues/agent-session-ef19aa39)
+* persist homepage recommended-action skips per project ([#26539](https://github.com/lightdash/lightdash/issues/26539)) ([dd6ed4b](https://github.com/lightdash/lightdash/commit/dd6ed4b80d5d7b92696c073e3a52f142f05ee486))
+* support un-grouped aggregate pivot queries ([#26523](https://github.com/lightdash/lightdash/issues/26523)) ([0bb17ed](https://github.com/lightdash/lightdash/commit/0bb17ed7656c3b939e5ab8fdb69447168431ad1d)), closes [#11194](https://github.com/lightdash/lightdash/issues/11194)
+
 # [1.41.0](https://github.com/lightdash/lightdash/compare/1.40.0...1.41.0) (2026-07-30)
 
 

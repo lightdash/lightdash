@@ -4960,8 +4960,82 @@
                 "enum": ["big_number"],
                 "type": "string"
             },
+            "FilterOperator.EQUALS": {
+                "enum": ["equals"],
+                "type": "string"
+            },
+            "FilterOperator.NOT_EQUALS": {
+                "enum": ["notEquals"],
+                "type": "string"
+            },
+            "FilterOperator.LESS_THAN": {
+                "enum": ["lessThan"],
+                "type": "string"
+            },
+            "FilterOperator.LESS_THAN_OR_EQUAL": {
+                "enum": ["lessThanOrEqual"],
+                "type": "string"
+            },
+            "FilterOperator.GREATER_THAN": {
+                "enum": ["greaterThan"],
+                "type": "string"
+            },
+            "FilterOperator.GREATER_THAN_OR_EQUAL": {
+                "enum": ["greaterThanOrEqual"],
+                "type": "string"
+            },
+            "VizBigNumberConditionalOperator": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.EQUALS"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.NOT_EQUALS"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.LESS_THAN"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.LESS_THAN_OR_EQUAL"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.GREATER_THAN"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.GREATER_THAN_OR_EQUAL"
+                    }
+                ],
+                "description": "Operators a big number threshold can be expressed with."
+            },
+            "VizBigNumberConditionalRule": {
+                "properties": {
+                    "darkColor": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string",
+                        "description": "Applied in the light colour scheme, and in dark when darkColor is unset."
+                    },
+                    "value": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/VizBigNumberConditionalOperator"
+                    }
+                },
+                "required": ["color", "value", "operator"],
+                "type": "object"
+            },
             "VizBigNumberDisplay": {
                 "properties": {
+                    "conditionalFormatting": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizBigNumberConditionalRule"
+                        },
+                        "type": "array",
+                        "description": "Colours the value; the first matching rule wins."
+                    },
                     "flipColors": {
                         "type": "boolean",
                         "description": "Colours an increase red and a decrease green."
@@ -22443,7 +22517,9 @@
                     "listKnowledgeDocuments",
                     "getKnowledgeDocumentContent",
                     "readPinnedThread",
-                    "submitResearchReport"
+                    "submitResearchReport",
+                    "submitResearchHypotheses",
+                    "submitInvestigationReport"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -29362,6 +29438,52 @@
             "ApiAgentOnboardingFileResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingFileContent_"
             },
+            "SkippableHomepageRecommendedActionKey": {
+                "type": "string",
+                "enum": [
+                    "add-semantic-layer",
+                    "connect-source-control",
+                    "connect-slack"
+                ]
+            },
+            "ApiSuccess_SkippableHomepageRecommendedActionKey-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SkippableHomepageRecommendedActionKey"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiHomepageRecommendedActionSkipsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SkippableHomepageRecommendedActionKey-Array_"
+            },
+            "HomepageRecommendedActionKey": {
+                "type": "string",
+                "enum": [
+                    "connect-warehouse",
+                    "add-semantic-layer",
+                    "connect-source-control",
+                    "connect-slack"
+                ]
+            },
+            "SkipHomepageRecommendedActionRequest": {
+                "properties": {
+                    "actionKey": {
+                        "$ref": "#/components/schemas/HomepageRecommendedActionKey"
+                    }
+                },
+                "required": ["actionKey"],
+                "type": "object"
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -30335,6 +30457,10 @@
             },
             "AiDeepResearchBudget": {
                 "properties": {
+                    "maxHypotheses": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "maxResultRows": {
                         "type": "number",
                         "format": "double"
@@ -30349,6 +30475,7 @@
                     }
                 },
                 "required": [
+                    "maxHypotheses",
                     "maxResultRows",
                     "maxWarehouseQueries",
                     "maxToolCalls"
@@ -51034,7 +51161,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.41.0",
+        "version": "1.42.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -62163,6 +62290,139 @@
                         "in": "path",
                         "name": "agentOnboardingRunUuid",
                         "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/homepage/recommended-action-skips": {
+            "get": {
+                "operationId": "listHomepageRecommendedActionSkips",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiHomepageRecommendedActionSkipsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "skipHomepageRecommendedAction",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SkipHomepageRecommendedActionRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ee/homepage/recommended-action-skips/{actionKey}": {
+            "delete": {
+                "operationId": "unskipHomepageRecommendedAction",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "actionKey",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/HomepageRecommendedActionKey"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }
@@ -83252,6 +83512,52 @@
                 }
             }
         },
+        "/api/v2/feature-flag": {
+            "get": {
+                "operationId": "List feature flags",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/FeatureFlag"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List every known feature flag with its resolved value for the requesting\nuser. Preview environments only.",
+                "summary": "List feature flags",
+                "tags": ["v2", "Feature Flag"],
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v2/feature-flag/{featureFlagId}": {
             "get": {
                 "operationId": "Get feature flag",
@@ -83290,6 +83596,122 @@
                 },
                 "description": "Get feature flag",
                 "summary": "Get feature flag",
+                "tags": ["v2", "Feature Flag"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "featureFlagId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "Set feature flag override",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/FeatureFlag"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Override a feature flag for the requesting user's organization. Preview\nenvironments only — lets QA toggle flags without a redeploy.",
+                "summary": "Set feature flag override",
+                "tags": ["v2", "Feature Flag"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "featureFlagId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": ["enabled"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "Delete feature flag override",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/FeatureFlag"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove the organization override for a feature flag, restoring the\nenvironment default. Preview environments only.",
+                "summary": "Delete feature flag override",
                 "tags": ["v2", "Feature Flag"],
                 "security": [],
                 "parameters": [
