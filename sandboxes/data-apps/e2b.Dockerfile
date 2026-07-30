@@ -15,6 +15,7 @@ COPY template/tsconfig.json ./tsconfig.json
 COPY template/tailwind.config.js ./tailwind.config.js
 COPY template/postcss.config.js ./postcss.config.js
 COPY template/index.html ./index.html
+COPY template/components.json ./components.json
 COPY template/skill.md ./skill.md
 COPY template/references/ ./references/
 COPY lightdash-query-sdk.tgz ./lightdash-query-sdk.tgz
@@ -23,24 +24,9 @@ COPY lightdash-query-sdk.tgz ./lightdash-query-sdk.tgz
 RUN sed -i 's|"workspace:[*]"|"file:lightdash-query-sdk.tgz"|' package.json && \
     pnpm install --no-frozen-lockfile
 
-# Copy starter source files (overwritten by Claude during generation)
+# Copy the complete starter source, including the checked-in shadcn/ui components
+# used by both E2B and locally-created data apps.
 COPY template/src/ ./src/
-
-# Bootstrap shadcn/ui (generates src/components/ui/ and src/lib/).
-# Keep in sync with template/scripts/bootstrap.sh; every Radix package these
-# components import must be declared in template/package.json.
-RUN npx shadcn@2.3.0 init --defaults --force
-RUN npx shadcn@2.3.0 add --overwrite --yes \
-    button badge card table dialog tabs select input label popover tooltip separator \
-    skeleton dropdown-menu sheet scroll-area switch checkbox avatar alert progress resizable
-
-# shadcn init --force rewrites tailwind.config.js to its legacy
-# hsl(var(--x)) convention, which clashes with index.css's raw oklch
-# variables — every color utility computes hsl(oklch(...)), invalid CSS
-# that browsers silently drop (dark-theme apps render black-on-black,
-# floating-surface chrome goes transparent). Restore the repo config so
-# raw `var(--x)` + complete oklch colors is the single convention.
-COPY template/tailwind.config.js ./tailwind.config.js
 
 # Claude Code skills — first-party plus vendored (frontend-design @ Apache-2.0).
 # The whole directory is copied, so a new skill needs no change here. Read from
