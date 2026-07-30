@@ -5,6 +5,9 @@
 .local/
 .worktrees/
 
+# Conductor workspace context (also keeps it out of Okteto file sync via .stignore)
+/.context/
+
 # dependencies
 node_modules/
 **/node_modules
@@ -39,6 +42,7 @@ lightdash_dev.yml
 /packages/frontend/sdk/dist
 /packages/common/dist
 /packages/backend/dist
+/packages/formula/dist
 /packages/cli/dist
 /packages/warehouses/dist
 /packages/sdk/dist
