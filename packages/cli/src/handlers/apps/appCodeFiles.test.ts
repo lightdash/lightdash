@@ -592,4 +592,22 @@ describe('appFolderNeedsUpdating', () => {
             appFolderNeedsUpdating(buildFolder(), {} as AnyType),
         ).resolves.toBe(true);
     });
+
+    it('is true when downloadedAt is unparseable', async () => {
+        await expect(
+            appFolderNeedsUpdating(buildFolder(), {
+                downloadedAt: 'not-a-date',
+            } as AnyType),
+        ).resolves.toBe(true);
+    });
+
+    it('is true when a nested src file was edited', async () => {
+        const dir = buildFolder();
+        mkdirSync(path.join(dir, 'src', 'components'), { recursive: true });
+        const nested = path.join(dir, 'src', 'components', 'Chart.tsx');
+        writeFileSync(nested, 'x');
+        const later = new Date('2026-07-30T13:00:00.000Z');
+        utimesSync(nested, later, later);
+        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
+    });
 });
