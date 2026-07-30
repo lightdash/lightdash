@@ -569,15 +569,33 @@ wait_until_ready() {
     fail "Timed out waiting for $PUBLIC_URL. See $LOG_FILE."
 }
 
+debug_forward_port() {
+    local attempts=0 port
+
+    # Stable per-session port so concurrent sessions don't collide on the
+    # manifest's default 9230 forward
+    port=$((9300 + 16#${SESSION_HASH:0:4} % 500))
+    if command -v lsof >/dev/null 2>&1; then
+        while lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 &&
+            ((attempts < 50)); do
+            port=$((port + 1))
+            attempts=$((attempts + 1))
+        done
+    fi
+    printf '%s' "$port"
+}
+
 start_tmux_session() {
-    local up_command pipe_command
+    local debug_port up_command pipe_command
 
     mkdir -p "$RUN_DIR"
     : >"$LOG_FILE"
 
+    debug_port="$(debug_forward_port)"
     printf -v up_command \
-        'DEV_WARM_IMAGE=%q exec okteto up %q -f %q -n %q --env %q --env %q --env %q' \
+        'DEV_WARM_IMAGE=%q OKTETO_DEBUG_PORT=%q exec okteto up %q -f %q -n %q --env %q --env %q --env %q' \
         "$ACTIVE_WARM_IMAGE" \
+        "$debug_port" \
         "$OKTETO_SERVICE" \
         "$OKTETO_MANIFEST" \
         "$OKTETO_NAMESPACE" \

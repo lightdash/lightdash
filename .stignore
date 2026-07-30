@@ -1,1 +1,169 @@
-.gitignore
+# Syncthing ignore file used by Okteto file sync (okteto.dev.yaml).
+# Keep in sync with .gitignore; syncthing-only entries are grouped below.
+# Pattern reference: https://docs.syncthing.net/users/ignoring.html
+
+# version control
+.git
+.local/
+.worktrees/
+
+# not needed in the dev container (tracked in git, skipped from sync)
+/.github
+/.context
+/docs
+/static/screenshots
+/CHANGELOG.md
+
+# dependencies
+node_modules/
+**/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+/packages/**/coverage
+/packages/e2e/cypress/screenshots/**/*
+/packages/e2e/cypress/videos/**/*
+/packages/e2e/cypress/downloads/**/*
+/packages/e2e/cypress/artifacts/**/*
+# Content as code e2e tests
+packages/e2e/lightdash
+
+# eval reports
+/packages/backend/eval-reports/**/*
+
+# logs
+/packages/backend/logs
+/packages/backend/src/database/logs
+/packages/cli/logs
+/packages/warehouses/logs
+(?d)*.log
+
+# development
+lightdash_dev.yml
+
+# production
+/packages/frontend/build
+/packages/frontend/sdk/dist
+/packages/common/dist
+/packages/backend/dist
+/packages/formula/dist
+/packages/cli/dist
+/packages/warehouses/dist
+/packages/sdk/dist
+/packages/sdk-test-app/dist
+/packages/backend/src/ee/services/McpService/mcp-chart-app/dist
+
+# CLI binary build artifacts
+/packages/cli/bundle/
+/packages/cli/bin/
+
+# misc
+(?d).DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.idea
+node_modules
+package-lock.json
+
+# typescript
+(?d)*.tsbuildinfo
+
+# examples
+/examples/full-jaffle-shop-demo/dbt/target
+/examples/full-jaffle-shop-demo/dbt/dbt_packages
+/examples/full-jaffle-shop-demo/dbt/dbt_internal_packages/
+/dbt
+/profile*
+
+
+# credentials
+credentials.json
+
+# dbt
+/target
+packages/backend/target/
+venv
+.venv/
+.venvs/
+dbt_modules/
+logs/
+
+# direnv
+/.envrc
+.direnv/
+
+# nix flakes
+flake.nix
+flake.lock
+
+
+# Charts as code
+/examples/full-jaffle-shop-demo/dbt/lightdash
+/examples/lightdash
+/lightdash
+/packages/cli/lightdash/
+
+*storybook.log
+
+# Prometheus
+prometheus.yml
+data/
+
+# environment
+.env*
+
+.local/*
+
+CLAUDE.local.md
+AGENTS.override.md
+.playwright-mcp 
+
+http-client.private.env.json
+
+# turbo
+(?d).turbo
+
+# janix
+.janix
+
+# rodney
+.rodney
+
+# HAR replay
+scripts/har-replay-server.ts
+*.har
+agent-harness/cloud/credentials.env
+
+# AI
+.agents
+.codex
+.claude/*.lock
+AGENTS.md
+
+# octarine
+.octarine/properties.json
+
+# editor swap files
+*.swp
+
+# release-safety marker is a generated release asset (PROD-8359), never committed
+/release-safety.json
+
+# Superpowers brainstorm scratch
+.superpowers/
+docs/superpowers/
+
+# Playground bundle builder venv
+scripts/playground-bundle/.venv/
+
+# Local pnpm store (also keeps it out of Okteto file sync via .stignore)
+.pnpm-store/

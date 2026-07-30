@@ -39,6 +39,7 @@ lightdash_dev.yml
 /packages/frontend/sdk/dist
 /packages/common/dist
 /packages/backend/dist
+/packages/formula/dist
 /packages/cli/dist
 /packages/warehouses/dist
 /packages/sdk/dist

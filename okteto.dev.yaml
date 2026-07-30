@@ -71,7 +71,9 @@ dev:
         image: ${DEV_WARM_IMAGE:-okteto.global/lightdash-dev-warm:latest}
         command: bash scripts/okteto-dev-up.sh
         sync:
-            - .:/usr/app
+            folders:
+                - .:/usr/app
+            rescanInterval: 1800
         resources:
             requests:
                 cpu: '1'
@@ -82,8 +84,9 @@ dev:
                 memory: 8Gi
         forward:
             # Node.js debugger (tsx watch --inspect). Local 9230 because a
-            # local dev stack usually holds 9229 already
-            - 9230:9229
+            # local dev stack usually holds 9229 already. Overridable so
+            # concurrent agent sessions don't collide on the local port
+            - ${OKTETO_DEBUG_PORT:-9230}:9229
         # No persistent volume: it would shadow the warm image's baked
         # /usr/app. A pod restart re-syncs (~1 min) — acceptable for
         # ephemeral dev namespaces
