@@ -33,7 +33,6 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
-import classes from './AiGeneralSettingsPage.module.css';
 import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
@@ -364,40 +363,6 @@ export const AiGeneralSettingsPage = () => {
                                 onChange={(event) =>
                                     updateSettings({
                                         mcpContentWritesEnabled:
-                                            event.currentTarget.checked,
-                                    })
-                                }
-                            />
-                        </Group>
-                    </SettingsCard>
-
-                    <SettingsCard>
-                        <Group className={classes.settingRow}>
-                            <Box maw={620}>
-                                <Title order={5} mb={4}>
-                                    Disable adding AI agents to channels from
-                                    Slack
-                                </Title>
-                                <Text c="dimmed" fz="xs">
-                                    When activated, AI Agents can only be added
-                                    to Slack channels from the Lightdash UI.
-                                    Mentioning the bot in an unconfigured
-                                    channel will not add the AI agent to it.
-                                    When off, admins &amp; developers or roles
-                                    with the manage:AiAgent scope can link
-                                    agents directly from Slack.
-                                </Text>
-                            </Box>
-                            <Switch
-                                size="md"
-                                checked={
-                                    settings.requireExplicitSlackChannelLinking ??
-                                    false
-                                }
-                                disabled={isUpdatingSettings}
-                                onChange={(event) =>
-                                    updateSettings({
-                                        requireExplicitSlackChannelLinking:
                                             event.currentTarget.checked,
                                     })
                                 }
