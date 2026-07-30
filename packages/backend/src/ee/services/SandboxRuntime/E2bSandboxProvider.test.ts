@@ -83,4 +83,16 @@ describe('normalizeError', () => {
 
         expect(getNormalizedError(error)).toBe(error);
     });
+
+    it('does not map a SandboxError subclass with an RPC-shaped message', () => {
+        const error = new NotFoundError('2: [unknown] terminated');
+
+        expect(getNormalizedError(error)).toBe(error);
+    });
+
+    it('does not map a base SandboxError without an RPC-shaped message', () => {
+        const error = new SandboxError('unexpected sandbox failure');
+
+        expect(getNormalizedError(error)).toBe(error);
+    });
 });

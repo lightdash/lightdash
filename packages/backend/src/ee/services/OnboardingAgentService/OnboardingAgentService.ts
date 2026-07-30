@@ -33,29 +33,30 @@ import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 import {
     interpretAgentEvent,
     resolveSandboxTemplateRef,
-    splitStreamBuffer,
     summarizeToolInput,
 } from '../AiWritebackService/utils';
 import {
     createSandboxManager,
     S3SnapshotStore,
+    SandboxCommandError,
     SandboxConnectionError,
     SandboxNotRunningError,
+    SandboxTimeoutError,
     type PersistentWorkspace,
     type SandboxHandle,
     type SandboxManager,
     type SandboxSpec,
 } from '../SandboxRuntime';
+import { pollDetachedAgentRun } from './agentStreamPoller';
 import {
-    ALLOWED_TOOLS,
+    AGENT_RUNNER_PATH,
+    AGENT_RUNNER_SCRIPT,
+    AGENT_STDERR_PATH,
     CANCELLATION_POLL_INTERVAL_MS,
     CLAUDE_BASH_GUARD_PATH,
     CLAUDE_BASH_GUARD_SCRIPT,
-    CLAUDE_MODEL,
     CLAUDE_SETTINGS,
     CLAUDE_SETTINGS_PATH,
-    CLAUDE_SKILLS_DIR,
-    CLAUDE_TOOLS,
     CLI_WRAPPER_PATH,
     CLI_WRAPPER_SCRIPT,
     FILE_SYNC_INTERVAL_MS,
@@ -618,9 +619,11 @@ export class OnboardingAgentService extends BaseService {
             CLAUDE_BASH_GUARD_SCRIPT,
         );
         await sandbox.files.write(CLAUDE_SETTINGS_PATH, CLAUDE_SETTINGS);
-        await sandbox.commands.run(`chmod +x ${CLI_WRAPPER_PATH}`);
+        await sandbox.files.write(AGENT_RUNNER_PATH, AGENT_RUNNER_SCRIPT);
+        await sandbox.commands.run(
+            `chmod +x ${CLI_WRAPPER_PATH} ${AGENT_RUNNER_PATH}`,
+        );
 
-        let buffer = '';
         let assistantText = '';
         let usage: AgentOnboardingUsage | null = null;
         let lastStep = '';
@@ -730,53 +733,63 @@ export class OnboardingAgentService extends BaseService {
             }
         };
 
-        const flushBuffer = (): void => {
-            const { lines, remainder } = splitStreamBuffer(buffer);
-            buffer = remainder;
-            for (const line of lines) {
-                if (line.trim()) {
-                    try {
-                        handleEvent(JSON.parse(line));
-                    } catch {
-                        this.logger.debug(
-                            'OnboardingAgent: received an unparseable Claude event',
-                        );
-                    }
-                }
+        const handleStreamLine = (line: string): void => {
+            try {
+                handleEvent(JSON.parse(line));
+            } catch {
+                this.logger.debug(
+                    'OnboardingAgent: received an unparseable Claude event',
+                );
             }
         };
 
         let runError: { value: unknown } | undefined;
         try {
+            // setsid keeps the runner alive after the launch shell exits.
             await sandbox.commands.run(
-                `cat ${PROMPT_PATH} | claude -p ` +
-                    `--model ${CLAUDE_MODEL} ` +
-                    '--output-format stream-json --verbose ' +
-                    `--add-dir ${CLAUDE_SKILLS_DIR} ` +
-                    `--settings ${CLAUDE_SETTINGS_PATH} ` +
-                    '--permission-mode dontAsk ' +
-                    `--tools "${CLAUDE_TOOLS}" ` +
-                    `--allowedTools "${ALLOWED_TOOLS}"`,
+                `setsid nohup ${AGENT_RUNNER_PATH} >/dev/null 2>&1 < /dev/null & echo launched`,
                 {
                     cwd: WORKDIR,
-                    timeoutMs: RUN_TIMEOUT_MS,
                     envs: {
                         ANTHROPIC_API_KEY: anthropicApiKey,
                         LIGHTDASH_URL: this.getSandboxFacingSiteUrl(),
                         LIGHTDASH_API_KEY: patToken,
                         LIGHTDASH_PROJECT: run.project_uuid,
                     },
-                    onStdout: (chunk) => {
-                        buffer += chunk;
-                        flushBuffer();
-                    },
-                    onStderr: () => {
-                        this.logger.debug(
-                            'OnboardingAgent: Claude emitted diagnostic output',
-                        );
-                    },
                 },
             );
+            const { exitCode } = await pollDetachedAgentRun({
+                sandbox,
+                onLine: handleStreamLine,
+                logger: this.logger,
+            });
+            if (exitCode === 124) {
+                throw new SandboxTimeoutError(
+                    'The onboarding agent took too long and was stopped.',
+                );
+            }
+            if (exitCode !== 0) {
+                let stderrTail = '';
+                try {
+                    const result = await sandbox.commands.run(
+                        `tail -c 2048 ${AGENT_STDERR_PATH} 2>/dev/null || true`,
+                    );
+                    stderrTail = result.stdout;
+                } catch {
+                    this.logger.debug(
+                        'OnboardingAgent: could not read agent diagnostic output',
+                    );
+                }
+                if (stderrTail) {
+                    this.logger.warn(
+                        `OnboardingAgent: Claude exited with diagnostic output: ${sanitizeOnboardingMessage(
+                            stderrTail,
+                            sensitiveValues,
+                        )}`,
+                    );
+                }
+                throw new SandboxCommandError(exitCode, stderrTail, '');
+            }
         } catch (error) {
             runError = { value: error };
         }
@@ -803,15 +816,6 @@ export class OnboardingAgentService extends BaseService {
                     sensitiveValues,
                 )}`,
             );
-        }
-        if (buffer.trim()) {
-            try {
-                handleEvent(JSON.parse(buffer));
-            } catch {
-                this.logger.debug(
-                    'OnboardingAgent: received an unparseable trailing Claude event',
-                );
-            }
         }
         await Promise.all(pendingEvents);
         if (runError) throw runError.value;
