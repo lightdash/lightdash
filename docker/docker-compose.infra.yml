@@ -53,6 +53,10 @@ services:
         build:
             dockerfile: Dockerfile.headless-browser
         restart: always
+        environment:
+            # browserless v2 default session budget is 30s — too short for
+            # dev-Vite page loads and the app capture ready-wait (60s).
+            - TIMEOUT=180000
         ports:
             - '3001:3000'
 
