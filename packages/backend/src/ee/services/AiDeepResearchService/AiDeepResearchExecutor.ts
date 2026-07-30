@@ -3,6 +3,10 @@ import {
     type AiAgentToolCall,
     type AiAgentToolResult,
     type AiDeepResearchActivity,
+    type AiDeepResearchHypothesis,
+    type AiDeepResearchInvestigation,
+    type AiDeepResearchInvestigationReport,
+    type AiDeepResearchPhase,
     type AiDeepResearchProgress,
     type AiDeepResearchSubmittedReport,
     type SessionUser,
@@ -14,12 +18,16 @@ import type { AiAgentModel } from '../../models/AiAgentModel';
 import type { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
+    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
+    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    getAiDeepResearchPhaseBudgets,
     parseAiDeepResearchReport,
 } from './AiDeepResearchAgent';
-import type {
-    AiDeepResearchExecutor as AiDeepResearchExecutorFn,
-    AiDeepResearchExecutorResult,
+import {
+    getAiDeepResearchRunBudget,
+    type AiDeepResearchExecutor as AiDeepResearchExecutorFn,
+    type AiDeepResearchExecutorResult,
 } from './AiDeepResearchService';
 import {
     isDeepResearchWarehouseMcpTool,
@@ -29,6 +37,12 @@ import {
 const CANCELLATION_POLL_INTERVAL_MS = 1_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const ACCESS_RECHECK_INTERVAL_MS = 15_000;
+const SUBMISSION_TOOL_NAMES = new Set([
+    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
+    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+]);
+
 type ToolProvenance = {
     toolCall: AiAgentToolCall;
     toolResult: AiAgentToolResult | null;
@@ -122,7 +136,7 @@ ${reason}
 });
 
 const getActivity = (toolName: string): AiDeepResearchActivity => {
-    if (toolName === AI_DEEP_RESEARCH_REPORT_TOOL_NAME) {
+    if (SUBMISSION_TOOL_NAMES.has(toolName)) {
         return 'reporting';
     }
     if (isDeepResearchWarehouseTool(toolName)) {
@@ -236,10 +250,14 @@ export class AiDeepResearchExecutor {
         };
     }
 
-    private async getProvenance(promptUuid: string): Promise<ToolProvenance[]> {
+    private async getProvenance(
+        promptUuid: string,
+        options: { includeSubagentToolCalls?: boolean } = {},
+    ): Promise<ToolProvenance[]> {
         return (
             await this.dependencies.aiAgentModel.getToolCallsAndResultsForPrompt(
                 promptUuid,
+                options,
             )
         ).map(({ toolCall, toolResult }) => ({ toolCall, toolResult }));
     }
@@ -287,12 +305,13 @@ export class AiDeepResearchExecutor {
                 terminalReason: 'permission_revoked',
             };
         }
+
+        const budget = getAiDeepResearchRunBudget(run.budget_snapshot);
+        const phaseBudgets = getAiDeepResearchPhaseBudgets(budget);
         const controller = new AbortController();
         let cancelledByUser = false;
         let authorizationRevokedReason: string | null = null;
-        let budgetExceeded:
-            | keyof DbAiDeepResearchRun['budget_snapshot']
-            | null = null;
+        let budgetExceeded: keyof typeof budget | null = null;
         const stopRunMonitor = this.startRunMonitor(
             run,
             controller,
@@ -309,16 +328,38 @@ export class AiDeepResearchExecutor {
         let warehouseQueries = 0;
         let tokens = 0;
 
-        const recordProgress = async (toolName: string, toolCallId: string) => {
+        const trackTokens = (stepTokens: number) => {
+            tokens += stepTokens;
+        };
+        const trackWarehouseQuery = () => {
+            warehouseQueries += 1;
+            if (warehouseQueries > budget.maxWarehouseQueries) {
+                budgetExceeded = 'maxWarehouseQueries';
+                const error = new Error(
+                    'Deep Research exceeded its warehouse-query budget',
+                );
+                controller.abort(error);
+                throw error;
+            }
+        };
+
+        // Aggregate budget accounting across every phase: the run-level
+        // ceilings apply to the planner, all investigators, and the judge
+        // combined, regardless of the per-phase slices in their prompts.
+        const recordProgress = async (
+            phase: AiDeepResearchPhase,
+            toolName: string,
+            toolCallId: string,
+        ) => {
             if (countedToolCallIds.has(toolCallId)) {
                 return;
             }
             countedToolCallIds.add(toolCallId);
 
-            const isReport = toolName === AI_DEEP_RESEARCH_REPORT_TOOL_NAME;
+            const isSubmission = SUBMISSION_TOOL_NAMES.has(toolName);
             let toolCallOrdinal = toolCalls;
             let warehouseQueryOrdinal = warehouseQueries;
-            if (!isReport) {
+            if (!isSubmission) {
                 toolCalls += 1;
                 toolCallOrdinal = toolCalls;
                 if (isDeepResearchWarehouseMcpTool(toolName)) {
@@ -327,7 +368,7 @@ export class AiDeepResearchExecutor {
                 }
             }
 
-            if (toolCallOrdinal > run.budget_snapshot.maxToolCalls) {
+            if (toolCallOrdinal > budget.maxToolCalls) {
                 budgetExceeded = 'maxToolCalls';
                 const error = new Error(
                     'Deep Research exceeded its tool-call budget',
@@ -335,9 +376,7 @@ export class AiDeepResearchExecutor {
                 controller.abort(error);
                 throw error;
             }
-            if (
-                warehouseQueryOrdinal > run.budget_snapshot.maxWarehouseQueries
-            ) {
+            if (warehouseQueryOrdinal > budget.maxWarehouseQueries) {
                 budgetExceeded = 'maxWarehouseQueries';
                 const error = new Error(
                     'Deep Research exceeded its warehouse-query budget',
@@ -347,10 +386,10 @@ export class AiDeepResearchExecutor {
             }
 
             const progress: AiDeepResearchProgress = {
-                phase: isReport ? 'synthesizing' : 'investigating',
+                phase,
                 activity: getActivity(toolName),
                 current: toolCalls,
-                total: run.budget_snapshot.maxToolCalls,
+                total: budget.maxToolCalls,
             };
             await Promise.all([
                 this.dependencies.aiDeepResearchRunModel.appendProgressEvent(
@@ -363,13 +402,147 @@ export class AiDeepResearchExecutor {
             ]);
         };
 
-        const generateReport = (forceReportSubmission = false) =>
+        const makeStepProgressHandler =
+            (phase: AiDeepResearchPhase) =>
+            async (
+                _progress: string,
+                toolName?: string,
+                toolCallId?: string,
+                status: 'in_progress' | 'complete' | 'error' = 'in_progress',
+            ) => {
+                if (status === 'in_progress' && toolName && toolCallId) {
+                    await recordProgress(phase, toolName, toolCallId);
+                }
+            };
+
+        const runPlanner = async (): Promise<
+            AiDeepResearchHypothesis[] | null
+        > => {
+            let hypotheses: AiDeepResearchHypothesis[] | null = null;
+            await this.dependencies.aiAgentService.generateAgentThreadResponse(
+                user,
+                {
+                    agentUuid: run.agent_uuid,
+                    threadUuid: run.ai_thread_uuid,
+                    promptUuid: run.prompt_uuid,
+                    autoApproveSql: true,
+                    toolHints: [AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME],
+                    forceToolHints: true,
+                    execution: {
+                        mode: 'deep_research',
+                        budget: phaseBudgets.planner,
+                        selectedMcpServerUuids: [],
+                        abortSignal: runSignal,
+                        initialTokenUsage: 0,
+                        onStepUsage: trackTokens,
+                        onWarehouseQuery: trackWarehouseQuery,
+                        research: {
+                            role: 'planner',
+                            maxHypotheses: budget.maxHypotheses,
+                            onHypotheses: (planned) => {
+                                hypotheses = planned;
+                            },
+                        },
+                        parentToolCallId: `deep-research:${run.ai_deep_research_run_uuid}:planner`,
+                    },
+                    onStepProgress: makeStepProgressHandler('planning'),
+                },
+            );
+            return hypotheses;
+        };
+
+        const runInvestigator = async (
+            hypothesis: AiDeepResearchHypothesis,
+            index: number,
+        ): Promise<AiDeepResearchInvestigationReport> => {
+            if (runSignal.aborted) {
+                throw new Error(
+                    'Deep Research stopped before this investigation started',
+                );
+            }
+            let report: AiDeepResearchInvestigationReport | null = null;
+            const invoke = (forceSubmission: boolean) =>
+                this.dependencies.aiAgentService.generateAgentThreadResponse(
+                    user,
+                    {
+                        agentUuid: run.agent_uuid,
+                        threadUuid: run.ai_thread_uuid,
+                        promptUuid: run.prompt_uuid,
+                        autoApproveSql: true,
+                        ...(forceSubmission
+                            ? {
+                                  toolHints: [
+                                      AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+                                  ],
+                                  forceToolHints: true,
+                              }
+                            : {}),
+                        execution: {
+                            mode: 'deep_research',
+                            budget: phaseBudgets.investigator,
+                            selectedMcpServerUuids:
+                                run.selected_mcp_server_uuids,
+                            abortSignal: runSignal,
+                            initialTokenUsage: 0,
+                            onStepUsage: trackTokens,
+                            onWarehouseQuery: trackWarehouseQuery,
+                            ...(index === 0
+                                ? {
+                                      onExecutionContextResolved: (snapshot) =>
+                                          this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
+                                              run.ai_deep_research_run_uuid,
+                                              snapshot,
+                                          ),
+                                  }
+                                : {}),
+                            research: {
+                                role: 'investigator',
+                                hypothesis,
+                                onReport: (submitted) => {
+                                    report = submitted;
+                                },
+                            },
+                            parentToolCallId: `deep-research:${run.ai_deep_research_run_uuid}:${hypothesis.id}`,
+                        },
+                        onStepProgress:
+                            makeStepProgressHandler('investigating'),
+                    },
+                );
+
+            // A crash after the report was submitted (budget abort, provider
+            // error) still yields a usable investigation — keep the report.
+            const attempt = async (forceSubmission: boolean) => {
+                try {
+                    await invoke(forceSubmission);
+                } catch (error) {
+                    if (!report) {
+                        throw error;
+                    }
+                }
+            };
+
+            await attempt(false);
+            if (!report && !runSignal.aborted) {
+                await attempt(true);
+            }
+            if (!report) {
+                throw new Error(
+                    'The investigation ended without submitting a report',
+                );
+            }
+            return report;
+        };
+
+        const runJudge = async (
+            investigations: AiDeepResearchInvestigation[],
+            forceSubmission: boolean,
+        ) =>
             this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
                 agentUuid: run.agent_uuid,
                 threadUuid: run.ai_thread_uuid,
                 promptUuid: run.prompt_uuid,
                 autoApproveSql: true,
-                ...(forceReportSubmission
+                ...(forceSubmission
                     ? {
                           toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
                           forceToolHints: true,
@@ -377,53 +550,78 @@ export class AiDeepResearchExecutor {
                     : {}),
                 execution: {
                     mode: 'deep_research',
-                    budget: run.budget_snapshot,
-                    selectedMcpServerUuids: run.selected_mcp_server_uuids,
+                    budget: phaseBudgets.judge,
+                    selectedMcpServerUuids: [],
                     abortSignal: runSignal,
                     initialTokenUsage: tokens,
-                    onStepUsage: (stepTokens) => {
-                        tokens += stepTokens;
-                    },
-                    onWarehouseQuery: () => {
-                        warehouseQueries += 1;
-                        if (
-                            warehouseQueries >
-                            run.budget_snapshot.maxWarehouseQueries
-                        ) {
-                            budgetExceeded = 'maxWarehouseQueries';
-                            const error = new Error(
-                                'Deep Research exceeded its warehouse-query budget',
-                            );
-                            controller.abort(error);
-                            throw error;
-                        }
-                    },
-                    onExecutionContextResolved: (snapshot) =>
-                        this.dependencies.aiDeepResearchRunModel.updateExecutionContextSnapshot(
-                            run.ai_deep_research_run_uuid,
-                            snapshot,
-                        ),
+                    onStepUsage: trackTokens,
+                    onWarehouseQuery: trackWarehouseQuery,
+                    research: { role: 'judge', investigations },
                 },
-                onStepProgress: async (
-                    _progress,
-                    toolName,
-                    toolCallId,
-                    status = 'in_progress',
-                ) => {
-                    if (status === 'in_progress' && toolName && toolCallId) {
-                        await recordProgress(toolName, toolCallId);
-                    }
-                },
+                onStepProgress: makeStepProgressHandler('synthesizing'),
             });
 
         let executionError: unknown = null;
+        let investigations: AiDeepResearchInvestigation[] = [];
         try {
-            await generateReport();
-            const initialReport = getLatestReport(
-                await this.getProvenance(run.prompt_uuid),
-            );
-            if (!initialReport && !runSignal.aborted) {
-                await generateReport(true);
+            const hypotheses = await runPlanner();
+            if (!hypotheses && !runSignal.aborted) {
+                throw new Error(
+                    'Deep Research could not produce competing hypotheses to investigate',
+                );
+            }
+
+            if (hypotheses && !runSignal.aborted) {
+                // Deterministic fan-out: every investigator starts here, in
+                // parallel — never at the model's discretion.
+                const settled = await Promise.allSettled(
+                    hypotheses.map((hypothesis, index) =>
+                        runInvestigator(hypothesis, index),
+                    ),
+                );
+                investigations = hypotheses.map((hypothesis, index) => {
+                    const outcome = settled[index];
+                    return outcome.status === 'fulfilled'
+                        ? {
+                              hypothesis,
+                              report: outcome.value,
+                              failureReason: null,
+                          }
+                        : {
+                              hypothesis,
+                              report: null,
+                              failureReason: getErrorMessage(outcome.reason),
+                          };
+                });
+
+                const completed = investigations.filter(
+                    (investigation) => investigation.report !== null,
+                );
+                if (completed.length < 2 && !runSignal.aborted) {
+                    const failureSummary = investigations
+                        .filter(
+                            (investigation) =>
+                                investigation.failureReason !== null,
+                        )
+                        .map(
+                            (investigation) =>
+                                `${investigation.hypothesis.id}: ${investigation.failureReason}`,
+                        )
+                        .join('; ');
+                    throw new Error(
+                        `Deep Research completed only ${completed.length} of ${hypotheses.length} hypothesis investigations, but comparing hypotheses requires at least two (${failureSummary})`,
+                    );
+                }
+
+                if (!runSignal.aborted) {
+                    await runJudge(investigations, false);
+                    const judgedReport = getLatestReport(
+                        await this.getProvenance(run.prompt_uuid),
+                    );
+                    if (!judgedReport && !runSignal.aborted) {
+                        await runJudge(investigations, true);
+                    }
+                }
             }
         } catch (error) {
             executionError = error;
@@ -447,7 +645,11 @@ export class AiDeepResearchExecutor {
             };
         }
 
-        const provenance = await this.getProvenance(run.prompt_uuid);
+        // Chart evidence (queryUuids) lives in investigator subagent child
+        // rows; the report itself is the judge's top-level submission.
+        const provenance = await this.getProvenance(run.prompt_uuid, {
+            includeSubagentToolCalls: true,
+        });
         const queryUuids = getQueryUuids(provenance);
         const report = getLatestReport(provenance);
 

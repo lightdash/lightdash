@@ -21,6 +21,7 @@ const budget: AiDeepResearchBudget = {
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
+    maxHypotheses: 2,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
@@ -78,6 +79,7 @@ const effortBudgets = [
             maxToolCalls: 50,
             maxWarehouseQueries: 10,
             maxResultRows: 5_000,
+            maxHypotheses: 2,
         },
     },
     {
@@ -86,6 +88,7 @@ const effortBudgets = [
             maxToolCalls: 125,
             maxWarehouseQueries: 25,
             maxResultRows: 10_000,
+            maxHypotheses: 3,
         },
     },
     {
@@ -94,6 +97,7 @@ const effortBudgets = [
             maxToolCalls: 250,
             maxWarehouseQueries: 50,
             maxResultRows: 25_000,
+            maxHypotheses: 4,
         },
     },
     {
@@ -102,6 +106,7 @@ const effortBudgets = [
             maxToolCalls: 500,
             maxWarehouseQueries: 100,
             maxResultRows: 50_000,
+            maxHypotheses: 6,
         },
     },
 ] as const;
@@ -866,6 +871,46 @@ describe('AiDeepResearchService', () => {
             ).rejects.toBeInstanceOf(ParameterError);
             expect(model.create).not.toHaveBeenCalled();
         });
+
+        it('rejects budgets with fewer than two hypotheses', async () => {
+            const { service, model } = buildService();
+
+            await expect(
+                service.createRun({
+                    ...validCreateRunArgs(),
+                    budget: { ...budget, maxHypotheses: 1 },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects budgets with more hypotheses than the server limit', async () => {
+            const { service, model } = buildService();
+
+            await expect(
+                service.createRun({
+                    ...validCreateRunArgs(),
+                    budget: { ...budget, maxHypotheses: 7 },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects budgets whose tool-call limit cannot cover the hypotheses', async () => {
+            const { service, model } = buildService();
+
+            await expect(
+                service.createRun({
+                    ...validCreateRunArgs(),
+                    budget: {
+                        ...budget,
+                        maxToolCalls: 2,
+                        maxHypotheses: 2,
+                    },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(model.create).not.toHaveBeenCalled();
+        });
     });
 
     describe('access and cancellation', () => {
@@ -892,6 +937,34 @@ describe('AiDeepResearchService', () => {
             );
 
             expect(run.budget).toEqual(budget);
+        });
+
+        it('defaults the hypothesis count for budgets persisted before hypothesis fan-out', async () => {
+            const preHypothesisBudget = {
+                maxToolCalls: budget.maxToolCalls,
+                maxWarehouseQueries: budget.maxWarehouseQueries,
+                maxResultRows: budget.maxResultRows,
+            };
+            const { service } = buildService({
+                model: {
+                    findByUuidScoped: vi
+                        .fn()
+                        .mockResolvedValue(
+                            runRow({ budget_snapshot: preHypothesisBudget }),
+                        ),
+                },
+            });
+
+            const run = await service.getRun(
+                userWithProjectAccess(),
+                'project-1',
+                'run-1',
+            );
+
+            expect(run.budget).toEqual({
+                ...preHypothesisBudget,
+                maxHypotheses: 3,
+            });
         });
 
         it('does not expose a run through a different project path', async () => {

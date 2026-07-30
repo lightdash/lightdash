@@ -212,6 +212,60 @@ type EventCursorPayload = {
     eventUuid: string;
 };
 
+export const AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT: Record<
+    AiDeepResearchEffort,
+    AiDeepResearchBudget
+> = {
+    low: {
+        maxToolCalls: 50,
+        maxWarehouseQueries: 10,
+        maxResultRows: 5_000,
+        maxHypotheses: 2,
+    },
+    medium: {
+        maxToolCalls: 125,
+        maxWarehouseQueries: 25,
+        maxResultRows: 10_000,
+        maxHypotheses: 3,
+    },
+    high: {
+        maxToolCalls: 250,
+        maxWarehouseQueries: 50,
+        maxResultRows: 25_000,
+        maxHypotheses: 4,
+    },
+    xhigh: {
+        maxToolCalls: 500,
+        maxWarehouseQueries: 100,
+        maxResultRows: 50_000,
+        maxHypotheses: 6,
+    },
+};
+
+export const AI_DEEP_RESEARCH_DEFAULT_EFFORT: AiDeepResearchEffort = 'medium';
+
+export const AI_DEEP_RESEARCH_DEFAULT_BUDGET =
+    AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT[AI_DEEP_RESEARCH_DEFAULT_EFFORT];
+
+export const AI_DEEP_RESEARCH_MAX_BUDGET =
+    AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT.xhigh;
+
+/**
+ * Normalizes a persisted budget snapshot: drops legacy limits that are no
+ * longer part of the budget, and defaults the hypothesis count for rows
+ * persisted before hypothesis fan-out existed.
+ */
+export const getAiDeepResearchRunBudget = (
+    budgetSnapshot: DbAiDeepResearchRun['budget_snapshot'],
+): AiDeepResearchBudget => ({
+    maxToolCalls: budgetSnapshot.maxToolCalls,
+    maxWarehouseQueries: budgetSnapshot.maxWarehouseQueries,
+    maxResultRows: budgetSnapshot.maxResultRows,
+    maxHypotheses:
+        budgetSnapshot.maxHypotheses ??
+        AI_DEEP_RESEARCH_DEFAULT_BUDGET.maxHypotheses,
+});
+
 const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     aiDeepResearchRunUuid: row.ai_deep_research_run_uuid,
     projectUuid: row.project_uuid,
@@ -225,11 +279,7 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     status: row.status,
     resultMarkdown: row.result_markdown,
     resultChartData: row.result_chart_data,
-    budget: {
-        maxToolCalls: row.budget_snapshot.maxToolCalls,
-        maxWarehouseQueries: row.budget_snapshot.maxWarehouseQueries,
-        maxResultRows: row.budget_snapshot.maxResultRows,
-    },
+    budget: getAiDeepResearchRunBudget(row.budget_snapshot),
     executionContextSnapshot: row.execution_context_snapshot,
     errorMessage: row.error_message,
     cancellationRequestedAt:
@@ -320,40 +370,6 @@ const decodeEventCursor = (
     }
 };
 
-export const AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT: Record<
-    AiDeepResearchEffort,
-    AiDeepResearchBudget
-> = {
-    low: {
-        maxToolCalls: 50,
-        maxWarehouseQueries: 10,
-        maxResultRows: 5_000,
-    },
-    medium: {
-        maxToolCalls: 125,
-        maxWarehouseQueries: 25,
-        maxResultRows: 10_000,
-    },
-    high: {
-        maxToolCalls: 250,
-        maxWarehouseQueries: 50,
-        maxResultRows: 25_000,
-    },
-    xhigh: {
-        maxToolCalls: 500,
-        maxWarehouseQueries: 100,
-        maxResultRows: 50_000,
-    },
-};
-
-export const AI_DEEP_RESEARCH_DEFAULT_EFFORT: AiDeepResearchEffort = 'medium';
-
-export const AI_DEEP_RESEARCH_DEFAULT_BUDGET =
-    AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT[AI_DEEP_RESEARCH_DEFAULT_EFFORT];
-
-export const AI_DEEP_RESEARCH_MAX_BUDGET =
-    AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT.xhigh;
-
 const assertValidBudget = (budget: AiDeepResearchBudget): void => {
     if (
         Object.values(budget).some(
@@ -362,6 +378,17 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
     ) {
         throw new ParameterError(
             'Deep Research budget limits must be positive integers',
+        );
+    }
+    // The judge compares hypotheses, so a run must plan at least two.
+    if (budget.maxHypotheses < 2) {
+        throw new ParameterError(
+            'Deep Research requires at least two hypotheses',
+        );
+    }
+    if (budget.maxToolCalls <= budget.maxHypotheses) {
+        throw new ParameterError(
+            'Deep Research maxToolCalls must exceed maxHypotheses',
         );
     }
     const exceededBudget = Object.entries(budget).find(

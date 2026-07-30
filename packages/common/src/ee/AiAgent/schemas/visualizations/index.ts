@@ -61,6 +61,8 @@ export const ToolNameSchema = z.enum([
     'getKnowledgeDocumentContent',
     'readPinnedThread',
     'submitResearchReport',
+    'submitResearchHypotheses',
+    'submitInvestigationReport',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -122,6 +124,8 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     getKnowledgeDocumentContent: 'Reading knowledge document',
     readPinnedThread: 'Reading pinned conversation',
     submitResearchReport: 'Saving research report',
+    submitResearchHypotheses: 'Planning research hypotheses',
+    submitInvestigationReport: 'Saving investigation findings',
 });
 
 // after-tool-call messages

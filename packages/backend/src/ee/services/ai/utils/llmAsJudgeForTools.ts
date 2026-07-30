@@ -71,6 +71,8 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     getPullRequestDiff: 'get_pull_request_diff',
     setupPreviewDeploy: 'setup_preview_deploy',
     submitResearchReport: 'submit_research_report',
+    submitResearchHypotheses: 'submit_research_hypotheses',
+    submitInvestigationReport: 'submit_investigation_report',
 } satisfies Record<ToolName, string>;
 
 const getToolInfo = (toolName: string) => {

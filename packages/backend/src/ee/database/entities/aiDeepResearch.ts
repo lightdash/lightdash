@@ -29,7 +29,9 @@ export type DbAiDeepResearchRun = {
     effort: AiDeepResearchEffort;
     result_markdown: string | null;
     result_chart_data: AiDeepResearchChartDataMap | null;
-    budget_snapshot: AiDeepResearchBudget;
+    /** Rows persisted before hypothesis fan-out lack `maxHypotheses`. */
+    budget_snapshot: Omit<AiDeepResearchBudget, 'maxHypotheses'> &
+        Partial<Pick<AiDeepResearchBudget, 'maxHypotheses'>>;
     execution_context_snapshot: AiDeepResearchExecutionContextSnapshot;
     error_message: string | null;
     cancellation_requested_at: Date | null;

@@ -22,6 +22,11 @@ import {
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
+import {
+    getAiDeepResearchInvestigatorInstructions,
+    getAiDeepResearchJudgeInstructions,
+    getAiDeepResearchPlannerInstructions,
+} from '../../AiDeepResearchService/AiDeepResearchAgent';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
@@ -70,6 +75,8 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import { getSubmitInvestigationReport } from '../tools/submitInvestigationReport';
+import { getSubmitResearchHypotheses } from '../tools/submitResearchHypotheses';
 import { getSubmitResearchReport } from '../tools/submitResearchReport';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
@@ -894,11 +901,47 @@ export const getAgentTools = (
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
 
+    // Structured deep-research phases replace the toolset: planner and judge
+    // are single-purpose model calls, and investigators trade the report tool
+    // for their per-hypothesis submission tool.
+    const research =
+        args.execution.mode === 'deep_research'
+            ? args.execution.research
+            : undefined;
+    const getResearchTools = (): ToolSet | null => {
+        switch (research?.role) {
+            case 'planner':
+                return {
+                    submitResearchHypotheses: getSubmitResearchHypotheses({
+                        maxHypotheses: research.maxHypotheses,
+                        onHypotheses: research.onHypotheses,
+                    }),
+                };
+            case 'judge':
+                return submitResearchReport ? { submitResearchReport } : null;
+            case 'investigator': {
+                const { submitResearchReport: omitted, ...investigatorTools } =
+                    mergedTools;
+                return {
+                    ...investigatorTools,
+                    submitInvestigationReport: getSubmitInvestigationReport({
+                        onReport: research.onReport,
+                    }),
+                };
+            }
+            case undefined:
+                return null;
+            default:
+                return assertUnreachable(research, 'Unknown research role');
+        }
+    };
+    const finalTools = getResearchTools() ?? mergedTools;
+
     logger(
         'Agent Tools',
-        `Successfully retrieved agent tools: ${Object.keys(mergedTools).join(', ')}`,
+        `Successfully retrieved agent tools: ${Object.keys(finalTools).join(', ')}`,
     );
-    return mergedTools;
+    return finalTools;
 };
 
 // Fires an `in_progress` task update the moment a tool's execute() runs — i.e. as
@@ -1031,16 +1074,42 @@ const getAgentMessages = (
     // system prompt only advertises that it exists (when enabled + non-empty).
     const hasProjectContext =
         args.projectContextEnabled && args.projectContext.length > 0;
-    const deepResearchBudgetInstruction =
-        args.execution.mode === 'deep_research'
-            ? getDeepResearchBudgetInstruction(args.execution.budget)
-            : null;
+    const getDeepResearchInstructions = (): (string | null)[] => {
+        if (args.execution.mode !== 'deep_research') {
+            return [];
+        }
+        const budgetInstruction = getDeepResearchBudgetInstruction(
+            args.execution.budget,
+        );
+        const { research } = args.execution;
+        switch (research?.role) {
+            case 'planner':
+                return [
+                    getAiDeepResearchPlannerInstructions(
+                        research.maxHypotheses,
+                    ),
+                ];
+            case 'investigator':
+                return [
+                    getAiDeepResearchInvestigatorInstructions(
+                        research.hypothesis,
+                    ),
+                    budgetInstruction,
+                ];
+            case 'judge':
+                return [
+                    AI_DEEP_RESEARCH_INSTRUCTIONS,
+                    getAiDeepResearchJudgeInstructions(research.investigations),
+                ];
+            case undefined:
+                return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];
+            default:
+                return assertUnreachable(research, 'Unknown research role');
+        }
+    };
     const instructions = [
         args.agentSettings.instruction,
-        args.execution.mode === 'deep_research'
-            ? AI_DEEP_RESEARCH_INSTRUCTIONS
-            : null,
-        deepResearchBudgetInstruction,
+        ...getDeepResearchInstructions(),
     ].filter((instruction): instruction is string => !!instruction);
     const systemPrompt = getSystemPromptV2({
         agentName: args.agentSettings.name,
@@ -1297,7 +1366,8 @@ export const generateAgentResponse = async ({
                                         mcpToolSetup.mcpToolNameToServerUuid[
                                             toolCall.toolName
                                         ] ?? null,
-                                    parentToolCallId: null,
+                                    parentToolCallId:
+                                        args.execution.parentToolCallId ?? null,
                                 });
                             }
                         }),
@@ -1366,10 +1436,17 @@ export const generateAgentResponse = async ({
                 const stepTokens = step.usage.totalTokens ?? 0;
                 generatedTokenUsage += stepTokens;
                 if (args.execution.mode === 'deep_research') {
-                    await dependencies.updatePrompt({
-                        promptUuid: args.promptUuid,
-                        tokenUsage: { totalTokens: generatedTokenUsage },
-                    });
+                    // Hidden phases (planner/investigators, persisted as
+                    // subagent children) each track their own slice; writing
+                    // their totals to the prompt would race across parallel
+                    // investigators. The executor aggregates via onStepUsage
+                    // and seeds the judge with the aggregate.
+                    if (args.execution.parentToolCallId == null) {
+                        await dependencies.updatePrompt({
+                            promptUuid: args.promptUuid,
+                            tokenUsage: { totalTokens: generatedTokenUsage },
+                        });
+                    }
                 } else {
                     void dependencies.updatePrompt({
                         response: step.text,
@@ -1391,8 +1468,13 @@ export const generateAgentResponse = async ({
         // Invariant: a finished prompt must persist either a response or an
         // error message. Empty (or whitespace-only) text under the step cap
         // would otherwise be stored as a blank response with no explanation
-        // for the user.
-        if (!result.text.trim()) {
+        // for the user. Structured deep-research phases are exempt: their
+        // deliverable is a forced submission tool call, so ending on it with
+        // no trailing text is a success, not an empty response.
+        const isStructuredResearchPhase =
+            args.execution.mode === 'deep_research' &&
+            args.execution.research !== undefined;
+        if (!result.text.trim() && !isStructuredResearchPhase) {
             if (result.steps.length >= args.execution.maxSteps) {
                 throw new AiAgentStepCapReachedError(result.steps.length);
             }
