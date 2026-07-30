@@ -37,17 +37,10 @@ services:
             - '3000'
 
     lightdash-dev:
-        build:
-            # The dev image is toolchain-only (node, pnpm, dbt): source code
-            # arrives via okteto up file sync, so code changes never rebuild it
-            target: dev
-            context: ..
-            dockerfile: dockerfile-prs
+        image: ${DEV_WARM_IMAGE:-okteto.global/lightdash-dev-warm:latest}
         depends_on:
             - db-preview
             - headless-browser
-        # The base container idles; okteto up swaps it for the dev container
-        # which runs scripts/okteto-dev-up.sh
         command: ['sleep', 'infinity']
         ports:
             - '3000'

@@ -13,6 +13,8 @@ POOL_READY_CONFIGMAP="lightdash-agent-ready"
 TARGET_SIZE="${1:-${LIGHTDASH_AGENT_POOL_SIZE:-3}}"
 READY_TIMEOUT_SECONDS="${OKTETO_POOL_READY_TIMEOUT_SECONDS:-600}"
 POLL_INTERVAL_SECONDS="${OKTETO_POOL_POLL_INTERVAL_SECONDS:-10}"
+WARM_IMAGE="${DEV_WARM_IMAGE:-okteto.global/lightdash-dev-warm:latest}"
+FORCE_REFRESH="${OKTETO_FORCE_POOL_REFRESH:-false}"
 KUBECTL_CONFIGURED=false
 
 fail() {
@@ -59,10 +61,16 @@ namespace_is_claimed() {
 }
 
 namespace_is_ready() {
-    local namespace="$1"
+    local namespace="$1" prepared_image running_image
 
-    kubectl -n "$namespace" get configmap "$POOL_READY_CONFIGMAP" \
-        >/dev/null 2>&1 &&
+    prepared_image="$(
+        kubectl -n "$namespace" get configmap "$POOL_READY_CONFIGMAP" \
+            -o jsonpath='{.data.warm_image}' 2>/dev/null ||
+            true
+    )"
+    running_image="$(namespace_warm_image "$namespace" || true)"
+    [ -n "$prepared_image" ] &&
+        [ "$prepared_image" = "$running_image" ] &&
         namespace_resources_are_ready "$namespace"
 }
 
@@ -105,11 +113,35 @@ configure_kubectl_access() {
     KUBECTL_CONFIGURED=true
 }
 
+namespace_warm_image() {
+    local namespace="$1" digest image_id
+
+    image_id="$(
+        kubectl -n "$namespace" get pods \
+            -l stack.okteto.com/service=lightdash-dev \
+            -o json 2>/dev/null |
+            jq -r '
+                [
+                    .items[].status.containerStatuses[]?
+                    | select(.name == "lightdash-dev")
+                    | .imageID
+                ][0] // empty
+            '
+    )"
+    digest="${image_id##*@}"
+    [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || return 1
+    printf 'okteto.global/lightdash-dev-warm@%s' "$digest"
+}
+
 mark_namespace_ready() {
-    local namespace="$1"
+    local namespace="$1" warm_image
+
+    warm_image="$(namespace_warm_image "$namespace")" ||
+        fail "Could not resolve the warm image digest in $namespace."
 
     kubectl -n "$namespace" create configmap "$POOL_READY_CONFIGMAP" \
         --from-literal="prepared_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --from-literal="warm_image=$warm_image" \
         --dry-run=client -o yaml |
         kubectl -n "$namespace" apply -f - >/dev/null
 }
@@ -119,11 +151,17 @@ deploy_namespace() {
 
     kubectl -n "$namespace" delete configmap "$POOL_READY_CONFIGMAP" \
         --ignore-not-found >/dev/null 2>&1 || true
-    okteto deploy \
+    DEV_WARM_IMAGE="$WARM_IMAGE" okteto deploy \
         -f "$OKTETO_MANIFEST" \
         -n "$namespace" \
+        --env "DEV_WARM_IMAGE=$WARM_IMAGE" \
         --wait \
         --timeout 20m
+    if [ "$FORCE_REFRESH" = "true" ]; then
+        kubectl -n "$namespace" rollout restart deployment/lightdash-dev
+        kubectl -n "$namespace" rollout status deployment/lightdash-dev \
+            --timeout="${READY_TIMEOUT_SECONDS}s"
+    fi
     if ! wait_for_namespace_ready "$namespace"; then
         return 1
     fi
@@ -193,13 +231,8 @@ main() {
     while IFS= read -r namespace; do
         namespace_is_claimed "$namespace" && continue
 
-        if namespace_is_ready "$namespace"; then
-            available=$((available + 1))
-            continue
-        fi
-
-        if namespace_resources_are_ready "$namespace"; then
-            mark_namespace_ready "$namespace"
+        if [ "$FORCE_REFRESH" != "true" ] &&
+            namespace_is_ready "$namespace"; then
             available=$((available + 1))
             continue
         fi
