@@ -145,13 +145,20 @@ export default function MinimalApp() {
         if (!isReady || !captureMode || !deliveryCapture || manifestPublished)
             return;
         let cancelled = false;
-        void deliveryCapture.getManifest().then((manifest) => {
-            if (cancelled) return;
-            (window as unknown as Record<string, unknown>)[
-                DELIVERY_CAPTURE_GLOBAL
-            ] = manifest;
-            setManifestPublished(true);
-        });
+        void deliveryCapture
+            .getManifest()
+            .then((manifest) => {
+                if (cancelled) return;
+                (window as unknown as Record<string, unknown>)[
+                    DELIVERY_CAPTURE_GLOBAL
+                ] = manifest;
+                setManifestPublished(true);
+            })
+            // A rejection here would otherwise leave the indicator unmounted
+            // until the render times out, with nothing in the logs.
+            .catch((e) =>
+                console.error('[delivery-capture] manifest publish failed', e),
+            );
         return () => {
             cancelled = true;
         };

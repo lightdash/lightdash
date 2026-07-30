@@ -6,6 +6,7 @@ import {
 import type * as MantineHooks from '@mantine-8/hooks';
 import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as DeliveryCaptureAccumulatorModule from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
 import { renderWithProviders } from '../testing/testUtils';
 
 type IframePreviewProps = {
@@ -19,6 +20,7 @@ type IframePreviewProps = {
 const mocks = vi.hoisted(() => ({
     iframePreview: vi.fn((_props: IframePreviewProps) => null),
     searchParams: new URLSearchParams(),
+    manifestError: null as Error | null,
 }));
 
 vi.mock('react-router', () => ({
@@ -58,6 +60,28 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     }),
 }));
 
+// Real accumulator, with an opt-in rejecting getManifest for the failure path.
+vi.mock(
+    '../features/apps/deliveryCapture/deliveryCaptureAccumulator',
+    async (importOriginal) => {
+        const actual =
+            await importOriginal<typeof DeliveryCaptureAccumulatorModule>();
+        return {
+            ...actual,
+            createDeliveryCaptureAccumulator: () => {
+                const accumulator = actual.createDeliveryCaptureAccumulator();
+                return {
+                    ...accumulator,
+                    getManifest: () =>
+                        mocks.manifestError
+                            ? Promise.reject(mocks.manifestError)
+                            : accumulator.getManifest(),
+                };
+            },
+        };
+    },
+);
+
 // Bypasses the 1.5s app-quiet debounce so `isReady` tracks the underlying
 // signal synchronously — the debounce itself isn't what these tests cover.
 vi.mock('@mantine-8/hooks', async (importOriginal) => {
@@ -91,6 +115,7 @@ describe('MinimalApp capture modes', () => {
     beforeEach(() => {
         mocks.iframePreview.mockClear();
         mocks.searchParams = new URLSearchParams();
+        mocks.manifestError = null;
         delete (window as unknown as Record<string, unknown>)[
             DELIVERY_CAPTURE_GLOBAL
         ];
@@ -150,8 +175,8 @@ describe('MinimalApp capture modes', () => {
         const { container } = renderWithProviders(<MinimalApp />);
 
         markSdkReady();
-        // The publish is async (getManifest awaits pending hashing) — right
-        // after the ready signal flips, the indicator must not be mounted yet.
+        // The publish resolves a microtask later, so right after the ready
+        // signal flips the indicator must not be mounted yet.
         expect(container.querySelector(readyIndicatorSelector)).toBeNull();
         expect(readGlobal()).toBeUndefined();
 
@@ -160,6 +185,30 @@ describe('MinimalApp capture modes', () => {
         });
 
         expect(container.querySelector(readyIndicatorSelector)).not.toBeNull();
+    });
+
+    it('logs a console error when the manifest publish rejects', async () => {
+        // UnfurlService forwards console errors, so a rejection has to leave a
+        // diagnosable line rather than silently burning the render timeout.
+        mocks.manifestError = new Error('manifest boom');
+        mocks.searchParams.set('captureMode', 'preview');
+        const consoleError = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => {});
+        const { container } = renderWithProviders(<MinimalApp />);
+
+        markSdkReady();
+
+        await waitFor(() => {
+            expect(consoleError).toHaveBeenCalledWith(
+                '[delivery-capture] manifest publish failed',
+                mocks.manifestError,
+            );
+        });
+        expect(readGlobal()).toBeUndefined();
+        expect(container.querySelector(readyIndicatorSelector)).toBeNull();
+
+        consoleError.mockRestore();
     });
 
     it('clears the stale manifest and republishes after an iframe reload', async () => {
