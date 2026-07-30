@@ -30,6 +30,7 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiPromptInterruptTableName,
+    AiPromptSteerTableName,
     AiPromptTableName,
     AiThreadTableName,
     type DbAiPrompt,
@@ -1089,6 +1090,74 @@ describe('AiAgentMemoryModel integration', () => {
             outcome: 'skipped',
             distilled_up_to: activity,
         });
+    });
+
+    it('loads consumed and unconsumed steers for visible prompts in creation order', async () => {
+        const firstActivity = new Date('2026-07-22T05:00:00Z');
+        const secondActivity = new Date('2026-07-22T05:01:00Z');
+        const hiddenActivity = new Date('2026-07-22T05:02:00Z');
+        const threadUuid = await createThread();
+        const firstPromptUuid = await createPrompt(threadUuid, firstActivity);
+        await createPrompt(threadUuid, secondActivity);
+        const hiddenPromptUuid = await createPrompt(
+            threadUuid,
+            hiddenActivity,
+            true,
+            true,
+        );
+
+        const insertSteer = async (args: {
+            promptUuid: string;
+            message: string;
+            createdAt: Date;
+            consumedAt?: Date;
+            consumedStep?: number;
+        }) =>
+            database.raw(
+                `INSERT INTO ??
+                    (ai_prompt_uuid, created_by_user_uuid, message, created_at, consumed_at, consumed_step)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [
+                    AiPromptSteerTableName,
+                    args.promptUuid,
+                    SEED_ORG_1_ADMIN.user_uuid,
+                    args.message,
+                    args.createdAt,
+                    args.consumedAt ?? null,
+                    args.consumedStep ?? null,
+                ],
+            );
+        await Promise.all([
+            insertSteer({
+                promptUuid: firstPromptUuid,
+                message: 'Second visible steer',
+                createdAt: new Date('2026-07-22T05:00:02Z'),
+            }),
+            insertSteer({
+                promptUuid: firstPromptUuid,
+                message: 'First visible steer',
+                createdAt: new Date('2026-07-22T05:00:01Z'),
+                consumedAt: new Date('2026-07-22T05:00:03Z'),
+                consumedStep: 1,
+            }),
+            insertSteer({
+                promptUuid: hiddenPromptUuid,
+                message: 'Hidden steer',
+                createdAt: new Date('2026-07-22T05:02:01Z'),
+            }),
+        ]);
+
+        const loaded = await model.findThreadForDistill(threadUuid);
+
+        expect(loaded?.turns).toMatchObject([
+            {
+                promptUuid: firstPromptUuid,
+                steers: ['First visible steer', 'Second visible steer'],
+            },
+            { steers: [] },
+        ]);
+        expect(loaded?.turns).toHaveLength(2);
+        expect(JSON.stringify(loaded?.turns)).not.toContain('Hidden steer');
     });
 
     it('loads visible feedback and strips pulled memory bodies before distill', async () => {

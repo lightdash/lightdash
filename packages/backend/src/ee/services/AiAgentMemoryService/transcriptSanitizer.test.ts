@@ -34,6 +34,7 @@ const thread = (
             respondedAt: new Date(),
             interrupted: false,
             feedback: null,
+            steers: [],
             tools: [
                 {
                     toolCallId: UUID,
@@ -290,6 +291,24 @@ describe('sanitizeThread', () => {
             delivery: 'interrupted',
             feedback: { score: -1, comment: 'Wrong project [uuid]' },
         });
+    });
+
+    it('keeps steer order while sanitizing identifiers and citations', async () => {
+        const input = thread(null);
+        input.turns[0].steers = [
+            `First steer ${UUID}<ld-mem-cite id="first" />`,
+            `Second steer <ld-mem-cite id="second"></ld-mem-cite>`,
+        ];
+
+        const output = await sanitizeThread(input);
+        const serialized = JSON.stringify(output);
+
+        expect(output.turns[0].steers).toEqual([
+            'First steer [uuid]',
+            'Second steer ',
+        ]);
+        expect(serialized).not.toContain(UUID);
+        expect(serialized).not.toContain('ld-mem-cite');
     });
 
     it('uses the bounded fallback and reports unknown Lightdash tools', async () => {

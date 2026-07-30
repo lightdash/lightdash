@@ -25,6 +25,7 @@ export type TranscriptTurn = {
     respondedAt: Date | null;
     interrupted: boolean;
     feedback: { score: number; comment: string | null } | null;
+    steers: string[];
     tools: TranscriptTool[];
 };
 
@@ -46,6 +47,7 @@ export type DistillTranscript = {
         assistant?: string;
         error?: string;
         feedback?: { score: number; comment?: string };
+        steers?: string[];
     }>;
 };
 
@@ -102,6 +104,7 @@ export const sanitizeThread = async (
                               : {}),
                       }
                     : undefined;
+            const steers = turn.steers.map(sanitizeText);
 
             return {
                 index: index + 1,
@@ -115,6 +118,7 @@ export const sanitizeThread = async (
                     ? { error: sanitizeText(turn.errorMessage) }
                     : {}),
                 ...(feedback ? { feedback } : {}),
+                ...(steers.length > 0 ? { steers } : {}),
             };
         }),
     ),
