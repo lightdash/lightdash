@@ -71,17 +71,11 @@ import {
     buildImportBody,
     readBundleFromDir,
     readDependenciesFromDir,
-    resolveAppFolderName,
-    writeBundleToDir,
-    writeContextToDir,
-    writeDependenciesToDir,
-    writeFilesToDir,
 } from './apps/appCodeFiles';
 import {
     appsDownloadSummary,
     capListedApps,
-    classifyAppDownloadError,
-    ensureDownloadedAppContext,
+    downloadAppsToDir,
     getDataAppUploadFilter,
     matchedUploadRefs,
     preSlugServerHint,
@@ -91,12 +85,8 @@ import {
     shouldFallBackToSpaceScopedListing,
     unmatchedUploadRefsWarning,
     uploadFilterMatches,
-    type AppDownloadFailure,
 } from './apps/appsDownload';
-import {
-    buildStaticAuthoringFiles,
-    loadTemplateDependencies,
-} from './apps/scaffolding';
+import { loadTemplateDependencies } from './apps/scaffolding';
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
@@ -2128,99 +2118,40 @@ export const downloadHandler = async (
                 const baseDir = getDownloadFolder(options.path);
                 const appsDir = path.join(baseDir, 'apps');
                 const takenFolders = new Set<string>();
-                let appSuccessCount = 0;
-                let appSkippedNotBuiltCount = 0;
-                const appFailures: AppDownloadFailure[] = [];
 
-                for (const appRef of appRefsToDownload) {
-                    try {
-                        // eslint-disable-next-line no-await-in-loop
-                        const code = ensureDownloadedAppContext(
-                            appRef,
-                            await lightdashApi<DataAppCodeDownload>({
+                const { successCount, skippedNotBuiltCount, failures } =
+                    await downloadAppsToDir({
+                        appRefs: appRefsToDownload,
+                        projectId,
+                        appsDir,
+                        takenFolders,
+                        cliVersion: CLI_VERSION,
+                        fetchApp: (fetchProjectId, appRef) =>
+                            lightdashApi<DataAppCodeDownload>({
                                 method: 'GET',
-                                url: `/api/v1/ee/projects/${projectId}/apps/${appRef}/download`,
+                                url: `/api/v1/ee/projects/${fetchProjectId}/apps/${appRef}/download`,
                                 body: undefined,
                             }),
-                        );
-
-                        const folder = resolveAppFolderName(
-                            code.manifest,
-                            takenFolders,
-                        );
-                        takenFolders.add(folder);
-
-                        const appDir = path.join(appsDir, folder);
-                        const manifest = {
-                            ...code.manifest,
-                            scaffoldingVersion: CLI_VERSION,
-                        };
-                        // eslint-disable-next-line no-await-in-loop
-                        await writeBundleToDir(appDir, { ...code, manifest });
-                        // eslint-disable-next-line no-await-in-loop
-                        await writeFilesToDir(
-                            appDir,
-                            buildStaticAuthoringFiles({
-                                appName: code.manifest.name,
-                                sdkVersion: CLI_VERSION,
-                            }),
-                        );
-                        // Server-provided deps override the scaffold's
-                        // template package.json so re-uploads round-trip.
-                        if (code.dependencies) {
-                            // eslint-disable-next-line no-await-in-loop
-                            await writeDependenciesToDir(
-                                appDir,
-                                code.dependencies,
-                            );
-                        }
-                        // eslint-disable-next-line no-await-in-loop
-                        await writeContextToDir(appDir, code.context);
-                        appSuccessCount += 1;
-                    } catch (appErr) {
-                        const outcome = classifyAppDownloadError(appErr);
-                        if (outcome.kind === 'skip-not-built') {
-                            appSkippedNotBuiltCount += 1;
-                            GlobalState.debug(
-                                `> Skipped app ${appRef}: no built version to download`,
-                            );
-                        } else {
-                            appFailures.push({
-                                appRef,
-                                message: outcome.message,
-                            });
-                            GlobalState.log(
-                                styles.error(
-                                    `Failed to download app ${appRef}: ${outcome.message}`,
-                                ),
-                            );
-                        }
-                    }
-                    output.updateActive(
-                        `${
-                            appSuccessCount +
-                            appSkippedNotBuiltCount +
-                            appFailures.length
-                        } of ${appRefsToDownload.length} processed`,
-                    );
-                }
+                        onProgress: (processed, total) =>
+                            output.updateActive(
+                                `${processed} of ${total} processed`,
+                            ),
+                    });
 
                 const summary = appsDownloadSummary(
-                    appSuccessCount,
+                    successCount,
                     appRefsToDownload.length,
-                    appFailures,
+                    failures,
                     appsDir,
-                    appSkippedNotBuiltCount,
+                    skippedNotBuiltCount,
                 );
                 output.completeItem(
-                    `${appSuccessCount} downloaded${
-                        appSkippedNotBuiltCount > 0
-                            ? `, ${appSkippedNotBuiltCount} skipped`
+                    `${successCount} downloaded${
+                        skippedNotBuiltCount > 0
+                            ? `, ${skippedNotBuiltCount} skipped`
                             : ''
                     }${
-                        appFailures.length > 0
-                            ? `, ${appFailures.length} failed`
-                            : ''
+                        failures.length > 0 ? `, ${failures.length} failed` : ''
                     }`,
                     summary.ok ? undefined : 'warning',
                 );

@@ -5,7 +5,18 @@ import {
     type DataAppCodeDownload,
     type DataAppManifest,
 } from '@lightdash/common';
+import * as path from 'path';
 import { validate as isUuid } from 'uuid';
+import GlobalState from '../../globalState';
+import * as styles from '../../styles';
+import {
+    resolveAppFolderName,
+    writeBundleToDir,
+    writeContextToDir,
+    writeDependenciesToDir,
+    writeFilesToDir,
+} from './appCodeFiles';
+import { buildStaticAuthoringFiles } from './scaffolding';
 
 export const DEFAULT_APPS_LIMIT = 50;
 
@@ -260,4 +271,102 @@ export const appsDownloadSummary = (
             (failure) => `  ✖ ${failure.appRef}: ${failure.message}`,
         ),
     };
+};
+
+export type AppsDownloadOutcome = {
+    successCount: number;
+    skippedNotBuiltCount: number;
+    failures: AppDownloadFailure[];
+};
+
+/**
+ * Downloads each app to its own folder under appsDir, classifying "no built
+ * version" 404s as skips rather than failures. Everything the loop needs
+ * (fetching, versioning, progress reporting) is injected so this stays free
+ * of any dependency on the download handler.
+ */
+export const downloadAppsToDir = async (args: {
+    appRefs: string[];
+    projectId: string;
+    appsDir: string;
+    takenFolders: Set<string>;
+    cliVersion: string;
+    fetchApp: (
+        projectId: string,
+        appRef: string,
+    ) => Promise<DataAppCodeDownload>;
+    onProgress?: (processed: number, total: number) => void;
+}): Promise<AppsDownloadOutcome> => {
+    const {
+        appRefs,
+        projectId,
+        appsDir,
+        takenFolders,
+        cliVersion,
+        fetchApp,
+        onProgress,
+    } = args;
+
+    let successCount = 0;
+    let skippedNotBuiltCount = 0;
+    const failures: AppDownloadFailure[] = [];
+
+    for (const appRef of appRefs) {
+        try {
+            const code = ensureDownloadedAppContext(
+                appRef,
+                // eslint-disable-next-line no-await-in-loop
+                await fetchApp(projectId, appRef),
+            );
+
+            const folder = resolveAppFolderName(code.manifest, takenFolders);
+            takenFolders.add(folder);
+
+            const appDir = path.join(appsDir, folder);
+            const manifest = {
+                ...code.manifest,
+                scaffoldingVersion: cliVersion,
+            };
+            // eslint-disable-next-line no-await-in-loop
+            await writeBundleToDir(appDir, { ...code, manifest });
+            // eslint-disable-next-line no-await-in-loop
+            await writeFilesToDir(
+                appDir,
+                buildStaticAuthoringFiles({
+                    appName: code.manifest.name,
+                    sdkVersion: cliVersion,
+                }),
+            );
+            // Server-provided deps override the scaffold's
+            // template package.json so re-uploads round-trip.
+            if (code.dependencies) {
+                // eslint-disable-next-line no-await-in-loop
+                await writeDependenciesToDir(appDir, code.dependencies);
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await writeContextToDir(appDir, code.context);
+            successCount += 1;
+        } catch (appErr) {
+            const outcome = classifyAppDownloadError(appErr);
+            if (outcome.kind === 'skip-not-built') {
+                skippedNotBuiltCount += 1;
+                GlobalState.debug(
+                    `> Skipped app ${appRef}: no built version to download`,
+                );
+            } else {
+                failures.push({ appRef, message: outcome.message });
+                GlobalState.log(
+                    styles.error(
+                        `Failed to download app ${appRef}: ${outcome.message}`,
+                    ),
+                );
+            }
+        }
+        onProgress?.(
+            successCount + skippedNotBuiltCount + failures.length,
+            appRefs.length,
+        );
+    }
+
+    return { successCount, skippedNotBuiltCount, failures };
 };

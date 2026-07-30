@@ -1,15 +1,20 @@
 import {
     LightdashError,
     ParameterError,
+    type AnyType,
     type DataAppCodeDownload,
     type DataAppManifest,
 } from '@lightdash/common';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import {
     appsDownloadSummary,
     capListedApps,
     classifyAppDownloadError,
     computeUpsertedTotal,
     DEFAULT_APPS_LIMIT,
+    downloadAppsToDir,
     ensureDownloadedAppContext,
     getDataAppReference,
     getDataAppUploadFilter,
@@ -545,5 +550,87 @@ describe('appsDownloadSummary', () => {
         expect(summary.message).toContain('Downloaded 1 of 2 data app(s)');
         expect(summary.message).toContain('1 skipped: no built version');
         expect(summary.message).toContain('1 failed');
+    });
+});
+
+describe('downloadAppsToDir', () => {
+    const tmpDir = () =>
+        fs.mkdtempSync(path.join(os.tmpdir(), 'ld-apps-download-'));
+
+    const codeFor = (slug: string): AnyType => ({
+        manifest: {
+            codeVersion: 1,
+            projectUuid: 'project-uuid',
+            slug,
+            version: 1,
+            name: slug,
+            description: '',
+            template: null,
+            downloadedAt: '2026-07-30T00:00:00.000Z',
+        },
+        files: [
+            {
+                path: 'src/App.tsx',
+                contentBase64: Buffer.from(
+                    'export default () => null;',
+                ).toString('base64'),
+            },
+        ],
+        context: {
+            semanticLayer: {
+                path: '.lightdash/context/semantic-layer.yml',
+                contentBase64: Buffer.from('models: []').toString('base64'),
+            },
+            parameters: null,
+            promptHistory: {
+                path: '.lightdash/context/prompt-history.md',
+                contentBase64: Buffer.from('# history').toString('base64'),
+            },
+            theme: { instructions: null, assets: [], skippedAssetCount: 0 },
+        },
+    });
+
+    it('writes one folder per app and counts successes', async () => {
+        const appsDir = tmpDir();
+        const outcome = await downloadAppsToDir({
+            appRefs: ['revenue-explorer'],
+            projectId: 'project-uuid',
+            appsDir,
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async (_p, ref) => codeFor(ref),
+        });
+
+        expect(outcome).toEqual({
+            successCount: 1,
+            skippedNotBuiltCount: 0,
+            failures: [],
+        });
+        expect(
+            fs.existsSync(
+                path.join(appsDir, 'revenue-explorer', 'lightdash-app.yml'),
+            ),
+        ).toBe(true);
+    });
+
+    it('counts an app with no ready version as skipped, not failed', async () => {
+        const outcome = await downloadAppsToDir({
+            appRefs: ['half-built'],
+            projectId: 'project-uuid',
+            appsDir: tmpDir(),
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async () => {
+                throw new LightdashError({
+                    message: 'App has no ready version to download',
+                    name: 'NotFoundError',
+                    statusCode: 404,
+                    data: {},
+                });
+            },
+        });
+
+        expect(outcome.skippedNotBuiltCount).toBe(1);
+        expect(outcome.failures).toEqual([]);
     });
 });
