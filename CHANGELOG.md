@@ -1,3 +1,12 @@
+## [1.43.1](https://github.com/lightdash/lightdash/compare/1.43.0...1.43.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* complete the deep research tool wiring across the shared registries ([#26562](https://github.com/lightdash/lightdash/issues/26562)) ([34cf310](https://github.com/lightdash/lightdash/commit/34cf310334e5847bb31ef9ebf60f75e8b3a70039))
+* **frontend:** keep the active agent onboarding run cache in sync ([#26563](https://github.com/lightdash/lightdash/issues/26563)) ([220744d](https://github.com/lightdash/lightdash/commit/220744dacec8fe3e5704493e5ad9ee104a1d6270)), closes [/linear.app/lightdash/issue/PROD-9362/back-button-shows-set-up-until-refresh#agent-session-4919bc52](https://github.com//linear.app/lightdash/issue/PROD-9362/back-button-shows-set-up-until-refresh/issues/agent-session-4919bc52)
+* register deep research distill policies ([#26564](https://github.com/lightdash/lightdash/issues/26564)) ([881ea95](https://github.com/lightdash/lightdash/commit/881ea956e7804101e58c0127a3f3a143a3e04b6d))
+
 # [1.43.0](https://github.com/lightdash/lightdash/compare/1.42.0...1.43.0) (2026-07-30)
 
 
