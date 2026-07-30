@@ -76,6 +76,7 @@ const {
     isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
     downloadAiAgents,
+    isFilteredWithNoDashboards,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
@@ -508,6 +509,20 @@ describe('getDashboardAppSlugs', () => {
         await writeFolderDashboard(tmpDir, 'chart-only', ['chart-a']);
         const slugs = await getDashboardAppSlugs([], tmpDir);
         expect(slugs).toEqual([]);
+    });
+});
+
+describe('isFilteredWithNoDashboards', () => {
+    it('is true for a filtered upload that selects no dashboards (e.g. --charts only)', () => {
+        expect(isFilteredWithNoDashboards(true, [])).toBe(true);
+    });
+
+    it('is false for an unfiltered upload even with no dashboard slugs', () => {
+        expect(isFilteredWithNoDashboards(false, [])).toBe(false);
+    });
+
+    it('is false once dashboard slugs are provided', () => {
+        expect(isFilteredWithNoDashboards(true, ['my-dashboard'])).toBe(false);
     });
 });
 

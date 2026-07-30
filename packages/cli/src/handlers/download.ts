@@ -2831,6 +2831,13 @@ const getDashboardAppSlugs = async (
     return [...new Set(extractAppSlugsFromDashboards(selected))];
 };
 
+// Mirrors the Dashboards phase's own guard: a filtered upload with no
+// dashboard slugs uploads no dashboards, so there is nothing to derive from.
+const isFilteredWithNoDashboards = (
+    hasFilters: boolean,
+    dashboardSlugs: string[],
+): boolean => hasFilters && dashboardSlugs.length === 0;
+
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
@@ -3026,20 +3033,23 @@ export const uploadHandler = async (
             }
         }
 
-        // Upload data apps (enterprise, opt-in via --apps <references...> or
-        // --include-apps; also auto-pushed when a dashboard being uploaded
-        // references one, so its tiles resolve in the target project). Apps
-        // must land before dashboards — mirrors PromoteService.upsertDataApps.
+        // Upload data apps (enterprise; explicit --apps/--include-apps, or
+        // auto-pushed for a dashboard's apps). Must land before dashboards.
         const explicitAppReferences = Array.isArray(options.apps)
             ? options.apps
             : [];
         const isExplicitAppSelection =
             options.includeApps === true || explicitAppReferences.length > 0;
-        const autoPushAppSlugs = await getDashboardAppSlugs(
+        const autoPushAppSlugs = isFilteredWithNoDashboards(
+            hasFilters,
             options.dashboards,
-            options.path,
-            looseFiles.dashboards,
-        );
+        )
+            ? []
+            : await getDashboardAppSlugs(
+                  options.dashboards,
+                  options.path,
+                  looseFiles.dashboards,
+              );
         const shouldUploadApps =
             isExplicitAppSelection || autoPushAppSlugs.length > 0;
 
@@ -3060,10 +3070,8 @@ export const uploadHandler = async (
             output.completeItem('permission denied', 'warning');
         } else if (shouldUploadApps) {
             output.startItem('Data apps');
-            // --include-apps uploads every folder on disk; explicit references
-            // filter folders by their manifest slug or appUuid. A pure
-            // auto-push run keeps no filter here — candidacy is decided per
-            // folder below instead, against the dashboards' referenced slugs.
+            // Explicit refs filter by slug/appUuid; --include-apps uploads all.
+            // A pure auto-push run applies no filter — gated per folder below.
             const uploadFilter = isExplicitAppSelection
                 ? getDataAppUploadFilter(
                       explicitAppReferences,
@@ -3071,14 +3079,15 @@ export const uploadHandler = async (
                   )
                 : null;
 
-            // The manifest keeps naming the source project forever, so
-            // comparing it to the target would re-push on every run against
-            // prod. Listing the target's apps settles after the first push.
+            // The manifest always names the source project, so comparing it
+            // to the target would re-push every run — list the target instead.
             let presence: AppPresence = {
                 kind: 'unknown',
                 targetProjectUuid: projectId,
             };
-            if (autoPushAppSlugs.length > 0) {
+            // Only the auto-push gate below (skipped entirely when explicit)
+            // reads presence, so an explicit run never needs the listing.
+            if (!isExplicitAppSelection && autoPushAppSlugs.length > 0) {
                 try {
                     const projectApps = await lightdashApi<
                         ApiEmbedProjectAppsResponse['results']
@@ -3139,9 +3148,20 @@ export const uploadHandler = async (
                     const code = await readBundleFromDir(folderPath);
 
                     if (!uploadFilterMatches(uploadFilter, code.manifest)) {
-                        GlobalState.debug(
-                            `Skipping app folder "${subDir.name}" (not in filter)`,
-                        );
+                        const isAutoPushCandidate =
+                            code.manifest.slug !== undefined &&
+                            autoPushAppSlugs.includes(code.manifest.slug);
+                        if (isAutoPushCandidate) {
+                            GlobalState.log(
+                                styles.warning(
+                                    `Skipping app "${subDir.name}" — excluded by --apps, but a dashboard being uploaded references it. Its tile may fail to resolve unless the app already exists in the target project.`,
+                                ),
+                            );
+                        } else {
+                            GlobalState.debug(
+                                `Skipping app folder "${subDir.name}" (not in filter)`,
+                            );
+                        }
                         // eslint-disable-next-line no-continue
                         continue;
                     }
@@ -3654,6 +3674,7 @@ export const testHelpers = {
     isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
     downloadAiAgents,
+    isFilteredWithNoDashboards,
     readAiAgentFiles,
     readExternalConnectionFiles,
     readSpaceFiles,
