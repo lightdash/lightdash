@@ -8,7 +8,9 @@ import {
     assertNodeModulesPresent,
     assertScaffoldingSupportsPreviewProxy,
     buildPreviewChildEnv,
+    preflightPreviewRequest,
     projectNotFoundMessage,
+    removeLegacyPreviewCredential,
     resolvePreviewTarget,
 } from './preview';
 
@@ -159,5 +161,85 @@ describe('projectNotFoundMessage', () => {
         expect(msg).toContain('https://cloud.example.com');
         expect(msg).toMatch(/lightdash login/);
         expect(msg).toMatch(/--project/);
+    });
+});
+
+describe('preflightPreviewRequest', () => {
+    it('reports network failures separately from rejected credentials', async () => {
+        const fetchFn = vi
+            .fn()
+            .mockRejectedValue(new Error('connection refused')) as typeof fetch;
+
+        await expect(
+            preflightPreviewRequest({
+                apiPath: '/api/v1/user',
+                serverUrl: 'http://localhost:8080',
+                authorization: 'ApiKey test',
+                fetchFn,
+            }),
+        ).rejects.toThrow(
+            'Could not connect to http://localhost:8080 while starting preview: connection refused',
+        );
+    });
+
+    it('returns false for an HTTP rejection', async () => {
+        const fetchFn = vi
+            .fn()
+            .mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+
+        await expect(
+            preflightPreviewRequest({
+                apiPath: '/api/v1/user',
+                serverUrl: 'http://localhost:8080',
+                authorization: 'ApiKey test',
+                fetchFn,
+            }),
+        ).resolves.toBe(false);
+    });
+});
+
+describe('removeLegacyPreviewCredential', () => {
+    it('removes only the obsolete credential and preserves other settings', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        const envPath = path.join(dir, '.env.local');
+        await fs.writeFile(
+            envPath,
+            [
+                'VITE_CUSTOM_SETTING=keep-me',
+                'LIGHTDASH_PREVIEW_API_KEY=ldpat_remove_me',
+                '# LIGHTDASH_PREVIEW_API_KEY=commented-out',
+                'ANOTHER_SETTING=also-keep-me',
+                '',
+            ].join('\n'),
+        );
+
+        await expect(removeLegacyPreviewCredential(dir)).resolves.toBe(true);
+        await expect(fs.readFile(envPath, 'utf-8')).resolves.toBe(
+            [
+                'VITE_CUSTOM_SETTING=keep-me',
+                '# LIGHTDASH_PREVIEW_API_KEY=commented-out',
+                'ANOTHER_SETTING=also-keep-me',
+                '',
+            ].join('\n'),
+        );
+    });
+
+    it('deletes an env file that contains only the obsolete credential', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        const envPath = path.join(dir, '.env.local');
+        await fs.writeFile(
+            envPath,
+            'export LIGHTDASH_PREVIEW_API_KEY=ldpat_remove_me\n',
+        );
+
+        await expect(removeLegacyPreviewCredential(dir)).resolves.toBe(true);
+        await expect(fs.stat(envPath)).rejects.toMatchObject({
+            code: 'ENOENT',
+        });
+    });
+
+    it('does nothing when there is no legacy credential', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        await expect(removeLegacyPreviewCredential(dir)).resolves.toBe(false);
     });
 });

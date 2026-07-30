@@ -2,6 +2,7 @@ import {
     extractAppSdkRouteProjectUuid,
     isAllowedAppSdkRoute,
 } from '@lightdash/common';
+import { timingSafeEqual } from 'crypto';
 import * as http from 'http';
 import * as https from 'https';
 
@@ -67,6 +68,20 @@ const sendJsonError = (
     res.end(JSON.stringify({ status: 'error', results: null, message }));
 };
 
+const secretsMatch = (
+    actual: string | string[] | undefined,
+    expected: string,
+): boolean => {
+    if (typeof actual !== 'string') return false;
+
+    const actualBuffer = Buffer.from(actual);
+    const expectedBuffer = Buffer.from(expected);
+    return (
+        actualBuffer.length === expectedBuffer.length &&
+        timingSafeEqual(actualBuffer, expectedBuffer)
+    );
+};
+
 /**
  * Loopback proxy that owns the preview credential. The vite dev server
  * forwards /api traffic here; only routes a deployed app could reach through
@@ -90,8 +105,8 @@ export const startPreviewProxy = (args: {
         const nonceHeader = req.headers[PREVIEW_PROXY_NONCE_HEADER];
         const browserAuthorization = req.headers.authorization;
         if (
-            nonceHeader !== args.nonce ||
-            browserAuthorization !== `ApiKey ${args.nonce}`
+            !secretsMatch(nonceHeader, args.nonce) ||
+            !secretsMatch(browserAuthorization, `ApiKey ${args.nonce}`)
         ) {
             sendJsonError(res, 401, 'Preview proxy: missing or invalid nonce');
             return;

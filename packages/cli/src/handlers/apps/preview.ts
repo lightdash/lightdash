@@ -140,6 +140,59 @@ export const projectNotFoundMessage = (args: {
 }): string =>
     `Project ${args.projectUuid} was not found on ${args.serverUrl} (or you don't have access). This app belongs to a different project or instance than the one you're logged into — run 'lightdash login <url>' for the server the app was downloaded from, or pass --project to preview against another project.`;
 
+export const preflightPreviewRequest = async (args: {
+    apiPath: string;
+    serverUrl: string;
+    authorization: string;
+    proxyAuthorization?: string;
+    fetchFn?: typeof fetch;
+}): Promise<boolean> => {
+    const fetchFn = args.fetchFn ?? fetch;
+    try {
+        const res = await fetchFn(new URL(args.apiPath, args.serverUrl), {
+            headers: {
+                Authorization: args.authorization,
+                ...(args.proxyAuthorization
+                    ? { 'Proxy-Authorization': args.proxyAuthorization }
+                    : {}),
+            },
+        });
+        return res.ok;
+    } catch (error) {
+        const reason =
+            error instanceof Error ? error.message : 'Unknown network error';
+        throw new Error(
+            `Could not connect to ${args.serverUrl} while starting preview: ${reason}`,
+        );
+    }
+};
+
+const LEGACY_PREVIEW_CREDENTIAL =
+    /^[ \t]*(?:export[ \t]+)?LIGHTDASH_PREVIEW_API_KEY[ \t]*=.*(?:\r?\n|$)/gm;
+
+export const removeLegacyPreviewCredential = async (
+    appDir: string,
+): Promise<boolean> => {
+    const legacyEnvPath = path.join(appDir, '.env.local');
+    let legacyEnv: string;
+    try {
+        legacyEnv = await fs.readFile(legacyEnvPath, 'utf-8');
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+        throw error;
+    }
+
+    const sanitizedEnv = legacyEnv.replace(LEGACY_PREVIEW_CREDENTIAL, '');
+    if (sanitizedEnv === legacyEnv) return false;
+
+    if (sanitizedEnv.trim() === '') {
+        await fs.unlink(legacyEnvPath);
+    } else {
+        await fs.writeFile(legacyEnvPath, sanitizedEnv, 'utf-8');
+    }
+    return true;
+};
+
 // Ctrl-C is the documented way to stop the dev server, so an interrupted child
 // is a normal exit rather than a crash to report. The runner may either die
 // from the signal or translate it into the conventional 128+signal exit code.
@@ -207,21 +260,13 @@ export const appsPreviewHandler = async (
     if (!options.url && !options.token) {
         await checkLightdashVersion();
     }
-    const preflight = async (apiPath: string): Promise<boolean> => {
-        try {
-            const res = await fetch(new URL(apiPath, serverUrl), {
-                headers: {
-                    Authorization: authorization,
-                    ...(proxyAuthorization
-                        ? { 'Proxy-Authorization': proxyAuthorization }
-                        : {}),
-                },
-            });
-            return res.ok;
-        } catch {
-            return false;
-        }
-    };
+    const preflight = (apiPath: string) =>
+        preflightPreviewRequest({
+            apiPath,
+            serverUrl,
+            authorization,
+            proxyAuthorization,
+        });
     if (!(await preflight('/api/v1/user'))) {
         throw new AuthorizationError(
             `Your Lightdash credential was rejected by ${serverUrl}. Run 'lightdash login ${serverUrl}' to refresh it, or check the --url/--token values.`,
@@ -236,14 +281,12 @@ export const appsPreviewHandler = async (
         );
     }
 
-    // Previous versions of this command persisted the credential in
-    // .env.local. It's no longer read or written — nudge cleanup if found.
-    const legacyEnvPath = path.join(target.appDir, '.env.local');
-    const legacyEnv = await fs.readFile(legacyEnvPath, 'utf-8').catch(() => '');
-    if (legacyEnv.includes('LIGHTDASH_PREVIEW_API_KEY=')) {
+    // Previous versions persisted this credential in .env.local. Remove only
+    // that obsolete entry, preserving any unrelated user-managed settings.
+    if (await removeLegacyPreviewCredential(target.appDir)) {
         GlobalState.log(
             styles.warning(
-                `${legacyEnvPath} holds a credential from an older preview version. It is no longer used — delete the file.`,
+                `Removed an obsolete preview credential from ${path.join(target.appDir, '.env.local')}.`,
             ),
         );
     }
