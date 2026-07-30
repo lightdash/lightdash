@@ -34,6 +34,7 @@ export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
     'permission_revoked',
     'tool_limit',
     'query_limit',
+    'token_limit',
     'provider_error',
     'internal_error',
 ] as const;
@@ -48,11 +49,8 @@ export const isAiDeepResearchRunTerminal = (
         status as AiDeepResearchTerminalStatus,
     );
 
-export type AiDeepResearchBudget = {
-    maxToolCalls: number;
-    maxWarehouseQueries: number;
+export type AiDeepResearchBudget = AiDeepResearchLimits & {
     maxResultRows: number;
-    maxHypotheses: number;
 };
 
 export type AiDeepResearchLimits = {
@@ -140,7 +138,7 @@ export type AiDeepResearchExecutionContextSnapshot = {
     };
     tools: {
         availableToolNames: string[];
-        selectedMcpServers: {
+        attachedMcpServers: {
             uuid: string;
             name: string;
             enabledToolNames: string[];
@@ -172,27 +170,14 @@ export type AiDeepResearchExecutionContextSnapshot = {
     };
 };
 
-export const AI_DEEP_RESEARCH_EFFORTS = [
-    'low',
-    'medium',
-    'high',
-    'xhigh',
-] as const;
-
-export type AiDeepResearchEffort = (typeof AI_DEEP_RESEARCH_EFFORTS)[number];
-
 export type AiDeepResearchRequestBody = {
     prompt: string;
     /** Agent whose complete runtime configuration will execute this run. */
     agentUuid: string;
-    /** Server-owned execution budget tier. Defaults to medium. */
-    effort?: AiDeepResearchEffort;
     /** Agent thread to attach the run to. Must be owned by the caller. */
     threadUuid: string;
     /** Thread message that captured this prompt. */
     promptUuid: string;
-    /** Agent-attached MCP servers enabled for this run. */
-    mcpServerUuids: string[];
     /** Product surface that accepted the run. */
     entryPoint: AiDeepResearchEntryPoint;
 };
@@ -344,9 +329,7 @@ export type AiDeepResearchRun = {
     agentUuid: string;
     aiThreadUuid: string;
     promptUuid: string;
-    mcpServerUuids: string[];
     entryPoint: AiDeepResearchEntryPoint;
-    effort: AiDeepResearchEffort;
     prompt: string;
     status: AiDeepResearchRunStatus;
     /** The report narrative with compact <chart> references. */

@@ -1,7 +1,6 @@
 import {
     type AiDeepResearchBudget,
     type AiDeepResearchChartDataMap,
-    type AiDeepResearchEffort,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventType,
@@ -24,16 +23,12 @@ export type DbAiDeepResearchRun = {
     tool_call_id: string | null;
     prompt: string;
     status: AiDeepResearchRunStatus;
-    selected_mcp_server_uuids: string[];
     entry_point: AiDeepResearchEntryPoint;
-    effort: AiDeepResearchEffort;
     result_markdown: string | null;
     result_chart_data: AiDeepResearchChartDataMap | null;
     report_expires_at: Date | null;
     report_expired_at: Date | null;
-    /** Rows persisted before hypothesis fan-out lack `maxHypotheses`. */
-    budget_snapshot: Omit<AiDeepResearchBudget, 'maxHypotheses'> &
-        Partial<Pick<AiDeepResearchBudget, 'maxHypotheses'>>;
+    budget_snapshot: AiDeepResearchBudget;
     execution_context_snapshot: AiDeepResearchExecutionContextSnapshot;
     error_message: string | null;
     cancellation_requested_at: Date | null;
@@ -55,9 +50,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
         | 'prompt_uuid'
         | 'tool_call_id'
         | 'prompt'
-        | 'selected_mcp_server_uuids'
         | 'entry_point'
-        | 'effort'
         | 'budget_snapshot'
         | 'execution_context_snapshot'
     >,

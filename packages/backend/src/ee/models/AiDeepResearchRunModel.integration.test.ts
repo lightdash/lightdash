@@ -33,6 +33,7 @@ import {
 import { AiDeepResearchRunModel } from './AiDeepResearchRunModel';
 
 const budget: AiDeepResearchBudget = {
+    maxTokens: 10_000_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
@@ -64,7 +65,7 @@ const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
     },
     tools: {
         availableToolNames: [],
-        selectedMcpServers: [],
+        attachedMcpServers: [],
     },
     knowledgeDocuments: [],
     repository: {
@@ -180,7 +181,6 @@ describe('AiDeepResearchRunModel integration', () => {
     const createRun = async (
         dimensions: {
             entryPoint?: 'homepage' | 'ask_ai';
-            effort?: 'low' | 'medium' | 'high' | 'xhigh';
             promptUuid?: string;
         } = {},
     ): Promise<DbAiDeepResearchRun> => {
@@ -193,9 +193,7 @@ describe('AiDeepResearchRunModel integration', () => {
             promptUuid: dimensions.promptUuid ?? promptUuid,
             toolCallId: null,
             prompt: `Integration race ${crypto.randomUUID()}`,
-            selectedMcpServerUuids: [],
             entryPoint: dimensions.entryPoint ?? 'ask_ai',
-            effort: dimensions.effort ?? 'medium',
             budget,
             executionContextSnapshot: {
                 ...executionContextSnapshot,
@@ -258,21 +256,18 @@ describe('AiDeepResearchRunModel integration', () => {
         ]);
     });
 
-    it('round-trips persisted analytics dimensions', async () => {
+    it('round-trips the persisted entry point', async () => {
         const run = await createRun({
             entryPoint: 'homepage',
-            effort: 'high',
         });
 
         expect(run).toMatchObject({
             entry_point: 'homepage',
-            effort: 'high',
         });
         expect(
             await model.findByUuid(run.ai_deep_research_run_uuid),
         ).toMatchObject({
             entry_point: 'homepage',
-            effort: 'high',
         });
     });
 

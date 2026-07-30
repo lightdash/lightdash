@@ -30,7 +30,6 @@ import {
 import { getDeepResearchRunRefetchInterval } from '../deepResearch/runPolling';
 import {
     adaptDeepResearchRun,
-    DEEP_RESEARCH_DEPTH_CONFIG,
     isDeepResearchRunTerminal,
     toDeepResearchRegistration,
 } from '../deepResearch/runProgress';
@@ -180,10 +179,8 @@ const useStartDeepResearchMutationBase = <
             return startDeepResearch(projectUuid, {
                 prompt: variables.question,
                 agentUuid,
-                effort: DEEP_RESEARCH_DEPTH_CONFIG[variables.depth].effort,
                 threadUuid,
                 promptUuid: variables.promptUuid,
-                mcpServerUuids: variables.mcpServerUuids,
                 entryPoint,
             });
         },

@@ -5,7 +5,6 @@ import {
     getErrorMessage,
     type AiDeepResearchBudget,
     type AiDeepResearchChartDataMap,
-    type AiDeepResearchEffort,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventPayloadMap,
@@ -51,9 +50,7 @@ type CreateAiDeepResearchRun = {
     promptUuid: string;
     toolCallId: string | null;
     prompt: string;
-    selectedMcpServerUuids: string[];
     entryPoint: AiDeepResearchEntryPoint;
-    effort: AiDeepResearchEffort;
     budget: AiDeepResearchBudget;
     executionContextSnapshot: AiDeepResearchExecutionContextSnapshot;
 };
@@ -155,11 +152,7 @@ export class AiDeepResearchRunModel {
                     prompt_uuid: data.promptUuid,
                     tool_call_id: data.toolCallId,
                     prompt: data.prompt,
-                    selected_mcp_server_uuids: JSON.stringify(
-                        data.selectedMcpServerUuids,
-                    ) as unknown as string[],
                     entry_point: data.entryPoint,
-                    effort: data.effort,
                     budget_snapshot: data.budget,
                     execution_context_snapshot: data.executionContextSnapshot,
                 })

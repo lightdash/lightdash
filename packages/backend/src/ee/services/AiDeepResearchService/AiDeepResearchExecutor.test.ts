@@ -15,6 +15,7 @@ import {
 import { AiDeepResearchExecutor } from './AiDeepResearchExecutor';
 
 const budget = {
+    maxTokens: 10_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
@@ -46,7 +47,7 @@ const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
     },
     tools: {
         availableToolNames: ['submitResearchReport'],
-        selectedMcpServers: [],
+        attachedMcpServers: [],
     },
     knowledgeDocuments: [],
     repository: {
@@ -123,9 +124,7 @@ const run = (
     tool_call_id: null,
     prompt: 'Investigate revenue',
     status: 'running',
-    selected_mcp_server_uuids: ['mcp-1'],
     entry_point: 'ask_ai',
-    effort: 'low',
     result_markdown: null,
     result_chart_data: null,
     report_expires_at: null,
@@ -402,7 +401,6 @@ describe('AiDeepResearchExecutor', () => {
             toolHints: [AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME],
             forceToolHints: true,
             execution: {
-                selectedMcpServerUuids: [],
                 parentToolCallId: 'deep-research:run-1:planner',
                 research: { maxHypotheses: 2 },
             },
@@ -416,7 +414,6 @@ describe('AiDeepResearchExecutor', () => {
             'deep-research:run-1:hypothesis-2',
         ]);
         investigatorCalls.forEach(([, options]: AnyType[]) => {
-            expect(options.execution.selectedMcpServerUuids).toEqual(['mcp-1']);
             expect(options.execution.budget).toMatchObject({
                 maxToolCalls: 7,
                 maxWarehouseQueries: 5,
@@ -678,6 +675,35 @@ describe('AiDeepResearchExecutor', () => {
         ).toContain('maxWarehouseQueries');
     });
 
+    it('enforces the aggregate token budget across phases', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: async (options: AnyType) => {
+                await options.execution.onStepUsage(60);
+                options.execution.research.onReport(investigationReport());
+                return 'investigated';
+            },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
+        });
+
+        const result = await executor.execute(
+            run({ budget_snapshot: { ...budget, maxTokens: 100 } }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result.status).toBe('partially_completed');
+        expect(result.terminalReason).toBe('token_limit');
+        expect(
+            result.status === 'partially_completed' && result.report.markdown,
+        ).toContain('maxTokens');
+        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
+            0,
+        );
+    });
+
     it('retries each investigator once with forced submission before giving up on it', async () => {
         const attemptsByHypothesis = new Map<string, number>();
         const generateAgentThreadResponse = respondByRole({
@@ -753,29 +779,6 @@ describe('AiDeepResearchExecutor', () => {
             toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
             forceToolHints: true,
         });
-    });
-
-    it('defaults the hypothesis count for runs persisted before hypothesis fan-out', async () => {
-        const generateAgentThreadResponse = respondByRole();
-        const { executor } = buildExecutor({ generateAgentThreadResponse });
-        const legacyBudget = {
-            maxToolCalls: 125,
-            maxWarehouseQueries: 25,
-            maxResultRows: 10_000,
-        } as DbAiDeepResearchRun['budget_snapshot'];
-
-        await executor.execute(run({ budget_snapshot: legacyBudget }), {
-            signal: new AbortController().signal,
-        });
-
-        const plannerCalls = callsByRole(
-            generateAgentThreadResponse,
-            'planner',
-        );
-        expect(plannerCalls[0][1].execution.research.maxHypotheses).toBe(3);
-        expect(
-            callsByRole(generateAgentThreadResponse, 'investigator'),
-        ).toHaveLength(3);
     });
 
     it('returns a partial result when execution fails after a valid report was saved', async () => {
