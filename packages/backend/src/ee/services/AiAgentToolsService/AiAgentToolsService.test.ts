@@ -453,6 +453,37 @@ describe('AiAgentToolsService', () => {
         ]);
     });
 
+    it('filters explore fields by tags', async () => {
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    dimensions: {
+                        visible_dimension: { tags: ['ai'] },
+                        hidden_dimension: { tags: ['internal'] },
+                    },
+                    metrics: {
+                        visible_metric: { tags: ['ai'] },
+                        hidden_metric: { tags: ['internal'] },
+                    },
+                }),
+            },
+        });
+
+        const [explore] = await service.getAvailableExplores({
+            user,
+            projectUuid,
+            availableTags: ['ai'],
+        });
+
+        expect(Object.keys(explore.tables.orders.dimensions)).toEqual([
+            'visible_dimension',
+        ]);
+        expect(Object.keys(explore.tables.orders.metrics)).toEqual([
+            'visible_metric',
+        ]);
+    });
+
     it('adds verified field usage for AI runtime searches but not MCP searches', async () => {
         const searchCatalog = vi.fn(async ({ catalogSearch }) => ({
             data:

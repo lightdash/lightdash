@@ -480,7 +480,7 @@ export class AiAgentToolsService extends BaseService {
                     .map((explore) =>
                         getFilteredExplore(explore, userAttributes),
                     )
-                    .filter((explore) =>
+                    .map((explore) =>
                         filterExploreByTags({
                             explore,
                             availableTags,
