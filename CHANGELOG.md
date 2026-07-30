@@ -1,3 +1,16 @@
+# [1.39.0](https://github.com/lightdash/lightdash/compare/1.38.2...1.39.0) (2026-07-30)
+
+
+### Bug Fixes
+
+* **ai:** reveal the deep research control on input focus ([#26498](https://github.com/lightdash/lightdash/issues/26498)) ([8403055](https://github.com/lightdash/lightdash/commit/8403055160bdda448b429af0337a0e95a6c4681e))
+* validate dbt source environment variables ([#26510](https://github.com/lightdash/lightdash/issues/26510)) ([2e3087d](https://github.com/lightdash/lightdash/commit/2e3087d01e7d7b64abab2e05c5d6d5acb0bc798c))
+
+
+### Features
+
+* add weekdays frequency preset to scheduled deliveries ([#26518](https://github.com/lightdash/lightdash/issues/26518)) ([bddde55](https://github.com/lightdash/lightdash/commit/bddde55b1799cafe152fa2e4a9776fd4e9e259fc)), closes [/linear.app/lightdash/issue/PROD-9350/scheduled-deliveries-add-a-weekdays-only-frequency-preset#agent-session-24e0fe58](https://github.com//linear.app/lightdash/issue/PROD-9350/scheduled-deliveries-add-a-weekdays-only-frequency-preset/issues/agent-session-24e0fe58)
+
 ## [1.38.2](https://github.com/lightdash/lightdash/compare/1.38.1...1.38.2) (2026-07-30)
 
 
