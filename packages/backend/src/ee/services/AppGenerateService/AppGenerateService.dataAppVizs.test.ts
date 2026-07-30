@@ -1,7 +1,10 @@
 // Stub the e2b/ai SDKs so the tests never reach a real sandbox or model client.
 import {
     DATA_APP_VIZ_TEMPLATE,
+    ForbiddenError,
+    getUserAbilityBuilder,
     NotFoundError,
+    OrganizationMemberRole,
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
@@ -91,6 +94,39 @@ function buildService(appModel: unknown) {
     return service;
 }
 
+/**
+ * A service whose ability is the real thing, so the rules under test are the
+ * ones that ship.
+ */
+function buildServiceWithRealAbility(
+    appModel: unknown,
+    role: OrganizationMemberRole,
+    userUuid: string,
+) {
+    const service = buildService(appModel);
+    const { builder } = getUserAbilityBuilder({
+        user: {
+            role,
+            organizationUuid: 'org-1',
+            userUuid,
+            roleUuid: undefined,
+        },
+        projectProfiles: [],
+        permissionsConfig: { pat: { enabled: false, allowedOrgRoles: [] } },
+    });
+    // Drop buildService's allow-everything stub so the real rules apply.
+    delete (service as unknown as { createAuditedAbility?: unknown })
+        .createAuditedAbility;
+    return {
+        service,
+        user: {
+            userUuid,
+            organizationUuid: 'org-1',
+            ability: builder.build(),
+        } as never,
+    };
+}
+
 describe('AppGenerateService data app vizs', () => {
     it('maps a page of rows to by-reference DataAppVizs (no code copied)', async () => {
         const pagination = {
@@ -131,6 +167,69 @@ describe('AppGenerateService data app vizs', () => {
                 },
             ],
             pagination,
+        });
+    });
+
+    describe('who the library is offered to', () => {
+        const listPagination = {
+            page: 1,
+            pageSize: 25,
+            totalPageCount: 1,
+            totalResults: 3,
+        };
+        const rows = [
+            makeDataAppVizRow({
+                app_id: 'mine-unfiled',
+                space_uuid: null,
+                created_by_user_uuid: 'editor-1',
+            }),
+            makeDataAppVizRow({
+                app_id: 'someone-elses-unfiled',
+                space_uuid: null,
+                created_by_user_uuid: 'someone-else',
+            }),
+            makeDataAppVizRow({
+                app_id: 'in-someone-elses-space',
+                space_uuid: 'space-1',
+                created_by_user_uuid: 'someone-else',
+            }),
+        ];
+        const wholeLibrary = rows.map((row) => row.app_id);
+        const listed = async (role: OrganizationMemberRole) => {
+            const appModel = {
+                listDataAppVisualizations: vi.fn().mockResolvedValue({
+                    data: rows,
+                    pagination: listPagination,
+                }),
+            };
+            const { service, user } = buildServiceWithRealAbility(
+                appModel,
+                role,
+                'editor-1',
+            );
+            const result = await service.listDataAppVisualizations(
+                user,
+                'project-1',
+                { page: 1, pageSize: 25 },
+            );
+            return result.data.map((viz) => viz.dataAppVizUuid);
+        };
+
+        // The library follows the explore: whoever can build a chart is offered
+        // every renderer in the project, whether or not they authored it.
+        it.each([
+            OrganizationMemberRole.INTERACTIVE_VIEWER,
+            OrganizationMemberRole.EDITOR,
+            OrganizationMemberRole.DEVELOPER,
+            OrganizationMemberRole.ADMIN,
+        ])('offers the whole project library to a %s', async (role) => {
+            expect(await listed(role)).toEqual(wholeLibrary);
+        });
+
+        it('refuses a viewer, who has no explore to render one in', async () => {
+            await expect(listed(OrganizationMemberRole.VIEWER)).rejects.toThrow(
+                ForbiddenError,
+            );
         });
     });
 

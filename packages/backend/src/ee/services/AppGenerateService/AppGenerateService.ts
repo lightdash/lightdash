@@ -7575,10 +7575,12 @@ export class AppGenerateService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
+        // The library is offered to whoever can build a chart in an explore:
+        // picking a renderer is part of configuring a chart, not app access.
         if (
             auditedAbility.cannot(
-                'view',
-                subject('DataApp', { organizationUuid, projectUuid }),
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError('Insufficient permissions');
