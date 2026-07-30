@@ -28,7 +28,7 @@
     display: none;
 }
 
-.agentSelectorReveal {
+.controlsReveal {
     transition:
         opacity 160ms ease,
         transform 160ms ease;
@@ -41,7 +41,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .agentSelectorReveal {
+    .controlsReveal {
         transition: none;
     }
 }
