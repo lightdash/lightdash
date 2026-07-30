@@ -17,6 +17,7 @@ import {
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
+    isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSqlChartScheduler,
     isUserWithOrg,
@@ -36,6 +37,7 @@ import {
     SchedulerCronUpdate,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerOptions,
     SchedulerResourceType,
     SchedulerRun,
     SchedulerRunLogsResponse,
@@ -559,6 +561,32 @@ export class SchedulerService extends BaseService {
         }
     }
 
+    // App deliveries render the app once and materialise whatever queries it ran,
+    // so each query brings its own limit and GSheets/PDF have no equivalent yet.
+    private static validateAppSchedulerDelivery(scheduler: {
+        format: SchedulerFormat;
+        options: SchedulerOptions;
+    }): void {
+        const allowedFormats = [
+            SchedulerFormat.IMAGE,
+            SchedulerFormat.CSV,
+            SchedulerFormat.XLSX,
+        ];
+        if (!allowedFormats.includes(scheduler.format)) {
+            throw new ParameterError(
+                'Data app schedulers support image, csv and xlsx deliveries',
+            );
+        }
+        if (
+            isSchedulerCsvOptions(scheduler.options) &&
+            scheduler.options.limit !== 'table'
+        ) {
+            throw new ParameterError(
+                "Data app deliveries always use each query's own limit",
+            );
+        }
+    }
+
     private async checkAppScheduledDeliveryAccess(
         user: SessionUser,
         appUuid: string,
@@ -629,11 +657,7 @@ export class SchedulerService extends BaseService {
     ): Promise<SchedulerAndTargets> {
         await this.checkAppScheduledDeliveryAccess(user, appUuid);
 
-        if (newScheduler.format !== SchedulerFormat.IMAGE) {
-            throw new ParameterError(
-                'Data app schedulers only support image deliveries',
-            );
-        }
+        SchedulerService.validateAppSchedulerDelivery(newScheduler);
         if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(
                 'Frequency not allowed, custom input is limited to hourly',
@@ -810,8 +834,13 @@ export class SchedulerService extends BaseService {
         }
 
         const {
+            scheduler: existingScheduler,
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+
+        if (isAppScheduler(existingScheduler)) {
+            SchedulerService.validateAppSchedulerDelivery(updatedScheduler);
+        }
 
         if (updatedScheduler.format === SchedulerFormat.GSHEETS) {
             const auditedAbility = this.createAuditedAbility(user);

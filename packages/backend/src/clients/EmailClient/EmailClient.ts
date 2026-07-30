@@ -14,6 +14,7 @@ import {
     SchedulerFormat,
     SessionUser,
     SmptError,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import fs from 'fs';
@@ -28,6 +29,10 @@ import SMTPPool from 'nodemailer/lib/smtp-pool';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import {
+    buildFailureCountPhrase,
+    toEmailFailureFields,
+} from '../../utils/partialFailureUtils';
 
 const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
 
@@ -860,6 +865,7 @@ export default class EmailClient {
         asAttachment?: boolean,
         format?: SchedulerFormat,
         failures?: PartialFailure[],
+        notices?: DeliveryNotice[],
         sender?: EmailSenderIdentity | null,
     ) {
         const csvUrls = attachments.filter(
@@ -912,8 +918,13 @@ export default class EmailClient {
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
-                failures,
+                failures: failures?.map(toEmailFailureFields),
+                failureCountPhrase: failures
+                    ? buildFailureCountPhrase(failures)
+                    : undefined,
                 hasFailures: failures && failures.length > 0,
+                notices,
+                hasNotices: notices && notices.length > 0,
                 allChartsFailed,
             },
             text: title,
