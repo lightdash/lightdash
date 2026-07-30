@@ -7753,6 +7753,8 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "getKnowledgeDocumentContent",
   "readPinnedThread",
   "submitResearchReport",
+  "submitResearchHypotheses",
+  "submitInvestigationReport",
   "findCharts",
   "findDashboards",
   "generateBarVizConfig",
