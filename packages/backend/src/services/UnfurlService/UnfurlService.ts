@@ -9,6 +9,7 @@ import {
     expandSelectedTabs,
     EXPORT_TAB_PAGE_CLASS,
     ForbiddenError,
+    getChartType,
     getErrorMessage,
     HealthState,
     isDashboardChartTileType,
@@ -496,6 +497,9 @@ export class UnfurlService extends BaseService {
                     title: sqlChart.name,
                     description: sqlChart.description ?? undefined,
                     organizationUuid: sqlChart.organization.organizationUuid,
+                    // Drives the screenshot viewport; big numbers get a
+                    // shorter one so the value isn't lost in whitespace.
+                    chartType: getChartType(sqlChart.chartKind),
                     resourceUuid: sqlChart.savedSqlUuid,
                 };
             case LightdashPage.EXPLORE:

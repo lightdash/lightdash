@@ -1370,6 +1370,10 @@ export type CreateSqlChartVersionEvent = BaseTrack & {
         pieChart?: {
             groupByCount: number;
         };
+        bigNumber?: {
+            hasComparison: boolean;
+            aggregationTypes: string[];
+        };
     };
 };
 
