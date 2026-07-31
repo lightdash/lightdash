@@ -1,79 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { isDeepResearchMcpServerReady } from '../deepResearch/mcpServerReady';
+import { useCallback, useState } from 'react';
 import { type StartDeepResearchArgs } from '../deepResearch/types';
-import { useAgentAiMcpServers } from './useProjectAiMcpServers';
 
 type Args = {
-    projectUuid?: string;
-    agentUuid?: string;
     canStart: boolean;
-    enabled: boolean;
     onStart?: (args: StartDeepResearchArgs) => Promise<void>;
 };
 
-export const useDeepResearchComposer = ({
-    projectUuid,
-    agentUuid,
-    canStart,
-    enabled,
-    onStart,
-}: Args) => {
-    const [selectedMcpServerUuids, setSelectedMcpServerUuids] = useState<
-        string[]
-    >([]);
-    const initializedSelectionKeyRef = useRef<string | null>(null);
+export const useDeepResearchComposer = ({ canStart, onStart }: Args) => {
     const [isStarting, setIsStarting] = useState(false);
-    const mcpServersQuery = useAgentAiMcpServers(projectUuid, agentUuid, {
-        enabled,
-    });
-    const selectionKey =
-        projectUuid && agentUuid ? `${projectUuid}:${agentUuid}` : null;
-
-    useEffect(() => {
-        if (!selectionKey) {
-            initializedSelectionKeyRef.current = null;
-            setSelectedMcpServerUuids([]);
-            return;
-        }
-        if (!mcpServersQuery.data) {
-            return;
-        }
-        if (initializedSelectionKeyRef.current !== selectionKey) {
-            initializedSelectionKeyRef.current = selectionKey;
-            setSelectedMcpServerUuids([]);
-            return;
-        }
-
-        const availableMcpServerUuids = new Set(
-            mcpServersQuery.data
-                .filter(isDeepResearchMcpServerReady)
-                .map((server) => server.uuid),
-        );
-        setSelectedMcpServerUuids((selectedUuids) => {
-            const availableSelectedUuids = selectedUuids.filter((uuid) =>
-                availableMcpServerUuids.has(uuid),
-            );
-            return availableSelectedUuids.length === selectedUuids.length
-                ? selectedUuids
-                : availableSelectedUuids;
-        });
-    }, [selectionKey, mcpServersQuery.data]);
-
-    const hasUnavailableSelection = (mcpServersQuery.data ?? []).some(
-        (server) =>
-            selectedMcpServerUuids.includes(server.uuid) &&
-            !isDeepResearchMcpServerReady(server),
-    );
-    const isPreflightReady =
-        !selectionKey ||
-        (initializedSelectionKeyRef.current === selectionKey &&
-            !mcpServersQuery.isLoading &&
-            !mcpServersQuery.isError &&
-            !hasUnavailableSelection);
 
     const startDeepResearch = useCallback(
         async (args: StartDeepResearchArgs): Promise<boolean> => {
-            if (!onStart || !canStart || !isPreflightReady || isStarting) {
+            if (!onStart || !canStart || isStarting) {
                 return false;
             }
 
@@ -89,21 +27,11 @@ export const useDeepResearchComposer = ({
                 setIsStarting(false);
             }
         },
-        [canStart, isPreflightReady, isStarting, onStart],
+        [canStart, isStarting, onStart],
     );
 
     return {
-        isPreflightReady,
         isStarting,
-        mcpServerError:
-            mcpServersQuery.error?.error.message ??
-            (mcpServersQuery.isError
-                ? 'Could not check MCP connections.'
-                : null),
-        mcpServers: mcpServersQuery.data ?? [],
-        isLoadingMcpServers: mcpServersQuery.isLoading,
-        selectedMcpServerUuids,
-        setSelectedMcpServerUuids,
         startDeepResearch,
     };
 };

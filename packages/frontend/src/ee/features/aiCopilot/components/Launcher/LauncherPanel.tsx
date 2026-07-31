@@ -223,7 +223,7 @@ const NewThreadPanel: FC<{
         useStartDeepResearchForThreadMutation(projectUuid);
 
     const handleStartDeepResearch = useCallback(
-        async ({ question, depth, mcpServerUuids }: StartDeepResearchArgs) => {
+        async ({ question }: StartDeepResearchArgs) => {
             if (!concreteAgent || !isPinnedContextReady) {
                 return;
             }
@@ -236,11 +236,9 @@ const NewThreadPanel: FC<{
             });
             await startDeepResearch.mutateAsync({
                 question,
-                depth,
                 agentUuid: concreteAgent.uuid,
                 threadUuid: thread.uuid,
                 promptUuid: thread.firstMessage.uuid,
-                mcpServerUuids,
             });
         },
         [
@@ -555,8 +553,6 @@ const ExistingThreadPanel: FC<{
 
     const handleStartDeepResearch = async ({
         question,
-        depth,
-        mcpServerUuids,
     }: StartDeepResearchArgs) => {
         const retryableRun = findRetryableDeepResearchRun({
             projectUuid,
@@ -576,8 +572,6 @@ const ExistingThreadPanel: FC<{
             ).uuid;
         await startDeepResearch.mutateAsync({
             question,
-            depth,
-            mcpServerUuids,
             promptUuid,
         });
     };

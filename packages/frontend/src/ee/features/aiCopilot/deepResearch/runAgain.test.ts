@@ -8,16 +8,14 @@ const registration: DeepResearchRunRegistration = {
     agentUuid: 'agent-1',
     threadUuid: 'thread-1',
     promptUuid: 'prompt-1',
-    mcpServerUuids: ['mcp-1', 'mcp-2'],
     userUuid: 'user-1',
     question: 'Why did retention change?',
-    depth: 'deep',
     createdAt: '2026-07-01T00:00:00.000Z',
     state: 'started',
 };
 
 describe('runDeepResearchAgain', () => {
-    it('creates a fresh prompt before starting a separate run with the original configuration', async () => {
+    it('creates a fresh prompt before starting a separate run with the original question', async () => {
         const createPrompt = vi.fn().mockResolvedValue({ uuid: 'prompt-2' });
         const startRun = vi.fn().mockResolvedValue(undefined);
 
@@ -30,8 +28,6 @@ describe('runDeepResearchAgain', () => {
         expect(createPrompt).toHaveBeenCalledWith(registration.question);
         expect(startRun).toHaveBeenCalledWith({
             question: registration.question,
-            depth: registration.depth,
-            mcpServerUuids: registration.mcpServerUuids,
             promptUuid: 'prompt-2',
         });
         expect(createPrompt.mock.invocationCallOrder[0]).toBeLessThan(

@@ -56,10 +56,8 @@ const registration: DeepResearchRunRegistration = {
     agentUuid: 'agent-1',
     threadUuid: 'thread-1',
     promptUuid: 'prompt-1',
-    mcpServerUuids: ['mcp-1'],
     userUuid: 'user-1',
     question: 'Why did enterprise retention fall in Q2?',
-    depth: 'standard',
     createdAt: '2026-07-15T09:00:00.000Z',
     state: 'started',
 };
@@ -70,9 +68,7 @@ const getRun = (status: 'running' | 'completed') => ({
     agentUuid: 'agent-1',
     aiThreadUuid: 'thread-1',
     promptUuid: 'prompt-1',
-    mcpServerUuids: ['mcp-1'],
     entryPoint: 'ask_ai',
-    effort: 'medium',
     prompt: 'Why did enterprise retention fall in Q2?',
     status,
     result:
@@ -91,6 +87,7 @@ const getRun = (status: 'running' | 'completed') => ({
         maxToolCalls: 25,
         maxWarehouseQueries: 25,
         maxResultRows: 10_000,
+        maxHypotheses: 3,
     },
     errorMessage: null,
     cancellationRequestedAt: null,
@@ -143,8 +140,6 @@ describe('useStartDeepResearchMutation', () => {
             await expect(
                 result.current.mutateAsync({
                     question: 'Why did retention fall?',
-                    depth: 'standard',
-                    mcpServerUuids: ['mcp-1'],
                     promptUuid: 'prompt-1',
                 }),
             ).rejects.toEqual(apiError);
@@ -155,11 +150,15 @@ describe('useStartDeepResearchMutation', () => {
             prompt: 'Why did retention fall?',
         });
         expect(showToastApiErrorMock).toHaveBeenCalledOnce();
-        expect(lightdashApiMock).toHaveBeenCalledWith(
-            expect.objectContaining({
-                body: expect.stringContaining('"entryPoint":"ask_ai"'),
-            }),
-        );
+        expect(
+            JSON.parse(lightdashApiMock.mock.calls[0][0].body),
+        ).toStrictEqual({
+            prompt: 'Why did retention fall?',
+            agentUuid: 'agent-1',
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            entryPoint: 'ask_ai',
+        });
         expect(
             JSON.parse(
                 window.localStorage.getItem(

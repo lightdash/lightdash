@@ -32,7 +32,6 @@ import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
-    DEEP_RESEARCH_DEPTH_CONFIG,
     getDeepResearchReportPreview,
     isDeepResearchRunTerminal,
 } from '../../deepResearch/runProgress';
@@ -182,17 +181,6 @@ export const DeepResearchRunCard = ({
                                 >
                                     Deep research
                                 </Text>
-                                <Badge
-                                    size="xs"
-                                    variant="light"
-                                    color="gray"
-                                    tt="none"
-                                >
-                                    {
-                                        DEEP_RESEARCH_DEPTH_CONFIG[run.depth]
-                                            .label
-                                    }
-                                </Badge>
                             </Group>
                             <Text fw={600}>{run.question}</Text>
                         </Stack>

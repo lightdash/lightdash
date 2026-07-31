@@ -165,10 +165,8 @@ const useStartDeepResearchMutationBase = <
                 agentUuid,
                 threadUuid,
                 promptUuid: variables.promptUuid,
-                mcpServerUuids: variables.mcpServerUuids,
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
-                depth: variables.depth,
                 createdAt,
                 state: 'starting',
             });
@@ -192,10 +190,8 @@ const useStartDeepResearchMutationBase = <
                 agentUuid,
                 threadUuid,
                 promptUuid: variables.promptUuid,
-                mcpServerUuids: variables.mcpServerUuids,
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
-                depth: variables.depth,
                 createdAt: context?.createdAt ?? new Date().toISOString(),
                 state: 'started',
             });
