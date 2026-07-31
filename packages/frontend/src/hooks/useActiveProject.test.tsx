@@ -36,6 +36,7 @@ vi.mock('react-router', () => ({
 
 import {
     LAST_PROJECT_KEY,
+    resetPersistingProjectUuidForTests,
     useActiveProjectUuid,
     useUpdateActiveProjectMutation,
 } from './useActiveProject';
@@ -59,6 +60,7 @@ describe('useUpdateActiveProjectMutation', () => {
     beforeEach(() => {
         localStorage.clear();
         routeProjectUuid = undefined;
+        resetPersistingProjectUuidForTests();
     });
 
     it('invalidates only the keys that depend on the active project', async () => {
@@ -81,8 +83,9 @@ describe('useUpdateActiveProjectMutation', () => {
             ['validation'],
             ['project'],
         ]);
-        // A bare invalidateQueries() refetches the whole app
-        expect(invalidatedKeys.every((key) => key !== undefined)).toBe(true);
+        // The regression this guards: invalidateQueries() with no arguments
+        // matches every key, refetching the whole app on a project switch
+        expect(invalidateQueries).not.toHaveBeenCalledWith();
         expect(removeQueries).not.toHaveBeenCalled();
     });
 
@@ -112,6 +115,7 @@ describe('useUpdateActiveProjectMutation', () => {
 describe('useActiveProjectUuid', () => {
     beforeEach(() => {
         localStorage.clear();
+        resetPersistingProjectUuidForTests();
     });
 
     it('persists the active project once when several instances mount together', async () => {

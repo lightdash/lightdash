@@ -49,7 +49,8 @@ export const useActiveProject = () => {
 
 // Project-scoped queries keyed by projectUuid need nothing here — a switch
 // changes their key. These don't: the pointer query reads localStorage, and
-// useValidation serves the active project under an unscoped key.
+// useValidation keys on ['validation', fromSettings] — scoped to where it is
+// read from, but not to the project, so its key survives a switch.
 const ACTIVE_PROJECT_DEPENDENT_KEYS = [
     ['activeProject'],
     ['validation'],
@@ -67,6 +68,12 @@ const clearProjectCache = (queryClient: QueryClient) =>
 // already in flight for. localStorage is global, so this guard has to be too.
 let persistingProjectUuid: string | undefined;
 
+// Module state outlives a test, so a spec that leaves a mutation unsettled
+// would hand its guard to the next one.
+export const resetPersistingProjectUuidForTests = () => {
+    persistingProjectUuid = undefined;
+};
+
 export const useUpdateActiveProjectMutation = () => {
     const queryClient = useQueryClient();
 
@@ -78,8 +85,13 @@ export const useUpdateActiveProjectMutation = () => {
         onSuccess: async () => {
             await clearProjectCache(queryClient);
         },
-        onSettled: () => {
-            persistingProjectUuid = undefined;
+        // Every mutate() builds its own Mutation but they all share the one
+        // guard, so an earlier settle must not release a later project's
+        // persist: clear only the value this settle was for.
+        onSettled: (_data, _error, projectUuid) => {
+            if (persistingProjectUuid === projectUuid) {
+                persistingProjectUuid = undefined;
+            }
         },
     });
 };
