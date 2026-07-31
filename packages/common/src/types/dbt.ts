@@ -187,7 +187,9 @@ export type DbtModelLightdashConfig = ExploreConfig &
         };
         explores?: Record<
             string,
-            ExploreConfig & SharedDbtModelLightdashConfig
+            ExploreConfig &
+                SharedDbtModelLightdashConfig &
+                DbtLightdashFieldTags
         >;
         ai_hint?: string | string[];
         parameters?: LightdashProjectConfig['parameters'];

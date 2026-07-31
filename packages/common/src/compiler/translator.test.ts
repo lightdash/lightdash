@@ -1473,6 +1473,52 @@ describe('explore-scoped additional dimensions', () => {
         expect(baseTable.dimensions).toHaveProperty('amount');
     });
 
+    it('should override model tags for additional explores', async () => {
+        const modelWithExploreTags: DbtModelNode = {
+            ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
+            config: {
+                ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS.config,
+                tags: ['model_tag'],
+            },
+            meta: {
+                explores: {
+                    tagged_orders: {
+                        tags: 'additional_explore_tag',
+                    },
+                    inherited_orders: {},
+                    untagged_orders: {
+                        tags: [],
+                    },
+                },
+            },
+        };
+
+        const explores = await convertExplores(
+            [modelWithExploreTags],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(
+            explores.find((explore) => explore.name === 'test_model')?.tags,
+        ).toEqual(['model_tag']);
+        expect(
+            explores.find((explore) => explore.name === 'tagged_orders')?.tags,
+        ).toEqual(['additional_explore_tag']);
+        expect(
+            explores.find((explore) => explore.name === 'inherited_orders')
+                ?.tags,
+        ).toEqual(['model_tag']);
+        expect(
+            explores.find((explore) => explore.name === 'untagged_orders')
+                ?.tags,
+        ).toEqual([]);
+    });
+
     const MODEL_WITH_DATE_EXPLORE_DIMENSION: DbtModelNode = {
         ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
         meta: {
