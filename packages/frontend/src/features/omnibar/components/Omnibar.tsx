@@ -106,9 +106,11 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         openOmnibar();
     };
 
-    useHotkeys([
-        ['mod + k', handleOmnibarOpenHotkey, { preventDefault: true }],
-    ]);
+    useHotkeys(
+        [['mod + k', handleOmnibarOpenHotkey, { preventDefault: true }]],
+        [],
+        true,
+    );
 
     const handleOmnibarClose = () => {
         track({
@@ -231,6 +233,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 <Stack gap={0}>
                     <TextInput
                         size="xl"
+                        data-autofocus
                         leftSection={
                             isFetching ? (
                                 <Loader size="xs" color="ldGray.5" />
