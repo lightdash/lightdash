@@ -35,3 +35,16 @@ export type FocusedItemIndex = {
     groupIndex: number;
     itemIndex: number;
 };
+
+/** A labelled section of omnibar rows — search-result type groups and the
+ * recently-viewed section share this shape so keyboard navigation, hover
+ * focus and the preview panel behave identically for both. Collapsed groups
+ * keep `items` empty (so keyboard nav skips them) while `totalCount` still
+ * reports how many results the section holds. */
+export type OmnibarGroup = {
+    key: string;
+    label: string;
+    items: SearchItem[];
+    totalCount: number;
+    collapsed: boolean;
+};

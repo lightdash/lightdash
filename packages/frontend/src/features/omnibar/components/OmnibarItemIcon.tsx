@@ -12,13 +12,16 @@ import { getOmnibarItemColor, getOmnibarItemIcon } from './utils';
 
 type Props = {
     item: SearchItem;
+    boxSize?: number;
 };
 
-export const OmnibarItemIcon: FC<Props> = ({ item }) => {
+export const OmnibarItemIcon: FC<Props> = ({ item, boxSize }) => {
     return (
         <IconBox
             color={getOmnibarItemColor(item.type)}
             icon={getOmnibarItemIcon(item)}
+            boxSize={boxSize}
+            size={boxSize !== undefined && boxSize < 32 ? 'md' : 'lg'}
         />
     );
 };

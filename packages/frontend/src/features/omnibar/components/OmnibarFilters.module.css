@@ -1,0 +1,53 @@
+/* The subtle-variant colors come from the theme's Button vars; these rules
+   only add the states the variant doesn't cover. */
+.filterButton :global(.mantine-8-Button-section)[data-position='left'] {
+    margin-inline-end: 6px;
+}
+
+.filterButton :global(.mantine-8-Button-section)[data-position='right'] {
+    margin-inline-start: 4px;
+}
+
+.filterButton[data-expanded],
+.filterButton.filterButtonActive {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-ldDark-5)
+    );
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-ldGray-9)
+    );
+}
+
+.clearSection {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--mantine-radius-sm);
+    cursor: pointer;
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-ldGray-7)
+    );
+}
+
+.clearSection:hover {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-ldGray-9)
+    );
+}
+
+/* Match Button's size="compact-xs" height exactly so expanding "Created by"
+   into this input never shifts the filter row. */
+.createdByInput {
+    min-height: var(--button-height-compact-xs);
+    height: var(--button-height-compact-xs);
+}
+
+/* Belt-and-braces: pin the row height so swapping the button for the taller
+   Select wrapper can't reflow the modal, whatever Mantine renders inside. */
+.filtersRow {
+    height: 38px;
+}

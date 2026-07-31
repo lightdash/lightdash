@@ -15,6 +15,10 @@ type Props = {
     cssVariablesSelector?: string;
     getRootElement?: () => HTMLElement | undefined;
     env?: 'default' | 'test';
+    /** Skip emitting the CSS-variables stylesheet. For nested providers that
+     * only need to fix the JS theme context (e.g. escaping the navbar's
+     * forced-dark scheme) while the page-level variables stay authoritative. */
+    withCssVariables?: boolean;
 };
 
 const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
@@ -24,6 +28,7 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
     cssVariablesSelector,
     getRootElement,
     env,
+    withCssVariables = true,
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const effectiveColorScheme = forceColorScheme || colorScheme;
@@ -46,6 +51,7 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
             getRootElement={getRootElement}
             classNamesPrefix="mantine-8"
             env={env}
+            withCssVariables={withCssVariables}
         >
             <CodeHighlightProvider>{children}</CodeHighlightProvider>
         </MantineProviderBase>

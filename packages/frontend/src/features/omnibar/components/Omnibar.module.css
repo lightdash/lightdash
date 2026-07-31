@@ -1,17 +1,106 @@
-.modalBody {
-    padding: 0;
+/* Fixed, viewport-aware height so the modal never jumps between states and
+   the footer always stays visible — the results area flexes to the rest. */
+.modalContent {
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-4));
+    overflow: hidden;
+    height: min(560px, calc(100dvh - 160px));
+    display: flex;
+    flex-direction: column;
 }
 
-.inputWrapper {
-    position: sticky;
-    z-index: 1;
-    top: 0;
+.modalBody {
+    /* Mantine's Modal-body padding is var()-driven — zero it at the source
+       rather than fighting rule order. */
+    --mb-padding: 0;
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-top: 0 !important;
+}
+
+.stack {
+    flex: 1;
+    min-height: 0;
+}
+
+.inputRow {
+    height: 52px;
+    padding: 0 var(--mantine-spacing-md);
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-4));
+    flex-shrink: 0;
 }
 
 .input {
-    border-top: 0;
-    border-right: 0;
-    border-left: 0;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+    border: 0;
+    background: transparent;
+    font-size: var(--mantine-font-size-lg);
+}
+
+.resultsArea {
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-4));
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+
+    > * {
+        flex: 1;
+        min-height: 0;
+    }
+}
+
+.resultsRow {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.listCol {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+}
+
+.listCol,
+.resultsArea {
+    scrollbar-width: thin;
+    scrollbar-color: light-dark(
+            var(--mantine-color-ldGray-3),
+            var(--mantine-color-ldDark-6)
+        )
+        transparent;
+}
+
+.listCol::-webkit-scrollbar,
+.resultsArea::-webkit-scrollbar {
+    width: 6px;
+}
+
+.listCol::-webkit-scrollbar-thumb,
+.resultsArea::-webkit-scrollbar-thumb {
+    background: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-ldDark-6)
+    );
+    border-radius: 999px;
+}
+
+.listCol::-webkit-scrollbar-track,
+.resultsArea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.footer {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-4));
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-2)
+    );
 }

@@ -1,5 +1,5 @@
 import { type AiAgentAdminMemoryItem } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -104,11 +104,17 @@ describe('AiAgentAdminMemoriesTable', () => {
         await user.click(screen.getByRole('button', { name: /Scope/ }));
         await user.click(await screen.findByText('Project-wide'));
 
-        expect(mockUseInfiniteAiAgentAdminMemories).toHaveBeenLastCalledWith(
-            expect.objectContaining({
-                filters: expect.objectContaining({ scopes: ['project'] }),
-            }),
-            expect.anything(),
+        // The facet re-renders asynchronously, so the hook's latest call can
+        // still be the initial one at the moment the click resolves.
+        await waitFor(() =>
+            expect(
+                mockUseInfiniteAiAgentAdminMemories,
+            ).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    filters: expect.objectContaining({ scopes: ['project'] }),
+                }),
+                expect.anything(),
+            ),
         );
     });
 });
