@@ -1,3 +1,10 @@
+## [1.57.1](https://github.com/lightdash/lightdash/compare/1.57.0...1.57.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **onboarding:** give the demo playground its own Aurora agent ([#26652](https://github.com/lightdash/lightdash/issues/26652)) ([c7b89ab](https://github.com/lightdash/lightdash/commit/c7b89ab94c9924bcde8de0239ce915517e7015a4))
+
 # [1.57.0](https://github.com/lightdash/lightdash/compare/1.56.1...1.57.0) (2026-07-31)
 
 
