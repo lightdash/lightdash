@@ -1,4 +1,4 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, type HomepageMediaCard } from '@lightdash/common';
 import { Box, Group, Text } from '@mantine-8/core';
 import { useMediaQuery, useReducedMotion } from '@mantine-8/hooks';
 import {
@@ -16,6 +16,7 @@ import {
 import {
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
     type CSSProperties,
@@ -27,6 +28,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { faviconUrl } from './blocks/resourceUrls';
 import classes from './HomepageStars.module.css';
+import { useHomepageMediaCards } from './hooks/useHomepageMediaCards';
 
 const randomBetween = (min: number, max: number) =>
     min + Math.random() * (max - min);
@@ -218,7 +220,7 @@ type MediaCard = {
     thumbnailUrl: string | null;
 };
 
-const MEDIA_CARDS: MediaCard[] = [
+const FALLBACK_MEDIA_CARDS: MediaCard[] = [
     {
         key: 'data-apps-video',
         title: 'What can you build with Lightdash Data Apps? 3 real examples',
@@ -400,7 +402,7 @@ type StarDef = {
     render: (seed: StarSeed) => ReactElement;
 };
 
-const STAR_DEFS: StarDef[] = [
+const DECORATION_STAR_DEFS: StarDef[] = [
     ...MOCK_CHARTS.map(
         (chart): StarDef => ({
             key: `chart-${chart.name}`,
@@ -457,16 +459,21 @@ const STAR_DEFS: StarDef[] = [
             render: () => <StaticChips types={types} />,
         }),
     ),
-    ...MEDIA_CARDS.map(
-        (card): StarDef => ({
-            key: `media-${card.key}`,
-            interactive: true,
-            render: () => <MediaStarCard card={card} />,
-        }),
-    ),
 ];
 
-const STAR_DEF_MAP = new Map(STAR_DEFS.map((def) => [def.key, def]));
+const mediaStarDef = (card: MediaCard): StarDef => ({
+    key: `media-${card.key}`,
+    interactive: true,
+    render: () => <MediaStarCard card={card} />,
+});
+
+const toMediaCard = (card: HomepageMediaCard): MediaCard => ({
+    key: card.cardKey,
+    title: card.title,
+    subtitle: card.subtitle,
+    href: card.url,
+    thumbnailUrl: card.thumbnailUrl,
+});
 
 // A star animates only while entering and leaving. In between it sits in a
 // static transform so the browser paints it without a compositor layer —
@@ -546,6 +553,7 @@ const appendStar = (
     draws: StarDraws,
     forcedSide: 'left' | 'right' | null,
     tier: SkyTier,
+    defs: StarDef[],
 ): Star[] => {
     // Stars fading out still hold their slot and def, but they no longer
     // count against the cap — otherwise a replacement can't take off while
@@ -564,7 +572,7 @@ const appendStar = (
             ),
     );
     const busyDefs = new Set(current.map((s) => s.defKey));
-    const freeDefs = STAR_DEFS.filter((def) => !busyDefs.has(def.key));
+    const freeDefs = defs.filter((def) => !busyDefs.has(def.key));
     if (freeSlots.length === 0 || freeDefs.length === 0) return current;
     const sideSlots = forcedSide
         ? freeSlots.filter((slot) => slot.side === forcedSide)
@@ -607,6 +615,19 @@ const HomepageStars: FC = () => {
     const tier = wideFits ? WIDE_TIER : compactFits ? COMPACT_TIER : null;
     const disabled = reducedMotion || tier === null;
 
+    const mediaCardsQuery = useHomepageMediaCards();
+    const cardsSettled = mediaCardsQuery.isSuccess || mediaCardsQuery.isError;
+    const starDefs = useMemo(() => {
+        const mediaCards = mediaCardsQuery.isSuccess
+            ? mediaCardsQuery.data.map(toMediaCard)
+            : FALLBACK_MEDIA_CARDS;
+        return [...DECORATION_STAR_DEFS, ...mediaCards.map(mediaStarDef)];
+    }, [mediaCardsQuery.isSuccess, mediaCardsQuery.data]);
+    const starDefMap = useMemo(
+        () => new Map(starDefs.map((def) => [def.key, def])),
+        [starDefs],
+    );
+
     const [stars, setStars] = useState<Star[]>([]);
     const nextId = useRef(0);
     const starTimers = useRef(new Map<number, number>());
@@ -645,8 +666,11 @@ const HomepageStars: FC = () => {
             id: number,
             draws: StarDraws,
             side: 'left' | 'right',
-        ) => (tier ? appendStar(current, id, draws, side, tier) : current),
-        [tier],
+        ) =>
+            tier
+                ? appendStar(current, id, draws, side, tier, starDefs)
+                : current,
+        [tier, starDefs],
     );
 
     const removeStar = useCallback(
@@ -733,7 +757,7 @@ const HomepageStars: FC = () => {
         // Also resets when the tier changes, so no star keeps a width and
         // gutter drawn for a viewport that no longer applies.
         setStars((current) => (current.length > 0 ? [] : current));
-        if (disabled || !tier) return undefined;
+        if (disabled || !tier || !cardsSettled) return undefined;
 
         let cancelled = false;
         let spawnTimer: number;
@@ -756,6 +780,7 @@ const HomepageStars: FC = () => {
                         firstDraws,
                         'left',
                         tier,
+                        starDefs,
                     );
                     return appendStar(
                         withLeft,
@@ -763,6 +788,7 @@ const HomepageStars: FC = () => {
                         secondDraws,
                         'right',
                         tier,
+                        starDefs,
                     );
                 }
                 return appendStar(
@@ -771,6 +797,7 @@ const HomepageStars: FC = () => {
                     firstDraws,
                     emptySideOf(current),
                     tier,
+                    starDefs,
                 );
             });
             spawnTimer = window.setTimeout(spawn, randomBetween(450, 1400));
@@ -783,14 +810,14 @@ const HomepageStars: FC = () => {
             pendingTimers.forEach((timer) => window.clearTimeout(timer));
             pendingTimers.clear();
         };
-    }, [tier, disabled]);
+    }, [tier, disabled, cardsSettled, starDefs]);
 
     if (disabled) return null;
 
     return (
         <Box className={classes.sky} data-testid="homepage-stars-sky">
             {stars.map((star) => {
-                const def = STAR_DEF_MAP.get(star.defKey);
+                const def = starDefMap.get(star.defKey);
                 return (
                     <Box
                         key={star.id}

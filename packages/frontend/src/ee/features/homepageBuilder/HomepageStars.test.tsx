@@ -1,13 +1,32 @@
+import { type HomepageMediaCard } from '@lightdash/common';
 import { MantineProvider } from '@mantine-8/core';
 import { act, fireEvent, render } from '@testing-library/react';
 import { EventName } from '../../../types/Events';
 import HomepageStars from './HomepageStars';
 
-const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+const { track, useHomepageMediaCards } = vi.hoisted(() => ({
+    track: vi.fn(),
+    useHomepageMediaCards: vi.fn(),
+}));
 
 vi.mock('../../../providers/Tracking/useTracking', () => ({
     default: () => ({ track, data: { rudder: true } }),
 }));
+
+vi.mock('./hooks/useHomepageMediaCards', () => ({ useHomepageMediaCards }));
+
+type MediaCardsState =
+    | { status: 'loading' }
+    | { status: 'error' }
+    | { status: 'success'; cards: HomepageMediaCard[] };
+
+const mockMediaCards = (state: MediaCardsState) => {
+    useHomepageMediaCards.mockReturnValue({
+        isSuccess: state.status === 'success',
+        isError: state.status === 'error',
+        data: state.status === 'success' ? state.cards : undefined,
+    });
+};
 
 // Only tracking is mocked: the cards are purpose-built presentational markup,
 // so the focusability assertions below run against the real DOM.
@@ -49,6 +68,14 @@ const SKY_SELECTOR = '[data-testid="homepage-stars-sky"]';
 
 const VIDEO_HREF = 'https://www.youtube.com/watch?v=BwvgHQyhI1o';
 
+const MANAGED_CARD: HomepageMediaCard = {
+    cardKey: 'managed-webinar',
+    title: 'Managed webinar',
+    subtitle: 'Curated from the console',
+    url: 'https://www.lightdash.com/webinar',
+    thumbnailUrl: null,
+};
+
 // Every draw returns the top of its range, so the last free def is always the
 // one picked — and the media cards sit last in the catalogue.
 const forceMediaCards = () => vi.spyOn(Math, 'random').mockReturnValue(0.99);
@@ -58,6 +85,7 @@ describe('HomepageStars', () => {
         vi.useFakeTimers();
         stubMatchMedia();
         track.mockClear();
+        mockMediaCards({ status: 'error' });
     });
 
     afterEach(() => {
@@ -223,7 +251,7 @@ describe('HomepageStars', () => {
         });
     });
 
-    it('shows media cards in the rotation as new-tab links', () => {
+    it('falls back to the built-in media cards when the managed list fails', () => {
         forceMediaCards();
         const { container } = renderStars();
         const sky = container.querySelector(SKY_SELECTOR)!;
@@ -265,6 +293,85 @@ describe('HomepageStars', () => {
             name: EventName.HOMEPAGE_STARS_MEDIA_CARD_CLICKED,
             properties: { cardKey: 'data-apps-video', href: VIDEO_HREF },
         });
+    });
+
+    it('shows the managed cards instead of the fallback ones', () => {
+        mockMediaCards({ status: 'success', cards: [MANAGED_CARD] });
+        forceMediaCards();
+        const { container } = renderStars();
+        const sky = container.querySelector(SKY_SELECTOR)!;
+
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        const link = sky.querySelector(`a[href="${MANAGED_CARD.url}"]`);
+        expect(link).not.toBeNull();
+        expect(link!.textContent).toContain(MANAGED_CARD.title);
+        expect(sky.querySelector(`a[href="${VIDEO_HREF}"]`)).toBeNull();
+
+        fireEvent.click(link!);
+        expect(track).toHaveBeenCalledWith({
+            name: EventName.HOMEPAGE_STARS_MEDIA_CARD_CLICKED,
+            properties: {
+                cardKey: MANAGED_CARD.cardKey,
+                href: MANAGED_CARD.url,
+            },
+        });
+    });
+
+    it('restarts the sky safely when the card list arrives late', () => {
+        forceMediaCards();
+        const { container, rerender } = renderStars();
+        const sky = container.querySelector(SKY_SELECTOR)!;
+
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        expect(sky.querySelector(`a[href="${VIDEO_HREF}"]`)).not.toBeNull();
+
+        mockMediaCards({ status: 'success', cards: [MANAGED_CARD] });
+        act(() => {
+            rerender(
+                <MantineProvider>
+                    <HomepageStars />
+                </MantineProvider>,
+            );
+        });
+        expect(sky.childElementCount).toBe(0);
+
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        expect(
+            sky.querySelector(`a[href="${MANAGED_CARD.url}"]`),
+        ).not.toBeNull();
+    });
+
+    it('shows no media stars when the managed list is empty', () => {
+        mockMediaCards({ status: 'success', cards: [] });
+        forceMediaCards();
+        const { container } = renderStars();
+        const sky = container.querySelector(SKY_SELECTOR)!;
+
+        act(() => {
+            vi.advanceTimersByTime(30000);
+        });
+        expect(sky.childElementCount).toBeGreaterThan(0);
+        expect(sky.querySelectorAll('a')).toHaveLength(0);
+        expect(sky.querySelectorAll('[data-star-def^="media-"]')).toHaveLength(
+            0,
+        );
+    });
+
+    it('spawns no stars until the managed card list settles', () => {
+        mockMediaCards({ status: 'loading' });
+        const { container } = renderStars();
+        const sky = container.querySelector(SKY_SELECTOR)!;
+
+        act(() => {
+            vi.advanceTimersByTime(30000);
+        });
+        expect(sky.childElementCount).toBe(0);
     });
 
     it('keeps one timer per star no matter how long the page stays open', () => {
