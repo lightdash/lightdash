@@ -1,3 +1,11 @@
+## [1.56.1](https://github.com/lightdash/lightdash/compare/1.56.0...1.56.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **apps:** polish visualization composer ([#26646](https://github.com/lightdash/lightdash/issues/26646)) ([9b77f41](https://github.com/lightdash/lightdash/commit/9b77f413dcad723763b5bf3fa57a536692a08ce7))
+* bind Postgres catalog filter values ([#26516](https://github.com/lightdash/lightdash/issues/26516)) ([d7192f5](https://github.com/lightdash/lightdash/commit/d7192f52a7c4688efbe5cc8f5aa1057677dcaf59))
+
 # [1.56.0](https://github.com/lightdash/lightdash/compare/1.55.0...1.56.0) (2026-07-31)
 
 
