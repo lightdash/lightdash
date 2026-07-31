@@ -1,3 +1,10 @@
+## [1.51.1](https://github.com/lightdash/lightdash/compare/1.51.0...1.51.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* subtotal cell font size should inherit table font size ([#26616](https://github.com/lightdash/lightdash/issues/26616)) ([ab6f9e1](https://github.com/lightdash/lightdash/commit/ab6f9e1d08d58cb341c9ad18d96097ae0ce08a2e))
+
 # [1.51.0](https://github.com/lightdash/lightdash/compare/1.50.1...1.51.0) (2026-07-31)
 
 
