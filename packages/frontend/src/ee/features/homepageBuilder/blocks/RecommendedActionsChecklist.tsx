@@ -51,8 +51,8 @@ const ACTION_DEFINITIONS: Record<
     },
     'connect-source-control': {
         icon: IconGitBranch,
-        title: 'Connect source control',
-        subtitle: 'Sync dbt models & version control',
+        title: 'Set up your dbt',
+        subtitle: 'Deploy with the CLI or connect your repo',
     },
     'connect-slack': {
         icon: IconBrandSlack,
