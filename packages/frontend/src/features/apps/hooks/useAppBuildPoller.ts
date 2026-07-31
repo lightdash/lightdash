@@ -3,7 +3,7 @@ import {
     type ApiAppVersionSummary,
     type ApiGetAppResponse,
 } from '@lightdash/common';
-import { useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
 type GetAppResult = ApiGetAppResponse['results'];
@@ -55,6 +55,18 @@ export const mergePolledVersions = (
         ...polled,
         ...existing.filter((v) => !polledNumbers.has(v.version)),
     ].sort((a, b) => b.version - a.version);
+};
+
+export const invalidateDataAppVisualizationOnReady = (
+    queryClient: QueryClient,
+    projectUuid: string,
+    appUuid: string,
+    version: ApiAppVersionSummary,
+): void => {
+    if (version.status !== 'ready') return;
+    void queryClient.invalidateQueries({
+        queryKey: ['data-app-viz', projectUuid, appUuid],
+    });
 };
 
 /**
@@ -131,6 +143,12 @@ export function useAppBuildPoller(
                         APP_VERSION_TERMINAL_STATUSES as readonly string[]
                     ).includes(latest.status)
                 ) {
+                    invalidateDataAppVisualizationOnReady(
+                        queryClient,
+                        projectUuid,
+                        appUuid,
+                        latest,
+                    );
                     onDoneRef.current(latest);
                 }
             }

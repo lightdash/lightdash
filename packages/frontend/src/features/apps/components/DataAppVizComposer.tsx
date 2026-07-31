@@ -1,6 +1,16 @@
-import { ActionIcon, Tooltip } from '@mantine-8/core';
-import { IconArrowUp, IconPaperclip } from '@tabler/icons-react';
-import { useRef, useState, type FC } from 'react';
+import { ActionIcon, Box, Tooltip } from '@mantine-8/core';
+import {
+    IconArrowUp,
+    IconPaperclip,
+    IconPlayerStop,
+} from '@tabler/icons-react';
+import {
+    useRef,
+    useState,
+    type ClipboardEventHandler,
+    type DragEventHandler,
+    type FC,
+} from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ComposerSubmitButton } from '../../../components/common/PromptComposer/ComposerSubmitButton';
 import PromptComposer, {
@@ -16,6 +26,7 @@ type Props = {
     placeholder: string;
     /** True while a build is running: keep typing, block sending. */
     isBuilding: boolean;
+    onCancel: (() => void) | null;
     onSubmit: (request: VizBuildRequest) => void;
 };
 
@@ -32,6 +43,7 @@ const DataAppVizComposerContent: FC<Props> = ({
     appUuid,
     placeholder,
     isBuilding,
+    onCancel,
     onSubmit,
 }) => {
     const attachments = useVizComposerAttachments({ projectUuid, appUuid });
@@ -49,62 +61,93 @@ const DataAppVizComposerContent: FC<Props> = ({
         attachments.clear();
     };
 
+    const handlePaste: ClipboardEventHandler = (event) => {
+        if (isBuilding || event.clipboardData.files.length === 0) return;
+        event.preventDefault();
+        attachments.add(Array.from(event.clipboardData.files));
+    };
+
+    const handleDragOver: DragEventHandler = (event) => {
+        event.preventDefault();
+    };
+
+    const handleDrop: DragEventHandler = (event) => {
+        event.preventDefault();
+        if (isBuilding) return;
+        attachments.add(Array.from(event.dataTransfer.files));
+    };
+
     return (
-        <PromptComposer
-            ref={composerRef}
-            size="md"
-            placeholder={placeholder}
-            submitDisabled={!canSend}
-            onEmptyChange={setIsEmpty}
-            onSubmit={handleSubmit}
-            attachments={
-                <SelectedAttachmentSection
-                    attachments={attachments.attachments.map((a) => ({
-                        id: a.key,
-                        previewUrl: a.previewUrl,
-                        filename: a.filename,
-                    }))}
-                    onRemove={attachments.remove}
-                    disabled={isBuilding}
-                />
-            }
-            toolbarLeft={
-                <>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        hidden
-                        onChange={(e) => {
-                            attachments.add(Array.from(e.target.files ?? []));
-                            e.target.value = '';
-                        }}
+        <Box onDragOver={handleDragOver} onDrop={handleDrop}>
+            <PromptComposer
+                ref={composerRef}
+                size="md"
+                placeholder={placeholder}
+                submitDisabled={!canSend}
+                onEmptyChange={setIsEmpty}
+                onSubmit={handleSubmit}
+                onPaste={handlePaste}
+                attachments={
+                    <SelectedAttachmentSection
+                        attachments={attachments.attachments.map((a) => ({
+                            id: a.key,
+                            previewUrl: a.previewUrl,
+                            filename: a.filename,
+                        }))}
+                        onRemove={attachments.remove}
+                        disabled={isBuilding}
                     />
-                    <Tooltip withArrow label="Attach an image or file">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
+                }
+                toolbarLeft={
+                    <>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            hidden
+                            onChange={(e) => {
+                                attachments.add(
+                                    Array.from(e.target.files ?? []),
+                                );
+                                e.target.value = '';
+                            }}
+                        />
+                        <Tooltip withArrow label="Attach an image or file">
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                disabled={isBuilding}
+                                aria-label="Attach"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <MantineIcon icon={IconPaperclip} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </>
+                }
+                toolbarRight={
+                    isBuilding && onCancel ? (
+                        <ComposerSubmitButton
+                            icon={IconPlayerStop}
+                            label="Stop generation"
                             size="sm"
-                            disabled={isBuilding}
-                            aria-label="Attach"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <MantineIcon icon={IconPaperclip} />
-                        </ActionIcon>
-                    </Tooltip>
-                </>
-            }
-            toolbarRight={
-                <ComposerSubmitButton
-                    icon={IconArrowUp}
-                    label="Send"
-                    size="sm"
-                    disabled={isEmpty || !canSend}
-                    loading={isBuilding}
-                    onClick={handleSubmit}
-                />
-            }
-        />
+                            destructive
+                            onClick={onCancel}
+                        />
+                    ) : (
+                        <ComposerSubmitButton
+                            icon={IconArrowUp}
+                            label="Send"
+                            size="sm"
+                            disabled={isEmpty || !canSend}
+                            loading={isBuilding}
+                            onClick={handleSubmit}
+                        />
+                    )
+                }
+            />
+        </Box>
     );
 };
 

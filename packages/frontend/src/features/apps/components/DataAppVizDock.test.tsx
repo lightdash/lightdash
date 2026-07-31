@@ -14,6 +14,7 @@ import {
 } from '../testing/appVersionHistory';
 import { buildStub } from '../testing/dataAppVizBuildStub';
 import DataAppVizDock from './DataAppVizDock';
+import classes from './DataAppVizDock.module.css';
 
 vi.mock('../hooks/useGetApp', () => ({ useGetApp: vi.fn() }));
 vi.mock('../hooks/useAppBuildPoller', () => ({ useAppBuildPoller: vi.fn() }));
@@ -68,6 +69,20 @@ describe('DataAppVizDock', () => {
 
         expect(screen.getByText(/Built by Katie Jones/)).toBeInTheDocument();
         expect(screen.getByText('v2')).toBeInTheDocument();
+    });
+
+    it('lets provenance truncate before the version chrome shrinks', () => {
+        setVersions([version(), version({ version: 12 })]);
+        render();
+
+        const provenance = screen.getByText(/Built by Katie Jones/);
+        const trigger = provenance.closest('button');
+
+        expect(trigger?.querySelector('svg')).toHaveClass(classes.fixedChrome);
+        expect(screen.getByText('v12').parentElement).toHaveClass(
+            classes.fixedChrome,
+        );
+        expect(provenance).toHaveClass(classes.provenance);
     });
 
     it('does not claim origin when earlier versions are still unloaded', () => {

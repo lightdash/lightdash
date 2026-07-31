@@ -72,6 +72,31 @@ describe('useVizComposerAttachments', () => {
         expect(showToastError).toHaveBeenCalledTimes(1);
     });
 
+    it('refuses binary files the generator cannot attach', async () => {
+        const uploadFile = vi.fn();
+        const { result } = setup(uploadFile);
+        const binary = new File(
+            [new Uint8Array([0x89, 0x00, 0xff])],
+            'archive.bin',
+            { type: 'application/octet-stream' },
+        );
+        vi.spyOn(binary, 'slice').mockReturnValue({
+            arrayBuffer: async () => Uint8Array.from([0x89, 0x00, 0xff]).buffer,
+        } as Blob);
+
+        act(() => result.current.add([binary]));
+
+        expect(result.current.attachments).toEqual([]);
+        expect(uploadFile).not.toHaveBeenCalled();
+        await waitFor(() =>
+            expect(showToastError).toHaveBeenCalledWith({
+                title: 'Unsupported file type',
+                subtitle:
+                    'archive.bin: attach images (PNG, JPEG, GIF, WEBP), PDFs, or text-based files (JSON, CSV, Markdown, TWB, code, …).',
+            }),
+        );
+    });
+
     it('takes what fits and warns once for a batch over the cap', () => {
         const uploadFile = vi.fn().mockResolvedValue({ fileId: 'f' });
         const { result } = setup(uploadFile);
@@ -87,6 +112,35 @@ describe('useVizComposerAttachments', () => {
         );
         // One warning for the batch, not one per rejected file.
         expect(showToastWarning).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps an inspected file from racing past the attachment cap', async () => {
+        const uploadFile = vi.fn().mockResolvedValue({ fileId: 'f' });
+        const { result } = setup(uploadFile);
+        let resolveSample: (value: ArrayBuffer) => void = () => undefined;
+        const sample = new Promise<ArrayBuffer>((resolve) => {
+            resolveSample = resolve;
+        });
+        const textFile = file('notes.txt', 10, 'text/plain');
+        vi.spyOn(textFile, 'slice').mockReturnValue({
+            arrayBuffer: () => sample,
+        } as Blob);
+
+        act(() => result.current.add([textFile]));
+        act(() =>
+            result.current.add(
+                Array.from({ length: MAX_APP_FILES_PER_VERSION }, (_, i) =>
+                    file(`image-${i}.png`),
+                ),
+            ),
+        );
+        resolveSample(Uint8Array.from([0x78]).buffer);
+
+        await waitFor(() => expect(showToastWarning).toHaveBeenCalledTimes(1));
+        expect(result.current.attachments).toHaveLength(
+            MAX_APP_FILES_PER_VERSION,
+        );
+        expect(uploadFile).toHaveBeenCalledTimes(MAX_APP_FILES_PER_VERSION);
     });
 
     it('drops an attachment whose upload failed', async () => {

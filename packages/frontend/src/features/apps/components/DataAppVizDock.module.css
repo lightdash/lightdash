@@ -48,6 +48,7 @@
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-xs);
+    min-width: 0;
     min-height: 22px;
 }
 
@@ -91,6 +92,15 @@
     background: none;
     text-align: left;
     cursor: pointer;
+}
+
+.fixedChrome {
+    flex: 0 0 auto;
+}
+
+.provenance {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .toggle {

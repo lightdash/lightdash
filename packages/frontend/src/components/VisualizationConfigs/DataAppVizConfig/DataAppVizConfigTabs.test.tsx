@@ -186,6 +186,7 @@ describe('DataAppVizConfigTabs', () => {
     const mockContext = (
         itemsMap: ItemsMap,
         dataAppVizUuid: string = 'data-app-viz-uuid',
+        optionValues: Record<string, boolean | number | string> = {},
     ) =>
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap,
@@ -194,7 +195,7 @@ describe('DataAppVizConfigTabs', () => {
                 chartConfig: {
                     dataAppVizUuid,
                     fieldMapping: {},
-                    optionValues: {},
+                    optionValues,
                     setDataAppVizUuid,
                     setField: vi.fn(),
                     setOption,
@@ -277,6 +278,40 @@ describe('DataAppVizConfigTabs', () => {
         await user.click(screen.getByRole('tab', { name: 'Display' }));
 
         expect(screen.getByLabelText('Bar width')).toHaveValue('8');
+    });
+
+    it('replaces option controls when the visualization contract changes', async () => {
+        const user = userEvent.setup();
+        mockContext(queryColumns, 'data-app-viz-uuid', {
+            showLegend: false,
+        });
+        mockSchema([declaredOptions[0]]);
+        const { rerender } = renderWithProviders(<ConfigTabs />);
+
+        await user.click(screen.getByRole('tab', { name: 'Style' }));
+        expect(screen.getByLabelText('Show legend')).not.toBeChecked();
+
+        mockSchema([
+            {
+                type: 'number',
+                name: 'pointSize',
+                label: 'Point size',
+                group: 'Marks',
+                default: 6,
+            },
+        ]);
+        rerender(<ConfigTabs />);
+
+        expect(
+            screen.queryByRole('tab', { name: 'Style' }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
+        await user.click(screen.getByRole('tab', { name: 'Marks' }));
+        expect(screen.getByLabelText('Point size')).toHaveValue('6');
+        expect(screen.queryByLabelText('Show legend')).not.toBeInTheDocument();
     });
 
     it('renders the standard palette picker for a declared palette', async () => {

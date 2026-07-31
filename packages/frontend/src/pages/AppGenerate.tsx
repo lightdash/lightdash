@@ -137,6 +137,10 @@ import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExt
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { getTemplate } from '../features/apps/templates';
 import {
+    getAppFileValidationError,
+    isSupportedAppImage,
+} from '../features/apps/utils/appFileAttachments';
+import {
     emptyChatMessage,
     mergeChatMessages,
     type ChatAttachedFile,
@@ -1453,61 +1457,13 @@ const AppGenerate: FC = () => {
         return <Box>Missing project UUID</Box>;
     }
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-    const ACCEPTED_IMAGE_TYPES = [
-        'image/png',
-        'image/jpeg',
-        'image/gif',
-        'image/webp',
-    ];
-
-    // Mirrors the backend's content classification: PDFs by %PDF signature,
-    // everything else accepted only when the first bytes sniff as UTF-8 text
-    // (no NUL, streaming decode tolerates a cut-off multi-byte sequence).
-    // Extension/MIME lists don't work here — browsers report an empty type
-    // for extensions they don't know (.twb, .yml, …).
-    const isSupportedNonImageFile = async (file: File): Promise<boolean> => {
-        try {
-            const sample = new Uint8Array(
-                await file.slice(0, 8192).arrayBuffer(),
-            );
-            if (sample.length === 0) return false;
-            if (
-                sample[0] === 0x25 &&
-                sample[1] === 0x50 &&
-                sample[2] === 0x44 &&
-                sample[3] === 0x46
-            ) {
-                return true; // %PDF
-            }
-            if (sample.includes(0)) return false;
-            new TextDecoder('utf-8', { fatal: true }).decode(sample, {
-                stream: true,
-            });
-            return true;
-        } catch {
-            // Invalid UTF-8, or the entry isn't readable at all (e.g. a
-            // dropped folder rejects with NotReadableError).
-            return false;
-        }
-    };
-
     const handleFileAttach = async (file: File, kind?: 'screenshot') => {
-        if (file.size > MAX_FILE_SIZE) {
-            showToastError({
-                title: 'File too large',
-                subtitle: `${file.name} exceeds the 10MB limit.`,
-            });
+        const validationError = await getAppFileValidationError(file);
+        if (validationError) {
+            showToastError(validationError);
             return;
         }
-        const isImage = ACCEPTED_IMAGE_TYPES.includes(file.type);
-        if (!isImage && !(await isSupportedNonImageFile(file))) {
-            showToastError({
-                title: 'Unsupported file type',
-                subtitle: `${file.name}: attach images (PNG, JPEG, GIF, WEBP), PDFs, or text-based files (JSON, CSV, Markdown, TWB, code, …).`,
-            });
-            return;
-        }
+        const isImage = isSupportedAppImage(file);
         setFileAttachments((prev) => {
             if (prev.length >= MAX_APP_FILES_PER_VERSION) {
                 showToastWarning({
