@@ -215,6 +215,7 @@ export const useRecommendedActions = (projectUuid: string | null) => {
 
     return {
         statuses,
+        isLoading,
         skippedActions,
         skipAction,
         restoreAction,

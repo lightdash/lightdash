@@ -1,5 +1,12 @@
 import { type HomepageHeroDensity } from '@lightdash/common';
-import { Box, SegmentedControl, Stack, Switch, Text } from '@mantine-8/core';
+import {
+    Box,
+    SegmentedControl,
+    Skeleton,
+    Stack,
+    Switch,
+    Text,
+} from '@mantine-8/core';
 import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
@@ -30,14 +37,20 @@ export const AskAiHero: FC<{
     const { user } = useApp();
     const actions = useRecommendedActions(projectUuid);
     const showChecklist = showRecommendedActions && actions.hasPendingActions;
+    const isWarehouseConnected =
+        actions.statuses['connect-warehouse'].isComplete;
     return (
         <Stack gap={16} align="center" w="100%">
-            {showGreeting && (
-                <Text component="h1" className={layout.heroGreeting}>
-                    {getGreeting(user.data?.firstName)}. What do you want to
-                    know?
-                </Text>
-            )}
+            {showGreeting &&
+                (actions.isLoading ? (
+                    <Skeleton h={34} w={320} radius="sm" />
+                ) : (
+                    <Text component="h1" className={layout.heroGreeting}>
+                        {isWarehouseConnected
+                            ? `${getGreeting(user.data?.firstName)}. What do you want to know?`
+                            : "Let's get started"}
+                    </Text>
+                ))}
             <Box w="100%">
                 <DayOneAskInput projectUuid={projectUuid} preview={preview} />
             </Box>

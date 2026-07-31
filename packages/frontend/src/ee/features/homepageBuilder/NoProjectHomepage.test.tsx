@@ -99,6 +99,15 @@ describe('NoProjectHomepage', () => {
         expect(stage).toContainElement(screen.getByTestId('ask-input'));
     });
 
+    it('uses the getting started heading', () => {
+        renderHomepage();
+
+        expect(
+            screen.getByRole('heading', { name: "Let's get started" }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Good morning.')).toBeNull();
+    });
+
     it('redirects away once the organization has a project', () => {
         state.needsProject = false;
         renderHomepage();
