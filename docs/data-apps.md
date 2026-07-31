@@ -1026,6 +1026,7 @@ Data apps can be **downloaded as source, versioned in git, edited, and re-upload
 
 Opt-in flags on the existing `lightdash download` / `lightdash upload` commands (off by default — core users never touch app code paths unless they ask):
 
+- **`lightdash create app "<name>"`** — create a new app locally at `lightdash/apps/<slug>/` from the E2B starter template. The command requires npm and first asks the user to accept that it will download packages and run shadcn locally. It then lists the exact direct dependencies and shadcn components for a second approval before writing anything. After approval, it checks that the slug is available in the selected project and adds the complete runnable source tree, manifest, agent skills, and a fresh project context snapshot. `--slug`, `--description`, `--project`, and `--path` override the defaults; `--assume-yes` approves installation in non-interactive environments.
 - **`lightdash download --apps <appReferences...>`** — download specific data apps by UUID, slug, or app URL into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
 - **`lightdash upload --apps <appReferences...>`** — upload specific apps by UUID, slug, or app URL, matched against each local folder's manifest (`slug` or `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
 
@@ -1034,6 +1035,7 @@ Opt-in flags on the existing `lightdash download` / `lightdash upload` commands 
 ### What the endpoints do
 
 - **Download** — `GET /api/v1/ee/projects/{projectUuid}/apps/{appUuidOrSlug}/download` (accepts either a uuid or the app's slug) reads the version's `source.tar` from S3, extracts it in-process (`tar-stream`), and returns the `src/` files + manifest (`AppGenerateService.getAppCode`).
+- **Create locally** — `GET /api/v1/ee/projects/{projectUuid}/apps/authoring-context?slug=<slug>` checks `create:DataApp`, validates that the slug is available (including soft-deleted apps), and returns the selected project's semantic layer plus empty prompt history and theme context. The CLI supplies static files from the same `sandboxes/data-apps/template/` tree packaged into the published CLI, installs the declared dependencies with lifecycle scripts disabled, and runs the same pinned shadcn generator used by the E2B image build.
 - **Upload** — `POST /api/v1/ee/projects/{projectUuid}/apps/upload` (`AppGenerateService.importAppCode`) validates the source (`validateDataAppCode` rejects path traversal), re-tars it, stores `source.tar` at the new version's prefix, creates a `pending` version, and enqueues the **build-only pipeline** `APP_BUILD_FROM_SOURCE` (`runBuildFromSourcePipeline`): sandbox → restore source → `pnpm build` (**fail-loud, no AI autofix**) → package → store → `ready`. Concurrent builds are **rate-limited per project** (`MAX_CONCURRENT_APP_BUILDS_PER_PROJECT`, HTTP 429 when exceeded).
 
 ### Moving an app between projects or instances
@@ -1052,13 +1054,13 @@ Cross-project and cross-instance upload are both a plain **slug upsert** against
 - **Data app vizs round-trip their schema via the manifest.** A viz's declared schema (`app_versions.viz_schema`) exists only in the database — it is emitted as structured output during generation, never written into the source tree. So `lightdash-app.yml` carries a `vizSchema` field for `data_app_viz` apps, and upload validates it (fail-loud) and persists it on the new version. Without it the uploaded viz would never appear in the viz picker (the picker requires a non-null schema on the latest ready version). Bundles downloaded before this field existed re-upload without a schema — re-download from the source project to fix.
 - **Security:** because the server only ever builds source in its trusted, network-locked sandbox and never serves client-supplied *built* code, the runtime trust model is unchanged from AI-generated apps. See [Security Model](#security-model). (Follow-up: the query bridge runs as the *viewing* user — a pre-existing consideration for any app, generated or uploaded.)
 
-### Local authoring (Phase 2)
+### Local authoring
 
-Phase 1 makes apps [downloadable and uploadable from source](#cli); Phase 2 makes the downloaded tree **locally buildable**, so you can verify changes compile before uploading.
+Apps created with `lightdash create app "<name>"` and apps checked out with `lightdash download --apps <slug>` use the same locally-buildable structure, so you can verify changes compile before uploading.
 
-#### What downloading an app now includes
+#### What a local app includes
 
-The download folder adds to the Phase 1 output (`src/` + `lightdash-app.yml`):
+The app folder contains `src/` + `lightdash-app.yml`, along with:
 
 - **Build scaffolding:** `package.json` (Lightdash App SDK pinned to the same published version the server uses), `vite.config.js`, `tailwind.config.js`, `postcss.config.js`, `tsconfig.json`, `index.html`
 - **Agent skills:** `.claude/skills/lightdash-data-app` (SDK reference) and `.claude/skills/developing-data-apps-locally` (local authoring workflow)
@@ -1070,7 +1072,7 @@ All scaffolding and context files are read-only reference — see [Upload is sou
 #### The local loop
 
 ```sh
-edit src/  →  npm install && npm run build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
+lightdash create app "<name>"  →  edit src/  →  npm run build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
 ```
 
 1. Edit files under `src/`.

@@ -1,11 +1,11 @@
 ---
 name: developing-data-apps-locally
-description: Use when editing a downloaded Lightdash data app on your machine — how local editing, building, and re-uploading work, and what is read-only.
+description: Use when editing a locally created or downloaded Lightdash data app — how local editing, building, and uploading work, and what is read-only.
 ---
 
 # Developing Lightdash Data Apps Locally
 
-You are editing a Lightdash **data app** that was downloaded with the Lightdash CLI (`lightdash download`).
+You are editing a Lightdash **data app** that was created or downloaded with the Lightdash CLI.
 
 ## The only way to reach data is the SDK
 
@@ -28,8 +28,8 @@ You are editing a Lightdash **data app** that was downloaded with the Lightdash 
 ## The edit → build → upload loop
 
 1. Edit files under `src/` only.
-2. Optionally, `npm install` then `npm run build` to check it compiles. This is an **optional local pre-check** — see below.
-3. `lightdash upload --apps <appUuid>` (the `appUuid` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
+2. Optionally, run `npm run build` to check it compiles. Apps made with `lightdash create app` already have their initial dependencies installed. After `lightdash download`, if you choose to do the local pre-check and `node_modules` is absent, run `npm install` first. This is an **optional local pre-check** — see below.
+3. `lightdash upload --apps <slug>` (the `slug` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
 
 ## The local build is optional — never fight a failing install
 
@@ -37,7 +37,7 @@ You are editing a Lightdash **data app** that was downloaded with the Lightdash 
 - Do **not** modify machine configuration, `.npmrc` files, registry settings, or the project's dependency files to force an install to work.
 - A missing `node_modules` is a normal state, not a problem to fix. Never run installs just because it is absent.
 - **Exception — adding a dependency** (only on instances with custom dependencies enabled — see "Library boundaries" above). This is the one workflow that still requires pnpm: upload rejects new dependencies unless `pnpm-lock.yaml` was regenerated to match `package.json`, so dependency resolution MUST succeed locally. Use `pnpm add <pkg>` — prefixed with Socket Firewall when available (`sfw pnpm add <pkg>`; check with `command -v sfw`) to block known-malicious packages — or after editing `package.json` run `pnpm install --lockfile-only` (updates the lockfile without installing). If resolution fails, **stop and report the exact pnpm error to the user** — never hand-edit `package.json` and proceed without the lockfile; the upload will fail.
-- **Never run dependency lifecycle scripts.** The app's `.npmrc` sets `ignore-scripts=true` — leave it. A downloaded app can be authored by someone else, and their dependencies' install scripts must not execute on this machine. Explicit commands such as `npm run build` still work.
+- **Never run dependency lifecycle scripts.** The app's `.npmrc` sets `ignore-scripts=true` — leave it. A downloaded app can be authored by someone else, and their dependencies' install scripts must not execute on this machine. Explicit `npm run build`/`npm run dev` and `pnpm build`/`pnpm dev` commands still work.
 
 ## Preview locally against real data
 
