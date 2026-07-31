@@ -2141,13 +2141,20 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
     properties: AiDeepResearchRunDimensions & {
         status: AiDeepResearchTerminalStatus;
         terminalReason: AiDeepResearchTerminalReason | null;
-        durationMs: number;
-        totalTokens: number;
-        toolCallCount: number;
-        warehouseQueryCount: number;
-        mcpToolCallCount: number;
+        durationMs: number | null;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        cacheReadTokens: number | null;
+        cacheWriteTokens: number | null;
+        reasoningTokens: number | null;
+        totalTokens: number | null;
+        tokenUsageComplete: boolean | null;
+        toolCallCount: number | null;
+        toolErrorCount: number | null;
+        warehouseQueryCount: number | null;
+        findingsCount: number | null;
         hasReport: boolean;
-        chartCount: number;
+        chartCount: number | null;
     };
 };
 

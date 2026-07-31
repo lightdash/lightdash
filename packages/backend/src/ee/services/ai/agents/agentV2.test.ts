@@ -1,4 +1,8 @@
 import type { ModelMessage } from 'ai';
+import {
+    registerAiUsageTracker,
+    type AiUsageEvent,
+} from '../../../../analytics/aiUsage';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import {
     buildDeepResearchExecutionContextSnapshot,
@@ -7,9 +11,168 @@ import {
     getAgentTools,
     getDeepResearchBudgetInstruction,
     normalizeToolOutput,
+    recordAgentStepUsage,
+    storeInvalidAgentToolCall,
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+describe('recordAgentStepUsage', () => {
+    const usage = {
+        inputTokens: 16,
+        outputTokens: 7,
+        totalTokens: 23,
+        inputTokenDetails: {
+            noCacheTokens: 10,
+            cacheReadTokens: 4,
+            cacheWriteTokens: 2,
+        },
+        outputTokenDetails: {
+            reasoningTokens: 3,
+        },
+    } as never;
+
+    afterEach(() => {
+        registerAiUsageTracker(() => undefined);
+    });
+
+    it('emits one attributed event for every standard agent step', async () => {
+        const events: AiUsageEvent[] = [];
+        registerAiUsageTracker((event) => events.push(event));
+        const telemetry = {
+            functionId: 'generateAgentResponse',
+            metadata: {
+                feature: 'agent',
+                organizationUuid: 'organization-1',
+                projectUuid: 'project-1',
+            },
+        } as never;
+
+        await recordAgentStepUsage({
+            usage,
+            telemetry,
+            execution: { mode: 'standard', maxSteps: 10 },
+        });
+        await recordAgentStepUsage({
+            usage,
+            telemetry,
+            execution: { mode: 'standard', maxSteps: 10 },
+        });
+
+        expect(events).toHaveLength(2);
+        expect(events[0]).toMatchObject({
+            event: 'ai.usage',
+            properties: {
+                feature: 'agent',
+                inputTokens: 10,
+                outputTokens: 7,
+                cacheReadTokens: 4,
+                cacheWriteTokens: 2,
+                reasoningTokens: 3,
+                totalTokens: 23,
+                deepResearchRunId: null,
+                deepResearchPhase: null,
+            },
+        });
+    });
+
+    it('attributes Deep Research steps and awaits normalized usage persistence', async () => {
+        const events: AiUsageEvent[] = [];
+        const onStepUsage = vi.fn().mockResolvedValue(undefined);
+        registerAiUsageTracker((event) => events.push(event));
+
+        await recordAgentStepUsage({
+            usage,
+            telemetry: {
+                functionId: 'generateAgentResponse',
+                metadata: {
+                    feature: 'deep-research',
+                    deepResearchRunUuid: 'run-1',
+                    deepResearchPhase: 'investigating',
+                },
+            } as never,
+            execution: {
+                mode: 'deep_research',
+                runUuid: 'run-1',
+                phase: 'investigating',
+                maxSteps: 10,
+                budget: {
+                    maxTokens: 1_000,
+                    maxToolCalls: 10,
+                    maxWarehouseQueries: 5,
+                    maxResultRows: 500,
+                    maxHypotheses: 2,
+                },
+                initialTokenUsage: 0,
+                onStepUsage,
+                research: {
+                    role: 'judge',
+                    investigations: [],
+                },
+            },
+        });
+
+        expect(events).toHaveLength(1);
+        expect(events[0]?.properties).toMatchObject({
+            feature: 'deep-research',
+            deepResearchRunId: 'run-1',
+            deepResearchPhase: 'investigating',
+        });
+        expect(onStepUsage).toHaveBeenCalledWith({
+            runUuid: 'run-1',
+            phase: 'investigating',
+            tokens: {
+                inputTokens: 10,
+                outputTokens: 7,
+                cacheReadTokens: 4,
+                cacheWriteTokens: 2,
+                reasoningTokens: 3,
+                totalTokens: 23,
+            },
+        });
+    });
+});
+
+describe('storeInvalidAgentToolCall', () => {
+    it('waits for Deep Research error persistence before finishing the step', async () => {
+        let resolveStore: () => void = () => undefined;
+        const storeToolCallError = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveStore = resolve;
+                }),
+        );
+        let finished = false;
+
+        const persistence = storeInvalidAgentToolCall({
+            storeToolCallError,
+            promptUuid: 'prompt-1',
+            toolCall: {
+                toolCallId: 'invalid-call-1',
+                toolName: 'searchContent',
+                input: '{not-json',
+                error: new Error('invalid arguments'),
+            },
+            executionMode: 'deep_research',
+        }).then(() => {
+            finished = true;
+        });
+
+        await Promise.resolve();
+        expect(finished).toBe(false);
+        expect(storeToolCallError).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            toolCallId: 'invalid-call-1',
+            toolName: 'searchContent',
+            errorMessage: 'invalid arguments',
+            rawArgs: '{not-json',
+        });
+
+        resolveStore();
+        await persistence;
+        expect(finished).toBe(true);
+    });
+});
 
 describe('getDeepResearchBudgetInstruction', () => {
     it('advertises only enforceable Deep Research limits', () => {
@@ -377,6 +540,8 @@ describe('getAgentTools workstream tool gate', () => {
         });
         args.execution = {
             mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
             maxSteps: 30,
             budget: {
                 maxTokens: 10_000,

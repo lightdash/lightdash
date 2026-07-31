@@ -115,6 +115,7 @@ import {
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchPhase,
     type AiPromptContextInput,
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
@@ -297,6 +298,7 @@ import {
     type AiAgentRequestingUser,
     type AiAgentRequestingUserRole,
     type AiDeepResearchExecutionRole,
+    type AiDeepResearchStepUsage,
 } from '../ai/types/aiAgent';
 import {
     ClosePullRequestFn,
@@ -411,10 +413,14 @@ type GenerateAgentExecutionOptions =
     | { mode: 'standard' }
     | {
           mode: 'deep_research';
+          runUuid: string;
+          phase: AiDeepResearchPhase;
           budget: AiDeepResearchBudget;
           abortSignal?: AbortSignal;
           initialTokenUsage?: number;
-          onStepUsage?: (tokens: number) => void | Promise<void>;
+          onStepUsage?: (
+              usage: AiDeepResearchStepUsage,
+          ) => void | Promise<void>;
           onWarehouseQuery?: () => void | Promise<void>;
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
@@ -9046,6 +9052,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             };
             execution = {
                 mode: 'deep_research',
+                runUuid: responseExecution.runUuid,
+                phase: responseExecution.phase,
                 maxSteps: getMaxSteps(),
                 budget: responseExecution.budget,
                 initialTokenUsage: responseExecution.initialTokenUsage ?? 0,

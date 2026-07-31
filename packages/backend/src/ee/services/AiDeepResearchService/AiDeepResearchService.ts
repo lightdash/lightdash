@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
-    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AiResultType,
     buildInlineChartFields,
     buildInlineChartMetricQuery,
@@ -62,7 +61,6 @@ import {
 import { type AiOrganizationSettingsModel } from '../../models/AiOrganizationSettingsModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
-import { isDeepResearchWarehouseTool } from './toolClassification';
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
@@ -257,6 +255,21 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
         isReportExpired,
         budget: getAiDeepResearchRunBudget(row.budget_snapshot),
         executionContextSnapshot: row.execution_context_snapshot,
+        metrics: {
+            durationMs: row.duration_ms,
+            inputTokens: row.input_tokens,
+            outputTokens: row.output_tokens,
+            cacheReadTokens: row.cache_read_tokens,
+            cacheWriteTokens: row.cache_write_tokens,
+            reasoningTokens: row.reasoning_tokens,
+            totalTokens: row.total_tokens,
+            tokenUsageComplete: row.token_usage_complete,
+            toolCallCount: row.tool_call_count,
+            toolErrorCount: row.tool_error_count,
+            warehouseQueryCount: row.warehouse_query_count,
+            findingsCount: row.findings_count,
+            chartCount: row.chart_count,
+        },
         errorMessage: row.error_message,
         cancellationRequestedAt:
             row.cancellation_requested_at?.toISOString() ?? null,
@@ -468,22 +481,6 @@ export class AiDeepResearchService extends BaseService {
         if (!isAiDeepResearchRunTerminal(args.run.status)) {
             return false;
         }
-        const [prompt, provenance] = await Promise.all([
-            this.aiAgentModel.findWebAppPrompt(args.run.prompt_uuid),
-            this.aiAgentModel.getToolCallsAndResultsForPrompt(
-                args.run.prompt_uuid,
-            ),
-        ]);
-        const toolCalls = provenance.filter(
-            ({ toolCall }) =>
-                toolCall.toolName !== AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-        );
-        const promptWithTokenUsage = prompt as
-            | (typeof prompt & {
-                  tokenUsage?: { totalTokens: number } | null;
-              })
-            | undefined;
-
         this.analytics.track({
             messageId: args.event.ai_deep_research_analytics_event_uuid,
             event: 'ai_deep_research.run_completed',
@@ -492,23 +489,20 @@ export class AiDeepResearchService extends BaseService {
                 ...this.getAnalyticsDimensions(args.run),
                 status: args.run.status,
                 terminalReason: args.event.terminal_reason,
-                durationMs: Math.max(
-                    0,
-                    (args.run.completed_at ?? args.run.updated_at).getTime() -
-                        (args.run.started_at ?? args.run.created_at).getTime(),
-                ),
-                totalTokens: promptWithTokenUsage?.tokenUsage?.totalTokens ?? 0,
-                toolCallCount: toolCalls.length,
-                warehouseQueryCount: toolCalls.filter(({ toolCall }) =>
-                    isDeepResearchWarehouseTool(toolCall.toolName),
-                ).length,
-                mcpToolCallCount: toolCalls.filter(
-                    ({ toolCall }) => toolCall.toolType === 'mcp',
-                ).length,
+                durationMs: args.run.duration_ms,
+                inputTokens: args.run.input_tokens,
+                outputTokens: args.run.output_tokens,
+                cacheReadTokens: args.run.cache_read_tokens,
+                cacheWriteTokens: args.run.cache_write_tokens,
+                reasoningTokens: args.run.reasoning_tokens,
+                totalTokens: args.run.total_tokens,
+                tokenUsageComplete: args.run.token_usage_complete,
+                toolCallCount: args.run.tool_call_count,
+                toolErrorCount: args.run.tool_error_count,
+                warehouseQueryCount: args.run.warehouse_query_count,
+                findingsCount: args.run.findings_count,
                 hasReport: args.run.result_markdown !== null,
-                chartCount: args.run.result_chart_data
-                    ? Object.keys(args.run.result_chart_data).length
-                    : 0,
+                chartCount: args.run.chart_count,
             },
         });
         return true;

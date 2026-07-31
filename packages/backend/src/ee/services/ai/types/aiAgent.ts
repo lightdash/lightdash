@@ -18,7 +18,10 @@ import {
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';
-import { AiKeyManagement } from '../../../../analytics/aiUsage';
+import {
+    AiKeyManagement,
+    type AiUsageTokens,
+} from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
@@ -135,6 +138,12 @@ export type AiDeepResearchExecutionRole =
           investigations: AiDeepResearchInvestigation[];
       };
 
+export type AiDeepResearchStepUsage = {
+    runUuid: string;
+    phase: AiDeepResearchPhase;
+    tokens: AiUsageTokens;
+};
+
 export type AiAgentExecutionConfig =
     | {
           mode: 'standard';
@@ -146,10 +155,14 @@ export type AiAgentExecutionConfig =
       }
     | {
           mode: 'deep_research';
+          runUuid: string;
+          phase: AiDeepResearchPhase;
           maxSteps: number;
           budget: AiDeepResearchBudget;
           initialTokenUsage: number;
-          onStepUsage?: (tokens: number) => void | Promise<void>;
+          onStepUsage?: (
+              usage: AiDeepResearchStepUsage,
+          ) => void | Promise<void>;
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
           ) => void | Promise<void>;

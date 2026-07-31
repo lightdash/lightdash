@@ -20,6 +20,8 @@ const reportMarkdown =
 
 const runRow = (overrides: Record<string, unknown> = {}) => ({
     ai_deep_research_run_uuid: RUN_UUID,
+    prompt_uuid: 'prompt-1',
+    created_at: new Date('2026-07-31T10:00:00.000Z'),
     status: 'running',
     ...overrides,
 });
@@ -34,6 +36,12 @@ describe('AiDeepResearchRunModel', () => {
     beforeAll(() => {
         tracker = getTracker();
     });
+
+    const mockEmptyTerminalMetrics = () => {
+        tracker.on.select(AiAgentToolCallTableName).response([]);
+        tracker.on.select(AiAgentToolResultTableName).response([]);
+        tracker.on.select(AiAgentToolCallErrorTableName).response([]);
+    };
 
     afterEach(() => {
         tracker.reset();
@@ -239,22 +247,111 @@ describe('AiDeepResearchRunModel', () => {
     });
 
     it('does not overwrite a cancellation request with completion', async () => {
-        tracker.on.update(AiDeepResearchRunsTableName).responseOnce([]);
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([]);
 
         const updated = await model.markCompleted(RUN_UUID, reportMarkdown, {});
 
         expect(updated).toBe(false);
-        const [update] = tracker.history.update;
-        expect(update.sql).toContain('"cancellation_requested_at" is null');
-        expect(update.bindings).toEqual(
-            expect.arrayContaining(['running', 'completed', RUN_UUID]),
-        );
+        expect(tracker.history.update).toHaveLength(0);
         expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    it('atomically accumulates each reported token class and records incomplete usage', async () => {
+        tracker.on.update(AiDeepResearchRunsTableName).responseOnce(1);
+
+        await model.accumulateTokenUsage(RUN_UUID, {
+            inputTokens: 10,
+            outputTokens: 5,
+            cacheReadTokens: 20,
+            cacheWriteTokens: null,
+            reasoningTokens: 2,
+            totalTokens: 35,
+        });
+
+        const [update] = tracker.history.update;
+        expect(update.sql).toContain(
+            'coalesce("input_tokens", 0) + $2::integer',
+        );
+        expect(update.sql).toContain(
+            'case when $7::integer is null then "cache_write_tokens"',
+        );
+        expect(update.sql).toContain(
+            'coalesce("token_usage_complete", true) and $13',
+        );
+        expect(update.bindings).toContain(false);
+        expect(update.bindings).toContain(null);
+    });
+
+    it('persists deduplicated terminal operational metrics with the report', async () => {
+        const createdAt = new Date('2026-07-31T10:00:00.000Z');
+        tracker.on.select(AiDeepResearchRunsTableName).responseOnce([runRow()]);
+        tracker.on.select(AiAgentToolCallTableName).responseOnce([
+            {
+                tool_call_id: 'report-success',
+                tool_name: 'submitResearchReport',
+                created_at: createdAt,
+            },
+            {
+                tool_call_id: 'report-failed',
+                tool_name: 'submitResearchReport',
+                created_at: new Date(createdAt.getTime() - 1),
+            },
+            {
+                tool_call_id: 'warehouse-1',
+                tool_name: 'runSql',
+                created_at: createdAt,
+            },
+            {
+                tool_call_id: 'search-1',
+                tool_name: 'searchContent',
+                created_at: createdAt,
+            },
+        ]);
+        tracker.on.select(AiAgentToolResultTableName).responseOnce([
+            {
+                tool_call_id: 'report-success',
+                metadata: { status: 'success' },
+            },
+            {
+                tool_call_id: 'report-failed',
+                metadata: { status: 'error' },
+            },
+        ]);
+        tracker.on
+            .select(AiAgentToolCallErrorTableName)
+            .responseOnce([
+                { tool_call_id: 'report-failed' },
+                { tool_call_id: 'schema-invalid' },
+            ]);
+        tracker.on
+            .update(AiDeepResearchRunsTableName)
+            .responseOnce([runRow({ status: 'completed' })]);
+        tracker.on.insert(AiDeepResearchEventsTableName).responseOnce([]);
+        tracker.on
+            .insert(AiDeepResearchAnalyticsOutboxTableName)
+            .responseOnce([]);
+
+        await model.markCompleted(RUN_UUID, reportMarkdown, {
+            chart: {} as never,
+        });
+
+        const [update] = tracker.history.update;
+        expect(update.bindings).toEqual(expect.arrayContaining([4, 2, 1, 1]));
+        expect(update.sql).toContain('"tool_call_count" = $');
+        expect(update.sql).toContain('"tool_error_count" = $');
+        expect(update.sql).toContain('"warehouse_query_count" = $');
+        expect(update.sql).toContain('"findings_count" = $');
+        expect(update.sql).toContain('"chart_count" = $');
+        expect(update.sql).toContain('"duration_ms" =');
     });
 
     it.each(['completed', 'partially_completed'] as const)(
         'persists the 30-day report expiry when a run is %s',
         async (status) => {
+            mockEmptyTerminalMetrics();
+            tracker.on
+                .select(AiDeepResearchRunsTableName)
+                .responseOnce([runRow()]);
             tracker.on
                 .update(AiDeepResearchRunsTableName)
                 .responseOnce([runRow({ status })]);
@@ -298,6 +395,10 @@ describe('AiDeepResearchRunModel', () => {
     });
 
     it('cancels a queued run immediately and records both lifecycle events', async () => {
+        mockEmptyTerminalMetrics();
+        tracker.on
+            .update(AiDeepResearchRunsTableName)
+            .responseOnce([runRow({ status: 'cancelled' })]);
         tracker.on
             .update(AiDeepResearchRunsTableName)
             .responseOnce([runRow({ status: 'cancelled' })]);
@@ -307,7 +408,7 @@ describe('AiDeepResearchRunModel', () => {
         const run = await model.requestCancellation(RUN_UUID);
 
         expect(run).toEqual(runRow({ status: 'cancelled' }));
-        expect(tracker.history.update).toHaveLength(1);
+        expect(tracker.history.update).toHaveLength(2);
         expect(tracker.history.update[0].bindings).toEqual(
             expect.arrayContaining(['queued', 'cancelled', RUN_UUID]),
         );
@@ -365,12 +466,22 @@ describe('AiDeepResearchRunModel', () => {
     });
 
     it('fails only stale running jobs and records a terminal event per run', async () => {
+        mockEmptyTerminalMetrics();
         tracker.on
             .update(AiDeepResearchRunsTableName)
             .responseOnce([
                 runRow(),
                 runRow({ ai_deep_research_run_uuid: 'run-2' }),
             ]);
+        tracker.on
+            .update(AiDeepResearchRunsTableName)
+            .responseOnce([runRow({ status: 'failed' })]);
+        tracker.on.update(AiDeepResearchRunsTableName).responseOnce([
+            runRow({
+                ai_deep_research_run_uuid: 'run-2',
+                status: 'failed',
+            }),
+        ]);
         tracker.on.insert(AiDeepResearchEventsTableName).response([]);
         tracker.on.insert(AiDeepResearchAnalyticsOutboxTableName).response([]);
 

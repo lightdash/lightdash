@@ -16,6 +16,7 @@ import type { UserService } from '../../../services/UserService';
 import type { DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import type { AiAgentModel } from '../../models/AiAgentModel';
 import type { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
+import type { AiDeepResearchStepUsage } from '../ai/types/aiAgent';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
     AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
@@ -58,6 +59,7 @@ type Dependencies = {
         AiDeepResearchRunModel,
         | 'appendProgressEvent'
         | 'findByUuid'
+        | 'accumulateTokenUsage'
         | 'touch'
         | 'updateExecutionContextSnapshot'
     >;
@@ -332,7 +334,14 @@ export class AiDeepResearchExecutor {
         let warehouseQueries = 0;
         let tokens = 0;
 
-        const trackTokens = (stepTokens: number) => {
+        const trackUsage = async ({
+            tokens: stepUsage,
+        }: AiDeepResearchStepUsage) => {
+            await this.dependencies.aiDeepResearchRunModel.accumulateTokenUsage(
+                run.ai_deep_research_run_uuid,
+                stepUsage,
+            );
+            const stepTokens = stepUsage.totalTokens ?? 0;
             tokens += stepTokens;
             if (tokens > budget.maxTokens) {
                 budgetExceeded = 'maxTokens';
@@ -340,7 +349,6 @@ export class AiDeepResearchExecutor {
                     'Deep Research exceeded its token budget',
                 );
                 controller.abort(error);
-                throw error;
             }
         };
         const trackWarehouseQuery = () => {
@@ -442,10 +450,12 @@ export class AiDeepResearchExecutor {
                     forceToolHints: true,
                     execution: {
                         mode: 'deep_research',
+                        runUuid: run.ai_deep_research_run_uuid,
+                        phase: 'planning',
                         budget: phaseBudgets.planner,
                         abortSignal: runSignal,
                         initialTokenUsage: 0,
-                        onStepUsage: trackTokens,
+                        onStepUsage: trackUsage,
                         onWarehouseQuery: trackWarehouseQuery,
                         research: {
                             role: 'planner',
@@ -490,10 +500,12 @@ export class AiDeepResearchExecutor {
                             : {}),
                         execution: {
                             mode: 'deep_research',
+                            runUuid: run.ai_deep_research_run_uuid,
+                            phase: 'investigating',
                             budget: phaseBudgets.investigator,
                             abortSignal: runSignal,
                             initialTokenUsage: 0,
-                            onStepUsage: trackTokens,
+                            onStepUsage: trackUsage,
                             onWarehouseQuery: trackWarehouseQuery,
                             ...(index === 0
                                 ? {
@@ -559,10 +571,12 @@ export class AiDeepResearchExecutor {
                     : {}),
                 execution: {
                     mode: 'deep_research',
+                    runUuid: run.ai_deep_research_run_uuid,
+                    phase: 'synthesizing',
                     budget: phaseBudgets.judge,
                     abortSignal: runSignal,
                     initialTokenUsage: tokens,
-                    onStepUsage: trackTokens,
+                    onStepUsage: trackUsage,
                     onWarehouseQuery: trackWarehouseQuery,
                     research: { role: 'judge', investigations },
                 },

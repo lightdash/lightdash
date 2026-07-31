@@ -13,6 +13,7 @@ import {
     stepCountIs,
     streamText,
     StreamTextResult,
+    type LanguageModelUsage,
     type ModelMessage,
     type Output,
     type ToolSet,
@@ -108,6 +109,27 @@ const createAiAgentLogger =
             Logger.debug(`[AiAgent][${context}] ${message}`);
         }
     };
+
+export const recordAgentStepUsage = async ({
+    usage,
+    telemetry,
+    execution,
+}: {
+    usage: LanguageModelUsage;
+    telemetry: ReturnType<typeof getAgentTelemetryConfig>;
+    execution: AiAgentArgs['execution'];
+}) => {
+    const tokens = languageModelUsageToTokens(usage);
+    emitAiUsage(telemetry, tokens);
+    if (execution.mode === 'deep_research') {
+        await execution.onStepUsage?.({
+            runUuid: execution.runUuid,
+            phase: execution.phase,
+            tokens,
+        });
+    }
+    return tokens;
+};
 
 export const DEFAULT_AGENT_MAX_STEPS = 40;
 
@@ -369,6 +391,44 @@ const serializeRawToolArgs = (input: unknown): string | null => {
         return JSON.stringify(input) ?? null;
     } catch {
         return String(input);
+    }
+};
+
+export const storeInvalidAgentToolCall = async ({
+    storeToolCallError,
+    promptUuid,
+    toolCall,
+    executionMode,
+}: {
+    storeToolCallError: AiAgentDependencies['storeToolCallError'];
+    promptUuid: string;
+    toolCall: {
+        toolCallId: string;
+        toolName: string;
+        input: unknown;
+        error?: unknown;
+    };
+    executionMode: AiAgentArgs['execution']['mode'];
+}) => {
+    const storeError = storeToolCallError({
+        promptUuid,
+        toolCallId: toolCall.toolCallId,
+        toolName: toolCall.toolName,
+        errorMessage:
+            toolCall.error instanceof Error
+                ? toolCall.error.message
+                : String(toolCall.error),
+        rawArgs: serializeRawToolArgs(toolCall.input),
+    });
+    if (executionMode === 'deep_research') {
+        await storeError;
+    } else {
+        void storeError.catch((error) => {
+            Logger.error(
+                '[AiAgent][On Step Finish] Failed to store invalid tool call',
+                error,
+            );
+        });
     }
 };
 
@@ -1259,6 +1319,7 @@ export const generateAgentResponse = async ({
         const telemetry = getAgentTelemetryConfig(
             'generateAgentResponse',
             args,
+            args.execution.mode === 'deep_research' ? 'deep-research' : 'agent',
         );
         const stopWhenPromptInterrupted = buildStopWhenPromptInterrupted(
             args,
@@ -1280,6 +1341,11 @@ export const generateAgentResponse = async ({
             messages,
             experimental_context: new AgentContext(availableExplores),
             onStepFinish: async (step) => {
+                const stepUsage = await recordAgentStepUsage({
+                    usage: step.usage,
+                    telemetry,
+                    execution: args.execution,
+                });
                 for (const toolCall of step.toolCalls) {
                     if (toolCall) {
                         logger(
@@ -1333,25 +1399,13 @@ export const generateAgentResponse = async ({
                                             'ai.model': modelName,
                                         },
                                     });
-                                    void dependencies
-                                        .storeToolCallError({
-                                            promptUuid: args.promptUuid,
-                                            toolCallId: toolCall.toolCallId,
-                                            toolName: toolCall.toolName,
-                                            errorMessage:
-                                                toolCall.error instanceof Error
-                                                    ? toolCall.error.message
-                                                    : String(toolCall.error),
-                                            rawArgs: serializeRawToolArgs(
-                                                toolCall.input,
-                                            ),
-                                        })
-                                        .catch((error) => {
-                                            Logger.error(
-                                                '[AiAgent][On Step Finish] Failed to store invalid tool call',
-                                                error,
-                                            );
-                                        });
+                                    await storeInvalidAgentToolCall({
+                                        storeToolCallError:
+                                            dependencies.storeToolCallError,
+                                        promptUuid: args.promptUuid,
+                                        toolCall,
+                                        executionMode: args.execution.mode,
+                                    });
                                     return;
                                 }
 
@@ -1433,7 +1487,7 @@ export const generateAgentResponse = async ({
                     );
                 }
 
-                const stepTokens = step.usage.totalTokens ?? 0;
+                const stepTokens = stepUsage.totalTokens ?? 0;
                 generatedTokenUsage += stepTokens;
                 if (args.execution.mode === 'deep_research') {
                     // Hidden phases (planner/investigators, persisted as
@@ -1453,12 +1507,9 @@ export const generateAgentResponse = async ({
                         promptUuid: args.promptUuid,
                     });
                 }
-                await args.execution.onStepUsage?.(stepTokens);
             },
             experimental_telemetry: telemetry,
         });
-
-        emitAiUsage(telemetry, languageModelUsageToTokens(result.totalUsage));
 
         logger(
             'Generate Agent Response',
