@@ -46,6 +46,15 @@ semantic_models:
           time_granularity: day
       - name: status
         type: categorical
+      # Dimension with expr/label/config.meta — exercises Discovery API field
+      # coverage (see ../discovery-api-gaps.md)
+      - name: status_upper
+        type: categorical
+        label: Status (upper)
+        expr: upper(status)
+        config:
+          meta:
+            group_label: Formatted
     measures:
       # ── Supported aggregations (translate to Lightdash metrics) ──
       - name: total_revenue
