@@ -1176,6 +1176,7 @@ export const convertExplores = async (
             {
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
+                tags: tags || [],
                 groupLabel: meta.group_label,
                 ...(meta.groups && meta.groups.length > 0
                     ? { groups: meta.groups }
@@ -1222,11 +1223,17 @@ export const convertExplores = async (
                               });
                           }
 
+                          const exploreTags =
+                              typeof exploreConfig.tags === 'string'
+                                  ? [exploreConfig.tags]
+                                  : exploreConfig.tags;
+
                           return {
                               name: exploreName,
                               label:
                                   exploreConfig.label ||
                                   friendlyName(exploreName),
+                              tags: exploreTags ?? tags ?? [],
                               groupLabel:
                                   exploreConfig.group_label || meta.group_label,
                               ...((exploreConfig.groups &&
@@ -1278,7 +1285,7 @@ export const convertExplores = async (
                 const compiled = exploreCompiler.compileExplore({
                     name: exploreToCreate.name,
                     label: exploreToCreate.label,
-                    tags: tags || [],
+                    tags: exploreToCreate.tags,
                     baseTable: model.name,
                     groupLabel: exploreToCreate.groupLabel,
                     ...(exploreToCreate.groups &&
@@ -1330,6 +1337,7 @@ export const convertExplores = async (
                 return {
                     name: exploreToCreate.name,
                     label: exploreToCreate.label,
+                    tags: exploreToCreate.tags,
                     groupLabel: exploreToCreate.groupLabel,
                     ...(exploreToCreate.groups &&
                     exploreToCreate.groups.length > 0

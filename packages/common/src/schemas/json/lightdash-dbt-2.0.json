@@ -1139,6 +1139,20 @@
                                     "description": "Alias for default_filters (deprecated, use default_filters instead)",
                                     "items": { "$ref": "#/$defs/filterItem" }
                                 },
+                                "tags": {
+                                    "oneOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    ],
+                                    "description": "Tags for organizing and filtering this explore. Overrides model tags when set."
+                                },
                                 "sql_filter": {
                                     "type": "string",
                                     "description": "SQL filter applied to the WHERE clause of all queries using this explore"

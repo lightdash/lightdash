@@ -894,6 +894,20 @@
                     "type": "string",
                     "description": "Detailed description of the explore"
                 },
+                "tags": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Tags for organizing and filtering this explore. Overrides model tags when set."
+                },
                 "group_label": {
                     "type": "string",
                     "description": "Group this explore belongs to in the sidebar"
