@@ -278,6 +278,9 @@ describe('DataAppVizVersionLog', () => {
 
         await userEvent.click(screen.getByRole('button', { name: 'Restore' }));
         expect(restoreMutate).not.toHaveBeenCalled();
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            'All charts using this visualization will use the restored version. Selected fields unavailable in that version will be cleared.',
+        );
 
         await userEvent.click(
             screen.getByRole('button', { name: 'Restore version' }),

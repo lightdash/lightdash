@@ -385,12 +385,9 @@ const DataAppVizVersionLog: FC<Props> = ({
                 >
                     <Stack gap="sm">
                         <Text fz="sm">
-                            This adds a new version on top that duplicates
-                            version {restoreTarget}. Every chart using this
-                            visualization follows the latest version, so they
-                            will all show it — and any chart bound to a field
-                            that version {restoreTarget} does not declare will
-                            lose that binding.
+                            All charts using this visualization will use the
+                            restored version. Selected fields unavailable in
+                            that version will be cleared.
                         </Text>
                         {restoreError && (
                             <Callout variant="danger">

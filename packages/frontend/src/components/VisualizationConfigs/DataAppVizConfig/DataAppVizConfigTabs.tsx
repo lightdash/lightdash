@@ -52,6 +52,10 @@ export const ConfigTabs: FC = memo(() => {
         [dataAppViz],
     );
     const colorPalette = dataAppViz?.schema?.colorPalette ?? null;
+    const optionContractKey = useMemo(
+        () => JSON.stringify({ configOptions, colorPalette }),
+        [configOptions, colorPalette],
+    );
 
     // Held in a ref-free callback so the build hook can commit straight into
     // the chart config once a new visualization lands.
@@ -111,6 +115,8 @@ export const ConfigTabs: FC = memo(() => {
     );
 
     const draft = build.draft;
+    const onCancelBuild =
+        draft !== null && !dataAppVizUuid ? build.discard : build.cancel;
 
     const settings = (
         <DataAppVizSettings
@@ -144,7 +150,7 @@ export const ConfigTabs: FC = memo(() => {
                     <DataAppVizOptionTabs
                         // Remount on a viz switch so no control keeps the
                         // previous viz's draft edit.
-                        key={dataAppVizUuid}
+                        key={`${dataAppVizUuid}:${optionContractKey}`}
                         generalContent={settings}
                         configOptions={configOptions}
                         values={effectiveValues}
@@ -172,11 +178,7 @@ export const ConfigTabs: FC = memo(() => {
                                 />
                             ) : undefined
                         }
-                        onCancelBuild={
-                            build.draft !== null && !dataAppVizUuid
-                                ? build.discard
-                                : build.cancel
-                        }
+                        onCancelBuild={onCancelBuild}
                         footer={
                             <DataAppVizComposer
                                 projectUuid={projectUuid}
@@ -187,6 +189,7 @@ export const ConfigTabs: FC = memo(() => {
                                         : 'Describe a new visualization…'
                                 }
                                 isBuilding={build.isBuilding}
+                                onCancel={onCancelBuild}
                                 onSubmit={build.send}
                             />
                         }

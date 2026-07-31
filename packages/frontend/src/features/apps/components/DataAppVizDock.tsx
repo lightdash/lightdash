@@ -29,7 +29,12 @@ const Provenance: FC<{
     const timeAgo = useTimeAgo(at);
     const verb = isOrigin ? 'Built' : 'Last updated';
     return (
-        <Text size="xs" c="dimmed" truncate="end">
+        <Text
+            size="xs"
+            c="dimmed"
+            truncate="end"
+            className={classes.provenance}
+        >
             {authorName
                 ? `${verb} by ${authorName} · ${timeAgo}`
                 : `${verb} ${timeAgo}`}
@@ -98,7 +103,12 @@ const DataAppVizDock: FC<Props> = ({
     // finished version. A build that failed or is still running has not
     // replaced it.
     const versionBadge = latestReadyVersion !== null && (
-        <Badge size="xs" variant="light" color="violet">
+        <Badge
+            size="xs"
+            variant="light"
+            color="violet"
+            className={classes.fixedChrome}
+        >
             {`v${latestReadyVersion}`}
         </Badge>
     );
@@ -220,7 +230,11 @@ const DataAppVizDock: FC<Props> = ({
                     aria-expanded={false}
                     onClick={toggle}
                 >
-                    <MantineIcon icon={IconPuzzle} size={13} />
+                    <MantineIcon
+                        icon={IconPuzzle}
+                        size={13}
+                        className={classes.fixedChrome}
+                    />
                     {status ?? (
                         <>
                             {versionBadge}
