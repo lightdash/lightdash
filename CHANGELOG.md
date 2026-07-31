@@ -1,3 +1,10 @@
+# [1.53.0](https://github.com/lightdash/lightdash/compare/1.52.0...1.53.0) (2026-07-31)
+
+
+### Features
+
+* **apps:** dock a visualization's versions under the chart config ([#26426](https://github.com/lightdash/lightdash/issues/26426)) ([8d94ea4](https://github.com/lightdash/lightdash/commit/8d94ea4fad4de07903dc5c195a6dd21a426fd205))
+
 # [1.52.0](https://github.com/lightdash/lightdash/compare/1.51.1...1.52.0) (2026-07-31)
 
 
