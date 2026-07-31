@@ -48,10 +48,7 @@ const renderStars = () =>
 const SKY_SELECTOR = '[data-testid="homepage-stars-sky"]';
 
 const VIDEO_HREF = 'https://www.youtube.com/watch?v=BwvgHQyhI1o';
-
-// Every draw returns the top of its range, so the last free def is always the
-// one picked — and the media cards sit last in the catalogue.
-const forceMediaCards = () => vi.spyOn(Math, 'random').mockReturnValue(0.99);
+const BI_AS_CODE_HREF = 'https://www.lightdash.com/bi-as-code';
 
 describe('HomepageStars', () => {
     beforeEach(() => {
@@ -223,8 +220,23 @@ describe('HomepageStars', () => {
         });
     });
 
+    it('spawns both media cards ahead of decorative stars', () => {
+        const { container } = renderStars();
+        const sky = container.querySelector(SKY_SELECTOR)!;
+
+        // The first spawn plants one star per side; the priority rule means
+        // both must be media cards, whatever the random draws say.
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        const hrefs = [...sky.querySelectorAll('a')].map((link) =>
+            link.getAttribute('href'),
+        );
+        expect(hrefs).toContain(VIDEO_HREF);
+        expect(hrefs).toContain(BI_AS_CODE_HREF);
+    });
+
     it('shows media cards in the rotation as new-tab links', () => {
-        forceMediaCards();
         const { container } = renderStars();
         const sky = container.querySelector(SKY_SELECTOR)!;
 
@@ -252,7 +264,6 @@ describe('HomepageStars', () => {
     });
 
     it('tracks a click on a media card', () => {
-        forceMediaCards();
         const { container } = renderStars();
 
         act(() => {
