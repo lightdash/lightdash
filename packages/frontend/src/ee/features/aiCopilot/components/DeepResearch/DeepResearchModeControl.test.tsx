@@ -35,19 +35,28 @@ describe('DeepResearchModeControl', () => {
         ).toHaveAttribute('aria-pressed', 'false');
     });
 
-    it('renders a compact icon toggle without a visible label', () => {
+    it('renders a compact icon toggle with the normal tooltip', async () => {
+        const user = userEvent.setup();
         renderWithProviders(
             <DeepResearchModeControl
                 mode="ask"
                 onModeChange={() => undefined}
                 iconOnly
+                disabledReason="Only one Deep research run can be active in a thread at a time."
             />,
         );
 
-        expect(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
-        ).toBeInTheDocument();
+        const button = screen.getByRole('button', {
+            name: 'Turn on Deep research',
+        });
+        expect(button).toBeEnabled();
         expect(screen.queryByText('Deep research')).not.toBeInTheDocument();
+
+        await user.hover(button);
+
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Turn on Deep research',
+        );
     });
 
     it('disables Deep research while another run is active', async () => {

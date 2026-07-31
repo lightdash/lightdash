@@ -72,7 +72,7 @@ export const DeepResearchModeControl = ({
         return control;
     }
 
-    const tooltipLabel = disabledReason ?? label;
+    const tooltipLabel = disabled && disabledReason ? disabledReason : label;
 
     return (
         <Tooltip
