@@ -109,6 +109,13 @@ export const DATA_APP_TEMPLATES = [
 ] as const;
 export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
 
+export const DATA_APP_CREATION_EXPERIENCES = [
+    'app_builder',
+    'explorer_chart_config',
+] as const;
+export type DataAppCreationExperience =
+    (typeof DATA_APP_CREATION_EXPERIENCES)[number];
+
 /**
  * Claude model used to generate / iterate the data app inside the sandbox.
  * Mapped to the Claude CLI's `--model <alias>` flag verbatim. Persisted
@@ -258,6 +265,9 @@ export const formatPromptWithClarifications = (
 export type GenerateAppRequestBody = {
     prompt: string;
     template?: DataAppTemplate; // starter template selected on app creation; ignored on iteration
+    // Product surface that submitted this version's AI generation. Optional for
+    // API compatibility; older callers remain unattributed.
+    creationExperience?: DataAppCreationExperience;
     /** @deprecated Use `fileIds` — kept while older frontends send it. */
     imageIds?: string[];
     // Staged attachment ids (images, PDFs, text files) in display order.
@@ -354,6 +364,9 @@ export type AppVersionDesignSnapshot = {
 
 export type AppVersionResources = {
     images: AppVersionImageResource[];
+    // AI-generation surface for this version. Optional for versions built
+    // before creation-experience tracking and for non-generated versions.
+    creationExperience?: DataAppCreationExperience;
     // Non-image attachments. Optional for backwards compatibility — versions
     // built before file uploads shipped only carry `images`.
     files?: AppVersionFileResource[];

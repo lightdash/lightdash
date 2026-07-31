@@ -12,6 +12,7 @@ import {
     type ChartReference,
     type DashboardBlueprint,
     type DataAppClaudeModel,
+    type DataAppCreationExperience,
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
@@ -54,6 +55,9 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     appUuid: string;
     version: number;
     prompt: string;
+    // AI-generation surface for this version. Optional so jobs queued before this field
+    // shipped remain valid while workers are rolling forward.
+    creationExperience?: DataAppCreationExperience;
     template?: DataAppTemplate; // starter template selected on creation; absent on iteration
     /** @deprecated Use `fileIds` — still read so jobs enqueued before the
      *  rename keep working after a deploy. */

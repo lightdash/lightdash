@@ -74,6 +74,7 @@ import {
     type DataAppCodeDownload,
     type DataAppCodeFile,
     type DataAppContext,
+    type DataAppCreationExperience,
     type DataAppDependencies,
     type DataAppManifestExternalConnection,
     type DataAppTemplate,
@@ -286,6 +287,7 @@ type AppGenerateServiceDeps = {
 };
 
 type GenerateAppOptions = {
+    creationExperience?: DataAppCreationExperience;
     designUuidInput?: string | null;
     externalConnections?: AppExternalConnectionReference[];
 };
@@ -1838,6 +1840,7 @@ export class AppGenerateService extends BaseService {
                 version: payload.version,
                 isIteration: payload.isIteration,
                 isUpgrade: payload.isUpgrade ?? false,
+                creationExperience: payload.creationExperience ?? null,
                 claudeModel,
                 claudeProvider: telemetry.claudeProvider,
                 schedulerWaitMs: telemetry.schedulerWaitMs,
@@ -4786,6 +4789,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 isIteration: payload.isIteration,
                 isUpgrade: payload.isUpgrade ?? false,
+                creationExperience: payload.creationExperience ?? null,
                 claudeModel,
                 claudeProvider,
                 schedulerWaitMs,
@@ -5430,7 +5434,8 @@ export class AppGenerateService extends BaseService {
         claudeModelInput?: DataAppClaudeModel,
         options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
-        const { designUuidInput, externalConnections } = options;
+        const { creationExperience, designUuidInput, externalConnections } =
+            options;
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
         this.assertDataAppAbility(
@@ -5558,6 +5563,7 @@ export class AppGenerateService extends BaseService {
         // Build resources metadata to persist with the version
         const resources: AppVersionResources = {
             ...AppGenerateService.toAttachmentResources(stagedFiles),
+            ...(creationExperience ? { creationExperience } : {}),
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
@@ -5614,6 +5620,7 @@ export class AppGenerateService extends BaseService {
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
                 clarificationCount: clarifications?.length ?? 0,
+                creationExperience: creationExperience ?? null,
             },
         });
 
@@ -5624,6 +5631,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
+            ...(creationExperience ? { creationExperience } : {}),
             template,
             fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: false,
@@ -5648,7 +5656,8 @@ export class AppGenerateService extends BaseService {
         claudeModelInput?: DataAppClaudeModel,
         options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
-        const { designUuidInput, externalConnections } = options;
+        const { creationExperience, designUuidInput, externalConnections } =
+            options;
         await this.assertDataAppsEnabled(user);
 
         AppGenerateService.validateFileIds(fileIds);
@@ -5699,7 +5708,6 @@ export class AppGenerateService extends BaseService {
         }
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
-
         this.logger.info(
             `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length}, designUuidInput=${
                 designUuidInput === undefined
@@ -5765,6 +5773,7 @@ export class AppGenerateService extends BaseService {
 
         const resources: AppVersionResources = {
             ...AppGenerateService.toAttachmentResources(stagedFiles),
+            ...(creationExperience ? { creationExperience } : {}),
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
@@ -5820,6 +5829,7 @@ export class AppGenerateService extends BaseService {
                     : null,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
+                creationExperience: creationExperience ?? null,
             },
         });
 
@@ -5830,6 +5840,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
+            ...(creationExperience ? { creationExperience } : {}),
             fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: true,
             chartReferences:
@@ -6155,7 +6166,14 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // 3. Insert the new version
+        // 3. Insert the new version. A restore is not an AI generation, so do
+        // not copy the source version's creation experience onto it.
+        const restoredResources = source.resources
+            ? { ...source.resources }
+            : undefined;
+        if (restoredResources) {
+            delete restoredResources.creationExperience;
+        }
         await this.appModel.createVersion(
             appUuid,
             {
@@ -6164,7 +6182,7 @@ export class AppGenerateService extends BaseService {
             },
             'ready',
             user.userUuid,
-            source.resources ?? undefined,
+            restoredResources,
             source.dependencies ?? undefined,
             // A data app viz is only listed while its latest ready version
             // declares a schema, so dropping it here delists the viz and
@@ -7294,6 +7312,8 @@ export class AppGenerateService extends BaseService {
                     stageAtCancellation: versionRow.status,
                     msElapsedBeforeCancel:
                         Date.now() - versionRow.created_at.getTime(),
+                    creationExperience:
+                        versionRow.resources?.creationExperience ?? null,
                 },
             });
         }
@@ -7471,6 +7491,8 @@ export class AppGenerateService extends BaseService {
                     v.resources || v.viz_schema
                         ? {
                               images: v.resources?.images ?? [],
+                              creationExperience:
+                                  v.resources?.creationExperience,
                               files: v.resources?.files ?? [],
                               charts: v.resources?.charts ?? [],
                               externalConnections:

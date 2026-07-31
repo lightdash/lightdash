@@ -92,6 +92,7 @@ export class AppGenerateController extends BaseController {
             body.spaceUuid,
             body.claudeModel,
             {
+                creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
             },
@@ -378,6 +379,7 @@ export class AppGenerateController extends BaseController {
             body.dashboard,
             body.claudeModel,
             {
+                creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
             },

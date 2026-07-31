@@ -43,6 +43,7 @@ import {
     type AiWritebackWorkstream,
     type AppVersionDependencyEntry,
     type DataAppClaudeModel,
+    type DataAppCreationExperience,
     type DataAppTemplate,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
@@ -1578,6 +1579,7 @@ export type DataAppCreatedEvent = BaseTrack & {
         samplesAvailable: number;
         clarificationCount: number;
         claudeEffort: DataAppClaudeEffort;
+        creationExperience: DataAppCreationExperience | null;
     };
 };
 
@@ -1601,6 +1603,7 @@ export type DataAppIteratedEvent = BaseTrack & {
         msSinceLastVersion: number | null;
         samplesRequested: number;
         samplesAvailable: number;
+        creationExperience: DataAppCreationExperience | null;
     };
 };
 
@@ -1612,7 +1615,7 @@ export type DataAppUpgradeRequestedEvent = BaseTrack & {
         projectId: string;
         appUuid: string;
         version: number;
-        /** What the app's bundle self-reported; null for legacy bundles. */
+        /** What the app's bundle self-reported; null for older bundles. */
         reportedSdkVersion: string | null;
         reportedFeatureCount: number | null;
         /** Feature keys the frontend computed as possibly-new — what this
@@ -1632,6 +1635,7 @@ export type DataAppVersionCancelledEvent = BaseTrack & {
         version: number;
         stageAtCancellation: string;
         msElapsedBeforeCancel: number;
+        creationExperience: DataAppCreationExperience | null;
     };
 };
 
@@ -1686,6 +1690,7 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         catalogYamlBytes: number;
         distBytes: number;
         sourceBytes: number;
+        creationExperience: DataAppCreationExperience | null;
     };
 };
 
@@ -1737,6 +1742,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         generationAttemptCount?: number;
         timeToFirstTokenMs?: number | null;
         slowestTurnMs?: number;
+        creationExperience: DataAppCreationExperience | null;
     };
 };
 
