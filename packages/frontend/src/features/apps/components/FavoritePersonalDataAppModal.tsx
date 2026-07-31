@@ -3,14 +3,12 @@ import {
     ResourceViewItemType,
     type ResourceViewDataAppItem,
 } from '@lightdash/common';
-import { Menu, Text } from '@mantine-8/core';
-import { IconStar, IconStarFilled } from '@tabler/icons-react';
+import { Text } from '@mantine-8/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import TransferItemsModal from '../../../components/common/TransferItemsModal/TransferItemsModal';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useContentAction } from '../../../hooks/useContent';
 
 type DataAppFavoriteTarget = Pick<
@@ -23,51 +21,6 @@ type DataAppFavoriteTarget = Pick<
     | 'latestVersionNumber'
     | 'latestVersionStatus'
 >;
-
-type DataAppFavoriteMenuItemProps = {
-    projectUuid: string;
-    appUuid: string;
-    appSpaceUuid: string | null;
-    onAddPersonalAppToSpace: () => void;
-};
-
-export const DataAppFavoriteMenuItem: FC<DataAppFavoriteMenuItemProps> = ({
-    projectUuid,
-    appUuid,
-    appSpaceUuid,
-    onAddPersonalAppToSpace,
-}) => {
-    const { data: favorites } = useFavorites(projectUuid);
-    const favoriteMutation = useFavoriteMutation(projectUuid);
-    const isFavorited =
-        favorites?.some((favorite) => favorite.data.uuid === appUuid) ?? false;
-
-    return (
-        <Menu.Item
-            leftSection={
-                isFavorited ? (
-                    <IconStarFilled size={14} color="orange" />
-                ) : (
-                    <IconStar size={14} />
-                )
-            }
-            disabled={favoriteMutation.isLoading}
-            onClick={() => {
-                if (!isFavorited && !appSpaceUuid) {
-                    onAddPersonalAppToSpace();
-                    return;
-                }
-
-                favoriteMutation.mutate({
-                    contentType: ContentType.DATA_APP,
-                    contentUuid: appUuid,
-                });
-            }}
-        >
-            {isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-        </Menu.Item>
-    );
-};
 
 type FavoritePersonalDataAppModalProps = {
     projectUuid: string;

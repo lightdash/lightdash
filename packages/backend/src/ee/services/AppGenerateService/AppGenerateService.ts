@@ -7404,6 +7404,8 @@ export class AppGenerateService extends BaseService {
         template: Exclude<DataAppTemplate, 'custom'> | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
+        slug: string;
+        views: number;
         versions: {
             version: number;
             prompt: string;
@@ -7434,6 +7436,8 @@ export class AppGenerateService extends BaseService {
             spaceUuid,
             spaceName,
             template,
+            slug,
+            viewsCount,
             pinnedListUuid,
             pinnedListOrder,
             versions,
@@ -7459,6 +7463,8 @@ export class AppGenerateService extends BaseService {
             spaceUuid,
             spaceName,
             template,
+            slug,
+            views: viewsCount,
             pinnedListUuid,
             pinnedListOrder,
             versions: versions.map((v) => ({

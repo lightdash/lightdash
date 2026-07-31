@@ -29,7 +29,7 @@ import {
 import { type FC, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
-import { FavoritePersonalDataAppModal } from '../../../features/apps/components/DataAppFavoriteMenuItem';
+import { FavoritePersonalDataAppModal } from '../../../features/apps/components/FavoritePersonalDataAppModal';
 import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
 import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
