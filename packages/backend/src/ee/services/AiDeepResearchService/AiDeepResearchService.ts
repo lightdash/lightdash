@@ -40,7 +40,6 @@ import {
     type ApiAiAgentThreadMessageVizQuery,
     type SessionUser,
 } from '@lightdash/common';
-import { createInterface } from 'readline';
 import { validate as isValidUuid } from 'uuid';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
@@ -49,6 +48,7 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
+import { splitJsonlStream } from '../../../utils/streamUtils';
 import {
     type DbAiDeepResearchAnalyticsOutbox,
     type DbAiDeepResearchEvent,
@@ -1236,14 +1236,9 @@ export class AiDeepResearchService extends BaseService {
             await this.resultsFileStorageClient.getDownloadStream(
                 resultsFileName,
             );
-        const lineReader = createInterface({
-            input: stream,
-            crlfDelay: Infinity,
-        });
-
         const rows: AiDeepResearchChartSnapshotValue[][] = [];
         try {
-            for await (const line of lineReader) {
+            for await (const line of splitJsonlStream(stream)) {
                 if (line.trim().length === 0) {
                     // eslint-disable-next-line no-continue
                     continue;
@@ -1266,7 +1261,6 @@ export class AiDeepResearchService extends BaseService {
                 );
             }
         } finally {
-            lineReader.close();
             stream.destroy();
         }
 

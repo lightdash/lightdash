@@ -125,7 +125,6 @@ import {
 } from '@lightdash/common';
 import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
-import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
@@ -165,6 +164,7 @@ import {
     hasBlockingTotalFilters,
     replaceUserAttributesAsStrings,
 } from '../../utils/QueryBuilder/utils';
+import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
@@ -760,16 +760,12 @@ export class AsyncQueryService extends ProjectService {
             await resultsStorageClient.getDownloadStream(fileName);
 
         const rows: ResultRow[] = [];
-        const rl = createInterface({
-            input: cacheStream,
-            crlfDelay: Infinity,
-        });
 
         const startLine = (page - 1) * pageSize;
         const endLine = startLine + pageSize;
         let nonEmptyLineCount = 0;
 
-        for await (const line of rl) {
+        for await (const line of splitJsonlStream(cacheStream)) {
             if (line.trim()) {
                 if (
                     nonEmptyLineCount >= startLine &&
