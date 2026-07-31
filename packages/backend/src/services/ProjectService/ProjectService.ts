@@ -639,6 +639,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
+        provisioningSource?: 'playground',
     ): Promise<void> {
         if (projectType === ProjectType.PREVIEW) {
             return;
@@ -650,18 +651,22 @@ export class ProjectService extends BaseService {
         }
 
         try {
-            const projects =
-                await this.projectModel.getAllByOrganizationUuid(
-                    organizationUuid,
+            // Playgrounds are provisioned alongside a user's own project, so
+            // they never pass the first-project check but still need an agent
+            if (provisioningSource !== 'playground') {
+                const projects =
+                    await this.projectModel.getAllByOrganizationUuid(
+                        organizationUuid,
+                    );
+                const nonPreviewProjects = projects.filter(
+                    (project) => project.type !== ProjectType.PREVIEW,
                 );
-            const nonPreviewProjects = projects.filter(
-                (project) => project.type !== ProjectType.PREVIEW,
-            );
-            if (
-                nonPreviewProjects.length !== 1 ||
-                nonPreviewProjects[0].projectUuid !== projectUuid
-            ) {
-                return;
+                if (
+                    nonPreviewProjects.length !== 1 ||
+                    nonPreviewProjects[0].projectUuid !== projectUuid
+                ) {
+                    return;
+                }
             }
 
             await this.getAiAgentService?.()?.provisionDefaultAgent(
@@ -692,7 +697,12 @@ export class ProjectService extends BaseService {
         projectType: ProjectType,
         provisioningSource?: 'playground',
     ): Promise<void> {
-        await this.provisionDefaultAiAgent(user, projectUuid, projectType);
+        await this.provisionDefaultAiAgent(
+            user,
+            projectUuid,
+            projectType,
+            provisioningSource,
+        );
 
         try {
             await this.onProjectCreated?.({
