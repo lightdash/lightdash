@@ -9314,6 +9314,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                       );
                                   }
                                   if (citedMemories.length > 0) {
+                                      this.prometheusMetrics?.incrementAiAgentMemoryCited(
+                                          citedMemories.length,
+                                      );
                                       citedMemories.forEach(
                                           ({ memoryId, slug }) =>
                                               this.analytics.track<AiAgentMemoryCitedEvent>(
