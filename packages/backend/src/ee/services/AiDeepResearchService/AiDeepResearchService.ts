@@ -4,6 +4,7 @@ import {
     AiResultType,
     buildInlineChartFields,
     buildInlineChartMetricQuery,
+    countDeepResearchFindings,
     FeatureFlags,
     findDeepResearchChartRefs,
     ForbiddenError,
@@ -15,7 +16,6 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
-    spliceDeepResearchRanges,
     UnexpectedServerError,
     type Account,
     type AiDeepResearchBudget,
@@ -69,10 +69,6 @@ const STALE_RUN_ERROR_MESSAGE =
     'Deep Research stopped unexpectedly before it could finish.';
 const FAILED_RUN_ERROR_MESSAGE =
     'Deep Research could not finish. Please try again.';
-const OMITTED_CHARTS_CAVEAT =
-    'Some proposed charts were omitted because their query evidence could not be verified.';
-const OMITTED_CHART_REF_REPLACEMENT =
-    '*(chart omitted: its query evidence could not be verified)*';
 const isChartConfigCompatible = (
     chart: AiDeepResearchWarehouseChart,
     metricQuery: {
@@ -1111,61 +1107,52 @@ export class AiDeepResearchService extends BaseService {
     /**
      * Turns the submitted report into the two persisted artifacts: the
      * markdown narrative and the render data for every verified chart,
-     * including a snapshot of each warehouse chart's results. Charts that
-     * cannot be verified or snapshotted lose their reference in the markdown.
+     * including a snapshot of each warehouse chart's results.
      */
     private async prepareEvidenceReport(
         run: DbAiDeepResearchRun,
         report: AiDeepResearchSubmittedReport,
         runQueryUuids: Set<string>,
     ): Promise<{ markdown: string; chartData: AiDeepResearchChartDataMap }> {
-        const chartData: AiDeepResearchChartDataMap = {};
-        const omittedKeys = new Set<string>();
-
-        await Promise.all(
+        const entries = await Promise.all(
             report.charts.map(async (chart) => {
                 const key = getDeepResearchChartKey(chart);
-                try {
-                    const entry =
-                        chart.source === 'warehouse'
-                            ? await this.buildWarehouseChartData(
-                                  run,
-                                  chart,
-                                  runQueryUuids,
-                              )
-                            : buildInlineChartData(chart, runQueryUuids);
-                    if (entry) {
-                        chartData[key] = entry;
-                    } else {
-                        omittedKeys.add(key);
-                    }
-                } catch (error) {
-                    this.logger.error(
-                        `Deep Research run ${run.ai_deep_research_run_uuid} could not prepare chart ${key}: ${getErrorMessage(error)}`,
+                const entry =
+                    chart.source === 'warehouse'
+                        ? await this.buildWarehouseChartData(
+                              run,
+                              chart,
+                              runQueryUuids,
+                          )
+                        : buildInlineChartData(chart, runQueryUuids);
+                if (!entry) {
+                    throw new UnexpectedServerError(
+                        `Deep Research could not verify chart ${key}`,
                     );
-                    omittedKeys.add(key);
                 }
+                return [key, entry] as const;
             }),
         );
+        const chartData = Object.fromEntries(
+            entries,
+        ) as AiDeepResearchChartDataMap;
+        const findingCount = countDeepResearchFindings(report.markdown);
+        const chartRefs = findDeepResearchChartRefs(report.markdown);
+        const hasMissingChartData = chartRefs.some(
+            (reference) => chartData[reference.key] === undefined,
+        );
 
-        if (omittedKeys.size === 0) {
-            return { markdown: report.markdown, chartData };
+        if (
+            findingCount !== chartRefs.length ||
+            chartRefs.length !== entries.length ||
+            hasMissingChartData
+        ) {
+            throw new UnexpectedServerError(
+                'Deep Research report findings and persisted charts must have an exact one-to-one mapping',
+            );
         }
 
-        const failedRefs = findDeepResearchChartRefs(report.markdown).filter(
-            (ref) => omittedKeys.has(ref.key),
-        );
-        const spliced = spliceDeepResearchRanges(
-            report.markdown,
-            failedRefs.map((ref) => ({
-                match: ref,
-                replacement: OMITTED_CHART_REF_REPLACEMENT,
-            })),
-        );
-        return {
-            markdown: `${spliced}\n\n<warning title="Caveat">\n\n${OMITTED_CHARTS_CAVEAT}\n\n</warning>\n`,
-            chartData,
-        };
+        return { markdown: report.markdown, chartData };
     }
 
     private async buildWarehouseChartData(

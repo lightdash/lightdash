@@ -314,6 +314,7 @@ export const toolRunQueryOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema.extend({
         chartImageUrl: z.string().nullish(),
+        queryUuid: z.string().uuid().nullish(),
     }),
 });
 

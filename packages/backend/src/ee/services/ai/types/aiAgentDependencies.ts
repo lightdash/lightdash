@@ -371,6 +371,7 @@ export type RunAsyncQueryFn = (
     additionalMetrics?: AdditionalMetric[],
     parameters?: ParametersValuesMap,
 ) => Promise<{
+    queryUuid?: string;
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;

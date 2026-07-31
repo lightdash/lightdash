@@ -1159,7 +1159,10 @@ const getAgentMessages = (
             case 'judge':
                 return [
                     AI_DEEP_RESEARCH_INSTRUCTIONS,
-                    getAiDeepResearchJudgeInstructions(research.investigations),
+                    getAiDeepResearchJudgeInstructions(
+                        research.investigations,
+                        research.chartCandidates,
+                    ),
                 ];
             case undefined:
                 return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];

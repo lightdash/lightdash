@@ -22,10 +22,11 @@ Structure:
 
 Charts:
 - Define every chart in the charts argument and reference it exactly once in markdown as <chart id="<key>" title="<chart title>" description="<standalone summary>">.
+- Every finding section must reference exactly one chart. Consolidate or omit a finding when the available evidence cannot support a chart.
 - Keep each chart description at most ${AI_DEEP_RESEARCH_MAX_CHART_DESCRIPTION_CHARS} characters.
 - A warehouse chart's queryUuid must come from a query result produced during this run.
 - Use inline charts only for derived or external data that no single warehouse query produced. They may contain at most ${AI_DEEP_RESEARCH_MAX_INLINE_ROWS} rows and ${AI_DEEP_RESEARCH_MAX_INLINE_COLUMNS} columns.
-- Include no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} charts. A report with zero charts is valid.
+- Include no more than ${AI_DEEP_RESEARCH_MAX_CHARTS} charts.
 
 Callouts:
 - Use only paired <warning>, <info>, <tip>, <note>, and <confidence> tags.

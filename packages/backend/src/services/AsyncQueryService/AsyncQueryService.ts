@@ -6517,6 +6517,7 @@ export class AsyncQueryService extends ProjectService {
         args: ExecuteAsyncMetricQueryArgs,
         pollingOptions?: PollingOptions,
     ): Promise<{
+        queryUuid: string;
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
@@ -6535,13 +6536,15 @@ export class AsyncQueryService extends ProjectService {
             ...pollingOptions,
         });
 
-        return this.getReadyQueryResults({
+        const results = await this.getReadyQueryResults({
             account,
             projectUuid,
             queryUuid,
             cacheMetadata,
             fields,
         });
+
+        return { queryUuid, ...results };
     }
 
     /**

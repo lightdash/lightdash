@@ -79,10 +79,37 @@ const report = {
 
 The monthly trend was stable.
 
+<chart id="revenue-baseline" title="Revenue baseline" description="Revenue remained stable across the observed period.">
+
 ## Conclusion
 
 - Revenue remained stable.`,
-    charts: [],
+    charts: [
+        {
+            source: 'inline' as const,
+            key: 'revenue-baseline',
+            title: 'Revenue baseline',
+            chartConfig: {
+                defaultVizType: 'table' as const,
+                xAxisDimension: null,
+                yAxisMetrics: null,
+                groupBy: null,
+                xAxisType: null,
+                stackBars: null,
+                lineType: null,
+                funnelDataInput: null,
+                xAxisLabel: '',
+                yAxisLabel: '',
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
+            },
+            columns: [
+                { id: 'period', label: 'Period', type: 'string' as const },
+                { id: 'revenue', label: 'Revenue', type: 'number' as const },
+            ],
+            rows: [['Observed', 100]],
+        },
+    ],
 };
 
 const hypothesis = (index: number): AiDeepResearchHypothesis => ({
@@ -158,11 +185,13 @@ const toolProvenance = ({
     toolCallId,
     toolArgs,
     result,
+    metadata = { status: 'success' },
 }: {
     toolName: string;
     toolCallId: string;
     toolArgs: object;
     result: string;
+    metadata?: Record<string, unknown>;
 }) =>
     ({
         toolCall: {
@@ -184,7 +213,7 @@ const toolProvenance = ({
             toolCallId,
             createdAt: new Date(),
             result,
-            metadata: { status: 'success' },
+            metadata,
             toolType: toolName.startsWith('mcp_') ? 'mcp' : 'built-in',
             toolName,
         },
@@ -389,10 +418,41 @@ describe('AiDeepResearchExecutor', () => {
                 provenance: [reportSubmission()],
                 childProvenance: [
                     toolProvenance({
-                        toolName: 'runSql',
+                        toolName: 'generateVisualization',
                         toolCallId: 'query-1',
-                        toolArgs: {},
-                        result: JSON.stringify({ queryUuid }),
+                        toolArgs: {
+                            title: 'Orders over time',
+                            description: 'Monthly order volume',
+                            queryConfig: {
+                                exploreName: 'orders',
+                                dimensions: [
+                                    'orders_created_month',
+                                    'orders_status',
+                                ],
+                                metrics: ['orders_count'],
+                                sorts: [],
+                                limit: null,
+                                customMetrics: null,
+                                tableCalculations: null,
+                                filters: null,
+                            },
+                            chartConfig: {
+                                defaultVizType: 'line',
+                                xAxisDimension: 'orders_created_month',
+                                yAxisMetrics: ['orders_count'],
+                                groupBy: ['orders_status'],
+                                xAxisType: 'time',
+                                stackBars: true,
+                                lineType: 'line',
+                                funnelDataInput: null,
+                                xAxisLabel: 'Month',
+                                yAxisLabel: 'Orders',
+                                secondaryYAxisMetric: null,
+                                secondaryYAxisLabel: null,
+                            },
+                        },
+                        result: 'Query completed',
+                        metadata: { status: 'success', queryUuid },
                     }),
                     reportSubmission(),
                 ],
@@ -430,6 +490,18 @@ describe('AiDeepResearchExecutor', () => {
         expect(plannerCalls).toHaveLength(1);
         expect(investigatorCalls).toHaveLength(2);
         expect(judgeCalls).toHaveLength(1);
+        expect(judgeCalls[0][1].execution.research.chartCandidates).toEqual([
+            expect.objectContaining({
+                source: 'warehouse',
+                queryUuid,
+                title: 'Orders over time',
+                chartConfig: expect.objectContaining({
+                    defaultVizType: 'table',
+                    groupBy: null,
+                    stackBars: null,
+                }),
+            }),
+        ]);
 
         expect(plannerCalls[0][1]).toMatchObject({
             toolHints: [AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME],

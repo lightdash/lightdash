@@ -1488,6 +1488,44 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeMetricQueryAndGetResults', () => {
+        it('preserves the query UUID with the ready results', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.executeAsyncMetricQuery = vi.fn().mockResolvedValue({
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+            });
+            service.pollForQueryCompletion = vi.fn().mockResolvedValue({
+                status: QueryHistoryStatus.READY,
+            } as QueryHistory);
+            const getReadyQueryResults = vi.fn().mockResolvedValue({
+                rows: [{ a_dim1: 'one', a_met1: 1 }],
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+                pivotDetails: null,
+                displayTimezone: null,
+            });
+            (service as AnyType).getReadyQueryResults = getReadyQueryResults;
+
+            const result = await service.executeMetricQueryAndGetResults({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.AI,
+            });
+
+            expect(result.queryUuid).toBe(
+                '11111111-1111-4111-8111-111111111111',
+            );
+            expect(getReadyQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    queryUuid: '11111111-1111-4111-8111-111111111111',
+                }),
+            );
+        });
+    });
+
     describe('executeAsyncMetricQuery', () => {
         test('tags warehouse queries with the originating data app from the request context', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);

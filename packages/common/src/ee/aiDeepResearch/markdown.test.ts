@@ -249,7 +249,20 @@ describe('lintDeepResearchReport', () => {
             errors.some(
                 (e) =>
                     e.includes('Baseline revenue trend') &&
-                    e.includes('at most one chart per finding'),
+                    e.includes('exactly one chart per finding'),
+            ),
+        ).toBe(true);
+    });
+
+    it('rejects a finding section without a chart reference', () => {
+        const markdown = validReport.replace(chartTag(UUID_A), '');
+        const errors = lintDeepResearchReport(markdown, []);
+
+        expect(
+            errors.some(
+                (e) =>
+                    e.includes('Baseline revenue trend') &&
+                    e.includes('exactly one chart per finding'),
             ),
         ).toBe(true);
     });

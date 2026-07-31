@@ -14,6 +14,7 @@ import {
     type AiDeepResearchInvestigationReport,
     type AiDeepResearchPhase,
     type AiDeepResearchRunStatus,
+    type AiDeepResearchWarehouseChart,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
@@ -136,6 +137,7 @@ export type AiDeepResearchExecutionRole =
     | {
           role: 'judge';
           investigations: AiDeepResearchInvestigation[];
+          chartCandidates: AiDeepResearchWarehouseChart[];
       };
 
 export type AiDeepResearchStepUsage = {

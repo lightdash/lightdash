@@ -1,5 +1,7 @@
 import {
+    aiDeepResearchChartDefinitionSchema,
     getErrorMessage,
+    toolRunQueryArgsSchema,
     type AiAgentToolCall,
     type AiAgentToolResult,
     type AiDeepResearchActivity,
@@ -9,6 +11,7 @@ import {
     type AiDeepResearchPhase,
     type AiDeepResearchProgress,
     type AiDeepResearchSubmittedReport,
+    type AiDeepResearchWarehouseChart,
     type SessionUser,
 } from '@lightdash/common';
 import Logger from '../../../logging/logger';
@@ -94,11 +97,63 @@ const getQueryUuids = (provenance: ToolProvenance[]): string[] => [
     ...new Set(
         provenance.flatMap(({ toolResult }) =>
             toolResult && isDeepResearchWarehouseTool(toolResult.toolName)
-                ? findStringValues(parseJson(toolResult.result), 'queryUuid')
+                ? [
+                      ...findStringValues(
+                          parseJson(toolResult.result),
+                          'queryUuid',
+                      ),
+                      ...findStringValues(toolResult.metadata, 'queryUuid'),
+                  ]
                 : [],
         ),
     ),
 ];
+
+const getChartCandidates = (
+    provenance: ToolProvenance[],
+): AiDeepResearchWarehouseChart[] => {
+    const candidates = provenance.flatMap(({ toolCall, toolResult }) => {
+        if (
+            toolCall.toolName !== 'generateVisualization' ||
+            toolResult?.metadata?.status !== 'success'
+        ) {
+            return [];
+        }
+
+        const queryUuid = findStringValues(toolResult.metadata, 'queryUuid')[0];
+        const toolArgs = toolRunQueryArgsSchema.safeParse(toolCall.toolArgs);
+        if (!queryUuid || !toolArgs.success || !toolArgs.data.chartConfig) {
+            return [];
+        }
+
+        const chart = aiDeepResearchChartDefinitionSchema.safeParse({
+            source: 'warehouse',
+            queryUuid,
+            title: toolArgs.data.title,
+            chartConfig: {
+                ...toolArgs.data.chartConfig,
+                defaultVizType: toolArgs.data.chartConfig.groupBy?.length
+                    ? 'table'
+                    : toolArgs.data.chartConfig.defaultVizType,
+                groupBy: null,
+                funnelDataInput: null,
+                stackBars: toolArgs.data.chartConfig.groupBy?.length
+                    ? null
+                    : toolArgs.data.chartConfig.stackBars,
+            },
+        });
+
+        return chart.success && chart.data.source === 'warehouse'
+            ? [chart.data]
+            : [];
+    });
+
+    return [
+        ...new Map(
+            candidates.map((candidate) => [candidate.queryUuid, candidate]),
+        ).values(),
+    ];
+};
 
 const getLatestReport = (
     provenance: ToolProvenance[],
@@ -556,6 +611,7 @@ export class AiDeepResearchExecutor {
 
         const runJudge = async (
             investigations: AiDeepResearchInvestigation[],
+            chartCandidates: AiDeepResearchWarehouseChart[],
             forceSubmission: boolean,
         ) =>
             this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
@@ -578,7 +634,11 @@ export class AiDeepResearchExecutor {
                     initialTokenUsage: tokens,
                     onStepUsage: trackUsage,
                     onWarehouseQuery: trackWarehouseQuery,
-                    research: { role: 'judge', investigations },
+                    research: {
+                        role: 'judge',
+                        investigations,
+                        chartCandidates,
+                    },
                 },
                 onStepProgress: makeStepProgressHandler('synthesizing'),
             });
@@ -636,12 +696,19 @@ export class AiDeepResearchExecutor {
                 }
 
                 if (!runSignal.aborted) {
-                    await runJudge(investigations, false);
+                    const investigationProvenance = await this.getProvenance(
+                        run.prompt_uuid,
+                        { includeSubagentToolCalls: true },
+                    );
+                    const chartCandidates = getChartCandidates(
+                        investigationProvenance,
+                    );
+                    await runJudge(investigations, chartCandidates, false);
                     const judgedReport = getLatestReport(
                         await this.getProvenance(run.prompt_uuid),
                     );
                     if (!judgedReport && !runSignal.aborted) {
-                        await runJudge(investigations, true);
+                        await runJudge(investigations, chartCandidates, true);
                     }
                 }
             }

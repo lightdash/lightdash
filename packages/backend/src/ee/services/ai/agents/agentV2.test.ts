@@ -108,6 +108,7 @@ describe('recordAgentStepUsage', () => {
                 research: {
                     role: 'judge',
                     investigations: [],
+                    chartCandidates: [],
                 },
             },
         });

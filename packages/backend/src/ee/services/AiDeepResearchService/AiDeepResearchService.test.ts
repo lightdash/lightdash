@@ -109,7 +109,20 @@ The baseline trend is stable.
 - Revenue held steady.
 `;
 
-const report = { markdown: reportMarkdown, charts: [] };
+const partialReportMarkdown = `The investigation stopped before it could produce a complete report.
+
+<warning title="Incomplete investigation">
+
+The tool budget was exhausted.
+
+</warning>
+
+## Conclusion
+
+- Run Deep Research again to continue investigating.
+`;
+
+const report = { markdown: partialReportMarkdown, charts: [] };
 
 const persistedMetrics = {
     duration_ms: 5_000,
@@ -1085,9 +1098,27 @@ describe('AiDeepResearchService', () => {
 
             expect(model.markCompleted).toHaveBeenCalledWith(
                 'run-1',
-                reportMarkdown,
+                partialReportMarkdown,
                 {},
             );
+        });
+
+        it('fails before persistence when a finding has no chart data', async () => {
+            const { service, model } = buildService({
+                executor: vi.fn().mockResolvedValue({
+                    status: 'completed',
+                    report: { markdown: reportMarkdown, charts: [] },
+                    warehouseQueryUuids: [],
+                    terminalReason: null,
+                }),
+            });
+
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toThrow('exact one-to-one mapping');
+
+            expect(model.markCompleted).not.toHaveBeenCalled();
+            expect(model.markFailed).toHaveBeenCalled();
         });
 
         it('emits one terminal rollup from the persisted metrics snapshot', async () => {
@@ -1458,7 +1489,7 @@ describe('AiDeepResearchService', () => {
             );
         });
 
-        it('omits an older same-user query that was not returned by this run', async () => {
+        it('fails when a chart query was not returned by this run', async () => {
             const { service, model, queryHistoryModel } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
@@ -1467,19 +1498,20 @@ describe('AiDeepResearchService', () => {
                 }),
             });
 
-            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toThrow('could not verify chart');
 
             expect(queryHistoryModel.getByQueryUuid).not.toHaveBeenCalled();
-            const [, persisted, chartData] = model.markCompleted.mock.calls[0];
-            expect(chartData).toEqual({});
-            expect(persisted).not.toContain(`<chart id="${chart.queryUuid}"`);
-            expect(persisted).toContain('*(chart omitted:');
-            expect(persisted).toContain(
-                'Some proposed charts were omitted because their query evidence could not be verified.',
+            expect(model.markCompleted).not.toHaveBeenCalled();
+            expect(model.markFailed).toHaveBeenCalledWith(
+                'run-1',
+                'Deep Research could not finish. Please try again.',
+                'internal_error',
             );
         });
 
-        it('omits a replayed same-user query that predates this run', async () => {
+        it('fails when a chart query predates this run', async () => {
             const { service, model, resultsFileStorageClient } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
@@ -1512,17 +1544,18 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toThrow('could not verify chart');
 
             expect(
                 resultsFileStorageClient.getDownloadStream,
             ).not.toHaveBeenCalled();
-            const [, persisted, chartData] = model.markCompleted.mock.calls[0];
-            expect(chartData).toEqual({});
-            expect(persisted).toContain('*(chart omitted:');
+            expect(model.markCompleted).not.toHaveBeenCalled();
+            expect(model.markFailed).toHaveBeenCalled();
         });
 
-        it('omits chart fields that are absent from the verified query', async () => {
+        it('fails when chart fields are absent from the verified query', async () => {
             const { service, model } = buildService({
                 executor: vi.fn().mockResolvedValue({
                     status: 'completed',
@@ -1550,12 +1583,12 @@ describe('AiDeepResearchService', () => {
                 },
             });
 
-            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+            await expect(
+                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+            ).rejects.toThrow('could not verify chart');
 
-            const [, persisted, chartData] = model.markCompleted.mock.calls[0];
-            expect(chartData).toEqual({});
-            expect(persisted).not.toContain(`<chart id="${chart.queryUuid}"`);
-            expect(persisted).toContain('*(chart omitted:');
+            expect(model.markCompleted).not.toHaveBeenCalled();
+            expect(model.markFailed).toHaveBeenCalled();
         });
 
         it('lets a concurrent cancellation request win over completion', async () => {

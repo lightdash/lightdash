@@ -6748,6 +6748,17 @@ Table calculations perform row-by-row calculations on query results without coll
                 "null",
               ],
             },
+            "queryUuid": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+            },
             "status": {
               "enum": [
                 "success",

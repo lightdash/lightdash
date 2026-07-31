@@ -718,9 +718,9 @@ export const lintDeepResearchReport = (
         const refsInSection = refs.filter(
             (ref) => ref.start >= start && ref.start < end,
         ).length;
-        if (refsInSection > 1) {
+        if (refsInSection !== 1) {
             errors.push(
-                `Finding section "${title}" references ${refsInSection} charts; reference at most one chart per finding and split additional charts into their own finding sections.`,
+                `Finding section "${title}" references ${refsInSection} charts; reference exactly one chart per finding, consolidating or omitting findings without chart-ready evidence and splitting additional charts into their own finding sections.`,
             );
         }
     });
