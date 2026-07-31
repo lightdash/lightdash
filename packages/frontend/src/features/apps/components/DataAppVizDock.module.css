@@ -18,6 +18,14 @@
     flex: 0 1 auto;
 }
 
+/* No versions to divide the composer from, so no rule — and the dock hugs
+   what it has rather than claiming half the panel. */
+.dockBare {
+    flex: 0 0 auto;
+    padding-top: 0;
+    border-top: none;
+}
+
 .sheetHeader {
     flex: 0 0 auto;
 }
@@ -41,6 +49,33 @@
     align-items: center;
     gap: var(--mantine-spacing-xs);
     min-height: 22px;
+}
+
+/* Rides the dock's top edge while a build runs, so a collapsed dock still
+   reports it. Indeterminate: a build's length is not knowable up front. */
+.progress {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    overflow: hidden;
+}
+
+.progressBar {
+    width: 40%;
+    height: 100%;
+    background-color: var(--mantine-color-violet-5);
+    animation: dockProgress 1.6s ease-in-out infinite;
+}
+
+@keyframes dockProgress {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(350%);
+    }
 }
 
 /* The whole status line opens the dock, so the target is the sentence rather

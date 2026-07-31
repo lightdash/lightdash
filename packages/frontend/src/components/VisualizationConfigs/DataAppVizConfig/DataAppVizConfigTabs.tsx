@@ -1,12 +1,20 @@
-import { getEffectiveOptionValues, type ItemsMap } from '@lightdash/common';
+import {
+    getEffectiveOptionValues,
+    type DataAppVizFieldMapping,
+    type ItemsMap,
+} from '@lightdash/common';
 import { Box } from '@mantine-8/core';
 import { MantineProvider, useMantineColorScheme } from '@mantine/core';
-import { memo, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
+import DataAppVizBuildStatus from '../../../features/apps/components/DataAppVizBuildStatus';
+import DataAppVizComposer from '../../../features/apps/components/DataAppVizComposer';
 import DataAppVizDock from '../../../features/apps/components/DataAppVizDock';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
+import { useDataAppVizBuild } from '../../../features/apps/hooks/useDataAppVizBuild';
+import { useElapsedClock } from '../../../features/apps/hooks/useElapsedClock';
 import {
     autoMapDataAppVizFields,
     reconcileDataAppVizFieldMapping,
@@ -47,16 +55,32 @@ export const ConfigTabs: FC = memo(() => {
     );
     const colorPalette = dataAppViz?.schema?.colorPalette ?? null;
 
+    // Held in a ref-free callback so the build hook can commit straight into
+    // the chart config once a new visualization lands.
+    const setDataAppVizUuidRef = isDataAppViz
+        ? visualizationConfig.chartConfig.setDataAppVizUuid
+        : undefined;
+    const handleCreated = useCallback(
+        (uuid: string, mapping: DataAppVizFieldMapping) =>
+            setDataAppVizUuidRef?.(uuid, mapping),
+        [setDataAppVizUuidRef],
+    );
+    const build = useDataAppVizBuild({
+        projectUuid,
+        itemsMap: itemsMap ?? {},
+        dataAppVizUuid: dataAppVizUuid || null,
+        onCreated: handleCreated,
+    });
+    const elapsed = useElapsedClock(build.startedAt);
     const canCreateApp = useCanCreateDataApp(projectUuid);
     const canEditSelected = useCanEditDataApp(projectUuid, {
         spaceUuid: dataAppViz?.spaceUuid ?? null,
         createdByUserUuid: dataAppViz?.createdByUserUuid ?? null,
     });
-    // The dock is authoring end to end — the version log's restores, the way
-    // into the builder — so it is offered on the same rules as the builder
-    // page: creating a new visualization, or managing the one selected.
-    // Without either, the panel is the picker and the settings. The create
-    // arm only becomes reachable once the dock renders with nothing selected.
+    // The dock is authoring end to end — the composer, the version log's
+    // restores, the way into the builder — so it is offered on the same rules
+    // as the builder page: creating a new visualization, or managing the one
+    // selected. Without either, the panel is the picker and the settings.
     const canAuthor = dataAppVizUuid ? canEditSelected : canCreateApp;
 
     if (!isDataAppViz) return null;
@@ -124,10 +148,33 @@ export const ConfigTabs: FC = memo(() => {
                     />
                 </Box>
 
-                {dataAppVizUuid && canAuthor && (
+                {canAuthor && (
                     <DataAppVizDock
                         projectUuid={projectUuid ?? ''}
-                        dataAppVizUuid={dataAppVizUuid}
+                        // A build claims its app before the chart points at it,
+                        // so the versions on show are that one's until it lands.
+                        dataAppVizUuid={dataAppVizUuid || build.appUuid}
+                        build={build}
+                        elapsed={elapsed}
+                        status={
+                            build.isBuilding ? (
+                                <DataAppVizBuildStatus
+                                    build={build}
+                                    elapsed={elapsed}
+                                />
+                            ) : undefined
+                        }
+                        footer={
+                            // Asking a saved visualization to change is not
+                            // wired up yet; the composer only authors new ones.
+                            dataAppVizUuid ? null : (
+                                <DataAppVizComposer
+                                    placeholder="Describe a new visualization…"
+                                    isBuilding={build.isBuilding}
+                                    onSubmit={build.send}
+                                />
+                            )
+                        }
                     />
                 )}
             </Box>

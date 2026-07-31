@@ -1,4 +1,7 @@
-import { type ApiAppVersionSummary } from '@lightdash/common';
+import {
+    isAppVersionInProgress,
+    type ApiAppVersionSummary,
+} from '@lightdash/common';
 import { Anchor, Badge, Group, Loader, Stack, Text } from '@mantine-8/core';
 import { IconAlertTriangle, IconCheck, IconRestore } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -7,11 +10,13 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useAppVersionHistory } from '../hooks/useAppVersionHistory';
+import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
 import { useRestoreAppVersion } from '../hooks/useRestoreAppVersion';
 import { type ChatMessage } from '../utils/chatMessage';
 import { formatBuildDuration } from '../utils/formatBuildDuration';
 import { versionsToChatMessages } from '../utils/versionsToChatMessages';
 import classes from './DataAppVizVersionLog.module.css';
+import LoadingDots from './LoadingDots';
 
 /** One exchange: what was asked for, and what the build made of it. */
 type LogEntry = {
@@ -61,12 +66,32 @@ const Prompt: FC<{ message: ChatMessage }> = ({ message }) =>
         </Text>
     );
 
+const Building: FC<{ elapsed: string | null }> = ({ elapsed }) => (
+    <Group gap={6} wrap="nowrap">
+        <Text size="xs" c="dimmed">
+            Building
+        </Text>
+        <LoadingDots />
+        {elapsed && (
+            <Text size="xs" c="dimmed" fw={500}>
+                {elapsed}
+            </Text>
+        )}
+    </Group>
+);
+
 const LogRow: FC<{
     entry: LogEntry;
     /** The version every chart using this visualization renders right now. */
     isCurrent: boolean;
+    /** Ticking clock, when this row is the build in flight. */
+    elapsed: string | null;
     onRestore: (version: number) => void;
-}> = ({ entry, isCurrent, onRestore }) => {
+}> = ({ entry, isCurrent, elapsed, onRestore }) => {
+    // A version the poller has written but not yet finished — any of the seven
+    // stages before it lands. Its own row reports the progress, so the build
+    // never needs a second one.
+    const isBuilding = isAppVersionInProgress(entry.status);
     return (
         <Group
             className={classes.row}
@@ -78,7 +103,7 @@ const LogRow: FC<{
             <Badge
                 size="xs"
                 variant="light"
-                color={isCurrent ? 'violet' : 'gray'}
+                color={isCurrent || isBuilding ? 'violet' : 'gray'}
                 className={classes.versionBadge}
             >
                 {`v${entry.version}`}
@@ -86,7 +111,11 @@ const LogRow: FC<{
 
             <Stack gap={2} className={classes.rowBody}>
                 <Prompt message={entry.request} />
-                {entry.receipt && <Receipt message={entry.receipt} />}
+                {isBuilding ? (
+                    <Building elapsed={elapsed} />
+                ) : (
+                    entry.receipt && <Receipt message={entry.receipt} />
+                )}
             </Stack>
 
             {isCurrent && (
@@ -109,10 +138,74 @@ const LogRow: FC<{
     );
 };
 
+/**
+ * The request in flight, shown from the moment it is sent — its version log
+ * row is written by the build itself, not by history.
+ */
+const LiveRow: FC<{
+    build: DataAppVizBuildState;
+    elapsed: string | null;
+}> = ({ build, elapsed }) => (
+    <Group className={classes.row} gap="xs" wrap="nowrap" align="flex-start">
+        <Badge
+            size="xs"
+            variant="light"
+            color="violet"
+            className={classes.versionBadge}
+        >
+            {build.claimedVersion === null ? '···' : `v${build.claimedVersion}`}
+        </Badge>
+
+        <Stack gap={2} className={classes.rowBody}>
+            <Text size="xs" lineClamp={1}>
+                {build.pendingPrompt}
+            </Text>
+            <Building elapsed={elapsed} />
+        </Stack>
+    </Group>
+);
+
+/** A send that never became a version: nothing to receipt, only to retry. */
+const FailedRow: FC<{ error: string; retry: (() => void) | null }> = ({
+    error,
+    retry,
+}) => (
+    <Group className={classes.row} gap="xs" wrap="nowrap" align="flex-start">
+        <MantineIcon
+            icon={IconAlertTriangle}
+            size={12}
+            color="red.6"
+            className={classes.versionBadge}
+        />
+        <Stack gap={2} className={classes.rowBody}>
+            <Text size="xs" c="red.7">
+                {error}
+            </Text>
+            <Text size="xs" c="dimmed">
+                Your query and chart are untouched.
+            </Text>
+        </Stack>
+        {retry && (
+            <Anchor
+                component="button"
+                type="button"
+                size="xs"
+                className={classes.rowAction}
+                onClick={retry}
+            >
+                Retry
+            </Anchor>
+        )}
+    </Group>
+);
+
 type Props = {
     projectUuid: string;
-    /** The visualization whose history this is. */
-    dataAppVizUuid: string;
+    /** The visualization whose history this is; null before one exists. */
+    dataAppVizUuid: string | null;
+    build: DataAppVizBuildState;
+    /** Ticking `0:12` while a build runs; null when nothing is running. */
+    elapsed: string | null;
 };
 
 /**
@@ -123,7 +216,12 @@ type Props = {
  * new version. The newest version that finished is what every chart using this
  * visualization renders, so a restore reaches all of them.
  */
-const DataAppVizVersionLog: FC<Props> = ({ projectUuid, dataAppVizUuid }) => {
+const DataAppVizVersionLog: FC<Props> = ({
+    projectUuid,
+    dataAppVizUuid,
+    build,
+    elapsed,
+}) => {
     const {
         versions,
         latestReadyVersion,
@@ -170,9 +268,16 @@ const DataAppVizVersionLog: FC<Props> = ({ projectUuid, dataAppVizUuid }) => {
         );
     }
 
+    // The build writes its own row until the version it claimed reaches
+    // history, where the same request appears as a stored prompt.
+    const isClaimedInHistory =
+        build.claimedVersion !== null &&
+        versions.some((v) => v.version === build.claimedVersion);
+
     // Only when the failure left nothing to read — a page that fails partway
-    // should not throw away the versions already on screen.
-    if (isError && entries.length === 0) {
+    // should not throw away the versions already on screen, and a build in
+    // flight still has a row of its own to write.
+    if (isError && entries.length === 0 && !build.isBuilding && !build.error) {
         return (
             <Text size="xs" c="dimmed" px="xs" py={6}>
                 Could not load this visualization's versions.
@@ -183,11 +288,20 @@ const DataAppVizVersionLog: FC<Props> = ({ projectUuid, dataAppVizUuid }) => {
     return (
         <>
             <Stack gap={0}>
+                {build.isBuilding && !isClaimedInHistory && (
+                    <LiveRow build={build} elapsed={elapsed} />
+                )}
+
+                {build.error && (
+                    <FailedRow error={build.error} retry={build.retry} />
+                )}
+
                 {entries.map((entry) => (
                     <LogRow
                         key={entry.version}
                         entry={entry}
                         isCurrent={entry.version === latestReadyVersion}
+                        elapsed={elapsed}
                         onRestore={setRestoreTarget}
                     />
                 ))}
@@ -207,7 +321,7 @@ const DataAppVizVersionLog: FC<Props> = ({ projectUuid, dataAppVizUuid }) => {
                 )}
             </Stack>
 
-            {restoreTarget !== null && (
+            {restoreTarget !== null && dataAppVizUuid && (
                 <MantineModal
                     opened
                     onClose={() => {

@@ -31,7 +31,8 @@ type Props = {
 /**
  * What the chart is pointing at, and what each of its slots is bound to.
  *
- * Changes here are free and instant — no build, no request.
+ * Changes here are free and instant — no build, no request. That is what
+ * separates them from the build session docked below.
  */
 const DataAppVizSettings: FC<Props> = ({
     projectUuid,
