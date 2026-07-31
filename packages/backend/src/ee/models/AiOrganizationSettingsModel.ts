@@ -1,4 +1,5 @@
 import {
+    AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AiOrganizationSettings,
     AiProviderApiKeyHints,
     BYO_AI_PROVIDERS,
@@ -110,6 +111,7 @@ export class AiOrganizationSettingsModel {
             organizationUuid: db.organization_uuid,
             aiAgentsVisible: db.ai_agents_visible,
             aiAgentReviewsEnabled: db.ai_agent_reviews_enabled,
+            deepResearchLimits: db.deep_research_limits,
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
             requireExplicitSlackChannelLinking:
                 db.require_explicit_slack_channel_linking,
@@ -181,6 +183,7 @@ export class AiOrganizationSettingsModel {
                 organization_uuid: data.organizationUuid,
                 ai_agents_visible: data.aiAgentsVisible,
                 ai_agent_reviews_enabled: data.aiAgentReviewsEnabled,
+                deep_research_limits: data.deepResearchLimits,
                 mcp_content_writes_enabled: data.mcpContentWritesEnabled,
                 require_explicit_slack_channel_linking:
                     data.requireExplicitSlackChannelLinking,
@@ -204,6 +207,7 @@ export class AiOrganizationSettingsModel {
                 DbAiOrganizationSettings,
                 | 'ai_agents_visible'
                 | 'ai_agent_reviews_enabled'
+                | 'deep_research_limits'
                 | 'mcp_content_writes_enabled'
                 | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
@@ -218,6 +222,9 @@ export class AiOrganizationSettingsModel {
         }
         if (data.aiAgentReviewsEnabled !== undefined) {
             updateData.ai_agent_reviews_enabled = data.aiAgentReviewsEnabled;
+        }
+        if (data.deepResearchLimits !== undefined) {
+            updateData.deep_research_limits = data.deepResearchLimits;
         }
         if (data.mcpContentWritesEnabled !== undefined) {
             updateData.mcp_content_writes_enabled =
@@ -319,6 +326,8 @@ export class AiOrganizationSettingsModel {
             organizationUuid,
             aiAgentsVisible: data.aiAgentsVisible ?? true,
             aiAgentReviewsEnabled: data.aiAgentReviewsEnabled ?? false,
+            deepResearchLimits:
+                data.deepResearchLimits ?? AI_DEEP_RESEARCH_DEFAULT_LIMITS,
             mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
             requireExplicitSlackChannelLinking:
                 data.requireExplicitSlackChannelLinking ?? false,

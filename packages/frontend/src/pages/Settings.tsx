@@ -71,6 +71,7 @@ import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel'
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
 import { ReviewRemediationWorkspace } from '../ee/features/aiCopilot/components/Admin/ReviewRemediationWorkspace';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';
+import { AiDeepResearchSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiDeepResearchSettingsPage';
 import { AiEvalsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiEvalsSettingsPage';
 import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiGeneralSettingsPage';
 import { AiMemoriesSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiMemoriesSettingsPage';
@@ -87,6 +88,7 @@ import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
+import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
 import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
 import { useSettingsContext } from '../hooks/settings/useSettingsContext';
 import { useSettingsNavigation } from '../hooks/settings/useSettingsNavigation';
@@ -153,11 +155,13 @@ const Settings: FC = () => {
         dataAppsFlag,
         isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading,
+        isDeepResearchFlagLoading,
         showImpersonationPanel,
         isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
@@ -655,6 +659,19 @@ const Settings: FC = () => {
                     path: '/ai/general',
                     element: <AiGeneralSettingsPage />,
                 });
+                if (
+                    canAccessDeepResearchSettings({
+                        isAiCopilotEnabledOrTrial,
+                        isDeepResearchEnabled,
+                        canManageOrgAiAgent,
+                        hasAnyAiAgentAccess,
+                    })
+                ) {
+                    allowedRoutes.push({
+                        path: '/ai/deep-research',
+                        element: <AiDeepResearchSettingsPage />,
+                    });
+                }
             }
             allowedRoutes.push({
                 path: '/ai/threads',
@@ -770,6 +787,7 @@ const Settings: FC = () => {
         isEmailWhitelabelEnabled,
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
@@ -894,6 +912,11 @@ const Settings: FC = () => {
     const isAwaitingAiSettingsRoute =
         isAiOrganizationSettingsLoading &&
         Boolean(matchPath('/generalSettings/ai/*', location.pathname));
+    const isAwaitingDeepResearchRoute =
+        isDeepResearchFlagLoading &&
+        Boolean(
+            matchPath('/generalSettings/ai/deep-research', location.pathname),
+        );
     const isAwaitingRoadmapRoute =
         isOrganizationRoadmapLoading &&
         Boolean(matchPath('/generalSettings/roadmap', location.pathname));
@@ -908,6 +931,7 @@ const Settings: FC = () => {
         isActiveProjectUuidLoading ||
         isProjectLoading ||
         isAwaitingAiSettingsRoute ||
+        isAwaitingDeepResearchRoute ||
         isAwaitingRoadmapRoute ||
         isAwaitingDataAppsRoute
     ) {

@@ -35,6 +35,7 @@ import {
     IconSettings,
     IconShieldCheck,
     IconTableOptions,
+    IconTelescope,
     IconTrash,
     IconUserCircle,
     IconUserCode,
@@ -48,6 +49,7 @@ import {
 import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
 import {
     type SettingsContext,
     type SettingsNavigationItem,
@@ -81,6 +83,7 @@ export const useSettingsNavigation = (
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
@@ -538,6 +541,24 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (
+                canAccessDeepResearchSettings({
+                    isAiCopilotEnabledOrTrial,
+                    isDeepResearchEnabled,
+                    canManageOrgAiAgent,
+                    hasAnyAiAgentAccess,
+                })
+            ) {
+                aiChildren.push({
+                    label: 'Deep research',
+                    to: '/generalSettings/ai/deep-research',
+                    icon: IconTelescope,
+                    keywords: ['research', 'limits', 'tools', 'queries'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             organizationItems.push({
                 label: 'Ask AI',
                 to: '/generalSettings/ai',
@@ -946,6 +967,7 @@ export const useSettingsNavigation = (
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,

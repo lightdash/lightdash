@@ -35,6 +35,12 @@ export const useSettingsContext = (): SettingsContext => {
     const shouldShowAiAgentReviews =
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
 
+    const deepResearchFlagQuery = useServerFeatureFlag(
+        FeatureFlags.AiDeepResearch,
+    );
+    const { data: deepResearchFlag } = deepResearchFlagQuery;
+    const isDeepResearchEnabled = deepResearchFlag?.enabled ?? false;
+
     const { data: aiAgentMemoryFlag } = useServerFeatureFlag(
         FeatureFlags.AiAgentMemory,
     );
@@ -194,12 +200,14 @@ export const useSettingsContext = (): SettingsContext => {
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading:
             aiOrganizationSettingsQuery.isInitialLoading,
+        isDeepResearchFlagLoading: deepResearchFlagQuery.isInitialLoading,
         dataAppsFlag,
         isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         embeddingEnabled,

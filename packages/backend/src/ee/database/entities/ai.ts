@@ -2,6 +2,7 @@ import {
     type AiAgentModelConfig,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
+    type AiDeepResearchLimits,
     type AiOrgModelVisibility,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
@@ -481,6 +482,7 @@ export type DbAiOrganizationSettings = {
     organization_uuid: string;
     ai_agents_visible: boolean;
     ai_agent_reviews_enabled: boolean;
+    deep_research_limits: AiDeepResearchLimits;
     mcp_content_writes_enabled: boolean;
     require_explicit_slack_channel_linking: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
@@ -499,6 +501,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             Pick<
                 DbAiOrganizationSettings,
                 | 'ai_agent_reviews_enabled'
+                | 'deep_research_limits'
                 | 'mcp_content_writes_enabled'
                 | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
@@ -513,6 +516,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             DbAiOrganizationSettings,
             | 'ai_agents_visible'
             | 'ai_agent_reviews_enabled'
+            | 'deep_research_limits'
             | 'mcp_content_writes_enabled'
             | 'require_explicit_slack_channel_linking'
             | 'default_ai_agent_model_config'

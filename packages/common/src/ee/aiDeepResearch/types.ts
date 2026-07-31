@@ -55,6 +55,20 @@ export type AiDeepResearchBudget = {
     maxHypotheses: number;
 };
 
+export type AiDeepResearchLimits = {
+    maxTokens: number;
+    maxToolCalls: number;
+    maxWarehouseQueries: number;
+    maxHypotheses: number;
+};
+
+export const AI_DEEP_RESEARCH_DEFAULT_LIMITS: AiDeepResearchLimits = {
+    maxTokens: 10_000_000,
+    maxToolCalls: 1_000,
+    maxWarehouseQueries: 100,
+    maxHypotheses: 5,
+};
+
 export type AiDeepResearchHypothesis = {
     id: string;
     claim: string;
