@@ -25,8 +25,8 @@ export const DeepResearchModeControl = ({
 }: Props) => {
     const isDeepResearch = mode === 'deep_research';
     const label = isDeepResearch
-        ? 'Turn off Deep research'
-        : 'Turn on Deep research';
+        ? 'Disable deep research'
+        : 'Enable deep research';
     const toggleMode = () =>
         onModeChange(isDeepResearch ? 'ask' : 'deep_research');
 

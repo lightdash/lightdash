@@ -17,21 +17,21 @@ describe('DeepResearchModeControl', () => {
         renderWithProviders(<ModeHarness />);
 
         const enable = screen.getByRole('button', {
-            name: 'Turn on Deep research',
+            name: 'Enable deep research',
         });
         expect(enable).toHaveAttribute('aria-pressed', 'false');
 
         await user.click(enable);
 
         const disable = screen.getByRole('button', {
-            name: 'Turn off Deep research',
+            name: 'Disable deep research',
         });
         expect(disable).toHaveAttribute('aria-pressed', 'true');
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
         await user.click(disable);
         expect(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         ).toHaveAttribute('aria-pressed', 'false');
     });
 
@@ -42,12 +42,12 @@ describe('DeepResearchModeControl', () => {
                 mode="ask"
                 onModeChange={() => undefined}
                 iconOnly
-                disabledReason="Only one Deep research run can be active in a thread at a time."
+                disabledReason="Only one deep research run can be active in a thread at a time."
             />,
         );
 
         const button = screen.getByRole('button', {
-            name: 'Turn on Deep research',
+            name: 'Enable deep research',
         });
         expect(button).toBeEnabled();
         expect(screen.queryByText('Deep research')).not.toBeInTheDocument();
@@ -55,14 +55,14 @@ describe('DeepResearchModeControl', () => {
         await user.hover(button);
 
         expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'Turn on Deep research',
+            'Enable deep research',
         );
     });
 
-    it('disables Deep research while another run is active', async () => {
+    it('disables deep research while another run is active', async () => {
         const user = userEvent.setup();
         const disabledReason =
-            'Only one Deep research run can be active in a thread at a time.';
+            'Only one deep research run can be active in a thread at a time.';
         const activeRunProps = {
             disabled: true,
             disabledReason,
@@ -77,7 +77,7 @@ describe('DeepResearchModeControl', () => {
         );
 
         expect(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         ).toBeDisabled();
 
         const explanationTrigger = screen.getByLabelText(disabledReason);
@@ -92,7 +92,7 @@ describe('DeepResearchModeControl', () => {
     it('shows the active-run explanation on keyboard focus', async () => {
         const user = userEvent.setup();
         const disabledReason =
-            'Only one Deep research run can be active in a thread at a time.';
+            'Only one deep research run can be active in a thread at a time.';
 
         renderWithProviders(
             <DeepResearchModeControl

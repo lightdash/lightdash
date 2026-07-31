@@ -57,7 +57,7 @@ describe('AgentChatInput Deep Research mode', () => {
 
         expect(
             screen
-                .getByRole('button', { name: 'Turn on Deep research' })
+                .getByRole('button', { name: 'Enable deep research' })
                 .closest('[data-accent]'),
         ).toBeNull();
     });
@@ -67,7 +67,7 @@ describe('AgentChatInput Deep Research mode', () => {
 
         expect(
             screen
-                .getByRole('button', { name: 'Turn on Deep research' })
+                .getByRole('button', { name: 'Enable deep research' })
                 .closest('[data-accent]'),
         ).not.toBeNull();
     });
@@ -77,10 +77,10 @@ describe('AgentChatInput Deep Research mode', () => {
         const { onStartDeepResearch, onSubmit } = renderInput();
 
         await user.click(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         );
         expect(
-            screen.getByRole('button', { name: 'Turn off Deep research' }),
+            screen.getByRole('button', { name: 'Disable deep research' }),
         ).toHaveAttribute('aria-pressed', 'true');
 
         await user.click(
@@ -92,7 +92,7 @@ describe('AgentChatInput Deep Research mode', () => {
         });
         expect(onSubmit).not.toHaveBeenCalled();
         expect(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         ).toHaveAttribute('aria-pressed', 'false');
     });
 
@@ -105,14 +105,14 @@ describe('AgentChatInput Deep Research mode', () => {
         });
 
         await user.click(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         );
         await user.click(
             screen.getByRole('button', { name: 'Start research' }),
         );
 
         expect(
-            screen.getByRole('button', { name: 'Turn off Deep research' }),
+            screen.getByRole('button', { name: 'Disable deep research' }),
         ).toHaveAttribute('aria-pressed', 'true');
         expect(
             screen.getByText('Why did enterprise retention fall?'),
@@ -123,7 +123,7 @@ describe('AgentChatInput Deep Research mode', () => {
         renderInput({ onStartDeepResearch: null });
 
         expect(
-            screen.queryByRole('button', { name: 'Turn on Deep research' }),
+            screen.queryByRole('button', { name: 'Enable deep research' }),
         ).not.toBeInTheDocument();
     });
 
@@ -133,7 +133,7 @@ describe('AgentChatInput Deep Research mode', () => {
         renderInput({ onStartDeepResearch, disabled: true });
 
         await user.click(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         );
 
         expect(
@@ -142,13 +142,13 @@ describe('AgentChatInput Deep Research mode', () => {
         expect(onStartDeepResearch).not.toHaveBeenCalled();
     });
 
-    it('keeps regular chat available while Deep research is active', async () => {
+    it('keeps regular chat available while deep research is active', async () => {
         const user = userEvent.setup();
         useHasActiveDeepResearchRunMock.mockReturnValue(true);
         const { onStartDeepResearch, onSubmit } = renderInput();
 
         expect(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         ).toBeDisabled();
 
         await user.click(screen.getByRole('button', { name: 'Send message' }));

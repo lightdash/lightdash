@@ -52,7 +52,7 @@ import { getAgentSuggestionModes } from './suggestionModes';
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
 const ACTIVE_DEEP_RESEARCH_DISABLED_REASON =
-    'Only one Deep research run can be active in a thread at a time.';
+    'Only one deep research run can be active in a thread at a time.';
 
 const SuggestionChipMention = Mention.extend({
     name: SUGGESTION_CHIP_MENTION_NAME,
