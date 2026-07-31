@@ -1,9 +1,20 @@
-import { type DataAppCode, type DataAppDependencies } from '@lightdash/common';
-import { promises as fs } from 'fs';
+import {
+    type AnyType,
+    type DataAppCode,
+    type DataAppDependencies,
+} from '@lightdash/common';
+import {
+    promises as fs,
+    mkdirSync,
+    mkdtempSync,
+    utimesSync,
+    writeFileSync,
+} from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
     appFolderName,
+    appFolderNeedsUpdating,
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
@@ -513,5 +524,90 @@ describe('applySdkMirrorToTemplateDeps', () => {
         expect(applySdkMirrorToTemplateDeps(template, 'not-json')).toEqual(
             template,
         );
+    });
+});
+
+// ─── appFolderNeedsUpdating ────────────────────────────────────────────────────
+
+describe('appFolderNeedsUpdating', () => {
+    const DOWNLOADED_AT = '2026-07-30T12:00:00.000Z';
+    const manifest = { downloadedAt: DOWNLOADED_AT } as AnyType;
+
+    const buildFolder = () => {
+        const dir = mkdtempSync(path.join(os.tmpdir(), 'ld-app-folder-'));
+        mkdirSync(path.join(dir, 'src'), { recursive: true });
+        writeFileSync(path.join(dir, 'src', 'App.tsx'), 'x');
+        writeFileSync(path.join(dir, 'lightdash-app.yml'), 'slug: x');
+        mkdirSync(path.join(dir, '.lightdash', 'context'), {
+            recursive: true,
+        });
+        writeFileSync(
+            path.join(dir, '.lightdash', 'context', 'semantic-layer.yml'),
+            'models: []',
+        );
+        const at = new Date(DOWNLOADED_AT);
+        [
+            path.join(dir, 'src', 'App.tsx'),
+            path.join(dir, 'lightdash-app.yml'),
+            path.join(dir, '.lightdash', 'context', 'semantic-layer.yml'),
+        ].forEach((file) => utimesSync(file, at, at));
+        return dir;
+    };
+
+    it('is false for a freshly downloaded folder', async () => {
+        await expect(
+            appFolderNeedsUpdating(buildFolder(), manifest),
+        ).resolves.toBe(false);
+    });
+
+    it('is true when a src file was edited', async () => {
+        const dir = buildFolder();
+        const later = new Date('2026-07-30T13:00:00.000Z');
+        utimesSync(path.join(dir, 'src', 'App.tsx'), later, later);
+        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
+    });
+
+    it('is true when the manifest was edited', async () => {
+        const dir = buildFolder();
+        const later = new Date('2026-07-30T13:00:00.000Z');
+        utimesSync(path.join(dir, 'lightdash-app.yml'), later, later);
+        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
+    });
+
+    it('ignores regenerated context files', async () => {
+        const dir = buildFolder();
+        const later = new Date('2026-07-30T13:00:00.000Z');
+        utimesSync(
+            path.join(dir, '.lightdash', 'context', 'semantic-layer.yml'),
+            later,
+            later,
+        );
+        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(
+            false,
+        );
+    });
+
+    it('is true when downloadedAt is missing', async () => {
+        await expect(
+            appFolderNeedsUpdating(buildFolder(), {} as AnyType),
+        ).resolves.toBe(true);
+    });
+
+    it('is true when downloadedAt is unparseable', async () => {
+        await expect(
+            appFolderNeedsUpdating(buildFolder(), {
+                downloadedAt: 'not-a-date',
+            } as AnyType),
+        ).resolves.toBe(true);
+    });
+
+    it('is true when a nested src file was edited', async () => {
+        const dir = buildFolder();
+        mkdirSync(path.join(dir, 'src', 'components'), { recursive: true });
+        const nested = path.join(dir, 'src', 'components', 'Chart.tsx');
+        writeFileSync(nested, 'x');
+        const later = new Date('2026-07-30T13:00:00.000Z');
+        utimesSync(nested, later, later);
+        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
     });
 });

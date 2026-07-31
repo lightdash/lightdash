@@ -69,12 +69,14 @@ vi.mock('./dbt/apiClient', async (importOriginal) => ({
 const {
     assertUniqueSpacePaths,
     downloadSpaces,
+    getDashboardAppSlugs,
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
     hasContentFilters,
     isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
     downloadAiAgents,
+    isFilteredWithNoDashboards,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
@@ -246,6 +248,34 @@ const writeFolderDashboard = async (
             (s) =>
                 `  - properties:\n      chartSlug: ${s}\n    type: saved_chart`,
         )
+        .join('\n');
+    const yaml = `contentType: dashboard\nname: ${slug}\nslug: ${slug}\nspaceSlug: test-space\ntiles:\n${tilesYaml}\nversion: 1\n`;
+    await fs.writeFile(path.join(baseDir, 'dashboards', `${slug}.yml`), yaml);
+};
+
+const makeLooseAppDashboard = (
+    slug: string,
+    appSlugs: (string | null)[],
+): LooseDashboard =>
+    ({
+        slug,
+        name: slug,
+        spaceSlug: 'test-space',
+        version: 1,
+        tiles: appSlugs.map((appSlug) => ({
+            type: 'data_app',
+            properties: { appSlug },
+        })),
+        needsUpdating: false,
+    }) as unknown as LooseDashboard;
+
+const writeFolderAppDashboard = async (
+    baseDir: string,
+    slug: string,
+    appSlugs: string[],
+) => {
+    const tilesYaml = appSlugs
+        .map((s) => `  - properties:\n      appSlug: ${s}\n    type: data_app`)
         .join('\n');
     const yaml = `contentType: dashboard\nname: ${slug}\nslug: ${slug}\nspaceSlug: test-space\ntiles:\n${tilesYaml}\nversion: 1\n`;
     await fs.writeFile(path.join(baseDir, 'dashboards', `${slug}.yml`), yaml);
@@ -437,6 +467,62 @@ describe('extractAppSlugsFromDashboards', () => {
                 ]),
             ]),
         ).toEqual(['one']);
+    });
+});
+
+describe('getDashboardAppSlugs', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'download-test-'));
+        await fs.mkdir(path.join(tmpDir, 'dashboards'));
+    });
+
+    afterEach(async () => {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('extracts app slugs from folder dashboards', async () => {
+        await writeFolderAppDashboard(tmpDir, 'folder-dash', [
+            'app-a',
+            'app-b',
+        ]);
+        const slugs = await getDashboardAppSlugs([], tmpDir);
+        expect(slugs.sort()).toEqual(['app-a', 'app-b']);
+    });
+
+    it('filters to the selected dashboards only', async () => {
+        await writeFolderAppDashboard(tmpDir, 'wanted', ['wanted-app']);
+        const loose = makeLooseAppDashboard('other', ['other-app']);
+        const slugs = await getDashboardAppSlugs(['wanted'], tmpDir, [loose]);
+        expect(slugs).toEqual(['wanted-app']);
+    });
+
+    it('dedupes across dashboards and drops null slugs', async () => {
+        await writeFolderAppDashboard(tmpDir, 'folder-dash', ['shared-app']);
+        const loose = makeLooseAppDashboard('loose-dash', ['shared-app', null]);
+        const slugs = await getDashboardAppSlugs([], tmpDir, [loose]);
+        expect(slugs).toEqual(['shared-app']);
+    });
+
+    it('returns an empty array when no dashboard has an app tile', async () => {
+        await writeFolderDashboard(tmpDir, 'chart-only', ['chart-a']);
+        const slugs = await getDashboardAppSlugs([], tmpDir);
+        expect(slugs).toEqual([]);
+    });
+});
+
+describe('isFilteredWithNoDashboards', () => {
+    it('is true for a filtered upload that selects no dashboards (e.g. --charts only)', () => {
+        expect(isFilteredWithNoDashboards(true, [])).toBe(true);
+    });
+
+    it('is false for an unfiltered upload even with no dashboard slugs', () => {
+        expect(isFilteredWithNoDashboards(false, [])).toBe(false);
+    });
+
+    it('is false once dashboard slugs are provided', () => {
+        expect(isFilteredWithNoDashboards(true, ['my-dashboard'])).toBe(false);
     });
 });
 
