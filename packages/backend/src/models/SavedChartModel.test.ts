@@ -631,6 +631,15 @@ describe('moveToSpace', () => {
 });
 
 describe('findChartsForValidation', () => {
+    const makeValidationChart = (
+        uuid: string,
+        dashboardUuid: string | null,
+    ) => ({
+        uuid,
+        dashboardUuid,
+        customMetricsFilters: [],
+        pivotDimensions: [],
+    });
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new SavedChartModel({
         database,
@@ -658,6 +667,51 @@ describe('findChartsForValidation', () => {
         expect(query.sql.match(/spaces/g)).toHaveLength(1);
         expect(query.sql.match(/dashboards/g)).toHaveLength(1);
         expect(query.sql).toContain('"sq"."project_uuid"');
+    });
+
+    test('excludes dashboard charts without tiles', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const dashboardUuid = '33333333-3333-4333-8333-333333333333';
+        const tiledChartUuid = '44444444-4444-4444-8444-444444444444';
+        const orphanChartUuid = '55555555-5555-4555-8555-555555555555';
+        const spaceChartUuid = '66666666-6666-4666-8666-666666666666';
+        tracker.on
+            .select(({ sql }) => sql.includes('chart_last_version_cte'))
+            .responseOnce([
+                makeValidationChart(tiledChartUuid, dashboardUuid),
+                makeValidationChart(orphanChartUuid, dashboardUuid),
+                makeValidationChart(spaceChartUuid, null),
+            ]);
+        tracker.on
+            .select(({ sql }) => sql.includes(DashboardTileChartTableName))
+            .responseOnce([{ saved_query_uuid: orphanChartUuid }]);
+
+        const charts = await model.findChartsForValidation(projectUuid);
+
+        expect(charts.map(({ uuid }) => uuid)).toEqual([
+            tiledChartUuid,
+            spaceChartUuid,
+        ]);
+    });
+
+    test('skips tile lookups for space-only charts', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const chartUuids = [
+            '44444444-4444-4444-8444-444444444444',
+            '55555555-5555-4555-8555-555555555555',
+        ];
+        tracker.on
+            .select(({ sql }) => sql.includes('chart_last_version_cte'))
+            .responseOnce(
+                chartUuids.map((chartUuid) =>
+                    makeValidationChart(chartUuid, null),
+                ),
+            );
+
+        const charts = await model.findChartsForValidation(projectUuid);
+
+        expect(charts.map(({ uuid }) => uuid)).toEqual(chartUuids);
+        expect(tracker.history.select).toHaveLength(1);
     });
 
     test('keeps validation queries within the PostgreSQL bind parameter limit', async () => {

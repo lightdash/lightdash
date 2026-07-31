@@ -1875,7 +1875,7 @@ export class SavedChartModel {
 
     private async getChartsNotInTilesUuids(
         savedCharts: Pick<SavedChartDAO, 'uuid' | 'dashboardUuid'>[],
-    ): Promise<string[]> {
+    ): Promise<Set<string>> {
         const dashboardUuids = [
             ...new Set(
                 savedCharts.flatMap(({ dashboardUuid }) =>
@@ -1884,7 +1884,7 @@ export class SavedChartModel {
             ),
         ];
         if (dashboardUuids.length === 0) {
-            return [];
+            return new Set();
         }
 
         const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
@@ -1924,7 +1924,7 @@ export class SavedChartModel {
             .whereNotIn(`saved_query_id`, getChartsInTilesQuery)
             .whereNull(`${SavedChartsTableName}.deleted_at`);
 
-        return chartsNotInTilesUuids;
+        return new Set(chartsNotInTilesUuids);
     }
 
     // CTE to get the last version of each chart in the project
@@ -2065,7 +2065,7 @@ export class SavedChartModel {
                 customMetricsFilters: chart.customMetricsFilters.flat(),
                 pivotDimensions: chart.pivotDimensions ?? [],
             }))
-            .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid));
+            .filter((chart) => !chartsNotInTilesUuids.has(chart.uuid));
     }
 
     async getSlugsForUuids(uuids: string[]): Promise<string[]> {
@@ -2440,7 +2440,7 @@ export class SavedChartModel {
         const chartsNotInTilesUuids =
             await this.getChartsNotInTilesUuids(savedCharts);
         return savedCharts
-            .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid))
+            .filter((chart) => !chartsNotInTilesUuids.has(chart.uuid))
             .map((chart) => ({
                 ...chart,
                 customMetrics: chart.customMetrics.map(
