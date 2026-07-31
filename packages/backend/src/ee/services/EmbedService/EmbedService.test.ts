@@ -513,6 +513,73 @@ describe('EmbedService', () => {
                 ),
             ).rejects.toThrow('reached explore lookup');
         });
+
+        // Chart tokens grant Explore scoped to the chart's own explores
+        const buildChartEmbedAccount = (explores: string[]) =>
+            ({
+                authentication: { type: 'jwt', source: 'embed-token' },
+                access: { content: { chartUuid: 'chart-1' } },
+                user: {
+                    id: mockUserUuid,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'Explore',
+                            action: ['view'],
+                            conditions: {
+                                organizationUuid: mockOrganizationUuid,
+                                projectUuid: mockProjectUuid,
+                                exploreNames: { $all: explores },
+                            },
+                        },
+                    ]),
+                },
+                organization: { organizationUuid: mockOrganizationUuid },
+                isAnonymousUser: vi.fn().mockReturnValue(true),
+            }) as unknown as AnonymousAccount;
+
+        test('calculateTotalFromQuery allows chart tokens on their own explore', async () => {
+            await expect(
+                gatedService().calculateTotalFromQuery(
+                    buildChartEmbedAccount(['customers']),
+                    mockProjectUuid,
+                    totalsQuery,
+                ),
+            ).rejects.toThrow('reached explore lookup');
+        });
+
+        test('calculateTotalFromQuery rejects chart tokens on another explore', async () => {
+            await expect(
+                gatedService().calculateTotalFromQuery(
+                    buildChartEmbedAccount(['orders']),
+                    mockProjectUuid,
+                    totalsQuery,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(getExploreFromCache).not.toHaveBeenCalled();
+        });
+
+        test('calculateSubtotalsFromQuery allows chart tokens on their own explore', async () => {
+            await expect(
+                gatedService().calculateSubtotalsFromQuery(
+                    buildChartEmbedAccount(['customers']),
+                    mockProjectUuid,
+                    subtotalsQuery,
+                ),
+            ).rejects.toThrow('reached explore lookup');
+        });
+
+        test('calculateSubtotalsFromQuery rejects chart tokens on another explore', async () => {
+            await expect(
+                gatedService().calculateSubtotalsFromQuery(
+                    buildChartEmbedAccount(['orders']),
+                    mockProjectUuid,
+                    subtotalsQuery,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(getExploreFromCache).not.toHaveBeenCalled();
+        });
     });
 
     describe('searchFilterValues', () => {

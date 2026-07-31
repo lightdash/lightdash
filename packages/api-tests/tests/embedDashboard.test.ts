@@ -204,6 +204,29 @@ describe('Embed Dashboard JWT API', () => {
             return resp.body.results.url.split('#')[1];
         }
 
+        // Same dashboard token, opted into explore mode
+        async function freshExploreDashboardJwt(): Promise<string> {
+            const resp = await getEmbedUrl(admin, {
+                user: {
+                    externalId: 'dashboard-user@example.com',
+                    email: 'dashboard-user@example.com',
+                },
+                content: {
+                    type: 'dashboard',
+                    dashboardUuid: testDashboardUuid,
+                    canExportCsv: true,
+                    canExportImages: false,
+                    canViewUnderlyingData: true,
+                    canDateZoom: true,
+                    canExplore: true,
+                    projectUuid: SEED_PROJECT.project_uuid,
+                },
+                expiresIn: '24h',
+            });
+            expect(resp.status).toBe(200);
+            return resp.body.results.url.split('#')[1];
+        }
+
         // Refresh JWT before each test so it uses the current embed secret
         beforeEach(async () => {
             dashboardJwtToken = await freshDashboardJwt();
@@ -339,6 +362,46 @@ describe('Embed Dashboard JWT API', () => {
                 // Raw metric queries require view:Explore, granted only by canExplore
                 expect(resp.status).toBe(403);
                 expect(resp.body).toHaveProperty('error');
+            });
+
+            it('should calculate totals from raw metricQuery with canExplore', async () => {
+                const client = embedClient();
+                const resp = await client.post<Body<unknown>>(
+                    `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
+                    {
+                        explore: 'orders',
+                        metricQuery: testMetricQuery,
+                    },
+                    {
+                        headers: embedHeaders(await freshExploreDashboardJwt()),
+                        failOnStatusCode: false,
+                    },
+                );
+                expect(resp.status).toBe(200);
+                expect(resp.body.status).toBe('ok');
+                expect(typeof resp.body.results).toBe('object');
+            });
+
+            it('should calculate subtotals from raw metricQuery with canExplore', async () => {
+                const client = embedClient();
+                const resp = await client.post<Body<unknown>>(
+                    `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-subtotals`,
+                    {
+                        explore: 'orders',
+                        metricQuery: testMetricQuery,
+                        columnOrder: [
+                            'orders_status',
+                            'orders_total_order_amount',
+                        ],
+                    },
+                    {
+                        headers: embedHeaders(await freshExploreDashboardJwt()),
+                        failOnStatusCode: false,
+                    },
+                );
+                expect(resp.status).toBe(200);
+                expect(resp.body.status).toBe('ok');
+                expect(typeof resp.body.results).toBe('object');
             });
 
             it('should fail to calculate totals without embed JWT', async () => {

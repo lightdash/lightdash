@@ -2005,13 +2005,15 @@ export class EmbedService extends BaseService {
     }
 
     /**
-     * Raw metric queries are only available to embed tokens granted `canExplore`,
-     * which is what backs `view:Explore` in the JWT ability.
+     * Raw metric queries need `view:Explore` on the requested explore: unscoped
+     * for tokens granted `canExplore`, scoped to `content.explores` for tokens
+     * that only embed a chart.
      */
-    private assertCanExploreProject(
+    private assertCanQueryExplore(
         account: AnonymousAccount,
         organizationUuid: string,
         projectUuid: string,
+        exploreName: string,
     ) {
         const auditedAbility = this.createAuditedAbility(account);
         if (
@@ -2020,6 +2022,8 @@ export class EmbedService extends BaseService {
                 subject('Explore', {
                     organizationUuid,
                     projectUuid,
+                    exploreNames: [exploreName],
+                    metadata: { exploreName },
                 }),
             )
         ) {
@@ -2042,7 +2046,12 @@ export class EmbedService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        this.assertCanExploreProject(account, organizationUuid, projectUuid);
+        this.assertCanQueryExplore(
+            account,
+            organizationUuid,
+            projectUuid,
+            data.explore,
+        );
 
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
@@ -2124,7 +2133,12 @@ export class EmbedService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        this.assertCanExploreProject(account, organizationUuid, projectUuid);
+        this.assertCanQueryExplore(
+            account,
+            organizationUuid,
+            projectUuid,
+            data.explore,
+        );
 
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
