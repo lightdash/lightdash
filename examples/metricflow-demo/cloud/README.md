@@ -12,8 +12,12 @@ Differences from `legacy-spec/`:
 - `metricflow_time_spine.sql` uses `cast(... as date)` instead of the
   Postgres-only `::date` cast
 
-The `models/schema.yml` (semantic model + metric definitions) is a verbatim
-copy of `../legacy-spec/models/schema.yml`.
+The `models/schema.yml` (semantic model + metric definitions) is a copy of
+`../legacy-spec/models/schema.yml` plus a `status_upper` dimension with
+`expr`/`label`/`config.meta`, added to demonstrate Discovery API field
+coverage — see `discovery-api-gaps.md` for a reproducible write-up of the
+manifest fields the Discovery API does not expose (shareable with dbt
+support).
 
 ## dbt Cloud setup (account "Lightdash (Partner)", id 20983)
 
