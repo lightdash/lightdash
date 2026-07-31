@@ -1,3 +1,21 @@
+# [1.51.0](https://github.com/lightdash/lightdash/compare/1.50.1...1.51.0) (2026-07-31)
+
+
+### Bug Fixes
+
+* enforce explore permission on embed raw metric query endpoints ([#26571](https://github.com/lightdash/lightdash/issues/26571)) ([7b884bb](https://github.com/lightdash/lightdash/commit/7b884bb4da04c4386651b2144d5ed12ead1a9e76))
+* only apply new-onboarding completion flow to new signups ([#26609](https://github.com/lightdash/lightdash/issues/26609)) ([7fd2e5e](https://github.com/lightdash/lightdash/commit/7fd2e5e665e24402fc165a18f1fdee6b330a5ab4))
+* prevent stale session-user cache from bouncing onboarded users back to org setup ([#26608](https://github.com/lightdash/lightdash/issues/26608)) ([78ed779](https://github.com/lightdash/lightdash/commit/78ed779dcbceb5a0190fa7d8964377c3bc13adbc))
+
+
+### Features
+
+* **ai:** add Deep Research organization limits ([#26587](https://github.com/lightdash/lightdash/issues/26587)) ([8f7d90a](https://github.com/lightdash/lightdash/commit/8f7d90a9414ab7a5347f60124d0dbf3e4e8aa306))
+* **ai:** inherit Deep Research execution settings ([#26588](https://github.com/lightdash/lightdash/issues/26588)) ([0ec4e20](https://github.com/lightdash/lightdash/commit/0ec4e20955eb5b801d656c300997588023a63efa)), closes [#26587](https://github.com/lightdash/lightdash/issues/26587)
+* **ai:** make Deep Research a one-click toggle ([#26589](https://github.com/lightdash/lightdash/issues/26589)) ([f17dacc](https://github.com/lightdash/lightdash/commit/f17dacc912ebea8c5d9b5f228eb20d65a75cd4fb)), closes [#26588](https://github.com/lightdash/lightdash/issues/26588)
+* endpoint to distill one thread on demand ([#26612](https://github.com/lightdash/lightdash/issues/26612)) ([2f4c239](https://github.com/lightdash/lightdash/commit/2f4c239f52c39c9492a4a74af128c906f6906ec4))
+* prometheus counter for memory citations ([#26603](https://github.com/lightdash/lightdash/issues/26603)) ([f3d368c](https://github.com/lightdash/lightdash/commit/f3d368cf5a8cc2917cc72fa066c3faafb54d2a54))
+
 ## [1.50.1](https://github.com/lightdash/lightdash/compare/1.50.0...1.50.1) (2026-07-31)
 
 

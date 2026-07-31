@@ -30034,20 +30034,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiDeepResearchEffort: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['high'] },
-                { dataType: 'enum', enums: ['medium'] },
-                { dataType: 'enum', enums: ['low'] },
-                { dataType: 'enum', enums: ['xhigh'] },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchRunStatus: {
         dataType: 'refAlias',
         type: {
@@ -30271,16 +30257,33 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_string.AiDeepResearchChartData_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiDeepResearchBudget: {
+    AiDeepResearchLimits: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 maxHypotheses: { dataType: 'double', required: true },
-                maxResultRows: { dataType: 'double', required: true },
                 maxWarehouseQueries: { dataType: 'double', required: true },
                 maxToolCalls: { dataType: 'double', required: true },
+                maxTokens: { dataType: 'double', required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchBudget: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'AiDeepResearchLimits' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        maxResultRows: { dataType: 'double', required: true },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -30397,7 +30400,7 @@ const models: TsoaRoute.Models = {
                 tools: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        selectedMcpServers: {
+                        attachedMcpServers: {
                             dataType: 'array',
                             array: {
                                 dataType: 'nestedObjectLiteral',
@@ -30610,13 +30613,7 @@ const models: TsoaRoute.Models = {
                 },
                 status: { ref: 'AiDeepResearchRunStatus', required: true },
                 prompt: { dataType: 'string', required: true },
-                effort: { ref: 'AiDeepResearchEffort', required: true },
                 entryPoint: { ref: 'AiDeepResearchEntryPoint', required: true },
-                mcpServerUuids: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
                 promptUuid: { dataType: 'string', required: true },
                 aiThreadUuid: { dataType: 'string', required: true },
                 agentUuid: { dataType: 'string', required: true },
@@ -30650,14 +30647,8 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 entryPoint: { ref: 'AiDeepResearchEntryPoint', required: true },
-                mcpServerUuids: {
-                    dataType: 'array',
-                    array: { dataType: 'string' },
-                    required: true,
-                },
                 promptUuid: { dataType: 'string', required: true },
                 threadUuid: { dataType: 'string', required: true },
-                effort: { ref: 'AiDeepResearchEffort' },
                 agentUuid: { dataType: 'string', required: true },
                 prompt: { dataType: 'string', required: true },
             },
@@ -31052,6 +31043,29 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__jobId-string__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        jobId: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiTriggerAiAgentMemoryDistillResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess__jobId-string__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_':
@@ -34081,6 +34095,10 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                deepResearchLimits: {
+                    ref: 'AiDeepResearchLimits',
+                    required: true,
+                },
                 aiAgentReviewsEnabled: { dataType: 'boolean', required: true },
                 aiAgentsVisible: { dataType: 'boolean', required: true },
                 organizationUuid: { dataType: 'string', required: true },
@@ -34217,6 +34235,7 @@ const models: TsoaRoute.Models = {
                 },
                 requireExplicitSlackChannelLinking: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
+                deepResearchLimits: { ref: 'AiDeepResearchLimits' },
                 aiAgentReviewsEnabled: { dataType: 'boolean' },
                 aiAgentsVisible: { dataType: 'boolean' },
             },
@@ -73082,6 +73101,73 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentMemoryController_triggerAiAgentMemoryDistill: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        threadUuid: {
+            in: 'path',
+            name: 'threadUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/aiAgentMemories/threads/:threadUuid/distill',
+        ...fetchMiddlewares<RequestHandler>(AiAgentMemoryController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentMemoryController.prototype.triggerAiAgentMemoryDistill,
+        ),
+
+        async function AiAgentMemoryController_triggerAiAgentMemoryDistill(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentMemoryController_triggerAiAgentMemoryDistill,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentMemoryController>(
+                        AiAgentMemoryController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'triggerAiAgentMemoryDistill',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 202,
                 });
             } catch (err) {
                 return next(err);

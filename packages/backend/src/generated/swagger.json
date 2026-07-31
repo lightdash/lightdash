@@ -30363,10 +30363,6 @@
                 "type": "string",
                 "enum": ["homepage", "ask_ai"]
             },
-            "AiDeepResearchEffort": {
-                "type": "string",
-                "enum": ["high", "medium", "low", "xhigh"]
-            },
             "AiDeepResearchRunStatus": {
                 "type": "string",
                 "enum": [
@@ -30582,13 +30578,9 @@
             "AiDeepResearchChartDataMap": {
                 "$ref": "#/components/schemas/Record_string.AiDeepResearchChartData_"
             },
-            "AiDeepResearchBudget": {
+            "AiDeepResearchLimits": {
                 "properties": {
                     "maxHypotheses": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "maxResultRows": {
                         "type": "number",
                         "format": "double"
                     },
@@ -30599,15 +30591,36 @@
                     "maxToolCalls": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "maxTokens": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "required": [
                     "maxHypotheses",
-                    "maxResultRows",
                     "maxWarehouseQueries",
-                    "maxToolCalls"
+                    "maxToolCalls",
+                    "maxTokens"
                 ],
                 "type": "object"
+            },
+            "AiDeepResearchBudget": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiDeepResearchLimits"
+                    },
+                    {
+                        "properties": {
+                            "maxResultRows": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["maxResultRows"],
+                        "type": "object"
+                    }
+                ]
             },
             "AiDeepResearchExecutionContextSnapshot": {
                 "properties": {
@@ -30719,7 +30732,7 @@
                     },
                     "tools": {
                         "properties": {
-                            "selectedMcpServers": {
+                            "attachedMcpServers": {
                                 "items": {
                                     "properties": {
                                         "enabledToolNames": {
@@ -30752,7 +30765,7 @@
                             }
                         },
                         "required": [
-                            "selectedMcpServers",
+                            "attachedMcpServers",
                             "availableToolNames"
                         ],
                         "type": "object"
@@ -30940,17 +30953,8 @@
                     "prompt": {
                         "type": "string"
                     },
-                    "effort": {
-                        "$ref": "#/components/schemas/AiDeepResearchEffort"
-                    },
                     "entryPoint": {
                         "$ref": "#/components/schemas/AiDeepResearchEntryPoint"
-                    },
-                    "mcpServerUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
                     },
                     "promptUuid": {
                         "type": "string"
@@ -30984,9 +30988,7 @@
                     "resultMarkdown",
                     "status",
                     "prompt",
-                    "effort",
                     "entryPoint",
-                    "mcpServerUuids",
                     "promptUuid",
                     "aiThreadUuid",
                     "agentUuid",
@@ -31018,13 +31020,6 @@
                         "$ref": "#/components/schemas/AiDeepResearchEntryPoint",
                         "description": "Product surface that accepted the run."
                     },
-                    "mcpServerUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Agent-attached MCP servers enabled for this run."
-                    },
                     "promptUuid": {
                         "type": "string",
                         "description": "Thread message that captured this prompt."
@@ -31032,10 +31027,6 @@
                     "threadUuid": {
                         "type": "string",
                         "description": "Agent thread to attach the run to. Must be owned by the caller."
-                    },
-                    "effort": {
-                        "$ref": "#/components/schemas/AiDeepResearchEffort",
-                        "description": "Server-owned execution budget tier. Defaults to medium."
                     },
                     "agentUuid": {
                         "type": "string",
@@ -31047,7 +31038,6 @@
                 },
                 "required": [
                     "entryPoint",
-                    "mcpServerUuids",
                     "promptUuid",
                     "threadUuid",
                     "agentUuid",
@@ -31415,6 +31405,29 @@
                 },
                 "required": ["status"],
                 "type": "object"
+            },
+            "ApiSuccess__jobId-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["jobId"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiTriggerAiAgentMemoryDistillResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__jobId-string__"
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -34186,6 +34199,9 @@
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
                     },
+                    "deepResearchLimits": {
+                        "$ref": "#/components/schemas/AiDeepResearchLimits"
+                    },
                     "aiAgentReviewsEnabled": {
                         "type": "boolean"
                     },
@@ -34201,6 +34217,7 @@
                     "providerApiKeysSet",
                     "defaultAiAgentModelConfig",
                     "mcpContentWritesEnabled",
+                    "deepResearchLimits",
                     "aiAgentReviewsEnabled",
                     "aiAgentsVisible",
                     "organizationUuid"
@@ -34327,6 +34344,9 @@
                     },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
+                    },
+                    "deepResearchLimits": {
+                        "$ref": "#/components/schemas/AiDeepResearchLimits"
                     },
                     "aiAgentReviewsEnabled": {
                         "type": "boolean"
@@ -51519,7 +51539,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.50.1",
+        "version": "1.51.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -63696,6 +63716,54 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgentMemories/threads/{threadUuid}/distill": {
+            "post": {
+                "operationId": "triggerAiAgentMemoryDistill",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiTriggerAiAgentMemoryDistillResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Queues distillation for one thread immediately, skipping the 6h idle wait\nand the every-3h sweep. Re-distills a thread that is already up to date.\nRequires permission to manage AI agents in the project.",
+                "summary": "Distill thread",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/aiAgents/admin/threads": {
