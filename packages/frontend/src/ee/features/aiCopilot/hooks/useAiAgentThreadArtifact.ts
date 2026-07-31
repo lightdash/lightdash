@@ -5,6 +5,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../store/hooks';
+import { useDeepResearchThreadRunRegistrationState } from './useDeepResearch';
 
 interface UseAiAgentThreadArtifactOptions {
     projectUuid: string | undefined;
@@ -22,6 +23,22 @@ export const useAiAgentThreadArtifact = ({
     const dispatch = useAiAgentStoreDispatch();
     const artifact = useAiAgentStoreSelector(
         (state) => state.aiArtifact.artifact,
+    );
+    const {
+        registrations: deepResearchRegistrations,
+        isReady: isDeepResearchRegistrationLookupReady,
+    } = useDeepResearchThreadRunRegistrationState({
+        projectUuid: threadUuid ? projectUuid : undefined,
+        threadUuid: threadUuid ?? '',
+    });
+    const deepResearchPromptUuids = useMemo(
+        () =>
+            new Set(
+                deepResearchRegistrations.map(
+                    (registration) => registration.promptUuid,
+                ),
+            ),
+        [deepResearchRegistrations],
     );
 
     const lastHandledMessageUuidRef = useRef<string | null>(null);
@@ -41,11 +58,20 @@ export const useAiAgentThreadArtifact = ({
             !msg ||
             msg.role !== 'assistant' ||
             !msg.artifacts ||
-            msg.artifacts.length === 0
-        )
+            msg.artifacts.length === 0 ||
+            deepResearchPromptUuids.has(msg.uuid)
+        ) {
             return null;
+        }
+        if (!isDeepResearchRegistrationLookupReady) {
+            return null;
+        }
         return msg;
-    }, [thread]);
+    }, [
+        deepResearchPromptUuids,
+        isDeepResearchRegistrationLookupReady,
+        thread,
+    ]);
 
     // Track when user manually closes an artifact
     useEffect(() => {

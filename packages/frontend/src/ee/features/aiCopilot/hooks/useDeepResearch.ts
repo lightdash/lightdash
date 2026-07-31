@@ -338,13 +338,15 @@ export const useTrackDeepResearchFollowUp = ({
     }, [runsQuery.data, trackEngagement]);
 };
 
-export const useDeepResearchThreadRunRegistrations = ({
-    projectUuid,
-    threadUuid,
-}: {
+type UseDeepResearchThreadRunRegistrationsOptions = {
     projectUuid: string | undefined;
     threadUuid: string;
-}) => {
+};
+
+export const useDeepResearchThreadRunRegistrationState = ({
+    projectUuid,
+    threadUuid,
+}: UseDeepResearchThreadRunRegistrationsOptions) => {
     const user = useUser(true);
     const userUuid = user.data?.userUuid;
     const serverRuns = useDeepResearchThreadRuns(projectUuid, threadUuid);
@@ -354,7 +356,7 @@ export const useDeepResearchThreadRunRegistrations = ({
         userUuid,
     );
 
-    return useMemo(() => {
+    const registrations = useMemo(() => {
         const fromServer = (serverRuns.data ?? []).map((run) =>
             toDeepResearchRegistration(run, {
                 threadUuid,
@@ -371,7 +373,16 @@ export const useDeepResearchThreadRunRegistrations = ({
             ),
         ];
     }, [serverRuns.data, localRegistrations, threadUuid, userUuid]);
+
+    return {
+        registrations,
+        isReady: serverRuns.isSuccess && !serverRuns.isFetching,
+    };
 };
+
+export const useDeepResearchThreadRunRegistrations = (
+    options: UseDeepResearchThreadRunRegistrationsOptions,
+) => useDeepResearchThreadRunRegistrationState(options).registrations;
 
 export const useDeepResearchRun = (
     registration: DeepResearchRunRegistration,
