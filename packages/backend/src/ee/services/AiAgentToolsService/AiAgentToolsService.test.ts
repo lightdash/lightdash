@@ -203,6 +203,52 @@ function makeRuntimeContext(
 }
 
 describe('AiAgentToolsService', () => {
+    it('retains Deep Research query results for the runtime retention window', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-07-31T12:00:00.000Z'));
+        const executeMetricQueryAndGetResults = vi.fn().mockResolvedValue({
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            rows: [{ value: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+        });
+        const extendQueryResultsExpiration = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const service = makeService({
+            explores: { orders: makeExplore({ name: 'orders' }) },
+            asyncQueryService: {
+                executeMetricQueryAndGetResults,
+                extendQueryResultsExpiration,
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({
+                queryResultsExpirationMs: 31 * 24 * 60 * 60 * 1_000,
+            }),
+        );
+
+        await runtime.runAsyncQuery({
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 10,
+            tableCalculations: [],
+            additionalMetrics: [],
+            customMetrics: null,
+        });
+
+        expect(extendQueryResultsExpiration).toHaveBeenCalledWith({
+            account,
+            projectUuid,
+            queryUuid: '11111111-1111-4111-8111-111111111111',
+            expiresAt: new Date('2026-08-31T12:00:00.000Z'),
+        });
+        vi.useRealTimers();
+    });
+
     describe('Deep Research knowledge documents', () => {
         const run = {
             ai_deep_research_run_uuid: 'run-uuid',

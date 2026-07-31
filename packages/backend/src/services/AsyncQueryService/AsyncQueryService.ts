@@ -6513,6 +6513,7 @@ export class AsyncQueryService extends ProjectService {
         args: ExecuteAsyncMetricQueryArgs,
         pollingOptions?: PollingOptions,
     ): Promise<{
+        queryUuid: string;
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
@@ -6531,13 +6532,47 @@ export class AsyncQueryService extends ProjectService {
             ...pollingOptions,
         });
 
-        return this.getReadyQueryResults({
+        const results = await this.getReadyQueryResults({
             account,
             projectUuid,
             queryUuid,
             cacheMetadata,
             fields,
         });
+
+        return { queryUuid, ...results };
+    }
+
+    async extendQueryResultsExpiration({
+        account,
+        projectUuid,
+        queryUuid,
+        expiresAt,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        expiresAt: Date;
+    }): Promise<void> {
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+        if (
+            !queryHistory.resultsFileName ||
+            (queryHistory.resultsExpiresAt &&
+                queryHistory.resultsExpiresAt >= expiresAt)
+        ) {
+            return;
+        }
+
+        await this.queryHistoryModel.update(
+            queryUuid,
+            projectUuid,
+            { results_expires_at: expiresAt },
+            account,
+        );
     }
 
     /**

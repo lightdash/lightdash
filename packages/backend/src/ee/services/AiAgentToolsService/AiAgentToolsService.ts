@@ -145,6 +145,7 @@ export type AiAgentToolsRuntimeContext = {
     agentUuid?: string;
     threadUuid?: string;
     onWarehouseQuery?: () => void | Promise<void>;
+    queryResultsExpirationMs?: number;
 };
 
 export type McpRuntimeSuccess<TData> = {
@@ -1856,20 +1857,37 @@ export class AiAgentToolsService extends BaseService {
                 );
 
                 await context.onWarehouseQuery?.();
-                return this.asyncQueryService.executeMetricQueryAndGetResults({
-                    account: context.account,
-                    projectUuid: context.projectUuid,
-                    metricQuery: {
-                        ...metricQuery,
-                        additionalMetrics: populateCustomMetricsSQL(
-                            metricQuery.additionalMetrics,
-                            explore,
+                const result =
+                    await this.asyncQueryService.executeMetricQueryAndGetResults(
+                        {
+                            account: context.account,
+                            projectUuid: context.projectUuid,
+                            metricQuery: {
+                                ...metricQuery,
+                                additionalMetrics: populateCustomMetricsSQL(
+                                    metricQuery.additionalMetrics,
+                                    explore,
+                                ),
+                            },
+                            context: context.defaultQueryExecutionContext,
+                            parameters,
+                            userAttributeOverrides:
+                                context.userAttributeOverrides,
+                        },
+                    );
+
+                if (context.queryResultsExpirationMs) {
+                    await this.asyncQueryService.extendQueryResultsExpiration({
+                        account: context.account,
+                        projectUuid: context.projectUuid,
+                        queryUuid: result.queryUuid,
+                        expiresAt: new Date(
+                            Date.now() + context.queryResultsExpirationMs,
                         ),
-                    },
-                    context: context.defaultQueryExecutionContext,
-                    parameters,
-                    userAttributeOverrides: context.userAttributeOverrides,
-                });
+                    });
+                }
+
+                return result;
             },
         );
     }

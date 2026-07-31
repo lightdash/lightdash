@@ -1,3 +1,4 @@
+import { AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import {
@@ -372,12 +373,15 @@ describe('AiDeepResearchRunModel', () => {
 
             expect(updated).toBe(true);
             const [update] = tracker.history.update;
-            expect(update.sql).toContain(
-                `"report_expires_at" = now() + interval '30 days'`,
-            );
+            expect(update.sql).toContain(`"report_expires_at" = now() + ($`);
             expect(update.sql).toContain('"report_expired_at" = $');
             expect(update.bindings).toEqual(
-                expect.arrayContaining([status, reportMarkdown, RUN_UUID]),
+                expect.arrayContaining([
+                    status,
+                    reportMarkdown,
+                    AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
+                    RUN_UUID,
+                ]),
             );
         },
     );

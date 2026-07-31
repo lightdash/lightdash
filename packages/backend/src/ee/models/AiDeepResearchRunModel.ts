@@ -1,6 +1,7 @@
 import {
     AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
     AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     countDeepResearchFindings,
     getErrorMessage,
@@ -675,7 +676,8 @@ export class AiDeepResearchRunModel {
                         resultChartData,
                     ) as unknown as AiDeepResearchChartDataMap,
                     report_expires_at: transaction.raw(
-                        "now() + interval '30 days'",
+                        "now() + (? * interval '1 day')",
+                        [AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS],
                     ) as unknown as Date,
                     report_expired_at: null,
                     ...metrics,

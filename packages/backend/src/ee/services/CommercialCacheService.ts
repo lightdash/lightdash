@@ -81,7 +81,14 @@ export class CommercialCacheService implements ICacheService {
                 ? DEFAULT_CACHE_EXPIRY_BUFFER_MS
                 : staleTimeMilliseconds / 4;
 
-        // Case 1: Valid cache exists with sufficient buffer time
+        const cacheExpiresAt = latestMatchingQuery?.resultsUpdatedAt
+            ? new Date(
+                  latestMatchingQuery.resultsUpdatedAt.getTime() +
+                      staleTimeMilliseconds,
+              )
+            : null;
+
+        // Availability can outlive cache freshness for retained results.
         if (
             latestMatchingQuery &&
             latestMatchingQuery.resultsFileName &&
@@ -90,6 +97,8 @@ export class CommercialCacheService implements ICacheService {
             latestMatchingQuery.resultsExpiresAt &&
             latestMatchingQuery.resultsUpdatedAt &&
             latestMatchingQuery.totalRowCount !== null &&
+            cacheExpiresAt &&
+            cacheExpiresAt > new Date(Date.now() + expiryBuffer) &&
             latestMatchingQuery.resultsExpiresAt >
                 new Date(Date.now() + expiryBuffer)
         ) {
@@ -99,7 +108,7 @@ export class CommercialCacheService implements ICacheService {
                 fileName: latestMatchingQuery.resultsFileName,
                 createdAt: latestMatchingQuery.resultsCreatedAt,
                 updatedAt: latestMatchingQuery.resultsUpdatedAt,
-                expiresAt: latestMatchingQuery.resultsExpiresAt,
+                expiresAt: cacheExpiresAt,
                 totalRowCount: latestMatchingQuery.totalRowCount,
                 columns: latestMatchingQuery.columns,
                 originalColumns: latestMatchingQuery.originalColumns,

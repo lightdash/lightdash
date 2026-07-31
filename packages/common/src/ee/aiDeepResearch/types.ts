@@ -2,6 +2,10 @@ import { type ApiSuccess } from '../../types/api/success';
 import { type ItemsMap } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
 
+export const AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS = 30;
+export const AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS = 31;
+export const AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS = 32;
+
 export const AI_DEEP_RESEARCH_RUN_STATUSES = [
     'queued',
     'running',
