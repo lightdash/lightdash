@@ -111,7 +111,6 @@ import ChatMessageContent from '../features/apps/ChatMessageContent';
 import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
-import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
@@ -837,6 +836,14 @@ const AppGenerate: FC = () => {
     const appSpaceName = appData?.pages?.[0]?.spaceName ?? null;
     const appCreatedByUserUuid = appData?.pages?.[0]?.createdByUserUuid ?? null;
     const appPersistedTemplate = appData?.pages?.[0]?.template ?? null;
+    const appSlug = appData?.pages?.[0]?.slug ?? null;
+    const appViews = appData?.pages?.[0]?.views ?? null;
+    // Latest build activity stands in for "last modified" — apps have no
+    // updated-at of their own.
+    const appNewestVersion = appData?.pages?.[0]?.versions[0];
+    const appLastModified = appNewestVersion
+        ? (appNewestVersion.statusUpdatedAt ?? appNewestVersion.createdAt)
+        : null;
 
     // Used to resolve the user's space role when checking manage rights for
     // an existing app — space editors/admins inherit manage on its data app.
@@ -3256,38 +3263,27 @@ const AppGenerate: FC = () => {
                         <Box className={classes.previewPanel}>
                             {activeAppUuid && (
                                 <AppHeader
-                                    appUuid={activeAppUuid}
-                                    name={appName}
-                                    description={appDescription || null}
-                                    spaceChip={
-                                        <AppSpaceChip
-                                            projectUuid={projectUuid}
-                                            spaceName={appSpaceName}
-                                            capturePreviewScreenshot={
-                                                screenshotAvailable
-                                                    ? capturePreviewScreenshot
-                                                    : null
-                                            }
-                                            app={{
-                                                uuid: activeAppUuid,
-                                                name: appName,
-                                                description:
-                                                    appDescription || undefined,
-                                                spaceUuid: appSpaceUuid,
-                                                createdByUserUuid:
-                                                    appCreatedByUserUuid,
-                                                latestVersionNumber:
-                                                    latestReadyVersion?.version ??
-                                                    null,
-                                                latestVersionStatus:
-                                                    latestReadyVersion?.status ??
-                                                    null,
-                                            }}
-                                        />
-                                    }
+                                    projectUuid={projectUuid}
+                                    app={{
+                                        uuid: activeAppUuid,
+                                        name: appName,
+                                        description: appDescription || null,
+                                        spaceUuid: appSpaceUuid,
+                                        spaceName: appSpaceName,
+                                        createdByUserUuid: appCreatedByUserUuid,
+                                        latestVersionNumber:
+                                            latestReadyVersion?.version ?? null,
+                                        latestVersionStatus:
+                                            latestReadyVersion?.status ?? null,
+                                        lastModified: appLastModified,
+                                        views: appViews,
+                                        slug: appSlug,
+                                    }}
                                     rightSection={
                                         <AppHeaderActions
                                             fullscreenToggle={null}
+                                            onEdit={null}
+                                            shareUrl={null}
                                             projectUuid={projectUuid}
                                             appUuid={activeAppUuid}
                                             upgrade={{

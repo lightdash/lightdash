@@ -675,6 +675,8 @@ export class AppModel {
         template: DbApp['template'];
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
+        slug: string;
+        viewsCount: number;
         versions: (DbAppVersion & {
             created_by_user_first_name: string | null;
             created_by_user_last_name: string | null;
@@ -731,6 +733,8 @@ export class AppModel {
                 `${AppsTableName}.space_uuid`,
                 `${SpaceTableName}.name as space_name`,
                 `${AppsTableName}.template`,
+                `${AppsTableName}.slug`,
+                `${AppsTableName}.views_count`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${PinnedAppTableName}.pinned_list_uuid`,
                 `${PinnedAppTableName}.order as pinned_list_order`,
@@ -755,6 +759,8 @@ export class AppModel {
             space_uuid: string | null;
             space_name: string | null;
             template: DbApp['template'];
+            slug: string;
+            views_count: number;
             organization_uuid: string;
             pinned_list_uuid: string | null;
             pinned_list_order: number | null;
@@ -775,6 +781,8 @@ export class AppModel {
             space_uuid: spaceUuid,
             space_name: spaceName,
             template,
+            slug,
+            views_count: viewsCount,
             organization_uuid: organizationUuid,
             pinned_list_uuid: pinnedListUuid,
             pinned_list_order: pinnedListOrder,
@@ -791,6 +799,8 @@ export class AppModel {
                 space_uuid: string | null;
                 space_name: string | null;
                 template: DbApp['template'];
+                slug: string;
+                views_count: number;
                 organization_uuid: string;
                 pinned_list_uuid: string | null;
                 pinned_list_order: number | null;
@@ -807,6 +817,8 @@ export class AppModel {
             spaceUuid,
             spaceName,
             template,
+            slug,
+            viewsCount,
             pinnedListUuid,
             pinnedListOrder,
             versions: versions.slice(0, limit),

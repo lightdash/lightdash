@@ -467,6 +467,8 @@ export type ApiGetAppResponse = ApiSuccess<{
     template: Exclude<DataAppTemplate, 'custom'> | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
+    slug: string;
+    views: number;
     versions: ApiAppVersionSummary[];
     hasMore: boolean;
     // Latest ready version across ALL versions, not just the returned page.

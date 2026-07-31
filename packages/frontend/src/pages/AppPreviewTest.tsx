@@ -1,14 +1,6 @@
 import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Loader,
-    Menu,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
-import { IconAppsOff, IconCode, IconMaximize } from '@tabler/icons-react';
+import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine-8/core';
+import { IconAppsOff, IconMaximize } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
@@ -20,7 +12,6 @@ import AppIframePreview, {
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
-import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
@@ -63,6 +54,14 @@ export default function AppPreviewTest() {
     const appSpaceUuid = firstPage?.spaceUuid ?? null;
     const appSpaceName = firstPage?.spaceName ?? null;
     const appCreatedByUserUuid = firstPage?.createdByUserUuid ?? null;
+    const appSlug = firstPage?.slug ?? null;
+    const appViews = firstPage?.views ?? null;
+    // Latest build activity stands in for "last modified" — apps have no
+    // updated-at of their own.
+    const newestVersion = firstPage?.versions[0];
+    const appLastModified = newestVersion
+        ? (newestVersion.statusUpdatedAt ?? newestVersion.createdAt)
+        : null;
     const canEditApp = useCanEditDataApp(projectUuid, {
         spaceUuid: appSpaceUuid,
         createdByUserUuid: appCreatedByUserUuid,
@@ -315,31 +314,22 @@ export default function AppPreviewTest() {
         >
             {!isFullscreen && (
                 <AppHeader
-                    appUuid={appUuid}
-                    name={appName}
-                    description={appDescription}
-                    spaceChip={
-                        <AppSpaceChip
-                            projectUuid={projectUuid}
-                            spaceName={appSpaceName}
-                            capturePreviewScreenshot={
-                                screenshotAvailable
-                                    ? capturePreviewScreenshot
-                                    : null
-                            }
-                            app={{
-                                uuid: appUuid,
-                                name: appName,
-                                description: appDescription ?? undefined,
-                                spaceUuid: appSpaceUuid,
-                                createdByUserUuid: appCreatedByUserUuid,
-                                latestVersionNumber: latestReadyVersion ?? null,
-                                latestVersionStatus: latestReadyVersion
-                                    ? 'ready'
-                                    : null,
-                            }}
-                        />
-                    }
+                    projectUuid={projectUuid}
+                    app={{
+                        uuid: appUuid,
+                        name: appName,
+                        description: appDescription,
+                        spaceUuid: appSpaceUuid,
+                        spaceName: appSpaceName,
+                        createdByUserUuid: appCreatedByUserUuid,
+                        latestVersionNumber: latestReadyVersion ?? null,
+                        latestVersionStatus: latestReadyVersion
+                            ? 'ready'
+                            : null,
+                        lastModified: appLastModified,
+                        views: appViews,
+                        slug: appSlug,
+                    }}
                     rightSection={
                         <AppHeaderActions
                             fullscreenToggle={
@@ -347,19 +337,24 @@ export default function AppPreviewTest() {
                                 document.fullscreenEnabled ? (
                                     <Tooltip
                                         label="Enter Fullscreen Mode"
-                                        withArrow
+                                        withinPortal
                                         position="bottom"
+                                        openDelay={200}
+                                        transitionProps={{
+                                            transition: 'fade',
+                                            duration: 150,
+                                        }}
                                     >
                                         <ActionIcon
-                                            variant="subtle"
-                                            size="sm"
-                                            color="ldGray.6"
+                                            variant="default"
+                                            size="md"
+                                            radius="md"
                                             onClick={handleToggleFullscreen}
                                             aria-label="Enter Fullscreen Mode"
                                         >
                                             <MantineIcon
                                                 icon={IconMaximize}
-                                                size={16}
+                                                size="md"
                                             />
                                         </ActionIcon>
                                     </Tooltip>
@@ -388,25 +383,16 @@ export default function AppPreviewTest() {
                             onDeleted={() => {
                                 void navigate(`/projects/${projectUuid}/home`);
                             }}
-                            navItem={
-                                canEditApp ? (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconCode}
-                                                size={14}
-                                            />
-                                        }
-                                        onClick={() =>
-                                            navigate(
-                                                `/projects/${projectUuid}/apps/${appUuid}`,
-                                            )
-                                        }
-                                    >
-                                        Continue building
-                                    </Menu.Item>
-                                ) : null
+                            onEdit={
+                                canEditApp
+                                    ? () =>
+                                          void navigate(
+                                              `/projects/${projectUuid}/apps/${appUuid}`,
+                                          )
+                                    : null
                             }
+                            shareUrl={window.location.href}
+                            navItem={null}
                         />
                     }
                 />
