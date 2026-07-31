@@ -390,12 +390,12 @@ export class AlreadyExistsError extends LightdashError {
 }
 
 export class ConflictError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
             message,
             name: 'ConflictError',
             statusCode: 409,
-            data: {},
+            data,
         });
     }
 }

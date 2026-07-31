@@ -4,6 +4,7 @@ import {
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AiResultType,
     AnyType,
+    ConflictError,
     FeatureFlags,
     ForbiddenError,
     NotFoundError,
@@ -16,6 +17,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { Readable } from 'stream';
+import { AiDeepResearchActiveRunError } from '../../models/AiDeepResearchRunModel';
 import { AiDeepResearchService } from './AiDeepResearchService';
 
 const budget: AiDeepResearchBudget = {
@@ -558,6 +560,27 @@ describe('AiDeepResearchService', () => {
                 projectUuid: 'project-1',
                 userUuid: 'user-1',
             });
+        });
+
+        it('returns the active run UUID when another prompt wins the thread race', async () => {
+            const { service, schedulerClient } = buildService({
+                model: {
+                    create: vi
+                        .fn()
+                        .mockRejectedValue(
+                            new AiDeepResearchActiveRunError('active-run'),
+                        ),
+                },
+            });
+
+            await expect(
+                service.createRun(validCreateRunArgs()),
+            ).rejects.toMatchObject({
+                name: ConflictError.name,
+                statusCode: 409,
+                data: { activeRunUuid: 'active-run' },
+            });
+            expect(schedulerClient.aiDeepResearch).not.toHaveBeenCalled();
         });
 
         it('rejects a prompt body that differs from the persisted message', async () => {

@@ -44,6 +44,7 @@ export class AiDeepResearchController extends BaseController {
         isAuthenticated,
         unauthorisedInDemo,
     ])
+    @Response<ApiErrorPayload>('409', 'Deep Research run already active')
     @SuccessResponse('202', 'Accepted')
     @Post('/')
     @OperationId('createAiDeepResearchRun')
