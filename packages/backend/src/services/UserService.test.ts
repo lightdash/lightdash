@@ -70,8 +70,6 @@ const userModel = {
         sessionUser,
         cacheHit: false,
     })),
-    invalidateSessionUserCache:
-        vi.fn<UserModel['invalidateSessionUserCache']>(),
     createUser: vi.fn<UserModel['createUser']>(async () => sessionUser),
     activateUser: vi.fn(async () => sessionUser),
     activateUserWithoutPassword: vi.fn(async () => sessionUser),

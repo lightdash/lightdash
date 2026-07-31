@@ -1472,7 +1472,6 @@ export class UserService extends BaseService {
                 howDidYouHearAboutUs: answer,
             },
         );
-        this.userModel.invalidateSessionUserCache(user.userUuid);
 
         if (answer !== undefined) {
             const onboardingFlow = await this.getOnboardingFlow(user);
