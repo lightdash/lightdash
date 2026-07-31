@@ -9,7 +9,7 @@
     flex: 0 0 44%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: var(--mantine-spacing-4xl);
     padding: var(--mantine-spacing-4xl);
     background-color: var(--mantine-color-ldBrandGray-8);
@@ -50,8 +50,8 @@
     color: var(--mantine-color-white);
 }
 
-.brandFooter {
-    color: var(--mantine-color-ldBrandGray-4);
+.brandContent {
+    margin-block: auto;
 }
 
 .decorationTop {

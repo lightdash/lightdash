@@ -96,7 +96,7 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                         </Text>
                     </Group>
 
-                    <Stack gap="4xl">
+                    <Stack gap="4xl" className={classes.brandContent}>
                         <Stack gap="lg">
                             <Title
                                 order={1}
@@ -126,10 +126,6 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
                             ))}
                         </Stack>
                     </Stack>
-
-                    <Text fz="sm" className={classes.brandFooter}>
-                        Open-source · unlimited seats · no lock-in
-                    </Text>
                 </Box>
 
                 <Box className={classes.formPanel}>

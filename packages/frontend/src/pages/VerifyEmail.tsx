@@ -16,6 +16,7 @@ import { type FC } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import AuthLayout from '../components/common/AuthLayout';
+import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
 import PageSpinner from '../components/PageSpinner';
@@ -69,6 +70,7 @@ const VerifyEmailPage: FC = () => {
         !!health.data?.isAuthenticated,
     );
     const { show: showIntercom } = useIntercom();
+    const { isNewLayout } = useAuthLayoutVariant();
     const navigate = useNavigate();
     const emailOnlySignupFlag = useServerFeatureFlag(
         FeatureFlags.NewOnboarding,
@@ -102,12 +104,19 @@ const VerifyEmailPage: FC = () => {
                 </Text>
             }
         >
-            <Card p="xl" withBorder shadow="subtle">
+            {isNewLayout ? (
                 <VerifyEmailForm
                     emailStatusData={data}
                     statusLoading={statusLoading}
                 />
-            </Card>
+            ) : (
+                <Card p="xl" withBorder shadow="subtle">
+                    <VerifyEmailForm
+                        emailStatusData={data}
+                        statusLoading={statusLoading}
+                    />
+                </Card>
+            )}
             {!isEmailOnlySignup && data && (
                 <VerificationSuccess
                     isOpen={data.isVerified}

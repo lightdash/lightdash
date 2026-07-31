@@ -105,9 +105,52 @@ const JoinOrganizationPage: FC = () => {
         );
     }
 
+    const orgList = (
+        <Stack justify="center" gap="md" mb="xs">
+            {!isNewLayout && (
+                <Title order={3} ta="center">
+                    Join a workspace
+                </Title>
+            )}
+            <Text c="ldGray.6" ta={isNewLayout ? 'left' : 'center'}>
+                The workspaces below are open to anyone with a{' '}
+                <Text span fw={600}>
+                    @{emailDomain}
+                </Text>{' '}
+                domain
+            </Text>
+            {allowedOrgs?.map((org) => (
+                <Card key={org.organizationUuid} withBorder>
+                    <Group justify="space-between">
+                        <Group gap="md">
+                            <Avatar size="md" radius="xl" color="ldGray.6">
+                                {org.name[0]?.toUpperCase()}
+                            </Avatar>
+                            <Stack gap="two">
+                                <Text truncate="end" fw={600}>
+                                    {org.name}
+                                </Text>
+                                <Text fz="xs" c="gray">
+                                    {org.membersCount} members
+                                </Text>
+                            </Stack>
+                        </Group>
+                        <Button
+                            onClick={() => joinOrg(org.organizationUuid)}
+                            loading={isJoiningOrg}
+                        >
+                            Join
+                        </Button>
+                    </Group>
+                </Card>
+            ))}
+        </Stack>
+    );
+
     return (
         <AuthLayout
             pageTitle="Join a workspace"
+            title={isNewLayout ? 'Join a workspace' : undefined}
             withLegacyCard={false}
             footer={
                 <Anchor
@@ -121,51 +164,13 @@ const JoinOrganizationPage: FC = () => {
                 </Anchor>
             }
         >
-            <Card p="xl" radius="md" withBorder>
-                <Stack justify="center" gap="md" mb="xs">
-                    <Title order={3} ta="center">
-                        Join a workspace
-                    </Title>
-                    <Text c="ldGray.6" ta="center">
-                        The workspaces below are open to anyone with a{' '}
-                        <Text span fw={600}>
-                            @{emailDomain}
-                        </Text>{' '}
-                        domain
-                    </Text>
-                    {allowedOrgs?.map((org) => (
-                        <Card key={org.organizationUuid} withBorder>
-                            <Group justify="space-between">
-                                <Group gap="md">
-                                    <Avatar
-                                        size="md"
-                                        radius="xl"
-                                        color="ldGray.6"
-                                    >
-                                        {org.name[0]?.toUpperCase()}
-                                    </Avatar>
-                                    <Stack gap="two">
-                                        <Text truncate="end" fw={600}>
-                                            {org.name}
-                                        </Text>
-                                        <Text fz="xs" c="gray">
-                                            {org.membersCount} members
-                                        </Text>
-                                    </Stack>
-                                </Group>
-                                <Button
-                                    onClick={() =>
-                                        joinOrg(org.organizationUuid)
-                                    }
-                                    loading={isJoiningOrg}
-                                >
-                                    Join
-                                </Button>
-                            </Group>
-                        </Card>
-                    ))}
-                </Stack>
-            </Card>
+            {isNewLayout ? (
+                orgList
+            ) : (
+                <Card p="xl" radius="md" withBorder>
+                    {orgList}
+                </Card>
+            )}
         </AuthLayout>
     );
 };
