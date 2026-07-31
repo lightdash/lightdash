@@ -1,3 +1,10 @@
+# [1.49.0](https://github.com/lightdash/lightdash/compare/1.48.1...1.49.0) (2026-07-31)
+
+
+### Features
+
+* allow tags on additional explores ([#26602](https://github.com/lightdash/lightdash/issues/26602)) ([3f12503](https://github.com/lightdash/lightdash/commit/3f125035ddd5a7628b1fd20dbf89ab20238071b4)), closes [#22228](https://github.com/lightdash/lightdash/issues/22228)
+
 ## [1.48.1](https://github.com/lightdash/lightdash/compare/1.48.0...1.48.1) (2026-07-31)
 
 
