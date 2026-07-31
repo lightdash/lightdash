@@ -631,6 +631,15 @@ describe('moveToSpace', () => {
 });
 
 describe('findChartsForValidation', () => {
+    const makeValidationChart = (
+        uuid: string,
+        dashboardUuid: string | null,
+    ) => ({
+        uuid,
+        dashboardUuid,
+        customMetricsFilters: [],
+        pivotDimensions: [],
+    });
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new SavedChartModel({
         database,
@@ -660,32 +669,95 @@ describe('findChartsForValidation', () => {
         expect(query.sql).toContain('"sq"."project_uuid"');
     });
 
-    test('keeps validation queries within the PostgreSQL bind parameter limit', async () => {
+    test('excludes orphan charts using only active dashboard tiles', async () => {
         const projectUuid = '22222222-2222-4222-8222-222222222222';
-        const savedCharts = Array.from({ length: 65_536 }, (_, index) => {
-            const dashboardIndex = index % 32_768;
-            return {
-                uuid: `chart-${index}`,
-                dashboardUuid:
-                    index === 0
-                        ? null
-                        : `33333333-3333-4333-8333-${dashboardIndex
-                              .toString(16)
-                              .padStart(12, '0')}`,
-                customMetricsFilters: [],
-                pivotDimensions: [],
-            };
-        });
+        const dashboardUuid = '33333333-3333-4333-8333-333333333333';
+        const chartInTileUuid = '44444444-4444-4444-8444-444444444444';
+        const orphanChartUuid = '55555555-5555-4555-8555-555555555555';
+        const spaceChartUuid = '66666666-6666-4666-8666-666666666666';
+        tracker.on
+            .select(({ sql }) => sql.includes('chart_last_version_cte'))
+            .responseOnce([
+                makeValidationChart(chartInTileUuid, dashboardUuid),
+                makeValidationChart(orphanChartUuid, dashboardUuid),
+                makeValidationChart(spaceChartUuid, null),
+            ]);
+        tracker.on
+            .select(({ sql }) => sql.includes(DashboardTileChartTableName))
+            .responseOnce([{ saved_query_uuid: chartInTileUuid }]);
+
+        const charts = await model.findChartsForValidation(projectUuid);
+
+        expect(charts.map(({ uuid }) => uuid)).toEqual([
+            chartInTileUuid,
+            spaceChartUuid,
+        ]);
+        const chartLookupQuery = tracker.history.select.find(({ sql }) =>
+            sql.includes(DashboardTileChartTableName),
+        );
+        expect(chartLookupQuery?.sql).toContain(
+            `"${DashboardsTableName}"."deleted_at" is null`,
+        );
+        expect(chartLookupQuery?.sql).toContain(
+            '"charts_in_tiles"."deleted_at" is null',
+        );
+    });
+
+    test('skips tile lookups for space-only charts', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const chartUuids = [
+            '44444444-4444-4444-8444-444444444444',
+            '55555555-5555-4555-8555-555555555555',
+        ];
+        tracker.on
+            .select(({ sql }) => sql.includes('chart_last_version_cte'))
+            .responseOnce(
+                chartUuids.map((chartUuid) =>
+                    makeValidationChart(chartUuid, null),
+                ),
+            );
+
+        const charts = await model.findChartsForValidation(projectUuid);
+
+        expect(charts.map(({ uuid }) => uuid)).toEqual(chartUuids);
+        expect(
+            tracker.history.select.filter(({ sql }) =>
+                sql.includes(DashboardTileChartTableName),
+            ),
+        ).toHaveLength(0);
+    });
+
+    test('batches chart lookups independently of dashboard distribution', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const dashboardUuid = '33333333-3333-4333-8333-333333333333';
+        const savedCharts = Array.from({ length: 65_536 }, (_, index) =>
+            makeValidationChart(
+                `chart-${index}`,
+                index === 0 ? null : dashboardUuid,
+            ),
+        );
         tracker.on
             .select(({ sql }) => sql.includes('chart_last_version_cte'))
             .responseOnce(savedCharts);
         tracker.on
             .select(({ sql }) => sql.includes(DashboardTileChartTableName))
-            .responseOnce([]);
+            .response([]);
 
         await model.findChartsForValidation(projectUuid);
 
-        expect(tracker.history.select).toHaveLength(2);
+        const chartLookupQueries = tracker.history.select.filter(({ sql }) =>
+            sql.includes(DashboardTileChartTableName),
+        );
+        const batchSizes = chartLookupQueries.flatMap(({ bindings }) =>
+            bindings.flatMap((binding) =>
+                Array.isArray(binding) ? [binding.length] : [],
+            ),
+        );
+        expect(chartLookupQueries).toHaveLength(7);
+        expect(batchSizes).toEqual([
+            ...Array.from({ length: 6 }, () => 10_000),
+            5_535,
+        ]);
         expect(
             Math.max(
                 ...tracker.history.select.map(

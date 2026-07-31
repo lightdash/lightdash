@@ -53,6 +53,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { chunk } from 'lodash';
 import { DatabaseError } from 'pg';
 import { validate as isValidUuid } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
@@ -1875,54 +1876,58 @@ export class SavedChartModel {
 
     private async getChartsNotInTilesUuids(
         savedCharts: Pick<SavedChartDAO, 'uuid' | 'dashboardUuid'>[],
-    ): Promise<string[]> {
-        const dashboardUuids = [
-            ...new Set(
-                savedCharts.flatMap(({ dashboardUuid }) =>
-                    dashboardUuid === null ? [] : [dashboardUuid],
-                ),
-            ),
-        ];
-        if (dashboardUuids.length === 0) {
-            return [];
+    ): Promise<Set<string>> {
+        const dashboardChartUuids = savedCharts
+            .filter(({ dashboardUuid }) => dashboardUuid !== null)
+            .map(({ uuid }) => uuid);
+        const chartsNotInTilesUuids = new Set<string>();
+        const chartsInTilesAlias = 'charts_in_tiles';
+
+        for (const chartUuidBatch of chunk(dashboardChartUuids, 10_000)) {
+            // eslint-disable-next-line no-await-in-loop -- keep batches serial to bound database load
+            const tiledChartUuids = await this.database(
+                DashboardTileChartTableName,
+            )
+                .leftJoin(
+                    DashboardVersionsTableName,
+                    `${DashboardVersionsTableName}.dashboard_version_id`,
+                    `${DashboardTileChartTableName}.dashboard_version_id`,
+                )
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_id`,
+                    `${DashboardVersionsTableName}.dashboard_id`,
+                )
+                .leftJoin(
+                    `${SavedChartsTableName} as ${chartsInTilesAlias}`,
+                    `${chartsInTilesAlias}.saved_query_id`,
+                    `${DashboardTileChartTableName}.saved_chart_id`,
+                )
+                .whereNull(`${DashboardsTableName}.deleted_at`)
+                .whereNull(`${chartsInTilesAlias}.deleted_at`)
+                .whereRaw('?? = ANY(?::uuid[])', [
+                    `${chartsInTilesAlias}.saved_query_uuid`,
+                    chartUuidBatch,
+                ])
+                .andWhere(
+                    // filter by last version
+                    `${DashboardVersionsTableName}.dashboard_version_id`,
+                    this.database.raw(`(select dashboard_version_id
+                        from ${DashboardVersionsTableName} dv
+                        where dv.dashboard_id = ${DashboardsTableName}.dashboard_id
+                        order by dv.created_at desc
+                        limit 1)`),
+                )
+                .pluck<string[]>(`${chartsInTilesAlias}.saved_query_uuid`)
+                .distinct();
+            const tiledChartUuidSet = new Set(tiledChartUuids);
+
+            for (const chartUuid of chartUuidBatch) {
+                if (!tiledChartUuidSet.has(chartUuid)) {
+                    chartsNotInTilesUuids.add(chartUuid);
+                }
+            }
         }
-
-        const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
-            .distinct('saved_chart_id')
-            .leftJoin(
-                DashboardVersionsTableName,
-                `${DashboardVersionsTableName}.dashboard_version_id`,
-                `${DashboardTileChartTableName}.dashboard_version_id`,
-            )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
-            .whereRaw('?? = ANY(?::uuid[])', [
-                `${DashboardsTableName}.dashboard_uuid`,
-                dashboardUuids,
-            ])
-            .andWhere(
-                // filter by last version
-                `${DashboardVersionsTableName}.dashboard_version_id`,
-                this.database.raw(`(select dashboard_version_id
-                    from ${DashboardVersionsTableName} dv
-                    where dv.dashboard_id = ${DashboardsTableName}.dashboard_id
-                    order by dv.created_at desc
-                    limit 1)`),
-            )
-            // Exclude NULL saved_chart_id to prevent NOT IN issues
-            .whereNotNull(`${DashboardTileChartTableName}.saved_chart_id`);
-
-        const chartsNotInTilesUuids = await this.database(SavedChartsTableName)
-            .pluck(`saved_query_uuid`)
-            .whereRaw('?? = ANY(?::uuid[])', [
-                `${SavedChartsTableName}.dashboard_uuid`,
-                dashboardUuids,
-            ])
-            .whereNotIn(`saved_query_id`, getChartsInTilesQuery)
-            .whereNull(`${SavedChartsTableName}.deleted_at`);
 
         return chartsNotInTilesUuids;
     }
@@ -2065,7 +2070,7 @@ export class SavedChartModel {
                 customMetricsFilters: chart.customMetricsFilters.flat(),
                 pivotDimensions: chart.pivotDimensions ?? [],
             }))
-            .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid));
+            .filter((chart) => !chartsNotInTilesUuids.has(chart.uuid));
     }
 
     async getSlugsForUuids(uuids: string[]): Promise<string[]> {
@@ -2440,7 +2445,7 @@ export class SavedChartModel {
         const chartsNotInTilesUuids =
             await this.getChartsNotInTilesUuids(savedCharts);
         return savedCharts
-            .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid))
+            .filter((chart) => !chartsNotInTilesUuids.has(chart.uuid))
             .map((chart) => ({
                 ...chart,
                 customMetrics: chart.customMetrics.map(
