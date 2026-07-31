@@ -1045,6 +1045,11 @@ const uploadCommand = program
         'Include charts updates when uploading dashboards',
         false,
     )
+    .option(
+        '--include-virtual-views',
+        'Include the virtual views used by the charts and dashboards being uploaded',
+        false,
+    )
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
