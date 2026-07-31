@@ -1,3 +1,10 @@
+# [1.54.0](https://github.com/lightdash/lightdash/compare/1.53.0...1.54.0) (2026-07-31)
+
+
+### Features
+
+* **data-apps:** skip unchanged data app uploads without a new version or rebuild ([#26613](https://github.com/lightdash/lightdash/issues/26613)) ([7bab4d2](https://github.com/lightdash/lightdash/commit/7bab4d2e17bc6a66a7e34eef950741d90c1ecaba))
+
 # [1.53.0](https://github.com/lightdash/lightdash/compare/1.52.0...1.53.0) (2026-07-31)
 
 

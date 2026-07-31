@@ -16052,7 +16052,7 @@ const models: TsoaRoute.Models = {
         type: { dataType: 'string', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__':
+    'ApiSuccess__appUuid-string--version-number--action-create-or-append-or-unchanged--slug-string--warnings_63_-string-Array__':
         {
             dataType: 'refAlias',
             type: {
@@ -16071,6 +16071,7 @@ const models: TsoaRoute.Models = {
                                 subSchemas: [
                                     { dataType: 'enum', enums: ['create'] },
                                     { dataType: 'enum', enums: ['append'] },
+                                    { dataType: 'enum', enums: ['unchanged'] },
                                 ],
                                 required: true,
                             },
@@ -16088,7 +16089,7 @@ const models: TsoaRoute.Models = {
     ApiImportAppCodeResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__',
+            ref: 'ApiSuccess__appUuid-string--version-number--action-create-or-append-or-unchanged--slug-string--warnings_63_-string-Array__',
             validators: {},
         },
     },
@@ -16098,6 +16099,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                force: { dataType: 'boolean' },
                 createNew: { dataType: 'boolean' },
                 spaceUuid: { dataType: 'string' },
                 targetAppUuid: { dataType: 'string' },

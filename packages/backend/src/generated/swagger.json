@@ -17452,7 +17452,7 @@
                 "type": "string",
                 "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
             },
-            "ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__": {
+            "ApiSuccess__appUuid-string--version-number--action-create-or-append-or-unchanged--slug-string--warnings_63_-string-Array__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -17467,7 +17467,7 @@
                             },
                             "action": {
                                 "type": "string",
-                                "enum": ["create", "append"]
+                                "enum": ["create", "append", "unchanged"]
                             },
                             "version": {
                                 "type": "number",
@@ -17490,10 +17490,13 @@
                 "type": "object"
             },
             "ApiImportAppCodeResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append--slug-string--warnings_63_-string-Array__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append-or-unchanged--slug-string--warnings_63_-string-Array__"
             },
             "ImportAppCodeRequestBody": {
                 "properties": {
+                    "force": {
+                        "type": "boolean"
+                    },
                     "createNew": {
                         "type": "boolean"
                     },
@@ -51551,7 +51554,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.53.0",
+        "version": "1.54.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
