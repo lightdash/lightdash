@@ -1,3 +1,10 @@
+## [1.48.1](https://github.com/lightdash/lightdash/compare/1.48.0...1.48.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* make content as code backups reliable ([#26600](https://github.com/lightdash/lightdash/issues/26600)) ([ee088e6](https://github.com/lightdash/lightdash/commit/ee088e6c47594080e6b5c1507e9ca9b72218cf6d))
+
 # [1.48.0](https://github.com/lightdash/lightdash/compare/1.47.0...1.48.0) (2026-07-30)
 
 
