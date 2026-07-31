@@ -31,6 +31,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
+import { sanitizeRedirectUrl } from '../utils/redirectUrl';
 
 const registerQuery = async (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
     lightdashApi<LightdashUser>({
@@ -61,9 +62,11 @@ const Register: FC = () => {
         { retry: 3 },
     );
     const { identify, track } = useTracking();
-    const redirectUrl = location.state?.from
-        ? `${location.state.from.pathname}${location.state.from.search}`
-        : '/';
+    const redirectUrl = sanitizeRedirectUrl(
+        location.state?.from
+            ? `${location.state.from.pathname}${location.state.from.search}`
+            : undefined,
+    );
     const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
