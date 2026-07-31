@@ -27,6 +27,7 @@ import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepRe
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
 import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
 import {
     useCreateAiAgentThreadMessageSteerMutation,
@@ -50,6 +51,8 @@ import {
 import { getAgentSuggestionModes } from './suggestionModes';
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
+const ACTIVE_DEEP_RESEARCH_DISABLED_REASON =
+    'Only one Deep research run can be active in a thread at a time.';
 
 const SuggestionChipMention = Mention.extend({
     name: SUGGESTION_CHIP_MENTION_NAME,
@@ -423,9 +426,17 @@ export const AgentChatInput = ({
     const canStartDeepResearch = Boolean(
         onStartDeepResearch && !isEmbedAiAgentRoute(),
     );
+    const hasActiveDeepResearchRun = useHasActiveDeepResearchRun({
+        projectUuid,
+        threadUuid,
+    });
     const { isStarting: isStartingDeepResearch, startDeepResearch } =
         useDeepResearchComposer({
-            canStart: canStartDeepResearch && !disabled && !loading,
+            canStart:
+                canStartDeepResearch &&
+                !disabled &&
+                !loading &&
+                !hasActiveDeepResearchRun,
             onStart: onStartDeepResearch,
         });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
@@ -518,21 +529,25 @@ export const AgentChatInput = ({
     };
 
     useEffect(() => {
-        if (!canStartDeepResearch) {
+        if (!canStartDeepResearch || hasActiveDeepResearchRun) {
             setComposerMode('ask');
         }
-    }, [canStartDeepResearch]);
+    }, [canStartDeepResearch, hasActiveDeepResearchRun]);
 
     const deepResearchControl = canStartDeepResearch ? (
         <DeepResearchModeControl
             mode={composerMode}
             onModeChange={setComposerMode}
+            disabled={hasActiveDeepResearchRun}
+            disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
         />
     ) : null;
     const compactDeepResearchControl = canStartDeepResearch ? (
         <DeepResearchModeControl
             mode={composerMode}
             onModeChange={setComposerMode}
+            disabled={hasActiveDeepResearchRun}
+            disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
             iconOnly
             actionSize="sm"
             iconSize={14}

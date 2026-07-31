@@ -2,10 +2,18 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { AgentChatInput } from './AgentChatInput';
+
+const { useHasActiveDeepResearchRunMock } = vi.hoisted(() => ({
+    useHasActiveDeepResearchRunMock: vi.fn(() => false),
+}));
+
+vi.mock('../../hooks/useDeepResearch', () => ({
+    useHasActiveDeepResearchRun: useHasActiveDeepResearchRunMock,
+}));
 
 const renderInput = ({
     onStartDeepResearch = vi.fn().mockResolvedValue(undefined),
@@ -40,6 +48,10 @@ const renderInput = ({
 };
 
 describe('AgentChatInput Deep Research mode', () => {
+    beforeEach(() => {
+        useHasActiveDeepResearchRunMock.mockReturnValue(false);
+    });
+
     it('renders the toggle outside the composer in an existing conversation', () => {
         renderInput();
 
@@ -127,6 +139,24 @@ describe('AgentChatInput Deep Research mode', () => {
         expect(
             screen.getByRole('button', { name: 'Start research' }),
         ).toBeDisabled();
+        expect(onStartDeepResearch).not.toHaveBeenCalled();
+    });
+
+    it('keeps regular chat available while Deep research is active', async () => {
+        const user = userEvent.setup();
+        useHasActiveDeepResearchRunMock.mockReturnValue(true);
+        const { onStartDeepResearch, onSubmit } = renderInput();
+
+        expect(
+            screen.getByRole('button', { name: 'Turn on Deep research' }),
+        ).toBeDisabled();
+
+        await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+        expect(onSubmit).toHaveBeenCalledWith({
+            message: 'Why did enterprise retention fall?',
+            toolHints: [],
+        });
         expect(onStartDeepResearch).not.toHaveBeenCalled();
     });
 });

@@ -258,7 +258,11 @@ const useDeepResearchThreadRuns = (
     useQuery<AiDeepResearchRun[], ApiError>({
         queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, 'thread', threadUuid],
         queryFn: () => listDeepResearchRuns(projectUuid ?? '', threadUuid),
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && !!threadUuid,
+        refetchInterval: (runs) =>
+            runs?.some((run) => !isAiDeepResearchRunTerminal(run.status))
+                ? DEEP_RESEARCH_POLL_INTERVAL_MS
+                : false,
     });
 
 type DeepResearchEngagementRun = Pick<
@@ -371,6 +375,46 @@ export const useDeepResearchThreadRunRegistrations = ({
             ),
         ];
     }, [serverRuns.data, localRegistrations, threadUuid, userUuid]);
+};
+
+export const useHasActiveDeepResearchRun = ({
+    projectUuid,
+    threadUuid,
+}: {
+    projectUuid: string | undefined;
+    threadUuid: string | undefined;
+}) => {
+    const user = useUser(true);
+    const userUuid = user.data?.userUuid;
+    const serverRuns = useDeepResearchThreadRuns(projectUuid, threadUuid ?? '');
+    const localRegistrations = useDeepResearchRunsForThread(
+        projectUuid ?? '',
+        threadUuid ?? '',
+        userUuid,
+    );
+
+    return useMemo(() => {
+        if (!projectUuid || !threadUuid) {
+            return false;
+        }
+
+        const serverRunUuids = new Set(
+            serverRuns.data?.map((run) => run.aiDeepResearchRunUuid),
+        );
+        const hasLocalActiveRun = localRegistrations.some(
+            (registration) =>
+                registration.state === 'starting' ||
+                (registration.state === 'started' &&
+                    !serverRunUuids.has(registration.runUuid)),
+        );
+
+        return (
+            hasLocalActiveRun ||
+            serverRuns.data?.some(
+                (run) => !isAiDeepResearchRunTerminal(run.status),
+            ) === true
+        );
+    }, [localRegistrations, projectUuid, serverRuns.data, threadUuid]);
 };
 
 export const useDeepResearchRun = (

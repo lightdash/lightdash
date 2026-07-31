@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -48,5 +48,58 @@ describe('DeepResearchModeControl', () => {
             screen.getByRole('button', { name: 'Turn on Deep research' }),
         ).toBeInTheDocument();
         expect(screen.queryByText('Deep research')).not.toBeInTheDocument();
+    });
+
+    it('disables Deep research while another run is active', async () => {
+        const user = userEvent.setup();
+        const disabledReason =
+            'Only one Deep research run can be active in a thread at a time.';
+        const activeRunProps = {
+            disabled: true,
+            disabledReason,
+        };
+
+        renderWithProviders(
+            <DeepResearchModeControl
+                mode="ask"
+                onModeChange={() => undefined}
+                {...activeRunProps}
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Turn on Deep research' }),
+        ).toBeDisabled();
+
+        const explanationTrigger = screen.getByLabelText(disabledReason);
+        await user.hover(explanationTrigger);
+
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toHaveTextContent(disabledReason);
+        expect(within(tooltip).queryByRole('button')).not.toBeInTheDocument();
+        expect(within(tooltip).queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('shows the active-run explanation on keyboard focus', async () => {
+        const user = userEvent.setup();
+        const disabledReason =
+            'Only one Deep research run can be active in a thread at a time.';
+
+        renderWithProviders(
+            <DeepResearchModeControl
+                mode="ask"
+                onModeChange={() => undefined}
+                disabled
+                disabledReason={disabledReason}
+                iconOnly
+            />,
+        );
+
+        await user.tab();
+
+        expect(screen.getByLabelText(disabledReason)).toHaveFocus();
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            disabledReason,
+        );
     });
 });
