@@ -45,6 +45,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     loadSkill: 'load_skill',
     generateHashes: 'generate_hashes',
     loadProjectContext: 'load_project_context',
+    loadMcpTools: 'load_mcp_tools',
     generateUuids: 'generate_uuids',
     generateVisualization: 'query_result',
     runQuery: 'query_result',

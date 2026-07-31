@@ -29,6 +29,7 @@ import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getListWorkstreams } from './listWorkstreams';
+import { getLoadMcpTools } from './loadMcpTools';
 import { getLoadSkill } from './loadSkill';
 import { getReadContent } from './readContent';
 import { getRunContentQuery } from './runContentQuery';
@@ -153,6 +154,7 @@ const makeAgentTools = () => {
             listWarehouseTables: noop,
         }),
         loadSkill: getLoadSkill({ loadSkill: noop }),
+        loadMcpTools: getLoadMcpTools(['mcp_linear__get_issue']),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
         }),

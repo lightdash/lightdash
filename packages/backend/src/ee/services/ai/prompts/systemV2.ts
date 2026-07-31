@@ -71,6 +71,7 @@ export const getSystemPromptV2 = (args: {
     // runSql's own max, quoted in its prompt section.
     runSqlMaxLimit?: number;
     unauthenticatedMcpServerNames?: string[];
+    mcpServers?: Array<{ name: string; toolNames: string[] }>;
 }): SystemModelMessage => {
     const {
         instructions,
@@ -94,6 +95,7 @@ export const getSystemPromptV2 = (args: {
         warehouseSchema = null,
         runSqlMaxLimit,
         unauthenticatedMcpServerNames = [],
+        mcpServers = [],
     } = args;
 
     const crossExploreJoinRule = canRunSql
@@ -294,6 +296,24 @@ export const getSystemPromptV2 = (args: {
                   )
                   .join('\n')}`
             : '';
+    const hasLiveMcpTools = mcpServers.some(
+        ({ toolNames }) => toolNames.length > 0,
+    );
+    const mcpToolsSection =
+        mcpServers.length > 0
+            ? [
+                  '## MCP tools',
+                  ...(hasLiveMcpTools
+                      ? [
+                            'MCP tool definitions are loaded on demand. You MUST call `loadMcpTools` with the exact names you need before calling any unloaded MCP tool. Never guess a tool input from its name. Loaded tools remain available for this thread.',
+                        ]
+                      : []),
+                  ...mcpServers.map(
+                      ({ name, toolNames }) =>
+                          `- ${name}: ${[...toolNames].sort().join(', ') || '(no tools available)'}`,
+                  ),
+              ].join('\n')
+            : '';
 
     // Experimental: when grepFields replaces discoverFields, override the
     // discovery guidance so the agent greps the field catalog itself.
@@ -317,6 +337,7 @@ export const getSystemPromptV2 = (args: {
         content,
         deepResearchContent,
         grepFieldsSection,
+        mcpToolsSection,
         mcpConnectionsSection,
         skillsSection,
     ]

@@ -1,5 +1,4 @@
 import {
-    type AiAgentToolName,
     type AiAgentMessageAssistant,
     type AiAgentToolCall,
     type AiMcpServer,
@@ -63,6 +62,7 @@ import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
+import { isHiddenToolName } from './hiddenToolNames';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
     MEMORY_CITATION_COMPONENTS,
@@ -102,12 +102,6 @@ type SqlApprovalSegment = {
 };
 type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 
-const HIDDEN_TOOL_NAMES = new Set<AiAgentToolName>([
-    'improveContext',
-    'generateHashes',
-    'generateUuids',
-]);
-
 const segmentStreamParts = (
     parts: StreamPart[],
     decidedToolCallIds: string[],
@@ -118,7 +112,7 @@ const segmentStreamParts = (
             segments.push({ kind: 'text', text: part.text, idx });
             return;
         }
-        if (HIDDEN_TOOL_NAMES.has(part.toolName)) {
+        if (isHiddenToolName(part.toolName)) {
             return;
         }
         if (
@@ -728,7 +722,7 @@ const AssistantBubbleContent: FC<{
                 // the final markdown answer below as the hero.
                 const renderableToolCalls = message.toolCalls.filter(
                     (tc) =>
-                        !HIDDEN_TOOL_NAMES.has(tc.toolName) &&
+                        !isHiddenToolName(tc.toolName) &&
                         // Subagent children render nested under their parent's row, not as top-level siblings.
                         tc.parentToolCallId === null,
                 );

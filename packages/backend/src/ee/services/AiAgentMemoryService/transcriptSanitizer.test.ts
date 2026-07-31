@@ -326,6 +326,20 @@ describe('sanitizeThread', () => {
         );
     });
 
+    it('omits loadMcpTools without reporting an unknown tool', async () => {
+        const onUnknownTool = vi.fn();
+        const output = await sanitizeThread(
+            thread(
+                'Loaded MCP tools: mcp_linear__search_issues.',
+                'loadMcpTools',
+            ),
+            { onUnknownTool },
+        );
+
+        expect(output.turns[0].tools).toBeUndefined();
+        expect(onUnknownTool).not.toHaveBeenCalled();
+    });
+
     it('caps SQL argument strings without truncating other arguments', async () => {
         const input = thread('```csv\nValue\n1\n```', 'runSql');
         input.turns[0].tools[0].args = {

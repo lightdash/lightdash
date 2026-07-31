@@ -3945,6 +3945,59 @@ Parameters:
     },
   },
   {
+    "description": "Load the definitions for MCP tools you need before calling them. Pass exact tool names from the MCP tools section of the system prompt. Loaded definitions remain available for the rest of the thread.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "names": {
+          "description": "Exact MCP tool names to load.",
+          "items": {
+            "minLength": 1,
+            "type": "string",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "names",
+      ],
+      "type": "object",
+    },
+    "name": "loadMcpTools",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Open or update a pull request that modifies the dbt project / Lightdash semantic layer for this project. Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata. Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those). This tool applies the change on your behalf: it runs in an isolated sandbox, edits the repo, runs \`lightdash compile\`, and opens a pull request — but the call returns immediately once the run has started, before any of that finishes (status: "pending"). Give a brief acknowledgement that you have started the change, then end your turn. Do not wait for it or call this tool again to check on it. A single conversation can open several pull requests: follow-up edits continue the most recent one, prUrl targets a specific existing one, and startNewPullRequest opens a fresh one for an unrelated change.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7736,6 +7789,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "improveContext",
   "loadSkill",
   "loadProjectContext",
+  "loadMcpTools",
   "editDbtProject",
   "editProjectContext",
   "editRepo",

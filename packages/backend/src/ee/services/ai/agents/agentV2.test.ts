@@ -10,6 +10,7 @@ import {
     buildMessagesWithMemoryBlock,
     getAgentTools,
     getDeepResearchBudgetInstruction,
+    getPromptMcpServers,
     normalizeToolOutput,
     recordAgentStepUsage,
     storeInvalidAgentToolCall,
@@ -512,6 +513,63 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toContain('loadProjectContext');
     });
 
+    it('does not expose loadMcpTools when there are no MCP tools', () => {
+        expect(
+            toolNames({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+            }),
+        ).not.toContain('loadMcpTools');
+    });
+
+    it('exposes loadMcpTools when live MCP tools are registered', () => {
+        const tools = getAgentTools(
+            buildArgs({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+            }),
+            depsStub(),
+            [],
+            {
+                ...mcpStub,
+                tools: { mcp_linear__search_issues: {} as never },
+            },
+            new Map(),
+        );
+
+        expect(Object.keys(tools)).toEqual(
+            expect.arrayContaining([
+                'loadMcpTools',
+                'mcp_linear__search_issues',
+            ]),
+        );
+    });
+
+    it('limits prompt MCP inventory to the final runtime tool set', () => {
+        const setup: AgentMcpToolSetup = {
+            ...mcpStub,
+            tools: { mcp_linear__get_issue: {} as never },
+            mcpToolNameToServerUuid: {
+                mcp_linear__get_issue: 'linear-server',
+            },
+        };
+        const servers = [
+            { uuid: 'linear-server', name: 'Linear' },
+        ] as AiAgentArgs['mcpServers'];
+
+        expect(
+            getPromptMcpServers(servers, setup, {
+                submitResearchHypotheses: {} as never,
+            }),
+        ).toEqual([{ name: 'Linear', toolNames: [] }]);
+        expect(
+            getPromptMcpServers(servers, setup, {
+                loadMcpTools: {} as never,
+                mcp_linear__get_issue: {} as never,
+            }),
+        ).toEqual([{ name: 'Linear', toolNames: ['mcp_linear__get_issue'] }]);
+    });
+
     it('still exposes them for the general coding agent (writeback off) — unchanged', () => {
         const names = toolNames({
             enableCodingAgent: true,
@@ -581,6 +639,7 @@ describe('getAgentTools workstream tool gate', () => {
                 'submitInvestigationReport',
                 'editDbtProject',
                 'generateVisualization',
+                'loadMcpTools',
                 'mcp_github__create_issue',
             ]),
         );
