@@ -1838,7 +1838,9 @@ export type DataAppUploadedEvent = BaseTrack & {
         projectId: string;
         appUuid: string;
         version: number;
-        action: 'create' | 'append';
+        // 'unchanged' = bundle matched the latest version; no build ran and
+        // `version` is the matched version, not a new one.
+        action: 'create' | 'append' | 'unchanged';
         identitySource: DataAppUploadIdentitySource;
         template: Exclude<DataAppTemplate, 'custom'> | null;
         sourceFileCount: number;

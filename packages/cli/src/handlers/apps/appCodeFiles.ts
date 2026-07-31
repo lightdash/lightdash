@@ -135,7 +135,12 @@ const collectFiles = async (
 export const buildImportBody = (
     code: DataAppCode,
     targetProjectUuid: string,
-    opts: { app?: string; space?: string; createNew?: boolean },
+    opts: {
+        app?: string;
+        space?: string;
+        createNew?: boolean;
+        force?: boolean;
+    },
 ): ImportAppCodeRequestBody => {
     let targetAppUuid: string | undefined;
     if (opts.createNew) {
@@ -155,6 +160,7 @@ export const buildImportBody = (
         targetAppUuid,
         spaceUuid: opts.space,
         ...(opts.createNew ? { createNew: true } : {}),
+        ...(opts.force ? { force: true } : {}),
     };
 };
 
