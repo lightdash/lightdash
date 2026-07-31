@@ -1,3 +1,10 @@
+# [1.58.0](https://github.com/lightdash/lightdash/compare/1.57.3...1.58.0) (2026-07-31)
+
+
+### Features
+
+* **omnibar:** redesign global search with per-user recents and a preview panel ([#26648](https://github.com/lightdash/lightdash/issues/26648)) ([ed2411b](https://github.com/lightdash/lightdash/commit/ed2411bb38143bc65b8eb318f90fecce85bde68f))
+
 ## [1.57.3](https://github.com/lightdash/lightdash/compare/1.57.2...1.57.3) (2026-07-31)
 
 
