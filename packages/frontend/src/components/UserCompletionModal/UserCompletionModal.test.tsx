@@ -1,10 +1,12 @@
 import { LightdashMode } from '@lightdash/common';
+import { useQueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import nock from 'nock';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BASE_API_URL } from '../../api';
+import { type UserWithAbility } from '../../hooks/user/useUser';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
@@ -40,6 +42,27 @@ const SetupStateProbe = () => {
         <div>
             {user.data?.isSetupComplete ? 'setup complete' : 'setup incomplete'}
         </div>
+    );
+};
+
+const StaleUserRefetchHarness = () => {
+    const queryClient = useQueryClient();
+
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                queryClient.setQueryData<UserWithAbility>(
+                    ['user'],
+                    (currentUser) =>
+                        currentUser
+                            ? { ...currentUser, isSetupComplete: false }
+                            : currentUser,
+                );
+            }}
+        >
+            Deliver stale user
+        </button>
     );
 };
 
@@ -431,6 +454,46 @@ describe('UserCompletionModal', () => {
             await screen.findByText('Organization setup page'),
         ).toBeInTheDocument();
         expect(screen.queryByText('Nearly there...')).not.toBeInTheDocument();
+    });
+
+    it('does not redirect after a stale refetch follows setup completion', async () => {
+        mockFeatureFlag(true);
+        const user = userEvent.setup();
+
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                    <Route
+                        path="/"
+                        element={
+                            <>
+                                <UserCompletionModal />
+                                <StaleUserRefetchHarness />
+                                <div>Home page</div>
+                            </>
+                        }
+                    />
+                    <Route
+                        path="/organization-setup"
+                        element={<div>Organization setup page</div>}
+                    />
+                </Routes>
+            </MemoryRouter>,
+            {
+                user: {
+                    isSetupComplete: true,
+                },
+            },
+        );
+
+        await user.click(
+            await screen.findByRole('button', { name: 'Deliver stale user' }),
+        );
+
+        expect(screen.getByText('Home page')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Organization setup page'),
+        ).not.toBeInTheDocument();
     });
 
     it('does not bounce back to organization setup while user setup is completing', async () => {

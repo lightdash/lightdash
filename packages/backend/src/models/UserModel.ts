@@ -222,7 +222,7 @@ export class UserModel {
         const cacheKey = `${userUuid}::${organizationUuid}`;
         // Try to get from cache first
         const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
-        if (cachedUser) {
+        if (cachedUser?.isSetupComplete) {
             // Return cached user
             return { sessionUser: cachedUser, cacheHit: true };
         }
@@ -232,7 +232,9 @@ export class UserModel {
             organizationUuid,
         );
         // Store in cache
-        sessionUserCache?.set(cacheKey, sessionUser);
+        if (sessionUser.isSetupComplete) {
+            sessionUserCache?.set(cacheKey, sessionUser);
+        }
         return { sessionUser, cacheHit: false };
     }
 

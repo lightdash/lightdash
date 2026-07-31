@@ -8,6 +8,7 @@ import {
     projectMemberAbilities,
     ProjectMemberRole,
     ServiceAccountScope,
+    type SessionUser,
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { type Knex } from 'knex';
@@ -168,6 +169,29 @@ const expectCollapsedDashboardProjectRule = (
         (dashboardRule.conditions as Record<string, { $in: string[] }>)
             .projectUuid.$in,
     ).toHaveLength(125);
+};
+
+const loadUserModelWithSessionUserCache = async () => {
+    const entries = new Map<string, SessionUser>();
+    const sessionUserCache = {
+        get: vi.fn((key: string) => entries.get(key)),
+        set: vi.fn((key: string, value: SessionUser) =>
+            entries.set(key, value),
+        ),
+        keys: vi.fn(() => Array.from(entries.keys())),
+        del: vi.fn((key: string) => entries.delete(key)),
+        flushAll: vi.fn(),
+    };
+
+    vi.resetModules();
+    vi.doMock('node-cache', () => ({
+        default: function NodeCache() {
+            return sessionUserCache;
+        },
+    }));
+
+    const { UserModel: CachedUserModel } = await import('./UserModel');
+    return { CachedUserModel, entries, sessionUserCache };
 };
 
 describe('UserModel', () => {
@@ -437,6 +461,112 @@ describe('UserModel', () => {
 
             expect(compareSpy).not.toHaveBeenCalled();
             compareSpy.mockRestore();
+        });
+    });
+
+    describe('getSessionUserFromCacheOrDB', () => {
+        const userUuid = 'user-1';
+        const organizationUuid = 'org-1';
+        let savedExperimentalCache: string | undefined;
+
+        beforeEach(() => {
+            savedExperimentalCache = process.env.EXPERIMENTAL_CACHE;
+            process.env.EXPERIMENTAL_CACHE = 'true';
+        });
+
+        afterEach(() => {
+            if (savedExperimentalCache === undefined) {
+                delete process.env.EXPERIMENTAL_CACHE;
+            } else {
+                process.env.EXPERIMENTAL_CACHE = savedExperimentalCache;
+            }
+            vi.doUnmock('node-cache');
+            vi.resetModules();
+        });
+
+        it('serves a cached setup-complete user', async () => {
+            const { CachedUserModel } =
+                await loadUserModelWithSessionUserCache();
+            const model = new CachedUserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const sessionUser = {
+                userUuid,
+                organizationUuid,
+                isSetupComplete: true,
+            } as SessionUser;
+            const findSessionUser = vi
+                .spyOn(model, 'findSessionUserAndOrgByUuid')
+                .mockResolvedValue(sessionUser);
+
+            await model.getSessionUserFromCacheOrDB(userUuid, organizationUuid);
+            const result = await model.getSessionUserFromCacheOrDB(
+                userUuid,
+                organizationUuid,
+            );
+
+            expect(result).toEqual({ sessionUser, cacheHit: true });
+            expect(findSessionUser).toHaveBeenCalledOnce();
+        });
+
+        it('treats a cached incomplete user as a cache miss', async () => {
+            const { CachedUserModel, entries } =
+                await loadUserModelWithSessionUserCache();
+            const model = new CachedUserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const incompleteUser = {
+                userUuid,
+                organizationUuid,
+                isSetupComplete: false,
+            } as SessionUser;
+            const sessionUser = {
+                ...incompleteUser,
+                isSetupComplete: true,
+            };
+            entries.set(`${userUuid}::${organizationUuid}`, incompleteUser);
+            const findSessionUser = vi
+                .spyOn(model, 'findSessionUserAndOrgByUuid')
+                .mockResolvedValue(sessionUser);
+
+            const result = await model.getSessionUserFromCacheOrDB(
+                userUuid,
+                organizationUuid,
+            );
+
+            expect(result).toEqual({ sessionUser, cacheHit: false });
+            expect(findSessionUser).toHaveBeenCalledWith(
+                userUuid,
+                organizationUuid,
+            );
+        });
+
+        it('does not cache an incomplete user', async () => {
+            const { CachedUserModel, sessionUserCache } =
+                await loadUserModelWithSessionUserCache();
+            const model = new CachedUserModel({
+                database: vi.fn() as unknown as Knex,
+                lightdashConfig,
+                featureFlagModel,
+            });
+            const sessionUser = {
+                userUuid,
+                organizationUuid,
+                isSetupComplete: false,
+            } as SessionUser;
+            const findSessionUser = vi
+                .spyOn(model, 'findSessionUserAndOrgByUuid')
+                .mockResolvedValue(sessionUser);
+
+            await model.getSessionUserFromCacheOrDB(userUuid, organizationUuid);
+            await model.getSessionUserFromCacheOrDB(userUuid, organizationUuid);
+
+            expect(findSessionUser).toHaveBeenCalledTimes(2);
+            expect(sessionUserCache.set).not.toHaveBeenCalled();
         });
     });
 });
