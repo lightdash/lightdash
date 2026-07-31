@@ -48,7 +48,10 @@ const NO_FALLBACKS: ChatMessageFallbacks = {
     dashboardName: new Map(),
 };
 
-const authorNameOf = (version: ApiAppVersionSummary): string | null => {
+/** Display name of whoever asked for a version; null when unknown. */
+export const getVersionAuthorName = (
+    version: ApiAppVersionSummary,
+): string | null => {
     if (!version.createdByUser) return null;
     return (
         [version.createdByUser.firstName, version.createdByUser.lastName]
@@ -121,6 +124,12 @@ export function versionsToChatMessages(
             v.version === 1
                 ? 'Your app is ready!'
                 : `Version ${v.version} is ready!`;
+        // Null rather than 0 when the version never recorded a transition:
+        // an unknown duration is not a zero-second build.
+        const durationMs = v.statusUpdatedAt
+            ? new Date(v.statusUpdatedAt).getTime() -
+              new Date(v.createdAt).getTime()
+            : null;
         const reasoning = versionNarrationTexts(v.statusHistory, 'thinking');
         const activity = versionNarrationTexts(v.statusHistory, 'tool');
 
@@ -137,7 +146,7 @@ export function versionsToChatMessages(
                 dashboardName,
                 clarifications,
                 timestamp: new Date(v.createdAt),
-                userName: authorNameOf(v),
+                userName: getVersionAuthorName(v),
             },
         ];
 
@@ -146,6 +155,7 @@ export function versionsToChatMessages(
                 ...emptyChatMessage(),
                 role: 'assistant',
                 status: 'ready',
+                durationMs,
                 content: isUploadedVersion
                     ? readyMessage
                     : (v.statusMessage ?? readyMessage),
@@ -160,6 +170,7 @@ export function versionsToChatMessages(
                 ...emptyChatMessage(),
                 role: 'assistant',
                 status: 'error',
+                durationMs,
                 content: getAppVersionFailureMessage(v),
                 // `version` stays null: a deps chip renders off it, and a
                 // failed build has no artifacts to describe.

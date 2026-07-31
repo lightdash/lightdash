@@ -1,28 +1,26 @@
-import {
-    getEffectiveOptionValues,
-    getItemId,
-    type DataAppVizField,
-    type Item,
-} from '@lightdash/common';
-import { Stack, Text } from '@mantine-8/core';
+import { getEffectiveOptionValues, type ItemsMap } from '@lightdash/common';
+import { Box } from '@mantine-8/core';
 import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
-import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';
+import DataAppVizDock from '../../../features/apps/components/DataAppVizDock';
+import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
+import { useCanEditDataApp } from '../../../features/apps/hooks/useCanEditDataApp';
 import { useDataAppVisualization } from '../../../features/apps/hooks/useDataAppVisualization';
 import {
     autoMapDataAppVizFields,
-    poolKeyForSlot,
     reconcileDataAppVizFieldMapping,
 } from '../../../features/apps/utils/autoMapDataAppVizFields';
-import { getDataAppVizFieldItems } from '../../../features/apps/utils/getDataAppVizFieldItems';
-import FieldSelect from '../../common/FieldSelect';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
-import { Config } from '../common/Config';
 import { getVizConfigThemeOverride } from '../mantineTheme';
+import classes from './DataAppVizConfigTabs.module.css';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
+import DataAppVizSettings from './DataAppVizSettings';
+
+// Stable identity, so the field pools stay memoized before results land.
+const NO_COLUMNS: ItemsMap = {};
 
 export const ConfigTabs: FC = memo(() => {
     const { colorScheme } = useMantineColorScheme();
@@ -43,23 +41,23 @@ export const ConfigTabs: FC = memo(() => {
         dataAppVizUuid || undefined,
     );
 
-    const itemPools = useMemo(() => {
-        const { dimensions, metrics } = getDataAppVizFieldItems(itemsMap ?? {});
-        return { dimension: dimensions, metric: metrics };
-    }, [itemsMap]);
-    // Auto-binding cannot run without columns, and it only runs once, at pick
-    // time — so picking now would leave the slots empty for good.
-    const hasColumns =
-        itemPools.dimension.length > 0 || itemPools.metric.length > 0;
-
     const configOptions = useMemo(
         () => dataAppViz?.schema?.configOptions ?? [],
         [dataAppViz],
     );
     const colorPalette = dataAppViz?.schema?.colorPalette ?? null;
 
-    const fieldItems = (field: DataAppVizField): Item[] =>
-        itemPools[poolKeyForSlot(field)];
+    const canCreateApp = useCanCreateDataApp(projectUuid);
+    const canEditSelected = useCanEditDataApp(projectUuid, {
+        spaceUuid: dataAppViz?.spaceUuid ?? null,
+        createdByUserUuid: dataAppViz?.createdByUserUuid ?? null,
+    });
+    // The dock is authoring end to end — the version log's restores, the way
+    // into the builder — so it is offered on the same rules as the builder
+    // page: creating a new visualization, or managing the one selected.
+    // Without either, the panel is the picker and the settings. The create
+    // arm only becomes reachable once the dock renders with nothing selected.
+    const canAuthor = dataAppVizUuid ? canEditSelected : canCreateApp;
 
     if (!isDataAppViz) return null;
 
@@ -80,92 +78,59 @@ export const ConfigTabs: FC = memo(() => {
     // contract and columns in force now — the same value the renderer uses.
     const effectiveMapping = reconcileDataAppVizFieldMapping(
         fields,
-        itemsMap ?? {},
+        itemsMap ?? NO_COLUMNS,
         fieldMapping,
     );
 
-    const generalPanel = (
-        <Stack>
-            <Config>
-                <Config.Section>
-                    <Config.Heading>Data app visualization</Config.Heading>
-                    <DataAppVizLibraryPicker
-                        projectUuid={projectUuid ?? ''}
-                        selectedDataAppVizUuid={dataAppVizUuid || null}
-                        selectedDataAppViz={dataAppViz ?? null}
-                        disabled={!hasColumns}
-                        onSelect={(picked) =>
-                            setDataAppVizUuid(
-                                picked?.dataAppVizUuid ?? '',
-                                picked
-                                    ? autoMapDataAppVizFields(
-                                          picked.schema?.fields ?? [],
-                                          itemsMap ?? {},
-                                      )
-                                    : {},
-                            )
-                        }
-                    />
-                    {!hasColumns && (
-                        <Text c="dimmed" size="xs">
-                            Run your query to pick a visualization.
-                        </Text>
-                    )}
-                </Config.Section>
-            </Config>
-
-            {dataAppVizUuid && fields.length === 0 && (
-                <Text c="dimmed" size="sm">
-                    This visualization has no fields to map.
-                </Text>
-            )}
-
-            {fields.map((field) => {
-                const items = fieldItems(field);
-                const selectedId = effectiveMapping[field.name];
-                const selectedItem = selectedId
-                    ? items.find((i) => getItemId(i) === selectedId)
-                    : undefined;
-                return (
-                    <Config key={field.name}>
-                        <Config.Section>
-                            <Config.Heading>{field.label}</Config.Heading>
-                            <FieldSelect
-                                placeholder={`Select ${field.label.toLowerCase()}`}
-                                disabled={items.length === 0}
-                                item={selectedItem}
-                                items={items}
-                                onChange={(newField) =>
-                                    setField(
-                                        field.name,
-                                        newField ? getItemId(newField) : null,
-                                    )
-                                }
-                                clearable={!field.required}
-                                hasGrouping
-                            />
-                        </Config.Section>
-                    </Config>
-                );
-            })}
-        </Stack>
+    const settings = (
+        <DataAppVizSettings
+            projectUuid={projectUuid ?? ''}
+            dataAppVizUuid={dataAppVizUuid}
+            dataAppViz={dataAppViz ?? null}
+            itemsMap={itemsMap ?? NO_COLUMNS}
+            fields={fields}
+            fieldMapping={effectiveMapping}
+            onSelect={(picked) =>
+                setDataAppVizUuid(
+                    picked?.dataAppVizUuid ?? '',
+                    picked
+                        ? autoMapDataAppVizFields(
+                              picked.schema?.fields ?? [],
+                              itemsMap ?? NO_COLUMNS,
+                          )
+                        : {},
+                )
+            }
+            onFieldChange={setField}
+        />
     );
 
     return (
         <MantineProvider inherit theme={themeOverride}>
-            <DataAppVizOptionTabs
-                // Remount on a viz switch so no control keeps the previous
-                // viz's draft edit.
-                key={dataAppVizUuid}
-                generalContent={generalPanel}
-                configOptions={configOptions}
-                values={effectiveValues}
-                onChange={(name, value) =>
-                    setOption(dataAppVizUuid, name, value)
-                }
-                colorPalette={colorPalette}
-                paletteControl={<ColorPaletteSection />}
-            />
+            <Box className={classes.panel}>
+                <Box className={classes.settings}>
+                    <DataAppVizOptionTabs
+                        // Remount on a viz switch so no control keeps the
+                        // previous viz's draft edit.
+                        key={dataAppVizUuid}
+                        generalContent={settings}
+                        configOptions={configOptions}
+                        values={effectiveValues}
+                        onChange={(name, value) =>
+                            setOption(dataAppVizUuid, name, value)
+                        }
+                        colorPalette={colorPalette}
+                        paletteControl={<ColorPaletteSection />}
+                    />
+                </Box>
+
+                {dataAppVizUuid && canAuthor && (
+                    <DataAppVizDock
+                        projectUuid={projectUuid ?? ''}
+                        dataAppVizUuid={dataAppVizUuid}
+                    />
+                )}
+            </Box>
         </MantineProvider>
     );
 });

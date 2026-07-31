@@ -1,0 +1,78 @@
+/* Sits on the panel's bottom edge. Collapsed it takes one line; expanded it
+   takes only what its versions need, and scrolls past three of them. */
+.dock {
+    /* One log row: the prompt line, the receipt line, and the row's padding. */
+    --dock-log-row: 3rem;
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: var(--mantine-spacing-xs);
+    padding-top: var(--mantine-spacing-xs);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.dockExpanded {
+    /* Grows with its versions rather than claiming the settings' room. */
+    flex: 0 1 auto;
+}
+
+.sheetHeader {
+    flex: 0 0 auto;
+}
+
+.log {
+    flex: 0 1 auto;
+    min-height: 0;
+    /* Three rows, then scroll — clipping the fourth mid-row is what says
+       there are more. */
+    max-height: calc(3 * var(--dock-log-row));
+    overflow-y: auto;
+}
+
+/* Whatever the caller docks under the log keeps its own height. */
+.footer {
+    flex: 0 0 auto;
+}
+
+.bar {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-height: 22px;
+}
+
+/* The whole status line opens the dock, so the target is the sentence rather
+   than the chevron alone. */
+.barTrigger {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+.toggle {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: var(--mantine-radius-sm);
+    background: none;
+    color: var(--mantine-color-dimmed);
+    cursor: pointer;
+}
+
+.toggle:hover {
+    background-color: var(--mantine-color-default-hover);
+}
