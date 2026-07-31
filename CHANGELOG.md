@@ -1,3 +1,10 @@
+## [1.50.1](https://github.com/lightdash/lightdash/compare/1.50.0...1.50.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* authorize project content with owning organization ([#26520](https://github.com/lightdash/lightdash/issues/26520)) ([d6535ee](https://github.com/lightdash/lightdash/commit/d6535ee9205c6ab5d5c2d062abc171a623562c1c))
+
 # [1.50.0](https://github.com/lightdash/lightdash/compare/1.49.0...1.50.0) (2026-07-31)
 
 
