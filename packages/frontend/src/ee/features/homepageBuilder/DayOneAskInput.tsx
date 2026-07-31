@@ -73,6 +73,23 @@ const useAiRouterEnabledFromCache = (): boolean | undefined => {
     return enabled;
 };
 
+const inputHoldClass = (projectUuid: string | null) =>
+    projectUuid ? classes.inputHold : classes.inputHoldMinimal;
+
+// The composer's footprint on a surface that is still deciding whether it can
+// show a composer at all. Lives here so the reserved height is stated once,
+// next to the composer it stands in for.
+export const DayOneAskInputPlaceholder: FC<Props> = ({
+    projectUuid,
+    hideSuggestions,
+}) => (
+    <div className={classes.composer}>
+        <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
+        {!projectUuid && <Skeleton h={17} w={260} mt={10} mx="auto" />}
+        {!hideSuggestions && <div className={classes.pillRow} />}
+    </div>
+);
+
 // Two chips, not the full generated set. On the homepage the composer is the
 // opening view and the chips are a hint at what it can do — five of them read
 // as a menu to work through, and they cost more vertical space than the
@@ -322,11 +339,9 @@ const DayOneAskInputInner: FC<Props> = ({
         track,
     ]);
 
-    if (isLoadingAgents || isLoadingPreferences) {
-        return <Skeleton h={64} radius="lg" />;
-    }
+    const isComposerLoading = isLoadingAgents || isLoadingPreferences;
 
-    if (projectUuid && (!agents || agents.length === 0)) {
+    if (!isComposerLoading && projectUuid && (!agents || agents.length === 0)) {
         return (
             <div className={blockClasses.dashedEmpty}>
                 Set up an AI agent to enable Ask AI here —{' '}
@@ -343,36 +358,43 @@ const DayOneAskInputInner: FC<Props> = ({
         // whole subtree is `inert`: no focus, no typing, no submit — it just
         // shows what viewers will get.
         <div className={classes.composer} inert={preview}>
-            <AgentChatInput
-                projectUuid={projectUuid ?? undefined}
-                agentUuid={selectedAgent?.uuid}
-                agents={agents}
-                selectedAgent={activeSelection ?? agents?.[0]}
-                placeholder={
-                    activeSelection === 'auto'
-                        ? 'Ask anything about your data…'
-                        : activeSelection
-                          ? `Ask ${activeSelection.name}…`
-                          : 'Ask anything about your data…'
-                }
-                onSubmit={handleSubmit}
-                onStartDeepResearch={
-                    selectedAgent && deepResearchFlag.data?.enabled
-                        ? handleStartDeepResearch
-                        : undefined
-                }
-                loading={isCreatingThread}
-                showSuggestions={false}
-                fullWidth
-                revealControlsOnFocus
-                dense
-                disabled={!projectUuid || !canCreateThread}
-                disabledReason={
-                    projectUuid && !canCreateThread
-                        ? "Your role can view AI agents but can't start conversations. Ask a workspace admin for access."
-                        : undefined
-                }
-            />
+            {/* The hold sits in the input's own slot rather than replacing the
+                whole block, so the hint and chip row keep their place and the
+                composer resolves without moving anything around it. */}
+            {isComposerLoading ? (
+                <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
+            ) : (
+                <AgentChatInput
+                    projectUuid={projectUuid ?? undefined}
+                    agentUuid={selectedAgent?.uuid}
+                    agents={agents}
+                    selectedAgent={activeSelection ?? agents?.[0]}
+                    placeholder={
+                        activeSelection === 'auto'
+                            ? 'Ask anything about your data…'
+                            : activeSelection
+                              ? `Ask ${activeSelection.name}…`
+                              : 'Ask anything about your data…'
+                    }
+                    onSubmit={handleSubmit}
+                    onStartDeepResearch={
+                        selectedAgent && deepResearchFlag.data?.enabled
+                            ? handleStartDeepResearch
+                            : undefined
+                    }
+                    loading={isCreatingThread}
+                    showSuggestions={false}
+                    fullWidth
+                    revealControlsOnFocus
+                    dense
+                    disabled={!projectUuid || !canCreateThread}
+                    disabledReason={
+                        projectUuid && !canCreateThread
+                            ? "Your role can view AI agents but can't start conversations. Ask a workspace admin for access."
+                            : undefined
+                    }
+                />
+            )}
             {!projectUuid && (
                 <Text size="xs" c="dimmed" ta="center" mt={10}>
                     {canManageProject

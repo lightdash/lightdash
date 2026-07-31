@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
     isCopilotLoading: false,
     isHomepageBuilderEnabled: true,
     hasPendingActions: false,
+    areActionsLoading: false,
 }));
 
 vi.mock('../../../providers/App/useApp', () => ({
@@ -46,6 +47,8 @@ vi.mock('./hooks/useProjectHomepage', () => ({
 vi.mock('./blocks/useRecommendedActions', () => ({
     useRecommendedActions: () => ({
         hasPendingActions: state.hasPendingActions,
+        isLoading: state.areActionsLoading,
+        visibleActions: ['connect-warehouse'],
         statuses: {
             'connect-warehouse': { url: '/onboarding/data-source' },
         },
@@ -54,10 +57,14 @@ vi.mock('./blocks/useRecommendedActions', () => ({
 
 vi.mock('./blocks/RecommendedActionsChecklist', () => ({
     RecommendedActionsChecklist: () => <div data-testid="setup-checklist" />,
+    RecommendedActionsChecklistPlaceholder: () => (
+        <div data-testid="setup-checklist-hold" />
+    ),
 }));
 
 vi.mock('./DayOneAskInput', () => ({
     DayOneAskInput: () => <div data-testid="ask-input" />,
+    DayOneAskInputPlaceholder: () => <div data-testid="ask-input-hold" />,
 }));
 
 vi.mock('./HomepageStars', () => ({
@@ -86,6 +93,7 @@ describe('NoProjectHomepage', () => {
         state.isCopilotLoading = false;
         state.isHomepageBuilderEnabled = true;
         state.hasPendingActions = false;
+        state.areActionsLoading = false;
     });
 
     it('renders the decorative sky on the stage that holds the hero', () => {
@@ -157,5 +165,33 @@ describe('NoProjectHomepage', () => {
         expect(
             screen.queryByRole('link', { name: /Connect a data warehouse/ }),
         ).toBeNull();
+        // ...while still standing the page up, rather than blanking it
+        expect(
+            screen.getByRole('heading', { name: "Let's get started" }),
+        ).toBeInTheDocument();
+    });
+
+    it('holds the hero in place while the setup statuses resolve', () => {
+        state.areActionsLoading = true;
+        state.hasPendingActions = false;
+        renderHomepage();
+
+        expect(
+            screen.getByRole('heading', { name: "Let's get started" }),
+        ).toBeInTheDocument();
+        expect(screen.getByTestId('setup-checklist-hold')).toBeInTheDocument();
+        expect(screen.getByTestId('ask-input-hold')).toBeInTheDocument();
+        expect(screen.queryByTestId('ask-input')).toBeNull();
+        expect(screen.queryByTestId('setup-checklist')).toBeNull();
+    });
+
+    it('redirects before painting the hold', () => {
+        state.needsProject = false;
+        state.areActionsLoading = true;
+        renderHomepage();
+
+        expect(screen.getByText('redirected')).toBeInTheDocument();
+        expect(screen.queryByTestId('setup-checklist-hold')).toBeNull();
+        expect(screen.queryByTestId('homepage-stars')).toBeNull();
     });
 });

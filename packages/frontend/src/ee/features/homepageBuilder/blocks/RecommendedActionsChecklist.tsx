@@ -1,5 +1,12 @@
 import { type HomepageRecommendedActionKey } from '@lightdash/common';
-import { ActionIcon, Box, Button, Stack, Tooltip } from '@mantine-8/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Skeleton,
+    Stack,
+    Tooltip,
+} from '@mantine-8/core';
 import {
     IconActivity,
     IconArrowBackUp,
@@ -198,6 +205,30 @@ const ActionRow: FC<{
                 </>
             )}
         </Box>
+    );
+};
+
+// Which steps exist is known from health and the project id, long before any
+// of them can say whether they are done — so the hold can reserve the exact
+// height the resolved stack will take, and the cards fill in without shifting
+// anything above them.
+export const RecommendedActionsChecklistPlaceholder: FC<{
+    actionCount: number;
+}> = ({ actionCount }) => {
+    if (actionCount === 0) return null;
+    return (
+        <Stack gap={8} className={styles.checklistRoot}>
+            <Box className={styles.headerRow}>
+                <span className={classes.sectionTitle}>Finish setting up</span>
+            </Box>
+            <Box
+                className={`${styles.cardStack} ${stackHeightClass(
+                    actionCount,
+                )}`}
+            >
+                <Skeleton className={styles.stackCard} h={68} radius={10} />
+            </Box>
+        </Stack>
     );
 };
 
