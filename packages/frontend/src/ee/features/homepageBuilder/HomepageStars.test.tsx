@@ -162,7 +162,7 @@ describe('HomepageStars', () => {
         const earlyStar = sky.children[0];
 
         // jsdom never fires animationend; the timeout fallback must still
-        // remove the star (max lifetime 8000ms + 300ms buffer).
+        // remove the star (max lifetime 25000ms + 300ms buffer).
         act(() => {
             vi.advanceTimersByTime(60000);
         });
@@ -189,7 +189,7 @@ describe('HomepageStars', () => {
         // turns — well inside the 300ms slack before the removal fallback.
         for (
             let i = 0;
-            i < 60 && star.getAttribute('data-star-phase') !== 'leaving';
+            i < 140 && star.getAttribute('data-star-phase') !== 'leaving';
             i++
         ) {
             act(() => {
