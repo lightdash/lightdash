@@ -21,6 +21,13 @@ const FALLBACK_ROUTE: RouteObject = {
     element: <Navigate to="/projects" />,
 };
 
+const NavBarLayout: FC = () => (
+    <>
+        <NavBar />
+        <Outlet />
+    </>
+);
+
 const PUBLIC_ROUTES: RouteObject[] = [
     {
         path: '/auth/popup/:status',
@@ -734,54 +741,55 @@ const APP_ROUTES: RouteObject[] = [
                 children: [
                     { index: true, element: <Navigate to="home" replace /> },
                     {
-                        path: 'onboarding/agent',
-                        handle: { hideAILauncher: true },
-                        lazy: async () => {
-                            const AgentOnboardingStartPage =
-                                await loadLazyRouteDefault(
-                                    './ee/features/agentOnboarding/AgentOnboardingStartPage',
-                                    () =>
-                                        import('./ee/features/agentOnboarding/AgentOnboardingStartPage'),
-                                );
-                            return {
-                                Component: () => (
-                                    <>
-                                        <NavBar />
-                                        <TrackPage
-                                            name={
-                                                PageName.AGENT_ONBOARDING_START
-                                            }
-                                        >
-                                            <AgentOnboardingStartPage />
-                                        </TrackPage>
-                                    </>
-                                ),
-                            };
-                        },
-                    },
-                    {
-                        path: 'onboarding/runs/:agentOnboardingRunUuid',
-                        handle: { hideAILauncher: true },
-                        lazy: async () => {
-                            const AgentOnboardingRunPage =
-                                await loadLazyRouteDefault(
-                                    './ee/features/agentOnboarding/AgentOnboardingRunPage',
-                                    () =>
-                                        import('./ee/features/agentOnboarding/AgentOnboardingRunPage'),
-                                );
-                            return {
-                                Component: () => (
-                                    <>
-                                        <NavBar />
-                                        <TrackPage
-                                            name={PageName.AGENT_ONBOARDING_RUN}
-                                        >
-                                            <AgentOnboardingRunPage />
-                                        </TrackPage>
-                                    </>
-                                ),
-                            };
-                        },
+                        element: <NavBarLayout />,
+                        children: [
+                            {
+                                path: 'onboarding/agent',
+                                handle: { hideAILauncher: true },
+                                lazy: async () => {
+                                    const AgentOnboardingStartPage =
+                                        await loadLazyRouteDefault(
+                                            './ee/features/agentOnboarding/AgentOnboardingStartPage',
+                                            () =>
+                                                import('./ee/features/agentOnboarding/AgentOnboardingStartPage'),
+                                        );
+                                    return {
+                                        Component: () => (
+                                            <TrackPage
+                                                name={
+                                                    PageName.AGENT_ONBOARDING_START
+                                                }
+                                            >
+                                                <AgentOnboardingStartPage />
+                                            </TrackPage>
+                                        ),
+                                    };
+                                },
+                            },
+                            {
+                                path: 'onboarding/runs/:agentOnboardingRunUuid',
+                                handle: { hideAILauncher: true },
+                                lazy: async () => {
+                                    const AgentOnboardingRunPage =
+                                        await loadLazyRouteDefault(
+                                            './ee/features/agentOnboarding/AgentOnboardingRunPage',
+                                            () =>
+                                                import('./ee/features/agentOnboarding/AgentOnboardingRunPage'),
+                                        );
+                                    return {
+                                        Component: () => (
+                                            <TrackPage
+                                                name={
+                                                    PageName.AGENT_ONBOARDING_RUN
+                                                }
+                                            >
+                                                <AgentOnboardingRunPage />
+                                            </TrackPage>
+                                        ),
+                                    };
+                                },
+                            },
+                        ],
                     },
                     // Legacy sqlRunner redirect (no layout needed)
                     {
@@ -826,118 +834,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/projects" replace />,
             },
             {
-                path: '/get-started',
-                lazy: async () => {
-                    const { default: NoProjectHomepage } =
-                        await import('./ee/features/homepageBuilder/NoProjectHomepage');
-                    return {
-                        Component: () => (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.NO_PROJECT_HOMEPAGE}>
-                                    <NoProjectHomepage />
-                                </TrackPage>
-                            </>
-                        ),
-                    };
-                },
-            },
-            {
-                path: '/onboarding/data-source/:warehouse?',
-                handle: { hideAILauncher: true },
-                lazy: async () => {
-                    const OnboardingDataSource = await loadLazyRouteDefault(
-                        './pages/OnboardingDataSource',
-                        () => import('./pages/OnboardingDataSource'),
-                    );
-                    return {
-                        Component: () => (
-                            <>
-                                <NavBar />
-                                <TrackPage
-                                    name={PageName.ONBOARDING_DATA_SOURCE}
-                                >
-                                    <OnboardingDataSource />
-                                </TrackPage>
-                            </>
-                        ),
-                    };
-                },
-            },
-            {
-                path: '/onboarding/invite-expert',
-                handle: { hideAILauncher: true },
-                lazy: async () => {
-                    const OnboardingInviteExpert = await loadLazyRouteDefault(
-                        './pages/OnboardingInviteExpert',
-                        () => import('./pages/OnboardingInviteExpert'),
-                    );
-                    return {
-                        Component: () => (
-                            <>
-                                <NavBar />
-                                <TrackPage
-                                    name={PageName.ONBOARDING_INVITE_EXPERT}
-                                >
-                                    <OnboardingInviteExpert />
-                                </TrackPage>
-                            </>
-                        ),
-                    };
-                },
-            },
-            {
-                path: '/createProject/:method?',
-                lazy: async () => {
-                    const CreateProject = await loadLazyRouteDefault(
-                        './pages/CreateProject',
-                        () => import('./pages/CreateProject'),
-                    );
-                    return {
-                        Component: () => (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.CREATE_PROJECT}>
-                                    <CreateProject />
-                                </TrackPage>
-                            </>
-                        ),
-                    };
-                },
-            },
-            {
-                path: '/createProjectSettings/:projectUuid',
-                handle: { hideAILauncher: true },
-                element: (
-                    <>
-                        <NavBar />
-                        <TrackPage name={PageName.CREATE_PROJECT_SETTINGS}>
-                            <CreateProjectSettings />
-                        </TrackPage>
-                    </>
-                ),
-            },
-            {
-                path: '/generalSettings/*',
-                handle: { hideAILauncher: true },
-                lazy: async () => {
-                    const Settings = await loadLazyRouteDefault(
-                        './pages/Settings',
-                        () => import('./pages/Settings'),
-                    );
-                    return {
-                        Component: () => (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.GENERAL_SETTINGS}>
-                                    <Settings />
-                                </TrackPage>
-                            </>
-                        ),
-                    };
-                },
-            },
-            {
                 // Themes moved under the Data apps settings section. Redirect
                 // here rather than inside Settings so the sidebar mounts on the
                 // new path and expands the group.
@@ -951,48 +847,144 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/generalSettings/roadmap" replace />,
             },
             {
-                path: '/no-access',
-                handle: { hideAILauncher: true },
-                element: (
-                    <>
-                        <NavBar />
-                        <TrackPage name={PageName.NO_ACCESS}>
-                            <ForbiddenPanel />
-                        </TrackPage>
-                    </>
-                ),
-            },
-            {
-                path: '/no-project-access',
-                handle: { hideAILauncher: true },
-                element: (
-                    <>
-                        <NavBar />
-                        <TrackPage name={PageName.NO_PROJECT_ACCESS}>
-                            <ForbiddenPanel subject="project" />
-                        </TrackPage>
-                    </>
-                ),
-            },
-            {
-                path: '/share/:shareNanoid',
-                handle: { hideAILauncher: true },
-                lazy: async () => {
-                    const ShareRedirect = await loadLazyRouteDefault(
-                        './pages/ShareRedirect',
-                        () => import('./pages/ShareRedirect'),
-                    );
-                    return {
-                        Component: () => (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.SHARE}>
-                                    <ShareRedirect />
-                                </TrackPage>
-                            </>
+                element: <NavBarLayout />,
+                children: [
+                    {
+                        path: '/get-started',
+                        lazy: async () => {
+                            const { default: NoProjectHomepage } =
+                                await import('./ee/features/homepageBuilder/NoProjectHomepage');
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.NO_PROJECT_HOMEPAGE}
+                                    >
+                                        <NoProjectHomepage />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
+                        path: '/onboarding/data-source/:warehouse?',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingDataSource =
+                                await loadLazyRouteDefault(
+                                    './pages/OnboardingDataSource',
+                                    () =>
+                                        import('./pages/OnboardingDataSource'),
+                                );
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.ONBOARDING_DATA_SOURCE}
+                                    >
+                                        <OnboardingDataSource />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
+                        path: '/onboarding/invite-expert',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingInviteExpert =
+                                await loadLazyRouteDefault(
+                                    './pages/OnboardingInviteExpert',
+                                    () =>
+                                        import('./pages/OnboardingInviteExpert'),
+                                );
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.ONBOARDING_INVITE_EXPERT}
+                                    >
+                                        <OnboardingInviteExpert />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
+                        path: '/createProject/:method?',
+                        lazy: async () => {
+                            const CreateProject = await loadLazyRouteDefault(
+                                './pages/CreateProject',
+                                () => import('./pages/CreateProject'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.CREATE_PROJECT}>
+                                        <CreateProject />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
+                        path: '/createProjectSettings/:projectUuid',
+                        handle: { hideAILauncher: true },
+                        element: (
+                            <TrackPage name={PageName.CREATE_PROJECT_SETTINGS}>
+                                <CreateProjectSettings />
+                            </TrackPage>
                         ),
-                    };
-                },
+                    },
+                    {
+                        path: '/generalSettings/*',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const Settings = await loadLazyRouteDefault(
+                                './pages/Settings',
+                                () => import('./pages/Settings'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.GENERAL_SETTINGS}>
+                                        <Settings />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
+                        path: '/no-access',
+                        handle: { hideAILauncher: true },
+                        element: (
+                            <TrackPage name={PageName.NO_ACCESS}>
+                                <ForbiddenPanel />
+                            </TrackPage>
+                        ),
+                    },
+                    {
+                        path: '/no-project-access',
+                        handle: { hideAILauncher: true },
+                        element: (
+                            <TrackPage name={PageName.NO_PROJECT_ACCESS}>
+                                <ForbiddenPanel subject="project" />
+                            </TrackPage>
+                        ),
+                    },
+                    {
+                        path: '/share/:shareNanoid',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const ShareRedirect = await loadLazyRouteDefault(
+                                './pages/ShareRedirect',
+                                () => import('./pages/ShareRedirect'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.SHARE}>
+                                        <ShareRedirect />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                ],
             },
         ],
     },
