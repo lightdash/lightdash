@@ -1,4 +1,6 @@
 import {
+    DbtProjectType,
+    DbtProjectTypeLabels,
     FeatureFlags,
     ProjectType,
     type HomepageRecommendedActionKey,
@@ -189,6 +191,53 @@ describe('useRecommendedActions', () => {
         expect(
             result.current.statuses['connect-source-control'].annotation,
         ).toBeNull();
+    });
+
+    it('completes the dbt step from a dbt connection when no repo is linked', () => {
+        vi.mocked(useApp).mockReturnValue({
+            health: { data: { hasGithub: true } },
+            user: {
+                data: {
+                    ability: { can: () => true },
+                },
+            },
+        } as unknown as ReturnType<typeof useApp>);
+        vi.mocked(useProject).mockReturnValue({
+            data: { dbtConnection: { type: DbtProjectType.DBT_CLOUD_IDE } },
+        } as unknown as ReturnType<typeof useProject>);
+
+        const { result } = renderHook(() =>
+            useRecommendedActions('project-uuid'),
+        );
+
+        expect(
+            result.current.statuses['connect-source-control'].isComplete,
+        ).toBe(true);
+        expect(
+            result.current.statuses['connect-source-control'].annotation,
+        ).toBe(DbtProjectTypeLabels[DbtProjectType.DBT_CLOUD_IDE]);
+    });
+
+    it('leaves the dbt step incomplete for a NONE dbt connection', () => {
+        vi.mocked(useApp).mockReturnValue({
+            health: { data: { hasGithub: true } },
+            user: {
+                data: {
+                    ability: { can: () => true },
+                },
+            },
+        } as unknown as ReturnType<typeof useApp>);
+        vi.mocked(useProject).mockReturnValue({
+            data: { dbtConnection: { type: DbtProjectType.NONE } },
+        } as unknown as ReturnType<typeof useProject>);
+
+        const { result } = renderHook(() =>
+            useRecommendedActions('project-uuid'),
+        );
+
+        expect(
+            result.current.statuses['connect-source-control'].isComplete,
+        ).toBe(false);
     });
 
     describe('new-onboarding gate', () => {

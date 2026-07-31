@@ -887,6 +887,23 @@ const PRIVATE_ROUTES: RouteObject[] = [
                         },
                     },
                     {
+                        path: '/onboarding/dbt/:method?',
+                        handle: { hideAILauncher: true },
+                        lazy: async () => {
+                            const OnboardingDbt = await loadLazyRouteDefault(
+                                './pages/OnboardingDbt',
+                                () => import('./pages/OnboardingDbt'),
+                            );
+                            return {
+                                Component: () => (
+                                    <TrackPage name={PageName.ONBOARDING_DBT}>
+                                        <OnboardingDbt />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
                         path: '/onboarding/invite-expert',
                         handle: { hideAILauncher: true },
                         lazy: async () => {

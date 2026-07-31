@@ -146,14 +146,17 @@ const useActionStatuses = (
             },
             'connect-source-control': {
                 isVisible: hasGithub || hasGitlab,
-                isComplete: isGithubConnected || isGitlabConnected,
+                isComplete:
+                    isGithubConnected || isGitlabConnected || hasSemanticLayer,
                 annotation: isGithubConnected
                     ? 'GitHub'
                     : isGitlabConnected
                       ? 'GitLab'
-                      : null,
+                      : hasSemanticLayer
+                        ? DbtProjectTypeLabels[dbtConnection.type]
+                        : null,
                 doneIcon: null,
-                url: '/generalSettings/integrations',
+                url: '/onboarding/dbt',
                 ctaLabel: DEFAULT_CTA_LABEL,
             },
             'connect-slack': {
