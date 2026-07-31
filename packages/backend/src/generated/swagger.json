@@ -16602,6 +16602,87 @@
             "ApiAppFileUploadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__"
             },
+            "DataAppContextFile": {
+                "properties": {
+                    "contentBase64": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["contentBase64", "path"],
+                "type": "object"
+            },
+            "DataAppThemeContext": {
+                "properties": {
+                    "skippedAssetCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppContextFile"
+                        },
+                        "type": "array"
+                    },
+                    "instructions": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppContextFile"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["skippedAssetCount", "assets", "instructions"],
+                "type": "object"
+            },
+            "DataAppContext": {
+                "properties": {
+                    "theme": {
+                        "$ref": "#/components/schemas/DataAppThemeContext"
+                    },
+                    "promptHistory": {
+                        "$ref": "#/components/schemas/DataAppContextFile"
+                    },
+                    "parameters": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppContextFile"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "semanticLayer": {
+                        "$ref": "#/components/schemas/DataAppContextFile"
+                    }
+                },
+                "required": [
+                    "theme",
+                    "promptHistory",
+                    "parameters",
+                    "semanticLayer"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_DataAppContext_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppContext"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGetDataAppAuthoringContextResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppContext_"
+            },
             "Exclude_DataAppTemplate.custom_": {
                 "type": "string",
                 "enum": ["dashboard", "slideshow", "pdf", "data_app_viz"],
@@ -17332,70 +17413,6 @@
                     }
                 },
                 "required": ["files", "manifest"],
-                "type": "object"
-            },
-            "DataAppContextFile": {
-                "properties": {
-                    "contentBase64": {
-                        "type": "string"
-                    },
-                    "path": {
-                        "type": "string"
-                    }
-                },
-                "required": ["contentBase64", "path"],
-                "type": "object"
-            },
-            "DataAppThemeContext": {
-                "properties": {
-                    "skippedAssetCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "assets": {
-                        "items": {
-                            "$ref": "#/components/schemas/DataAppContextFile"
-                        },
-                        "type": "array"
-                    },
-                    "instructions": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DataAppContextFile"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": ["skippedAssetCount", "assets", "instructions"],
-                "type": "object"
-            },
-            "DataAppContext": {
-                "properties": {
-                    "theme": {
-                        "$ref": "#/components/schemas/DataAppThemeContext"
-                    },
-                    "promptHistory": {
-                        "$ref": "#/components/schemas/DataAppContextFile"
-                    },
-                    "parameters": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DataAppContextFile"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "semanticLayer": {
-                        "$ref": "#/components/schemas/DataAppContextFile"
-                    }
-                },
-                "required": [
-                    "theme",
-                    "promptHistory",
-                    "parameters",
-                    "semanticLayer"
-                ],
                 "type": "object"
             },
             "DataAppCodeDownload": {
@@ -51502,7 +51519,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.49.0",
+        "version": "1.50.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

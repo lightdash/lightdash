@@ -1,3 +1,11 @@
+# [1.50.0](https://github.com/lightdash/lightdash/compare/1.49.0...1.50.0) (2026-07-31)
+
+
+### Features
+
+* **cli:** create data apps locally ([#26556](https://github.com/lightdash/lightdash/issues/26556)) ([60ece83](https://github.com/lightdash/lightdash/commit/60ece83c4372af439d7ff539e9d3dcd86258e999))
+* **data-apps:** expose local authoring context ([#26554](https://github.com/lightdash/lightdash/issues/26554)) ([fdc4442](https://github.com/lightdash/lightdash/commit/fdc44426dd9f5609f6c7027a0c171886f18efd2a))
+
 # [1.49.0](https://github.com/lightdash/lightdash/compare/1.48.1...1.49.0) (2026-07-31)
 
 

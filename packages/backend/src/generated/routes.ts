@@ -15193,6 +15193,80 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppContextFile: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                contentBase64: { dataType: 'string', required: true },
+                path: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppThemeContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                skippedAssetCount: { dataType: 'double', required: true },
+                assets: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'DataAppContextFile' },
+                    required: true,
+                },
+                instructions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppContextFile' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                theme: { ref: 'DataAppThemeContext', required: true },
+                promptHistory: { ref: 'DataAppContextFile', required: true },
+                parameters: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DataAppContextFile' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                semanticLayer: { ref: 'DataAppContextFile', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_DataAppContext_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'DataAppContext', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGetDataAppAuthoringContextResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_DataAppContext_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Exclude_DataAppTemplate.custom_': {
         dataType: 'refAlias',
         type: {
@@ -15934,63 +16008,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 manifest: { ref: 'DataAppManifest', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppContextFile: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                contentBase64: { dataType: 'string', required: true },
-                path: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppThemeContext: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                skippedAssetCount: { dataType: 'double', required: true },
-                assets: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'DataAppContextFile' },
-                    required: true,
-                },
-                instructions: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DataAppContextFile' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DataAppContext: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                theme: { ref: 'DataAppThemeContext', required: true },
-                promptHistory: { ref: 'DataAppContextFile', required: true },
-                parameters: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DataAppContextFile' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                semanticLayer: { ref: 'DataAppContextFile', required: true },
             },
             validators: {},
         },
@@ -60732,6 +60749,69 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'uploadImage',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_getDataAppAuthoringContext: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        slug: { in: 'query', name: 'slug', required: true, dataType: 'string' },
+        designUuid: { in: 'query', name: 'designUuid', dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/authoring-context',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.getDataAppAuthoringContext,
+        ),
+
+        async function AppGenerateController_getDataAppAuthoringContext(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_getDataAppAuthoringContext,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getDataAppAuthoringContext',
                     controller,
                     response,
                     next,
