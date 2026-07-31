@@ -19,7 +19,7 @@ export type TrinoTarget = {
     http_scheme: string;
 };
 
-export const trinoSchema: JSONSchemaType<TrinoTarget> = {
+const trinoSchema: JSONSchemaType<TrinoTarget> = {
     type: 'object',
     properties: {
         type: {

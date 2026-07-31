@@ -27,7 +27,7 @@ export type ClickhouseTarget = {
     custom_settings?: Record<string, unknown>;
 };
 
-export const clickhouseSchema: JSONSchemaType<ClickhouseTarget> = {
+const clickhouseSchema: JSONSchemaType<ClickhouseTarget> = {
     type: 'object',
     properties: {
         type: {

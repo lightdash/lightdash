@@ -35,7 +35,7 @@ export type RedshiftTarget = {
     autocreate?: boolean;
 };
 
-export const redshiftSchema: JSONSchemaType<RedshiftTarget> = {
+const redshiftSchema: JSONSchemaType<RedshiftTarget> = {
     type: 'object',
     properties: {
         type: {

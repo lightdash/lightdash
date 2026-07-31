@@ -26,7 +26,7 @@ export type AthenaTarget = {
     num_retries?: number;
 };
 
-export const athenaSchema: JSONSchemaType<AthenaTarget> = {
+const athenaSchema: JSONSchemaType<AthenaTarget> = {
     type: 'object',
     properties: {
         type: {

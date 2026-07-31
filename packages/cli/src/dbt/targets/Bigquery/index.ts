@@ -26,7 +26,7 @@ type BigqueryTarget = {
     execution_project?: string;
 };
 
-export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
+const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
     type: 'object',
     properties: {
         project: {
