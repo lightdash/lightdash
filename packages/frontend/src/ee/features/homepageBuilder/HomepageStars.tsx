@@ -394,9 +394,12 @@ const buildSparklineValues = (): number[] => {
 // Catalog of distinct star identities. A def only spawns while no visible
 // star uses it, so the sky never shows duplicate cards, KPIs, or chips.
 // Only interactive defs are exposed to the accessibility tree and to clicks.
+// Priority defs spawn ahead of the decorative ones whenever they are free,
+// so the media cards are reliably on screen rather than 2-in-18 lucky draws.
 type StarDef = {
     key: string;
     interactive: boolean;
+    priority: boolean;
     render: (seed: StarSeed) => ReactElement;
 };
 
@@ -405,6 +408,7 @@ const STAR_DEFS: StarDef[] = [
         (chart): StarDef => ({
             key: `chart-${chart.name}`,
             interactive: false,
+            priority: false,
             render: (seed) => (
                 <StarCard
                     icon={chart.icon}
@@ -419,6 +423,7 @@ const STAR_DEFS: StarDef[] = [
         (name): StarDef => ({
             key: `dashboard-${name}`,
             interactive: false,
+            priority: false,
             render: (seed) => (
                 <StarCard
                     icon={IconLayoutDashboard}
@@ -433,6 +438,7 @@ const STAR_DEFS: StarDef[] = [
         (kpi): StarDef => ({
             key: `kpi-${kpi.label}`,
             interactive: false,
+            priority: false,
             render: (seed) => (
                 <Box className={classes.card} p="sm">
                     <Text size="xs" c="dimmed" lineClamp={1}>
@@ -454,6 +460,7 @@ const STAR_DEFS: StarDef[] = [
         (types, index): StarDef => ({
             key: `chips-${index}`,
             interactive: false,
+            priority: false,
             render: () => <StaticChips types={types} />,
         }),
     ),
@@ -461,6 +468,7 @@ const STAR_DEFS: StarDef[] = [
         (card): StarDef => ({
             key: `media-${card.key}`,
             interactive: true,
+            priority: true,
             render: () => <MediaStarCard card={card} />,
         }),
     ),
@@ -572,7 +580,9 @@ const appendStar = (
     const candidateSlots = sideSlots.length > 0 ? sideSlots : freeSlots;
     const slot =
         candidateSlots[Math.floor(draws.slotPick * candidateSlots.length)];
-    const def = freeDefs[Math.floor(draws.defPick * freeDefs.length)];
+    const priorityDefs = freeDefs.filter((def) => def.priority);
+    const candidateDefs = priorityDefs.length > 0 ? priorityDefs : freeDefs;
+    const def = candidateDefs[Math.floor(draws.defPick * candidateDefs.length)];
     const sizeScale =
         SIZE_SCALES[Math.floor(draws.sizePick * SIZE_SCALES.length)];
     return [
