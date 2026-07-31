@@ -482,6 +482,32 @@ export class AppModel {
         return app !== undefined;
     }
 
+    /** Batch slug→uuid resolution for content-as-code dashboard tiles. */
+    async findAppsBySlugs(
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<Pick<DbApp, 'app_id' | 'slug'>[]> {
+        if (slugs.length === 0) return [];
+        return this.database(AppsTableName)
+            .select('app_id', 'slug')
+            .where('project_uuid', projectUuid)
+            .whereIn('slug', slugs)
+            .whereNull('deleted_at');
+    }
+
+    /** Batch uuid filter, for legacy content-as-code tiles that predate app slugs. */
+    async findAppsByUuids(
+        projectUuid: string,
+        appUuids: string[],
+    ): Promise<Pick<DbApp, 'app_id' | 'slug'>[]> {
+        if (appUuids.length === 0) return [];
+        return this.database(AppsTableName)
+            .select('app_id', 'slug')
+            .where('project_uuid', projectUuid)
+            .whereIn('app_id', appUuids)
+            .whereNull('deleted_at');
+    }
+
     /**
      * Resolve an app by uuid or slug. A value that parses as a UUID may
      * still be a slug (slugs aren't guaranteed non-uuid-shaped), so

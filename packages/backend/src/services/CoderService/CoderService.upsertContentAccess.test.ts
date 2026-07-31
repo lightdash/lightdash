@@ -83,6 +83,7 @@ const buildService = () =>
         savedSqlModel: {
             find: vi.fn(async () => []),
         } as AnyType,
+        appModel: {} as AnyType,
         dashboardModel: {
             find: vi.fn(async () => []),
             create: vi.fn(),

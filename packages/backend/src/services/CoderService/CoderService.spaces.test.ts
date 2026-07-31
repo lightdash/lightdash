@@ -197,6 +197,7 @@ const buildService = ({
         projectModel: projectModel as AnyType,
         savedChartModel: {} as AnyType,
         savedSqlModel: {} as AnyType,
+        appModel: {} as AnyType,
         dashboardModel: {} as AnyType,
         spaceModel: spaceModel as AnyType,
         schedulerModel: {} as AnyType,

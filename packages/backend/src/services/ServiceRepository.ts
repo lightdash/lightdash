@@ -1196,6 +1196,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
+                    appModel: this.models.getAppModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
                     schedulerModel: this.models.getSchedulerModel(),

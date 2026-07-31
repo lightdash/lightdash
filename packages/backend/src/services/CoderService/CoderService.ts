@@ -28,8 +28,10 @@ import {
     currentVersion,
     DashboardAsCode,
     DashboardAsCodeInternalization,
+    DashboardAsCodeUpsertResult,
     DashboardChartTileAsCode,
     DashboardDAO,
+    DashboardDataAppTileAsCode,
     DashboardFilterRule,
     DashboardGoogleSheetsSyncAsCode,
     DashboardMarkdownTileAsCode,
@@ -92,6 +94,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import { AppModel } from '../../models/AppModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { GroupsModel } from '../../models/GroupsModel';
@@ -120,12 +123,13 @@ import {
     type CurrentChartSqlItems,
 } from './chartPermissions';
 import {
-    getChartSlugForTileUuid,
     getConfigWithDateZoomTileSlugs,
     getConfigWithDateZoomTileUuids,
     getFiltersWithTileSlugs,
     getFiltersWithTileUuids,
+    getTileSlugForTileUuid,
     isAnyChartTile,
+    withTileWarnings,
 } from './dashboardReferences';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
 import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
@@ -153,6 +157,7 @@ type CoderServiceArguments = {
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
+    appModel: AppModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     schedulerModel: SchedulerModel;
@@ -187,6 +192,8 @@ export class CoderService extends BaseService {
     savedChartModel: SavedChartModel;
 
     savedSqlModel: SavedSqlModel;
+
+    appModel: AppModel;
 
     dashboardModel: DashboardModel;
 
@@ -233,6 +240,7 @@ export class CoderService extends BaseService {
         projectModel,
         savedChartModel,
         savedSqlModel,
+        appModel,
         dashboardModel,
         spaceModel,
         schedulerModel,
@@ -254,6 +262,7 @@ export class CoderService extends BaseService {
         this.projectModel = projectModel;
         this.savedChartModel = savedChartModel;
         this.savedSqlModel = savedSqlModel;
+        this.appModel = appModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
         this.schedulerModel = schedulerModel;
@@ -1468,7 +1477,7 @@ export class CoderService extends BaseService {
         );
     }
 
-    static getChartSlugForTileUuid = getChartSlugForTileUuid;
+    static getTileSlugForTileUuid = getTileSlugForTileUuid;
 
     static getFiltersWithTileSlugs = getFiltersWithTileSlugs;
 
@@ -1512,7 +1521,7 @@ export class CoderService extends BaseService {
                             uuid: undefined,
                             tabUuid: undefined,
                             tabSlug,
-                            tileSlug: CoderService.getChartSlugForTileUuid(
+                            tileSlug: CoderService.getTileSlugForTileUuid(
                                 dashboard,
                                 tile.uuid,
                             ),
@@ -1533,7 +1542,7 @@ export class CoderService extends BaseService {
                         uuid: undefined,
                         tabUuid: undefined,
                         tabSlug,
-                        tileSlug: CoderService.getChartSlugForTileUuid(
+                        tileSlug: CoderService.getTileSlugForTileUuid(
                             dashboard,
                             tile.uuid,
                         ),
@@ -1562,6 +1571,26 @@ export class CoderService extends BaseService {
                         },
                     };
                     return markdownTile;
+                }
+
+                if (tile.type === DashboardTileTypes.DATA_APP) {
+                    const dataAppTile: DashboardDataAppTileAsCode = {
+                        ...tile,
+                        type: DashboardTileTypes.DATA_APP,
+                        uuid: undefined,
+                        tabUuid: undefined,
+                        tabSlug,
+                        tileSlug: CoderService.getTileSlugForTileUuid(
+                            dashboard,
+                            tile.uuid,
+                        ),
+                        properties: {
+                            title: tile.properties.title,
+                            hideTitle: tile.properties.hideTitle,
+                            appSlug: tile.properties.appSlug ?? null,
+                        },
+                    };
+                    return dataAppTile;
                 }
 
                 // Other non-chart tiles already match the as-code shape
@@ -1671,7 +1700,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         tiles: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
-    ): Promise<DashboardTileWithSlug[]> {
+    ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
@@ -1680,10 +1709,41 @@ export class CoderService extends BaseService {
             return [...acc, tile.properties.chartSlug];
         }, []);
 
+        const appTiles = tiles.filter(
+            (tile): tile is DashboardDataAppTileAsCode =>
+                tile.type === DashboardTileTypes.DATA_APP,
+        );
+        const appSlugs = appTiles.reduce<string[]>((acc, tile) => {
+            const { appSlug } = tile.properties;
+            return appSlug ? [...acc, appSlug] : acc;
+        }, []);
+        // Pre-slug YAML carries appUuid instead of appSlug; resolve those too
+        // so legacy content-as-code files keep working.
+        const legacyAppUuids = appTiles.reduce<string[]>((acc, tile) => {
+            const { appSlug, appUuid } = tile.properties;
+            return !appSlug && appUuid ? [...acc, appUuid] : acc;
+        }, []);
+        const [slugRows, legacyRows] =
+            appTiles.length > 0
+                ? await Promise.all([
+                      this.appModel.findAppsBySlugs(projectUuid, appSlugs),
+                      this.appModel.findAppsByUuids(
+                          projectUuid,
+                          legacyAppUuids,
+                      ),
+                  ])
+                : [[], []];
+        const appRows = [...slugRows, ...legacyRows];
+        const appUuidBySlug = new Map(
+            appRows.map((row) => [row.slug, row.app_id]),
+        );
+        const knownAppUuids = new Set(appRows.map((row) => row.app_id));
+        const warnings: string[] = [];
+
         const withResolvedTileUuid = (
             tile: DashboardTileAsCode,
             chartInfo?: { uuid: string; isSql: boolean },
-        ): DashboardTileWithSlug => {
+        ): DashboardTileWithSlug | null => {
             const { tabSlug, ...tileWithoutTabSlug } = tile;
             let { tabUuid } = tile;
             if (tabSlug === null) {
@@ -1695,6 +1755,37 @@ export class CoderService extends BaseService {
                 throw new NotFoundError(
                     `Dashboard tab "${tabSlug}" referenced by tile was not found`,
                 );
+            }
+
+            if (tile.type === DashboardTileTypes.DATA_APP) {
+                const { appSlug, appUuid: legacyAppUuid } = tile.properties;
+                // Pre-slug YAML carries appUuid; accept it only when the app
+                // actually lives in this project.
+                let resolvedAppUuid: string | undefined;
+                if (appSlug) {
+                    resolvedAppUuid = appUuidBySlug.get(appSlug);
+                } else if (legacyAppUuid && knownAppUuids.has(legacyAppUuid)) {
+                    resolvedAppUuid = legacyAppUuid;
+                }
+                if (!resolvedAppUuid) {
+                    warnings.push(
+                        appSlug || legacyAppUuid
+                            ? `Data app "${
+                                  appSlug ?? legacyAppUuid
+                              }" was not found in this project — tile skipped. Upload the app first, then re-upload the dashboard.`
+                            : `Data app tile "${tile.properties.title}" has no app reference to resolve — tile skipped.`,
+                    );
+                    return null;
+                }
+                return {
+                    ...tileWithoutTabSlug,
+                    tabUuid,
+                    uuid: tile.uuid ?? uuidv4(),
+                    properties: {
+                        ...tile.properties,
+                        appUuid: resolvedAppUuid,
+                    },
+                } as DashboardTileWithSlug;
             }
 
             if (!isAnyChartTile(tile)) {
@@ -1736,7 +1827,14 @@ export class CoderService extends BaseService {
         };
 
         if (chartSlugs.length === 0) {
-            return tiles.map((tile) => withResolvedTileUuid(tile));
+            return {
+                tiles: tiles
+                    .map((tile) => withResolvedTileUuid(tile))
+                    .filter(
+                        (tile): tile is DashboardTileWithSlug => tile !== null,
+                    ),
+                warnings,
+            };
         }
 
         // Query both regular charts and SQL charts in parallel
@@ -1768,18 +1866,23 @@ export class CoderService extends BaseService {
             }),
         );
 
-        return tiles.map((tile) => {
-            if (isAnyChartTile(tile)) {
-                const { chartSlug } = tile.properties;
-                if (chartSlug == null) {
-                    return withResolvedTileUuid(tile);
-                }
-                const chartInfo = chartSlugToInfo.get(chartSlug);
-                return withResolvedTileUuid(tile, chartInfo);
-            }
+        return {
+            tiles: tiles
+                .map((tile) => {
+                    if (isAnyChartTile(tile)) {
+                        const { chartSlug } = tile.properties;
+                        if (chartSlug == null) {
+                            return withResolvedTileUuid(tile);
+                        }
+                        const chartInfo = chartSlugToInfo.get(chartSlug);
+                        return withResolvedTileUuid(tile, chartInfo);
+                    }
 
-            return withResolvedTileUuid(tile);
-        });
+                    return withResolvedTileUuid(tile);
+                })
+                .filter((tile): tile is DashboardTileWithSlug => tile !== null),
+            warnings,
+        };
     }
 
     /*
@@ -3470,7 +3573,7 @@ export class CoderService extends BaseService {
         slug: string,
         dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
-    ): Promise<PromotionChanges> {
+    ): Promise<DashboardAsCodeUpsertResult> {
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -3522,11 +3625,12 @@ export class CoderService extends BaseService {
             ...dashboardWithDefaults,
             tabs: tabsWithUuids,
         };
-        const tilesWithUuids = await this.convertTileWithSlugsToUuids(
-            projectUuid,
-            dashboardWithResolvedTabs.tiles,
-            tabUuidsBySlug,
-        );
+        const { tiles: tilesWithUuids, warnings: tileWarnings } =
+            await this.convertTileWithSlugsToUuids(
+                projectUuid,
+                dashboardWithResolvedTabs.tiles,
+                tabUuidsBySlug,
+            );
         if (!canUploadAnyContent) {
             await this.assertTileChartsViewAccess({
                 userUuid: user.userUuid,
@@ -3603,24 +3707,27 @@ export class CoderService extends BaseService {
                 verified: dashboardAsCode.verified,
             });
 
-            return {
-                dashboards: [
-                    {
-                        action: PromotionAction.CREATE,
-                        data: {
-                            ...newDashboard,
-                            spaceSlug: dashboardWithDefaults.spaceSlug,
-                            spacePath: getContentAsCodePathFromLtreePath(
-                                dashboardWithDefaults.spaceSlug,
-                            ),
+            return withTileWarnings(
+                {
+                    dashboards: [
+                        {
+                            action: PromotionAction.CREATE,
+                            data: {
+                                ...newDashboard,
+                                spaceSlug: dashboardWithDefaults.spaceSlug,
+                                spacePath: getContentAsCodePathFromLtreePath(
+                                    dashboardWithDefaults.spaceSlug,
+                                ),
+                            },
                         },
-                    },
-                ],
-                charts: [],
-                spaces: spaceCreated
-                    ? [{ action: PromotionAction.CREATE, data: space }]
-                    : [],
-            };
+                    ],
+                    charts: [],
+                    spaces: spaceCreated
+                        ? [{ action: PromotionAction.CREATE, data: space }]
+                        : [],
+                },
+                tileWarnings,
+            );
         }
         // Use promote service to update existing dashboard
 
@@ -3757,6 +3864,6 @@ export class CoderService extends BaseService {
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
         );
-        return promotionChanges;
+        return withTileWarnings(promotionChanges, tileWarnings);
     }
 }

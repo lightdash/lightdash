@@ -958,6 +958,7 @@ export class DashboardModel {
                     tab_uuid: string;
                     chart_slug: string;
                     app_uuid: string | null;
+                    app_slug: string | null;
                     data_app_deleted_at: Date | null;
                 }[]
             >(
@@ -1009,6 +1010,7 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
+                this.database.raw(`${AppsTableName}.slug AS app_slug`),
                 this.database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
                 ),
@@ -1193,6 +1195,7 @@ export class DashboardModel {
                     tab_uuid,
                     chart_slug,
                     app_uuid,
+                    app_slug,
                     data_app_deleted_at,
                 }) => {
                     const base: Omit<
@@ -1272,6 +1275,7 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     appUuid: app_uuid ?? '',
+                                    appSlug: app_slug ?? null,
                                     appDeletedAt:
                                         data_app_deleted_at?.toISOString() ??
                                         null,
@@ -2148,6 +2152,7 @@ export class DashboardModel {
                     tab_uuid: string;
                     chart_slug: string;
                     app_uuid: string | null;
+                    app_slug: string | null;
                     data_app_deleted_at: Date | null;
                 }[]
             >(
@@ -2199,6 +2204,7 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
+                this.database.raw(`${AppsTableName}.slug AS app_slug`),
                 this.database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
                 ),
@@ -2368,6 +2374,7 @@ export class DashboardModel {
                     tab_uuid,
                     chart_slug,
                     app_uuid,
+                    app_slug,
                     data_app_deleted_at,
                 }) => {
                     const base: Omit<
@@ -2447,6 +2454,7 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     appUuid: app_uuid ?? '',
+                                    appSlug: app_slug ?? null,
                                     appDeletedAt:
                                         data_app_deleted_at?.toISOString() ??
                                         null,
