@@ -11,7 +11,7 @@ import { useForm } from '@mantine/form';
 import { IconConfetti } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, useRef, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -199,6 +199,11 @@ const UserCompletionModalWithUser = () => {
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const isCompletingUser =
         useIsMutating({ mutationKey: ['user_complete'] }) > 0;
+    const isSetupComplete = useRef(user.data?.isSetupComplete === true);
+
+    if (user.data?.isSetupComplete) {
+        isSetupComplete.current = true;
+    }
 
     if (orgSetupPageFlag.isLoading) {
         return null;
@@ -209,7 +214,8 @@ const UserCompletionModalWithUser = () => {
             user.data &&
             !user.data.isSetupComplete &&
             health.isSuccess &&
-            !isCompletingUser;
+            !isCompletingUser &&
+            !isSetupComplete.current;
         // Keyed by pathname so the redirect re-fires if a competing route
         // redirect (e.g. AppRoute's needsProject -> /createProject) wins the
         // same render commit.
