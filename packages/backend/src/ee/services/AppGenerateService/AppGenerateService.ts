@@ -13,6 +13,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
+    AlreadyExistsError,
     APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
@@ -9186,7 +9187,10 @@ export class AppGenerateService extends BaseService {
         });
 
         const context = await this.assembleAppContext(
-            app,
+            {
+                appUuid: app.app_id,
+                designUuid: app.design_uuid,
+            },
             projectUuid,
             app.organization_uuid,
         );
@@ -9245,8 +9249,40 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    async getDataAppAuthoringContext(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        designUuid: string | null,
+    ): Promise<DataAppContext> {
+        await this.assertDataAppsEnabled(user);
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'create',
+            organizationUuid,
+            projectUuid,
+            'Insufficient permissions to create data apps',
+        );
+        if (!isValidDataAppSlug(slug)) {
+            throw new ParameterError(
+                `Invalid data app slug "${slug}". Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters.`,
+            );
+        }
+        if (await this.appModel.hasAppSlug(projectUuid, slug)) {
+            throw new AlreadyExistsError(
+                `A data app with slug "${slug}" already exists in this project. Download it with lightdash download --apps ${slug}.`,
+            );
+        }
+        return this.assembleAppContext(
+            { appUuid: null, designUuid },
+            projectUuid,
+            organizationUuid,
+        );
+    }
+
     private async assembleAppContext(
-        app: { app_id: string; design_uuid: string | null },
+        app: { appUuid: string | null; designUuid: string | null },
         projectUuid: string,
         organizationUuid: string,
     ): Promise<DataAppContext> {
@@ -9298,9 +9334,15 @@ export class AppGenerateService extends BaseService {
         })();
 
         const promptHistory = await (async () => {
+            if (app.appUuid === null) {
+                return contextFile(
+                    'prompt-history.md',
+                    '# Prompt history\n\n_No previous versions._\n',
+                );
+            }
             try {
                 const withVersions = await this.appModel.getAppWithVersions(
-                    app.app_id,
+                    app.appUuid,
                     projectUuid,
                     { limit: 100 },
                 );
@@ -9317,7 +9359,7 @@ export class AppGenerateService extends BaseService {
                 return contextFile('prompt-history.md', promptMd);
             } catch (err) {
                 this.logger.warn(
-                    `assembleAppContext: prompt history unavailable for app ${app.app_id}`,
+                    `assembleAppContext: prompt history unavailable for app ${app.appUuid}`,
                     err,
                 );
                 return contextFile(
@@ -9328,6 +9370,9 @@ export class AppGenerateService extends BaseService {
         })();
 
         const theme = await (async () => {
+            if (app.designUuid === null) {
+                return { instructions: null, assets: [], skippedAssetCount: 0 };
+            }
             try {
                 const { client: s3Client, bucket } = this.getS3Client();
                 return await readDesignForDownload({
@@ -9335,7 +9380,7 @@ export class AppGenerateService extends BaseService {
                     bucket,
                     organizationDesignModel: this.organizationDesignModel,
                     organizationUuid,
-                    designUuid: app.design_uuid,
+                    designUuid: app.designUuid,
                     logger: this.logger,
                 });
             } catch (err) {

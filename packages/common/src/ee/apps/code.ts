@@ -91,6 +91,8 @@ export type DataAppCodeDownload = DataAppCode & { context: DataAppContext };
 
 export type ApiGetAppCodeResponse = ApiSuccess<DataAppCodeDownload>;
 
+export type ApiGetDataAppAuthoringContextResponse = ApiSuccess<DataAppContext>;
+
 export type ImportAppCodeRequestBody = {
     code: DataAppCode;
     // Legacy identity for pre-slug bundles and old CLIs: append when this app

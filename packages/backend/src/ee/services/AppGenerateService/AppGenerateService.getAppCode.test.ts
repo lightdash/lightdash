@@ -175,11 +175,13 @@ function buildService(overrides: {
         getAppWithVersions: vi
             .fn()
             .mockResolvedValue({ versions: [], hasMore: false }),
+        hasAppSlug: vi.fn().mockResolvedValue(false),
         ...appModel,
     };
 
     const fullProjectModel = {
         getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+        getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG_UUID }),
         ...projectModel,
     };
 
@@ -228,6 +230,14 @@ function buildService(overrides: {
         externalConnectionModel: fullExternalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+    });
+
+    vi.spyOn(
+        svc as unknown as { createAuditedAbility: () => unknown },
+        'createAuditedAbility',
+    ).mockReturnValue({
+        can: () => true,
+        cannot: () => false,
     });
 
     if (s3ClientOverride) {
@@ -725,5 +735,70 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.context.theme.skippedAssetCount).toBe(0);
         expect(result.context.theme.assets).toHaveLength(0);
         expect(result.context.theme.instructions).toBeNull();
+    });
+});
+
+describe('AppGenerateService.getDataAppAuthoringContext', () => {
+    it('returns project context with empty prompt history for a new local app', async () => {
+        const getAppWithVersions = vi.fn();
+        const hasAppSlug = vi.fn().mockResolvedValue(false);
+        const svc = buildService({
+            appModel: { getAppWithVersions, hasAppSlug },
+        });
+
+        const context = await svc.getDataAppAuthoringContext(
+            fakeUser,
+            PROJECT_UUID,
+            'revenue-explorer',
+            null,
+        );
+
+        expect(hasAppSlug).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'revenue-explorer',
+        );
+        expect(getAppWithVersions).not.toHaveBeenCalled();
+        expect(context.semanticLayer.path).toBe(
+            '.lightdash/context/semantic-layer.yml',
+        );
+        expect(context.parameters).toBeNull();
+        expect(
+            Buffer.from(context.promptHistory.contentBase64, 'base64').toString(
+                'utf8',
+            ),
+        ).toContain('No previous versions');
+        expect(context.theme).toEqual({
+            instructions: null,
+            assets: [],
+            skippedAssetCount: 0,
+        });
+    });
+
+    it('rejects a slug already reserved in the project', async () => {
+        const svc = buildService({
+            appModel: { hasAppSlug: vi.fn().mockResolvedValue(true) },
+        });
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                APP_SLUG,
+                null,
+            ),
+        ).rejects.toThrow(`A data app with slug "${APP_SLUG}" already exists`);
+    });
+
+    it('rejects an invalid local app slug', async () => {
+        const svc = buildService({});
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                '../invalid',
+                null,
+            ),
+        ).rejects.toThrow('Invalid data app slug');
     });
 });

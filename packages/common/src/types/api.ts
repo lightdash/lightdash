@@ -64,6 +64,7 @@ import type {
     ApiGenerateAppResponse,
     ApiGetAppCodeResponse,
     ApiGetAppResponse,
+    ApiGetDataAppAuthoringContextResponse,
     ApiGetDataAppVizResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiHomepageLinkMetadataResponse,
@@ -1325,6 +1326,7 @@ type ApiResults =
     | CreateOAuthClientResponse
     | ApiGenerateAppResponse['results']
     | ApiGetAppCodeResponse['results']
+    | ApiGetDataAppAuthoringContextResponse['results']
     | ApiGetAppResponse['results']
     | ApiListDataAppVizsResponse['results']
     | ApiGetDataAppVizResponse['results']

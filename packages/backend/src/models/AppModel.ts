@@ -474,6 +474,14 @@ export class AppModel {
             .first();
     }
 
+    async hasAppSlug(projectUuid: string, slug: string): Promise<boolean> {
+        const app = await this.database(AppsTableName)
+            .select('app_id')
+            .where({ project_uuid: projectUuid, slug })
+            .first();
+        return app !== undefined;
+    }
+
     /**
      * Resolve an app by uuid or slug. A value that parses as a UUID may
      * still be a slug (slugs aren't guaranteed non-uuid-shaped), so

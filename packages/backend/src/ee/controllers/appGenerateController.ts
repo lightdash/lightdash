@@ -17,6 +17,7 @@ import {
     type ApiGenerateAppResponse,
     type ApiGetAppCodeResponse,
     type ApiGetAppResponse,
+    type ApiGetDataAppAuthoringContextResponse,
     type ApiGetDataAppVizResponse,
     type ApiImportAppCodeResponse,
     type ApiListDataAppVizsResponse,
@@ -255,6 +256,34 @@ export class AppGenerateController extends BaseController {
     ): Promise<ApiAppFileUploadResponse> {
         this.setStatus(200);
         return this.handleUploadFile(req, projectUuid, appUuid, filename, kind);
+    }
+
+    /**
+     * Get project context for authoring a new data app locally.
+     * @summary Get data app authoring context
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/authoring-context')
+    @OperationId('getDataAppAuthoringContext')
+    async getDataAppAuthoringContext(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() slug: string,
+        @Query() designUuid?: string,
+    ): Promise<ApiGetDataAppAuthoringContextResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().getDataAppAuthoringContext(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slug,
+                    designUuid ?? null,
+                ),
+        };
     }
 
     private async handleUploadFile(
