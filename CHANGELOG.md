@@ -1,3 +1,23 @@
+# [1.55.0](https://github.com/lightdash/lightdash/compare/1.54.0...1.55.0) (2026-07-31)
+
+
+### Bug Fixes
+
+* **ai:** disable deep research during active runs ([#26636](https://github.com/lightdash/lightdash/issues/26636)) ([b553988](https://github.com/lightdash/lightdash/commit/b55398892f9a017c9ce33ffe5107d72029a5bf41))
+* **ai:** keep deep research charts out of artifact sidebar ([#26638](https://github.com/lightdash/lightdash/issues/26638)) ([c02af96](https://github.com/lightdash/lightdash/commit/c02af966b7dca16a05365f60436b57dbb25a7a61))
+* autofocus the global search input when the omnibar opens ([#26629](https://github.com/lightdash/lightdash/issues/26629)) ([0e9fa7a](https://github.com/lightdash/lightdash/commit/0e9fa7a2e9a0c6d5d64e66cfd94a5c5b9a90d11a))
+* **deps:** bump data app Vite to 8.0.16 ([#26628](https://github.com/lightdash/lightdash/issues/26628)) ([d1b1ed1](https://github.com/lightdash/lightdash/commit/d1b1ed1f5c4de99f793aa898c4ebf483c39ce8ce))
+
+
+### Features
+
+* **ai:** persist Deep Research run metrics ([#26615](https://github.com/lightdash/lightdash/issues/26615)) ([4eb2bd5](https://github.com/lightdash/lightdash/commit/4eb2bd54a173a85d9661d78af423b732564c5543))
+* **apps:** build a data app viz from the chart config ([#26338](https://github.com/lightdash/lightdash/issues/26338)) ([7e04541](https://github.com/lightdash/lightdash/commit/7e04541de4c23957f0470b51f288ae277f5e576f))
+* **cli:** download the data apps a dashboard references ([#26573](https://github.com/lightdash/lightdash/issues/26573)) ([d520559](https://github.com/lightdash/lightdash/commit/d5205595b2615ad4303717efd1415794fd57f2e6))
+* **cli:** upload a dashboard's data apps before the dashboard ([#26584](https://github.com/lightdash/lightdash/issues/26584)) ([9c5f5fb](https://github.com/lightdash/lightdash/commit/9c5f5fbe65264cc66e17bdd9cc7a0bba5948f843))
+* **content-as-code:** portable data app references in dashboard YAML ([#26566](https://github.com/lightdash/lightdash/issues/26566)) ([4ebf202](https://github.com/lightdash/lightdash/commit/4ebf202e9b91ba9c9e1c4b1b52d1b8bb018345a0))
+* **data-apps:** add fullscreen presentation mode to the app viewer ([#26633](https://github.com/lightdash/lightdash/issues/26633)) ([d1aa90a](https://github.com/lightdash/lightdash/commit/d1aa90ab41fc230c212f6ba74deac8d31135d0ed))
+
 # [1.54.0](https://github.com/lightdash/lightdash/compare/1.53.0...1.54.0) (2026-07-31)
 
 

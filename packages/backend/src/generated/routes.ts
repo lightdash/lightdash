@@ -3957,6 +3957,24 @@ const models: TsoaRoute.Models = {
         enums: ['data_app'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DashboardDataAppTileProperties-at-properties.title-or-hideTitle_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                title: { dataType: 'string', required: true },
+                hideTitle: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardDataAppTileAsCode: {
         dataType: 'refAlias',
         type: {
@@ -3967,19 +3985,38 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         properties: {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                appDeletedAt: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        { dataType: 'string' },
-                                        { dataType: 'enum', enums: [null] },
-                                    ],
+                            dataType: 'intersection',
+                            subSchemas: [
+                                {
+                                    ref: 'Pick_DashboardDataAppTileProperties-at-properties.title-or-hideTitle_',
                                 },
-                                appUuid: { dataType: 'string', required: true },
-                                hideTitle: { dataType: 'boolean' },
-                                title: { dataType: 'string', required: true },
-                            },
+                                {
+                                    dataType: 'nestedObjectLiteral',
+                                    nestedProperties: {
+                                        appDeletedAt: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'string' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
+                                        },
+                                        appUuid: { dataType: 'string' },
+                                        appSlug: {
+                                            dataType: 'union',
+                                            subSchemas: [
+                                                { dataType: 'string' },
+                                                {
+                                                    dataType: 'enum',
+                                                    enums: [null],
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                            ],
                             required: true,
                         },
                         type: {
@@ -6784,6 +6821,13 @@ const models: TsoaRoute.Models = {
                                 { dataType: 'enum', enums: [null] },
                             ],
                         },
+                        appSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         appUuid: { dataType: 'string', required: true },
                         hideTitle: { dataType: 'boolean' },
                         title: { dataType: 'string', required: true },
@@ -7788,12 +7832,32 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardAsCodeUpsertResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'PromotionChanges' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        warnings: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiDashboardAsCodeUpsertResponse: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                results: { ref: 'PromotionChanges', required: true },
+                results: { ref: 'DashboardAsCodeUpsertResult', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -14805,6 +14869,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                slug: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
                 appUuid: { dataType: 'string', required: true },
             },
@@ -30532,6 +30597,120 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchRunMetrics: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                chartCount: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                findingsCount: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                warehouseQueryCount: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                toolErrorCount: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                toolCallCount: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                tokenUsageComplete: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                totalTokens: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                reasoningTokens: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                cacheWriteTokens: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                cacheReadTokens: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                outputTokens: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                inputTokens: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                durationMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchRun: {
         dataType: 'refAlias',
         type: {
@@ -30571,6 +30750,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                metrics: { ref: 'AiDeepResearchRunMetrics', required: true },
                 executionContextSnapshot: {
                     dataType: 'union',
                     subSchemas: [
