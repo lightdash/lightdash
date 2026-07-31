@@ -488,6 +488,63 @@ describe('Embed Chart JWT API', () => {
                 expect(resp.body).toHaveProperty('error');
             });
         });
+
+        describe('Calculate Total from Raw Query (Explore scope)', () => {
+            // Chart JWTs grant view:Explore scoped to the chart's own explore
+            // (payments for the test chart). Raw metric queries must be allowed
+            // on that explore and rejected on any other.
+
+            it('should calculate totals on the chart own explore', async () => {
+                const client = embedClient();
+                const resp = await client.post<Body<unknown>>(
+                    `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
+                    {
+                        explore: 'payments',
+                        metricQuery: {
+                            exploreName: 'payments',
+                            dimensions: ['payments_payment_method'],
+                            metrics: ['payments_total_revenue'],
+                            filters: {},
+                            sorts: [],
+                            limit: 500,
+                            tableCalculations: [],
+                        },
+                    },
+                    {
+                        headers: embedHeaders(chartJwtToken),
+                        failOnStatusCode: false,
+                    },
+                );
+                expect(resp.status).toBe(200);
+                expect(resp.body.status).toBe('ok');
+                expect(typeof resp.body.results).toBe('object');
+            });
+
+            it('should fail to calculate totals on another explore', async () => {
+                const client = embedClient();
+                const resp = await client.post(
+                    `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
+                    {
+                        explore: 'customers',
+                        metricQuery: {
+                            exploreName: 'customers',
+                            dimensions: ['customers_customer_id'],
+                            metrics: [],
+                            filters: {},
+                            sorts: [],
+                            limit: 500,
+                            tableCalculations: [],
+                        },
+                    },
+                    {
+                        headers: embedHeaders(chartJwtToken),
+                        failOnStatusCode: false,
+                    },
+                );
+                expect(resp.status).toBe(403);
+                expect(resp.body).toHaveProperty('error');
+            });
+        });
     });
 
     describe('Chart JWT with different permissions', () => {
