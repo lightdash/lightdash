@@ -514,7 +514,7 @@ type StarDraws = {
 // All randomness for a star is drawn before setState so the state updaters
 // below stay pure (StrictMode double-invokes them in dev).
 const drawStar = (): StarDraws => ({
-    lifetimeMs: randomBetween(5000, 9000),
+    lifetimeMs: randomBetween(15000, 25000),
     slotPick: Math.random(),
     defPick: Math.random(),
     sizePick: Math.random(),
@@ -773,7 +773,7 @@ const HomepageStars: FC = () => {
                     tier,
                 );
             });
-            spawnTimer = window.setTimeout(spawn, randomBetween(450, 1400));
+            spawnTimer = window.setTimeout(spawn, randomBetween(2000, 4500));
         };
 
         spawnTimer = window.setTimeout(spawn, 500);
