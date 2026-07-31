@@ -48,8 +48,10 @@ import {
     type LoginParams,
 } from '../hooks/useLogin';
 import {
+    clearPendingSsoLoginMethod,
     readLastLoginMethod,
     writeLastLoginMethod,
+    writePendingSsoLoginMethod,
 } from '../utils/lastLoginMethod';
 import LoginWithEmailOtp from './LoginWithEmailOtp';
 
@@ -69,6 +71,13 @@ const Login: FC<{}> = () => {
             });
         }
     }, [flashMessages.data, showToastError]);
+
+    // Reaching the login page means any SSO attempt from this tab failed or was
+    // abandoned, so it must never become the recorded last-used method.
+    useEffect(() => {
+        clearPendingSsoLoginMethod();
+    }, []);
+
     const queryParams = new URLSearchParams(location.search);
     const redirectParam = queryParams.get('redirect');
 
@@ -308,16 +317,7 @@ const Login: FC<{}> = () => {
                     disabled={isFormLoading}
                     forceShow
                     lastUsed={providerName === lastUsedSsoProvider}
-                    onClick={() =>
-                        writeLastLoginMethod({
-                            issuerType: providerName,
-                            email:
-                                form.values.email ||
-                                preCheckEmail ||
-                                lastLoginMethod?.email ||
-                                '',
-                        })
-                    }
+                    onClick={() => writePendingSsoLoginMethod(providerName)}
                 />
             ))}
         </Stack>

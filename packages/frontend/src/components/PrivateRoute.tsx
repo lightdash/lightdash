@@ -1,5 +1,6 @@
 import React, { useEffect, useState, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
+import { usePromotePendingSsoLogin } from '../features/users/hooks/usePromotePendingSsoLogin';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useAccount } from '../hooks/user/useAccount';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
@@ -21,6 +22,8 @@ const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const [abilityInitialized, setAbilityInitialized] = useState(
         () => ability.rules.length > 0,
     );
+
+    usePromotePendingSsoLogin();
 
     useEffect(() => {
         if (data) {
