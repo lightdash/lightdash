@@ -71,7 +71,17 @@ const JoinOrganizationPage: FC = () => {
         }
     }, [createOrgError, hasCreatedOrg, hasJoinedOrg, navigate]);
 
-    if (health.isInitialLoading || isLoadingAllowedOrgs || isCreatingOrg) {
+    const willAutoCreateOrg =
+        !allowedOrgs?.length && !user.data?.organizationUuid && !createOrgError;
+
+    if (
+        health.isInitialLoading ||
+        isLoadingAllowedOrgs ||
+        isCreatingOrg ||
+        willAutoCreateOrg ||
+        hasCreatedOrg ||
+        hasJoinedOrg
+    ) {
         return <PageSpinner />;
     }
 

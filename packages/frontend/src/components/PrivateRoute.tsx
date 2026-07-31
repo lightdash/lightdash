@@ -8,7 +8,7 @@ import PageSpinner from './PageSpinner';
 const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
     const {
         health,
-        user: { data, isInitialLoading },
+        user: { data, isInitialLoading, isError },
     } = useApp();
     const location = useLocation();
     const ability = useAbilityContext();
@@ -59,6 +59,10 @@ const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
                 state={{ from: location }}
             />
         );
+    }
+
+    if (!data && !isError) {
+        return <PageSpinner />;
     }
 
     if (!data?.organizationUuid) {
