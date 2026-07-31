@@ -1,3 +1,10 @@
+## [1.57.3](https://github.com/lightdash/lightdash/compare/1.57.2...1.57.3) (2026-07-31)
+
+
+### Bug Fixes
+
+* JSONL results corrupted by Node 24 readline splitting on U+2028/U+2029 ([#26655](https://github.com/lightdash/lightdash/issues/26655)) ([6d1fa82](https://github.com/lightdash/lightdash/commit/6d1fa82241c34cf9189a1b9bbf16a9b7aa5c1e20))
+
 ## [1.57.2](https://github.com/lightdash/lightdash/compare/1.57.1...1.57.2) (2026-07-31)
 
 
