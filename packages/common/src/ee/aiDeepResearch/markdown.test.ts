@@ -165,8 +165,8 @@ describe('spliceDeepResearchRanges', () => {
 });
 
 describe('countDeepResearchFindings', () => {
-    it('counts confidence tags outside code fences', () => {
-        const markdown = `## A\n\n<confidence level="high">ok</confidence>\n\n\`\`\`md\n<confidence level="low">not me</confidence>\n\`\`\`\n\n## B\n\n<confidence level="low">meh</confidence>`;
+    it('counts non-structural level-two sections outside code fences', () => {
+        const markdown = `## A\n\n<confidence level="high">ok</confidence>\n\n\`\`\`md\n## Not a finding\n\`\`\`\n\n## B\n\n<confidence level="low">meh</confidence>\n\n## Sources\n\n- source\n\n## Caveats\n\n- caveat\n\n## Conclusion\n\n- done`;
         expect(countDeepResearchFindings(markdown)).toBe(2);
     });
 });

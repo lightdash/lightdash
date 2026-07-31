@@ -493,9 +493,6 @@ export const renderDeepResearchChartRefs = (markdown: string): string =>
 
 const CONFIDENCE_TAG_RE = /<confidence\b[^>]*>/g;
 
-export const countDeepResearchFindings = (markdown: string): number =>
-    maskFencedBlocks(markdown).match(CONFIDENCE_TAG_RE)?.length ?? 0;
-
 const STRUCTURAL_SECTIONS = new Set(['conclusion', 'sources', 'caveats']);
 
 type MarkdownSection = {
@@ -542,6 +539,11 @@ const splitSections = (
     closeCurrent(masked.length);
     return { preamble: preambleLines.join('\n'), sections };
 };
+
+export const countDeepResearchFindings = (markdown: string): number =>
+    splitSections(maskFencedBlocks(markdown)).sections.filter(
+        ({ title }) => !STRUCTURAL_SECTIONS.has(title.trim().toLowerCase()),
+    ).length;
 
 const lintHtmlTags = (masked: string): string[] => {
     const errors: string[] = [];

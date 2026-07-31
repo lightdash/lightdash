@@ -30,6 +30,19 @@ export type DbAiDeepResearchRun = {
     report_expired_at: Date | null;
     budget_snapshot: AiDeepResearchBudget;
     execution_context_snapshot: AiDeepResearchExecutionContextSnapshot;
+    input_tokens: number | null;
+    output_tokens: number | null;
+    cache_read_tokens: number | null;
+    cache_write_tokens: number | null;
+    reasoning_tokens: number | null;
+    total_tokens: number | null;
+    token_usage_complete: boolean | null;
+    duration_ms: number | null;
+    tool_call_count: number | null;
+    tool_error_count: number | null;
+    warehouse_query_count: number | null;
+    findings_count: number | null;
+    chart_count: number | null;
     error_message: string | null;
     cancellation_requested_at: Date | null;
     started_at: Date | null;
@@ -68,6 +81,19 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'completed_at'
             | 'updated_at'
             | 'execution_context_snapshot'
+            | 'input_tokens'
+            | 'output_tokens'
+            | 'cache_read_tokens'
+            | 'cache_write_tokens'
+            | 'reasoning_tokens'
+            | 'total_tokens'
+            | 'token_usage_complete'
+            | 'duration_ms'
+            | 'tool_call_count'
+            | 'tool_error_count'
+            | 'warehouse_query_count'
+            | 'findings_count'
+            | 'chart_count'
         >
     >
 >;

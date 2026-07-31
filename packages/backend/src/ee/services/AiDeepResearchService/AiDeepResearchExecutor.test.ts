@@ -131,6 +131,19 @@ const run = (
     report_expired_at: null,
     budget_snapshot: budget,
     execution_context_snapshot: executionContextSnapshot,
+    input_tokens: null,
+    output_tokens: null,
+    cache_read_tokens: null,
+    cache_write_tokens: null,
+    reasoning_tokens: null,
+    total_tokens: null,
+    token_usage_complete: null,
+    duration_ms: null,
+    tool_call_count: null,
+    tool_error_count: null,
+    warehouse_query_count: null,
+    findings_count: null,
+    chart_count: null,
     error_message: null,
     cancellation_requested_at: null,
     started_at: new Date(),
@@ -236,6 +249,7 @@ const buildExecutor = ({
         isActive: true,
     } as SessionUser;
     const aiDeepResearchRunModel = {
+        accumulateTokenUsage: vi.fn().mockResolvedValue(true),
         appendProgressEvent: vi.fn().mockResolvedValue(true),
         findByUuid: vi.fn().mockResolvedValue(run()),
         touch: vi.fn().mockResolvedValue(true),
@@ -350,7 +364,18 @@ describe('AiDeepResearchExecutor', () => {
         const queryUuid = '11111111-1111-4111-8111-111111111111';
         const generateAgentThreadResponse = respondByRole({
             onInvestigate: async (options: AnyType) => {
-                await options.execution.onStepUsage(100);
+                await options.execution.onStepUsage({
+                    runUuid: 'run-1',
+                    phase: options.execution.phase,
+                    tokens: {
+                        inputTokens: 70,
+                        outputTokens: 30,
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                        reasoningTokens: 0,
+                        totalTokens: 100,
+                    },
+                });
                 await options.execution.onExecutionContextResolved?.(
                     executionContextSnapshot,
                 );
@@ -383,6 +408,15 @@ describe('AiDeepResearchExecutor', () => {
             warehouseQueryUuids: [queryUuid],
             terminalReason: null,
         });
+        expect(
+            aiDeepResearchRunModel.accumulateTokenUsage,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            aiDeepResearchRunModel.accumulateTokenUsage,
+        ).toHaveBeenCalledWith(
+            'run-1',
+            expect.objectContaining({ totalTokens: 100 }),
+        );
 
         const plannerCalls = callsByRole(
             generateAgentThreadResponse,
@@ -678,7 +712,18 @@ describe('AiDeepResearchExecutor', () => {
     it('enforces the aggregate token budget across phases', async () => {
         const generateAgentThreadResponse = respondByRole({
             onInvestigate: async (options: AnyType) => {
-                await options.execution.onStepUsage(60);
+                await options.execution.onStepUsage({
+                    runUuid: 'run-1',
+                    phase: options.execution.phase,
+                    tokens: {
+                        inputTokens: 40,
+                        outputTokens: 20,
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                        reasoningTokens: 0,
+                        totalTokens: 60,
+                    },
+                });
                 options.execution.research.onReport(investigationReport());
                 return 'investigated';
             },

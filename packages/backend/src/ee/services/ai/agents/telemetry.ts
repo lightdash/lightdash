@@ -32,6 +32,7 @@ export const getAgentTelemetryConfig = (
         telemetryEnabled,
         model,
         keyManagement,
+        execution,
     }: Pick<
         AiAgentArgs,
         | 'agentSettings'
@@ -42,7 +43,7 @@ export const getAgentTelemetryConfig = (
         | 'telemetryEnabled'
         | 'model'
         | 'keyManagement'
-    >,
+    > & { execution?: AiAgentArgs['execution'] },
     feature: AiCallFeature = 'agent',
 ) =>
     getAiCallTelemetry({
@@ -56,5 +57,13 @@ export const getAgentTelemetryConfig = (
         userUuid: userId,
         ...getLanguageModelAttribution(model),
         keyManagement,
+        ...(execution?.mode === 'deep_research'
+            ? {
+                  extra: {
+                      deepResearchRunUuid: execution.runUuid,
+                      deepResearchPhase: execution.phase,
+                  },
+              }
+            : {}),
         recordIO: telemetryEnabled,
     });

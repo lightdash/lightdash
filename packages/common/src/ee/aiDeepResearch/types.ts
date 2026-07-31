@@ -323,6 +323,22 @@ export type AiDeepResearchEvent =
           createdAt: string;
       };
 
+export type AiDeepResearchRunMetrics = {
+    durationMs: number | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    cacheReadTokens: number | null;
+    cacheWriteTokens: number | null;
+    reasoningTokens: number | null;
+    totalTokens: number | null;
+    tokenUsageComplete: boolean | null;
+    toolCallCount: number | null;
+    toolErrorCount: number | null;
+    warehouseQueryCount: number | null;
+    findingsCount: number | null;
+    chartCount: number | null;
+};
+
 export type AiDeepResearchRun = {
     aiDeepResearchRunUuid: string;
     projectUuid: string;
@@ -341,6 +357,7 @@ export type AiDeepResearchRun = {
     isReportExpired: boolean;
     budget: AiDeepResearchBudget;
     executionContextSnapshot: AiDeepResearchExecutionContextSnapshot | null;
+    metrics: AiDeepResearchRunMetrics;
     errorMessage: string | null;
     cancellationRequestedAt: string | null;
     createdAt: string;

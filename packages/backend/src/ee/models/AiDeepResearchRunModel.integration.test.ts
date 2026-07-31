@@ -9,11 +9,13 @@ import {
 import { type Knex } from 'knex';
 import { getTestContext } from '../../vitest.setup.integration';
 import {
+    AiAgentToolCallErrorTableName,
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiPromptTableName,
     AiSqlApprovalTableName,
     AiThreadTableName,
+    type AiAgentToolCallErrorTable,
     type AiAgentToolCallTable,
     type AiAgentToolResultTable,
     type AiPromptTable,
@@ -416,6 +418,125 @@ describe('AiDeepResearchRunModel integration', () => {
             ).toBe(30 * 24 * 60 * 60 * 1_000);
         },
     );
+
+    it('atomically persists partial token usage and terminal operational metrics', async () => {
+        const metricsPromptUuid = await createAdditionalPrompt();
+        const run = await createRun({ promptUuid: metricsPromptUuid });
+        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+
+        await Promise.all([
+            model.accumulateTokenUsage(run.ai_deep_research_run_uuid, {
+                inputTokens: 10,
+                outputTokens: 5,
+                cacheReadTokens: 20,
+                cacheWriteTokens: 0,
+                reasoningTokens: 2,
+                totalTokens: 35,
+            }),
+            model.accumulateTokenUsage(run.ai_deep_research_run_uuid, {
+                inputTokens: 7,
+                outputTokens: null,
+                cacheReadTokens: 3,
+                cacheWriteTokens: 1,
+                reasoningTokens: null,
+                totalTokens: 11,
+            }),
+        ]);
+
+        const reportSuccessId = `report-success-${crypto.randomUUID()}`;
+        const reportFailureId = `report-failure-${crypto.randomUUID()}`;
+        const warehouseId = `warehouse-${crypto.randomUUID()}`;
+        const schemaErrorId = `schema-error-${crypto.randomUUID()}`;
+        await database<AiAgentToolCallTable>(AiAgentToolCallTableName).insert([
+            {
+                ai_prompt_uuid: metricsPromptUuid,
+                tool_call_id: reportSuccessId,
+                tool_name: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+                tool_args: {},
+                ai_mcp_server_uuid: null,
+                parent_tool_call_id: null,
+            },
+            {
+                ai_prompt_uuid: metricsPromptUuid,
+                tool_call_id: reportFailureId,
+                tool_name: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+                tool_args: {},
+                ai_mcp_server_uuid: null,
+                parent_tool_call_id: null,
+            },
+            {
+                ai_prompt_uuid: metricsPromptUuid,
+                tool_call_id: warehouseId,
+                tool_name: 'runSql',
+                tool_args: {},
+                ai_mcp_server_uuid: null,
+                parent_tool_call_id: null,
+            },
+        ]);
+        await database<AiAgentToolResultTable>(
+            AiAgentToolResultTableName,
+        ).insert([
+            {
+                ai_prompt_uuid: metricsPromptUuid,
+                tool_call_id: reportSuccessId,
+                tool_name: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+                result: '{}',
+                metadata: { status: 'success' },
+            },
+            {
+                ai_prompt_uuid: metricsPromptUuid,
+                tool_call_id: reportFailureId,
+                tool_name: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+                result: '{}',
+                metadata: { status: 'error' },
+            },
+            {
+                ai_prompt_uuid: metricsPromptUuid,
+                tool_call_id: warehouseId,
+                tool_name: 'runSql',
+                result: '{}',
+                metadata: { status: 'success' },
+            },
+        ]);
+        await database<AiAgentToolCallErrorTable>(
+            AiAgentToolCallErrorTableName,
+        ).insert([
+            {
+                ai_prompt_uuid: metricsPromptUuid,
+                tool_call_id: reportFailureId,
+                tool_name: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+                error_message: 'invalid report',
+                raw_args: null,
+            },
+            {
+                ai_prompt_uuid: metricsPromptUuid,
+                tool_call_id: schemaErrorId,
+                tool_name: 'searchContent',
+                error_message: 'invalid search',
+                raw_args: null,
+            },
+        ]);
+
+        await model.markCompleted(run.ai_deep_research_run_uuid, report, {});
+
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({
+            input_tokens: 17,
+            output_tokens: 5,
+            cache_read_tokens: 23,
+            cache_write_tokens: 1,
+            reasoning_tokens: 2,
+            total_tokens: 46,
+            token_usage_complete: false,
+            tool_call_count: 3,
+            tool_error_count: 2,
+            warehouse_query_count: 1,
+            findings_count: 1,
+            chart_count: 0,
+            duration_ms: expect.any(Number),
+        });
+    });
 
     it('scrubs only expired run data, supports legacy null expiries, and is idempotent under contention', async () => {
         const expiredRun = await createRun();

@@ -111,6 +111,22 @@ The baseline trend is stable.
 
 const report = { markdown: reportMarkdown, charts: [] };
 
+const persistedMetrics = {
+    duration_ms: 5_000,
+    input_tokens: 150,
+    output_tokens: 100,
+    cache_read_tokens: 200,
+    cache_write_tokens: 50,
+    reasoning_tokens: 25,
+    total_tokens: 500,
+    token_usage_complete: true,
+    tool_call_count: 2,
+    tool_error_count: 1,
+    warehouse_query_count: 1,
+    findings_count: 1,
+    chart_count: 0,
+};
+
 const chartReportMarkdown = reportMarkdown.replace(
     'The baseline trend is stable.',
     `The baseline trend is stable.\n\n${chartRef}`,
@@ -159,6 +175,19 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
     report_expired_at: null,
     budget_snapshot: budget,
     execution_context_snapshot: executionContextSnapshot,
+    input_tokens: null,
+    output_tokens: null,
+    cache_read_tokens: null,
+    cache_write_tokens: null,
+    reasoning_tokens: null,
+    total_tokens: null,
+    token_usage_complete: null,
+    duration_ms: null,
+    tool_call_count: null,
+    tool_error_count: null,
+    warehouse_query_count: null,
+    findings_count: null,
+    chart_count: null,
     error_message: null,
     cancellation_requested_at: null,
     started_at: null,
@@ -1061,7 +1090,7 @@ describe('AiDeepResearchService', () => {
             );
         });
 
-        it('emits one terminal rollup from persisted usage and provenance', async () => {
+        it('emits one terminal rollup from the persisted metrics snapshot', async () => {
             const { service, analytics } = buildService({
                 model: {
                     findByUuid: vi.fn().mockResolvedValue(
@@ -1070,6 +1099,7 @@ describe('AiDeepResearchService', () => {
                             started_at: new Date('2026-07-13T12:00:01.000Z'),
                             completed_at: new Date('2026-07-13T12:00:06.000Z'),
                             result_markdown: reportMarkdown,
+                            ...persistedMetrics,
                         }),
                     ),
                     listPendingAnalyticsEvents: vi
@@ -1087,35 +1117,6 @@ describe('AiDeepResearchService', () => {
                             },
                         ]),
                 },
-                aiAgentModel: {
-                    findWebAppPrompt: vi.fn().mockResolvedValue({
-                        promptUuid: 'prompt-1',
-                        tokenUsage: { totalTokens: 321 },
-                    }),
-                    getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([
-                        {
-                            toolCall: {
-                                toolName: 'runSql',
-                                toolType: 'mcp',
-                            },
-                            toolResult: null,
-                        },
-                        {
-                            toolCall: {
-                                toolName: 'searchContent',
-                                toolType: 'built_in',
-                            },
-                            toolResult: null,
-                        },
-                        {
-                            toolCall: {
-                                toolName: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-                                toolType: 'built_in',
-                            },
-                            toolResult: null,
-                        },
-                    ]),
-                },
             });
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
@@ -1127,10 +1128,17 @@ describe('AiDeepResearchService', () => {
                 properties: expect.objectContaining({
                     status: 'completed',
                     terminalReason: null,
-                    totalTokens: 321,
+                    inputTokens: 150,
+                    outputTokens: 100,
+                    cacheReadTokens: 200,
+                    cacheWriteTokens: 50,
+                    reasoningTokens: 25,
+                    totalTokens: 500,
+                    tokenUsageComplete: true,
                     toolCallCount: 2,
+                    toolErrorCount: 1,
                     warehouseQueryCount: 1,
-                    mcpToolCallCount: 1,
+                    findingsCount: 1,
                     hasReport: true,
                     chartCount: 0,
                     durationMs: 5_000,
@@ -1191,6 +1199,7 @@ describe('AiDeepResearchService', () => {
                                     status === 'partially_completed'
                                         ? reportMarkdown
                                         : null,
+                                ...persistedMetrics,
                             }),
                         ),
                         listPendingAnalyticsEvents: vi
@@ -1252,10 +1261,6 @@ describe('AiDeepResearchService', () => {
                 delivered_at: null,
                 created_at: new Date(),
             };
-            const getToolCallsAndResultsForPrompt = vi
-                .fn()
-                .mockRejectedValueOnce(new Error('temporary read failure'))
-                .mockResolvedValueOnce([]);
             const claimQueuedRun = vi
                 .fn()
                 .mockResolvedValueOnce(runRow({ status: 'running' }))
@@ -1268,6 +1273,7 @@ describe('AiDeepResearchService', () => {
                             status: 'completed',
                             completed_at: new Date('2026-07-13T12:00:06.000Z'),
                             result_markdown: reportMarkdown,
+                            ...persistedMetrics,
                         }),
                     ),
                     listPendingAnalyticsEvents: vi
@@ -1276,20 +1282,29 @@ describe('AiDeepResearchService', () => {
                         .mockResolvedValueOnce([analyticsEvent])
                         .mockResolvedValueOnce([analyticsEvent]),
                 },
-                aiAgentModel: {
-                    getToolCallsAndResultsForPrompt,
-                },
+            });
+            analytics.track.mockImplementationOnce(() => {
+                throw new Error('temporary analytics failure');
             });
 
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
             await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
-            expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
-                expect.objectContaining({
-                    messageId: 'analytics-retry-1',
-                    event: 'ai_deep_research.run_completed',
-                }),
-            );
+            expect(analytics.track).toHaveBeenCalledTimes(2);
+            expect(analytics.track.mock.calls).toEqual([
+                [
+                    expect.objectContaining({
+                        messageId: 'analytics-retry-1',
+                        event: 'ai_deep_research.run_completed',
+                    }),
+                ],
+                [
+                    expect.objectContaining({
+                        messageId: 'analytics-retry-1',
+                        event: 'ai_deep_research.run_completed',
+                    }),
+                ],
+            ]);
             expect(
                 model.markAnalyticsEventDelivered,
             ).toHaveBeenCalledExactlyOnceWith('analytics-retry-1');
