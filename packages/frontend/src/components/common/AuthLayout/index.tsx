@@ -134,6 +134,18 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
                 <Box className={classes.formPanel}>
                     <Stack id={cardId} className={classes.formContent} gap="xl">
+                        <Group
+                            gap="sm"
+                            wrap="nowrap"
+                            className={classes.formBrandMark}
+                        >
+                            <Box className={classes.brandMark}>
+                                <LightdashMark />
+                            </Box>
+                            <Text fz="xl" fw={600}>
+                                Lightdash
+                            </Text>
+                        </Group>
                         {title && (
                             <Stack gap="xs">
                                 <Title order={2}>{title}</Title>

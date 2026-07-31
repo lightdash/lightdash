@@ -94,6 +94,16 @@
     max-width: rem(420px);
 }
 
+.formBrandMark {
+    display: none;
+}
+
+@media (max-width: $mantine-breakpoint-md) {
+    .formBrandMark {
+        display: flex;
+    }
+}
+
 .formSubtitle {
     color: var(--mantine-color-ldGray-6);
 }
