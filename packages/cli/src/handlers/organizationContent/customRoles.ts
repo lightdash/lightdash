@@ -1,4 +1,5 @@
 import {
+    LightdashError,
     parseCustomRoleAsCode,
     type ApiCustomRoleAsCodeListResponse,
     type ApiCustomRoleAsCodeUpsertResponse,
@@ -21,6 +22,7 @@ export type CustomRoleUploadSummary = {
     created: number;
     updated: number;
     unchanged: number;
+    skipped?: number;
     failed: number;
     failures: CustomRoleUploadFailure[];
 };
@@ -50,8 +52,21 @@ export const getCustomRolesFolder = (organizationContentPath: string): string =>
 
 export const formatCustomRoleUploadSummary = (
     summary: CustomRoleUploadSummary,
-): string =>
-    `${summary.created} created, ${summary.updated} updated, ${summary.unchanged} unchanged, ${summary.failed} failed`;
+): string => {
+    const skipped =
+        summary.skipped && summary.skipped > 0
+            ? `, ${summary.skipped} skipped`
+            : '';
+    return `${summary.created} created, ${summary.updated} updated, ${summary.unchanged} unchanged${skipped}, ${summary.failed} failed`;
+};
+
+const isCustomRolesUnavailableError = (error: unknown): boolean =>
+    error instanceof LightdashError &&
+    ([404, 422].includes(error.statusCode) ||
+        (error.statusCode === 403 &&
+            error.message.includes(
+                'Custom roles require a Lightdash Enterprise license',
+            )));
 
 export const readCustomRoleFiles = async (
     organizationContentPath: string,
@@ -81,6 +96,7 @@ export const uploadCustomRoles = async (
             });
             return result.action;
         },
+        skipError: isCustomRolesUnavailableError,
     });
 
 export const downloadCustomRoles = async (

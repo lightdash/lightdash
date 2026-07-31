@@ -21,15 +21,47 @@ import {
     getDataAppUploadFilter,
     uploadFilterMatches,
 } from './apps/appsDownload';
-import { lightdashApi } from './dbt/apiClient';
+import {
+    getContentAsCodeUploadPermissions,
+    lightdashApi,
+} from './dbt/apiClient';
 import {
     downloadContent,
+    downloadHandler,
     getExternalConnectionSecretEnvVar,
     testHelpers,
+    uploadHandler,
+    type DownloadHandlerOptions,
 } from './download';
+
+vi.mock('../analytics/analytics', () => ({
+    LightdashAnalytics: {
+        track: vi.fn(),
+    },
+}));
+
+vi.mock('../config', () => ({
+    getConfig: vi.fn().mockResolvedValue({
+        user: {
+            userUuid: 'user-uuid',
+            organizationUuid: 'organization-uuid',
+        },
+        context: {
+            apiKey: 'api-key',
+            serverUrl: 'http://lightdash.test',
+            project: 'project-uuid',
+            projectName: 'Test project',
+        },
+        answers: {
+            metadataFileGitignoreNoticeShown: true,
+        },
+    }),
+    setAnswer: vi.fn(),
+}));
 
 vi.mock('./dbt/apiClient', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./dbt/apiClient')>()),
+    getContentAsCodeUploadPermissions: vi.fn(),
     lightdashApi: vi.fn(),
 }));
 
@@ -39,7 +71,9 @@ const {
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
     hasContentFilters,
+    isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
+    downloadAiAgents,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
@@ -47,12 +81,56 @@ const {
     shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
     summarizeUploadChanges,
+    upsertAiAgents,
     upsertExternalConnections,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
     writeSpaceFiles,
 } = testHelpers;
+
+const makeDownloadHandlerOptions = (
+    overrides: Partial<DownloadHandlerOptions> = {},
+): DownloadHandlerOptions => ({
+    verbose: false,
+    charts: [],
+    dashboards: [],
+    alerts: [],
+    agents: [],
+    googleSheets: [],
+    scheduledDeliveries: [],
+    virtualViews: [],
+    externalConnections: [],
+    apps: [],
+    includeAgents: false,
+    includeApps: false,
+    force: false,
+    languageMap: false,
+    skipSpaceCreate: false,
+    public: false,
+    includeCharts: false,
+    nested: false,
+    rootSpaces: false,
+    skipSpaces: true,
+    skipCharts: true,
+    skipDashboards: true,
+    skipAlerts: false,
+    skipAgents: false,
+    skipGoogleSheets: false,
+    skipScheduledDeliveries: false,
+    skipVirtualViews: false,
+    skipExternalConnections: false,
+    includeAlerts: false,
+    includeGoogleSheets: false,
+    includeScheduledDeliveries: false,
+    includeVirtualViews: false,
+    includeExternalConnections: false,
+    includeAll: false,
+    stripPivotSeries: false,
+    concurrency: 1,
+    organization: false,
+    ...overrides,
+});
 
 const makeContentFilterOptions = (
     overrides: Partial<Parameters<typeof hasContentFilters>[0]> = {},
@@ -708,6 +786,174 @@ describe('isExternalConnectionsUnavailableError', () => {
     });
 });
 
+describe('AI agent downloads', () => {
+    const unavailableError = new LightdashError({
+        message:
+            "Unable to initialize service 'aiAgentCoderService' - no factory or provider.",
+        name: 'MissingConfigError',
+        statusCode: 422,
+        data: {},
+    });
+
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+    });
+
+    it('classifies permission, missing-route and non-EE errors as unavailable', () => {
+        [403, 404, 422].forEach((statusCode) => {
+            expect(
+                isAiAgentsUnavailableError(
+                    new LightdashError({
+                        message: 'AI agents unavailable',
+                        name: 'TestError',
+                        statusCode,
+                        data: {},
+                    }),
+                ),
+            ).toBe(true);
+        });
+    });
+
+    it('skips unavailable AI agents when selected implicitly', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(unavailableError);
+
+        await expect(downloadAiAgents('project-uuid', [], true)).resolves.toBe(
+            0,
+        );
+    });
+
+    it('keeps explicit AI agent downloads strict', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(unavailableError);
+
+        await expect(downloadAiAgents('project-uuid', [], false)).rejects.toBe(
+            unavailableError,
+        );
+    });
+});
+
+describe('downloadHandler failures', () => {
+    const unavailableError = new LightdashError({
+        message:
+            "Unable to initialize service 'aiAgentCoderService' - no factory or provider.",
+        name: 'MissingConfigError',
+        statusCode: 422,
+        data: {},
+    });
+
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+    });
+
+    it('continues to scheduled content after implicitly skipping unavailable AI agents', async () => {
+        const tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'include-all-download-test-'),
+        );
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.startsWith('/api/v1/health')) {
+                return { version: '0.0.0' } as never;
+            }
+            if (url === '/api/v1/projects/project-uuid') {
+                return { name: 'Test project' } as never;
+            }
+            if (url.includes('/code/virtualViews')) {
+                return {
+                    virtualViews: [],
+                    skipped: [],
+                    missingSlugs: [],
+                } as never;
+            }
+            if (url.includes('/code/aiAgents')) {
+                throw unavailableError;
+            }
+            if (url.includes('/code/alerts')) {
+                return { alerts: [], skipped: [] } as never;
+            }
+            if (url.includes('/code/scheduledDeliveries')) {
+                return { scheduledDeliveries: [], skipped: [] } as never;
+            }
+            if (url.includes('/code/googleSheets')) {
+                return { googleSheetsSyncs: [], skipped: [] } as never;
+            }
+            if (url.includes('/code/externalConnections')) {
+                throw unavailableError;
+            }
+            if (url.includes('/ee/projects/project-uuid/apps')) {
+                throw unavailableError;
+            }
+            throw new Error(`Unexpected request: ${url}`);
+        });
+
+        try {
+            await expect(
+                downloadHandler(
+                    makeDownloadHandlerOptions({
+                        includeAll: true,
+                        path: tmpDir,
+                        project: 'project-uuid',
+                    }),
+                ),
+            ).resolves.toBeUndefined();
+
+            expect(vi.mocked(lightdashApi)).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    url: expect.stringContaining('/code/scheduledDeliveries'),
+                }),
+            );
+        } finally {
+            await fs.rm(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('rethrows fatal project download errors', async () => {
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.startsWith('/api/v1/health')) {
+                return { version: '0.0.0' } as never;
+            }
+            if (url === '/api/v1/projects/project-uuid') {
+                return { name: 'Test project' } as never;
+            }
+            if (url.includes('/code/aiAgents')) {
+                throw unavailableError;
+            }
+            throw new Error(`Unexpected request: ${url}`);
+        });
+
+        await expect(
+            downloadHandler(
+                makeDownloadHandlerOptions({
+                    agents: ['sales-agent'],
+                    project: 'project-uuid',
+                }),
+            ),
+        ).rejects.toBe(unavailableError);
+    });
+});
+
+describe('uploadHandler failures', () => {
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.mocked(getContentAsCodeUploadPermissions).mockReset();
+    });
+
+    it('rethrows fatal project upload errors', async () => {
+        const fatalError = new Error('Failed to load dbt credentials');
+        vi.mocked(lightdashApi).mockResolvedValue({
+            version: '0.0.0',
+        } as never);
+        vi.mocked(getContentAsCodeUploadPermissions).mockRejectedValueOnce(
+            fatalError,
+        );
+
+        await expect(
+            uploadHandler(
+                makeDownloadHandlerOptions({
+                    project: 'project-uuid',
+                }),
+            ),
+        ).rejects.toBe(fatalError);
+    });
+});
+
 describe('readAiAgentFiles', () => {
     let tmpDir: string;
 
@@ -760,6 +1006,65 @@ describe('readAiAgentFiles', () => {
                 ],
             },
         ]);
+    });
+});
+
+describe('upsertAiAgents', () => {
+    let tmpDir: string;
+    const unavailableError = new LightdashError({
+        message:
+            "Unable to initialize service 'aiAgentCoderService' - no factory or provider.",
+        name: 'MissingConfigError',
+        statusCode: 422,
+        data: {},
+    });
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-upload-test-'));
+        await fs.mkdir(path.join(tmpDir, 'ai-agents'));
+        await fs.writeFile(
+            path.join(tmpDir, 'ai-agents', 'revenue-agent.yml'),
+            [
+                'contentType: ai_agent',
+                'version: 1',
+                'slug: revenue-agent',
+                '',
+            ].join('\n'),
+        );
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('skips unavailable AI agents when their upload is implicit', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(unavailableError);
+
+        await expect(
+            upsertAiAgents('project-uuid', [], {}, false, tmpDir, true),
+        ).resolves.toStrictEqual({});
+
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Skipping AI agents'),
+        );
+    });
+
+    it('fails when unavailable AI agents were selected explicitly', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(unavailableError);
+
+        await expect(
+            upsertAiAgents(
+                'project-uuid',
+                ['revenue-agent'],
+                {},
+                false,
+                tmpDir,
+                false,
+            ),
+        ).rejects.toBe(unavailableError);
     });
 });
 

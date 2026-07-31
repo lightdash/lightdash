@@ -1521,6 +1521,7 @@ export class ServiceRepository
             () =>
                 new RolesService({
                     lightdashConfig: this.context.lightdashConfig,
+                    licenseService: this.getLicenseService(),
                     analytics: this.context.lightdashAnalytics,
                     rolesModel: this.models.getRolesModel(),
                     userModel: this.models.getUserModel(),
