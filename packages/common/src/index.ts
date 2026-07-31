@@ -608,7 +608,11 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
     jobTitle: z.string().min(0),
-    howDidYouHearAboutUs: z.string().trim().max(1000).optional(),
+    howDidYouHearAboutUs: z
+        .string()
+        .trim()
+        .min(1, 'Please let us know how you heard about Lightdash')
+        .max(1000),
     enableEmailDomainAccess: z.boolean().default(false),
     isMarketingOptedIn: z.boolean().default(true),
     isTrackingAnonymized: z.boolean().default(false),

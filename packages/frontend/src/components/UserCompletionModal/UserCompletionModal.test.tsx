@@ -1,6 +1,6 @@
 import { LightdashMode } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import nock from 'nock';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
@@ -271,6 +271,11 @@ describe('UserCompletionModal', () => {
         const roleOption = await screen.findByText('Software Engineer');
         await user.click(roleOption);
 
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, 'a podcast');
+
         // uncheck email domain checkbox (checked by default)
         const emailDomainCheckbox = await screen.findByRole('checkbox', {
             name: `Allow users with @lightdash.com to join the organization as a viewer`,
@@ -303,7 +308,7 @@ describe('UserCompletionModal', () => {
             .patch('/api/v1/user/me/complete', {
                 organizationName: 'test organization',
                 jobTitle: 'Software Engineer',
-                howDidYouHearAboutUs: '',
+                howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: false,
                 isTrackingAnonymized: true,
@@ -352,6 +357,11 @@ describe('UserCompletionModal', () => {
         const roleOption = await screen.findByText('Software Engineer');
         await user.click(roleOption);
 
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, 'a podcast');
+
         // submit button should be enabled now
         expect(submitButton).toBeEnabled();
 
@@ -359,7 +369,7 @@ describe('UserCompletionModal', () => {
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 jobTitle: 'Software Engineer',
-                howDidYouHearAboutUs: '',
+                howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
@@ -384,7 +394,9 @@ describe('UserCompletionModal', () => {
 
         const welcomeModal = await screen.findByRole('dialog');
         expect(
-            within(welcomeModal).getByLabelText('How did you hear about us?'),
+            within(welcomeModal).getByRole('textbox', {
+                name: /How did you hear about us/,
+            }),
         ).toBeInTheDocument();
     });
 
@@ -408,9 +420,9 @@ describe('UserCompletionModal', () => {
         const roleOption = await screen.findByText('Software Engineer');
         await user.click(roleOption);
 
-        const referralInput = await screen.findByLabelText(
-            'How did you hear about us?',
-        );
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
         await user.type(referralInput, '  a podcast  ');
 
         const scope = nock(BASE_API_URL)
@@ -427,6 +439,56 @@ describe('UserCompletionModal', () => {
 
         scope.done();
         await waitFor(() => expect(scope.isDone()).toBe(true));
+    });
+
+    it('should not submit completion request when referral field is empty', async () => {
+        const user = userEvent.setup();
+
+        renderModal({
+            user: {
+                isSetupComplete: false,
+                organizationName: 'test organization',
+            },
+        });
+
+        const submitButton = await screen.findByRole('button', {
+            name: 'Next',
+        });
+
+        const roleSelect =
+            await screen.findByPlaceholderText('Select your role');
+        await user.click(roleSelect);
+        const roleOption = await screen.findByText('Software Engineer');
+        await user.click(roleOption);
+
+        const referralInput = await screen.findByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        await user.type(referralInput, '   ');
+
+        expect(submitButton).toBeDisabled();
+
+        let completionRequestCount = 0;
+        nock(BASE_API_URL)
+            .patch('/api/v1/user/me/complete')
+            .optionally()
+            .reply(() => {
+                completionRequestCount += 1;
+                return [200];
+            });
+
+        fireEvent.submit(screen.getByRole('form'));
+
+        await waitFor(() =>
+            expect(
+                screen.getByText((content) =>
+                    content.includes(
+                        'Please let us know how you heard about Lightdash',
+                    ),
+                ),
+            ).toBeInTheDocument(),
+        );
+        expect(completionRequestCount).toBe(0);
     });
 
     it('should redirect to the organization setup page when the flag is enabled and setup is incomplete', async () => {

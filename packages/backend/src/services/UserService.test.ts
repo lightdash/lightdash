@@ -421,6 +421,7 @@ describe('UserService', () => {
         test('does not track an absent answer', async () => {
             await userService.completeUserSetup(sessionUser, {
                 jobTitle: '',
+                howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
@@ -433,14 +434,19 @@ describe('UserService', () => {
                     isSetupComplete: true,
                     isTrackingAnonymized: false,
                     isMarketingOptedIn: true,
-                    howDidYouHearAboutUs: undefined,
+                    howDidYouHearAboutUs: 'a podcast',
                 },
             );
-            expect(vi.mocked(analyticsMock.track)).not.toHaveBeenCalledWith(
-                expect.objectContaining({
-                    event: 'hear_about_us.submitted',
-                }),
-            );
+            expect(vi.mocked(analyticsMock.track)).toHaveBeenCalledWith({
+                event: 'hear_about_us.submitted',
+                userId: sessionUser.userUuid,
+                properties: {
+                    organizationId: sessionUser.organizationUuid,
+                    onboardingFlow: 'legacy',
+                    answered: true,
+                    answer: 'a podcast',
+                },
+            });
         });
     });
 

@@ -11,7 +11,7 @@ import { useForm } from '@mantine/form';
 import { IconConfetti } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { type FC, useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -110,7 +110,11 @@ const UserCompletionModal: FC = () => {
                     form="complete_user"
                     loading={isLoading}
                     disabled={
-                        !(form.values.organizationName && form.values.jobTitle)
+                        !(
+                            form.values.organizationName &&
+                            form.values.jobTitle &&
+                            form.values.howDidYouHearAboutUs.trim()
+                        )
                     }
                 >
                     Next
@@ -150,6 +154,7 @@ const UserCompletionModal: FC = () => {
                         label="How did you hear about us?"
                         placeholder="Google, a colleague, a podcast..."
                         disabled={isLoading}
+                        required
                         {...form.getInputProps('howDidYouHearAboutUs')}
                     />
 
