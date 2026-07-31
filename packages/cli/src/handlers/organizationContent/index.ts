@@ -203,7 +203,17 @@ export const uploadOrganizationContent = async ({
                 `Processed custom roles: ${summaryMessage}`,
             );
         }
-        output.completeItem(summaryMessage);
+        if (summary.skipped && summary.skipped > 0) {
+            GlobalState.log(
+                styles.warning(
+                    'Skipped custom roles because they require a Lightdash Enterprise license.',
+                ),
+            );
+        }
+        output.completeItem(
+            summaryMessage,
+            summary.skipped && summary.skipped > 0 ? 'warning' : undefined,
+        );
         output.startItem('Users');
         const userSummary = await uploadUsers(
             organizationUuid,

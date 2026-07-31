@@ -49,9 +49,11 @@ import { UserModel } from '../../models/UserModel';
 import { wrapSentryTransaction } from '../../utils';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { LicenseService } from '../LicenseService/LicenseService';
 
 type RolesServiceArguments = {
     lightdashConfig: LightdashConfig;
+    licenseService: LicenseService;
     analytics: LightdashAnalytics;
     rolesModel: RolesModel;
     userModel: UserModel;
@@ -66,6 +68,8 @@ type RolesServiceArguments = {
 
 export class RolesService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
+
+    private readonly licenseService: LicenseService;
 
     private readonly analytics: LightdashAnalytics;
 
@@ -89,6 +93,7 @@ export class RolesService extends BaseService {
 
     constructor({
         lightdashConfig,
+        licenseService,
         analytics,
         rolesModel,
         userModel,
@@ -102,6 +107,7 @@ export class RolesService extends BaseService {
     }: RolesServiceArguments) {
         super({ serviceName: 'RolesService' });
         this.lightdashConfig = lightdashConfig;
+        this.licenseService = licenseService;
         this.analytics = analytics;
         this.rolesModel = rolesModel;
         this.userModel = userModel;
@@ -261,6 +267,14 @@ export class RolesService extends BaseService {
         }
     }
 
+    private assertCustomRolesLicensed(): void {
+        if (!this.licenseService.getLicenseStatus().valid) {
+            throw new ForbiddenError(
+                'Custom roles require a Lightdash Enterprise license',
+            );
+        }
+    }
+
     private static validateCustomRoleAsCode(role: CustomRoleAsCode): void {
         const expectedKeys = [
             'version',
@@ -341,6 +355,20 @@ export class RolesService extends BaseService {
         }
     }
 
+    private static normalizeLegacyCustomRoleLevel(
+        role: CustomRoleAsCode,
+    ): CustomRoleAsCode {
+        if (
+            role.level === 'project' &&
+            role.scopes.some(
+                (scopeName) => !isScopeAssignableAtLevel(scopeName, role.level),
+            )
+        ) {
+            return { ...role, level: 'organization' };
+        }
+        return role;
+    }
+
     private static validateCustomRoleLevel(
         role: Pick<Role, 'name' | 'level'>,
         level: RoleLevel,
@@ -404,6 +432,7 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         desiredRole: CustomRoleAsCode,
     ): Promise<ApiCustomRoleAsCodeUpsertResponse['results']> {
+        this.assertCustomRolesLicensed();
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateOrganizationAccess(
             account,
@@ -420,39 +449,48 @@ export class RolesService extends BaseService {
         const existingRole = existingRoles.find(
             (role) => role.name === desiredRole.name,
         );
+        const normalizedDesiredRole =
+            RolesService.normalizeLegacyCustomRoleLevel(desiredRole);
+        const effectiveDesiredRole =
+            existingRole?.level === desiredRole.level
+                ? desiredRole
+                : normalizedDesiredRole;
 
         if (!existingRole) {
             RolesService.validateScopesLevel(
-                desiredRole.scopes,
-                desiredRole.level,
+                effectiveDesiredRole.scopes,
+                effectiveDesiredRole.level,
             );
             await this.createRole(account, organizationUuid, {
-                name: desiredRole.name,
-                description: desiredRole.description ?? undefined,
-                level: desiredRole.level,
-                scopes: desiredRole.scopes,
+                name: effectiveDesiredRole.name,
+                description: effectiveDesiredRole.description ?? undefined,
+                level: effectiveDesiredRole.level,
+                scopes: effectiveDesiredRole.scopes,
             });
             return { action: PromotionAction.CREATE };
         }
 
-        if (existingRole.level !== desiredRole.level) {
+        if (existingRole.level !== effectiveDesiredRole.level) {
             throw new ParameterError(
-                `Cannot change custom role "${desiredRole.name}" level from ${existingRole.level} to ${desiredRole.level}. Create a new role instead.`,
+                `Cannot change custom role "${effectiveDesiredRole.name}" level from ${existingRole.level} to ${effectiveDesiredRole.level}. Create a new role instead.`,
             );
         }
 
         const existingScopes = new Set(existingRole.scopes);
-        const desiredScopes = new Set(desiredRole.scopes);
-        const scopesToAdd = desiredRole.scopes.filter(
+        const desiredScopes = new Set(effectiveDesiredRole.scopes);
+        const scopesToAdd = effectiveDesiredRole.scopes.filter(
             (scope) => !existingScopes.has(scope),
         );
         const scopesToRemove = existingRole.scopes
             .filter((scope) => !desiredScopes.has(scope))
             .sort();
         const descriptionChanged =
-            existingRole.description !== desiredRole.description;
+            existingRole.description !== effectiveDesiredRole.description;
 
-        RolesService.validateScopesLevel(scopesToAdd, desiredRole.level);
+        RolesService.validateScopesLevel(
+            scopesToAdd,
+            effectiveDesiredRole.level,
+        );
 
         if (
             scopesToAdd.length === 0 &&
@@ -468,7 +506,7 @@ export class RolesService extends BaseService {
             existingRole.roleUuid,
             {
                 ...(descriptionChanged
-                    ? { description: desiredRole.description }
+                    ? { description: effectiveDesiredRole.description }
                     : {}),
                 scopes: {
                     add: scopesToAdd,

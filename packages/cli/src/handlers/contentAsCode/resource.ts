@@ -55,6 +55,7 @@ export type CodeResourceUploadSummary = {
     created: number;
     updated: number;
     unchanged: number;
+    skipped?: number;
     failed: number;
     failures: CodeFileFailure[];
 };
@@ -283,10 +284,12 @@ export const uploadCodeResource = async <Document>({
     definition,
     basePath,
     upsert,
+    skipError,
 }: {
     definition: CodeResourceDefinition<Document>;
     basePath: string;
     upsert: (document: Document) => Promise<ContentAsCodeUpsertAction>;
+    skipError?: (error: unknown) => boolean;
 }): Promise<CodeResourceUploadSummary> => {
     const { files, failures } = await readCodeResourceFiles({
         definition,
@@ -303,9 +306,13 @@ export const uploadCodeResource = async <Document>({
         try {
             summary[getActionCountKey(await upsert(document))] += 1;
         } catch (error) {
-            summary.failures.push({
-                message: `Invalid ${definition.displayLabel} file "${filePath}": ${getErrorMessage(error)}`,
-            });
+            if (skipError?.(error)) {
+                summary.skipped = (summary.skipped ?? 0) + 1;
+            } else {
+                summary.failures.push({
+                    message: `Invalid ${definition.displayLabel} file "${filePath}": ${getErrorMessage(error)}`,
+                });
+            }
         }
     }
     summary.failed = summary.failures.length;

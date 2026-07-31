@@ -137,9 +137,7 @@ import {
     getFlatSpaceFileNames,
     getSpaceNames,
     getUniqueExistingSpaceFilePathsBySlug,
-    isSpaceAsCodeDownloadError,
     isSpaceAsCodeFetchError,
-    isSpaceAsCodeUploadError,
     logUploadChanges,
     readSpaceFiles,
     readSpaceNames,
@@ -1065,6 +1063,10 @@ const isExternalConnectionsUnavailableError = (error: unknown): boolean =>
     error instanceof LightdashError &&
     [403, 404, 422].includes(error.statusCode);
 
+const isAiAgentsUnavailableError = (error: unknown): boolean =>
+    error instanceof LightdashError &&
+    [403, 404, 422].includes(error.statusCode);
+
 const downloadExternalConnections = async (
     projectId: string,
     slugs: string[],
@@ -1288,6 +1290,7 @@ const getScheduledContentConfig = (
 const downloadAiAgents = async (
     projectId: string,
     ids: string[],
+    implicit: boolean,
     customPath?: string,
 ): Promise<number> => {
     const idQuery = ids.map((id) => ['ids', id] as [string, string]);
@@ -1296,35 +1299,50 @@ const downloadAiAgents = async (
     let downloaded = 0;
     const agents: AgentAsCode[] = [];
 
-    do {
-        const query = new URLSearchParams([
-            ...idQuery,
-            ['offset', String(offset)],
-        ]).toString();
-        const results = await lightdashApi<
-            ApiAgentAsCodeListResponse['results']
-        >({
-            method: 'GET',
-            url: `/api/v1/projects/${projectId}/code/aiAgents?${query}`,
-            body: undefined,
+    try {
+        do {
+            const query = new URLSearchParams([
+                ...idQuery,
+                ['offset', String(offset)],
+            ]).toString();
+            const results = await lightdashApi<
+                ApiAgentAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `/api/v1/projects/${projectId}/code/aiAgents?${query}`,
+                body: undefined,
+            });
+
+            agents.push(...results.agents);
+
+            results.missingIds.forEach((id) =>
+                GlobalState.debug(`No AI agent with id "${id}"`),
+            );
+            downloaded += results.agents.length;
+            offset = results.offset;
+            total = results.total;
+        } while (offset < total);
+
+        await writeCodeResourceDocuments({
+            definition: AI_AGENT_CODE_RESOURCE,
+            basePath: getDownloadFolder(customPath),
+            documents: agents,
+            pruneOtherDocuments: ids.length === 0,
         });
-
-        agents.push(...results.agents);
-
-        results.missingIds.forEach((id) =>
-            GlobalState.debug(`No AI agent with id "${id}"`),
-        );
-        downloaded += results.agents.length;
-        offset = results.offset;
-        total = results.total;
-    } while (offset < total);
-
-    await writeCodeResourceDocuments({
-        definition: AI_AGENT_CODE_RESOURCE,
-        basePath: getDownloadFolder(customPath),
-        documents: agents,
-        pruneOtherDocuments: ids.length === 0,
-    });
+    } catch (error) {
+        if (implicit && isAiAgentsUnavailableError(error)) {
+            GlobalState.log(
+                styles.warning(
+                    'Skipping AI agents: they require Lightdash Enterprise and AI agent access.',
+                ),
+            );
+            GlobalState.debug(
+                `Could not download AI agents: ${getErrorMessage(error)}`,
+            );
+            return 0;
+        }
+        throw error;
+    }
 
     return downloaded;
 };
@@ -1358,6 +1376,7 @@ const upsertAiAgents = async (
     changes: Record<string, number>,
     force: boolean,
     customPath?: string,
+    implicit: boolean = false,
 ): Promise<Record<string, number>> => {
     const agents = await readAiAgentFiles(customPath);
     const filteredAgents = slugs.length
@@ -1374,13 +1393,27 @@ const upsertAiAgents = async (
     }
     logContentAsCodeDiscovery(`Found ${filteredAgents.length} AI agent files`);
 
-    const results = await lightdashApi<ApiAgentAsCodeUpsertResponse['results']>(
-        {
+    let results: ApiAgentAsCodeUpsertResponse['results'];
+    try {
+        results = await lightdashApi<ApiAgentAsCodeUpsertResponse['results']>({
             method: 'POST',
             url: `/api/v1/projects/${projectId}/code/aiAgents?force=${force}`,
             body: JSON.stringify({ agents: filteredAgents }),
-        },
-    );
+        });
+    } catch (error) {
+        if (implicit && isAiAgentsUnavailableError(error)) {
+            GlobalState.log(
+                styles.warning(
+                    'Skipping AI agents: they require Lightdash Enterprise and AI agent access.',
+                ),
+            );
+            GlobalState.debug(
+                `Could not upload AI agents: ${getErrorMessage(error)}`,
+            );
+            return changes;
+        }
+        throw error;
+    }
 
     const counts = {
         'AI agents created': results.created.length,
@@ -1899,10 +1932,19 @@ export const downloadHandler = async (
         }
 
         if (!options.spacesOnly && shouldDownloadAiAgents(options)) {
+            const implicit =
+                includeAllOptionalContent &&
+                options.includeAgents !== true &&
+                options.agents.length === 0;
             await output.runItem({
                 label: 'AI agents',
                 action: () =>
-                    downloadAiAgents(projectId, options.agents, options.path),
+                    downloadAiAgents(
+                        projectId,
+                        options.agents,
+                        implicit,
+                        options.path,
+                    ),
                 detail: (total) => `${total} downloaded`,
             });
         }
@@ -2223,7 +2265,7 @@ export const downloadHandler = async (
                 error: `${error}`,
             },
         });
-        if (isSpaceAsCodeDownloadError(error)) throw error;
+        throw error;
     }
 };
 
@@ -2985,6 +3027,7 @@ export const uploadHandler = async (
                                 changes,
                                 options.force,
                                 options.path,
+                                options.agents.length === 0,
                             ),
                     });
                 } catch (error) {
@@ -3414,9 +3457,9 @@ export const uploadHandler = async (
                 error: getErrorMessage(error),
             },
         });
-        if (isSpaceAsCodeUploadError(error)) throw error;
         if (error instanceof AiAgentAsCodeUploadError)
             throw error.originalError;
+        throw error;
     }
 };
 
@@ -3426,7 +3469,9 @@ export const testHelpers = {
     getFlatSpaceFileNames,
     getDashboardChartSlugs,
     hasContentFilters,
+    isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
+    downloadAiAgents,
     readAiAgentFiles,
     readExternalConnectionFiles,
     readSpaceFiles,
@@ -3436,6 +3481,7 @@ export const testHelpers = {
     shouldDownloadAiAgents,
     sortSpaceFilesParentFirst,
     summarizeUploadChanges,
+    upsertAiAgents,
     upsertExternalConnections,
     upsertSpaces,
     upsertVirtualViews,
