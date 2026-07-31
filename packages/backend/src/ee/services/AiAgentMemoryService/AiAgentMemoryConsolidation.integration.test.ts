@@ -239,7 +239,7 @@ describe('AI agent memory consolidation integration', () => {
 
     /** Observes sweep enqueues without inserting real graphile jobs. */
     const stubSchedulerClient = () => ({
-        aiAgentMemoryDistill: vi.fn(async () => ({})),
+        aiAgentMemoryDistill: vi.fn(async () => ({ jobId: 'stub-job' })),
         aiAgentMemoryConsolidatePartition: vi.fn(async () => ({})),
     });
 

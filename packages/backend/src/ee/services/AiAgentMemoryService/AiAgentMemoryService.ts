@@ -123,7 +123,7 @@ export { type AiAgentMemoryConsolidateOutcome };
 type MemorySchedulerClient = {
     aiAgentMemoryDistill: (
         payload: AiAgentMemoryDistillJobPayload,
-    ) => Promise<unknown>;
+    ) => Promise<{ jobId: string }>;
     aiAgentMemoryConsolidatePartition: (
         payload: AiAgentMemoryConsolidatePartitionJobPayload,
     ) => Promise<unknown>;
@@ -626,6 +626,59 @@ export class AiAgentMemoryService extends BaseService {
     }
 
     /**
+     * Manual trigger for one thread: bypasses exactly the sweep's idle window
+     * and the watermark skip, and keeps every other eligibility check inside the
+     * distill job. Enqueues rather than running inline — the job carries the
+     * LLM timeout, abort handling and per-project serialisation.
+     */
+    async triggerThreadDistill(
+        user: SessionUser,
+        projectUuid: UUID,
+        threadUuid: UUID,
+    ): Promise<{ jobId: string }> {
+        const notFoundMessage = `Thread not found: ${threadUuid}`;
+        const organizationUuid = await this.getMemoryAccessContext(
+            user,
+            projectUuid,
+            notFoundMessage,
+        );
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { threadUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Cannot manage AI agents in this project');
+        }
+
+        // Also filters out preview projects and non-web/Slack threads, so an
+        // ineligible thread fails here instead of silently skipping in the job.
+        const thread =
+            await this.aiAgentMemoryModel.findThreadForDistill(threadUuid);
+        if (
+            !thread ||
+            thread.projectUuid !== projectUuid ||
+            thread.organizationUuid !== organizationUuid
+        ) {
+            throw new NotFoundError(notFoundMessage);
+        }
+
+        return this.schedulerClient.aiAgentMemoryDistill({
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            threadUuid: thread.threadUuid,
+            sweptUpdatedAt: thread.latestActivity.toISOString(),
+            force: true,
+        });
+    }
+
+    /**
      * Daily sweep over every eligible `(project, owner)` partition: one child
      * job per partition, mirroring the distill queue. The flag is checked per
      * organization here, so a flag-off organization costs nothing beyond the
@@ -1048,7 +1101,10 @@ export class AiAgentMemoryService extends BaseService {
             return 'skipped';
         }
 
+        // A manual trigger deliberately re-distills an up-to-date thread; the
+        // sweep must not, or every cron tick would re-pay for quiet threads.
         if (
+            !payload.force &&
             thread.distilledUpTo !== null &&
             thread.distilledUpTo.getTime() >= sweptUpdatedAt.getTime()
         ) {

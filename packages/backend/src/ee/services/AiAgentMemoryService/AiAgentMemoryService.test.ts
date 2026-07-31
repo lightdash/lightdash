@@ -4,6 +4,8 @@ import {
     DimensionType,
     FeatureFlags,
     FieldType,
+    ForbiddenError,
+    NotFoundError,
     ProjectType,
     SupportedDbtAdapter,
     type AnyType,
@@ -906,6 +908,158 @@ describe('AiAgentMemoryService', () => {
             'no_op',
         );
         expect(none.distillCall).toHaveBeenCalledOnce();
+    });
+
+    it('re-distills an up-to-date thread only when the trigger forces it', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const payload = {
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'current-user',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: activity.toISOString(),
+        };
+        const distillOutput = {
+            result: { type: 'no_op', reason: 'no_positive_evidence' },
+        };
+
+        const swept = build();
+        swept.findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: activity }),
+        );
+        await expect(swept.service.distillThread(payload)).resolves.toBe(
+            'skipped',
+        );
+        expect(swept.distillCall).not.toHaveBeenCalled();
+
+        const forced = build();
+        forced.findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: activity }),
+        );
+        forced.distillCall.mockResolvedValue(distillOutput);
+        await expect(
+            forced.service.distillThread({ ...payload, force: true }),
+        ).resolves.toBe('no_op');
+        expect(forced.distillCall).toHaveBeenCalledOnce();
+    });
+
+    it('forcing does not override the inactive-memory guard', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const {
+            service,
+            findThreadForDistill,
+            resolveSourceThreadMemoryState,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: activity }),
+        );
+        resolveSourceThreadMemoryState.mockResolvedValue('inactive');
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'current-user',
+                threadUuid: 'thread-enabled',
+                sweptUpdatedAt: activity.toISOString(),
+                force: true,
+            }),
+        ).resolves.toBe('skipped');
+        expect(distillCall).not.toHaveBeenCalled();
+    });
+
+    it('enqueues a forced distill carrying the thread’s own watermark', async () => {
+        const activity = new Date('2026-07-22T05:00:00.123Z');
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+        // Distinct from latestActivity so the assertion below can only pass on
+        // the thread's current activity, never on its watermark.
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, {
+                distilledUpTo: new Date('2026-07-21T00:00:00.000Z'),
+            }),
+        );
+        aiAgentMemoryDistill.mockResolvedValue({ jobId: 'job-1' });
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).resolves.toEqual({ jobId: 'job-1' });
+
+        expect(aiAgentMemoryDistill).toHaveBeenCalledWith({
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'current-user',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: '2026-07-22T05:00:00.123Z',
+            force: true,
+        });
+    });
+
+    it('refuses a manual distill from a project viewer who cannot manage agents', async () => {
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(findThreadForDistill).not.toHaveBeenCalled();
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
+    });
+
+    it('does not enqueue a manual distill for a thread outside the project', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { projectUuid: 'project-other' }),
+        );
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
+    });
+
+    it('does not enqueue a manual distill for a thread in another organization', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { organizationUuid: 'org-other' }),
+        );
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
+    });
+
+    it('reports a thread the distill query rejects as ineligible rather than crashing', async () => {
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+        // Preview projects, eval/scheduler threads and unknown uuids all land here.
+        findThreadForDistill.mockResolvedValue(undefined);
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-missing',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
     });
 
     it('skips without writing when the memory stops being active mid-distill', async () => {

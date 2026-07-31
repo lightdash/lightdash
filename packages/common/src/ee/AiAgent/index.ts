@@ -506,6 +506,10 @@ export type ApiUpdateAiAgentMemoryStatusRequest = {
 
 export type ApiUpdateAiAgentMemoryStatusResponse = ApiSuccessEmpty;
 
+export type ApiTriggerAiAgentMemoryDistillResponse = ApiSuccess<{
+    jobId: string;
+}>;
+
 export type ApiAiAgentAvatarUploadResponse = ApiSuccess<AiAgent>;
 
 export type ApiAiAgentSummaryResponse = {
