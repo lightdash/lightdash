@@ -1,3 +1,16 @@
+# [1.52.0](https://github.com/lightdash/lightdash/compare/1.51.1...1.52.0) (2026-07-31)
+
+
+### Bug Fixes
+
+* pin sandbox CLI to server version for agent onboarding ([#26611](https://github.com/lightdash/lightdash/issues/26611)) ([6647ea4](https://github.com/lightdash/lightdash/commit/6647ea4e39689a22fe69005f5ba8d01f5a900aa7))
+* remove instance volumes by name in destroy, compose down -v cannot reach them ([#26578](https://github.com/lightdash/lightdash/issues/26578)) ([56c9c0c](https://github.com/lightdash/lightdash/commit/56c9c0cc2c09dc2eaab091ca70aa076c117c9bd5))
+
+
+### Features
+
+* offer a demo project during agent onboarding runs and toast on completion ([#26549](https://github.com/lightdash/lightdash/issues/26549)) ([e160d30](https://github.com/lightdash/lightdash/commit/e160d30bd13dba62d9915578ad44edef4830da9c))
+
 ## [1.51.1](https://github.com/lightdash/lightdash/compare/1.51.0...1.51.1) (2026-07-31)
 
 

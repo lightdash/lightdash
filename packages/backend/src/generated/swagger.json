@@ -44722,6 +44722,18 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "PlaygroundProjectTrigger": {
+                "type": "string",
+                "enum": ["invite_expert", "agent_onboarding_wait"]
+            },
+            "EnsurePlaygroundProjectRequest": {
+                "properties": {
+                    "trigger": {
+                        "$ref": "#/components/schemas/PlaygroundProjectTrigger"
+                    }
+                },
+                "type": "object"
+            },
             "ImpersonationOrganizationSettings": {
                 "properties": {
                     "impersonationEnabled": {
@@ -51539,7 +51551,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.51.1",
+        "version": "1.52.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -76152,7 +76164,17 @@
                 "summary": "Ensure playground project",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": []
+                "parameters": [],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EnsurePlaygroundProjectRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org/impersonation": {
