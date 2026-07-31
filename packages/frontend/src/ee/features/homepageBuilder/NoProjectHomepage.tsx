@@ -7,18 +7,15 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import PageSpinner from '../../../components/PageSpinner';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../../providers/App/useApp';
 import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
 import { RecommendedActionsChecklist } from './blocks/RecommendedActionsChecklist';
 import { useRecommendedActions } from './blocks/useRecommendedActions';
 import { DayOneAskInput } from './DayOneAskInput';
-import { getGreeting } from './greeting';
 import layout from './homepageLayout.module.css';
 import HomepageStars from './HomepageStars';
 import { useHomepageBuilderFlag } from './hooks/useProjectHomepage';
 
 const NoProjectHomepage: FC = () => {
-    const { user } = useApp();
     const { data: organization, isInitialLoading } = useOrganization();
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const homepageBuilderFlag = useHomepageBuilderFlag();
@@ -58,7 +55,7 @@ const NoProjectHomepage: FC = () => {
                 <Box className={`${layout.hero} ${layout.heroStageContent}`}>
                     <Stack gap={16} align="center" w="100%">
                         <Text component="h1" className={layout.heroGreeting}>
-                            {getGreeting(user.data?.firstName)}.
+                            Let's get started
                         </Text>
                         {isCopilotEnabled ? (
                             <Box w="100%">

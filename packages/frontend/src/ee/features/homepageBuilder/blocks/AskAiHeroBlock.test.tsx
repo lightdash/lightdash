@@ -12,8 +12,21 @@ vi.mock('../../aiCopilot/hooks/useAiAgentsButtonVisibility', () => ({
 vi.mock('../../../../providers/App/useApp', () => ({
     default: () => ({ user: { data: { firstName: 'Test' } } }),
 }));
+const state = vi.hoisted(() => ({
+    isLoading: false,
+    isWarehouseConnected: true,
+}));
+
 vi.mock('./useRecommendedActions', () => ({
-    useRecommendedActions: () => ({ hasPendingActions: false }),
+    useRecommendedActions: () => ({
+        hasPendingActions: false,
+        isLoading: state.isLoading,
+        statuses: {
+            'connect-warehouse': {
+                isComplete: state.isWarehouseConnected,
+            },
+        },
+    }),
 }));
 
 const block: HomepageAskAiHeroBlock = {
@@ -26,6 +39,11 @@ const wrap = (ui: React.ReactNode) =>
     render(<MantineProvider>{ui}</MantineProvider>);
 
 describe('AskAiHeroBlockView', () => {
+    beforeEach(() => {
+        state.isLoading = false;
+        state.isWarehouseConnected = true;
+    });
+
     it('greets in the hero slot', () => {
         wrap(
             <AskAiHeroBlockView
@@ -64,6 +82,38 @@ describe('AskAiHeroBlockView', () => {
             />,
         );
         expect(screen.queryByText(/What do you want to know/)).toBeNull();
+        expect(screen.getByTestId('ask-input')).toBeInTheDocument();
+    });
+
+    it('uses the getting started heading before a warehouse is connected', () => {
+        state.isWarehouseConnected = false;
+
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={block}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(
+            screen.getByRole('heading', { name: "Let's get started" }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/What do you want to know/)).toBeNull();
+    });
+
+    it('holds the heading area while the warehouse status is loading', () => {
+        state.isLoading = true;
+
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={block}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.queryByRole('heading')).toBeNull();
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
     });
 });
