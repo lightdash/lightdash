@@ -1,3 +1,10 @@
+# [1.57.0](https://github.com/lightdash/lightdash/compare/1.56.1...1.57.0) (2026-07-31)
+
+
+### Features
+
+* **table-calcs:** surface available fields in the formula editor reference bar ([#26649](https://github.com/lightdash/lightdash/issues/26649)) ([4e2ae5c](https://github.com/lightdash/lightdash/commit/4e2ae5cf460fb282a7c050b3b9ed0f7ce6fa9a28))
+
 ## [1.56.1](https://github.com/lightdash/lightdash/compare/1.56.0...1.56.1) (2026-07-31)
 
 
