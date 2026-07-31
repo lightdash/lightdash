@@ -22,7 +22,7 @@ import {
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { type FC, type FormEvent, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -232,17 +232,24 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     const stepLabel = isWorkspaceStep ? 'Set up your workspace' : 'About you';
     const displayStep = showWorkspaceStep ? step : 1;
 
-    const handleSubmit = form.onSubmit((values) => {
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
         if (isWorkspaceStep) {
-            if (values.organizationName.trim()) {
-                track({
-                    name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
-                    properties: { step: 'workspace' },
-                });
-                setStep(2);
-            }
+            if (!form.values.organizationName.trim()) return;
+
+            track({
+                name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
+                properties: { step: 'workspace' },
+            });
+            setStep(2);
             return;
         }
+
+        const result = form.validate();
+        if (result.hasErrors) return;
+
+        const values = form.values;
 
         track({
             name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
@@ -290,7 +297,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                 fonts: detectedBrand?.fonts ?? [],
             });
         }
-    });
+    };
 
     const logoTileInitial = (form.values.organizationName || '?')
         .charAt(0)
@@ -449,6 +456,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     label="How did you hear about us?"
                                     placeholder="Google, a colleague, a podcast..."
                                     size="md"
+                                    required
                                     {...form.getInputProps(
                                         'howDidYouHearAboutUs',
                                     )}
