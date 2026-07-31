@@ -2,9 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { subscribeToDeepResearchComposerPrompt } from '../deepResearch/deepResearchRegistry';
+import {
+    registerDeepResearchRun,
+    subscribeToDeepResearchComposerPrompt,
+} from '../deepResearch/deepResearchRegistry';
 import { type DeepResearchRunRegistration } from '../deepResearch/types';
 import {
+    useHasActiveDeepResearchRun,
     useDeepResearchRun,
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
@@ -172,6 +176,74 @@ describe('useStartDeepResearchMutation', () => {
             }),
         ]);
         unsubscribe();
+    });
+});
+
+describe('useHasActiveDeepResearchRun', () => {
+    afterEach(() => {
+        window.localStorage.clear();
+        lightdashApiMock.mockReset();
+    });
+
+    it('reports an active persisted run in the current thread', async () => {
+        lightdashApiMock.mockResolvedValue([getRun('running')]);
+
+        const { result } = renderHook(
+            () =>
+                useHasActiveDeepResearchRun({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(result.current).toBe(true));
+    });
+
+    it('reports no active run after a terminal state', async () => {
+        lightdashApiMock.mockResolvedValue([getRun('completed')]);
+
+        const { result } = renderHook(
+            () =>
+                useHasActiveDeepResearchRun({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-1',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        await waitFor(() => expect(lightdashApiMock).toHaveBeenCalledOnce());
+        expect(result.current).toBe(false);
+    });
+
+    it('includes an optimistic start only in its own thread', async () => {
+        lightdashApiMock.mockResolvedValue([]);
+        registerDeepResearchRun({
+            ...registration,
+            runUuid: 'starting-run',
+            threadUuid: 'thread-with-run',
+            state: 'starting',
+        });
+
+        const currentThread = renderHook(
+            () =>
+                useHasActiveDeepResearchRun({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-with-run',
+                }),
+            { wrapper: getWrapper() },
+        );
+        const otherThread = renderHook(
+            () =>
+                useHasActiveDeepResearchRun({
+                    projectUuid: 'project-1',
+                    threadUuid: 'thread-without-run',
+                }),
+            { wrapper: getWrapper() },
+        );
+
+        expect(currentThread.result.current).toBe(true);
+        expect(otherThread.result.current).toBe(false);
     });
 });
 
