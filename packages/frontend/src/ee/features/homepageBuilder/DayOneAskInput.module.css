@@ -4,6 +4,18 @@
     font-size: var(--mantine-font-size-md) !important;
 }
 
+/* The composer's own footprint, reserved while agents and preferences land, so
+   the hint and chip row under it never get shoved. AgentChatInput drops to its
+   minimal chrome (no agent selector) when there is no project to ask about,
+   which is 40px shorter. */
+.inputHold {
+    height: 126px;
+}
+
+.inputHoldMinimal {
+    height: 86px;
+}
+
 /* One chip-line of height reserved up front (pill: 12px text + 8px padding =
    26px) so late-arriving chips don't shove the composer. */
 .pillRow {

@@ -27,6 +27,18 @@ import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
 
 const DEFAULT_CTA_LABEL = 'Set up';
 
+// A query whose `enabled` comes from another query's answer sits idle — not
+// loading, not resolved — until that answer lands, and an idle query reports
+// exactly the same `isInitialLoading` as a finished one. Reading idle as
+// settled is what makes readiness go ready → not ready → ready as each gate
+// opens. A term is instead pending until its gate is known, and then until the
+// query it gates has come back; a closed gate rules the term out for good, so
+// the predicate can only ever travel pending → settled.
+const isTermPending = (
+    isGateOpen: boolean | undefined,
+    query: { isFetched: boolean },
+) => isGateOpen === undefined || (isGateOpen && !query.isFetched);
+
 export type ActionStatus = {
     isVisible: boolean;
     isComplete: boolean;
@@ -58,6 +70,8 @@ const useActionStatuses = (
     const codingAgentOnboardingFlag = useServerFeatureFlag(
         FeatureFlags.CodingAgentOnboarding,
     );
+    const areFlagsSettled =
+        newOnboardingFlag.isFetched && codingAgentOnboardingFlag.isFetched;
     const hasAgentSemanticLayerEntry =
         newOnboardingFlag.data?.enabled === true &&
         codingAgentOnboardingFlag.data?.enabled === true;
@@ -70,8 +84,10 @@ const useActionStatuses = (
     );
     const activeAgentRun = activeAgentRunQuery.data ?? null;
 
+    const isHealthSettled = health.isFetched;
     const hasGithub = !!health.data?.hasGithub;
     const hasGitlab = !!health.data?.hasGitlab;
+    const hasSlack = !!health.data?.hasSlack;
     const gitlabQuery = useGitlabRepositories({
         enabled: hasGitlab,
     });
@@ -79,16 +95,28 @@ const useActionStatuses = (
     const isGithubConnected = githubConfig?.enabled === true;
 
     // Every step defaults to incomplete, so rendering before these have
-    // settled flashes steps that are already done
+    // settled flashes steps that are already done. Health decides which
+    // integrations are even in play and the flags decide whether the agent run
+    // is looked up, so those answers gate the terms below rather than each
+    // query's own idle state.
     const isLoading =
-        health.isInitialLoading ||
-        organizationQuery.isInitialLoading ||
-        projectQuery.isInitialLoading ||
-        projectsQuery.isInitialLoading ||
-        (hasGithub && githubConfigQuery.isInitialLoading) ||
-        (hasGitlab && gitlabQuery.isInitialLoading) ||
-        activeAgentRunQuery.isInitialLoading ||
-        (!!health.data?.hasSlack && slackQuery.isInitialLoading);
+        isTermPending(true, health) ||
+        isTermPending(true, organizationQuery) ||
+        isTermPending(!!projectUuid, projectQuery) ||
+        isTermPending(true, projectsQuery) ||
+        isTermPending(
+            isHealthSettled ? hasGithub : undefined,
+            githubConfigQuery,
+        ) ||
+        isTermPending(isHealthSettled ? hasGitlab : undefined, gitlabQuery) ||
+        isTermPending(isHealthSettled ? hasSlack : undefined, slackQuery) ||
+        isTermPending(
+            areFlagsSettled
+                ? !!projectUuid && hasAgentSemanticLayerEntry
+                : undefined,
+            activeAgentRunQuery,
+        ) ||
+        !areFlagsSettled;
 
     const dbtConnection = project?.dbtConnection;
     const hasSemanticLayer =
@@ -160,7 +188,7 @@ const useActionStatuses = (
                 ctaLabel: DEFAULT_CTA_LABEL,
             },
             'connect-slack': {
-                isVisible: !!health.data?.hasSlack,
+                isVisible: hasSlack,
                 isComplete: isSlackConnected,
                 annotation: slack?.slackTeamName ?? 'Connected',
                 doneIcon: null,
@@ -173,7 +201,8 @@ const useActionStatuses = (
 
 export const useRecommendedActions = (projectUuid: string | null) => {
     const { user } = useApp();
-    const { statuses, isLoading } = useActionStatuses(projectUuid);
+    const { statuses, isLoading: areStatusesLoading } =
+        useActionStatuses(projectUuid);
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
     const { data: project } = useProject(projectUuid ?? undefined);
     const isPlaygroundProject = isPlaygroundProvisioningSource(
@@ -198,6 +227,11 @@ export const useRecommendedActions = (projectUuid: string | null) => {
         enabled: canManageProject,
     });
 
+    // Skips are the last thing the checklist needs, so they belong in the same
+    // readiness answer — a caller that revealed on statuses alone would still
+    // have the checklist arrive in a wave of its own.
+    const isLoading = areStatusesLoading || skippedActionsLoading;
+
     // The playground is a throwaway sample-data project — the setup checklist
     // has no place there, so nothing is offered and the block hides itself.
     const visibleActions = isPlaygroundProject
@@ -207,7 +241,6 @@ export const useRecommendedActions = (projectUuid: string | null) => {
     const hasPendingActions =
         newOnboardingFlag.data?.enabled === true &&
         !isLoading &&
-        !skippedActionsLoading &&
         canManageProject &&
         visibleActions.some(
             (key) => !statuses[key].isComplete && !skippedActionKeys.has(key),

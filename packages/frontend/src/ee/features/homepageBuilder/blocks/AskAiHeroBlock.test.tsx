@@ -15,12 +15,14 @@ vi.mock('../../../../providers/App/useApp', () => ({
 const state = vi.hoisted(() => ({
     isLoading: false,
     isWarehouseConnected: true,
+    hasPendingActions: false,
 }));
 
 vi.mock('./useRecommendedActions', () => ({
     useRecommendedActions: () => ({
-        hasPendingActions: false,
+        hasPendingActions: state.hasPendingActions,
         isLoading: state.isLoading,
+        visibleActions: ['connect-warehouse'],
         statuses: {
             'connect-warehouse': {
                 isComplete: state.isWarehouseConnected,
@@ -29,10 +31,22 @@ vi.mock('./useRecommendedActions', () => ({
     }),
 }));
 
+vi.mock('./RecommendedActionsChecklist', () => ({
+    RecommendedActionsChecklist: () => <div data-testid="setup-checklist" />,
+    RecommendedActionsChecklistPlaceholder: () => (
+        <div data-testid="setup-checklist-hold" />
+    ),
+}));
+
 const block: HomepageAskAiHeroBlock = {
     id: 'b1',
     type: 'ask-ai-hero',
     config: { showGreeting: true },
+};
+
+const blockWithChecklist: HomepageAskAiHeroBlock = {
+    ...block,
+    config: { showGreeting: true, showRecommendedActions: true },
 };
 
 const wrap = (ui: React.ReactNode) =>
@@ -42,6 +56,7 @@ describe('AskAiHeroBlockView', () => {
     beforeEach(() => {
         state.isLoading = false;
         state.isWarehouseConnected = true;
+        state.hasPendingActions = false;
     });
 
     it('greets in the hero slot', () => {
@@ -115,6 +130,42 @@ describe('AskAiHeroBlockView', () => {
 
         expect(screen.queryByRole('heading')).toBeNull();
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
+    });
+
+    it('holds the heading and the checklist on the same answer', () => {
+        state.isLoading = true;
+        state.hasPendingActions = false;
+
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={blockWithChecklist}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.queryByRole('heading')).toBeNull();
+        expect(screen.getByTestId('setup-checklist-hold')).toBeInTheDocument();
+        expect(screen.queryByTestId('setup-checklist')).toBeNull();
+        // The composer keeps fetching behind its own hold rather than waiting
+        // for the reveal to start
+        expect(screen.getByTestId('ask-input')).toBeInTheDocument();
+    });
+
+    it('reveals the heading and the checklist together', () => {
+        state.hasPendingActions = true;
+
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={blockWithChecklist}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.getByRole('heading')).toBeInTheDocument();
+        expect(screen.getByTestId('setup-checklist')).toBeInTheDocument();
+        expect(screen.queryByTestId('setup-checklist-hold')).toBeNull();
     });
 });
 

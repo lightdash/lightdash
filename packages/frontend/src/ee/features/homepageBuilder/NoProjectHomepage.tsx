@@ -8,9 +8,12 @@ import PageSpinner from '../../../components/PageSpinner';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
-import { RecommendedActionsChecklist } from './blocks/RecommendedActionsChecklist';
+import {
+    RecommendedActionsChecklist,
+    RecommendedActionsChecklistPlaceholder,
+} from './blocks/RecommendedActionsChecklist';
 import { useRecommendedActions } from './blocks/useRecommendedActions';
-import { DayOneAskInput } from './DayOneAskInput';
+import { DayOneAskInput, DayOneAskInputPlaceholder } from './DayOneAskInput';
 import layout from './homepageLayout.module.css';
 import HomepageStars from './HomepageStars';
 import { useHomepageBuilderFlag } from './hooks/useProjectHomepage';
@@ -23,11 +26,12 @@ const NoProjectHomepage: FC = () => {
         useIsCopilotEnabled();
     const actions = useRecommendedActions(null);
 
+    // The redirects come first and each still waits for its own input, so a
+    // viewer who is about to be sent elsewhere never sees a frame of this page.
     if (
         isInitialLoading ||
         orgSetupPageFlag.isLoading ||
-        homepageBuilderFlag.isLoading ||
-        isCopilotLoading
+        homepageBuilderFlag.isLoading
     ) {
         return <PageSpinner />;
     }
@@ -44,6 +48,12 @@ const NoProjectHomepage: FC = () => {
         return <Navigate to="/" replace />;
     }
 
+    // Past the redirects the page is ours to paint, so the rest of the wait is
+    // held in place rather than behind a spinner: one answer covers which hero
+    // the org gets and what the checklist has to say, and the greeting above
+    // never moves because both regions keep their height throughout.
+    const isReady = !isCopilotLoading && !actions.isLoading;
+
     // Without copilot the composer would be a teaser for something the org
     // can't use — connecting a warehouse becomes the headline act instead.
     const connectWarehouse = actions.statuses['connect-warehouse'];
@@ -57,7 +67,17 @@ const NoProjectHomepage: FC = () => {
                         <Text component="h1" className={layout.heroGreeting}>
                             Let's get started
                         </Text>
-                        {isCopilotEnabled ? (
+                        {!isReady ? (
+                            // Held at the composer's footprint: it is the
+                            // opening this page is designed around, so the
+                            // common path resolves without moving at all.
+                            <Box w="100%">
+                                <DayOneAskInputPlaceholder
+                                    projectUuid={null}
+                                    hideSuggestions
+                                />
+                            </Box>
+                        ) : isCopilotEnabled ? (
                             <Box w="100%">
                                 <DayOneAskInput
                                     projectUuid={null}
@@ -86,8 +106,16 @@ const NoProjectHomepage: FC = () => {
                                 )}
                             </Stack>
                         )}
-                        {actions.hasPendingActions && (
-                            <RecommendedActionsChecklist actions={actions} />
+                        {isReady ? (
+                            actions.hasPendingActions && (
+                                <RecommendedActionsChecklist
+                                    actions={actions}
+                                />
+                            )
+                        ) : (
+                            <RecommendedActionsChecklistPlaceholder
+                                actionCount={actions.visibleActions.length}
+                            />
                         )}
                     </Stack>
                 </Box>

@@ -13,7 +13,10 @@ import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsBut
 import { DayOneAskInput } from '../DayOneAskInput';
 import { getGreeting } from '../greeting';
 import layout from '../homepageLayout.module.css';
-import { RecommendedActionsChecklist } from './RecommendedActionsChecklist';
+import {
+    RecommendedActionsChecklist,
+    RecommendedActionsChecklistPlaceholder,
+} from './RecommendedActionsChecklist';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 import { useRecommendedActions } from './useRecommendedActions';
 
@@ -36,25 +39,39 @@ export const AskAiHero: FC<{
 }) => {
     const { user } = useApp();
     const actions = useRecommendedActions(projectUuid);
-    const showChecklist = showRecommendedActions && actions.hasPendingActions;
+    // One answer for the whole hero: the greeting's wording and whether there
+    // is a checklist at all come from the same statuses, so they arrive
+    // together or not at all. The composer holds its own slot from the first
+    // render — gating its mount here would stop it fetching until the reveal
+    // and land it a beat late.
+    const isReady = !actions.isLoading;
     const isWarehouseConnected =
         actions.statuses['connect-warehouse'].isComplete;
     return (
         <Stack gap={16} align="center" w="100%">
             {showGreeting &&
-                (actions.isLoading ? (
-                    <Skeleton h={34} w={320} radius="sm" />
-                ) : (
+                (isReady ? (
                     <Text component="h1" className={layout.heroGreeting}>
                         {isWarehouseConnected
                             ? `${getGreeting(user.data?.firstName)}. What do you want to know?`
                             : "Let's get started"}
                     </Text>
+                ) : (
+                    <Skeleton h={34} w={320} radius="sm" />
                 ))}
             <Box w="100%">
                 <DayOneAskInput projectUuid={projectUuid} preview={preview} />
             </Box>
-            {showChecklist && <RecommendedActionsChecklist actions={actions} />}
+            {showRecommendedActions &&
+                (isReady ? (
+                    actions.hasPendingActions && (
+                        <RecommendedActionsChecklist actions={actions} />
+                    )
+                ) : (
+                    <RecommendedActionsChecklistPlaceholder
+                        actionCount={actions.visibleActions.length}
+                    />
+                ))}
         </Stack>
     );
 };
