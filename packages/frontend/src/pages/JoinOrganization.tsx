@@ -13,6 +13,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import AuthLayout from '../components/common/AuthLayout';
+import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import PageSpinner from '../components/PageSpinner';
@@ -25,6 +26,7 @@ import styles from './JoinOrganization.module.css';
 
 const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();
+    const { isNewLayout } = useAuthLayoutVariant();
     const navigate = useNavigate();
     const { isInitialLoading: isLoadingAllowedOrgs, data: allowedOrgs } =
         useAllowedOrganizations();
@@ -75,24 +77,30 @@ const JoinOrganizationPage: FC = () => {
     const disabled = isCreatingOrg || isJoiningOrg;
 
     if (createOrgError) {
-        return (
+        const errorState = (
+            <SuboptimalState
+                icon={IconAlertCircle}
+                title="Error"
+                description={createOrgError.error.message}
+                action={
+                    <Button onClick={() => deleteUser()}>
+                        Cancel registration
+                    </Button>
+                }
+            />
+        );
+
+        return isNewLayout ? (
+            <AuthLayout pageTitle="Join a workspace" withLegacyCard={false}>
+                {errorState}
+            </AuthLayout>
+        ) : (
             <Page
                 title="Join a workspace"
                 withCenteredContent
                 withNavbar={false}
             >
-                <Stack mt="4xl">
-                    <SuboptimalState
-                        icon={IconAlertCircle}
-                        title="Error"
-                        description={createOrgError.error.message}
-                        action={
-                            <Button onClick={() => deleteUser()}>
-                                Cancel registration
-                            </Button>
-                        }
-                    />
-                </Stack>
+                <Stack mt="4xl">{errorState}</Stack>
             </Page>
         );
     }
