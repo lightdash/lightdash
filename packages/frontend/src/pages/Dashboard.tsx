@@ -47,7 +47,7 @@ import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAge
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
-import useFullscreen from '../providers/Fullscreen/useFullscreen';
+import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
 import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
@@ -226,8 +226,8 @@ const Dashboard: FC = () => {
     const {
         enabled: isFullScreenFeatureEnabled,
         isFullscreen,
-        toggleFullscreen,
-    } = useFullscreen();
+        handleToggleFullscreen,
+    } = useNativeFullscreenToggle();
     const { user } = useApp();
     const { showToastError } = useToaster();
 
@@ -407,44 +407,6 @@ const Dashboard: FC = () => {
         dashboardTabs,
         activeTab,
     ]);
-
-    const handleToggleFullscreen = useCallback(async () => {
-        if (!isFullScreenFeatureEnabled) return;
-
-        const willBeFullscreen = !isFullscreen;
-
-        if (document.fullscreenElement && !willBeFullscreen) {
-            await document.exitFullscreen();
-        } else if (
-            document.fullscreenEnabled &&
-            !document.fullscreenElement &&
-            willBeFullscreen
-        ) {
-            await document.documentElement.requestFullscreen();
-        }
-
-        toggleFullscreen();
-    }, [isFullScreenFeatureEnabled, isFullscreen, toggleFullscreen]);
-
-    useEffect(() => {
-        if (!isFullScreenFeatureEnabled) return;
-
-        const onFullscreenChange = () => {
-            if (isFullscreen && !document.fullscreenElement) {
-                toggleFullscreen(false);
-            } else if (!isFullscreen && document.fullscreenElement) {
-                toggleFullscreen(true);
-            }
-        };
-
-        document.addEventListener('fullscreenchange', onFullscreenChange);
-
-        return () =>
-            document.removeEventListener(
-                'fullscreenchange',
-                onFullscreenChange,
-            );
-    });
 
     const handleParameterChange = useDashboardContext((c) => c.setParameter);
 

@@ -74,6 +74,10 @@ type Props = {
      *  "Preview latest" in the builder, "Continue building" in the viewer.
      *  Rendered at the top of the menu; pass null to omit it. */
     navItem: ReactNode;
+    /** Fullscreen/presentation toggle, rendered between the refresh button
+     *  and the overflow menu to match the dashboard header's ordering. Pass
+     *  null on surfaces without it (the builder). */
+    fullscreenToggle: ReactNode;
     /** Builder-only action that captures the live preview and saves it as the
      *  app thumbnail. Pass null on surfaces without a capture pipeline (the
      *  viewer). Disabled until the iframe announces screenshot capability. */
@@ -116,6 +120,7 @@ const AppHeaderActions: FC<Props> = ({
     onViewNetwork,
     onDeleted,
     navItem,
+    fullscreenToggle,
     captureThumbnail,
     capturePreviewScreenshot,
     upgrade,
@@ -246,6 +251,7 @@ const AppHeaderActions: FC<Props> = ({
                     <MantineIcon icon={IconRefresh} size={16} />
                 </ActionIcon>
             </Tooltip>
+            {fullscreenToggle}
             <Menu
                 position="bottom-end"
                 shadow="md"
