@@ -3147,6 +3147,7 @@ export const uploadHandler = async (
 
         let appsCreated = 0;
         let appsUpdated = 0;
+        let appsUnchanged = 0;
         let appsFailed = 0;
         let appsSkipped = 0;
         const changesBeforeApps = { ...changes };
@@ -3324,6 +3325,7 @@ export const uploadHandler = async (
 
                     const body = buildImportBody(codeToUpload, projectId, {
                         createNew: options.createNew === true,
+                        force: options.force,
                     });
 
                     // eslint-disable-next-line no-await-in-loop
@@ -3342,19 +3344,28 @@ export const uploadHandler = async (
                         GlobalState.log(styles.warning(warning)),
                     );
 
-                    if (action === 'create') {
-                        appsCreated += 1;
+                    if (action === 'unchanged') {
+                        appsUnchanged += 1;
+                        GlobalState.log(
+                            styles.secondary(
+                                `"${code.manifest.name}" matches v${version} — skipped, no rebuild. Pass --force to rebuild anyway.`,
+                            ),
+                        );
                     } else {
-                        appsUpdated += 1;
-                    }
+                        if (action === 'create') {
+                            appsCreated += 1;
+                        } else {
+                            appsUpdated += 1;
+                        }
 
-                    const actionLabel =
-                        action === 'create' ? 'created' : 'updated';
-                    GlobalState.log(
-                        styles.success(
-                            `Uploaded "${code.manifest.name}" — ${actionLabel} v${version} (${appUuid}). Building in the background; the app will show "building" until the server finishes.`,
-                        ),
-                    );
+                        const actionLabel =
+                            action === 'create' ? 'created' : 'updated';
+                        GlobalState.log(
+                            styles.success(
+                                `Uploaded "${code.manifest.name}" — ${actionLabel} v${version} (${appUuid}). Building in the background; the app will show "building" until the server finishes.`,
+                            ),
+                        );
+                    }
 
                     if (code.manifest.slug === undefined) {
                         GlobalState.log(
@@ -3410,6 +3421,8 @@ export const uploadHandler = async (
 
             if (appsCreated > 0) changes['data apps created'] = appsCreated;
             if (appsUpdated > 0) changes['data apps updated'] = appsUpdated;
+            if (appsUnchanged > 0)
+                changes['data apps unchanged'] = appsUnchanged;
             if (appsFailed > 0) changes['data apps failed'] = appsFailed;
             if (appsSkipped > 0) changes['data apps skipped'] = appsSkipped;
             const appSummary = summarizeUploadChanges(

@@ -102,12 +102,17 @@ export type ImportAppCodeRequestBody = {
     // Force-create a new app (with a fresh generated slug) even when the
     // manifest slug matches an existing app in the target project (--create-new).
     createNew?: boolean;
+    // Build a new version even when the bundle is identical to the app's
+    // latest version (--force). Servers predating the unchanged check ignore it.
+    force?: boolean;
 };
 
 export type ApiImportAppCodeResponse = ApiSuccess<{
     appUuid: string;
     version: number;
-    action: 'create' | 'append';
+    // 'unchanged' = the bundle matched the app's latest version, so no new
+    // version was created and no build ran; `version` is the matched version.
+    action: 'create' | 'append' | 'unchanged';
     // The app's project-scoped slug, so the CLI can tell pre-slug bundles what to add.
     slug: string;
     // Non-fatal issues the CLI should surface (e.g. a manifest link whose

@@ -1,3 +1,4 @@
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import {
     FeatureFlags,
     ForbiddenError,
@@ -8,7 +9,8 @@ import {
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
-import { extract as tarExtract } from 'tar-stream';
+import { Readable } from 'node:stream';
+import { extract as tarExtract, pack as tarPack } from 'tar-stream';
 import { AppGenerateService } from './AppGenerateService';
 import { TEMPLATE_DEPENDENCIES } from './templateDependencies';
 
@@ -811,6 +813,214 @@ describe('AppGenerateService.importAppCode', () => {
         });
 
         expect(entryNames).toEqual(['src/App.jsx']);
+    });
+});
+
+describe('AppGenerateService.importAppCode unchanged skip', () => {
+    const existingApp = {
+        app_id: EXISTING_APP_UUID,
+        project_uuid: PROJECT_UUID,
+        space_uuid: null,
+        created_by_user_uuid: USER_UUID,
+        organization_uuid: PROJECT_ORG_UUID,
+        name: 'Test App',
+        description: 'A test app',
+        slug: EXISTING_APP_SLUG,
+        template: null,
+    };
+    const readyVersion = {
+        version: 4,
+        status: 'ready',
+        dependencies: null,
+        viz_schema: null,
+    };
+
+    const makeSourceTar = (files: { path: string; content: string }[]) =>
+        new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+            files.forEach((file) =>
+                packer.entry({ name: file.path }, file.content),
+            );
+            packer.finalize();
+        });
+
+    // The tar equivalent of makeCode()'s default src files
+    const makeMatchingSourceTar = () =>
+        makeSourceTar([
+            { path: 'src/index.tsx', content: 'hello' },
+            { path: 'src/App.tsx', content: 'world' },
+        ]);
+
+    const mockStoredSourceTar = (tarBuffer: Buffer) => {
+        s3SendSpy.mockImplementation(async (command: unknown) =>
+            command instanceof GetObjectCommand
+                ? { Body: Readable.from([tarBuffer]) }
+                : {},
+        );
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        s3SendSpy.mockResolvedValue({});
+    });
+
+    it('skips the version and build for an identical bundle, even at the build cap', async () => {
+        const { service, appModel, schedulerClient, analytics } =
+            buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue(readyVersion);
+        appModel.countInProgressVersionsForProject.mockResolvedValue(5);
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result).toEqual({
+            appUuid: EXISTING_APP_UUID,
+            version: 4,
+            action: 'unchanged',
+            slug: EXISTING_APP_SLUG,
+            warnings: [],
+        });
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+        // The cap is never consulted, so unchanged uploads cannot 429
+        expect(
+            appModel.countInProgressVersionsForProject,
+        ).not.toHaveBeenCalled();
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.uploaded',
+                properties: expect.objectContaining({
+                    action: 'unchanged',
+                    version: 4,
+                }),
+            }),
+        );
+    });
+
+    it('skips when an identical build is already in flight', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({
+            ...readyVersion,
+            status: 'building',
+        });
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('unchanged');
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+    });
+
+    it('rebuilds when a src file differs', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue(readyVersion);
+        mockStoredSourceTar(
+            await makeSourceTar([
+                { path: 'src/index.tsx', content: 'hello' },
+                { path: 'src/App.tsx', content: 'changed content' },
+            ]),
+        );
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.version).toBe(5);
+        expect(appModel.createVersion).toHaveBeenCalledOnce();
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('rebuilds identical source when the latest version errored', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({
+            ...readyVersion,
+            status: 'error',
+        });
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.version).toBe(5);
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('force rebuilds an identical bundle', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue(readyVersion);
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+            force: true,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.version).toBe(5);
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('rebuilds when the stored version declared custom dependencies but the upload has none', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({
+            ...readyVersion,
+            dependencies: {
+                custom: [{ name: 'left-pad', version: '^1.3.0' }],
+                lockfileHash: 'abc123',
+            },
+        });
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('applies manifest name/description changes on an unchanged upload', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue(readyVersion);
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { name: 'Renamed App' }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('unchanged');
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            EXISTING_APP_UUID,
+            PROJECT_UUID,
+            { name: 'Renamed App' },
+        );
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
     });
 });
 

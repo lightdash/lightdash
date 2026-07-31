@@ -72,6 +72,7 @@ import {
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppCodeDownload,
+    type DataAppCodeFile,
     type DataAppContext,
     type DataAppDependencies,
     type DataAppManifestExternalConnection,
@@ -97,6 +98,7 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { Knex } from 'knex';
+import isEqual from 'lodash/isEqual';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
@@ -9058,6 +9060,47 @@ export class AppGenerateService extends BaseService {
      * Read all artifacts for a specific (or latest ready) built app version from
      * S3 and return them as a base64-encoded bundle together with a manifest.
      */
+    /** Extracts a tar archive in-process and collects its file entries. */
+    private static extractTarFiles(
+        tarBuffer: Buffer,
+    ): Promise<DataAppCodeFile[]> {
+        return new Promise<DataAppCodeFile[]>((resolve, reject) => {
+            const extractor = extract();
+            const entries: DataAppCodeFile[] = [];
+
+            extractor.on(
+                'entry',
+                (header: Headers, stream: PassThrough, next: () => void) => {
+                    if (header.type === 'file' && header.name) {
+                        const chunks: Buffer[] = [];
+                        stream.on('data', (chunk: Buffer) =>
+                            chunks.push(chunk),
+                        );
+                        stream.on('end', () => {
+                            const bytes = Buffer.concat(chunks);
+                            entries.push({
+                                path: header.name,
+                                contentBase64: bytes.toString('base64'),
+                            });
+                            next();
+                        });
+                        stream.on('error', reject);
+                    } else {
+                        stream.resume();
+                        next();
+                    }
+                },
+            );
+
+            extractor.on('finish', () => resolve(entries));
+            extractor.on('error', reject);
+
+            const passThrough = new PassThrough();
+            passThrough.pipe(extractor);
+            passThrough.end(tarBuffer);
+        });
+    }
+
     async getAppCode(
         user: SessionUser,
         projectUuid: string,
@@ -9121,44 +9164,7 @@ export class AppGenerateService extends BaseService {
             throw err;
         }
 
-        // Extract the tar in-process and collect file entries
-        const files = await new Promise<
-            { path: string; contentBase64: string }[]
-        >((resolve, reject) => {
-            const extractor = extract();
-            const entries: { path: string; contentBase64: string }[] = [];
-
-            extractor.on(
-                'entry',
-                (header: Headers, stream: PassThrough, next: () => void) => {
-                    if (header.type === 'file' && header.name) {
-                        const chunks: Buffer[] = [];
-                        stream.on('data', (chunk: Buffer) =>
-                            chunks.push(chunk),
-                        );
-                        stream.on('end', () => {
-                            const bytes = Buffer.concat(chunks);
-                            entries.push({
-                                path: header.name,
-                                contentBase64: bytes.toString('base64'),
-                            });
-                            next();
-                        });
-                        stream.on('error', reject);
-                    } else {
-                        stream.resume();
-                        next();
-                    }
-                },
-            );
-
-            extractor.on('finish', () => resolve(entries));
-            extractor.on('error', reject);
-
-            const passThrough = new PassThrough();
-            passThrough.pipe(extractor);
-            passThrough.end(tarBuffer);
-        });
+        const files = await AppGenerateService.extractTarFiles(tarBuffer);
 
         // Emit the app's live links so a cross-project/instance upload can
         // re-establish them by connection slug. Omit the key when there are
@@ -9400,6 +9406,88 @@ export class AppGenerateService extends BaseService {
         return { semanticLayer, parameters, promptHistory, theme };
     }
 
+    /**
+     * Applies manifest name/description to the app row when they differ.
+     * App-level metadata only — never touches versions or builds.
+     */
+    private async updateAppMetadataIfChanged(
+        existingApp: Pick<DbApp, 'app_id' | 'name' | 'description'>,
+        manifest: DataAppCode['manifest'],
+        projectUuid: string,
+    ): Promise<void> {
+        const update: Partial<Pick<DbApp, 'name' | 'description'>> = {};
+        if (manifest.name !== existingApp.name) update.name = manifest.name;
+        if (manifest.description !== existingApp.description)
+            update.description = manifest.description;
+        if (Object.keys(update).length > 0) {
+            await this.appModel.updateApp(
+                existingApp.app_id,
+                projectUuid,
+                update,
+            );
+        }
+    }
+
+    /**
+     * Whether an uploaded bundle would rebuild exactly what `versionRow`
+     * already built: same src file set, same custom-dependency summary and,
+     * for viz apps, the same declared viz schema. Comparison failures (e.g.
+     * source.tar not stored yet for an in-flight generation) count as
+     * "changed" so the upload proceeds — skipping is only an optimization.
+     */
+    private async isUploadIdenticalToVersion(
+        appUuid: string,
+        versionRow: DbAppVersion,
+        sourceFiles: DataAppCodeFile[],
+        dependencySummary: AppVersionDependencies | undefined,
+        manifestVizSchema: DataAppVizSchema | undefined,
+    ): Promise<boolean> {
+        if (dependencySummary === undefined) {
+            if (versionRow.dependencies !== null) return false;
+        } else {
+            const stored = versionRow.dependencies;
+            if (stored === null) return false;
+            if (stored.lockfileHash !== dependencySummary.lockfileHash)
+                return false;
+            const storedCustom = new Map(
+                stored.custom.map((dep) => [dep.name, dep.version]),
+            );
+            if (
+                storedCustom.size !== dependencySummary.custom.length ||
+                !dependencySummary.custom.every(
+                    (dep) => storedCustom.get(dep.name) === dep.version,
+                )
+            ) {
+                return false;
+            }
+        }
+        if (!isEqual(versionRow.viz_schema ?? null, manifestVizSchema ?? null))
+            return false;
+
+        try {
+            const { client, bucket } = this.getS3Client();
+            const tarBuffer = await readS3ObjectAsBuffer(
+                client,
+                bucket,
+                `${versionPrefix(appUuid, versionRow.version)}source.tar`,
+            );
+            const storedFiles =
+                await AppGenerateService.extractTarFiles(tarBuffer);
+            if (storedFiles.length !== sourceFiles.length) return false;
+            const storedByPath = new Map(
+                storedFiles.map((file) => [file.path, file.contentBase64]),
+            );
+            return sourceFiles.every(
+                (file) => storedByPath.get(file.path) === file.contentBase64,
+            );
+        } catch (err) {
+            this.logger.warn(
+                `App ${appUuid}: unchanged-upload check failed, proceeding with a new version: ${getErrorMessage(err)}`,
+            );
+            return false;
+        }
+    }
+
     async importAppCode(
         user: SessionUser,
         projectUuid: string,
@@ -9407,7 +9495,7 @@ export class AppGenerateService extends BaseService {
     ): Promise<{
         appUuid: string;
         version: number;
-        action: 'create' | 'append';
+        action: 'create' | 'append' | 'unchanged';
         slug: string;
         warnings: string[];
     }> {
@@ -9666,6 +9754,86 @@ export class AppGenerateService extends BaseService {
             identitySource = 'none';
         }
 
+        // A bundle identical to the app's latest version needs no new version
+        // and no rebuild — bulk re-uploads would otherwise burn build slots on
+        // unchanged apps and trip the per-project build cap. Checked before
+        // that cap so unchanged uploads always succeed. An 'error' latest
+        // version never skips, so re-uploading the same source retries the
+        // build. App-level metadata (name/description) and links still apply.
+        if (
+            action === 'append' &&
+            existingApp !== undefined &&
+            body.force !== true
+        ) {
+            await this.assertCanManageApp(
+                user,
+                existingApp,
+                'You do not have access to update this app',
+            );
+            const latestVersion = await this.appModel.getLatestVersion(
+                existingApp.app_id,
+            );
+            if (
+                latestVersion !== null &&
+                latestVersion.status !== 'error' &&
+                (await this.isUploadIdenticalToVersion(
+                    existingApp.app_id,
+                    latestVersion,
+                    sourceFiles,
+                    dependencySummary,
+                    existingApp.template === DATA_APP_VIZ_TEMPLATE
+                        ? manifestVizSchema
+                        : undefined,
+                ))
+            ) {
+                await this.updateAppMetadataIfChanged(
+                    existingApp,
+                    code.manifest,
+                    projectUuid,
+                );
+                if (manifestLinks !== undefined) {
+                    await this.externalConnectionModel.replaceAppLinks(
+                        existingApp.app_id,
+                        resolvedLinks,
+                    );
+                }
+                this.analytics.track({
+                    event: 'data_app.uploaded',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        appUuid: existingApp.app_id,
+                        version: latestVersion.version,
+                        action: 'unchanged',
+                        template: code.manifest.template,
+                        sourceFileCount: sourceFiles.length,
+                        sourceBytes: sourceFiles.reduce(
+                            (total, file) =>
+                                total +
+                                Buffer.byteLength(file.contentBase64, 'base64'),
+                            0,
+                        ),
+                        hasCustomDependencies: dependencySummary !== undefined,
+                        customDependencyCount:
+                            dependencySummary?.custom.length ?? 0,
+                        customDependencies: dependencySummary?.custom ?? [],
+                        identitySource,
+                        ...(dependencySummary !== undefined
+                            ? { lockfileHash: dependencySummary.lockfileHash }
+                            : {}),
+                    },
+                });
+                return {
+                    appUuid: existingApp.app_id,
+                    version: latestVersion.version,
+                    action: 'unchanged',
+                    slug: existingApp.slug,
+                    warnings: linkWarnings,
+                };
+            }
+        }
+
         const inProgressCount =
             await this.appModel.countInProgressVersionsForProject(projectUuid);
         if (inProgressCount >= MAX_CONCURRENT_APP_BUILDS_PER_PROJECT) {
@@ -9684,19 +9852,11 @@ export class AppGenerateService extends BaseService {
                 existingApp,
                 'You do not have access to update this app',
             );
-            const nameChanged = code.manifest.name !== existingApp.name;
-            const descChanged =
-                code.manifest.description !== existingApp.description;
-            if (nameChanged || descChanged) {
-                const update: Partial<Pick<DbApp, 'name' | 'description'>> = {};
-                if (nameChanged) update.name = code.manifest.name;
-                if (descChanged) update.description = code.manifest.description;
-                await this.appModel.updateApp(
-                    existingApp.app_id,
-                    projectUuid,
-                    update,
-                );
-            }
+            await this.updateAppMetadataIfChanged(
+                existingApp,
+                code.manifest,
+                projectUuid,
+            );
             newAppUuid = existingApp.app_id;
             newAppSlug = existingApp.slug;
             const latestVersion = await this.appModel.getLatestVersion(
