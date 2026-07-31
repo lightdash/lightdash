@@ -1,5 +1,5 @@
-import { Readable, Writable } from 'stream';
-import { StringDecoder } from 'string_decoder';
+import split2 from 'split2';
+import { pipeline, Readable, Writable } from 'stream';
 
 /**
  * Write data to a stream with backpressure handling.
@@ -18,6 +18,12 @@ export async function writeWithBackpressure(
 }
 
 /**
+ * Cap on a single JSONL line. Well beyond any legitimate row; a stream that
+ * exceeds it (e.g. a non-JSONL file) errors instead of buffering unboundedly.
+ */
+const MAX_JSONL_LINE_LENGTH = 64 * 1024 * 1024; // 64MB
+
+/**
  * Iterate over the lines of a newline-delimited JSON (JSONL) stream,
  * splitting strictly on `\n` (a trailing `\r` is stripped for CRLF input).
  *
@@ -26,24 +32,12 @@ export async function writeWithBackpressure(
  * unescaped inside string values, so `readline` splits such rows mid-string
  * and they fail to parse.
  */
-export async function* splitJsonlStream(
-    stream: Readable,
-): AsyncGenerator<string> {
-    const decoder = new StringDecoder('utf8');
-    let buffer = '';
-    for await (const chunk of stream) {
-        buffer +=
-            typeof chunk === 'string' ? chunk : decoder.write(chunk as Buffer);
-        let newlineIndex = buffer.indexOf('\n');
-        while (newlineIndex !== -1) {
-            const line = buffer.slice(0, newlineIndex);
-            yield line.endsWith('\r') ? line.slice(0, -1) : line;
-            buffer = buffer.slice(newlineIndex + 1);
-            newlineIndex = buffer.indexOf('\n');
-        }
-    }
-    buffer += decoder.end();
-    if (buffer.length > 0) {
-        yield buffer.endsWith('\r') ? buffer.slice(0, -1) : buffer;
-    }
+export function splitJsonlStream(stream: Readable): AsyncIterable<string> {
+    return pipeline(
+        stream,
+        // skipOverflow defaults to false: exceeding maxLength emits an error
+        split2({ maxLength: MAX_JSONL_LINE_LENGTH }),
+        // pipeline requires a callback; iteration surfaces errors so noop here
+        () => {},
+    );
 }
