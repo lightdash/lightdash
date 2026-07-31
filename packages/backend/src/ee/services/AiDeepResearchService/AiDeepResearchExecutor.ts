@@ -131,7 +131,7 @@ ${reason}
 
 ## Conclusion
 
-- Run Deep Research again with a larger depth to continue investigating: ${run.prompt}`,
+- Run Deep Research again to continue investigating: ${run.prompt}`,
     charts: [],
 });
 
@@ -311,7 +311,11 @@ export class AiDeepResearchExecutor {
         const controller = new AbortController();
         let cancelledByUser = false;
         let authorizationRevokedReason: string | null = null;
-        let budgetExceeded: keyof typeof budget | null = null;
+        let budgetExceeded:
+            | 'maxTokens'
+            | 'maxToolCalls'
+            | 'maxWarehouseQueries'
+            | null = null;
         const stopRunMonitor = this.startRunMonitor(
             run,
             controller,
@@ -330,6 +334,14 @@ export class AiDeepResearchExecutor {
 
         const trackTokens = (stepTokens: number) => {
             tokens += stepTokens;
+            if (tokens > budget.maxTokens) {
+                budgetExceeded = 'maxTokens';
+                const error = new Error(
+                    'Deep Research exceeded its token budget',
+                );
+                controller.abort(error);
+                throw error;
+            }
         };
         const trackWarehouseQuery = () => {
             warehouseQueries += 1;
@@ -431,7 +443,6 @@ export class AiDeepResearchExecutor {
                     execution: {
                         mode: 'deep_research',
                         budget: phaseBudgets.planner,
-                        selectedMcpServerUuids: [],
                         abortSignal: runSignal,
                         initialTokenUsage: 0,
                         onStepUsage: trackTokens,
@@ -480,8 +491,6 @@ export class AiDeepResearchExecutor {
                         execution: {
                             mode: 'deep_research',
                             budget: phaseBudgets.investigator,
-                            selectedMcpServerUuids:
-                                run.selected_mcp_server_uuids,
                             abortSignal: runSignal,
                             initialTokenUsage: 0,
                             onStepUsage: trackTokens,
@@ -551,7 +560,6 @@ export class AiDeepResearchExecutor {
                 execution: {
                     mode: 'deep_research',
                     budget: phaseBudgets.judge,
-                    selectedMcpServerUuids: [],
                     abortSignal: runSignal,
                     initialTokenUsage: tokens,
                     onStepUsage: trackTokens,
@@ -663,10 +671,11 @@ export class AiDeepResearchExecutor {
                         `The ${budgetExceeded} budget was exhausted.`,
                     ),
                 warehouseQueryUuids: queryUuids,
-                terminalReason:
-                    budgetExceeded === 'maxToolCalls'
-                        ? 'tool_limit'
-                        : 'query_limit',
+                terminalReason: {
+                    maxTokens: 'token_limit' as const,
+                    maxToolCalls: 'tool_limit' as const,
+                    maxWarehouseQueries: 'query_limit' as const,
+                }[budgetExceeded],
             };
         }
         if (executionError) {

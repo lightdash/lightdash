@@ -3,7 +3,6 @@ import {
     countDeepResearchFindings,
     type AiDeepResearchActivity,
     type AiDeepResearchBudget,
-    type AiDeepResearchEffort,
     type AiDeepResearchEvent,
     type AiDeepResearchPhase,
     type AiDeepResearchRun,
@@ -20,33 +19,28 @@ export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
     DeepResearchDepth,
     {
         label: string;
-        effort: AiDeepResearchEffort;
         warehouseQueries: number;
         description: string;
     }
 > = {
     quick: {
         label: 'Low',
-        effort: 'low',
         warehouseQueries: 10,
         description: 'A focused check of the strongest available evidence.',
     },
     standard: {
         label: 'Medium',
-        effort: 'medium',
         warehouseQueries: 25,
         description:
             'A balanced investigation with validation and alternatives.',
     },
     deep: {
         label: 'High',
-        effort: 'high',
         warehouseQueries: 50,
         description: 'A broad investigation with more competing explanations.',
     },
     exhaustive: {
         label: 'Extra High',
-        effort: 'xhigh',
         warehouseQueries: 100,
         description: 'The widest evidence review for high-stakes questions.',
     },
@@ -138,7 +132,7 @@ export const toDeepResearchRegistration = (
     agentUuid: run.agentUuid,
     threadUuid: args.threadUuid,
     promptUuid: run.promptUuid,
-    mcpServerUuids: run.mcpServerUuids,
+    mcpServerUuids: [],
     userUuid: args.userUuid,
     question: run.prompt,
     depth: getDepthFromBudget(run.budget),

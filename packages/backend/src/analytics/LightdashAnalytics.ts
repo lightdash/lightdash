@@ -34,7 +34,6 @@ import {
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackStrategy,
     type AiAgentRootCause,
-    type AiDeepResearchEffort,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchTerminalReason,
     type AiDeepResearchTerminalStatus,
@@ -2124,11 +2123,10 @@ type AiDeepResearchRunDimensions = {
     threadId: string;
     aiAgentId: string;
     entryPoint: AiDeepResearchEntryPoint;
-    effort: AiDeepResearchEffort;
     provider: string | null;
     model: string | null;
     keyManagement: 'lightdash-managed' | 'self-managed' | null;
-    selectedMcpServerCount: number;
+    attachedMcpServerCount: number;
 };
 
 export type AiDeepResearchRunStartedEvent = BaseTrack & {

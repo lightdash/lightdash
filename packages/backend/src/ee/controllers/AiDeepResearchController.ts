@@ -66,10 +66,8 @@ export class AiDeepResearchController extends BaseController {
                 projectUuid,
                 prompt: body.prompt,
                 agentUuid: body.agentUuid,
-                effort: body.effort,
                 aiThreadUuid: body.threadUuid,
                 promptUuid: body.promptUuid,
-                mcpServerUuids: body.mcpServerUuids,
                 entryPoint: body.entryPoint,
             }),
         };

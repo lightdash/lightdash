@@ -277,7 +277,7 @@ export const buildDeepResearchExecutionContextSnapshot = (
     },
     tools: {
         availableToolNames: Object.keys(tools).sort(),
-        selectedMcpServers: args.mcpServers.map((server) => ({
+        attachedMcpServers: args.mcpServers.map((server) => ({
             uuid: server.uuid,
             name: server.name,
             enabledToolNames: Object.entries(
@@ -1050,7 +1050,7 @@ export const buildMessagesWithMemoryBlock = ({
 export const getDeepResearchBudgetInstruction = (
     budget: AiDeepResearchBudget,
 ): string =>
-    `Run limits: at most ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, and ${budget.maxResultRows} rows per query result. Submit the best report available before a limit is exhausted.`;
+    `Run limits: at most ${budget.maxTokens} total model tokens, ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, and ${budget.maxResultRows} rows per query result. Submit the best report available before a limit is exhausted.`;
 
 const getAgentMessages = (
     args: AiAgentArgs,

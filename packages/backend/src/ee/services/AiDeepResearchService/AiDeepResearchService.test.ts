@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AiResultType,
     AnyType,
@@ -18,6 +19,7 @@ import { Readable } from 'stream';
 import { AiDeepResearchService } from './AiDeepResearchService';
 
 const budget: AiDeepResearchBudget = {
+    maxTokens: 10_000_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
@@ -49,7 +51,7 @@ const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
     },
     tools: {
         availableToolNames: [],
-        selectedMcpServers: [],
+        attachedMcpServers: [],
     },
     knowledgeDocuments: [],
     repository: {
@@ -71,45 +73,6 @@ const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
         autoApproveSql: true,
     },
 };
-
-const effortBudgets = [
-    {
-        effort: 'low',
-        budget: {
-            maxToolCalls: 50,
-            maxWarehouseQueries: 10,
-            maxResultRows: 5_000,
-            maxHypotheses: 2,
-        },
-    },
-    {
-        effort: 'medium',
-        budget: {
-            maxToolCalls: 125,
-            maxWarehouseQueries: 25,
-            maxResultRows: 10_000,
-            maxHypotheses: 3,
-        },
-    },
-    {
-        effort: 'high',
-        budget: {
-            maxToolCalls: 250,
-            maxWarehouseQueries: 50,
-            maxResultRows: 25_000,
-            maxHypotheses: 4,
-        },
-    },
-    {
-        effort: 'xhigh',
-        budget: {
-            maxToolCalls: 500,
-            maxWarehouseQueries: 100,
-            maxResultRows: 50_000,
-            maxHypotheses: 6,
-        },
-    },
-] as const;
 
 const chart = {
     source: 'warehouse' as const,
@@ -189,9 +152,7 @@ const runRow = (overrides: Record<string, unknown> = {}) => ({
     tool_call_id: null,
     prompt: 'Investigate revenue',
     status: 'queued',
-    selected_mcp_server_uuids: ['mcp-1'],
     entry_point: 'ask_ai',
-    effort: 'medium',
     result_markdown: null,
     result_chart_data: null,
     report_expires_at: null,
@@ -212,6 +173,7 @@ const buildService = (
         model?: Record<string, unknown>;
         aiAgentModel?: Record<string, unknown>;
         aiAgentService?: Record<string, unknown>;
+        aiOrganizationSettingsModel?: Record<string, unknown>;
         projectModel?: Record<string, unknown>;
         featureFlagModel?: Record<string, unknown>;
         schedulerClient?: Record<string, unknown>;
@@ -273,10 +235,21 @@ const buildService = (
     };
     const aiAgentService = {
         assertDeepResearchAccess: vi.fn().mockResolvedValue(undefined),
-        validateDeepResearchMcpSelection: vi
+        resolveDeepResearchExecutionContext: vi
             .fn()
             .mockResolvedValue(executionContextSnapshot),
         ...overrides.aiAgentService,
+    };
+    const aiOrganizationSettingsModel = {
+        findByOrganizationUuid: vi.fn().mockResolvedValue({
+            deepResearchLimits: {
+                maxTokens: budget.maxTokens,
+                maxToolCalls: budget.maxToolCalls,
+                maxWarehouseQueries: budget.maxWarehouseQueries,
+                maxHypotheses: budget.maxHypotheses,
+            },
+        }),
+        ...overrides.aiOrganizationSettingsModel,
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
@@ -321,6 +294,7 @@ const buildService = (
         aiDeepResearchRunModel: model as AnyType,
         aiAgentModel: aiAgentModel as AnyType,
         aiAgentService: aiAgentService as AnyType,
+        aiOrganizationSettingsModel: aiOrganizationSettingsModel as AnyType,
         projectModel: projectModel as AnyType,
         featureFlagModel: featureFlagModel as AnyType,
         schedulerClient: schedulerClient as AnyType,
@@ -334,6 +308,7 @@ const buildService = (
         model,
         aiAgentModel,
         aiAgentService,
+        aiOrganizationSettingsModel,
         projectModel,
         featureFlagModel,
         schedulerClient,
@@ -352,13 +327,12 @@ const validCreateRunArgs = () => ({
     agentUuid: 'agent-1',
     aiThreadUuid: 'thread-1',
     promptUuid: 'prompt-1',
-    mcpServerUuids: ['mcp-1'],
     entryPoint: 'ask_ai' as const,
 });
 
 describe('AiDeepResearchService', () => {
     describe('createRun', () => {
-        it('preflights and persists the exact agent, prompt, and MCP selection before enqueueing', async () => {
+        it('preflights the inherited agent configuration and persists organization limits before enqueueing', async () => {
             const {
                 service,
                 model,
@@ -371,8 +345,6 @@ describe('AiDeepResearchService', () => {
             const run = await service.createRun({
                 ...validCreateRunArgs(),
                 prompt: '  Investigate revenue  ',
-                mcpServerUuids: ['mcp-1', 'mcp-1', 'mcp-2'],
-                budget,
             });
 
             expect(aiAgentModel.findThreadOwnership).toHaveBeenCalledWith({
@@ -383,13 +355,12 @@ describe('AiDeepResearchService', () => {
                 'prompt-1',
             );
             expect(
-                aiAgentService.validateDeepResearchMcpSelection,
+                aiAgentService.resolveDeepResearchExecutionContext,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({ userUuid: 'user-1' }),
                 {
                     projectUuid: 'project-1',
                     agentUuid: 'agent-1',
-                    mcpServerUuids: ['mcp-1', 'mcp-2'],
                     modelConfig: null,
                 },
             );
@@ -402,10 +373,8 @@ describe('AiDeepResearchService', () => {
                 promptUuid: 'prompt-1',
                 toolCallId: null,
                 prompt: 'Investigate revenue',
-                selectedMcpServerUuids: ['mcp-1', 'mcp-2'],
                 entryPoint: 'ask_ai',
-                effort: 'medium',
-                budget,
+                budget: { ...budget, maxResultRows: 10_000 },
                 executionContextSnapshot,
             });
             expect(schedulerClient.aiDeepResearch).toHaveBeenCalledWith({
@@ -451,23 +420,29 @@ describe('AiDeepResearchService', () => {
                     threadId: 'thread-1',
                     aiAgentId: 'agent-1',
                     entryPoint: 'ask_ai',
-                    effort: 'medium',
                     provider: null,
                     model: null,
                     keyManagement: null,
-                    selectedMcpServerCount: 1,
+                    attachedMcpServerCount: 0,
                 },
             });
         });
 
-        it('uses the server-owned default budget when none is provided', async () => {
-            const { service, model } = buildService();
+        it('uses default limits when the organization has no settings row', async () => {
+            const { service, model } = buildService({
+                aiOrganizationSettingsModel: {
+                    findByOrganizationUuid: vi.fn().mockResolvedValue(null),
+                },
+            });
 
             await service.createRun(validCreateRunArgs());
 
             expect(model.create).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    budget: effortBudgets[1].budget,
+                    budget: {
+                        ...AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                        maxResultRows: 10_000,
+                    },
                 }),
             );
         });
@@ -484,7 +459,7 @@ describe('AiDeepResearchService', () => {
 
             expect(run.aiDeepResearchRunUuid).toBe('run-1');
             expect(
-                aiAgentService.validateDeepResearchMcpSelection,
+                aiAgentService.resolveDeepResearchExecutionContext,
             ).not.toHaveBeenCalled();
             expect(
                 aiAgentService.assertDeepResearchAccess,
@@ -604,24 +579,9 @@ describe('AiDeepResearchService', () => {
                     service.createRun(validCreateRunArgs()),
                 ).rejects.toBeInstanceOf(ParameterError);
                 expect(
-                    aiAgentService.validateDeepResearchMcpSelection,
+                    aiAgentService.resolveDeepResearchExecutionContext,
                 ).not.toHaveBeenCalled();
                 expect(model.create).not.toHaveBeenCalled();
-            },
-        );
-
-        it.each(effortBudgets)(
-            'maps $effort effort to its server-owned budget',
-            async ({ effort, budget: expectedBudget }) => {
-                const { service, model } = buildService();
-
-                await service.createRun({ ...validCreateRunArgs(), effort });
-
-                expect(model.create).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        budget: expectedBudget,
-                    }),
-                );
             },
         );
 
@@ -797,7 +757,7 @@ describe('AiDeepResearchService', () => {
                     service.createRun(validCreateRunArgs()),
                 ).rejects.toBeInstanceOf(NotFoundError);
                 expect(
-                    aiAgentService.validateDeepResearchMcpSelection,
+                    aiAgentService.resolveDeepResearchExecutionContext,
                 ).not.toHaveBeenCalled();
                 expect(model.create).not.toHaveBeenCalled();
             },
@@ -809,7 +769,7 @@ describe('AiDeepResearchService', () => {
             );
             const { service, model, schedulerClient } = buildService({
                 aiAgentService: {
-                    validateDeepResearchMcpSelection: vi
+                    resolveDeepResearchExecutionContext: vi
                         .fn()
                         .mockRejectedValue(preflightError),
                 },
@@ -831,10 +791,7 @@ describe('AiDeepResearchService', () => {
             });
 
             await expect(
-                service.createRun({
-                    ...validCreateRunArgs(),
-                    budget,
-                }),
+                service.createRun(validCreateRunArgs()),
             ).rejects.toThrow('queue unavailable');
             expect(model.markFailed).toHaveBeenCalledWith(
                 'run-1',
@@ -847,128 +804,26 @@ describe('AiDeepResearchService', () => {
             expect(analytics.track).not.toHaveBeenCalled();
         });
 
-        it('rejects invalid budget snapshots before persistence', async () => {
-            const { service, model } = buildService();
+        it('rejects invalid organization limits before persistence', async () => {
+            const { service, model } = buildService({
+                aiOrganizationSettingsModel: {
+                    findByOrganizationUuid: vi.fn().mockResolvedValue({
+                        deepResearchLimits: {
+                            ...AI_DEEP_RESEARCH_DEFAULT_LIMITS,
+                            maxToolCalls: 0,
+                        },
+                    }),
+                },
+            });
 
             await expect(
-                service.createRun({
-                    ...validCreateRunArgs(),
-                    budget: { ...budget, maxToolCalls: 0 },
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects budget snapshots above server limits', async () => {
-            const { service, model } = buildService();
-
-            await expect(
-                service.createRun({
-                    ...validCreateRunArgs(),
-                    budget: {
-                        ...budget,
-                        maxToolCalls: 501,
-                    },
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects budgets with fewer than two hypotheses', async () => {
-            const { service, model } = buildService();
-
-            await expect(
-                service.createRun({
-                    ...validCreateRunArgs(),
-                    budget: { ...budget, maxHypotheses: 1 },
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects budgets with more hypotheses than the server limit', async () => {
-            const { service, model } = buildService();
-
-            await expect(
-                service.createRun({
-                    ...validCreateRunArgs(),
-                    budget: { ...budget, maxHypotheses: 7 },
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects budgets whose tool-call limit cannot cover the hypotheses', async () => {
-            const { service, model } = buildService();
-
-            await expect(
-                service.createRun({
-                    ...validCreateRunArgs(),
-                    budget: {
-                        ...budget,
-                        maxToolCalls: 2,
-                        maxHypotheses: 2,
-                    },
-                }),
+                service.createRun(validCreateRunArgs()),
             ).rejects.toBeInstanceOf(ParameterError);
             expect(model.create).not.toHaveBeenCalled();
         });
     });
 
     describe('access and cancellation', () => {
-        it('omits legacy limits from returned budget snapshots', async () => {
-            const legacyBudget = {
-                ...budget,
-                maxRuntimeMs: 30 * 60 * 1_000,
-                maxTokens: 1_000_000,
-            } as AiDeepResearchBudget;
-            const { service } = buildService({
-                model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(
-                            runRow({ budget_snapshot: legacyBudget }),
-                        ),
-                },
-            });
-
-            const run = await service.getRun(
-                userWithProjectAccess(),
-                'project-1',
-                'run-1',
-            );
-
-            expect(run.budget).toEqual(budget);
-        });
-
-        it('defaults the hypothesis count for budgets persisted before hypothesis fan-out', async () => {
-            const preHypothesisBudget = {
-                maxToolCalls: budget.maxToolCalls,
-                maxWarehouseQueries: budget.maxWarehouseQueries,
-                maxResultRows: budget.maxResultRows,
-            };
-            const { service } = buildService({
-                model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(
-                            runRow({ budget_snapshot: preHypothesisBudget }),
-                        ),
-                },
-            });
-
-            const run = await service.getRun(
-                userWithProjectAccess(),
-                'project-1',
-                'run-1',
-            );
-
-            expect(run.budget).toEqual({
-                ...preHypothesisBudget,
-                maxHypotheses: 3,
-            });
-        });
-
         it('does not expose a run through a different project path', async () => {
             const { service, model, projectModel } = buildService({
                 model: {

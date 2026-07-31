@@ -14,6 +14,7 @@ import {
 describe('getDeepResearchBudgetInstruction', () => {
     it('advertises only enforceable Deep Research limits', () => {
         const instruction = getDeepResearchBudgetInstruction({
+            maxTokens: 10_000,
             maxToolCalls: 20,
             maxWarehouseQueries: 10,
             maxResultRows: 1_000,
@@ -23,7 +24,7 @@ describe('getDeepResearchBudgetInstruction', () => {
         expect(instruction).toContain('20 tool calls');
         expect(instruction).toContain('10 warehouse queries');
         expect(instruction).toContain('1000 rows per query result');
-        expect(instruction).not.toContain('token');
+        expect(instruction).toContain('10000 total model tokens');
     });
 });
 
@@ -137,7 +138,7 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                     'generateVisualization',
                     'mcp_github__search_issues',
                 ],
-                selectedMcpServers: [
+                attachedMcpServers: [
                     {
                         uuid: 'mcp-1',
                         name: 'GitHub',
@@ -378,12 +379,24 @@ describe('getAgentTools workstream tool gate', () => {
             mode: 'deep_research',
             maxSteps: 30,
             budget: {
+                maxTokens: 10_000,
                 maxToolCalls: 20,
                 maxWarehouseQueries: 10,
                 maxResultRows: 1_000,
                 maxHypotheses: 2,
             },
             initialTokenUsage: 0,
+            research: {
+                role: 'investigator',
+                hypothesis: {
+                    id: 'hypothesis-1',
+                    claim: 'The data supports the hypothesis',
+                    rationale: 'Test rationale',
+                    supportingEvidence: 'A matching trend',
+                    falsifyingEvidence: 'No matching trend',
+                },
+                onReport: vi.fn(),
+            },
         };
         const tools = getAgentTools(
             args,
@@ -400,7 +413,7 @@ describe('getAgentTools workstream tool gate', () => {
 
         expect(Object.keys(tools)).toEqual(
             expect.arrayContaining([
-                'submitResearchReport',
+                'submitInvestigationReport',
                 'editDbtProject',
                 'generateVisualization',
                 'mcp_github__create_issue',

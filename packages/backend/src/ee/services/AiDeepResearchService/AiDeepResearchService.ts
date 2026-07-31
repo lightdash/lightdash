@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AiResultType,
     buildInlineChartFields,
@@ -24,7 +25,6 @@ import {
     type AiDeepResearchChartDefinition,
     type AiDeepResearchChartSnapshot,
     type AiDeepResearchChartSnapshotValue,
-    type AiDeepResearchEffort,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
@@ -59,6 +59,7 @@ import {
     type AiDeepResearchRunModel,
     type DbAiDeepResearchEventWithCursor,
 } from '../../models/AiDeepResearchRunModel';
+import { type AiOrganizationSettingsModel } from '../../models/AiOrganizationSettingsModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
 import { isDeepResearchWarehouseTool } from './toolClassification';
@@ -193,7 +194,11 @@ type Dependencies = {
     >;
     aiAgentService: Pick<
         AiAgentService,
-        'assertDeepResearchAccess' | 'validateDeepResearchMcpSelection'
+        'assertDeepResearchAccess' | 'resolveDeepResearchExecutionContext'
+    >;
+    aiOrganizationSettingsModel: Pick<
+        AiOrganizationSettingsModel,
+        'findByOrganizationUuid'
     >;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
@@ -212,59 +217,11 @@ type EventCursorPayload = {
     eventUuid: string;
 };
 
-export const AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT: Record<
-    AiDeepResearchEffort,
-    AiDeepResearchBudget
-> = {
-    low: {
-        maxToolCalls: 50,
-        maxWarehouseQueries: 10,
-        maxResultRows: 5_000,
-        maxHypotheses: 2,
-    },
-    medium: {
-        maxToolCalls: 125,
-        maxWarehouseQueries: 25,
-        maxResultRows: 10_000,
-        maxHypotheses: 3,
-    },
-    high: {
-        maxToolCalls: 250,
-        maxWarehouseQueries: 50,
-        maxResultRows: 25_000,
-        maxHypotheses: 4,
-    },
-    xhigh: {
-        maxToolCalls: 500,
-        maxWarehouseQueries: 100,
-        maxResultRows: 50_000,
-        maxHypotheses: 6,
-    },
-};
+const AI_DEEP_RESEARCH_MAX_RESULT_ROWS = 10_000;
 
-export const AI_DEEP_RESEARCH_DEFAULT_EFFORT: AiDeepResearchEffort = 'medium';
-
-export const AI_DEEP_RESEARCH_DEFAULT_BUDGET =
-    AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT[AI_DEEP_RESEARCH_DEFAULT_EFFORT];
-
-export const AI_DEEP_RESEARCH_MAX_BUDGET =
-    AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT.xhigh;
-
-/**
- * Normalizes a persisted budget snapshot: drops legacy limits that are no
- * longer part of the budget, and defaults the hypothesis count for rows
- * persisted before hypothesis fan-out existed.
- */
 export const getAiDeepResearchRunBudget = (
     budgetSnapshot: DbAiDeepResearchRun['budget_snapshot'],
-): AiDeepResearchBudget => ({
-    maxToolCalls: budgetSnapshot.maxToolCalls,
-    maxWarehouseQueries: budgetSnapshot.maxWarehouseQueries,
-    maxResultRows: budgetSnapshot.maxResultRows,
-    maxHypotheses:
-        budgetSnapshot.maxHypotheses ??
-        AI_DEEP_RESEARCH_DEFAULT_BUDGET.maxHypotheses,
-});
+): AiDeepResearchBudget => budgetSnapshot;
 
 const getReportExpiresAt = (row: DbAiDeepResearchRun): Date | null => {
     if (row.report_expires_at) {
@@ -290,9 +247,7 @@ const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => {
         agentUuid: row.agent_uuid,
         aiThreadUuid: row.ai_thread_uuid,
         promptUuid: row.prompt_uuid,
-        mcpServerUuids: row.selected_mcp_server_uuids,
         entryPoint: row.entry_point,
-        effort: row.effort,
         prompt: row.prompt,
         status: row.status,
         resultMarkdown: isReportExpired ? null : row.result_markdown,
@@ -413,16 +368,6 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
             'Deep Research maxToolCalls must exceed maxHypotheses',
         );
     }
-    const exceededBudget = Object.entries(budget).find(
-        ([key, value]) =>
-            value >
-            AI_DEEP_RESEARCH_MAX_BUDGET[key as keyof AiDeepResearchBudget],
-    );
-    if (exceededBudget) {
-        throw new ParameterError(
-            `Deep Research ${exceededBudget[0]} exceeds the server limit`,
-        );
-    }
 };
 
 export class AiDeepResearchService extends BaseService {
@@ -434,8 +379,10 @@ export class AiDeepResearchService extends BaseService {
 
     private readonly aiAgentService: Pick<
         AiAgentService,
-        'assertDeepResearchAccess' | 'validateDeepResearchMcpSelection'
+        'assertDeepResearchAccess' | 'resolveDeepResearchExecutionContext'
     >;
+
+    private readonly aiOrganizationSettingsModel: Dependencies['aiOrganizationSettingsModel'];
 
     private readonly projectModel: ProjectModel;
 
@@ -462,6 +409,7 @@ export class AiDeepResearchService extends BaseService {
         aiDeepResearchRunModel,
         aiAgentModel,
         aiAgentService,
+        aiOrganizationSettingsModel,
         projectModel,
         featureFlagModel,
         schedulerClient,
@@ -475,6 +423,7 @@ export class AiDeepResearchService extends BaseService {
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
         this.aiAgentModel = aiAgentModel;
         this.aiAgentService = aiAgentService;
+        this.aiOrganizationSettingsModel = aiOrganizationSettingsModel;
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
         this.schedulerClient = schedulerClient;
@@ -492,11 +441,11 @@ export class AiDeepResearchService extends BaseService {
             threadId: run.ai_thread_uuid,
             aiAgentId: run.agent_uuid,
             entryPoint: run.entry_point,
-            effort: run.effort,
             provider: run.execution_context_snapshot.model.provider,
             model: run.execution_context_snapshot.model.modelName,
             keyManagement: run.execution_context_snapshot.model.keyManagement,
-            selectedMcpServerCount: run.selected_mcp_server_uuids.length,
+            attachedMcpServerCount:
+                run.execution_context_snapshot.tools.attachedMcpServers.length,
         };
     }
 
@@ -681,11 +630,8 @@ export class AiDeepResearchService extends BaseService {
         projectUuid: string;
         prompt: string;
         agentUuid: string;
-        effort?: AiDeepResearchEffort;
-        budget?: AiDeepResearchBudget;
         aiThreadUuid: string;
         promptUuid: string;
-        mcpServerUuids: string[];
         entryPoint: AiDeepResearchEntryPoint;
         toolCallId?: string;
     }): Promise<AiDeepResearchRun> {
@@ -700,11 +646,6 @@ export class AiDeepResearchService extends BaseService {
         if (args.prompt.trim().length === 0) {
             throw new ParameterError('Deep Research prompt is required');
         }
-        const effort = args.effort ?? AI_DEEP_RESEARCH_DEFAULT_EFFORT;
-        const budget =
-            args.budget ?? AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT[effort];
-        assertValidBudget(budget);
-
         await this.assertCanCreateRun(args.user, args.projectUuid);
         const featureFlag = await this.featureFlagModel.get({
             user: args.user,
@@ -713,6 +654,16 @@ export class AiDeepResearchService extends BaseService {
         if (!featureFlag.enabled) {
             throw new ForbiddenError('Deep Research is not enabled');
         }
+        const organizationSettings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                args.user.organizationUuid,
+            );
+        const budget: AiDeepResearchBudget = {
+            ...(organizationSettings?.deepResearchLimits ??
+                AI_DEEP_RESEARCH_DEFAULT_LIMITS),
+            maxResultRows: AI_DEEP_RESEARCH_MAX_RESULT_ROWS,
+        };
+        assertValidBudget(budget);
 
         const ownership = await this.aiAgentModel.findThreadOwnership({
             organizationUuid: args.user.organizationUuid,
@@ -776,14 +727,12 @@ export class AiDeepResearchService extends BaseService {
             );
         }
 
-        const mcpServerUuids = [...new Set(args.mcpServerUuids)];
         const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot =
-            await this.aiAgentService.validateDeepResearchMcpSelection(
+            await this.aiAgentService.resolveDeepResearchExecutionContext(
                 args.user,
                 {
                     projectUuid: args.projectUuid,
                     agentUuid: args.agentUuid,
-                    mcpServerUuids,
                     modelConfig: prompt.modelConfig ?? null,
                 },
             );
@@ -799,9 +748,7 @@ export class AiDeepResearchService extends BaseService {
                 promptUuid: args.promptUuid,
                 toolCallId: args.toolCallId ?? null,
                 prompt: prompt.prompt.trim(),
-                selectedMcpServerUuids: mcpServerUuids,
                 entryPoint: args.entryPoint,
-                effort,
                 budget,
                 executionContextSnapshot,
             });

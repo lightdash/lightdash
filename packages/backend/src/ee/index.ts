@@ -219,6 +219,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    aiOrganizationSettingsModel:
+                        models.getAiOrganizationSettingsModel<AiOrganizationSettingsModel>(),
                     projectModel: models.getProjectModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient:

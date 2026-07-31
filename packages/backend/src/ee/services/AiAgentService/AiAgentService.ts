@@ -412,7 +412,6 @@ type GenerateAgentExecutionOptions =
     | {
           mode: 'deep_research';
           budget: AiDeepResearchBudget;
-          selectedMcpServerUuids: string[];
           abortSignal?: AbortSignal;
           initialTokenUsage?: number;
           onStepUsage?: (tokens: number) => void | Promise<void>;
@@ -420,9 +419,14 @@ type GenerateAgentExecutionOptions =
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
           ) => void | Promise<void>;
-          research?: AiDeepResearchExecutionRole;
+          research: AiDeepResearchExecutionRole;
           parentToolCallId?: string | null;
       };
+
+export const shouldIncludeAttachedMcpServers = (
+    executionMode: GenerateAgentExecutionOptions['mode'],
+    researchRole?: AiDeepResearchExecutionRole['role'],
+) => executionMode === 'standard' || researchRole === 'investigator';
 
 // Planner and judge are single-purpose structured calls: enough steps for a
 // submission plus schema-correction retries, nothing more.
@@ -3244,15 +3248,18 @@ export class AiAgentService extends BaseService {
         user,
         projectUuid,
         agentUuid,
-        selectedMcpServerUuids,
+        includeAttachedMcpServers = true,
     }: {
         user: SessionUser;
         projectUuid: string;
         agentUuid: string;
-        selectedMcpServerUuids?: string[];
+        includeAttachedMcpServers?: boolean;
     }): Promise<AiAgentMcpServer[]> {
         if (!user.organizationUuid) {
             throw new ForbiddenError('Organization not found');
+        }
+        if (!includeAttachedMcpServers) {
+            return [];
         }
 
         const attachedServers = await this.refreshGithubMcpCredentials(
@@ -3262,36 +3269,11 @@ export class AiAgentService extends BaseService {
                 user.userUuid,
             ),
         );
-        const selectedServerUuids =
-            selectedMcpServerUuids === undefined
-                ? null
-                : new Set(selectedMcpServerUuids);
-
-        if (selectedServerUuids) {
-            const attachedServerUuids = new Set(
-                attachedServers.map((server) => server.uuid),
-            );
-            const unknownServerUuids = [...selectedServerUuids].filter(
-                (serverUuid) => !attachedServerUuids.has(serverUuid),
-            );
-            if (unknownServerUuids.length > 0) {
-                throw new ParameterError(
-                    'One or more selected MCP servers are not attached to this agent',
-                );
-            }
-        }
-
-        const selectedServers = selectedServerUuids
-            ? attachedServers.filter((server) =>
-                  selectedServerUuids.has(server.uuid),
-              )
-            : attachedServers;
-
         return this.aiAgentMcpRuntimeClient.attachRuntimeProviders({
             projectUuid,
             userUuid: user.userUuid,
             mcpServers: await Promise.all(
-                selectedServers.map(async (mcpServer) => ({
+                attachedServers.map(async (mcpServer) => ({
                     ...mcpServer,
                     enabledToolNames:
                         await this.aiAgentModel.getEnabledMcpServerToolNames({
@@ -3303,17 +3285,15 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    public async validateDeepResearchMcpSelection(
+    public async resolveDeepResearchExecutionContext(
         user: SessionUser,
         {
             projectUuid,
             agentUuid,
-            mcpServerUuids,
             modelConfig,
         }: {
             projectUuid: string;
             agentUuid: string;
-            mcpServerUuids: string[];
             modelConfig: AiAgentModelConfig | null;
         },
     ): Promise<AiDeepResearchExecutionContextSnapshot> {
@@ -3322,7 +3302,6 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             agentUuid,
-            selectedMcpServerUuids: mcpServerUuids,
         });
         const setup = await this.aiAgentMcpRuntimeClient.resolveTools({
             mcpServers,
@@ -3396,7 +3375,7 @@ export class AiAgentService extends BaseService {
                 },
                 tools: {
                     availableToolNames: Object.keys(setup.tools).sort(),
-                    selectedMcpServers: mcpServers.map((server) => ({
+                    attachedMcpServers: mcpServers.map((server) => ({
                         uuid: server.uuid,
                         name: server.name,
                         enabledToolNames: Object.entries(
@@ -8831,10 +8810,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             user,
             projectUuid: prompt.projectUuid,
             agentUuid: agentSettings.uuid,
-            selectedMcpServerUuids:
+            includeAttachedMcpServers: shouldIncludeAttachedMcpServers(
+                responseExecution.mode,
                 responseExecution.mode === 'deep_research'
-                    ? responseExecution.selectedMcpServerUuids
+                    ? responseExecution.research?.role
                     : undefined,
+            ),
         });
         const { enabled: grepFieldsEnabled } =
             await this.featureFlagService.get({
@@ -9044,13 +9025,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         let execution: AiAgentExecutionConfig;
         if (responseExecution.mode === 'deep_research') {
             const getMaxSteps = () => {
-                switch (responseExecution.research?.role) {
+                switch (responseExecution.research.role) {
                     case 'planner':
                         return DEEP_RESEARCH_PLANNER_MAX_STEPS;
                     case 'judge':
                         return DEEP_RESEARCH_JUDGE_MAX_STEPS;
                     case 'investigator':
-                    case undefined:
                         // The executor counts tool calls directly. Leave room
                         // for planning and the final report-only model step.
                         return (
@@ -9170,7 +9150,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         ) {
             await mcpToolSetup.closeMcpClients();
             throw new ParameterError(
-                `Selected MCP servers became unavailable: ${mcpToolSetup.unavailableMcpServers
+                `Attached MCP servers became unavailable: ${mcpToolSetup.unavailableMcpServers
                     .map((server) => server.serverName)
                     .join(', ')}`,
             );

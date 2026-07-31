@@ -153,7 +153,7 @@ export type AiAgentExecutionConfig =
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
           ) => void | Promise<void>;
-          research?: AiDeepResearchExecutionRole;
+          research: AiDeepResearchExecutionRole;
           /**
            * Persists this call's tool activity as subagent children so it
            * stays out of rebuilt model history; null keeps it top-level.
