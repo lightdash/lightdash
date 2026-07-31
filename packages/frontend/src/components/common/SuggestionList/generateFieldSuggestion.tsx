@@ -1,4 +1,8 @@
 import {
+    isAdditionalMetric,
+    isCustomDimension,
+    isDimension,
+    isMetric,
     type AdditionalMetric,
     type CustomDimension,
     type Field,
@@ -17,11 +21,43 @@ export type FieldSuggestionItem = {
     item: Field | TableCalculation | AdditionalMetric | CustomDimension;
 };
 
+type FieldSuggestionGroup = 'dimensions' | 'metrics' | 'tableCalcs';
+
+const FIELD_SUGGESTION_GROUP_LABELS: Record<FieldSuggestionGroup, string> = {
+    dimensions: 'Dimensions',
+    metrics: 'Metrics',
+    tableCalcs: 'Table calculations',
+};
+
+const GROUP_ORDER: FieldSuggestionGroup[] = [
+    'dimensions',
+    'metrics',
+    'tableCalcs',
+];
+
+const getFieldSuggestionGroup = (
+    item: FieldSuggestionItem['item'],
+): FieldSuggestionGroup => {
+    if (isCustomDimension(item) || isDimension(item)) return 'dimensions';
+    if (isMetric(item) || isAdditionalMetric(item)) return 'metrics';
+    return 'tableCalcs';
+};
+
+/** Stable-sorts fields so groups render contiguously (dimensions → metrics → table calcs). */
+export const sortFieldSuggestions = (
+    fields: FieldSuggestionItem[],
+): FieldSuggestionItem[] =>
+    [...fields].sort(
+        (a, b) =>
+            GROUP_ORDER.indexOf(getFieldSuggestionGroup(a.item)) -
+            GROUP_ORDER.indexOf(getFieldSuggestionGroup(b.item)),
+    );
+
 export const generateFieldSuggestion = (
     fields: FieldSuggestionItem[],
 ): MentionOptions['suggestion'] =>
     generateSuggestion({
-        items: fields,
+        items: sortFieldSuggestions(fields),
         command: ({ editor, range, props }) => {
             const suggestion = props as FieldSuggestionItem;
             editor
@@ -39,6 +75,9 @@ export const generateFieldSuggestion = (
                 ])
                 .run();
         },
+        getGroupKey: (item) =>
+            getFieldSuggestionGroup((item as FieldSuggestionItem).item),
+        groupLabels: FIELD_SUGGESTION_GROUP_LABELS,
         renderItem: (item, isSelected, onClick) => (
             <PolymorphicGroupButton
                 onClick={onClick}
