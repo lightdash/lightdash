@@ -1,5 +1,6 @@
 import {
     AnyType,
+    applyMetricFlowMetricsToModels,
     attachTypesToModels,
     catalogHasTimestampDomains,
     convertExplores,
@@ -251,12 +252,37 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             throw new NotFoundError(`No models found`);
         }
 
-        const [validModels, failedExplores] =
+        const [validatedModels, failedExplores] =
             DbtBaseProjectAdapter._validateDbtModel(
                 adapterType,
                 models,
                 manifestVersion,
             );
+
+        // Translate MetricFlow definitions (semantic_models + metrics) into
+        // Lightdash metrics on each model, mirroring the CLI compile.
+        // Best-effort: translation failures never abort the compile.
+        const metricFlowTranslation = applyMetricFlowMetricsToModels(
+            validatedModels,
+            manifest,
+        );
+        if (metricFlowTranslation.error !== null) {
+            Logger.warn(
+                `Failed to translate MetricFlow metrics, continuing without them: ${metricFlowTranslation.error}`,
+            );
+        }
+        metricFlowTranslation.warnings.forEach((warning) =>
+            Logger.debug(warning),
+        );
+        if (
+            metricFlowTranslation.translatedCount > 0 ||
+            metricFlowTranslation.skippedCount > 0
+        ) {
+            Logger.info(
+                `Translated ${metricFlowTranslation.translatedCount} MetricFlow metric(s) into Lightdash metrics (skipped ${metricFlowTranslation.skippedCount} unsupported)`,
+            );
+        }
+        const validModels = metricFlowTranslation.models;
 
         const lightdashProjectConfig =
             await this.getLightdashProjectConfig(trackingParams);

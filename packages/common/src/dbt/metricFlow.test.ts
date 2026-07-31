@@ -10,7 +10,10 @@ import {
 import { type Explore } from '../types/explore';
 import { FieldType, MetricType } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
-import { translateMetricFlowMetrics } from './metricFlow';
+import {
+    applyMetricFlowMetricsToModels,
+    translateMetricFlowMetrics,
+} from './metricFlow';
 
 const ordersSemanticModel: DbtSemanticModel = {
     name: 'orders',
@@ -1236,5 +1239,77 @@ describe('translateMetricFlowMetrics', () => {
                 group_label: 'Claim Metrics',
             });
         });
+    });
+});
+
+describe('applyMetricFlowMetricsToModels', () => {
+    const ordersModel: DbtModelNode = {
+        ...MOCK_MODEL,
+        unique_id: 'model.jaffle.orders',
+        name: 'orders',
+    };
+
+    it('is a no-op when the manifest has no semantic models', () => {
+        const result = applyMetricFlowMetricsToModels([ordersModel], {
+            metrics: {},
+        });
+        expect(result).toEqual({
+            models: [ordersModel],
+            warnings: [],
+            translatedCount: 0,
+            skippedCount: 0,
+            error: null,
+        });
+    });
+
+    it('merges translated metrics into model meta, YAML metrics winning on collision', () => {
+        const modelWithYamlMetric: DbtModelNode = {
+            ...ordersModel,
+            meta: {
+                metrics: {
+                    revenue: { type: MetricType.MAX, sql: 'yaml_wins' },
+                },
+            },
+        };
+        const result = applyMetricFlowMetricsToModels([modelWithYamlMetric], {
+            semantic_models: {
+                [ordersSemanticModel.unique_id]: ordersSemanticModel,
+            },
+            metrics: {
+                'metric.jaffle.revenue': simpleMetric('revenue', 'order_total'),
+                'metric.jaffle.order_count': simpleMetric(
+                    'order_count',
+                    'order_count',
+                ),
+            },
+        });
+
+        expect(result.error).toBeNull();
+        // revenue + order_count + create_metric measure (unique_customers)
+        expect(result.translatedCount).toBe(3);
+        const { metrics } = result.models[0].meta;
+        // YAML-defined metric wins over the translated one
+        expect(metrics?.revenue).toEqual({
+            type: MetricType.MAX,
+            sql: 'yaml_wins',
+        });
+        expect(metrics?.order_count).toMatchObject({
+            type: MetricType.COUNT,
+        });
+        expect(metrics?.unique_customers).toMatchObject({
+            type: MetricType.COUNT_DISTINCT,
+        });
+    });
+
+    it('returns models untouched with error set when translation crashes', () => {
+        const result = applyMetricFlowMetricsToModels([ordersModel], {
+            // A null semantic model crashes the translator's indexing pass
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            semantic_models: { sm: null as any },
+            metrics: {},
+        });
+        expect(result.models).toEqual([ordersModel]);
+        expect(result.translatedCount).toBe(0);
+        expect(result.error).not.toBeNull();
     });
 });

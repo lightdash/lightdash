@@ -15,6 +15,11 @@ with both Fusion and Core 1.12** — same YAML, different manifest shapes:
 | `latest-spec/` via Fusion | Latest: inline `semantic_model:` ([docs](https://docs.getdbt.com/docs/build/latest-metrics-spec)) | dbt Fusion 2.0 | DuckDB | set (same as `type_params.expr`) |
 | `latest-spec/` via Core 1.12 | Same latest-spec YAML | dbt Core 1.12 | DuckDB | absent (column only on `type_params.expr`) |
 
+There is also `cloud/` — a BigQuery-compatible copy of `legacy-spec` used to
+exercise the **server-side dbt Cloud integration**, where Lightdash pulls the
+semantic layer definitions through the dbt Cloud Discovery API instead of a
+local manifest (see `cloud/README.md`).
+
 All three feed `semantic_models` + `metrics` in the manifest. Translator note:
 fall back to `type_params.expr` when the nested `expr` is missing. Cloud CLI
 uses whatever release track the Cloud Dev environment is on (Fusion-track vs

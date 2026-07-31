@@ -71,6 +71,7 @@ await fs.writeFile('/tmp/profiles/profiles.yml', profiles.profiles);
 - Profiles are auto-generated from warehouse credentials and use environment variables for security
 - The client automatically modifies dbt_project.yml to set target-path to '/target'
 - DbtMetadataApiClient uses GraphQL to fetch metadata from dbt Cloud with pagination
+- DbtMetadataApiClient also fetches MetricFlow semantic models + metrics from the Discovery API definition state and maps them into `manifest.semantic_models`/`manifest.metrics` (manifest shapes); `DbtBaseProjectAdapter.compileAllExplores` translates them into Lightdash metrics via `applyMetricFlowMetricsToModels` (best-effort — failures degrade to no translated metrics). Known Discovery API gaps: measure `agg_params` (percentile metrics are skipped), measure/dimension `config.meta`, dimension `expr`. Live test env: see `examples/metricflow-demo/cloud/README.md`
 - Quote characters are adapter-specific (backticks for BigQuery, quotes for Snowflake/Postgres)
 - Selector validation ensures dbt ls commands use proper syntax
 - Error handling includes specific dbt error parsing and Sentry integration

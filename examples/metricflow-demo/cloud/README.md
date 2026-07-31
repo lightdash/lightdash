@@ -14,3 +14,29 @@ Differences from `legacy-spec/`:
 
 The `models/schema.yml` (semantic model + metric definitions) is a verbatim
 copy of `../legacy-spec/models/schema.yml`.
+
+## dbt Cloud setup (account "Lightdash (Partner)", id 20983)
+
+- Project **MetricFlow Cloud demo** (563664), subdirectory
+  `examples/metricflow-demo/cloud`, BigQuery connection
+  `lightdash-database-staging`, dataset `metricflow_cloud_demo`
+- Production environment **469722** (release track `latest`), job
+  "Build MetricFlow demo" (1097865) runs `dbt build`
+- After a successful run, the Discovery API definition state
+  (`environment(id:).definition.semanticModels/metrics`) returns 1 semantic
+  model and 15 metrics for the environment
+
+## Translation result via the Discovery API
+
+`DbtMetadataApiClient` maps the definition state into manifest-shaped
+`semantic_models` + `metrics`, and the shared translator produces **13
+Lightdash metrics, 2 skipped**:
+
+- `cumulative_revenue` — cumulative metrics are unsupported (same as CLI)
+- `p95_order_value` — the Discovery API does not expose measure
+  `agg_params.percentile`, so percentile metrics are skipped server-side
+  (the CLI translates them from a local manifest)
+
+Other Discovery API gaps vs a local manifest: measure/dimension `config.meta`
+(e.g. a measure-level `hidden:`) and dimension `expr` are not exposed —
+dimension filter references resolve against the dimension name.

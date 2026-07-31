@@ -1,4 +1,5 @@
 import {
+    applyMetricFlowMetricsToModels,
     attachTypesToModels,
     convertExplores,
     convertLightdashModelsToDbtModels,
@@ -18,7 +19,6 @@ import {
     ParseError,
     preAggregatePostProcessor,
     QueryExecutionContext,
-    translateMetricFlowMetrics,
     WarehouseCatalog,
     type WarehouseClient,
 } from '@lightdash/common';
@@ -184,36 +184,24 @@ const applyMetricFlowMetrics = (
     models: DbtModelNode[],
     manifest: DbtManifest,
 ): DbtModelNode[] => {
-    const semanticModels = manifest.semantic_models;
-    if (!semanticModels || Object.keys(semanticModels).length === 0) {
-        return models;
-    }
-
-    const modelNamesByUniqueId = Object.fromEntries(
-        models.map((model) => [model.unique_id, model.name]),
-    );
-
     // MetricFlow translation is best-effort: a malformed manifest must never
     // abort the compile/deploy, so degrade to "no translated metrics".
-    let translation: ReturnType<typeof translateMetricFlowMetrics>;
-    try {
-        translation = translateMetricFlowMetrics({
-            semanticModels,
-            metrics: manifest.metrics ?? {},
-            modelNamesByUniqueId,
-        });
-    } catch (e) {
+    const {
+        models: modelsWithMetrics,
+        warnings,
+        translatedCount,
+        skippedCount,
+        error,
+    } = applyMetricFlowMetricsToModels(models, manifest);
+
+    if (error !== null) {
         console.error(
             styles.warning(
-                `> Failed to translate MetricFlow metrics, continuing without them: ${getErrorMessage(
-                    e,
-                )}`,
+                `> Failed to translate MetricFlow metrics, continuing without them: ${error}`,
             ),
         );
         return models;
     }
-    const { metricsByModel, warnings, translatedCount, skippedCount } =
-        translation;
 
     warnings.forEach((warning) => GlobalState.debug(`> ${warning}`));
 
@@ -238,19 +226,7 @@ const applyMetricFlowMetrics = (
         ),
     );
 
-    return models.map((model) => {
-        const modelMetrics = metricsByModel[model.name];
-        if (!modelMetrics) {
-            return model;
-        }
-        return {
-            ...model,
-            meta: {
-                ...model.meta,
-                metrics: { ...modelMetrics, ...model.meta.metrics },
-            },
-        };
-    });
+    return modelsWithMetrics;
 };
 
 /**
