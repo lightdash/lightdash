@@ -108,6 +108,12 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
+     * Show the Learn section (in-app Lightdash University training) and
+     * enable its content/progress proxy endpoints. Disabled by default.
+     */
+    LearnSection = 'learn-section',
+
+    /**
      * Per-organization gate for declaring custom npm dependencies in data
      * apps. Disabled by default; self-hosted instances can enable it globally
      * via LIGHTDASH_ENABLE_FEATURE_FLAGS.

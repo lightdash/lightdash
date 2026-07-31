@@ -291,6 +291,7 @@ export * from './types/promotion';
 export * from './types/queryHistory';
 export * from './types/rename';
 export * from './types/resourceViewItem';
+export * from './types/learn';
 export * from './types/results';
 export * from './types/roadmap';
 export * from './types/roles';
