@@ -4,7 +4,7 @@ Created or downloaded with the Lightdash CLI.
 
 ## Edit → build → upload
 1. Edit files under `src/`.
-2. Optionally, run `npm run build` to check it compiles locally. `lightdash create app` installs the initial dependencies after asking permission; after `lightdash download`, run `npm install` first if `node_modules` is absent. If install fails in your environment, skip the local build — the server build on upload is authoritative and surfaces errors on the app page. Don't change machine or registry config to force it.
+2. Optionally, run `npm run build` to check it compiles locally. `lightdash apps create` installs the initial dependencies after asking permission; after `lightdash download`, run `npm install` first if `node_modules` is absent. If install fails in your environment, skip the local build — the server build on upload is authoritative and surfaces errors on the app page. Don't change machine or registry config to force it.
 3. Optionally, preview against real data: `lightdash apps preview` (needs a successful `npm install`).
 4. `lightdash upload --apps <slug>` (the `slug` from `lightdash-app.yml`) — Lightdash rebuilds and serves the app.
 

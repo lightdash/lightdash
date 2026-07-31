@@ -48,7 +48,7 @@ Create a new data app locally from the same starter used by Lightdash's data
 app builder:
 
 ```shell
-lightdash create app "Revenue explorer"
+lightdash apps create "Revenue explorer"
 ```
 
 This requires npm. Before writing anything, the command first warns that it
