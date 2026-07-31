@@ -43,27 +43,18 @@ const JoinOrganizationPage: FC = () => {
     } = useJoinOrganizationMutation();
     const emailDomain = user.data?.email ? getEmailDomain(user.data.email) : '';
 
+    // Read by both the effect that fires the auto-create and the guard that
+    // holds the page while it is on its way. Derived once: two copies of this
+    // condition can drift into a guard that spins for an effect that will
+    // never fire, with no way out of the spinner.
+    const shouldAutoCreateOrg =
+        !allowedOrgs?.length && !user.data?.organizationUuid && !createOrgError;
+
     useEffect(() => {
-        const isAllowedToJoinOrgs = allowedOrgs && allowedOrgs.length > 0;
-        const userHasOrg = user.data && !!user.data.organizationUuid;
-        if (
-            !isCreatingOrg &&
-            !isLoadingAllowedOrgs &&
-            !userHasOrg &&
-            !isAllowedToJoinOrgs &&
-            !createOrgError
-        ) {
+        if (shouldAutoCreateOrg && !isCreatingOrg && !isLoadingAllowedOrgs) {
             createOrg({ name: '' });
         }
-    }, [
-        health,
-        allowedOrgs,
-        createOrg,
-        isCreatingOrg,
-        user,
-        isLoadingAllowedOrgs,
-        createOrgError,
-    ]);
+    }, [shouldAutoCreateOrg, createOrg, isCreatingOrg, isLoadingAllowedOrgs]);
 
     useEffect(() => {
         if ((hasCreatedOrg || hasJoinedOrg) && !createOrgError) {
@@ -71,7 +62,14 @@ const JoinOrganizationPage: FC = () => {
         }
     }, [createOrgError, hasCreatedOrg, hasJoinedOrg, navigate]);
 
-    if (health.isInitialLoading || isLoadingAllowedOrgs || isCreatingOrg) {
+    if (
+        health.isInitialLoading ||
+        isLoadingAllowedOrgs ||
+        isCreatingOrg ||
+        shouldAutoCreateOrg ||
+        hasCreatedOrg ||
+        hasJoinedOrg
+    ) {
         return <PageSpinner />;
     }
 

@@ -223,12 +223,8 @@ const UserCompletionModalWithUser = () => {
             health.isSuccess &&
             !isCompletingUser &&
             !hasCompletedSetup;
-        // Keyed by pathname so the redirect re-fires if a competing route
-        // redirect (e.g. AppRoute's needsProject -> /createProject) wins the
-        // same render commit.
         return shouldSetup ? (
             <Navigate
-                key={location.pathname}
                 to={
                     location.pathname && location.pathname !== '/'
                         ? `/organization-setup?redirect=${encodeURIComponent(
