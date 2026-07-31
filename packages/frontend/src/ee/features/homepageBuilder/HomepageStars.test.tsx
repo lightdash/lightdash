@@ -77,12 +77,12 @@ describe('HomepageStars', () => {
             vi.advanceTimersByTime(60000);
         });
         // MAX_STARS on screen; stars still fading out keep their slot on top
-        // of that, bounded by the 12 candidate slots.
+        // of that, bounded by the 16 candidate slots.
         const visible = sky!.querySelectorAll(
             '[data-star-phase]:not([data-star-phase="leaving"])',
         );
-        expect(visible.length).toBeLessThanOrEqual(7);
-        expect(sky!.childElementCount).toBeLessThanOrEqual(12);
+        expect(visible.length).toBeLessThanOrEqual(6);
+        expect(sky!.childElementCount).toBeLessThanOrEqual(16);
     });
 
     it('never shows two stars with the same identity', () => {
@@ -101,7 +101,7 @@ describe('HomepageStars', () => {
         expect(sky.childElementCount).toBeGreaterThan(0);
     });
 
-    it('never leaves one side empty while stars are visible', () => {
+    it('never leaves a zone empty while stars are visible', () => {
         const { container } = renderStars();
         const sky = container.querySelector(SKY_SELECTOR)!;
 
@@ -109,19 +109,21 @@ describe('HomepageStars', () => {
             act(() => {
                 vi.advanceTimersByTime(1000);
             });
-            const sides = [...sky.children].map((star) =>
-                star.getAttribute('data-side'),
+            const zones = [...sky.children].map((star) =>
+                star.getAttribute('data-zone'),
             );
-            if (sides.length > 0) {
-                expect(sides).toContain('left');
-                expect(sides).toContain('right');
+            if (zones.length > 0) {
+                expect(zones).toContain('left');
+                expect(zones).toContain('right');
+                expect(zones).toContain('top');
+                expect(zones).toContain('bottom');
             }
         }
         // The loop must have actually exercised star activity.
         expect(sky.childElementCount).toBeGreaterThan(0);
     });
 
-    it('keeps stars on a side a full card apart', () => {
+    it('keeps same-zone stars a full card apart', () => {
         const { container } = renderStars();
         const sky = container.querySelector(SKY_SELECTOR)!;
 
@@ -129,20 +131,39 @@ describe('HomepageStars', () => {
             act(() => {
                 vi.advanceTimersByTime(1000);
             });
-            const bySide = new Map<string, number[]>();
+            const topsByZone = new Map<string, number[]>();
+            const xsByZone = new Map<string, number[]>();
             [...sky.children].forEach((star) => {
-                const side = star.getAttribute('data-side')!;
-                const top = Number.parseFloat(
-                    (star as HTMLElement).style.getPropertyValue('--star-top'),
-                );
-                bySide.set(side, [...(bySide.get(side) ?? []), top]);
+                const zone = star.getAttribute('data-zone')!;
+                const styles = (star as HTMLElement).style;
+                if (zone === 'left' || zone === 'right') {
+                    const top = Number.parseFloat(
+                        styles.getPropertyValue('--star-top'),
+                    );
+                    topsByZone.set(zone, [
+                        ...(topsByZone.get(zone) ?? []),
+                        top,
+                    ]);
+                } else {
+                    const x = Number.parseFloat(
+                        styles.getPropertyValue('--star-x'),
+                    );
+                    xsByZone.set(zone, [...(xsByZone.get(zone) ?? []), x]);
+                }
             });
-            bySide.forEach((tops) => {
+            topsByZone.forEach((tops) => {
                 const sorted = [...tops].sort((a, b) => a - b);
                 sorted.slice(1).forEach((top, index) => {
                     // The wide tier needs 20.6% between slot centres; the
                     // jitter is already included in these positions.
                     expect(top - sorted[index]).toBeGreaterThanOrEqual(18.6);
+                });
+            });
+            xsByZone.forEach((xs) => {
+                const sorted = [...xs].sort((a, b) => a - b);
+                sorted.slice(1).forEach((x, index) => {
+                    // Centre slots sit 50% of the hero band apart.
+                    expect(x - sorted[index]).toBeGreaterThanOrEqual(45);
                 });
             });
         }
@@ -286,9 +307,9 @@ describe('HomepageStars', () => {
             vi.advanceTimersByTime(120000);
         });
         expect(sky.childElementCount).toBeGreaterThan(0);
-        // At most one timer per star (12 slots cap the total), plus the spawn
+        // At most one timer per star (16 slots cap the total), plus the spawn
         // timer — timers must not accumulate with time on the page.
-        expect(vi.getTimerCount()).toBeLessThanOrEqual(13);
+        expect(vi.getTimerCount()).toBeLessThanOrEqual(17);
 
         unmount();
         expect(vi.getTimerCount()).toBe(0);

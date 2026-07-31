@@ -47,6 +47,16 @@
     left: calc(50% + var(--star-gutter));
 }
 
+/* Centre stars sit inside the hero column, spread across its width by their
+   slot's --star-x (a percentage of the hero band); their vertical band keeps
+   them above the greeting or below the checklist. */
+.starCenter {
+    left: calc(
+        50% + ((var(--star-x) - 50) / 100) * var(--homepage-hero-width) -
+            var(--star-width) / 2
+    );
+}
+
 .cardIcon {
     display: inline-flex;
     align-items: center;

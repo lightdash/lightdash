@@ -31,11 +31,12 @@ import classes from './HomepageStars.module.css';
 const randomBetween = (min: number, max: number) =>
     min + Math.random() * (max - min);
 
-// Stars drop into candidate slots either side of the centered hero. The slots
-// are deliberately uneven and differ between the sides, so the sky reads as
-// scattered rather than as two columns; spacing is enforced at spawn time
-// instead of by a fixed pitch.
-const MAX_STARS = 7;
+// Stars drop into candidate slots in four zones around the centered hero: a
+// column either side, and a band above the greeting and below the checklist.
+// The slots are deliberately uneven and differ between zones, so the sky
+// reads as scattered rather than as a grid; spacing is enforced at spawn
+// time instead of by a fixed pitch.
+const MAX_STARS = 6;
 const SLOT_TOP_JITTER_PCT = 1;
 // Cards come in three sizes, the smaller ones slightly faded, which reads as
 // depth and stops every card sharing an edge with its neighbours.
@@ -94,22 +95,54 @@ const tierMediaQuery = (tier: SkyTier) =>
         tier.minHeightPx
     }px)`;
 
-type Slot = { side: 'left' | 'right'; topPct: number };
+type SideZone = 'left' | 'right';
+type CenterZone = 'top' | 'bottom';
+type Zone = SideZone | CenterZone;
+
+const ZONES: Zone[] = ['left', 'right', 'top', 'bottom'];
+
+// Side slots scatter down a column and take their horizontal position from
+// the gutter; centre slots scatter across the hero's width (xPct of the hero
+// band) inside a fixed vertical band that clears the hero content.
+type Slot =
+    | { zone: SideZone; topPct: number }
+    | { zone: CenterZone; topPct: number; xPct: number };
+
+const isCenterSlot = (slot: Slot): slot is Extract<Slot, { xPct: number }> =>
+    slot.zone === 'top' || slot.zone === 'bottom';
+
+// Centre cards are up to ~30% of the hero band wide; a wider floor keeps two
+// coexisting centre cards clearly apart rather than edge-to-edge.
+const CENTER_X_GAP_PCT = 45;
 
 const SLOTS: Slot[] = [
-    { side: 'left', topPct: 3 },
-    { side: 'left', topPct: 17 },
-    { side: 'left', topPct: 29 },
-    { side: 'left', topPct: 44 },
-    { side: 'left', topPct: 58 },
-    { side: 'left', topPct: 72 },
-    { side: 'right', topPct: 9 },
-    { side: 'right', topPct: 23 },
-    { side: 'right', topPct: 37 },
-    { side: 'right', topPct: 51 },
-    { side: 'right', topPct: 65 },
-    { side: 'right', topPct: 78 },
+    { zone: 'left', topPct: 3 },
+    { zone: 'left', topPct: 17 },
+    { zone: 'left', topPct: 29 },
+    { zone: 'left', topPct: 44 },
+    { zone: 'left', topPct: 58 },
+    { zone: 'left', topPct: 72 },
+    { zone: 'right', topPct: 9 },
+    { zone: 'right', topPct: 23 },
+    { zone: 'right', topPct: 37 },
+    { zone: 'right', topPct: 51 },
+    { zone: 'right', topPct: 65 },
+    { zone: 'right', topPct: 78 },
+    { zone: 'top', topPct: 2, xPct: 25 },
+    { zone: 'top', topPct: 7, xPct: 75 },
+    { zone: 'bottom', topPct: 76, xPct: 24 },
+    { zone: 'bottom', topPct: 80, xPct: 76 },
 ];
+
+// Same-zone stars must not touch: side zones separate vertically, centre
+// zones horizontally. Different zones never share space by construction.
+const slotsCollide = (a: Slot, b: Slot, minGapPct: number): boolean => {
+    if (a.zone !== b.zone) return false;
+    if (isCenterSlot(a) && isCenterSlot(b)) {
+        return Math.abs(a.xPct - b.xPct) < CENTER_X_GAP_PCT;
+    }
+    return Math.abs(a.topPct - b.topPct) < minGapPct;
+};
 
 const PALETTE = [
     'var(--mantine-color-blue-6)',
@@ -514,6 +547,7 @@ type StarDraws = {
     defPick: number;
     sizePick: number;
     gutterPick: number;
+    zonePick: number;
     topJitter: number;
     tilt: number;
     seed: StarSeed;
@@ -527,6 +561,7 @@ const drawStar = (): StarDraws => ({
     defPick: Math.random(),
     sizePick: Math.random(),
     gutterPick: Math.random(),
+    zonePick: Math.random(),
     topJitter: randomBetween(-SLOT_TOP_JITTER_PCT, SLOT_TOP_JITTER_PCT),
     // Stars enter level and settle into a slight tilt, randomized
     // counter-clockwise (negative) or clockwise (positive).
@@ -537,22 +572,24 @@ const drawStar = (): StarDraws => ({
     },
 });
 
-// The side that has no star still on screen, ignoring stars already fading
-// out. null when both sides are covered — or when neither is, in which case
-// the caller is free to choose.
-const emptySideOf = (stars: Star[]): 'left' | 'right' | null => {
+// A zone with no star still on screen, ignoring stars already fading out.
+// null when every zone is covered, in which case the caller is free to
+// choose. Several zones can be empty at once; the pick decides which one is
+// refilled first.
+const pickEmptyZone = (stars: Star[], pick: number): Zone | null => {
     const visible = stars.filter((star) => star.phase !== 'leaving');
-    const hasLeft = visible.some((star) => star.slot.side === 'left');
-    const hasRight = visible.some((star) => star.slot.side === 'right');
-    if (hasLeft === hasRight) return null;
-    return hasLeft ? 'right' : 'left';
+    const empty = ZONES.filter(
+        (zone) => !visible.some((star) => star.slot.zone === zone),
+    );
+    if (empty.length === 0) return null;
+    return empty[Math.floor(pick * empty.length)];
 };
 
 const appendStar = (
     current: Star[],
     id: number,
     draws: StarDraws,
-    forcedSide: 'left' | 'right' | null,
+    forcedZone: Zone | null,
     tier: SkyTier,
 ): Star[] => {
     // Stars fading out still hold their slot and def, but they no longer
@@ -565,19 +602,15 @@ const appendStar = (
     const minGapPct = minSlotGapPct(tier);
     const freeSlots = SLOTS.filter(
         (slot) =>
-            !current.some(
-                (star) =>
-                    star.slot.side === slot.side &&
-                    Math.abs(star.slot.topPct - slot.topPct) < minGapPct,
-            ),
+            !current.some((star) => slotsCollide(star.slot, slot, minGapPct)),
     );
     const busyDefs = new Set(current.map((s) => s.defKey));
     const freeDefs = STAR_DEFS.filter((def) => !busyDefs.has(def.key));
     if (freeSlots.length === 0 || freeDefs.length === 0) return current;
-    const sideSlots = forcedSide
-        ? freeSlots.filter((slot) => slot.side === forcedSide)
+    const zoneSlots = forcedZone
+        ? freeSlots.filter((slot) => slot.zone === forcedZone)
         : freeSlots;
-    const candidateSlots = sideSlots.length > 0 ? sideSlots : freeSlots;
+    const candidateSlots = zoneSlots.length > 0 ? zoneSlots : freeSlots;
     const slot =
         candidateSlots[Math.floor(draws.slotPick * candidateSlots.length)];
     const priorityDefs = freeDefs.filter((def) => def.priority);
@@ -585,6 +618,9 @@ const appendStar = (
     const def = candidateDefs[Math.floor(draws.defPick * candidateDefs.length)];
     const sizeScale =
         SIZE_SCALES[Math.floor(draws.sizePick * SIZE_SCALES.length)];
+    const placement: CSSProperties = isCenterSlot(slot)
+        ? ({ '--star-x': `${slot.xPct}` } as CSSProperties)
+        : ({ '--star-slack': draws.gutterPick.toFixed(3) } as CSSProperties);
     return [
         ...current,
         {
@@ -592,14 +628,18 @@ const appendStar = (
             defKey: def.key,
             slot,
             className:
-                slot.side === 'left' ? classes.starLeft : classes.starRight,
+                slot.zone === 'left'
+                    ? classes.starLeft
+                    : slot.zone === 'right'
+                      ? classes.starRight
+                      : classes.starCenter,
             style: {
                 '--star-top': `${slot.topPct + draws.topJitter}%`,
                 '--star-clearance': `${tier.clearancePx}px`,
-                '--star-slack': `${draws.gutterPick.toFixed(3)}`,
                 '--star-width': `${Math.round(tier.starWidthPx * sizeScale)}px`,
                 '--star-opacity': `${(0.36 + 0.64 * sizeScale).toFixed(2)}`,
                 '--star-tilt': `${draws.tilt}deg`,
+                ...placement,
             } as CSSProperties,
             seed: draws.seed,
             phase: 'entering',
@@ -650,12 +690,8 @@ const HomepageStars: FC = () => {
 
     // Declines to plant a replacement once the sky is gated off mid-flight.
     const appendIfFits = useCallback(
-        (
-            current: Star[],
-            id: number,
-            draws: StarDraws,
-            side: 'left' | 'right',
-        ) => (tier ? appendStar(current, id, draws, side, tier) : current),
+        (current: Star[], id: number, draws: StarDraws, zone: Zone) =>
+            tier ? appendStar(current, id, draws, zone, tier) : current,
         [tier],
     );
 
@@ -670,9 +706,9 @@ const HomepageStars: FC = () => {
                 if (!current.some((star) => star.id === id)) return current;
                 const next = current.filter((star) => star.id !== id);
                 if (next.length === 0) return next;
-                const emptySide = emptySideOf(next);
-                if (!emptySide) return next;
-                return appendIfFits(next, replacementId, draws, emptySide);
+                const emptyZone = pickEmptyZone(next, draws.zonePick);
+                if (!emptyZone) return next;
+                return appendIfFits(next, replacementId, draws, emptyZone);
             });
         },
         [clearTimer, appendIfFits],
@@ -696,11 +732,11 @@ const HomepageStars: FC = () => {
                         ? { ...star, phase: 'leaving' as const }
                         : star,
                 );
-                const emptySide = emptySideOf(next);
-                if (!emptySide) return next;
+                const emptyZone = pickEmptyZone(next, draws.zonePick);
+                if (!emptyZone) return next;
                 // The replacement fades in while this star fades out, so the
-                // side is never visually empty.
-                return appendIfFits(next, replacementId, draws, emptySide);
+                // zone is never visually empty.
+                return appendIfFits(next, replacementId, draws, emptyZone);
             });
             // Belt-and-braces: if animationend never fires (hidden tab, HMR)
             // the star is removed anyway. No-op for an id already gone.
@@ -752,34 +788,34 @@ const HomepageStars: FC = () => {
         const spawn = () => {
             if (cancelled) return;
 
-            const firstDraws = drawStar();
-            const firstId = nextId.current++;
-            const secondDraws = drawStar();
-            const secondId = nextId.current++;
+            // Seeds for a first spawn (one star per zone); only the first is
+            // used once the sky is populated. Ids the updater declines are
+            // never armed with a timer, so over-drawing is harmless.
+            const seeds = ZONES.map(() => ({
+                id: nextId.current++,
+                draws: drawStar(),
+            }));
 
             setStars((current) => {
                 if (current.length === 0) {
-                    // Start balanced: one star on each side.
-                    const withLeft = appendStar(
+                    // Start balanced: one star in every zone.
+                    return ZONES.reduce(
+                        (acc, zone, index) =>
+                            appendStar(
+                                acc,
+                                seeds[index].id,
+                                seeds[index].draws,
+                                zone,
+                                tier,
+                            ),
                         current,
-                        firstId,
-                        firstDraws,
-                        'left',
-                        tier,
-                    );
-                    return appendStar(
-                        withLeft,
-                        secondId,
-                        secondDraws,
-                        'right',
-                        tier,
                     );
                 }
                 return appendStar(
                     current,
-                    firstId,
-                    firstDraws,
-                    emptySideOf(current),
+                    seeds[0].id,
+                    seeds[0].draws,
+                    pickEmptyZone(current, seeds[0].draws.zonePick),
                     tier,
                 );
             });
@@ -811,7 +847,7 @@ const HomepageStars: FC = () => {
                         // Decoration stays out of the accessibility tree; only
                         // media cards are announced, via their link text.
                         aria-hidden={def?.interactive ? undefined : true}
-                        data-side={star.slot.side}
+                        data-zone={star.slot.zone}
                         data-star-def={star.defKey}
                         data-star-phase={star.phase}
                         onAnimationEnd={(event) => {
