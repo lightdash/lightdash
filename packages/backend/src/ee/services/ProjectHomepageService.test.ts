@@ -78,12 +78,18 @@ const makeAdminUser = (): SessionUser => ({
         {
             action: 'view',
             subject: 'Project',
-            conditions: { projectUuid: PROJECT_UUID },
+            conditions: {
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            },
         },
         {
             action: 'manage',
             subject: 'ProjectHomepage',
-            conditions: { projectUuid: PROJECT_UUID },
+            conditions: {
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            },
         },
     ]),
 });
@@ -95,7 +101,10 @@ const makeViewerUser = (): SessionUser => ({
         {
             action: 'view',
             subject: 'Project',
-            conditions: { projectUuid: PROJECT_UUID },
+            conditions: {
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+            },
         },
     ]),
 });
@@ -162,6 +171,9 @@ const makeService = ({
         },
         projectModel: {
             getProjectMemberAccess: vi.fn().mockResolvedValue(undefined),
+            getSummary: vi.fn().mockResolvedValue({
+                organizationUuid: ORGANIZATION_UUID,
+            }),
             ...projectModel,
         },
         fileStorageClient: {
@@ -212,6 +224,20 @@ describe('ProjectHomepageService', () => {
         ).resolves.toBeNull();
     });
 
+    it('getPublishedHomepage rejects a project owned by another organization', async () => {
+        const service = makeService({
+            projectModel: {
+                getSummary: vi.fn().mockResolvedValue({
+                    organizationUuid: 'another-organization-uuid',
+                }),
+            },
+        });
+
+        await expect(
+            service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
     it('createHomepage throws ForbiddenError for a viewer', async () => {
         const service = makeService();
 
@@ -219,6 +245,20 @@ describe('ProjectHomepageService', () => {
             service.createHomepage(makeViewerUser(), PROJECT_UUID, {
                 name: 'Nope',
             }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('listHomepages rejects a project owned by another organization', async () => {
+        const service = makeService({
+            projectModel: {
+                getSummary: vi.fn().mockResolvedValue({
+                    organizationUuid: 'another-organization-uuid',
+                }),
+            },
+        });
+
+        await expect(
+            service.listHomepages(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
     });
 

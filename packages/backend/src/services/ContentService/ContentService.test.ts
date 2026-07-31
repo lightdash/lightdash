@@ -2,6 +2,7 @@ import {
     ChartSourceType,
     ContentType,
     defineUserAbility,
+    ForbiddenError,
     KnexPaginatedData,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -44,6 +45,19 @@ const createUser = (): SessionUser =>
             ],
         ),
     }) as SessionUser;
+
+const createOrganizationAdminUser = (): SessionUser => ({
+    ...createUser(),
+    role: OrganizationMemberRole.ADMIN,
+    ability: defineUserAbility(
+        {
+            userUuid,
+            role: OrganizationMemberRole.ADMIN,
+            organizationUuid,
+        },
+        [],
+    ),
+});
 
 const createService = ({
     contentModel = {} as ContentModel,
@@ -305,5 +319,27 @@ describe('ContentService.find', () => {
             expect.any(Object),
             expect.objectContaining({ page: 1, pageSize: 50 }),
         );
+    });
+});
+
+describe('ContentService.findDeleted', () => {
+    it('rejects a project owned by another organization', async () => {
+        const findDeletedContents = vi.fn();
+        const deps = createService({
+            contentModel: {
+                findDeletedContents,
+            } as unknown as ContentModel,
+        });
+        deps.projectModel.getSummary.mockResolvedValue({
+            organizationUuid: 'another-organization-uuid',
+            name: 'Another project',
+        });
+
+        await expect(
+            deps.service.findDeleted(createOrganizationAdminUser(), {
+                projectUuids: [projectUuid],
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(findDeletedContents).not.toHaveBeenCalled();
     });
 });
