@@ -2005,6 +2005,35 @@ export class EmbedService extends BaseService {
     }
 
     /**
+     * Raw metric queries need `view:Explore` on the requested explore: unscoped
+     * for tokens granted `canExplore`, scoped to `content.explores` for tokens
+     * that only embed a chart.
+     */
+    private assertCanQueryExplore(
+        account: AnonymousAccount,
+        organizationUuid: string,
+        projectUuid: string,
+        exploreName: string,
+    ) {
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    exploreNames: [exploreName],
+                    metadata: { exploreName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to explore this project',
+            );
+        }
+    }
+
+    /**
      * Calculate totals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
      * @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory.
@@ -2016,6 +2045,13 @@ export class EmbedService extends BaseService {
     ): Promise<Record<string, number>> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+
+        this.assertCanQueryExplore(
+            account,
+            organizationUuid,
+            projectUuid,
+            data.explore,
+        );
 
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
@@ -2096,6 +2132,13 @@ export class EmbedService extends BaseService {
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+
+        this.assertCanQueryExplore(
+            account,
+            organizationUuid,
+            projectUuid,
+            data.explore,
+        );
 
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
