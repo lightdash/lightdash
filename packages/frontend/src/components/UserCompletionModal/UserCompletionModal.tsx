@@ -201,9 +201,11 @@ const UserCompletionModalWithUser = () => {
         useIsMutating({ mutationKey: ['user_complete'] }) > 0;
     const isSetupComplete = useRef(user.data?.isSetupComplete === true);
 
-    if (user.data?.isSetupComplete) {
-        isSetupComplete.current = true;
-    }
+    useEffect(() => {
+        if (user.data?.isSetupComplete) {
+            isSetupComplete.current = true;
+        }
+    }, [user.data?.isSetupComplete]);
 
     if (orgSetupPageFlag.isLoading) {
         return null;
