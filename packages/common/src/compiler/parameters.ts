@@ -249,6 +249,7 @@ const getParametersSchemaAndValidator = ():
         const parametersSchema =
             lightdashDbtYamlSchema.$defs?.modelMeta?.properties?.parameters;
         if (!parametersSchema) {
+            // eslint-disable-next-line no-console
             console.warn(
                 'Parameters schema not found in lightdash-dbt-2.0.json — expected $defs.modelMeta.properties.parameters. Skipping parameter config validation.',
             );

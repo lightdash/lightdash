@@ -11,12 +11,12 @@ import ReactMarkdownPreview from './__mocks__/modules/ReactMarkdwnPreview.mock';
 // hermetic, matching what `isomorphic-fetch` resolved to here before.
 vi.stubGlobal('fetch', nodeFetch);
 
+vi.mock('@uiw/react-markdown-preview', () => ({
+    default: ReactMarkdownPreview,
+}));
+
 beforeAll(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    vi.mock('@uiw/react-markdown-preview', () => ({
-        default: ReactMarkdownPreview,
-    }));
 
     mockMatchMedia();
     mockResizeObserver();

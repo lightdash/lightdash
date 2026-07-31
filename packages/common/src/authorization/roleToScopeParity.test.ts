@@ -366,6 +366,7 @@ describe('Role to Scope Parity', () => {
     });
 
     // This is helpful for debugging, but it's not a test
+    // oxlint-disable-next-line vitest-js/no-disabled-tests -- debugging helper, intentionally not run
     describe.skip('Rule Count Analysis', () => {
         it('should report rule counts for documentation', () => {
             console.log('\n=== ROLE PERMISSION RULE COUNTS ===');

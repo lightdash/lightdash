@@ -98,4 +98,4 @@ class QueryStream extends Readable implements Submittable {
     }
 }
 
-export = QueryStream;
+export default QueryStream;
