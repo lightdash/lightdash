@@ -1,5 +1,9 @@
-import { OrganizationSsoProvider } from '@lightdash/common';
+import {
+    OpenIdIdentityIssuerType,
+    OrganizationSsoProvider,
+} from '@lightdash/common';
 import { Request } from 'express';
+import { UserinfoResponse } from 'openid-client';
 
 // oktaStrategy reads the lightdashConfig singleton; mock it with a mutable
 // `okta` block so each test can toggle the instance-level env config.
@@ -39,7 +43,11 @@ vi.mock('../../../config/lightdashConfig', async () => {
 });
 
 // eslint-disable-next-line import/first
-import { getOktaConfigFromEnv, resolveOktaConfig } from './oktaStrategy';
+import {
+    createOpenIdUserFromUserInfo,
+    getOktaConfigFromEnv,
+    resolveOktaConfig,
+} from './oktaStrategy';
 
 const FULL_ENV = {
     oauth2Issuer: 'https://env.okta.com',
@@ -105,6 +113,37 @@ const makeReq = ({
 
 beforeEach(() => {
     setEnv({});
+});
+
+describe('createOpenIdUserFromUserInfo', () => {
+    test('accepts Okta profiles with explicitly unverified email claims', () => {
+        const fail = vi.fn();
+
+        const openIdUser = createOpenIdUserFromUserInfo(
+            {
+                sub: 'okta-user-1',
+                email: 'user@example.com',
+                email_verified: false,
+                given_name: 'Test',
+                family_name: 'User',
+            } as UserinfoResponse,
+            'https://example.okta.com',
+            OpenIdIdentityIssuerType.OKTA,
+            fail,
+        );
+
+        expect(openIdUser).toEqual({
+            openId: {
+                email: 'user@example.com',
+                issuer: 'https://example.okta.com',
+                subject: 'okta-user-1',
+                firstName: 'Test',
+                lastName: 'User',
+                issuerType: OpenIdIdentityIssuerType.OKTA,
+            },
+        });
+        expect(fail).not.toHaveBeenCalled();
+    });
 });
 
 describe('getOktaConfigFromEnv', () => {
