@@ -1,6 +1,7 @@
 import React, { useEffect, useState, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { useEmailStatus } from '../hooks/useEmailVerification';
+import { useAccount } from '../hooks/user/useAccount';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import PageSpinner from './PageSpinner';
@@ -11,6 +12,7 @@ const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
         user: { data, isInitialLoading, isError },
     } = useApp();
     const location = useLocation();
+    const account = useAccount();
     const ability = useAbilityContext();
     const emailStatus = useEmailStatus(!!health.data?.isAuthenticated);
     const isEmailServerConfigured = health.data?.hasEmailClient;
@@ -61,7 +63,17 @@ const PrivateRoute: FC<React.PropsWithChildren> = ({ children }) => {
         );
     }
 
-    if (!data && !isError) {
+    // The user query only starts once the account comes back saying it is a
+    // registered user, and neither query retries — so "no data, no error" also
+    // covers a user query that will never run. Holding on that is a spinner
+    // with no way out, which is why the hold has to end wherever the chain has
+    // stopped progressing: the account errored (a blip on /user/account), or it
+    // resolved to someone the user query is never fetched for. Both fall
+    // through to the redirect below, as they did before the hold existed.
+    const isUserStillResolving =
+        !account.isError && (!account.data || account.data.isRegisteredUser());
+
+    if (!data && !isError && isUserStillResolving) {
         return <PageSpinner />;
     }
 
