@@ -26,7 +26,7 @@ import {
 import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { faviconUrl } from './blocks/resourceUrls';
+import { faviconUrl, safeImageUrl } from './blocks/resourceUrls';
 import classes from './HomepageStars.module.css';
 import { useHomepageMediaCards } from './hooks/useHomepageMediaCards';
 
@@ -467,12 +467,14 @@ const mediaStarDef = (card: MediaCard): StarDef => ({
     render: () => <MediaStarCard card={card} />,
 });
 
+const isHttpUrl = (url: string): boolean => /^https?:\/\//i.test(url);
+
 const toMediaCard = (card: HomepageMediaCard): MediaCard => ({
     key: card.cardKey,
     title: card.title,
     subtitle: card.subtitle,
     href: card.url,
-    thumbnailUrl: card.thumbnailUrl,
+    thumbnailUrl: safeImageUrl(card.thumbnailUrl ?? undefined),
 });
 
 // A star animates only while entering and leaving. In between it sits in a
@@ -619,7 +621,9 @@ const HomepageStars: FC = () => {
     const cardsSettled = mediaCardsQuery.isSuccess || mediaCardsQuery.isError;
     const starDefs = useMemo(() => {
         const mediaCards = mediaCardsQuery.isSuccess
-            ? mediaCardsQuery.data.map(toMediaCard)
+            ? mediaCardsQuery.data.flatMap((card) =>
+                  isHttpUrl(card.url) ? [toMediaCard(card)] : [],
+              )
             : FALLBACK_MEDIA_CARDS;
         return [...DECORATION_STAR_DEFS, ...mediaCards.map(mediaStarDef)];
     }, [mediaCardsQuery.isSuccess, mediaCardsQuery.data]);

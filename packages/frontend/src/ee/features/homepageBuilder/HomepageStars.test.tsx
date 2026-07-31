@@ -347,6 +347,51 @@ describe('HomepageStars', () => {
         ).not.toBeNull();
     });
 
+    it('drops managed cards whose url is not http(s)', () => {
+        mockMediaCards({
+            status: 'success',
+            cards: [
+                {
+                    ...MANAGED_CARD,
+                    cardKey: 'evil',
+                    url: 'javascript:alert(1)',
+                },
+            ],
+        });
+        forceMediaCards();
+        const { container } = renderStars();
+        const sky = container.querySelector(SKY_SELECTOR)!;
+
+        act(() => {
+            vi.advanceTimersByTime(30000);
+        });
+        expect(sky.childElementCount).toBeGreaterThan(0);
+        expect(sky.querySelectorAll('a')).toHaveLength(0);
+        expect(sky.querySelector('[data-star-def="media-evil"]')).toBeNull();
+    });
+
+    it('ignores a managed thumbnail that is not https', () => {
+        const thumbnailUrl = 'http://insecure.example.com/thumb.jpg';
+        mockMediaCards({
+            status: 'success',
+            cards: [{ ...MANAGED_CARD, thumbnailUrl }],
+        });
+        forceMediaCards();
+        const { container } = renderStars();
+        const sky = container.querySelector(SKY_SELECTOR)!;
+
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        const link = sky.querySelector(`a[href="${MANAGED_CARD.url}"]`);
+        expect(link).not.toBeNull();
+        expect(link!.textContent).toContain(MANAGED_CARD.title);
+        expect(sky.querySelector(`img[src="${thumbnailUrl}"]`)).toBeNull();
+        expect(
+            sky.querySelector('img[src^="https://www.google.com/s2/favicons"]'),
+        ).not.toBeNull();
+    });
+
     it('shows no media stars when the managed list is empty', () => {
         mockMediaCards({ status: 'success', cards: [] });
         forceMediaCards();
