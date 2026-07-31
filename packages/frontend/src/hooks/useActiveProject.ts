@@ -47,11 +47,25 @@ export const useActiveProject = () => {
     );
 };
 
-const clearProjectCache = async (queryClient: QueryClient) => {
-    queryClient.removeQueries(['project']);
-    queryClient.removeQueries(['projects']);
-    await queryClient.invalidateQueries();
-};
+// Project-scoped queries keyed by projectUuid need nothing here — a switch
+// changes their key. These don't: the pointer query reads localStorage, and
+// useValidation serves the active project under an unscoped key.
+const ACTIVE_PROJECT_DEPENDENT_KEYS = [
+    ['activeProject'],
+    ['validation'],
+    ['project'],
+];
+
+const clearProjectCache = (queryClient: QueryClient) =>
+    Promise.all(
+        ACTIVE_PROJECT_DEPENDENT_KEYS.map((queryKey) =>
+            queryClient.invalidateQueries(queryKey),
+        ),
+    );
+
+// Shared by every useActiveProjectUuid instance: the project a persist is
+// already in flight for. localStorage is global, so this guard has to be too.
+let persistingProjectUuid: string | undefined;
 
 export const useUpdateActiveProjectMutation = () => {
     const queryClient = useQueryClient();
@@ -63,8 +77,9 @@ export const useUpdateActiveProjectMutation = () => {
             ),
         onSuccess: async () => {
             await clearProjectCache(queryClient);
-            await queryClient.invalidateQueries(['validations']);
-            await queryClient.invalidateQueries(['activeProject']);
+        },
+        onSettled: () => {
+            persistingProjectUuid = undefined;
         },
     });
 };
@@ -188,8 +203,10 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
             !isLoading &&
             shouldPersistProject &&
             newValue &&
-            newValue !== lastProjectUuid
+            newValue !== lastProjectUuid &&
+            persistingProjectUuid !== newValue
         ) {
+            persistingProjectUuid = newValue;
             mutate(newValue);
         }
     }, [
