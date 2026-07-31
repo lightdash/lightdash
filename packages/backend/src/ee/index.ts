@@ -43,6 +43,7 @@ import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuth
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ExternalConnectionModel } from './models/ExternalConnectionModel';
+import { HomepageMediaCardsModel } from './models/HomepageMediaCardsModel';
 import { HomepageRecommendedActionSkipsModel } from './models/HomepageRecommendedActionSkipsModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { McpToolCallModel } from './models/McpToolCallModel';
@@ -85,6 +86,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { GoogleServiceAccountTokenProvider } from './services/ExternalConnectionService/GoogleServiceAccountTokenProvider';
+import { HomepageMediaCardsService } from './services/HomepageMediaCardsService';
 import { HomepageRecommendedActionSkipsService } from './services/HomepageRecommendedActionSkipsService';
 import { EnterpriseLicenseService } from './services/LicenseService/LicenseService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
@@ -196,6 +198,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     homepageRecommendedActionSkipsModel:
                         models.getHomepageRecommendedActionSkipsModel<HomepageRecommendedActionSkipsModel>(),
                     projectModel: models.getProjectModel(),
+                }),
+            homepageMediaCardsService: ({ models }) =>
+                new HomepageMediaCardsService({
+                    homepageMediaCardsModel:
+                        models.getHomepageMediaCardsModel<HomepageMediaCardsModel>(),
                 }),
             aiDeepResearchService: ({
                 context,
@@ -1057,6 +1064,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new ProjectHomepageModel({ database }),
             homepageRecommendedActionSkipsModel: ({ database }) =>
                 new HomepageRecommendedActionSkipsModel({ database }),
+            homepageMediaCardsModel: ({ database }) =>
+                new HomepageMediaCardsModel({ database }),
             aiAgentModel: ({ database, utils }) =>
                 new AiAgentModel({
                     database,

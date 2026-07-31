@@ -156,6 +156,7 @@ interface ServiceManifest {
     aiWritebackService: unknown;
     aiDeepResearchService: unknown;
     aiAgentMemoryService: unknown;
+    homepageMediaCardsService: unknown;
     homepageRecommendedActionSkipsService: unknown;
     onboardingAgentService: unknown;
     aiAgentReviewNotificationService: unknown;
@@ -1457,6 +1458,12 @@ export class ServiceRepository
         HomepageRecommendedActionSkipsServiceImplT,
     >(): HomepageRecommendedActionSkipsServiceImplT {
         return this.getService('homepageRecommendedActionSkipsService');
+    }
+
+    public getHomepageMediaCardsService<
+        HomepageMediaCardsServiceImplT,
+    >(): HomepageMediaCardsServiceImplT {
+        return this.getService('homepageMediaCardsService');
     }
 
     public getAiAgentCoderService<

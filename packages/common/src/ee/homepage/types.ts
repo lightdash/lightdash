@@ -221,6 +221,16 @@ export type ApiHomepageRecommendedActionSkipsResponse = ApiSuccess<
     SkippableHomepageRecommendedActionKey[]
 >;
 
+export type HomepageMediaCard = {
+    cardKey: string;
+    title: string;
+    subtitle: string;
+    url: string;
+    thumbnailUrl: string | null;
+};
+
+export type ApiHomepageMediaCardsResponse = ApiSuccess<HomepageMediaCard[]>;
+
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageAskAiHeroBlock
