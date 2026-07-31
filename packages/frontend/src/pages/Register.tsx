@@ -12,6 +12,7 @@ import { useEffect, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { lightdashApi } from '../api';
 import AuthLayout from '../components/common/AuthLayout';
+import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import PageSpinner from '../components/PageSpinner';
 import CreateEmailOnlyUserForm from '../components/RegisterForms/CreateEmailOnlyUserForm';
@@ -35,6 +36,7 @@ const registerQuery = async (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
 const Register: FC = () => {
     const location = useLocation();
     const { health } = useApp();
+    const { isNewLayout } = useAuthLayoutVariant();
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
 
@@ -142,7 +144,7 @@ const Register: FC = () => {
                     labelPosition="center"
                     label={
                         <Text color="ldGray.5" size="sm" fw={500}>
-                            OR
+                            {isNewLayout ? 'or' : 'OR'}
                         </Text>
                     }
                 />

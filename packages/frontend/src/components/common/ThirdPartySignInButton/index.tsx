@@ -80,7 +80,7 @@ const ThirdPartySignInButtonBase: FC<
             }`}
             leftSection={
                 typeof logo === 'string' ? (
-                    <Image w={16} src={logo} alt={`${providerName} logo}`} />
+                    <Image w={16} src={logo} alt={`${providerName} logo`} />
                 ) : (
                     logo
                 )
