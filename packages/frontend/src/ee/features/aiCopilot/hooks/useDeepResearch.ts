@@ -2,11 +2,13 @@ import {
     type AnyType,
     type AiDeepResearchEntryPoint,
     type AiDeepResearchEventsPage,
+    type AiDeepResearchChartData,
     type AiDeepResearchRequestBody,
     type AiDeepResearchRun,
     type ApiAiDeepResearchEventsResponse,
     type ApiAiDeepResearchRunListResponse,
     type ApiAiDeepResearchRunResponse,
+    type ApiAiDeepResearchChartResponse,
     type ApiAiAgentThreadMessageVizQuery,
     type ApiAiAgentThreadMessageVizQueryResponse,
     type ApiError,
@@ -129,6 +131,18 @@ const refreshDeepResearchChart = (
         method: 'POST',
         body: JSON.stringify({}),
     }) as Promise<ApiAiAgentThreadMessageVizQueryResponse['results']>;
+
+const getDeepResearchChart = (
+    projectUuid: string,
+    runUuid: string,
+    queryUuid: string,
+) =>
+    lightdashApi<AnyType>({
+        version: 'v1',
+        url: `${getBaseUrl(projectUuid)}/${runUuid}/charts/${encodeURIComponent(queryUuid)}`,
+        method: 'GET',
+        body: undefined,
+    }) as Promise<ApiAiDeepResearchChartResponse['results']>;
 
 type StartMutationVariables = StartDeepResearchArgs & {
     promptUuid: string;
@@ -527,6 +541,28 @@ export const useDeepResearchChartLiveQuery = ({
         ],
         queryFn: () => refreshDeepResearchChart(projectUuid, runUuid, chartKey),
         enabled,
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+    });
+
+export const useDeepResearchChartQuery = ({
+    projectUuid,
+    runUuid,
+    queryUuid,
+}: {
+    projectUuid: string;
+    runUuid: string;
+    queryUuid: string;
+}) =>
+    useQuery<AiDeepResearchChartData, ApiError>({
+        queryKey: [
+            DEEP_RESEARCH_QUERY_KEY,
+            projectUuid,
+            runUuid,
+            'charts',
+            queryUuid,
+        ],
+        queryFn: () => getDeepResearchChart(projectUuid, runUuid, queryUuid),
         staleTime: Infinity,
         refetchOnWindowFocus: false,
     });

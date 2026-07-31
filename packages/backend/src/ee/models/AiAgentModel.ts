@@ -6499,11 +6499,17 @@ export class AiAgentModel {
                 `${AiAgentToolResultTableName}.created_at as result_created_at`,
                 `${AiSqlApprovalTableName}.decision as approval_decision`,
             )
-            .leftJoin(
-                AiAgentToolResultTableName,
-                `${AiAgentToolCallTableName}.tool_call_id`,
-                `${AiAgentToolResultTableName}.tool_call_id`,
-            )
+            .leftJoin(AiAgentToolResultTableName, function joinToolResult() {
+                this.on(
+                    `${AiAgentToolCallTableName}.tool_call_id`,
+                    '=',
+                    `${AiAgentToolResultTableName}.tool_call_id`,
+                ).andOn(
+                    `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                    '=',
+                    `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                );
+            })
             // Tool calls awaiting/granted SQL approval may have no result yet —
             // join the decision so history reconstruction can replay the
             // native approval request/response parts.

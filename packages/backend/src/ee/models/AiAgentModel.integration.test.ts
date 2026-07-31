@@ -64,6 +64,53 @@ describe('AiAgentModel prompt activity', () => {
         );
     });
 
+    it('keeps reused tool call ids scoped to their prompts', async () => {
+        const threadUuid = await createWebAppThread();
+        const expectedResults = ['first prompt result', 'second prompt result'];
+        const promptUuids = await Promise.all(
+            expectedResults.map((result) =>
+                model.createWebAppPrompt({
+                    threadUuid,
+                    createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                    prompt: `Prompt for ${result}`,
+                }),
+            ),
+        );
+        const toolCallId = 'reused-tool-call-id';
+
+        await Promise.all(
+            promptUuids.map((promptUuid) =>
+                model.createToolCall({
+                    promptUuid,
+                    toolCallId,
+                    toolName: 'findExplores',
+                    toolArgs: {},
+                    parentToolCallId: null,
+                }),
+            ),
+        );
+        await model.createToolResults(
+            promptUuids.map((promptUuid, index) => ({
+                promptUuid,
+                toolCallId,
+                toolName: 'findExplores',
+                result: expectedResults[index],
+            })),
+        );
+
+        const histories = await Promise.all(
+            promptUuids.map((promptUuid) =>
+                model.getToolCallsAndResultsForPrompt(promptUuid),
+            ),
+        );
+
+        expect(
+            histories.map((history) =>
+                history.map(({ toolResult }) => toolResult?.result),
+            ),
+        ).toEqual(expectedResults.map((result) => [result]));
+    });
+
     it('keeps Slack prompt activity monotonic', async () => {
         const suffix = crypto.randomUUID();
         const threadUuid = await model.createSlackThread({

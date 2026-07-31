@@ -190,18 +190,19 @@ describe('DeepResearchChartTile', () => {
         });
     });
 
-    it('defaults to live data when the report has no snapshot', () => {
-        mocks.useLiveQuery.mockReturnValue({
-            ...idleLiveQuery,
-            isLoading: true,
-        });
-
+    it('loads the retained query directly when the report has no snapshot', () => {
         renderTile({ snapshot: null });
 
         expect(mocks.useLiveQuery).toHaveBeenCalledWith(
-            expect.objectContaining({ enabled: true }),
+            expect.objectContaining({ enabled: false }),
         );
-        expect(screen.getByText('Loading live chart data')).toBeVisible();
+        expect(mocks.useQueryResults).toHaveBeenCalledWith(
+            'project-1',
+            QUERY_UUID,
+            chart.title,
+        );
+        expect(screen.getByText('Report data')).toBeVisible();
+        expect(screen.getByTestId('visualization')).toBeVisible();
         expect(screen.queryByText(/Snapshot from/)).not.toBeInTheDocument();
     });
 
