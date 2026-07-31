@@ -764,8 +764,47 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
     };
 };
 
+type AgentOnboardingDemoOfferProperties = {
+    organizationId: string;
+    projectUuid: string;
+    agentOnboardingRunUuid: string;
+    offerType: 'provision_demo' | 'open_existing_demo';
+};
+
+type AgentOnboardingDemoOfferShownEvent = {
+    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_SHOWN;
+    properties: AgentOnboardingDemoOfferProperties;
+};
+
+type AgentOnboardingDemoOfferAcceptedEvent = {
+    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED;
+    properties: AgentOnboardingDemoOfferProperties & {
+        demoProjectUuid: string | null;
+    };
+};
+
+type AgentOnboardingCompletionToastProperties = {
+    organizationId: string;
+    projectUuid: string;
+    agentOnboardingRunUuid: string;
+};
+
+type AgentOnboardingCompletionToastShownEvent = {
+    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN;
+    properties: AgentOnboardingCompletionToastProperties;
+};
+
+type AgentOnboardingCompletionToastClickedEvent = {
+    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED;
+    properties: AgentOnboardingCompletionToastProperties;
+};
+
 export type EventData =
     | GenericEvent
+    | AgentOnboardingDemoOfferShownEvent
+    | AgentOnboardingDemoOfferAcceptedEvent
+    | AgentOnboardingCompletionToastShownEvent
+    | AgentOnboardingCompletionToastClickedEvent
     | SetupInviteSentEvent
     | PlaygroundProjectEnteredEvent
     | PlaygroundProjectSetupFailedEvent

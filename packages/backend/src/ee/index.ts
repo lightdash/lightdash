@@ -828,11 +828,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAppGenerateService<AppGenerateService>(),
                     getAiAgentService: () =>
                         repository.getAiAgentService<AiAgentService>(),
-                    onProjectCreated: ({ user, projectUuid, projectType }) =>
+                    onProjectCreated: ({
+                        user,
+                        projectUuid,
+                        projectType,
+                        provisioningSource,
+                    }) =>
                         provisionOnboardingHomepage({
                             user,
                             projectUuid,
                             projectType,
+                            provisioningSource,
                             featureFlagService:
                                 repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),
@@ -844,11 +850,21 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         user,
                         projectService,
                         canViewProject,
+                        trigger,
                     }) =>
                         provisionPlaygroundProject({
                             user,
                             projectService,
                             canViewProject,
+                            trigger,
+                            hasActiveAgentOnboardingRun: () =>
+                                user.organizationUuid
+                                    ? models
+                                          .getAgentOnboardingRunModel<AgentOnboardingRunModel>()
+                                          .hasActiveRunForOrganization(
+                                              user.organizationUuid,
+                                          )
+                                    : Promise.resolve(false),
                             featureFlagService:
                                 repository.getFeatureFlagService(),
                             projectModel: models.getProjectModel(),

@@ -91,6 +91,7 @@ const buildArguments = () => {
         hasContentCopy: false,
     })) as unknown as ProvisionPlaygroundProjectArguments['projectService']['createWithoutCompile'];
     const track = vi.fn();
+    const hasActiveAgentOnboardingRun = vi.fn(async () => true);
     return {
         args: {
             user,
@@ -105,6 +106,7 @@ const buildArguments = () => {
             catalogService: { indexCatalog },
             analytics: { track },
             canViewProject,
+            hasActiveAgentOnboardingRun,
             playgroundDataDirectory: path.resolve(
                 __dirname,
                 '../../../../assets/playground',
@@ -121,6 +123,7 @@ const buildArguments = () => {
         createWithoutCompile,
         runInPlaygroundProvisioningLock,
         track,
+        hasActiveAgentOnboardingRun,
     };
 };
 
@@ -362,6 +365,122 @@ describe('provisionPlaygroundProject', () => {
                 onboardingFlow: 'new',
                 errorType: 'Error',
             },
+        });
+    });
+
+    describe('agent_onboarding_wait trigger', () => {
+        it('provisions alongside an existing non-playground project', async () => {
+            const mocks = buildArguments();
+            mocks.getAllByOrganizationUuid.mockResolvedValue([project()]);
+
+            await expect(
+                provisionPlaygroundProject({
+                    ...mocks.args,
+                    trigger: 'agent_onboarding_wait',
+                }),
+            ).resolves.toEqual({ projectUuid, created: true });
+            expect(mocks.createWithoutCompile).toHaveBeenCalledExactlyOnceWith(
+                user,
+                expect.objectContaining({
+                    warehouseConnection: expect.objectContaining({
+                        dataset: 'jaffle_shop',
+                    }),
+                }),
+                expect.any(String),
+                { source: 'playground' },
+            );
+            expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+                event: 'playground_project.provisioned',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    trigger: 'agent_onboarding_wait',
+                    onboardingFlow: 'new',
+                    catalogIndexErrorType: null,
+                },
+            });
+        });
+
+        it('returns the existing playground without creating another', async () => {
+            const mocks = buildArguments();
+            mocks.getAllByOrganizationUuid.mockResolvedValue([
+                project(),
+                project('playground'),
+            ]);
+
+            await expect(
+                provisionPlaygroundProject({
+                    ...mocks.args,
+                    trigger: 'agent_onboarding_wait',
+                }),
+            ).resolves.toEqual({ projectUuid, created: false });
+            expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+            expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+                event: 'playground_project.skipped',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    trigger: 'agent_onboarding_wait',
+                    onboardingFlow: 'new',
+                    reason: 'playground_already_exists',
+                },
+            });
+        });
+
+        it('falls back to the existing-project guard when no run is active', async () => {
+            const mocks = buildArguments();
+            mocks.getAllByOrganizationUuid.mockResolvedValue([project()]);
+            mocks.hasActiveAgentOnboardingRun.mockResolvedValue(false);
+
+            await expect(
+                provisionPlaygroundProject({
+                    ...mocks.args,
+                    trigger: 'agent_onboarding_wait',
+                }),
+            ).resolves.toEqual({ projectUuid, created: false });
+            expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+            expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+                event: 'playground_project.skipped',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    trigger: 'agent_onboarding_wait',
+                    onboardingFlow: 'new',
+                    reason: 'organization_has_project',
+                },
+            });
+        });
+
+        it('does not recreate a playground that was previously removed', async () => {
+            const mocks = buildArguments();
+            mocks.getAllByOrganizationUuid.mockResolvedValue([project()]);
+            mocks.args.onboardingModel.getByOrganizationUuid.mockResolvedValue({
+                ranQueryAt: null,
+                shownSuccessAt: null,
+                playgroundProjectDeletedAt: now,
+            });
+
+            await expect(
+                provisionPlaygroundProject({
+                    ...mocks.args,
+                    trigger: 'agent_onboarding_wait',
+                }),
+            ).rejects.toThrow('Playground project was previously removed');
+            expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+            expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
+                event: 'playground_project.skipped',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: null,
+                    trigger: 'agent_onboarding_wait',
+                    onboardingFlow: 'new',
+                    reason: 'playground_previously_removed',
+                },
+            });
         });
     });
 

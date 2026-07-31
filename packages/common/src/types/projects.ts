@@ -1135,6 +1135,18 @@ export type EnsurePlaygroundProjectResults = {
     created: boolean;
 };
 
+export const playgroundProjectTriggers = [
+    'invite_expert',
+    'agent_onboarding_wait',
+] as const;
+
+export type PlaygroundProjectTrigger =
+    (typeof playgroundProjectTriggers)[number];
+
+export type EnsurePlaygroundProjectRequest = {
+    trigger?: PlaygroundProjectTrigger;
+};
+
 export type ApiEnsurePlaygroundProjectResponse = {
     status: 'ok';
     results: EnsurePlaygroundProjectResults;

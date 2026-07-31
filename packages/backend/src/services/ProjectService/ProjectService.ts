@@ -129,6 +129,7 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    PlaygroundProjectTrigger,
     PreAggregateCheckResult,
     PreAggregateMatchMiss,
     PreAggregateMissReason,
@@ -364,11 +365,13 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectUuid: string;
         projectType: ProjectType;
+        provisioningSource?: 'playground';
     }) => Promise<void>;
     provisionPlaygroundProject?: (args: {
         user: SessionUser;
         projectService: ProjectService;
         canViewProject: (project: OrganizationProject) => boolean;
+        trigger: PlaygroundProjectTrigger;
     }) => Promise<EnsurePlaygroundProjectResults>;
 };
 
@@ -583,6 +586,7 @@ export class ProjectService extends BaseService {
 
     async ensurePlaygroundProject(
         user: SessionUser,
+        trigger: PlaygroundProjectTrigger = 'invite_expert',
     ): Promise<EnsurePlaygroundProjectResults> {
         if (!this.provisionPlaygroundProject) {
             throw new NotFoundError('Playground projects are not available');
@@ -617,6 +621,7 @@ export class ProjectService extends BaseService {
                         createdByUserUuid: project.createdByUserUuid,
                     }),
                 ),
+            trigger,
         });
     }
 
@@ -685,11 +690,17 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
+        provisioningSource?: 'playground',
     ): Promise<void> {
         await this.provisionDefaultAiAgent(user, projectUuid, projectType);
 
         try {
-            await this.onProjectCreated?.({ user, projectUuid, projectType });
+            await this.onProjectCreated?.({
+                user,
+                projectUuid,
+                projectType,
+                provisioningSource,
+            });
         } catch (error) {
             // Provisioning failures must not fail project creation
             Sentry.captureException(error);
@@ -2507,6 +2518,7 @@ export class ProjectService extends BaseService {
             user,
             projectUuid,
             createProject.type,
+            internalProvisioning?.source,
         );
 
         // For preview projects: if the upstream requires user warehouse credentials

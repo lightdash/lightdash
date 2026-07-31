@@ -12,6 +12,7 @@ import {
     type Explore,
     type ExploreError,
     type OrganizationProject,
+    type PlaygroundProjectTrigger,
     type SessionUser,
 } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
@@ -45,6 +46,8 @@ export type ProvisionPlaygroundProjectArguments = {
     catalogService: Pick<CatalogService, 'indexCatalog'>;
     analytics: Pick<LightdashAnalytics, 'track'>;
     canViewProject: (project: OrganizationProject) => boolean;
+    trigger?: PlaygroundProjectTrigger;
+    hasActiveAgentOnboardingRun?: () => Promise<boolean>;
     playgroundDataDirectory?: string;
     validatePlaygroundDatabase?: (databasePath: string) => Promise<void>;
 };
@@ -87,6 +90,8 @@ export const provisionPlaygroundProject = async ({
     catalogService,
     analytics,
     canViewProject,
+    trigger = 'invite_expert',
+    hasActiveAgentOnboardingRun,
     playgroundDataDirectory,
     validatePlaygroundDatabase = validatePlaygroundDatabaseBundle,
 }: ProvisionPlaygroundProjectArguments): Promise<EnsurePlaygroundProjectResults> => {
@@ -114,7 +119,7 @@ export const provisionPlaygroundProject = async ({
             properties: {
                 organizationId: organizationUuid,
                 projectId,
-                trigger: 'invite_expert',
+                trigger,
                 onboardingFlow,
                 reason,
             },
@@ -162,7 +167,12 @@ export const provisionPlaygroundProject = async ({
                         created: false,
                     };
                 }
-                if (projects.length > 0) {
+                // The wait-trigger provisions alongside existing projects, so
+                // it is only honoured while a run it could be waiting on exists
+                const isWaitingOnRun =
+                    trigger === 'agent_onboarding_wait' &&
+                    (await hasActiveAgentOnboardingRun?.()) === true;
+                if (projects.length > 0 && !isWaitingOnRun) {
                     const existingProject = accessibleProjects[0];
                     if (!existingProject) {
                         trackSkipped('no_project_access', null);
@@ -261,7 +271,7 @@ export const provisionPlaygroundProject = async ({
                     properties: {
                         organizationId: organizationUuid,
                         projectId: projectUuid,
-                        trigger: 'invite_expert',
+                        trigger,
                         onboardingFlow,
                         catalogIndexErrorType,
                     },
@@ -277,7 +287,7 @@ export const provisionPlaygroundProject = async ({
                 properties: {
                     organizationId: organizationUuid,
                     projectId: lastKnownProjectUuid,
-                    trigger: 'invite_expert',
+                    trigger,
                     onboardingFlow,
                     errorType: getErrorType(error),
                 },

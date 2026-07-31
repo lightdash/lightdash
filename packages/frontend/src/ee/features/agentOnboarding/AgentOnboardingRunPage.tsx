@@ -21,13 +21,14 @@ import {
     IconPlayerStop,
     IconRefresh,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
 import { AgentOnboardingActivityPanel } from './AgentOnboardingActivity';
+import { AgentOnboardingDemoOffer } from './AgentOnboardingDemoOffer';
 import { AgentOnboardingFileBrowser } from './AgentOnboardingFileBrowser';
 import { AgentOnboardingProgress } from './AgentOnboardingProgress';
 import classes from './AgentOnboardingRunPage.module.css';
@@ -40,6 +41,7 @@ import {
     getAgentOnboardingDashboardUrl,
     getAgentOnboardingRunUrl,
 } from './utils';
+import { setWatchedAgentOnboardingRun } from './watchedRunStore';
 
 const STATUS_CONFIG: Record<
     AgentOnboardingRunStatus,
@@ -157,6 +159,25 @@ const AgentOnboardingRunPage: FC = () => {
     const cancelMutation = useCancelAgentOnboardingRun();
     const startMutation = useStartAgentOnboardingRun();
 
+    const runStatus = runQuery.data?.status;
+    const runUuid = runQuery.data?.agentOnboardingRunUuid;
+    const runProjectUuid = runQuery.data?.projectUuid;
+
+    useEffect(() => {
+        if (
+            !runUuid ||
+            !runProjectUuid ||
+            !runStatus ||
+            isAgentOnboardingRunTerminal(runStatus)
+        ) {
+            return;
+        }
+        setWatchedAgentOnboardingRun({
+            agentOnboardingRunUuid: runUuid,
+            projectUuid: runProjectUuid,
+        });
+    }, [runUuid, runProjectUuid, runStatus]);
+
     if (runQuery.isInitialLoading) {
         return <PageSpinner />;
     }
@@ -263,6 +284,10 @@ const AgentOnboardingRunPage: FC = () => {
                             isRetrying={startMutation.isLoading}
                         />
                     </Group>
+
+                    {!isAgentOnboardingRunTerminal(run.status) ? (
+                        <AgentOnboardingDemoOffer run={run} />
+                    ) : null}
 
                     {run.status === 'failed' ? (
                         <Alert
