@@ -200,6 +200,7 @@ export type AiAgentArgs = AnyAiModel & {
     projectContextEnabled: boolean;
     aiAgentMemoryEnabled: boolean;
     mcpServers: AiAgentMcpServer[];
+    compactionSummary: string | null;
     messageHistory: ModelMessage[];
     promptUuid: string;
     threadUuid: string;
