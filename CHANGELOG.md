@@ -1,3 +1,10 @@
+## [1.57.2](https://github.com/lightdash/lightdash/compare/1.57.1...1.57.2) (2026-07-31)
+
+
+### Bug Fixes
+
+* **ai:** prevent overlapping Deep Research runs ([#26653](https://github.com/lightdash/lightdash/issues/26653)) ([04bd2bf](https://github.com/lightdash/lightdash/commit/04bd2bf21e34136a981385946ec25e4390ff875e))
+
 ## [1.57.1](https://github.com/lightdash/lightdash/compare/1.57.0...1.57.1) (2026-07-31)
 
 
