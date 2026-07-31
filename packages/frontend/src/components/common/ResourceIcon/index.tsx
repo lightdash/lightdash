@@ -30,6 +30,7 @@ interface IconBoxProps extends MantineIconProps {
     color: string;
     bg?: string;
     icon: TablerIconType;
+    boxSize?: number;
 }
 
 export const IconBox: FC<IconBoxProps> = ({
@@ -37,9 +38,16 @@ export const IconBox: FC<IconBoxProps> = ({
     icon,
     size = 'lg',
     bg = 'ldGray.0',
+    boxSize = 32,
     ...mantineIconProps
 }) => (
-    <Paper w={32} h={32} radius="md" bg={bg} className={classes.iconBox}>
+    <Paper
+        w={boxSize}
+        h={boxSize}
+        radius="md"
+        bg={bg}
+        className={classes.iconBox}
+    >
         <MantineIcon
             icon={icon}
             color={color}

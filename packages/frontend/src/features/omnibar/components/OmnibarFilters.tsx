@@ -4,7 +4,7 @@ import {
     type OrganizationMemberProfile,
     type SearchFilters,
 } from '@lightdash/common';
-import { Button, Flex, Group, Menu, Select } from '@mantine-8/core';
+import { Box, Button, Flex, Group, Menu, Select } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { DatePicker } from '@mantine/dates';
 import {
@@ -24,12 +24,13 @@ import {
     IconUser,
     IconX,
 } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { allSearchItemTypes } from '../types/searchItem';
 import { getDateFilterLabel } from '../utils/getDateFilterLabel';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
+import classes from './OmnibarFilters.module.css';
 import { getOmnibarItemColor } from './utils';
 
 const getOmnibarItemIcon = (itemType: SearchItemType) => {
@@ -81,16 +82,50 @@ function findUserName(
 
 function getFilterButtonProps(hasFilter: boolean) {
     return {
-        variant: hasFilter ? 'outline' : 'default',
-        color: hasFilter ? 'ldGray.5' : undefined,
-        c: hasFilter ? 'ldGray.7' : undefined,
+        variant: 'subtle',
+        radius: 'md',
+        className: hasFilter
+            ? `${classes.filterButton} ${classes.filterButtonActive}`
+            : classes.filterButton,
     } as const;
 }
 
+/** An active filter swaps its caret for an × that drops just that filter,
+ *  without opening the panel behind it. */
+const FilterRightSection: FC<{ isActive: boolean; onClear: () => void }> = ({
+    isActive,
+    onClear,
+}) =>
+    isActive ? (
+        <Box
+            component="span"
+            role="button"
+            aria-label="Clear filter"
+            className={classes.clearSection}
+            onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onClear();
+            }}
+        >
+            <MantineIcon icon={IconX} strokeWidth={1.5} />
+        </Box>
+    ) : (
+        <MantineIcon icon={IconChevronDown} strokeWidth={1.5} />
+    );
+
 const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
     const [isDateMenuOpen, dateMenuHandlers] = useDisclosure(false);
-    const [isCreatedByMenuOpen, createdByMenuHelpers] = useDisclosure(false);
+    const [isCreatedByExpanded, setIsCreatedByExpanded] = useState(false);
+    const createdByInputRef = useRef<HTMLInputElement>(null);
     const { data: organizationUsers } = useOrganizationUsers();
+
+    useEffect(() => {
+        if (isCreatedByExpanded) {
+            createdByInputRef.current?.focus();
+        }
+    }, [isCreatedByExpanded]);
 
     const canClearFilters = useMemo(() => {
         return (
@@ -111,7 +146,14 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
     );
 
     return (
-        <Group px="md" py="sm">
+        <Group
+            px="xs"
+            py="xxs"
+            gap="two"
+            align="center"
+            wrap="nowrap"
+            className={classes.filtersRow}
+        >
             <Menu
                 position="bottom-start"
                 withArrow
@@ -121,10 +163,36 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             >
                 <Menu.Target>
                     <Button
-                        radius="lg"
                         size="compact-xs"
-                        leftSection={<MantineIcon icon={IconAdjustments} />}
-                        rightSection={<MantineIcon icon={IconChevronDown} />}
+                        leftSection={
+                            filters?.type ? (
+                                <MantineIcon
+                                    icon={getOmnibarItemIcon(
+                                        filters.type as SearchItemType,
+                                    )}
+                                    color={getOmnibarItemColor(
+                                        filters.type as SearchItemType,
+                                    )}
+                                    strokeWidth={1.5}
+                                />
+                            ) : (
+                                <MantineIcon
+                                    icon={IconAdjustments}
+                                    strokeWidth={1.5}
+                                />
+                            )
+                        }
+                        rightSection={
+                            <FilterRightSection
+                                isActive={!!filters?.type}
+                                onClear={() =>
+                                    onSearchFilterChange({
+                                        ...filters,
+                                        type: undefined,
+                                    })
+                                }
+                            />
+                        }
                         {...getFilterButtonProps(!!filters?.type)}
                     >
                         {filters?.type
@@ -171,10 +239,27 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             >
                 <Menu.Target>
                     <Button
-                        radius="lg"
                         size="compact-xs"
-                        leftSection={<MantineIcon icon={IconCalendar} />}
-                        rightSection={<MantineIcon icon={IconChevronDown} />}
+                        leftSection={
+                            <MantineIcon
+                                icon={IconCalendar}
+                                strokeWidth={1.5}
+                            />
+                        }
+                        rightSection={
+                            <FilterRightSection
+                                isActive={
+                                    !!filters?.fromDate || !!filters?.toDate
+                                }
+                                onClear={() =>
+                                    onSearchFilterChange({
+                                        ...filters,
+                                        fromDate: undefined,
+                                        toDate: undefined,
+                                    })
+                                }
+                            />
+                        }
                         {...getFilterButtonProps(
                             !!filters?.fromDate || !!filters?.toDate,
                         )}
@@ -227,57 +312,67 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     </Flex>
                 </Menu.Dropdown>
             </Menu>
-            <Menu
-                position="bottom-start"
-                withArrow
-                shadow="md"
-                arrowOffset={11}
-                offset={2}
-                opened={isCreatedByMenuOpen}
-                onOpen={createdByMenuHelpers.open}
-                onClose={createdByMenuHelpers.close}
-            >
-                <Menu.Target>
-                    <Button
-                        radius="lg"
-                        size="compact-xs"
-                        leftSection={<MantineIcon icon={IconUser} />}
-                        rightSection={<MantineIcon icon={IconChevronDown} />}
-                        {...getFilterButtonProps(!!filters?.createdByUuid)}
-                    >
-                        {filters?.createdByUuid
-                            ? findUserName(
-                                  filters.createdByUuid,
-                                  organizationUsers,
-                              )
-                            : 'Created by'}
-                    </Button>
-                </Menu.Target>
-
-                <Menu.Dropdown>
-                    <Select
-                        placeholder="Select a user"
-                        searchable
-                        // null keeps the Select controlled; if uncontrolled, Mantine resets the search text mid-click
-                        value={filters?.createdByUuid ?? null}
-                        clearable
-                        allowDeselect={false}
-                        // keep options inside the Menu so clicking one isn't an outside click that closes it
-                        comboboxProps={{ withinPortal: false }}
-                        data={userOptions}
-                        onChange={(value) => {
-                            onSearchFilterChange({
-                                ...filters,
-                                createdByUuid: value || undefined,
-                            });
-                        }}
-                        // onChange doesn't fire when re-selecting the current value
-                        onOptionSubmit={() => {
-                            createdByMenuHelpers.close();
-                        }}
-                    />
-                </Menu.Dropdown>
-            </Menu>
+            {isCreatedByExpanded ? (
+                <Select
+                    ref={createdByInputRef}
+                    size="xs"
+                    radius="md"
+                    w={200}
+                    classNames={{ input: classes.createdByInput }}
+                    placeholder="Search a user..."
+                    searchable
+                    // null keeps the Select controlled; if uncontrolled, Mantine resets the search text mid-click
+                    value={filters?.createdByUuid ?? null}
+                    clearable
+                    allowDeselect={false}
+                    data={userOptions}
+                    leftSection={
+                        <MantineIcon icon={IconUser} strokeWidth={1.5} />
+                    }
+                    onChange={(value) => {
+                        onSearchFilterChange({
+                            ...filters,
+                            createdByUuid: value || undefined,
+                        });
+                    }}
+                    // The × clears the input text on its own; drop the filter too
+                    onClear={() =>
+                        onSearchFilterChange({
+                            ...filters,
+                            createdByUuid: undefined,
+                        })
+                    }
+                    // onChange doesn't fire when re-selecting the current value
+                    onOptionSubmit={() => setIsCreatedByExpanded(false)}
+                    // Collapsing on dropdown close would unmount this mid-click
+                    // and swallow the × — only collapse once focus truly leaves
+                    onBlur={() => setIsCreatedByExpanded(false)}
+                />
+            ) : (
+                <Button
+                    size="compact-xs"
+                    leftSection={
+                        <MantineIcon icon={IconUser} strokeWidth={1.5} />
+                    }
+                    rightSection={
+                        <FilterRightSection
+                            isActive={!!filters?.createdByUuid}
+                            onClear={() =>
+                                onSearchFilterChange({
+                                    ...filters,
+                                    createdByUuid: undefined,
+                                })
+                            }
+                        />
+                    }
+                    {...getFilterButtonProps(!!filters?.createdByUuid)}
+                    onClick={() => setIsCreatedByExpanded(true)}
+                >
+                    {filters?.createdByUuid
+                        ? findUserName(filters.createdByUuid, organizationUsers)
+                        : 'Created by'}
+                </Button>
+            )}
 
             {canClearFilters && (
                 <Button

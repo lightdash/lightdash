@@ -4,6 +4,7 @@ import {
     Button,
     Card,
     Loader,
+    Menu,
     Modal,
     MultiSelect,
     NumberInput,
@@ -260,6 +261,13 @@ export const getMantine8ThemeOverride = (
                 defaultProps: {
                     loaders: { ...Loader.defaultLoaders, dots: DotsLoader },
                 },
+            }),
+
+            Menu: Menu.extend({
+                styles: (theme) => ({
+                    dropdown: { fontFamily: theme.fontFamily },
+                    item: { fontFamily: theme.fontFamily },
+                }),
             }),
 
             Select: Select.extend({

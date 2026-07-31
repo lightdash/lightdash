@@ -1,4 +1,4 @@
-import { Badge, Box, Group, Stack, Text } from '@mantine-8/core';
+import { Badge, Box, Group, Text } from '@mantine-8/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC, type MutableRefObject } from 'react';
 import { type SearchItem } from '../types/searchItem';
@@ -7,6 +7,7 @@ import {
     OmnibarItemIcon,
     OmnibarItemIconWithIndicator,
 } from './OmnibarItemIcon';
+import { itemHasValidationError, itemHasVerification } from './utils';
 
 type Props = {
     projectUuid: string;
@@ -15,19 +16,10 @@ type Props = {
     hovered?: boolean;
     scrollRef?: MutableRefObject<HTMLDivElement>;
     onClick?: (e: React.MouseEvent) => void;
+    /** Fired on real pointer movement (not scroll-induced mouseenter), so
+     * keyboard-scrolling rows under a parked cursor can't steal the focus. */
+    onMouseMove?: () => void;
 };
-
-const itemHasValidationError = (searchItem: SearchItem) =>
-    searchItem.item &&
-    ['dashboard', 'saved_chart', 'table'].includes(searchItem.type) &&
-    'validationErrors' in searchItem.item &&
-    searchItem.item.validationErrors?.length > 0;
-
-const itemHasVerification = (searchItem: SearchItem) =>
-    searchItem.item &&
-    'verification' in searchItem.item &&
-    searchItem.item.verification !== null &&
-    searchItem.item.verification !== undefined;
 
 const OmnibarItem: FC<Props> = ({
     item,
@@ -35,6 +27,7 @@ const OmnibarItem: FC<Props> = ({
     canUserManageValidation,
     hovered,
     onClick,
+    onMouseMove,
     scrollRef,
 }) => {
     return (
@@ -44,6 +37,7 @@ const OmnibarItem: FC<Props> = ({
             className={classes.action}
             tabIndex={-1}
             onClick={onClick}
+            onMouseMove={onMouseMove}
             gap="sm"
             wrap="nowrap"
         >
@@ -55,41 +49,50 @@ const OmnibarItem: FC<Props> = ({
                         canUserManageValidation={canUserManageValidation}
                     />
                 ) : (
-                    <OmnibarItemIcon item={item} />
+                    <OmnibarItemIcon item={item} boxSize={26} />
                 )}
             </Box>
 
-            <Stack gap="two" className={classes.content}>
-                <Group gap="xs" wrap="nowrap">
-                    <Text fw={500} size="sm" truncate ref={scrollRef}>
-                        {item.prefix ? <>{item.prefix} </> : null}
-                        {item.title}
-                    </Text>
-                    {itemHasVerification(item) && (
-                        <Badge
-                            size="xs"
-                            variant="light"
-                            color="green"
-                            leftSection={<IconCircleCheckFilled size={10} />}
-                            style={{ flexShrink: 0 }}
-                        >
-                            Verified
-                        </Badge>
-                    )}
-                </Group>
+            <Group gap="xs" wrap="nowrap" className={classes.content}>
+                <Text
+                    fw={400}
+                    size="sm"
+                    truncate
+                    ref={scrollRef}
+                    className={classes.title}
+                >
+                    {item.prefix ? <>{item.prefix} </> : null}
+                    {item.title}
+                </Text>
 
-                {item.contextLabel ? (
+                {item.contextLabel || item.description || item.typeLabel ? (
                     <Text size="xs" truncate className={classes.secondaryText}>
-                        {item.contextLabel}
-                    </Text>
-                ) : item.description || item.typeLabel ? (
-                    <Text size="xs" truncate className={classes.secondaryText}>
-                        {item.typeLabel}
-                        {item.typeLabel && item.description ? <> · </> : null}
-                        {item.description}
+                        {item.contextLabel ? (
+                            item.contextLabel
+                        ) : (
+                            <>
+                                {item.typeLabel}
+                                {item.typeLabel && item.description
+                                    ? ' · '
+                                    : null}
+                                {item.description}
+                            </>
+                        )}
                     </Text>
                 ) : null}
-            </Stack>
+
+                {itemHasVerification(item) && (
+                    <Badge
+                        size="xs"
+                        variant="light"
+                        color="green"
+                        leftSection={<IconCircleCheckFilled size={10} />}
+                        className={classes.verifiedBadge}
+                    >
+                        Verified
+                    </Badge>
+                )}
+            </Group>
         </Group>
     );
 };
