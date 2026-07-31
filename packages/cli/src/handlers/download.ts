@@ -95,6 +95,10 @@ import {
 } from './apps/appsDownload';
 import { loadTemplateDependencies } from './apps/scaffolding';
 import {
+    createBuildLimitWaitState,
+    withBuildLimitRetry,
+} from './apps/uploadRetry';
+import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
     EXTERNAL_CONNECTION_CODE_RESOURCE,
@@ -3199,6 +3203,7 @@ export const uploadHandler = async (
             }
 
             const matchedRefs = new Set<string>();
+            const buildWaitState = createBuildLimitWaitState();
             for (const subDir of subDirs) {
                 const folderPath = path.join(appsDir, subDir.name);
                 try {
@@ -3371,11 +3376,29 @@ export const uploadHandler = async (
 
                     // eslint-disable-next-line no-await-in-loop
                     const { appUuid, version, action, slug, warnings } =
-                        await lightdashApi<ApiImportAppCodeResponse['results']>(
+                        await withBuildLimitRetry(
+                            () =>
+                                lightdashApi<
+                                    ApiImportAppCodeResponse['results']
+                                >({
+                                    method: 'POST',
+                                    url: `/api/v1/ee/projects/${projectId}/apps/upload`,
+                                    body: JSON.stringify(body),
+                                }),
+                            buildWaitState,
                             {
-                                method: 'POST',
-                                url: `/api/v1/ee/projects/${projectId}/apps/upload`,
-                                body: JSON.stringify(body),
+                                onWait: (attempt, delayMs) => {
+                                    if (attempt === 1) {
+                                        GlobalState.log(
+                                            styles.warning(
+                                                `Project build limit reached — waiting for builds to finish before uploading "${subDir.name}"…`,
+                                            ),
+                                        );
+                                    }
+                                    GlobalState.debug(
+                                        `> Build cap retry ${attempt} for "${subDir.name}" in ${delayMs}ms`,
+                                    );
+                                },
                             },
                         );
 
@@ -3448,10 +3471,14 @@ export const uploadHandler = async (
                         break;
                     }
                     appsFailed += 1;
-                    const hint =
-                        status === 404
-                            ? ' — the enterprise "data apps" feature may not be enabled on this instance'
-                            : '';
+                    let hint = '';
+                    if (status === 404) {
+                        hint =
+                            ' — the enterprise "data apps" feature may not be enabled on this instance';
+                    } else if (status === 429) {
+                        hint =
+                            ' — gave up waiting for a free build slot; re-run the upload once builds finish (unchanged apps are skipped)';
+                    }
                     GlobalState.log(
                         styles.error(
                             `Failed to upload app folder "${subDir.name}"${
