@@ -947,7 +947,15 @@ for suffix in api scheduler frontend common-watch formula-watch warehouses-watch
   pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
 done
 
-docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down -v
+# Volumes are removed by name, not with `down -v`: the compose file names the
+# data volume `${LD_VOLUME_PREFIX:-docker}_postgres_data`, so `-v` targets the
+# wrong volume unless LD_VOLUME_PREFIX is exported — and the snapshot volume is
+# created outside compose, so no `-v` invocation ever removes it.
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
+
+for volume in "${LD_VOLUME_PREFIX}_postgres_data" "${LD_VOLUME_PREFIX}_postgres_data_snapshot"; do
+  docker volume rm "$volume" 2>/dev/null || true
+done
 
 ./scripts/dev-ports.sh release --instance-id "$LD_INSTANCE_ID"
 ```
