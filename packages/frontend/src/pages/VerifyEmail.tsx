@@ -108,6 +108,7 @@ const VerifyEmailPage: FC = () => {
                 <VerifyEmailForm
                     emailStatusData={data}
                     statusLoading={statusLoading}
+                    align="left"
                 />
             ) : (
                 <Card p="xl" withBorder shadow="subtle">
