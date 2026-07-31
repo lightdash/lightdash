@@ -3287,6 +3287,7 @@ const AppGenerate: FC = () => {
                                     }
                                     rightSection={
                                         <AppHeaderActions
+                                            fullscreenToggle={null}
                                             projectUuid={projectUuid}
                                             appUuid={activeAppUuid}
                                             upgrade={{
