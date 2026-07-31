@@ -92,6 +92,8 @@ minimumReleaseAgeExclude:
   - undici@6.27.0
   # Renovate security update: tar@7.5.21
   - tar@7.5.21
+  # Renovate security update: scim-patch@0.9.1
+  - scim-patch@0.9.1
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
