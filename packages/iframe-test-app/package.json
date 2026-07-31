@@ -23,6 +23,6 @@
         "eslint-plugin-react-refresh": "0.4.20",
         "globals": "16.4.0",
         "typescript": "7.0.2",
-        "vite": "8.0.5"
+        "vite": "8.0.16"
     }
 }
