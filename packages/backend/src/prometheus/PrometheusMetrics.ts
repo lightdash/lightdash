@@ -134,6 +134,8 @@ export default class PrometheusMetrics {
     public aiAgentMemoryUnknownToolPolicyCounter: prometheus.Counter | null =
         null;
 
+    public aiAgentMemoryCitedCounter: prometheus.Counter | null = null;
+
     public aiDeepResearchReportCleanupCounter: prometheus.Counter<'outcome'> | null =
         null;
 
@@ -561,6 +563,12 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
+                this.aiAgentMemoryCitedCounter = new prometheus.Counter({
+                    name: 'ai_agent_memory_cited_total',
+                    help: 'Memories cited in an agent response, counted once per memory per response',
+                    ...rest,
+                });
+
                 this.aiDeepResearchReportCleanupCounter =
                     new prometheus.Counter({
                         name: 'ai_deep_research_report_cleanup_total',
@@ -769,6 +777,7 @@ export default class PrometheusMetrics {
                 });
                 this.aiAgentMemorySweepEnqueuedCounter?.inc(0);
                 this.aiAgentMemoryUnknownToolPolicyCounter?.inc(0);
+                this.aiAgentMemoryCitedCounter?.inc(0);
                 (['scanned', 'expired', 'failed'] as const).forEach(
                     (outcome) => {
                         this.aiDeepResearchReportCleanupCounter?.inc(
@@ -1637,6 +1646,10 @@ export default class PrometheusMetrics {
 
     public incrementAiAgentMemoryUnknownToolPolicy() {
         this.aiAgentMemoryUnknownToolPolicyCounter?.inc();
+    }
+
+    public incrementAiAgentMemoryCited(count: number) {
+        this.aiAgentMemoryCitedCounter?.inc(count);
     }
 
     public incrementAiDeepResearchReportCleanup(
