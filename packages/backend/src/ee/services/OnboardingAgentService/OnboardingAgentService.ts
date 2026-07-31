@@ -23,6 +23,7 @@ import { BaseService } from '../../../services/BaseService';
 import { type PersonalAccessTokenService } from '../../../services/PersonalAccessTokenService';
 import { type PromptService } from '../../../services/PromptService/PromptService';
 import { type UserService } from '../../../services/UserService';
+import { VERSION } from '../../../version';
 import {
     type DbAgentOnboardingFile,
     type DbAgentOnboardingRun,
@@ -438,6 +439,7 @@ export class OnboardingAgentService extends BaseService {
                 allow: [
                     new URL(this.getSandboxFacingSiteUrl()).hostname,
                     'api.anthropic.com',
+                    'registry.npmjs.org',
                 ],
             },
         };
@@ -612,6 +614,26 @@ export class OnboardingAgentService extends BaseService {
         await sandbox.commands.run(
             `mkdir -p ${WORKDIR}/lightdash/models ${WORKDIR}/lightdash/charts ${WORKDIR}/lightdash/dashboards && chmod -R a+rwX ${WORKDIR}`,
         );
+        if (/^\d+\.\d+\.\d+$/.test(VERSION)) {
+            try {
+                const result = await sandbox.commands.run(
+                    `npm install -g @lightdash/cli@${VERSION}`,
+                );
+                if (result.exitCode !== 0) {
+                    this.logger.warn(
+                        `OnboardingAgent: could not pin CLI to ${VERSION}, using template CLI`,
+                    );
+                } else {
+                    this.logger.info(
+                        `OnboardingAgent: pinned CLI to ${VERSION}`,
+                    );
+                }
+            } catch {
+                this.logger.warn(
+                    `OnboardingAgent: could not pin CLI to ${VERSION}, using template CLI`,
+                );
+            }
+        }
         await sandbox.files.write(PROMPT_PATH, prompt);
         await sandbox.files.write(CLI_WRAPPER_PATH, CLI_WRAPPER_SCRIPT);
         await sandbox.files.write(
