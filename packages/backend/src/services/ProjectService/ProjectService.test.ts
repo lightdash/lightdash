@@ -40,6 +40,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -172,6 +173,7 @@ vi.mock('@lightdash/warehouses', () => ({
 const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
+    getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
     getSummary: vi.fn(async () => projectSummary),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
@@ -283,6 +285,16 @@ const projectCompileLogModel = {
     insert: vi.fn(async () => undefined),
 };
 
+const getMockedAiAgentService = () => {
+    const provisionDefaultAgent =
+        vi.fn<AiAgentService['provisionDefaultAgent']>();
+    return {
+        provisionDefaultAgent,
+        getAiAgentService: () =>
+            ({ provisionDefaultAgent }) as unknown as AiAgentService,
+    };
+};
+
 const getMockedProjectService = (
     lightdashConfig: LightdashConfig,
     overrides: Partial<
@@ -291,6 +303,7 @@ const getMockedProjectService = (
             | 'spacePermissionService'
             | 'provisionPlaygroundProject'
             | 'downloadFileModel'
+            | 'getAiAgentService'
         >
     > = {},
 ) =>
@@ -358,6 +371,7 @@ const getMockedProjectService = (
         spacePermissionService:
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
+        getAiAgentService: overrides.getAiAgentService,
         organizationSettingsModel: {
             get: vi.fn(async () => ({
                 queryLimit: null,
@@ -603,6 +617,137 @@ describe('ProjectService', () => {
         ).rejects.toThrow(
             'Embedded DuckDB connections can only be provisioned internally',
         );
+    });
+
+    describe('default AI agent provisioning', () => {
+        test('provisions a default AI agent for a playground when the organization already has another project', async () => {
+            const createdProjectUuid = 'created-playground-project-uuid';
+            const { provisionDefaultAgent, getAiAgentService } =
+                getMockedAiAgentService();
+            const serviceWithAiAgent = getMockedProjectService(
+                lightdashConfigMock,
+                { getAiAgentService },
+            );
+            const creationUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+            };
+            const organizationProjects = [
+                {
+                    ...defaultProject,
+                    projectUuid: createdProjectUuid,
+                },
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing-project-uuid',
+                },
+            ];
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                createdProjectUuid,
+            );
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(
+                organizationProjects,
+            );
+            const validateSpy = vi
+                .spyOn(
+                    serviceWithAiAgent as unknown as {
+                        validateProjectCreationPermissions: () => Promise<true>;
+                    },
+                    'validateProjectCreationPermissions',
+                )
+                .mockResolvedValue(true);
+
+            try {
+                await serviceWithAiAgent.createWithoutCompile(
+                    creationUser,
+                    {
+                        name: 'Playground',
+                        type: ProjectType.DEFAULT,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                        warehouseConnection: {
+                            type: WarehouseTypes.DUCKDB,
+                            connectionType: DuckdbConnectionType.EMBEDDED,
+                            dataset: 'jaffle_shop',
+                        },
+                    },
+                    RequestMethod.WEB_APP,
+                    { source: 'playground' },
+                );
+
+                expect(provisionDefaultAgent).toHaveBeenCalledWith(
+                    creationUser,
+                    createdProjectUuid,
+                );
+            } finally {
+                validateSpy.mockRestore();
+                projectModel.getAllByOrganizationUuid.mockReset();
+            }
+        });
+
+        test('does not provision a default AI agent for normal creation when the organization already has multiple projects', async () => {
+            const createdProjectUuid = 'created-project-uuid';
+            const { provisionDefaultAgent, getAiAgentService } =
+                getMockedAiAgentService();
+            const serviceWithAiAgent = getMockedProjectService(
+                lightdashConfigMock,
+                { getAiAgentService },
+            );
+            const creationUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+            };
+            const organizationProjects = [
+                {
+                    ...defaultProject,
+                    projectUuid: createdProjectUuid,
+                },
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing-project-uuid-1',
+                },
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing-project-uuid-2',
+                },
+            ];
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                createdProjectUuid,
+            );
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(
+                organizationProjects,
+            );
+            const validateSpy = vi
+                .spyOn(
+                    serviceWithAiAgent as unknown as {
+                        validateProjectCreationPermissions: () => Promise<true>;
+                    },
+                    'validateProjectCreationPermissions',
+                )
+                .mockResolvedValue(true);
+
+            try {
+                await serviceWithAiAgent.createWithoutCompile(
+                    creationUser,
+                    {
+                        name: 'Project',
+                        type: ProjectType.DEFAULT,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    },
+                    RequestMethod.WEB_APP,
+                );
+
+                expect(provisionDefaultAgent).not.toHaveBeenCalled();
+            } finally {
+                validateSpy.mockRestore();
+                projectModel.getAllByOrganizationUuid.mockReset();
+            }
+        });
     });
 
     test('rejects embedded DuckDB credentials inherited from an upstream preview', async () => {
