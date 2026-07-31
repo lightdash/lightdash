@@ -112,7 +112,7 @@ export class PreAggregationDuckDbClient {
         this.createDuckdbWarehouseClient =
             args.createDuckdbWarehouseClient ??
             ((warehouseArgs) =>
-                new DuckdbWarehouseClient(
+                DuckdbWarehouseClient.createForPreAggregate(
                     { type: 'duckdb_s3', s3Config: warehouseArgs.s3Config },
                     {
                         sharedResourceLimits:

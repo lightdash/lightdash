@@ -446,6 +446,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly embeddedQueryTimeoutMs: number;
 
+    private allowsPreAggregateFileReads = false;
+
     constructor(
         credentials?: CreateDuckdbCredentials | DuckdbConnectionCredentials,
         options?: DuckdbWarehouseClientOptions,
@@ -570,10 +572,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     }
 
     static createForPreAggregate(
-        credentials?: DuckdbConnectionCredentials,
+        credentials: DuckdbS3Credentials,
         options?: DuckdbWarehouseClientOptions,
     ): DuckdbWarehouseClient {
-        return new DuckdbWarehouseClient(credentials, options);
+        const client = new DuckdbWarehouseClient(credentials, options);
+        client.allowsPreAggregateFileReads = true;
+        return client;
     }
 
     private static getSharedInstanceSemaphore(
@@ -1832,13 +1836,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
     }
 
-    private async validateUserSql(
+    private async validateSelectSql(
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
-        DuckdbWarehouseClient.validateSqlFunctions(sql);
-        DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
-
         const extracted = await db.extractStatements(sql);
 
         if (extracted.count === 0) {
@@ -1861,6 +1862,23 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         } finally {
             stmt.destroySync();
         }
+    }
+
+    private async validateUserSql(
+        db: DuckdbConnection,
+        sql: string,
+    ): Promise<void> {
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
+        DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        await this.validateSelectSql(db, sql);
+    }
+
+    private async validatePreAggregateSql(
+        db: DuckdbConnection,
+        sql: string,
+    ): Promise<void> {
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
+        await this.validateSelectSql(db, sql);
     }
 
     private async validateInternalSql(
@@ -1931,7 +1949,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             if (this.embeddedConfig) {
                 await db.run("SET disabled_filesystems = 'LocalFileSystem';");
             }
-            await this.validateUserSql(db, sql);
+            if (this.allowsPreAggregateFileReads) {
+                await this.validatePreAggregateSql(db, sql);
+            } else {
+                await this.validateUserSql(db, sql);
+            }
             reportPhase?.('session', performance.now() - sessionStart);
 
             const queryStart = performance.now();
