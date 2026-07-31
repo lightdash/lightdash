@@ -30,6 +30,7 @@ import {
     computeCustomDependencies,
     ContentAsCodeType as ContentAsCodeTypeEnum,
     DashboardAsCode,
+    DashboardTileTypes,
     ExternalConnectionAsCode,
     generateSlug,
     getErrorMessage,
@@ -71,17 +72,13 @@ import {
     buildImportBody,
     readBundleFromDir,
     readDependenciesFromDir,
-    resolveAppFolderName,
-    writeBundleToDir,
-    writeContextToDir,
-    writeDependenciesToDir,
-    writeFilesToDir,
 } from './apps/appCodeFiles';
 import {
     appsDownloadSummary,
     capListedApps,
-    classifyAppDownloadError,
-    ensureDownloadedAppContext,
+    computeLinkedAppSlugs,
+    downloadAppsToDir,
+    getDataAppReference,
     getDataAppUploadFilter,
     matchedUploadRefs,
     preSlugServerHint,
@@ -91,12 +88,8 @@ import {
     shouldFallBackToSpaceScopedListing,
     unmatchedUploadRefsWarning,
     uploadFilterMatches,
-    type AppDownloadFailure,
 } from './apps/appsDownload';
-import {
-    buildStaticAuthoringFiles,
-    loadTemplateDependencies,
-} from './apps/scaffolding';
+import { loadTemplateDependencies } from './apps/scaffolding';
 import {
     AI_AGENT_CODE_RESOURCE,
     ALERT_CODE_RESOURCE,
@@ -763,6 +756,29 @@ const extractChartSlugsFromDashboards = (
         return [...acc, ...slugs];
     }, []);
 
+const extractAppSlugsFromDashboards = (
+    dashboards: DashboardAsCode[],
+): string[] => [
+    ...new Set(
+        dashboards.flatMap((dashboard) =>
+            dashboard.tiles.reduce<string[]>((acc, tile) => {
+                if (tile.type !== DashboardTileTypes.DATA_APP) return acc;
+                return tile.properties.appSlug
+                    ? [...acc, tile.properties.appSlug]
+                    : acc;
+            }, []),
+        ),
+    ),
+];
+
+export type DownloadContentResult = {
+    total: number;
+    chartSlugs: string[];
+    appSlugs: string[];
+    metadataEntries: MetadataEntry[];
+    spaces: SpaceAsCode[];
+};
+
 export const downloadContent = async (
     ids: string[],
     type: DownloadContentType,
@@ -775,7 +791,7 @@ export const downloadContent = async (
     stripPivotSeries: boolean = false,
     rootSpaces: boolean = false,
     onProgress?: (detail: string) => void,
-): Promise<[number, string[], MetadataEntry[], SpaceAsCode[]]> => {
+): Promise<DownloadContentResult> => {
     const contentFilters = parseContentFilters(ids);
     const folderScheme: FolderScheme = nested ? 'nested' : 'flat';
     const config = getContentTypeConfig(type, projectId);
@@ -783,6 +799,7 @@ export const downloadContent = async (
     let offset = 0;
     let total = 0;
     let chartSlugs: string[] = [];
+    let appSlugs: string[] = [];
     let allMetadataEntries: MetadataEntry[] = [];
     let allSpaces: SpaceAsCode[] = [];
 
@@ -863,6 +880,10 @@ export const downloadContent = async (
                 ...chartSlugs,
                 ...extractChartSlugsFromDashboards(results.dashboards),
             ];
+            appSlugs = [
+                ...appSlugs,
+                ...extractAppSlugsFromDashboards(results.dashboards),
+            ];
         } else {
             const chartsBySpace = groupBySpace(results.charts);
             for (const [spaceSlug, chartsInSpace] of Object.entries(
@@ -908,7 +929,13 @@ export const downloadContent = async (
         );
     }
 
-    return [total, [...new Set(chartSlugs)], allMetadataEntries, allSpaces];
+    return {
+        total,
+        chartSlugs: [...new Set(chartSlugs)],
+        appSlugs: [...new Set(appSlugs)],
+        metadataEntries: allMetadataEntries,
+        spaces: allSpaces,
+    };
 };
 
 const getScheduledDeliveriesFolder = (customPath?: string): string =>
@@ -1572,12 +1599,14 @@ const upsertScheduledContent = async (
     return changes;
 };
 
+type ListedApp = { appUuid: string; slug: string };
+
 // Space-scoped fallback listing for servers without the project-wide apps
 // endpoint; omits apps that were never added to a space.
-const listAppUuidsViaContentApi = async (
+const listAppsViaContentApi = async (
     projectId: string,
-): Promise<string[]> => {
-    const listedAppUuids: string[] = [];
+): Promise<ListedApp[]> => {
+    const listedApps: ListedApp[] = [];
     let page = 1;
     let totalPageCount = 1;
     do {
@@ -1588,15 +1617,15 @@ const listAppUuidsViaContentApi = async (
                 body: undefined,
             },
         );
-        listedAppUuids.push(
+        listedApps.push(
             ...contentResult.data
                 .filter((item) => item.contentType === 'data_app')
-                .map((item) => item.uuid),
+                .map((item) => ({ appUuid: item.uuid, slug: item.slug })),
         );
         totalPageCount = contentResult.pagination?.totalPageCount ?? 1;
         page += 1;
     } while (page <= totalPageCount);
-    return listedAppUuids;
+    return listedApps;
 };
 
 export const downloadHandler = async (
@@ -1740,6 +1769,17 @@ export const downloadHandler = async (
     });
     try {
         let allMetadataEntries: MetadataEntry[] = [];
+        // Shared across both apps-download steps so two different apps whose
+        // names collide under the pre-slug fallback naming don't clobber each other.
+        const downloadedAppFolders = new Set<string>();
+        // App slugs referenced by downloaded dashboards' tiles, populated by
+        // the Dashboards step and consumed by the Linked data apps step.
+        let dashboardAppSlugs: string[] = [];
+        const explicitAppRefs = new Set(
+            (Array.isArray(options.apps) ? options.apps : []).map(
+                getDataAppReference,
+            ),
+        );
 
         if (shouldDownloadSpaces) {
             output.startItem('Spaces');
@@ -1800,48 +1840,51 @@ export const downloadHandler = async (
                     styles.warning(`No charts filters provided, skipping`),
                 );
             } else {
-                const [regularChartTotal, , regularChartMeta] =
-                    await output.runItem({
-                        label: 'Charts',
-                        action: () =>
-                            downloadContent(
-                                options.charts,
-                                'charts',
-                                projectId,
-                                projectName,
-                                options.path,
-                                options.languageMap,
-                                options.nested,
-                                skipEmbeddedSpaces,
-                                options.stripPivotSeries,
-                                options.rootSpaces,
-                                output.updateActive,
-                            ),
-                        detail: ([total]) => `${total} downloaded`,
-                    });
-                allMetadataEntries = [
-                    ...allMetadataEntries,
-                    ...regularChartMeta,
-                ];
-
-                const [sqlChartTotal, , sqlChartMeta] = await output.runItem({
-                    label: 'SQL charts',
+                const {
+                    total: regularChartTotal,
+                    metadataEntries: regularChartMeta,
+                } = await output.runItem({
+                    label: 'Charts',
                     action: () =>
                         downloadContent(
                             options.charts,
-                            'sqlCharts',
+                            'charts',
                             projectId,
                             projectName,
                             options.path,
                             options.languageMap,
                             options.nested,
                             skipEmbeddedSpaces,
-                            false,
+                            options.stripPivotSeries,
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ([total]) => `${total} downloaded`,
+                    detail: ({ total }) => `${total} downloaded`,
                 });
+                allMetadataEntries = [
+                    ...allMetadataEntries,
+                    ...regularChartMeta,
+                ];
+
+                const { total: sqlChartTotal, metadataEntries: sqlChartMeta } =
+                    await output.runItem({
+                        label: 'SQL charts',
+                        action: () =>
+                            downloadContent(
+                                options.charts,
+                                'sqlCharts',
+                                projectId,
+                                projectName,
+                                options.path,
+                                options.languageMap,
+                                options.nested,
+                                skipEmbeddedSpaces,
+                                false,
+                                options.rootSpaces,
+                                output.updateActive,
+                            ),
+                        detail: ({ total }) => `${total} downloaded`,
+                    });
                 allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
 
                 chartTotal = regularChartTotal + sqlChartTotal;
@@ -1856,9 +1899,15 @@ export const downloadHandler = async (
                 );
             } else {
                 let chartSlugs: string[] = [];
+                let appSlugs: string[] = [];
 
                 let dashMeta: MetadataEntry[];
-                [dashboardTotal, chartSlugs, dashMeta] = await output.runItem({
+                ({
+                    total: dashboardTotal,
+                    chartSlugs,
+                    appSlugs,
+                    metadataEntries: dashMeta,
+                } = await output.runItem({
                     label: 'Dashboards',
                     action: () =>
                         downloadContent(
@@ -1874,8 +1923,8 @@ export const downloadHandler = async (
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ([total]) => `${total} downloaded`,
-                });
+                    detail: ({ total }) => `${total} downloaded`,
+                }));
                 allMetadataEntries = [...allMetadataEntries, ...dashMeta];
 
                 if (
@@ -1887,38 +1936,41 @@ export const downloadHandler = async (
                     output.updateActive(
                         `${chartSlugs.length} dashboard dependencies`,
                     );
-                    const [regularCharts, , linkedChartMeta] =
-                        await downloadContent(
-                            chartSlugs,
-                            'charts',
-                            projectId,
-                            projectName,
-                            options.path,
-                            options.languageMap,
-                            options.nested,
-                            skipEmbeddedSpaces,
-                            options.stripPivotSeries,
-                            options.rootSpaces,
-                            output.updateActive,
-                        );
-                    allMetadataEntries = [
-                        ...allMetadataEntries,
-                        ...linkedChartMeta,
-                    ];
-
-                    const [sqlCharts, , linkedSqlMeta] = await downloadContent(
+                    const {
+                        total: regularCharts,
+                        metadataEntries: linkedChartMeta,
+                    } = await downloadContent(
                         chartSlugs,
-                        'sqlCharts',
+                        'charts',
                         projectId,
                         projectName,
                         options.path,
                         options.languageMap,
                         options.nested,
                         skipEmbeddedSpaces,
-                        false,
+                        options.stripPivotSeries,
                         options.rootSpaces,
                         output.updateActive,
                     );
+                    allMetadataEntries = [
+                        ...allMetadataEntries,
+                        ...linkedChartMeta,
+                    ];
+
+                    const { total: sqlCharts, metadataEntries: linkedSqlMeta } =
+                        await downloadContent(
+                            chartSlugs,
+                            'sqlCharts',
+                            projectId,
+                            projectName,
+                            options.path,
+                            options.languageMap,
+                            options.nested,
+                            skipEmbeddedSpaces,
+                            false,
+                            options.rootSpaces,
+                            output.updateActive,
+                        );
                     allMetadataEntries = [
                         ...allMetadataEntries,
                         ...linkedSqlMeta,
@@ -1928,6 +1980,9 @@ export const downloadHandler = async (
                         `${regularCharts + sqlCharts} downloaded`,
                     );
                 }
+
+                // Consumed after the explicit apps step (see cappedAppSlugs).
+                dashboardAppSlugs = appSlugs;
             }
         }
 
@@ -2032,6 +2087,9 @@ export const downloadHandler = async (
             apps: Array.isArray(options.apps) ? options.apps : undefined,
             includeApps,
         });
+        // Slugs covered by a (possibly --apps-limit-truncated) --include-apps
+        // listing, so the Linked data apps step knows what fell outside the cap.
+        let cappedAppSlugs = new Set<string>();
 
         if (appsSelection.mode !== 'none') {
             output.startItem('Data apps');
@@ -2043,7 +2101,7 @@ export const downloadHandler = async (
             } else {
                 // List every app in the project (includes apps not in any space)
                 output.updateActive('listing project apps…');
-                let listedAppUuids: string[];
+                let listedApps: ListedApp[];
                 try {
                     const projectApps = await lightdashApi<
                         ApiEmbedProjectAppsResponse['results']
@@ -2052,34 +2110,45 @@ export const downloadHandler = async (
                         url: `/api/v1/ee/projects/${projectId}/apps`,
                         body: undefined,
                     });
-                    listedAppUuids = projectApps.map((app) => app.appUuid);
+                    listedApps = projectApps.map((app) => ({
+                        appUuid: app.appUuid,
+                        slug: app.slug,
+                    }));
                 } catch (listErr) {
                     if (!shouldFallBackToSpaceScopedListing(listErr)) {
                         if (!includeAllOptionalContent) {
                             throw listErr;
                         }
                         appListingError = getErrorMessage(listErr);
-                        listedAppUuids = [];
+                        listedApps = [];
                     } else {
                         GlobalState.log(
                             styles.warning(
                                 'This server does not support project-wide app listing; only apps that are in a space will be included.',
                             ),
                         );
-                        listedAppUuids =
-                            await listAppUuidsViaContentApi(projectId);
+                        listedApps = await listAppsViaContentApi(projectId);
                     }
                 }
 
                 const { appUuids: cappedAppUuids, truncatedCount } =
-                    capListedApps(listedAppUuids, appsLimit);
+                    capListedApps(
+                        listedApps.map((app) => app.appUuid),
+                        appsLimit,
+                    );
                 if (truncatedCount > 0) {
                     GlobalState.log(
                         styles.warning(
-                            `Found ${listedAppUuids.length} data apps, downloading the first ${appsLimit}. Pass --apps-limit <n> to raise the cap.`,
+                            `Found ${listedApps.length} data apps, downloading the first ${appsLimit}. Pass --apps-limit <n> to raise the cap.`,
                         ),
                     );
                 }
+                const cappedAppUuidSet = new Set(cappedAppUuids);
+                cappedAppSlugs = new Set(
+                    listedApps
+                        .filter((app) => cappedAppUuidSet.has(app.appUuid))
+                        .map((app) => app.slug),
+                );
                 appRefsToDownload = [
                     ...new Set([
                         ...cappedAppUuids,
@@ -2103,100 +2172,42 @@ export const downloadHandler = async (
                 );
                 const baseDir = getDownloadFolder(options.path);
                 const appsDir = path.join(baseDir, 'apps');
-                const takenFolders = new Set<string>();
-                let appSuccessCount = 0;
-                let appSkippedNotBuiltCount = 0;
-                const appFailures: AppDownloadFailure[] = [];
 
-                for (const appRef of appRefsToDownload) {
-                    try {
-                        // eslint-disable-next-line no-await-in-loop
-                        const code = ensureDownloadedAppContext(
-                            appRef,
-                            await lightdashApi<DataAppCodeDownload>({
+                const { successCount, skippedNotBuiltCount, failures } =
+                    await downloadAppsToDir({
+                        appRefs: appRefsToDownload,
+                        projectId,
+                        appsDir,
+                        takenFolders: downloadedAppFolders,
+                        cliVersion: CLI_VERSION,
+                        fetchApp: (fetchProjectId, appRef) =>
+                            lightdashApi<DataAppCodeDownload>({
                                 method: 'GET',
-                                url: `/api/v1/ee/projects/${projectId}/apps/${appRef}/download`,
+                                url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                                    appRef,
+                                )}/download`,
                                 body: undefined,
                             }),
-                        );
-
-                        const folder = resolveAppFolderName(
-                            code.manifest,
-                            takenFolders,
-                        );
-                        takenFolders.add(folder);
-
-                        const appDir = path.join(appsDir, folder);
-                        const manifest = {
-                            ...code.manifest,
-                            scaffoldingVersion: CLI_VERSION,
-                        };
-                        // eslint-disable-next-line no-await-in-loop
-                        await writeBundleToDir(appDir, { ...code, manifest });
-                        // eslint-disable-next-line no-await-in-loop
-                        await writeFilesToDir(
-                            appDir,
-                            buildStaticAuthoringFiles({
-                                appName: code.manifest.name,
-                                sdkVersion: CLI_VERSION,
-                            }),
-                        );
-                        // Server-provided deps override the scaffold's
-                        // template package.json so re-uploads round-trip.
-                        if (code.dependencies) {
-                            // eslint-disable-next-line no-await-in-loop
-                            await writeDependenciesToDir(
-                                appDir,
-                                code.dependencies,
-                            );
-                        }
-                        // eslint-disable-next-line no-await-in-loop
-                        await writeContextToDir(appDir, code.context);
-                        appSuccessCount += 1;
-                    } catch (appErr) {
-                        const outcome = classifyAppDownloadError(appErr);
-                        if (outcome.kind === 'skip-not-built') {
-                            appSkippedNotBuiltCount += 1;
-                            GlobalState.debug(
-                                `> Skipped app ${appRef}: no built version to download`,
-                            );
-                        } else {
-                            appFailures.push({
-                                appRef,
-                                message: outcome.message,
-                            });
-                            GlobalState.log(
-                                styles.error(
-                                    `Failed to download app ${appRef}: ${outcome.message}`,
-                                ),
-                            );
-                        }
-                    }
-                    output.updateActive(
-                        `${
-                            appSuccessCount +
-                            appSkippedNotBuiltCount +
-                            appFailures.length
-                        } of ${appRefsToDownload.length} processed`,
-                    );
-                }
+                        onProgress: (processed, total) =>
+                            output.updateActive(
+                                `${processed} of ${total} processed`,
+                            ),
+                    });
 
                 const summary = appsDownloadSummary(
-                    appSuccessCount,
+                    successCount,
                     appRefsToDownload.length,
-                    appFailures,
+                    failures,
                     appsDir,
-                    appSkippedNotBuiltCount,
+                    skippedNotBuiltCount,
                 );
                 output.completeItem(
-                    `${appSuccessCount} downloaded${
-                        appSkippedNotBuiltCount > 0
-                            ? `, ${appSkippedNotBuiltCount} skipped`
+                    `${successCount} downloaded${
+                        skippedNotBuiltCount > 0
+                            ? `, ${skippedNotBuiltCount} skipped`
                             : ''
                     }${
-                        appFailures.length > 0
-                            ? `, ${appFailures.length} failed`
-                            : ''
+                        failures.length > 0 ? `, ${failures.length} failed` : ''
                     }`,
                     summary.ok ? undefined : 'warning',
                 );
@@ -2205,6 +2216,60 @@ export const downloadHandler = async (
                         GlobalState.log(styles.warning(line)),
                     );
                 }
+            }
+        }
+
+        // Dashboard-referenced apps not already covered above (explicit
+        // --apps ref, or a non-truncated slot in the --include-apps cap).
+        const linkedAppSlugs = computeLinkedAppSlugs({
+            appSlugs: dashboardAppSlugs,
+            explicitRefs: explicitAppRefs,
+            includeApps,
+            cappedAppSlugs,
+        });
+        if (linkedAppSlugs.length > 0) {
+            output.startItem('Linked data apps');
+            const appsDir = path.join(getDownloadFolder(options.path), 'apps');
+            const outcome = await downloadAppsToDir({
+                appRefs: linkedAppSlugs,
+                projectId,
+                appsDir,
+                takenFolders: downloadedAppFolders,
+                cliVersion: CLI_VERSION,
+                fetchApp: (fetchProjectId, appRef) =>
+                    lightdashApi<DataAppCodeDownload>({
+                        method: 'GET',
+                        url: `/api/v1/ee/projects/${fetchProjectId}/apps/${encodeURIComponent(
+                            appRef,
+                        )}/download`,
+                        body: undefined,
+                    }),
+                onProgress: (processed, total) =>
+                    output.updateActive(`${processed} of ${total} processed`),
+            });
+            const linkedSummary = appsDownloadSummary(
+                outcome.successCount,
+                linkedAppSlugs.length,
+                outcome.failures,
+                appsDir,
+                outcome.skippedNotBuiltCount,
+            );
+            output.completeItem(
+                `${outcome.successCount} downloaded${
+                    outcome.skippedNotBuiltCount > 0
+                        ? `, ${outcome.skippedNotBuiltCount} skipped`
+                        : ''
+                }${
+                    outcome.failures.length > 0
+                        ? `, ${outcome.failures.length} failed`
+                        : ''
+                }`,
+                linkedSummary.ok ? undefined : 'warning',
+            );
+            if (!linkedSummary.ok) {
+                linkedSummary.failureLines.forEach((line) =>
+                    GlobalState.log(styles.warning(line)),
+                );
             }
         }
 
@@ -3479,6 +3544,7 @@ export const uploadHandler = async (
 export const testHelpers = {
     assertUniqueSpacePaths,
     downloadSpaces,
+    extractAppSlugsFromDashboards,
     getFlatSpaceFileNames,
     getDashboardChartSlugs,
     hasContentFilters,

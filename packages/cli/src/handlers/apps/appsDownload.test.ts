@@ -1,15 +1,21 @@
 import {
     LightdashError,
     ParameterError,
+    type AnyType,
     type DataAppCodeDownload,
     type DataAppManifest,
 } from '@lightdash/common';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import {
     appsDownloadSummary,
     capListedApps,
     classifyAppDownloadError,
+    computeLinkedAppSlugs,
     computeUpsertedTotal,
     DEFAULT_APPS_LIMIT,
+    downloadAppsToDir,
     ensureDownloadedAppContext,
     getDataAppReference,
     getDataAppUploadFilter,
@@ -228,6 +234,77 @@ describe('capListedApps', () => {
             appUuids: ['a', 'b'],
             truncatedCount: 0,
         });
+    });
+});
+
+describe('computeLinkedAppSlugs', () => {
+    it('returns dashboard-referenced slugs unchanged when apps are not opted in at all', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer', 'sales-dash'],
+                explicitRefs: new Set(),
+                includeApps: false,
+                cappedAppSlugs: new Set(),
+            }),
+        ).toEqual(['revenue-explorer', 'sales-dash']);
+    });
+
+    it('excludes slugs already covered by an explicit --apps ref', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer', 'sales-dash'],
+                explicitRefs: new Set(['revenue-explorer']),
+                includeApps: false,
+                cappedAppSlugs: new Set(),
+            }),
+        ).toEqual(['sales-dash']);
+    });
+
+    it('excludes everything already inside an untruncated --include-apps listing', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer', 'sales-dash'],
+                explicitRefs: new Set(),
+                includeApps: true,
+                cappedAppSlugs: new Set(['revenue-explorer', 'sales-dash']),
+            }),
+        ).toEqual([]);
+    });
+
+    // PROD-9089 regression: --include-apps caps its listing at --apps-limit,
+    // so a dashboard's app can fall outside the capped set. It must still be
+    // downloaded via the linked step rather than silently dropped.
+    it('keeps slugs that fell outside a truncated --include-apps listing', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer', 'sales-dash'],
+                explicitRefs: new Set(),
+                includeApps: true,
+                cappedAppSlugs: new Set(['sales-dash']),
+            }),
+        ).toEqual(['revenue-explorer']);
+    });
+
+    it('an explicit ref wins over include-apps capping (never double counted)', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: ['revenue-explorer'],
+                explicitRefs: new Set(['revenue-explorer']),
+                includeApps: true,
+                cappedAppSlugs: new Set(),
+            }),
+        ).toEqual([]);
+    });
+
+    it('returns an empty array when no dashboards reference any app', () => {
+        expect(
+            computeLinkedAppSlugs({
+                appSlugs: [],
+                explicitRefs: new Set(['other-app']),
+                includeApps: true,
+                cappedAppSlugs: new Set(),
+            }),
+        ).toEqual([]);
     });
 });
 
@@ -545,5 +622,120 @@ describe('appsDownloadSummary', () => {
         expect(summary.message).toContain('Downloaded 1 of 2 data app(s)');
         expect(summary.message).toContain('1 skipped: no built version');
         expect(summary.message).toContain('1 failed');
+    });
+});
+
+describe('downloadAppsToDir', () => {
+    const tmpDir = () =>
+        fs.mkdtempSync(path.join(os.tmpdir(), 'ld-apps-download-'));
+
+    const codeFor = (slug: string): AnyType => ({
+        manifest: {
+            codeVersion: 1,
+            projectUuid: 'project-uuid',
+            slug,
+            version: 1,
+            name: slug,
+            description: '',
+            template: null,
+            downloadedAt: '2026-07-30T00:00:00.000Z',
+        },
+        files: [
+            {
+                path: 'src/App.tsx',
+                contentBase64: Buffer.from(
+                    'export default () => null;',
+                ).toString('base64'),
+            },
+        ],
+        context: {
+            semanticLayer: {
+                path: '.lightdash/context/semantic-layer.yml',
+                contentBase64: Buffer.from('models: []').toString('base64'),
+            },
+            parameters: null,
+            promptHistory: {
+                path: '.lightdash/context/prompt-history.md',
+                contentBase64: Buffer.from('# history').toString('base64'),
+            },
+            theme: { instructions: null, assets: [], skippedAssetCount: 0 },
+        },
+    });
+
+    it('writes one folder per app and counts successes', async () => {
+        const appsDir = tmpDir();
+        const outcome = await downloadAppsToDir({
+            appRefs: ['revenue-explorer'],
+            projectId: 'project-uuid',
+            appsDir,
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async (_p, ref) => codeFor(ref),
+        });
+
+        expect(outcome).toEqual({
+            successCount: 1,
+            skippedNotBuiltCount: 0,
+            failures: [],
+        });
+        expect(
+            fs.existsSync(
+                path.join(appsDir, 'revenue-explorer', 'lightdash-app.yml'),
+            ),
+        ).toBe(true);
+    });
+
+    it('writes server-provided dependencies over the scaffold template package.json', async () => {
+        const appsDir = tmpDir();
+        const packageJson = JSON.stringify({
+            name: 'server-provided',
+            dependencies: {},
+        });
+        const lockfile = 'lockfileVersion: 6.0\nserver: provided\n';
+
+        const outcome = await downloadAppsToDir({
+            appRefs: ['deps-app'],
+            projectId: 'project-uuid',
+            appsDir,
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async (_p, ref) => ({
+                ...codeFor(ref),
+                dependencies: { packageJson, lockfile },
+            }),
+        });
+
+        expect(outcome.successCount).toBe(1);
+        const writtenPackageJson = fs.readFileSync(
+            path.join(appsDir, 'deps-app', 'package.json'),
+            'utf-8',
+        );
+        expect(writtenPackageJson).toBe(packageJson);
+        const writtenLockfile = fs.readFileSync(
+            path.join(appsDir, 'deps-app', 'pnpm-lock.yaml'),
+            'utf-8',
+        );
+        expect(writtenLockfile).toBe(lockfile);
+    });
+
+    it('counts an app with no ready version as skipped, not failed', async () => {
+        const outcome = await downloadAppsToDir({
+            appRefs: ['half-built'],
+            projectId: 'project-uuid',
+            appsDir: tmpDir(),
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async () => {
+                throw new LightdashError({
+                    message: 'App has no ready version to download',
+                    name: 'NotFoundError',
+                    statusCode: 404,
+                    data: {},
+                });
+            },
+        });
+
+        expect(outcome.skippedNotBuiltCount).toBe(1);
+        expect(outcome.failures).toEqual([]);
     });
 });
