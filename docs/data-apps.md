@@ -1026,7 +1026,7 @@ Data apps can be **downloaded as source, versioned in git, edited, and re-upload
 
 Opt-in flags on the existing `lightdash download` / `lightdash upload` commands (off by default — core users never touch app code paths unless they ask):
 
-- **`lightdash create app "<name>"`** — create a new app locally at `lightdash/apps/<slug>/` from the E2B starter template. The command requires npm and first asks the user to accept that it will download packages and run shadcn locally. It then lists the exact direct dependencies and shadcn components for a second approval before writing anything. After approval, it checks that the slug is available in the selected project and adds the complete runnable source tree, manifest, agent skills, and a fresh project context snapshot. `--slug`, `--description`, `--project`, and `--path` override the defaults; `--assume-yes` approves installation in non-interactive environments.
+- **`lightdash apps create "<name>"`** — create a new app locally at `lightdash/apps/<slug>/` from the E2B starter template. The command requires npm and first asks the user to accept that it will download packages and run shadcn locally. It then lists the exact direct dependencies and shadcn components for a second approval before writing anything. After approval, it checks that the slug is available in the selected project and adds the complete runnable source tree, manifest, agent skills, and a fresh project context snapshot. `--slug`, `--description`, `--project`, and `--path` override the defaults; `--assume-yes` approves installation in non-interactive environments.
 - **`lightdash download --apps <appReferences...>`** — download specific data apps by UUID, slug, or app URL into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
 - **`lightdash upload --apps <appReferences...>`** — upload specific apps by UUID, slug, or app URL, matched against each local folder's manifest (`slug` or `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
 
@@ -1056,7 +1056,7 @@ Cross-project and cross-instance upload are both a plain **slug upsert** against
 
 ### Local authoring
 
-Apps created with `lightdash create app "<name>"` and apps checked out with `lightdash download --apps <slug>` use the same locally-buildable structure, so you can verify changes compile before uploading.
+Apps created with `lightdash apps create "<name>"` and apps checked out with `lightdash download --apps <slug>` use the same locally-buildable structure, so you can verify changes compile before uploading.
 
 #### What a local app includes
 
@@ -1072,7 +1072,7 @@ All scaffolding and context files are read-only reference — see [Upload is sou
 #### The local loop
 
 ```sh
-lightdash create app "<name>"  →  edit src/  →  npm run build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
+lightdash apps create "<name>"  →  edit src/  →  npm run build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
 ```
 
 1. Edit files under `src/`.

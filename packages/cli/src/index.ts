@@ -181,39 +181,6 @@ ${styles.bold('Examples:')}
 `,
     );
 
-const createProgram = program
-    .command('create')
-    .description('Creates Lightdash content locally');
-
-createProgram
-    .command('app <name>')
-    .description('Creates a new data app locally')
-    .option('--description <text>', 'Set the app description', '')
-    .option('--slug <slug>', 'Override the app slug')
-    .option(
-        '-p, --path <path>',
-        'Specify the Lightdash content root (default: ./lightdash)',
-    )
-    .option(
-        '--project <project uuid>',
-        'Specify the project the app will use',
-        parseProjectArgument,
-        undefined,
-    )
-    .option('-y, --assume-yes', 'approve npm package installation', false)
-    .option('--verbose', undefined, false)
-    .addHelpText(
-        'after',
-        `\n${styles.bold('Example:')}\n  ${styles.title(
-            '⚡',
-        )}️lightdash ${styles.bold(
-            'create app "Revenue explorer"',
-        )} ${styles.secondary(
-            '-- creates ./lightdash/apps/revenue-explorer',
-        )}\n`,
-    )
-    .action(createAppHandler);
-
 program
     .command('connect-snowflake')
     .description('Connects Lightdash to Snowflake using browser-based SSO')
@@ -1110,6 +1077,34 @@ uploadCommand.action(withOrganizationMode(uploadHandler));
 const appsProgram = program
     .command('apps')
     .description('Work with data apps (enterprise)');
+appsProgram
+    .command('create <name>')
+    .description('Creates a new data app locally')
+    .option('--description <text>', 'Set the app description', '')
+    .option('--slug <slug>', 'Override the app slug')
+    .option(
+        '-p, --path <path>',
+        'Specify the Lightdash content root (default: ./lightdash)',
+    )
+    .option(
+        '--project <project uuid>',
+        'Specify the project the app will use',
+        parseProjectArgument,
+        undefined,
+    )
+    .option('-y, --assume-yes', 'approve npm package installation', false)
+    .option('--verbose', undefined, false)
+    .addHelpText(
+        'after',
+        `\n${styles.bold('Example:')}\n  ${styles.title(
+            '⚡',
+        )}️lightdash ${styles.bold(
+            'apps create "Revenue explorer"',
+        )} ${styles.secondary(
+            '-- creates ./lightdash/apps/revenue-explorer',
+        )}\n`,
+    )
+    .action(createAppHandler);
 appsProgram
     .command('preview [path]')
     .description(
