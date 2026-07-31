@@ -1861,7 +1861,6 @@ export type DataAppUploadRejectedEvent = BaseTrack & {
         reason:
             | 'dependency_validation'
             | 'insufficient_permissions'
-            | 'custom_dependencies_disabled_instance'
             | 'custom_dependencies_disabled_org'
             | 'min_release_age'
             | 'malware';
