@@ -5,8 +5,8 @@ import {
 
 export const RECOMMENDED_ACTION_KEYS: HomepageRecommendedActionKey[] = [
     'connect-warehouse',
-    'add-semantic-layer',
     'connect-source-control',
+    'add-semantic-layer',
     'connect-slack',
 ];
 
