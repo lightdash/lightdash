@@ -12,9 +12,20 @@ import type { Mock } from 'vitest';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
+    type DuckdbS3Credentials,
 } from './DuckdbWarehouseClient';
 
 const createInstanceMock = vi.fn();
+
+const duckdbS3Credentials = {
+    type: 'duckdb_s3',
+    s3Config: {
+        endpoint: 'localhost:9000',
+        region: 'us-east-1',
+        forcePathStyle: true,
+        useSsl: false,
+    },
+} satisfies DuckdbS3Credentials;
 
 // Must provide DuckDBTypeId since mapFieldTypeFromTypeId references it at runtime
 const DUCKDB_TYPE_IDS = {
@@ -246,7 +257,7 @@ describe('DuckdbWarehouseClient', () => {
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = DuckdbWarehouseClient.createForPreAggregate();
+        const client = new DuckdbWarehouseClient();
         const streamCallback = vi.fn();
         const result = await client.executeAsyncQuery(
             {
@@ -273,7 +284,7 @@ describe('DuckdbWarehouseClient', () => {
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = DuckdbWarehouseClient.createForPreAggregate();
+        const client = new DuckdbWarehouseClient();
         const result = await client.runQuery('SELECT id FROM empty_table');
 
         expect(result.rows).toEqual([]);
@@ -957,6 +968,118 @@ describe('DuckdbWarehouseClient', () => {
                 `SQL validation error: function '${blockedFunction}' is not allowed`,
             );
             expect(extractStatementsMock).not.toHaveBeenCalled();
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it('should keep file readers blocked when only S3 is configured', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const extractStatementsMock = createMockExtractStatements();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, vi.fn(), {
+                    extractStatements: extractStatementsMock,
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient(duckdbS3Credentials);
+            await expect(
+                client.runQuery(
+                    "SELECT * FROM read_parquet('s3://bucket/data.parquet')",
+                ),
+            ).rejects.toThrow(
+                "SQL validation error: function 'read_parquet' is not allowed",
+            );
+            expect(extractStatementsMock).not.toHaveBeenCalled();
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            {
+                format: 'Parquet',
+                sql: "SELECT * FROM read_parquet('s3://bucket/data.parquet')",
+            },
+            {
+                format: 'inferred JSONL',
+                sql: "SELECT * FROM read_json_auto('s3://bucket/data.jsonl')",
+            },
+            {
+                format: 'typed JSONL',
+                sql: "SELECT * FROM read_json('s3://bucket/data.jsonl', format='newline_delimited')",
+            },
+        ])(
+            'should allow pre-aggregate clients to read S3 $format files',
+            async ({ sql }) => {
+                const rows = [{ val: 1 }];
+                const streamMock = vi.fn(async () =>
+                    getMockStreamResult([rows], [DUCKDB_TYPE_IDS.INTEGER]),
+                );
+                const extractStatementsMock = createMockExtractStatements();
+
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock, vi.fn(), {
+                        extractStatements: extractStatementsMock,
+                    }),
+                );
+
+                const client =
+                    DuckdbWarehouseClient.createForPreAggregate(
+                        duckdbS3Credentials,
+                    );
+                const result = await client.runQuery(sql);
+
+                expect(result.rows).toEqual(rows);
+                expect(extractStatementsMock).toHaveBeenCalledTimes(1);
+                expect(streamMock).toHaveBeenCalledTimes(1);
+            },
+        );
+
+        it('should keep pre-aggregate queries read-only', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, vi.fn(), {
+                    extractStatements: createMockExtractStatements({
+                        statementType: 11, // COPY
+                    }),
+                }),
+            );
+
+            const client =
+                DuckdbWarehouseClient.createForPreAggregate(
+                    duckdbS3Credentials,
+                );
+            await expect(
+                client.runQuery("COPY t TO 's3://bucket/data.parquet'"),
+            ).rejects.toThrow(
+                'SQL validation error: only SELECT statements are allowed',
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it('should keep secret introspection blocked for pre-aggregate queries', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client =
+                DuckdbWarehouseClient.createForPreAggregate(
+                    duckdbS3Credentials,
+                );
+            await expect(
+                client.runQuery(
+                    "SELECT current_setting('s3_secret_access_key')",
+                ),
+            ).rejects.toThrow(
+                "SQL validation error: function 'current_setting' is not allowed",
+            );
             expect(streamMock).not.toHaveBeenCalled();
         });
 
