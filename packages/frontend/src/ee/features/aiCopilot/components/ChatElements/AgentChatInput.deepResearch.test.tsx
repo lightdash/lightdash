@@ -2,10 +2,18 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { AgentChatInput } from './AgentChatInput';
+
+const { useHasActiveDeepResearchRunMock } = vi.hoisted(() => ({
+    useHasActiveDeepResearchRunMock: vi.fn(() => false),
+}));
+
+vi.mock('../../hooks/useDeepResearch', () => ({
+    useHasActiveDeepResearchRun: useHasActiveDeepResearchRunMock,
+}));
 
 const renderInput = ({
     onStartDeepResearch = vi.fn().mockResolvedValue(undefined),
@@ -40,12 +48,16 @@ const renderInput = ({
 };
 
 describe('AgentChatInput Deep Research mode', () => {
+    beforeEach(() => {
+        useHasActiveDeepResearchRunMock.mockReturnValue(false);
+    });
+
     it('renders the toggle outside the composer in an existing conversation', () => {
         renderInput();
 
         expect(
             screen
-                .getByRole('button', { name: 'Turn on Deep research' })
+                .getByRole('button', { name: 'Enable deep research' })
                 .closest('[data-accent]'),
         ).toBeNull();
     });
@@ -55,7 +67,7 @@ describe('AgentChatInput Deep Research mode', () => {
 
         expect(
             screen
-                .getByRole('button', { name: 'Turn on Deep research' })
+                .getByRole('button', { name: 'Enable deep research' })
                 .closest('[data-accent]'),
         ).not.toBeNull();
     });
@@ -65,10 +77,10 @@ describe('AgentChatInput Deep Research mode', () => {
         const { onStartDeepResearch, onSubmit } = renderInput();
 
         await user.click(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         );
         expect(
-            screen.getByRole('button', { name: 'Turn off Deep research' }),
+            screen.getByRole('button', { name: 'Disable deep research' }),
         ).toHaveAttribute('aria-pressed', 'true');
 
         await user.click(
@@ -80,7 +92,7 @@ describe('AgentChatInput Deep Research mode', () => {
         });
         expect(onSubmit).not.toHaveBeenCalled();
         expect(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         ).toHaveAttribute('aria-pressed', 'false');
     });
 
@@ -93,14 +105,14 @@ describe('AgentChatInput Deep Research mode', () => {
         });
 
         await user.click(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         );
         await user.click(
             screen.getByRole('button', { name: 'Start research' }),
         );
 
         expect(
-            screen.getByRole('button', { name: 'Turn off Deep research' }),
+            screen.getByRole('button', { name: 'Disable deep research' }),
         ).toHaveAttribute('aria-pressed', 'true');
         expect(
             screen.getByText('Why did enterprise retention fall?'),
@@ -111,7 +123,7 @@ describe('AgentChatInput Deep Research mode', () => {
         renderInput({ onStartDeepResearch: null });
 
         expect(
-            screen.queryByRole('button', { name: 'Turn on Deep research' }),
+            screen.queryByRole('button', { name: 'Enable deep research' }),
         ).not.toBeInTheDocument();
     });
 
@@ -121,12 +133,30 @@ describe('AgentChatInput Deep Research mode', () => {
         renderInput({ onStartDeepResearch, disabled: true });
 
         await user.click(
-            screen.getByRole('button', { name: 'Turn on Deep research' }),
+            screen.getByRole('button', { name: 'Enable deep research' }),
         );
 
         expect(
             screen.getByRole('button', { name: 'Start research' }),
         ).toBeDisabled();
+        expect(onStartDeepResearch).not.toHaveBeenCalled();
+    });
+
+    it('keeps regular chat available while deep research is active', async () => {
+        const user = userEvent.setup();
+        useHasActiveDeepResearchRunMock.mockReturnValue(true);
+        const { onStartDeepResearch, onSubmit } = renderInput();
+
+        expect(
+            screen.getByRole('button', { name: 'Enable deep research' }),
+        ).toBeDisabled();
+
+        await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+        expect(onSubmit).toHaveBeenCalledWith({
+            message: 'Why did enterprise retention fall?',
+            toolHints: [],
+        });
         expect(onStartDeepResearch).not.toHaveBeenCalled();
     });
 });

@@ -1,6 +1,14 @@
 import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
-import { Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
-import { IconAppsOff, IconCode } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Loader,
+    Menu,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { IconAppsOff, IconCode, IconMaximize } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
@@ -21,6 +29,7 @@ import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQuerie
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
 import classes from './AppPreviewTest.module.css';
 
 export default function AppPreviewTest() {
@@ -144,6 +153,15 @@ export default function AppPreviewTest() {
 
     const previewOrigin = usePreviewOrigin();
 
+    // Presentation mode: native fullscreen with all Lightdash chrome hidden
+    // (navbar hides itself via the shared context). Esc exits via the
+    // browser's own fullscreen handling.
+    const {
+        enabled: isFullscreenFeatureEnabled,
+        isFullscreen,
+        handleToggleFullscreen,
+    } = useNativeFullscreenToggle();
+
     // Live-preview capture for the move modal's thumbnail checkbox — same
     // handshake pattern as the builder. Older templates never announce, so
     // the modal falls back to a default-state render for them.
@@ -266,7 +284,7 @@ export default function AppPreviewTest() {
                     }
                     onLineageCancelled={handleLineageCancelled}
                 />
-                {!networkPanelHidden && (
+                {!networkPanelHidden && !isFullscreen && (
                     <AppInspectorPanel
                         queries={queries}
                         projectUuid={projectUuid}
@@ -288,80 +306,111 @@ export default function AppPreviewTest() {
     }
 
     return (
-        <Box className={classes.previewContainer}>
-            <AppHeader
-                appUuid={appUuid}
-                name={appName}
-                description={appDescription}
-                spaceChip={
-                    <AppSpaceChip
-                        projectUuid={projectUuid}
-                        spaceName={appSpaceName}
-                        capturePreviewScreenshot={
-                            screenshotAvailable
-                                ? capturePreviewScreenshot
-                                : null
-                        }
-                        app={{
-                            uuid: appUuid,
-                            name: appName,
-                            description: appDescription ?? undefined,
-                            spaceUuid: appSpaceUuid,
-                            createdByUserUuid: appCreatedByUserUuid,
-                            latestVersionNumber: latestReadyVersion ?? null,
-                            latestVersionStatus: latestReadyVersion
-                                ? 'ready'
-                                : null,
-                        }}
-                    />
-                }
-                rightSection={
-                    <AppHeaderActions
-                        projectUuid={projectUuid}
-                        appUuid={appUuid}
-                        upgrade={null}
-                        appName={appName}
-                        appDescription={appDescription}
-                        appSpaceUuid={appSpaceUuid}
-                        appCreatedByUserUuid={appCreatedByUserUuid}
-                        latestVersionNumber={latestReadyVersion ?? null}
-                        latestVersionStatus={
-                            latestReadyVersion ? 'ready' : null
-                        }
-                        onRefresh={handleRefresh}
-                        refreshDisabled={version === undefined}
-                        captureThumbnail={null}
-                        capturePreviewScreenshot={
-                            screenshotAvailable
-                                ? capturePreviewScreenshot
-                                : null
-                        }
-                        onViewNetwork={() => setNetworkPanelHidden(false)}
-                        onDeleted={() => {
-                            void navigate(`/projects/${projectUuid}/home`);
-                        }}
-                        navItem={
-                            canEditApp ? (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconCode}
-                                            size={14}
-                                        />
-                                    }
-                                    onClick={() =>
-                                        navigate(
-                                            `/projects/${projectUuid}/apps/${appUuid}`,
-                                        )
-                                    }
-                                >
-                                    Continue building
-                                </Menu.Item>
-                            ) : null
-                        }
-                    />
-                }
-            />
+        <Box
+            className={
+                isFullscreen
+                    ? `${classes.previewContainer} ${classes.previewContainerFullscreen}`
+                    : classes.previewContainer
+            }
+        >
+            {!isFullscreen && (
+                <AppHeader
+                    appUuid={appUuid}
+                    name={appName}
+                    description={appDescription}
+                    spaceChip={
+                        <AppSpaceChip
+                            projectUuid={projectUuid}
+                            spaceName={appSpaceName}
+                            capturePreviewScreenshot={
+                                screenshotAvailable
+                                    ? capturePreviewScreenshot
+                                    : null
+                            }
+                            app={{
+                                uuid: appUuid,
+                                name: appName,
+                                description: appDescription ?? undefined,
+                                spaceUuid: appSpaceUuid,
+                                createdByUserUuid: appCreatedByUserUuid,
+                                latestVersionNumber: latestReadyVersion ?? null,
+                                latestVersionStatus: latestReadyVersion
+                                    ? 'ready'
+                                    : null,
+                            }}
+                        />
+                    }
+                    rightSection={
+                        <AppHeaderActions
+                            fullscreenToggle={
+                                isFullscreenFeatureEnabled &&
+                                document.fullscreenEnabled ? (
+                                    <Tooltip
+                                        label="Enter Fullscreen Mode"
+                                        withArrow
+                                        position="bottom"
+                                    >
+                                        <ActionIcon
+                                            variant="subtle"
+                                            size="sm"
+                                            color="ldGray.6"
+                                            onClick={handleToggleFullscreen}
+                                            aria-label="Enter Fullscreen Mode"
+                                        >
+                                            <MantineIcon
+                                                icon={IconMaximize}
+                                                size={16}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                ) : null
+                            }
+                            projectUuid={projectUuid}
+                            appUuid={appUuid}
+                            upgrade={null}
+                            appName={appName}
+                            appDescription={appDescription}
+                            appSpaceUuid={appSpaceUuid}
+                            appCreatedByUserUuid={appCreatedByUserUuid}
+                            latestVersionNumber={latestReadyVersion ?? null}
+                            latestVersionStatus={
+                                latestReadyVersion ? 'ready' : null
+                            }
+                            onRefresh={handleRefresh}
+                            refreshDisabled={version === undefined}
+                            captureThumbnail={null}
+                            capturePreviewScreenshot={
+                                screenshotAvailable
+                                    ? capturePreviewScreenshot
+                                    : null
+                            }
+                            onViewNetwork={() => setNetworkPanelHidden(false)}
+                            onDeleted={() => {
+                                void navigate(`/projects/${projectUuid}/home`);
+                            }}
+                            navItem={
+                                canEditApp ? (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconCode}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            navigate(
+                                                `/projects/${projectUuid}/apps/${appUuid}`,
+                                            )
+                                        }
+                                    >
+                                        Continue building
+                                    </Menu.Item>
+                                ) : null
+                            }
+                        />
+                    }
+                />
+            )}
             <Box className={classes.previewBody}>{body}</Box>
         </Box>
     );
