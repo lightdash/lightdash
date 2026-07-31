@@ -5,6 +5,7 @@ import { type DataAppVizBuildState } from '../hooks/useDataAppVizBuild';
 export const buildStub = (
     overrides: Partial<DataAppVizBuildState> = {},
 ): DataAppVizBuildState => ({
+    draftAppUuid: 'draft-app-1',
     appUuid: null,
     draft: null,
     startedAt: null,

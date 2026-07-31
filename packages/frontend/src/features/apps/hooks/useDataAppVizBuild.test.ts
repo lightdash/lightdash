@@ -112,7 +112,10 @@ describe('useDataAppVizBuild', () => {
         const { result } = setup();
 
         act(() =>
-            result.current.send({ description: 'a donut of orders by status' }),
+            result.current.send({
+                description: 'a donut of orders by status',
+                fileIds: [],
+            }),
         );
 
         expect(result.current.pendingPrompt).toBe(
@@ -126,7 +129,12 @@ describe('useDataAppVizBuild', () => {
         // the same tick, so the cache is still a render behind here.
         const { result, onCreated } = setup();
 
-        act(() => result.current.send({ description: 'a donut' }));
+        act(() =>
+            result.current.send({
+                description: 'a donut',
+                fileIds: [],
+            }),
+        );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
         act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 1 }));
         finishBuild(finishedVersion());
@@ -138,7 +146,12 @@ describe('useDataAppVizBuild', () => {
     it('reports why a build failed and stops building', () => {
         const { result, onCreated } = setup();
 
-        act(() => result.current.send({ description: 'a donut' }));
+        act(() =>
+            result.current.send({
+                description: 'a donut',
+                fileIds: [],
+            }),
+        );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
         act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 1 }));
         finishBuild(
@@ -156,7 +169,7 @@ describe('useDataAppVizBuild', () => {
     it('does not replace a visualization picked while creation runs', () => {
         const { result, rerender, onCreated } = setup();
 
-        act(() => result.current.send({ description: 'a donut' }));
+        act(() => result.current.send({ description: 'a donut', fileIds: [] }));
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
         act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 1 }));
 
@@ -169,7 +182,12 @@ describe('useDataAppVizBuild', () => {
     it('retries a request the server never accepted, as it was sent', () => {
         const { result } = setup();
 
-        act(() => result.current.send({ description: 'a donut' }));
+        act(() =>
+            result.current.send({
+                description: 'a donut',
+                fileIds: [],
+            }),
+        );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
         act(() => handlers.onError(new Error('Network error')));
 
@@ -184,7 +202,12 @@ describe('useDataAppVizBuild', () => {
     it('revises the selected visualization instead of making another', () => {
         const { result, onCreated } = setup('viz-1');
 
-        act(() => result.current.send({ description: 'make the bars teal' }));
+        act(() =>
+            result.current.send({
+                description: 'make the bars teal',
+                fileIds: [],
+            }),
+        );
 
         expect(generate).not.toHaveBeenCalled();
         expect(iterate.mock.lastCall?.[0]).toMatchObject({
@@ -203,7 +226,12 @@ describe('useDataAppVizBuild', () => {
     it('does not offer a revision as a draft', () => {
         const { result } = setup('viz-1');
 
-        act(() => result.current.send({ description: 'make the bars teal' }));
+        act(() =>
+            result.current.send({
+                description: 'make the bars teal',
+                fileIds: [],
+            }),
+        );
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
         act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 2 }));
 
@@ -214,7 +242,12 @@ describe('useDataAppVizBuild', () => {
     it('cancels a revision without deleting its app', () => {
         const { result } = setup('viz-1');
 
-        act(() => result.current.send({ description: 'make the bars teal' }));
+        act(() =>
+            result.current.send({
+                description: 'make the bars teal',
+                fileIds: [],
+            }),
+        );
         const iterateHandlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
         act(() => iterateHandlers.onSuccess({ appUuid: 'viz-1', version: 2 }));
         act(() => result.current.cancel?.());
@@ -239,7 +272,12 @@ describe('useDataAppVizBuild', () => {
     it('retries a revision that failed to build, as it was sent', () => {
         const { result } = setup('viz-1');
 
-        act(() => result.current.send({ description: 'make the bars teal' }));
+        act(() =>
+            result.current.send({
+                description: 'make the bars teal',
+                fileIds: [],
+            }),
+        );
         const handlers = iterate.mock.lastCall?.[1] as GenerateHandlers;
         act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 2 }));
         finishBuild(
@@ -254,10 +292,20 @@ describe('useDataAppVizBuild', () => {
     it('refuses a second request while one is in flight', () => {
         const { result } = setup();
 
-        act(() => result.current.send({ description: 'a donut' }));
+        act(() =>
+            result.current.send({
+                description: 'a donut',
+                fileIds: [],
+            }),
+        );
         const handlers = generate.mock.lastCall?.[1] as GenerateHandlers;
         act(() => handlers.onSuccess({ appUuid: 'viz-1', version: 1 }));
-        act(() => result.current.send({ description: 'actually a bar chart' }));
+        act(() =>
+            result.current.send({
+                description: 'actually a bar chart',
+                fileIds: [],
+            }),
+        );
 
         expect(generate).toHaveBeenCalledTimes(1);
     });
@@ -265,7 +313,7 @@ describe('useDataAppVizBuild', () => {
     it('cancels a draft before deleting its app', () => {
         const { result } = setup();
 
-        act(() => result.current.send({ description: 'a donut' }));
+        act(() => result.current.send({ description: 'a donut', fileIds: [] }));
         const generateHandlers = generate.mock
             .lastCall?.[1] as GenerateHandlers;
         act(() => generateHandlers.onSuccess({ appUuid: 'viz-1', version: 1 }));

@@ -175,8 +175,8 @@ export const ConfigTabs: FC = memo(() => {
                         }
                         footer={
                             <DataAppVizComposer
-                                // Slate reads its placeholder only on mount.
-                                key={dataAppVizUuid ? 'revise' : 'create'}
+                                projectUuid={projectUuid}
+                                appUuid={dataAppVizUuid || build.draftAppUuid}
                                 placeholder={
                                     dataAppVizUuid
                                         ? 'Ask for a change…'

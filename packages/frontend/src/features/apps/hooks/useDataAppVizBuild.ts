@@ -6,6 +6,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { useCallback, useState } from 'react';
+import { v4 as uuid4 } from 'uuid';
 import { autoMapDataAppVizFields } from '../utils/autoMapDataAppVizFields';
 import { useAppBuildPoller } from './useAppBuildPoller';
 import { useCancelAppVersion } from './useCancelAppVersion';
@@ -29,6 +30,7 @@ type Args = {
 /** What was asked for, kept so a failure can be retried as it was sent. */
 export type VizBuildRequest = {
     description: string;
+    fileIds: string[];
 };
 
 /** The app claimed by a build before it has a renderable version. */
@@ -41,6 +43,8 @@ export type DataAppVizDraft = {
 type RunningBuild = DataAppVizDraft & { isNew: boolean };
 
 export type DataAppVizBuildState = {
+    /** Pre-generated uuid used to scope uploads for the next new app. */
+    draftAppUuid: string;
     /**
      * The app the build in flight claimed; null when nothing is building. Its
      * versions are the session, so the dock reads history from it while the
@@ -89,6 +93,7 @@ export const useDataAppVizBuild = ({
     // The request in flight, and the app it is building — both null when idle.
     const [inFlight, setInFlight] = useState<VizBuildRequest | null>(null);
     const [building, setBuilding] = useState<RunningBuild | null>(null);
+    const [draftAppUuid, setDraftAppUuid] = useState(() => uuid4());
     const [failed, setFailed] = useState<{
         message: string;
         request: VizBuildRequest | null;
@@ -122,7 +127,8 @@ export const useDataAppVizBuild = ({
                     version.statusMessage ??
                     version.error ??
                     'That build could not be completed. Please try again.',
-                request,
+                // A new app cannot retry with its already-claimed uuid.
+                request: target?.isNew ? null : request,
             });
         },
         [building, inFlight, itemsMap, dataAppVizUuid, onCreated],
@@ -141,6 +147,8 @@ export const useDataAppVizBuild = ({
             setFailed(null);
             setInFlight(request);
             const prompt = request.description;
+            const files =
+                request.fileIds.length > 0 ? request.fileIds : undefined;
             const onError = (err: unknown) => {
                 setInFlight(null);
                 setFailed({ message: getErrorMessage(err), request });
@@ -148,22 +156,35 @@ export const useDataAppVizBuild = ({
 
             if (dataAppVizUuid === null) {
                 generateApp(
-                    { projectUuid, prompt, template: DATA_APP_VIZ_TEMPLATE },
                     {
-                        onSuccess: ({ appUuid, version }) =>
+                        projectUuid,
+                        prompt,
+                        template: DATA_APP_VIZ_TEMPLATE,
+                        appUuid: draftAppUuid,
+                        fileIds: files,
+                    },
+                    {
+                        onSuccess: ({ appUuid, version }) => {
+                            setDraftAppUuid(uuid4());
                             setBuilding({
                                 appUuid,
                                 version,
                                 startedAt: new Date(),
                                 isNew: true,
-                            }),
+                            });
+                        },
                         onError,
                     },
                 );
                 return;
             }
             iterateApp(
-                { projectUuid, appUuid: dataAppVizUuid, prompt },
+                {
+                    projectUuid,
+                    appUuid: dataAppVizUuid,
+                    prompt,
+                    fileIds: files,
+                },
                 {
                     onSuccess: ({ version }) =>
                         setBuilding({
@@ -176,13 +197,21 @@ export const useDataAppVizBuild = ({
                 },
             );
         },
-        [projectUuid, dataAppVizUuid, building, generateApp, iterateApp],
+        [
+            projectUuid,
+            dataAppVizUuid,
+            building,
+            draftAppUuid,
+            generateApp,
+            iterateApp,
+        ],
     );
 
     const failedRequest = failed?.request ?? null;
     const draft = building?.isNew ? building : null;
 
     return {
+        draftAppUuid,
         appUuid: building?.appUuid ?? null,
         draft,
         startedAt: building?.startedAt ?? null,
