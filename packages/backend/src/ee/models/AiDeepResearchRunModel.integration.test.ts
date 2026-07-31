@@ -5,6 +5,7 @@ import {
     SEED_PROJECT,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchRunStatus,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { getTestContext } from '../../vitest.setup.integration';
@@ -32,7 +33,10 @@ import {
     AiDeepResearchRunsTableName,
     type DbAiDeepResearchRun,
 } from '../database/entities/aiDeepResearch';
-import { AiDeepResearchRunModel } from './AiDeepResearchRunModel';
+import {
+    AiDeepResearchActiveRunError,
+    AiDeepResearchRunModel,
+} from './AiDeepResearchRunModel';
 
 const budget: AiDeepResearchBudget = {
     maxTokens: 10_000_000,
@@ -256,6 +260,67 @@ describe('AiDeepResearchRunModel integration', () => {
             'status_changed:queued',
             'status_changed:running',
         ]);
+    });
+
+    it('serializes concurrent starts and blocks queued and running runs', async () => {
+        const secondPromptUuid = await createAdditionalPrompt();
+        const attempts = await Promise.allSettled([
+            createRun(),
+            createRun({ promptUuid: secondPromptUuid }),
+        ]);
+        const winner = attempts.find(
+            (attempt): attempt is PromiseFulfilledResult<DbAiDeepResearchRun> =>
+                attempt.status === 'fulfilled',
+        )?.value;
+        const conflict = attempts.find(
+            (attempt): attempt is PromiseRejectedResult =>
+                attempt.status === 'rejected',
+        )?.reason;
+
+        expect(winner).toBeDefined();
+        expect(conflict).toBeInstanceOf(AiDeepResearchActiveRunError);
+        expect(conflict).toMatchObject({
+            activeRunUuid: winner?.ai_deep_research_run_uuid,
+        });
+
+        if (!winner) {
+            throw new Error('Expected one Deep Research run to start');
+        }
+
+        const queuedPromptUuid = await createAdditionalPrompt();
+        await expect(
+            createRun({ promptUuid: queuedPromptUuid }),
+        ).rejects.toMatchObject({
+            activeRunUuid: winner.ai_deep_research_run_uuid,
+        });
+
+        await model.claimQueuedRun(winner.ai_deep_research_run_uuid);
+        const runningPromptUuid = await createAdditionalPrompt();
+        await expect(
+            createRun({ promptUuid: runningPromptUuid }),
+        ).rejects.toMatchObject({
+            activeRunUuid: winner.ai_deep_research_run_uuid,
+        });
+    });
+
+    it.each<AiDeepResearchRunStatus>([
+        'completed',
+        'partially_completed',
+        'failed',
+        'cancelled',
+    ])('allows a new run after a %s run', async (status) => {
+        const terminalRun = await createRun();
+        await database(AiDeepResearchRunsTableName)
+            .where(
+                'ai_deep_research_run_uuid',
+                terminalRun.ai_deep_research_run_uuid,
+            )
+            .update({ status });
+        const nextPromptUuid = await createAdditionalPrompt();
+
+        await expect(
+            createRun({ promptUuid: nextPromptUuid }),
+        ).resolves.toMatchObject({ prompt_uuid: nextPromptUuid });
     });
 
     it('round-trips the persisted entry point', async () => {
@@ -540,12 +605,6 @@ describe('AiDeepResearchRunModel integration', () => {
 
     it('scrubs only expired run data, supports legacy null expiries, and is idempotent under contention', async () => {
         const expiredRun = await createRun();
-        const futurePromptUuid = await createAdditionalPrompt();
-        const futureRun = await createRun({ promptUuid: futurePromptUuid });
-        const expiredToolCallId = `expired-${crypto.randomUUID()}`;
-        const futureToolCallId = `future-${crypto.randomUUID()}`;
-        const unrelatedToolCallId = `unrelated-${crypto.randomUUID()}`;
-
         await database(AiDeepResearchRunsTableName)
             .where(
                 'ai_deep_research_run_uuid',
@@ -558,6 +617,12 @@ describe('AiDeepResearchRunModel integration', () => {
                 completed_at: database.raw("now() - interval '31 days'"),
                 report_expires_at: null,
             });
+        const futurePromptUuid = await createAdditionalPrompt();
+        const futureRun = await createRun({ promptUuid: futurePromptUuid });
+        const expiredToolCallId = `expired-${crypto.randomUUID()}`;
+        const futureToolCallId = `future-${crypto.randomUUID()}`;
+        const unrelatedToolCallId = `unrelated-${crypto.randomUUID()}`;
+
         await database(AiDeepResearchRunsTableName)
             .where(
                 'ai_deep_research_run_uuid',

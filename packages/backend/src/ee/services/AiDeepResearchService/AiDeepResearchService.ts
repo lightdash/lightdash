@@ -4,6 +4,7 @@ import {
     AiResultType,
     buildInlineChartFields,
     buildInlineChartMetricQuery,
+    ConflictError,
     FeatureFlags,
     findDeepResearchChartRefs,
     ForbiddenError,
@@ -55,6 +56,7 @@ import {
 } from '../../database/entities/aiDeepResearch';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import {
+    AiDeepResearchActiveRunError,
     type AiDeepResearchRunModel,
     type DbAiDeepResearchEventWithCursor,
 } from '../../models/AiDeepResearchRunModel';
@@ -763,6 +765,12 @@ export class AiDeepResearchService extends BaseService {
                     concurrentRun.ai_deep_research_run_uuid,
                 );
                 return toRun(concurrentRun);
+            }
+            if (error instanceof AiDeepResearchActiveRunError) {
+                throw new ConflictError(
+                    'Only one Deep Research run can be active in a thread at a time',
+                    { activeRunUuid: error.activeRunUuid },
+                );
             }
             throw error;
         }

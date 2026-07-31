@@ -22,9 +22,11 @@ import {
     AiAgentToolCallErrorTableName,
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
+    AiThreadTableName,
     type AiAgentToolCallErrorTable,
     type AiAgentToolCallTable,
     type AiAgentToolResultTable,
+    type AiThreadTable,
 } from '../database/entities/ai';
 import {
     AiDeepResearchAnalyticsOutboxTableName,
@@ -108,6 +110,16 @@ export type AiDeepResearchReportCleanupResult = {
     expired: number;
     failed: number;
 };
+
+export class AiDeepResearchActiveRunError extends Error {
+    readonly activeRunUuid: string;
+
+    constructor(activeRunUuid: string) {
+        super('A Deep Research run is already active in this thread');
+        this.name = 'AiDeepResearchActiveRunError';
+        this.activeRunUuid = activeRunUuid;
+    }
+}
 
 export class AiDeepResearchRunModel {
     private readonly database: Knex;
@@ -236,6 +248,26 @@ export class AiDeepResearchRunModel {
 
     async create(data: CreateAiDeepResearchRun): Promise<DbAiDeepResearchRun> {
         return this.database.transaction(async (transaction) => {
+            await transaction<AiThreadTable>(AiThreadTableName)
+                .select('ai_thread_uuid')
+                .where('ai_thread_uuid', data.aiThreadUuid)
+                .forUpdate()
+                .first();
+
+            const activeRun = await transaction<AiDeepResearchRunsTable>(
+                AiDeepResearchRunsTableName,
+            )
+                .select('ai_deep_research_run_uuid')
+                .where('ai_thread_uuid', data.aiThreadUuid)
+                .whereIn('status', ['queued', 'running'])
+                .orderBy('created_at', 'asc')
+                .first();
+            if (activeRun) {
+                throw new AiDeepResearchActiveRunError(
+                    activeRun.ai_deep_research_run_uuid,
+                );
+            }
+
             const [run] = await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
             )
