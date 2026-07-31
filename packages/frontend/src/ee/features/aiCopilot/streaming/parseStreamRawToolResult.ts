@@ -50,7 +50,7 @@ type BuiltInToolResult = {
 type McpToolCall = {
     toolName: McpStreamToolName;
     toolArgs: object;
-    toolResult?: unknown | null;
+    toolResult?: unknown;
     isPreliminary?: boolean;
 };
 

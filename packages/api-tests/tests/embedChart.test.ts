@@ -267,6 +267,7 @@ describe('Embed Chart JWT API', () => {
 
         describe('POST query chart', () => {
             // This is the method used for the explore to get results from a chart
+            // oxlint-disable-next-line vitest-js/no-disabled-tests -- FIXME below documents why this can't run yet
             it.skip('should get chart query results using JWT token (authorized)', async () => {
                 // FIXME this doesn't work
                 // Currently throws a 403
@@ -310,6 +311,7 @@ describe('Embed Chart JWT API', () => {
         });
 
         describe('GET chart history', () => {
+            // oxlint-disable-next-line vitest-js/no-disabled-tests -- FIXME below documents why this can't run yet
             it.skip('should get chart history using JWT token (authorized)', async () => {
                 // FIXME this doesn't work
                 // SavedChartController.getChartHistory doesn't support embed JWT accounts
@@ -341,6 +343,7 @@ describe('Embed Chart JWT API', () => {
         });
 
         describe('GET chart views', () => {
+            // oxlint-disable-next-line vitest-js/no-disabled-tests -- FIXME below documents why this can't run yet
             it.skip('should get chart views using JWT token (authorized)', async () => {
                 // FIXME this doesn't work
                 // > 500: Internal Server Error
@@ -373,6 +376,7 @@ describe('Embed Chart JWT API', () => {
         // This method is deprecated, but still supported for backwards compatibility
         // We still need to make sure we can get access using the JWT token if the chart matches
         describe('POST chart results deprecated', () => {
+            // oxlint-disable-next-line vitest-js/no-disabled-tests -- FIXME below documents why this can't run yet
             it.skip('should get chart results using JWT token (authorized)', async () => {
                 // FIXME this doesn't work currently because SavedChartController.postChartResults
                 // is not supporting account, so fails to get userUuid parameter

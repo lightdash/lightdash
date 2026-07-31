@@ -621,6 +621,7 @@ describe('Saved chart get API behavior', () => {
                 (item) => item.uuid === chart.uuid,
             );
             if (!isInTrash) {
+                // oxlint-disable-next-line vitest-js/no-disabled-tests -- runtime skip when soft delete is disabled on the server
                 ctx.skip();
                 return;
             }

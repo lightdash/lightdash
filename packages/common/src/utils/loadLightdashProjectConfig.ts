@@ -74,6 +74,7 @@ export const loadLightdashProjectConfig = async (
 
     // Collisions with a reserved name don't fail config load: the user param wins; warn.
     if (reservedParameters.length > 0) {
+        // eslint-disable-next-line no-console
         console.warn(
             `lightdash.config.yml: parameter${
                 reservedParameters.length > 1 ? 's' : ''

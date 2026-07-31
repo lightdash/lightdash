@@ -39,7 +39,11 @@ export const ToolCallChip: FC<ToolCallChipProps> = ({
         style={{
             textTransform: 'none',
             fontWeight: 400,
-            ...(typeof style === 'object' && style !== null ? style : {}),
+            ...(typeof style === 'object' &&
+            style !== null &&
+            !Array.isArray(style)
+                ? style
+                : {}),
         }}
     >
         {typeof children === 'string' ? (

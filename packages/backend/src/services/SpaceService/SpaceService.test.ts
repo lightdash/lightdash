@@ -883,6 +883,7 @@ describe('SpaceService', () => {
     // These tests should pass but they don't - could be a mock problem.
     // It could also be because in the app we actually build project abilities for every group membership before
     // we build the space abilities (here we only test space access for a single project).
+    // oxlint-disable-next-line vitest-js/no-commented-out-tests -- kept as documentation of the untested group-role cases above
     // it.each([
     //     {
     //         name: 'user with multiple project group roles gets highest role (admin over viewer)',
