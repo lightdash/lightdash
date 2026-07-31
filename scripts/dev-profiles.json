@@ -31,7 +31,8 @@
             "env": {
                 "AI_COPILOT_ENABLED": "true",
                 "AI_DEFAULT_PROVIDER": "anthropic",
-                "SANDBOX_PROVIDER": "docker"
+                "SANDBOX_PROVIDER": "docker",
+                "AUTH_GOOGLE_ENABLED": "true"
             },
             "flags": [
                 "ai-writeback",

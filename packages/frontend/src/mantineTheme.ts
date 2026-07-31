@@ -29,9 +29,40 @@ const lightdashDarkGray = createColorTuple([
     '#d9d9d9',
 ]);
 
+/** Lightdash brand ramps, matching lightdash.com. Identical in both colour
+ *  schemes: the surfaces they style are always dark. */
+const lightdashBrandGray = createColorTuple([
+    '#f8fafb',
+    '#eceff3',
+    '#dfe1e7',
+    '#c1c7d0',
+    '#a4acb9',
+    '#818898',
+    '#666d80',
+    '#36394a',
+    '#1a1b25',
+    '#0d0d12',
+]);
+
+const lightdashBrandViolet = createColorTuple([
+    '#efedff',
+    '#dcd8ff',
+    '#c8c2ff',
+    '#b4acff',
+    '#9a8fff',
+    '#7c6dff',
+    '#5e4cff',
+    '#4c3ddb',
+    '#3d31af',
+    '#2e2585',
+]);
+
 const lightModeColors = {
     background: createColorTuple('#FEFEFE'),
     foreground: createColorTuple('#1A1B1E'),
+
+    ldBrandGray: lightdashBrandGray,
+    ldBrandViolet: lightdashBrandViolet,
 
     ldDark: createColorTuple([
         '#C9C9C9',
@@ -63,6 +94,9 @@ const lightModeColors = {
 const darkModeColors = {
     background: createColorTuple('#1a1a1a'),
     foreground: createColorTuple('#FEFEFE'),
+
+    ldBrandGray: lightdashBrandGray,
+    ldBrandViolet: lightdashBrandViolet,
 
     /** Overwrite Mantine's dark colors because they are too light */
     dark: createColorTuple([
@@ -173,6 +207,17 @@ export const getMantineThemeOverride = (
             '7xl': rem(96),
             '8xl': rem(128),
             '9xl': rem(160),
+        },
+
+        // Mantine's defaults restated because this key is replaced, not merged.
+        // `display` is the only addition: a hero size above the h1 scale.
+        fontSizes: {
+            xs: rem(12),
+            sm: rem(14),
+            md: rem(16),
+            lg: rem(18),
+            xl: rem(20),
+            display: rem(48),
         },
 
         fontFamily: [

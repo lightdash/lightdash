@@ -1,7 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
-    Box,
     Button,
     Card,
     Stack,
@@ -16,10 +15,9 @@ import {
 import { type FC } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
+import AuthLayout from '../components/common/AuthLayout';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
-import Page from '../components/common/Page/Page';
-import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
 import { useEmailStatus } from '../hooks/useEmailVerification';
@@ -91,17 +89,10 @@ const VerifyEmailPage: FC = () => {
     }
 
     return (
-        <Page title="Verify your email" withCenteredContent withNavbar={false}>
-            <Stack w={400} mt="4xl">
-                <Box mx="auto" my="lg">
-                    <LightdashLogo />
-                </Box>
-                <Card p="xl" withBorder shadow="subtle">
-                    <VerifyEmailForm
-                        emailStatusData={data}
-                        statusLoading={statusLoading}
-                    />
-                </Card>
+        <AuthLayout
+            pageTitle="Verify your email"
+            withLegacyCard={false}
+            footer={
                 <Text c="ldGray.6" ta="center" px="xs" fz="sm" fw={500}>
                     You need to verify your email to get access to Lightdash. If
                     you need help, you can{' '}
@@ -109,19 +100,26 @@ const VerifyEmailPage: FC = () => {
                         chat to support here.
                     </Anchor>
                 </Text>
-                {!isEmailOnlySignup && data && (
-                    <VerificationSuccess
-                        isOpen={data.isVerified}
-                        onClose={() => {
-                            void navigate('/');
-                        }}
-                        onContinue={() => {
-                            void navigate('/');
-                        }}
-                    />
-                )}
-            </Stack>
-        </Page>
+            }
+        >
+            <Card p="xl" withBorder shadow="subtle">
+                <VerifyEmailForm
+                    emailStatusData={data}
+                    statusLoading={statusLoading}
+                />
+            </Card>
+            {!isEmailOnlySignup && data && (
+                <VerificationSuccess
+                    isOpen={data.isVerified}
+                    onClose={() => {
+                        void navigate('/');
+                    }}
+                    onContinue={() => {
+                        void navigate('/');
+                    }}
+                />
+            )}
+        </AuthLayout>
     );
 };
 

@@ -9,7 +9,6 @@ import {
 } from '@lightdash/common';
 import {
     Anchor,
-    Box,
     Button,
     Card,
     Divider,
@@ -21,9 +20,8 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
 import { lightdashApi } from '../api';
-import Page from '../components/common/Page/Page';
+import AuthLayout from '../components/common/AuthLayout';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
-import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import { useOrganization } from '../hooks/organization/useOrganization';
@@ -285,58 +283,52 @@ const Invite: FC = () => {
     );
 
     return (
-        <Page title="Register" withCenteredContent withNavbar={false}>
-            <Stack w={400} mt="4xl">
-                <Box mx="auto" my="lg">
-                    <LightdashLogo />
-                </Box>
-                {inviteLinkQuery.error ? (
-                    <ErrorCard
-                        title={
-                            inviteLinkQuery.error.error.name === 'ExpiredError'
-                                ? 'This invite link has expired 🙈'
-                                : inviteLinkQuery.error.error.message
+        <AuthLayout pageTitle="Register" withLegacyCard={false}>
+            {inviteLinkQuery.error ? (
+                <ErrorCard
+                    title={
+                        inviteLinkQuery.error.error.name === 'ExpiredError'
+                            ? 'This invite link has expired 🙈'
+                            : inviteLinkQuery.error.error.message
+                    }
+                />
+            ) : showOneClick && inviteLinkQuery.data ? (
+                <>
+                    <OneClickCard
+                        email={inviteLinkQuery.data.email}
+                        isSetupInvite={isSetupInvite}
+                        isLoading={
+                            activateInvite.isLoading || activateInvite.isSuccess
                         }
+                        onActivate={() => activateInvite.mutate()}
                     />
-                ) : showOneClick && inviteLinkQuery.data ? (
-                    <>
-                        <OneClickCard
-                            email={inviteLinkQuery.data.email}
-                            isSetupInvite={isSetupInvite}
-                            isLoading={
-                                activateInvite.isLoading ||
-                                activateInvite.isSuccess
-                            }
-                            onActivate={() => activateInvite.mutate()}
-                        />
-                        <PrivacyTermsFootnote />
-                    </>
-                ) : isLinkFromEmail || isSetupInvite ? (
-                    <>
-                        <Card p="xl" withBorder shadow="subtle">
-                            <Title order={3} ta="center" mb="md">
-                                {isSetupInvite
-                                    ? 'You’ve been asked to help with setup'
-                                    : 'Sign up'}
-                            </Title>
-                            {isSetupInvite && (
-                                <Text c="ldGray.6" ta="center" mb="md">
-                                    Create your account and we’ll take you
-                                    straight to warehouse setup.
-                                </Text>
-                            )}
-                            {logins}
-                        </Card>
-                        <PrivacyTermsFootnote />
-                    </>
-                ) : (
-                    <WelcomeCard
-                        email={inviteLinkQuery.data?.email}
-                        setReadyToJoin={setIsLinkFromEmail}
-                    />
-                )}
-            </Stack>
-        </Page>
+                    <PrivacyTermsFootnote />
+                </>
+            ) : isLinkFromEmail || isSetupInvite ? (
+                <>
+                    <Card p="xl" withBorder shadow="subtle">
+                        <Title order={3} ta="center" mb="md">
+                            {isSetupInvite
+                                ? 'You’ve been asked to help with setup'
+                                : 'Sign up'}
+                        </Title>
+                        {isSetupInvite && (
+                            <Text c="ldGray.6" ta="center" mb="md">
+                                Create your account and we’ll take you straight
+                                to warehouse setup.
+                            </Text>
+                        )}
+                        {logins}
+                    </Card>
+                    <PrivacyTermsFootnote />
+                </>
+            ) : (
+                <WelcomeCard
+                    email={inviteLinkQuery.data?.email}
+                    setReadyToJoin={setIsLinkFromEmail}
+                />
+            )}
+        </AuthLayout>
     );
 };
 

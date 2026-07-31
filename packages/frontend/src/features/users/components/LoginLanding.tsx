@@ -3,7 +3,6 @@ import {
     isOpenIdIdentityIssuerType,
     LightdashMode,
     LocalIssuerTypes,
-    LOGIN_PAGE_ID,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     type LightdashUser,
@@ -11,16 +10,13 @@ import {
 } from '@lightdash/common';
 import {
     TextInput,
-    Box,
     Divider,
     Stack,
     Text,
-    Title,
     Button,
     ActionIcon,
     Anchor,
     PasswordInput,
-    Card,
 } from '@mantine-8/core';
 import { useTimeout } from '@mantine-8/hooks';
 import { useForm, zodResolver } from '@mantine/form';
@@ -33,11 +29,11 @@ import {
     useState,
     type FC,
 } from 'react';
-import { Navigate, useLocation } from 'react-router';
+import { Link, Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
+import { useAuthLayoutVariant } from '../../../components/common/AuthLayout/useAuthLayoutVariant';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ThirdPartySignInButton } from '../../../components/common/ThirdPartySignInButton';
-import LightdashLogo from '../../../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../../../components/PageSpinner';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useFlashMessages } from '../../../hooks/useFlashMessages';
@@ -45,6 +41,7 @@ import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { sanitizeRedirectUrl } from '../../../utils/redirectUrl';
+import { resolveInternalPath } from '../../../utils/url';
 import {
     useFetchLoginOptions,
     useLoginWithEmailMutation,
@@ -60,6 +57,7 @@ const Login: FC<{}> = () => {
     const { health } = useApp();
     const { identify, track } = useTracking();
     const location = useLocation();
+    const { isNewLayout } = useAuthLayoutVariant();
 
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
@@ -298,167 +296,163 @@ const Login: FC<{}> = () => {
         return <Navigate to={redirectUrl} />;
     }
 
+    const ssoButtons = ssoOptionsLastUsedFirst.length > 0 && (
+        <Stack>
+            {ssoOptionsLastUsedFirst.map((providerName) => (
+                <ThirdPartySignInButton
+                    key={providerName}
+                    providerName={providerName}
+                    intent={isNewLayout ? 'continue' : 'signin'}
+                    redirect={redirectUrl}
+                    loginHint={preCheckEmail ?? lastLoginMethod?.email}
+                    disabled={isFormLoading}
+                    forceShow
+                    lastUsed={providerName === lastUsedSsoProvider}
+                    onClick={() =>
+                        writeLastLoginMethod({
+                            issuerType: providerName,
+                            email:
+                                form.values.email ||
+                                preCheckEmail ||
+                                lastLoginMethod?.email ||
+                                '',
+                        })
+                    }
+                />
+            ))}
+        </Stack>
+    );
+
+    const signupUrl = health.data?.signupUrl || '/register';
+    const signupPath = resolveInternalPath(signupUrl);
+
+    const ssoDivider = (
+        <Divider
+            my="sm"
+            labelPosition="center"
+            label={
+                <Text c="ldGray.5" size="sm" fw={500}>
+                    {isNewLayout ? 'or' : 'OR'}
+                </Text>
+            }
+        />
+    );
+
     return (
-        <>
-            <Box mx="auto" my="lg">
-                <LightdashLogo />
-            </Box>
-            <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
-                <Title order={3} ta="center" mb="md">
-                    Sign in
-                </Title>
-                <form
-                    name="login"
-                    onSubmit={form.onSubmit(() => handleFormSubmit())}
-                >
-                    <Stack gap="lg">
-                        <TextInput
-                            label="Email address"
-                            name="email"
-                            placeholder="Your email address"
+        <form name="login" onSubmit={form.onSubmit(() => handleFormSubmit())}>
+            <Stack gap="lg">
+                {isNewLayout && ssoButtons && (
+                    <>
+                        {ssoButtons}
+                        {ssoDivider}
+                    </>
+                )}
+                <TextInput
+                    label={isNewLayout ? 'Work email' : 'Email address'}
+                    name="email"
+                    placeholder={
+                        isNewLayout ? 'maya@acme.com' : 'Your email address'
+                    }
+                    required
+                    {...form.getInputProps('email')}
+                    disabled={isFormLoading}
+                    rightSectionPointerEvents="all"
+                    rightSection={
+                        preCheckEmail ? (
+                            <ActionIcon
+                                aria-label="Clear email address"
+                                onMouseDown={(event) => event.preventDefault()}
+                                variant="subtle"
+                                color="gray"
+                                onClick={() => {
+                                    setPreCheckEmail(undefined);
+                                    form.setValues({
+                                        email: '',
+                                        password: '',
+                                    });
+                                }}
+                            >
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        ) : null
+                    }
+                />
+                {isEmailLoginAvailable && formStage === 'login' && (
+                    <>
+                        <PasswordInput
+                            label="Password"
+                            name="password"
+                            placeholder="Your password"
+                            autoComplete="current-password"
                             required
-                            {...form.getInputProps('email')}
+                            autoFocus
+                            {...form.getInputProps('password')}
                             disabled={isFormLoading}
-                            rightSectionPointerEvents="all"
-                            rightSection={
-                                preCheckEmail ? (
-                                    <ActionIcon
-                                        aria-label="Clear email address"
-                                        onMouseDown={(event) =>
-                                            event.preventDefault()
-                                        }
-                                        variant="subtle"
-                                        color="gray"
-                                        onClick={() => {
-                                            setPreCheckEmail(undefined);
-                                            form.setValues({
-                                                email: '',
-                                                password: '',
-                                            });
-                                        }}
-                                    >
-                                        <MantineIcon icon={IconX} />
-                                    </ActionIcon>
-                                ) : null
-                            }
                         />
-                        {isEmailLoginAvailable && formStage === 'login' && (
-                            <>
-                                <PasswordInput
-                                    label="Password"
-                                    name="password"
-                                    placeholder="Your password"
-                                    autoComplete="current-password"
-                                    required
-                                    autoFocus
-                                    {...form.getInputProps('password')}
-                                    disabled={isFormLoading}
-                                />
-                                <Anchor
-                                    inherit
-                                    href="/recover-password"
-                                    mx="auto"
-                                >
-                                    Forgot your password?
-                                </Anchor>
-                                <Button
-                                    type="submit"
-                                    loading={isFormLoading}
-                                    disabled={isFormLoading}
-                                    data-cy="signin-button"
-                                >
-                                    Sign in
-                                </Button>
-                            </>
-                        )}
-                        {isEmailOtpLoginAvailable && formStage === 'login' && (
-                            <LoginWithEmailOtp
-                                email={preCheckEmail ?? form.values.email}
-                                disabled={isFormLoading}
-                                onSuccess={(data) =>
-                                    handleLoginSuccess(
-                                        data,
-                                        LocalIssuerTypes.EMAIL_OTP,
-                                    )
-                                }
-                            />
-                        )}
-                        {formStage === 'precheck' && (
-                            <Button
-                                type="submit"
-                                loading={isFormLoading}
-                                disabled={isFormLoading}
-                                data-cy="signin-button"
-                            >
-                                Continue
-                            </Button>
-                        )}
-                        {ssoOptionsLastUsedFirst.length > 0 && (
-                            <>
-                                {(isEmailLoginAvailable ||
-                                    isEmailOtpLoginAvailable ||
-                                    formStage === 'precheck') && (
-                                    <Divider
-                                        my="sm"
-                                        labelPosition="center"
-                                        label={
-                                            <Text
-                                                c="ldGray.5"
-                                                size="sm"
-                                                fw={500}
-                                            >
-                                                OR
-                                            </Text>
-                                        }
-                                    />
-                                )}
-                                <Stack>
-                                    {ssoOptionsLastUsedFirst.map(
-                                        (providerName) => (
-                                            <ThirdPartySignInButton
-                                                key={providerName}
-                                                providerName={providerName}
-                                                redirect={redirectUrl}
-                                                loginHint={
-                                                    preCheckEmail ??
-                                                    lastLoginMethod?.email
-                                                }
-                                                disabled={isFormLoading}
-                                                forceShow
-                                                lastUsed={
-                                                    providerName ===
-                                                    lastUsedSsoProvider
-                                                }
-                                                onClick={() =>
-                                                    writeLastLoginMethod({
-                                                        issuerType:
-                                                            providerName,
-                                                        email:
-                                                            form.values.email ||
-                                                            preCheckEmail ||
-                                                            lastLoginMethod?.email ||
-                                                            '',
-                                                    })
-                                                }
-                                            />
-                                        ),
-                                    )}
-                                </Stack>
-                            </>
-                        )}
-                        <Text mx="auto" mt="md" fz="sm">
-                            Don't have an account?{' '}
-                            <Anchor
-                                href={health.data?.signupUrl || '/register'}
-                                fz="sm"
-                            >
-                                Sign up
-                            </Anchor>
-                        </Text>
-                    </Stack>
-                </form>
-            </Card>
-        </>
+                        <Anchor
+                            inherit
+                            component={Link}
+                            to="/recover-password"
+                            mx="auto"
+                        >
+                            Forgot your password?
+                        </Anchor>
+                        <Button
+                            type="submit"
+                            loading={isFormLoading}
+                            disabled={isFormLoading}
+                            fullWidth={isNewLayout}
+                            data-cy="signin-button"
+                        >
+                            Sign in
+                        </Button>
+                    </>
+                )}
+                {isEmailOtpLoginAvailable && formStage === 'login' && (
+                    <LoginWithEmailOtp
+                        email={preCheckEmail ?? form.values.email}
+                        disabled={isFormLoading}
+                        onSuccess={(data) =>
+                            handleLoginSuccess(data, LocalIssuerTypes.EMAIL_OTP)
+                        }
+                    />
+                )}
+                {formStage === 'precheck' && (
+                    <Button
+                        type="submit"
+                        loading={isFormLoading}
+                        disabled={isFormLoading}
+                        fullWidth={isNewLayout}
+                        data-cy="signin-button"
+                    >
+                        Continue
+                    </Button>
+                )}
+                {!isNewLayout && ssoButtons && (
+                    <>
+                        {(isEmailLoginAvailable ||
+                            isEmailOtpLoginAvailable ||
+                            formStage === 'precheck') &&
+                            ssoDivider}
+                        {ssoButtons}
+                    </>
+                )}
+                <Text mx="auto" mt="md" fz="sm">
+                    {isNewLayout
+                        ? 'New to Lightdash?'
+                        : "Don't have an account?"}{' '}
+                    {signupPath ? (
+                        <Anchor component={Link} to={signupPath} fz="sm">
+                            {isNewLayout ? 'Create an account' : 'Sign up'}
+                        </Anchor>
+                    ) : (
+                        <Anchor href={signupUrl} fz="sm">
+                            {isNewLayout ? 'Create an account' : 'Sign up'}
+                        </Anchor>
+                    )}
+                </Text>
+            </Stack>
+        </form>
     );
 };
 

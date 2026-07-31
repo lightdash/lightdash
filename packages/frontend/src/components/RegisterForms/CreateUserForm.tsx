@@ -14,6 +14,7 @@ import {
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
+import { Link } from 'react-router';
 import { z } from 'zod';
 import PasswordTextInput from '../PasswordTextInput';
 
@@ -92,7 +93,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
                 </Button>
                 <Text mx="auto" c="ldGray.7" ta="center" fz="sm" fw={500}>
                     Already Registered?{' '}
-                    <Anchor href="/signin" fz="sm" fw={500}>
+                    <Anchor component={Link} to="/login" fz="sm" fw={500}>
                         Sign in
                     </Anchor>
                 </Text>

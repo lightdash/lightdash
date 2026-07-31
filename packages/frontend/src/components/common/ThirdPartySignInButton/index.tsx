@@ -17,7 +17,7 @@ import classes from './ThirdPartySignInButton.module.css';
 
 type ThirdPartySignInButtonProps = {
     inviteCode?: string;
-    intent?: 'signin' | 'add' | 'signup';
+    intent?: 'signin' | 'add' | 'signup' | 'continue';
     providerName: OpenIdIdentitySummary['issuerType'];
     // Default redirect is the current window.location.href
     redirect?: string;
@@ -90,6 +90,7 @@ const ThirdPartySignInButtonBase: FC<
         >
             {intent === 'signup' && `Sign up with ${providerName}`}
             {intent === 'signin' && `Sign in with ${providerName}`}
+            {intent === 'continue' && `Continue with ${providerName}`}
             {intent === 'add' && 'Add +'}
         </Button>
     );
