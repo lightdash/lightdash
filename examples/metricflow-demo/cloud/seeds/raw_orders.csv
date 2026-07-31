@@ -1,0 +1,11 @@
+order_id,customer_id,ordered_at,status,amount,is_food_order
+1,101,2024-01-05,completed,25.50,true
+2,101,2024-01-10,completed,18.00,false
+3,102,2024-01-12,returned,42.00,true
+4,103,2024-02-02,completed,12.25,false
+5,102,2024-02-14,completed,60.00,true
+6,104,2024-02-20,pending,33.10,false
+7,103,2024-03-01,completed,15.75,true
+8,105,2024-03-08,completed,88.20,false
+9,101,2024-03-15,returned,22.40,true
+10,106,2024-03-21,completed,49.99,true
