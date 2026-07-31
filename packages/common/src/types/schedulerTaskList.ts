@@ -122,6 +122,10 @@ export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
 export type AiAgentMemoryDistillJobPayload = TraceTaskBase & {
     threadUuid: UUID;
     sweptUpdatedAt: string;
+    // Manual trigger only: bypass the watermark skip so an already-distilled
+    // thread re-distills. Optional because jobs enqueued before this field
+    // existed are still in the queue.
+    force?: boolean;
 };
 
 export type AiAgentMemoryConsolidatePartitionJobPayload = TraceTaskBase & {

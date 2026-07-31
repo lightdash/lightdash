@@ -3,6 +3,7 @@ import {
     type ApiAiAgentMemoryResponse,
     type ApiAiAgentUserMemoriesResponse,
     type ApiErrorPayload,
+    type ApiTriggerAiAgentMemoryDistillResponse,
     type ApiUpdateAiAgentMemoryStatusRequest,
     type ApiUpdateAiAgentMemoryStatusResponse,
     type KnexPaginateArgs,
@@ -15,6 +16,7 @@ import {
     OperationId,
     Patch,
     Path,
+    Post,
     Query,
     Request,
     Response,
@@ -124,5 +126,39 @@ export class AiAgentMemoryController extends BaseController {
             );
 
         return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Queues distillation for one thread immediately, skipping the 6h idle wait
+     * and the every-3h sweep. Re-distills a thread that is already up to date.
+     * Requires permission to manage AI agents in the project.
+     * @summary Distill thread
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('202', 'Accepted')
+    @Post('/threads/{threadUuid}/distill')
+    @OperationId('triggerAiAgentMemoryDistill')
+    async triggerAiAgentMemoryDistill(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiTriggerAiAgentMemoryDistillResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(202);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiAgentMemoryService<AiAgentMemoryService>()
+                .triggerThreadDistill(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    threadUuid,
+                ),
+        };
     }
 }
