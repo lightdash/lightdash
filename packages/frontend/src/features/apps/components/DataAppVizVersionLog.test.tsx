@@ -34,6 +34,8 @@ const setVersions = (
     );
 };
 
+const onCancelBuild = vi.fn();
+
 const render = (build: DataAppVizBuildState = buildStub()) =>
     renderWithProviders(
         <DataAppVizVersionLog
@@ -41,6 +43,7 @@ const render = (build: DataAppVizBuildState = buildStub()) =>
             dataAppVizUuid="viz-1"
             build={build}
             elapsed={build.isBuilding ? '0:14' : null}
+            onCancelBuild={onCancelBuild}
         />,
     );
 
@@ -236,6 +239,27 @@ describe('DataAppVizVersionLog', () => {
         expect(
             screen.queryByRole('button', { name: 'Restore' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('stops only the build claimed by the local request', async () => {
+        setVersions([
+            version({ status: 'generating', statusUpdatedAt: null }),
+            version({
+                version: 2,
+                status: 'generating',
+                statusUpdatedAt: null,
+            }),
+        ]);
+        render(buildStub({ isBuilding: true, claimedVersion: 2 }));
+
+        const cancel = screen.getAllByRole('button', { name: 'Cancel' });
+        expect(cancel).toHaveLength(1);
+        expect(cancel[0]).toBeInTheDocument();
+        expect(screen.getByTestId('version-log-row-2')).toContainElement(
+            cancel[0],
+        );
+        await userEvent.click(cancel[0]);
+        expect(onCancelBuild).toHaveBeenCalled();
     });
 
     it('offers to re-send a request the server never accepted', async () => {

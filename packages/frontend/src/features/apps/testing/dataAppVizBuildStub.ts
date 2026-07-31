@@ -6,6 +6,7 @@ export const buildStub = (
     overrides: Partial<DataAppVizBuildState> = {},
 ): DataAppVizBuildState => ({
     appUuid: null,
+    draft: null,
     startedAt: null,
     claimedVersion: null,
     isBuilding: false,
@@ -13,5 +14,6 @@ export const buildStub = (
     error: null,
     send: vi.fn(),
     retry: null,
+    discard: null,
     ...overrides,
 });

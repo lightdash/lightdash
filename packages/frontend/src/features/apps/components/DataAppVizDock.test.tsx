@@ -341,6 +341,33 @@ describe('DataAppVizDock', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('keeps stopping a draft build reachable from its row', async () => {
+        const discard = vi.fn();
+        setVersions([]);
+        renderWithProviders(
+            <DataAppVizDock
+                projectUuid="project-1"
+                dataAppVizUuid="draft-app"
+                build={buildStub({
+                    isBuilding: true,
+                    pendingPrompt: 'a donut of orders by status',
+                    appUuid: 'draft-app',
+                    draft: {
+                        appUuid: 'draft-app',
+                        version: 1,
+                        startedAt: new Date(),
+                    },
+                    discard,
+                })}
+                elapsed="0:14"
+                onCancelBuild={discard}
+            />,
+        );
+
+        await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(discard).toHaveBeenCalled();
+    });
+
     it('closes back down to the bar', async () => {
         setVersions([version()]);
         render();

@@ -106,6 +106,8 @@ export const ConfigTabs: FC = memo(() => {
         fieldMapping,
     );
 
+    const draft = build.draft;
+
     const settings = (
         <DataAppVizSettings
             projectUuid={projectUuid ?? ''}
@@ -114,6 +116,8 @@ export const ConfigTabs: FC = memo(() => {
             itemsMap={itemsMap ?? NO_COLUMNS}
             fields={fields}
             fieldMapping={effectiveMapping}
+            draft={draft ? { dataAppVizUuid: draft.appUuid, elapsed } : null}
+            onSelectDraft={() => setDataAppVizUuid('', {})}
             onSelect={(picked) =>
                 setDataAppVizUuid(
                     picked?.dataAppVizUuid ?? '',
@@ -163,6 +167,11 @@ export const ConfigTabs: FC = memo(() => {
                                     elapsed={elapsed}
                                 />
                             ) : undefined
+                        }
+                        onCancelBuild={
+                            build.draft !== null && !dataAppVizUuid
+                                ? build.discard
+                                : null
                         }
                         footer={
                             // Asking a saved visualization to change is not

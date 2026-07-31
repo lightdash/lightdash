@@ -86,8 +86,9 @@ const LogRow: FC<{
     isCurrent: boolean;
     /** Ticking clock, when this row is the build in flight. */
     elapsed: string | null;
+    onCancel: (() => void) | null;
     onRestore: (version: number) => void;
-}> = ({ entry, isCurrent, elapsed, onRestore }) => {
+}> = ({ entry, isCurrent, elapsed, onCancel, onRestore }) => {
     // A version the poller has written but not yet finished — any of the seven
     // stages before it lands. Its own row reports the progress, so the build
     // never needs a second one.
@@ -118,6 +119,18 @@ const LogRow: FC<{
                 )}
             </Stack>
 
+            {isBuilding && onCancel && (
+                <Anchor
+                    component="button"
+                    type="button"
+                    size="xs"
+                    c="dimmed"
+                    className={classes.rowAction}
+                    onClick={onCancel}
+                >
+                    Cancel
+                </Anchor>
+            )}
             {isCurrent && (
                 <Text size="xs" c="dimmed" className={classes.rowAction}>
                     current
@@ -145,7 +158,8 @@ const LogRow: FC<{
 const LiveRow: FC<{
     build: DataAppVizBuildState;
     elapsed: string | null;
-}> = ({ build, elapsed }) => (
+    onCancel: (() => void) | null;
+}> = ({ build, elapsed, onCancel }) => (
     <Group className={classes.row} gap="xs" wrap="nowrap" align="flex-start">
         <Badge
             size="xs"
@@ -162,6 +176,19 @@ const LiveRow: FC<{
             </Text>
             <Building elapsed={elapsed} />
         </Stack>
+
+        {onCancel && (
+            <Anchor
+                component="button"
+                type="button"
+                size="xs"
+                c="dimmed"
+                className={classes.rowAction}
+                onClick={onCancel}
+            >
+                Cancel
+            </Anchor>
+        )}
     </Group>
 );
 
@@ -206,6 +233,7 @@ type Props = {
     build: DataAppVizBuildState;
     /** Ticking `0:12` while a build runs; null when nothing is running. */
     elapsed: string | null;
+    onCancelBuild: (() => void) | null;
 };
 
 /**
@@ -221,6 +249,7 @@ const DataAppVizVersionLog: FC<Props> = ({
     dataAppVizUuid,
     build,
     elapsed,
+    onCancelBuild,
 }) => {
     const {
         versions,
@@ -289,7 +318,11 @@ const DataAppVizVersionLog: FC<Props> = ({
         <>
             <Stack gap={0}>
                 {build.isBuilding && !isClaimedInHistory && (
-                    <LiveRow build={build} elapsed={elapsed} />
+                    <LiveRow
+                        build={build}
+                        elapsed={elapsed}
+                        onCancel={onCancelBuild}
+                    />
                 )}
 
                 {build.error && (
@@ -302,6 +335,11 @@ const DataAppVizVersionLog: FC<Props> = ({
                         entry={entry}
                         isCurrent={entry.version === latestReadyVersion}
                         elapsed={elapsed}
+                        onCancel={
+                            entry.version === build.claimedVersion
+                                ? onCancelBuild
+                                : null
+                        }
                         onRestore={setRestoreTarget}
                     />
                 ))}
