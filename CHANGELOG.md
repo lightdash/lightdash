@@ -1,3 +1,30 @@
+# [1.56.0](https://github.com/lightdash/lightdash/compare/1.55.0...1.56.0) (2026-07-31)
+
+
+### Bug Fixes
+
+* **apps:** keep the viz dock open after creation ([#26544](https://github.com/lightdash/lightdash/issues/26544)) ([6bdf358](https://github.com/lightdash/lightdash/commit/6bdf358bc12e7691737425316c6be10d0f5e2f17))
+* **frontend:** scope active-project cache invalidation and guard re-entrancy ([#26625](https://github.com/lightdash/lightdash/issues/26625)) ([bfeb670](https://github.com/lightdash/lightdash/commit/bfeb670243d06148ef132e9de296c0db1b242289))
+* **frontend:** share one NavBar across onboarding routes via a layout route ([#26626](https://github.com/lightdash/lightdash/issues/26626)) ([6474f7e](https://github.com/lightdash/lightdash/commit/6474f7e9da1746be12b0f0be066480bf46e895bc))
+* **frontend:** stop redirect ping-pong on unresolved user state after signup ([#26627](https://github.com/lightdash/lightdash/issues/26627)) ([4223b3d](https://github.com/lightdash/lightdash/commit/4223b3dcad8e575e173bf7483d7eb9ae735c3a7e))
+* **homepage:** resolve the hero as one wave instead of flickering stages ([#26640](https://github.com/lightdash/lightdash/issues/26640)) ([567c06c](https://github.com/lightdash/lightdash/commit/567c06cfd1c32d1d93d5a97414c4cbd99aa42658))
+* **pre-aggregates:** allow trusted S3 reads ([#26621](https://github.com/lightdash/lightdash/issues/26621)) ([18868fa](https://github.com/lightdash/lightdash/commit/18868fa0f94d5b2ebab5bcc2f2f806773064ec5f))
+
+
+### Features
+
+* **apps:** ask a data app viz to change ([#26409](https://github.com/lightdash/lightdash/issues/26409)) ([2229801](https://github.com/lightdash/lightdash/commit/22298018059ecd513ca29459b93a851c71cc4ade))
+* **apps:** attach files to the viz composer ([#26335](https://github.com/lightdash/lightdash/issues/26335)) ([d3e45fe](https://github.com/lightdash/lightdash/commit/d3e45fe1d7c7fe6cc80db9c2ec1cedca4793346a))
+* **apps:** show a building visualization as a draft ([#26427](https://github.com/lightdash/lightdash/issues/26427)) ([aa05090](https://github.com/lightdash/lightdash/commit/aa050901f36f73ecfcfbd6d24bd39e61e73fdf9c))
+* **cli:** wait and retry data app uploads rejected by the project build cap ([#26630](https://github.com/lightdash/lightdash/issues/26630)) ([1c66498](https://github.com/lightdash/lightdash/commit/1c664983ca895b921bdcafc8dd7aa9730dc810ad))
+* **data-apps:** align the data app header with the dashboard header design ([#26639](https://github.com/lightdash/lightdash/issues/26639)) ([d1db675](https://github.com/lightdash/lightdash/commit/d1db67572f369e190c37194d695bc2505b061817))
+* **homepage:** greet pre-warehouse users with "Let's get started" ([#26631](https://github.com/lightdash/lightdash/issues/26631)) ([b70a032](https://github.com/lightdash/lightdash/commit/b70a03267f5bc257506bdfa9f7a09e4047c61853))
+* **homepage:** prioritise media cards in the get-started rotation ([#26618](https://github.com/lightdash/lightdash/issues/26618)) ([08ae40e](https://github.com/lightdash/lightdash/commit/08ae40eb1bd6236f503add83630c1e6910d57fcb))
+* **homepage:** put connect-dbt ahead of semantic layer in setup checklist ([#26624](https://github.com/lightdash/lightdash/issues/26624)) ([4d39b1e](https://github.com/lightdash/lightdash/commit/4d39b1eef3a96494a8c58ad7b082e0662914b028))
+* **homepage:** slow the floating card rotation on get-started ([#26617](https://github.com/lightdash/lightdash/issues/26617)) ([f657b7d](https://github.com/lightdash/lightdash/commit/f657b7dccffaa3be7efdb82c83e1bd6c1cfb55b3))
+* **onboarding:** guided dbt setup flow behind the get-started checklist ([#26634](https://github.com/lightdash/lightdash/issues/26634)) ([224a663](https://github.com/lightdash/lightdash/commit/224a663289956698406e659d092895525afb38f6))
+* **onboarding:** make "How did you hear about us?" required ([#26622](https://github.com/lightdash/lightdash/issues/26622)) ([731af62](https://github.com/lightdash/lightdash/commit/731af625729b0394d57780f49a74d5f96d6f8b20))
+
 # [1.55.0](https://github.com/lightdash/lightdash/compare/1.54.0...1.55.0) (2026-07-31)
 
 
