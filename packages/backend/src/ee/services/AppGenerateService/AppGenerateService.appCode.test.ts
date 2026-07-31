@@ -105,7 +105,6 @@ const s3SendSpy = vi.fn().mockResolvedValue({});
 
 function buildService(
     opts: {
-        customDependenciesEnabled?: boolean;
         customDependenciesOrgEnabled?: boolean;
         canManageDataAppDependencies?: boolean;
     } = {},
@@ -154,7 +153,6 @@ function buildService(
 
     const lightdashConfig = {
         appRuntime: {
-            customDependenciesEnabled: opts.customDependenciesEnabled ?? true,
             dependencyRegistryHosts: ['registry.npmjs.org'],
             dependencyMinReleaseAgeDays: 0,
             // Off in these gate-focused tests so no upload attempts a real
@@ -615,65 +613,8 @@ describe('AppGenerateService.importAppCode', () => {
         );
     });
 
-    it('throws ParameterError when custom deps are present but customDependenciesEnabled is false', async () => {
+    it('rejects custom deps when the org flag is off', async () => {
         const { service, appModel, analytics } = buildService({
-            customDependenciesEnabled: false,
-        });
-
-        appModel.findApp.mockResolvedValue(undefined);
-
-        const codeWithCustomDep = {
-            ...makeCode(),
-            dependencies: makeDeps({ 'deck.gl': '9.3.5' }),
-        };
-
-        await expect(
-            service.importAppCode(makeUser(), PROJECT_UUID, {
-                code: codeWithCustomDep,
-            } as ImportAppCodeRequestBody),
-        ).rejects.toThrow(ParameterError);
-
-        await expect(
-            service.importAppCode(makeUser(), PROJECT_UUID, {
-                code: codeWithCustomDep,
-            } as ImportAppCodeRequestBody),
-        ).rejects.toThrow('LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED');
-
-        expect(analytics.track).toHaveBeenCalledWith({
-            event: 'data_app.upload_rejected',
-            userId: USER_UUID,
-            properties: expect.objectContaining({
-                organizationId: PROJECT_ORG_UUID,
-                projectId: PROJECT_UUID,
-                reason: 'custom_dependencies_disabled_instance',
-                customDependencyCount: 1,
-                customDependencies: [{ name: 'deck.gl', version: '9.3.5' }],
-            }),
-        });
-        expect(analytics.track).not.toHaveBeenCalledWith(
-            expect.objectContaining({ event: 'data_app.uploaded' }),
-        );
-    });
-
-    it('accepts template-only upload when customDependenciesEnabled is false', async () => {
-        const { service, appModel, schedulerClient } = buildService({
-            customDependenciesEnabled: false,
-        });
-
-        appModel.findApp.mockResolvedValue(undefined);
-
-        // Template-only = no custom deps above the baseline
-        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
-            code: { ...makeCode(), dependencies: makeDeps() },
-        } as ImportAppCodeRequestBody);
-
-        expect(result.action).toBe('create');
-        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
-    });
-
-    it('rejects custom deps when the instance allows them but the org flag is off', async () => {
-        const { service, appModel, analytics } = buildService({
-            customDependenciesEnabled: true,
             customDependenciesOrgEnabled: false,
         });
 
@@ -700,7 +641,6 @@ describe('AppGenerateService.importAppCode', () => {
 
     it('rejects custom deps for a user without manage:DataAppDependency (non-admin)', async () => {
         const { service, appModel, analytics } = buildService({
-            customDependenciesEnabled: true,
             customDependenciesOrgEnabled: true,
             canManageDataAppDependencies: false,
         });
@@ -742,9 +682,8 @@ describe('AppGenerateService.importAppCode', () => {
         expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
     });
 
-    it('accepts custom deps when both the instance and org flag allow them', async () => {
+    it('accepts custom deps when the org flag allows them', async () => {
         const { service, appModel, schedulerClient, analytics } = buildService({
-            customDependenciesEnabled: true,
             customDependenciesOrgEnabled: true,
         });
 

@@ -2066,14 +2066,6 @@ export class AppGenerateService extends BaseService {
         version: number,
         versionDeps: AppVersionDependencies,
     ): Promise<number> {
-        // Kill-switch: enforced at upload time too, but re-checked here so
-        // flipping it off also stops installs of previously-approved dep sets
-        // (iterations and rebuilds), not just new uploads.
-        if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-            throw new ParameterError(
-                'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED); this app version declares custom packages so it cannot be built.',
-            );
-        }
         const start = performance.now();
         const depsPrefix = `apps/${appUuid}/versions/${version}/deps/`;
 
@@ -5863,13 +5855,6 @@ export class AppGenerateService extends BaseService {
         latestDependencies: AppVersionDependencies | null | undefined,
     ): Promise<AppVersionDependencies | undefined> {
         if (!latestDependencies) return undefined;
-        // Kill-switch: iterations restore the stored dep set, so they must
-        // stop too when custom dependencies are disabled instance-wide.
-        if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-            throw new ParameterError(
-                'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). This app declares custom packages, so it cannot be iterated until they are re-enabled.',
-            );
-        }
         const { client, bucket } = this.getS3Client();
         const toPrefix = versionPrefix(appUuid, newVersion);
         const candidates =
@@ -9215,13 +9200,6 @@ export class AppGenerateService extends BaseService {
         // dropping the files would make a re-upload build with template deps.
         let dependencies: DataAppDependencies | undefined;
         if (versionRow?.dependencies) {
-            // Kill-switch: stripping deps instead would hand out a folder
-            // whose src imports packages the lockfile no longer declares.
-            if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-                throw new ParameterError(
-                    'This app declares custom dependencies, and custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED), so it cannot be downloaded.',
-                );
-            }
             const depsPrefix = `${versionPrefix(app.app_id, resolvedVersion)}deps/`;
             const [packageJsonBuffer, lockfileBuffer] = await Promise.all([
                 readS3ObjectAsBuffer(
@@ -9611,7 +9589,7 @@ export class AppGenerateService extends BaseService {
                 // capability, so it requires manage:DataAppDependency (admins
                 // only by default) — a level above the create/manage:DataApp
                 // needed to upload a template-only app. Checked before the
-                // instance/org gates so an unauthorized user gets a clear 403.
+                // org gate so an unauthorized user gets a clear 403.
                 try {
                     this.assertCanManageDataAppDependencies(
                         user,
@@ -9625,22 +9603,9 @@ export class AppGenerateService extends BaseService {
                     });
                     throw err;
                 }
-                if (
-                    !this.lightdashConfig.appRuntime.customDependenciesEnabled
-                ) {
-                    trackUploadRejected(
-                        'custom_dependencies_disabled_instance',
-                        { customDependencies },
-                    );
-                    throw new ParameterError(
-                        'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). Remove the added packages or ask an admin to enable them.',
-                    );
-                }
-                // Per-org rollout gate, layered on the instance env gate: even
-                // when the instance allows custom deps, the org must be
-                // explicitly enabled. Only applies to uploading NEW custom-dep
-                // content — builds/downloads of already-approved sets stay
-                // gated by the env kill-switch alone.
+                // The per-org rollout gate applies when uploading a new custom
+                // dependency set. Once approved and stored, background builds,
+                // iterations, and downloads must continue to use that exact set.
                 const { enabled: orgAllowsCustomDeps } =
                     await this.featureFlagModel.get({
                         user,

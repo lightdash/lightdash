@@ -1841,15 +1841,6 @@ export type AppRuntimeConfig = {
      */
     otel: DataAppOtelConfig;
     /**
-     * When false, uploads that declare a non-empty custom dependency set are
-     * rejected at the API boundary with a clear error, and builds/iterations
-     * of versions with stored custom deps refuse to run. Template-only
-     * uploads (no declared dependencies) are always accepted. Env var
-     * `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED`; defaults to `false` while
-     * the feature rolls out — set to `true` to enable on an instance.
-     */
-    customDependenciesEnabled: boolean;
-    /**
      * NPM registry hosts added to the sandbox egress allowlist when a version
      * has a custom dependency set (`app_versions.dependencies` non-null).
      * Template-only builds never gain these hosts. Comma-separated env var
@@ -2274,8 +2265,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         e2bCodingAgentTemplateTag:
             process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
         otel: parseDataAppOtelConfig(),
-        customDependenciesEnabled:
-            process.env.LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED === 'true',
         dependencyRegistryHosts: (
             process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||
             'registry.npmjs.org'

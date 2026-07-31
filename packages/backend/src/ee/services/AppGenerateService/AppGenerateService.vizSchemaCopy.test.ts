@@ -127,7 +127,7 @@ function buildService() {
 
     const service = new AppGenerateService({
         lightdashConfig: {
-            appRuntime: { customDependenciesEnabled: true },
+            appRuntime: {},
         } as never,
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,
