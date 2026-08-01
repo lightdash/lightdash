@@ -1,3 +1,10 @@
+## [1.58.1](https://github.com/lightdash/lightdash/compare/1.58.0...1.58.1) (2026-08-01)
+
+
+### Bug Fixes
+
+* restrict post-login redirect targets to root-relative paths ([#26599](https://github.com/lightdash/lightdash/issues/26599)) ([119b652](https://github.com/lightdash/lightdash/commit/119b65230de66b0f510b9ac67bafb69015620f8f))
+
 # [1.58.0](https://github.com/lightdash/lightdash/compare/1.57.3...1.58.0) (2026-07-31)
 
 
