@@ -60,7 +60,12 @@ declare module '@mantine-8/core' {
     }
 }
 
-type ExtendedCustomColors = 'ldGray' | 'ldDark' | DefaultMantineColor;
+type ExtendedCustomColors =
+    | 'ldGray'
+    | 'ldDark'
+    | 'ldBrandGray'
+    | 'ldBrandViolet'
+    | DefaultMantineColor;
 
 const subtleInputStyles = (theme: MantineTheme) => ({
     input: {
