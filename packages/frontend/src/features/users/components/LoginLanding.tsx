@@ -44,6 +44,7 @@ import { useFlashMessages } from '../../../hooks/useFlashMessages';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { sanitizeRedirectUrl } from '../../../utils/redirectUrl';
 import {
     useFetchLoginOptions,
     useLoginWithEmailMutation,
@@ -88,11 +89,11 @@ const Login: FC<{}> = () => {
             ? lastLoginMethod.issuerType
             : undefined;
 
-    const redirectUrl = location.state?.from
-        ? `${location.state.from.pathname}${location.state.from.search}`
-        : redirectParam
-          ? redirectParam
-          : '/';
+    const redirectUrl = sanitizeRedirectUrl(
+        location.state?.from
+            ? `${location.state.from.pathname}${location.state.from.search}`
+            : redirectParam,
+    );
 
     const form = useForm<LoginParams>({
         initialValues: {
