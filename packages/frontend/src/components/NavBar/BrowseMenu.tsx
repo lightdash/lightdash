@@ -37,6 +37,7 @@ import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import TruncatedText from '../common/TruncatedText';
+import { LearnLink } from './LearnLink';
 import { MetricsLink } from './MetricsLink';
 
 interface Props {
@@ -163,6 +164,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 {!hasMetrics && (
                     <MetricsLink projectUuid={projectUuid} asMenu />
                 )}
+
+                <LearnLink projectUuid={projectUuid} asMenu />
 
                 {hasFavorites ? (
                     <>
