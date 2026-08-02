@@ -21,15 +21,16 @@ import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
     AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
     AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     getAiDeepResearchPhaseBudgets,
     parseAiDeepResearchReport,
+    type AiDeepResearchResolvedChartCandidate,
 } from './AiDeepResearchAgent';
 import {
     getAiDeepResearchRunBudget,
     type AiDeepResearchExecutor as AiDeepResearchExecutorFn,
     type AiDeepResearchExecutorResult,
 } from './AiDeepResearchService';
+import { resolveDeepResearchWarehouseChart } from './resolveDeepResearchWarehouseChart';
 import {
     isDeepResearchWarehouseMcpTool,
     isDeepResearchWarehouseTool,
@@ -39,7 +40,6 @@ const CANCELLATION_POLL_INTERVAL_MS = 1_000;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const ACCESS_RECHECK_INTERVAL_MS = 15_000;
 const SUBMISSION_TOOL_NAMES = new Set([
-    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
     AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
 ]);
@@ -48,6 +48,16 @@ type ToolProvenance = {
     toolCall: AiAgentToolCall;
     toolResult: AiAgentToolResult | null;
 };
+
+const getRunInvestigatorProvenance = (
+    provenance: ToolProvenance[],
+    runUuid: string,
+): ToolProvenance[] =>
+    provenance.filter(({ toolCall }) =>
+        toolCall.parentToolCallId?.startsWith(
+            `deep-research:${runUuid}:hypothesis-`,
+        ),
+    );
 
 type Dependencies = {
     aiAgentService: Pick<
@@ -94,29 +104,57 @@ const getQueryUuids = (provenance: ToolProvenance[]): string[] => [
     ...new Set(
         provenance.flatMap(({ toolResult }) =>
             toolResult && isDeepResearchWarehouseTool(toolResult.toolName)
-                ? findStringValues(parseJson(toolResult.result), 'queryUuid')
+                ? [
+                      ...findStringValues(
+                          parseJson(toolResult.result),
+                          'queryUuid',
+                      ),
+                      ...findStringValues(toolResult.metadata, 'queryUuid'),
+                  ]
                 : [],
         ),
     ),
 ];
 
-const getLatestReport = (
+const getChartCandidates = (
     provenance: ToolProvenance[],
-): AiDeepResearchSubmittedReport | null => {
-    const submissions = provenance.filter(
-        ({ toolCall }) =>
-            toolCall.toolName === AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-    );
-    for (let index = submissions.length - 1; index >= 0; index -= 1) {
-        try {
-            return parseAiDeepResearchReport(
-                submissions[index].toolCall.toolArgs,
-            );
-        } catch {
-            // Invalid drafts are returned to the model for correction.
+): AiDeepResearchResolvedChartCandidate[] => {
+    const seenQueryUuids = new Set<string>();
+    const charts = provenance.flatMap(({ toolCall, toolResult }) => {
+        if (
+            toolCall.toolName !== 'generateVisualization' ||
+            toolResult?.metadata?.status !== 'success'
+        ) {
+            return [];
         }
-    }
-    return null;
+
+        const queryUuid = findStringValues(toolResult.metadata, 'queryUuid')[0];
+        if (!queryUuid || seenQueryUuids.has(queryUuid)) {
+            return [];
+        }
+
+        const resolved = resolveDeepResearchWarehouseChart(
+            toolCall.toolArgs,
+            queryUuid,
+        );
+        if (!resolved) {
+            return [];
+        }
+
+        seenQueryUuids.add(queryUuid);
+        return [
+            {
+                title: resolved.chart.title,
+                description: resolved.description,
+                chart: resolved.chart,
+            },
+        ];
+    });
+
+    return charts.map((candidate, index) => ({
+        ...candidate,
+        candidateId: `chart-${index + 1}`,
+    }));
 };
 
 const getPartialReport = (
@@ -556,35 +594,52 @@ export class AiDeepResearchExecutor {
 
         const runJudge = async (
             investigations: AiDeepResearchInvestigation[],
-            forceSubmission: boolean,
-        ) =>
-            this.dependencies.aiAgentService.generateAgentThreadResponse(user, {
-                agentUuid: run.agent_uuid,
-                threadUuid: run.ai_thread_uuid,
-                promptUuid: run.prompt_uuid,
-                autoApproveSql: true,
-                ...(forceSubmission
-                    ? {
-                          toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
-                          forceToolHints: true,
-                      }
-                    : {}),
-                execution: {
-                    mode: 'deep_research',
-                    runUuid: run.ai_deep_research_run_uuid,
-                    phase: 'synthesizing',
-                    budget: phaseBudgets.judge,
-                    abortSignal: runSignal,
-                    initialTokenUsage: tokens,
-                    onStepUsage: trackUsage,
-                    onWarehouseQuery: trackWarehouseQuery,
-                    research: { role: 'judge', investigations },
-                },
-                onStepProgress: makeStepProgressHandler('synthesizing'),
-            });
+            chartCandidates: AiDeepResearchResolvedChartCandidate[],
+            repair?: { draft: string; errors: string; finishReason: string },
+        ) => {
+            let finishReason = 'unknown';
+            const text =
+                await this.dependencies.aiAgentService.generateAgentThreadResponse(
+                    user,
+                    {
+                        agentUuid: run.agent_uuid,
+                        threadUuid: run.ai_thread_uuid,
+                        promptUuid: run.prompt_uuid,
+                        autoApproveSql: true,
+                        execution: {
+                            mode: 'deep_research',
+                            runUuid: run.ai_deep_research_run_uuid,
+                            phase: 'synthesizing',
+                            budget: phaseBudgets.judge,
+                            abortSignal: runSignal,
+                            initialTokenUsage: tokens,
+                            onStepUsage: trackUsage,
+                            onWarehouseQuery: trackWarehouseQuery,
+                            onGenerationComplete: (result) => {
+                                finishReason = result.finishReason;
+                            },
+                            research: {
+                                role: 'judge',
+                                investigations,
+                                chartCandidates: chartCandidates.map(
+                                    ({ candidateId, title, description }) => ({
+                                        candidateId,
+                                        title,
+                                        description,
+                                    }),
+                                ),
+                                repair,
+                            },
+                        },
+                        onStepProgress: makeStepProgressHandler('synthesizing'),
+                    },
+                );
+            return { text, finishReason };
+        };
 
         let executionError: unknown = null;
         let investigations: AiDeepResearchInvestigation[] = [];
+        let report: AiDeepResearchSubmittedReport | null = null;
         try {
             const hypotheses = await runPlanner();
             if (!hypotheses && !runSignal.aborted) {
@@ -636,12 +691,60 @@ export class AiDeepResearchExecutor {
                 }
 
                 if (!runSignal.aborted) {
-                    await runJudge(investigations, false);
-                    const judgedReport = getLatestReport(
-                        await this.getProvenance(run.prompt_uuid),
+                    const chartCandidates = getChartCandidates(
+                        getRunInvestigatorProvenance(
+                            await this.getProvenance(run.prompt_uuid, {
+                                includeSubagentToolCalls: true,
+                            }),
+                            run.ai_deep_research_run_uuid,
+                        ),
                     );
-                    if (!judgedReport && !runSignal.aborted) {
-                        await runJudge(investigations, true);
+                    const firstDraft = await runJudge(
+                        investigations,
+                        chartCandidates,
+                    );
+                    let validationError: string | null = null;
+                    try {
+                        report = parseAiDeepResearchReport(
+                            { markdown: firstDraft.text },
+                            chartCandidates,
+                        );
+                    } catch (error) {
+                        validationError = getErrorMessage(error);
+                    }
+                    if (
+                        !runSignal.aborted &&
+                        (validationError ||
+                            firstDraft.finishReason === 'length')
+                    ) {
+                        report = null;
+                        const repairedDraft = await runJudge(
+                            investigations,
+                            chartCandidates,
+                            {
+                                draft: firstDraft.text,
+                                errors:
+                                    validationError ??
+                                    'The provider stopped at its output token limit; return the complete report.',
+                                finishReason: firstDraft.finishReason,
+                            },
+                        );
+                        if (repairedDraft.finishReason === 'length') {
+                            throw new Error(
+                                'Deep Research judge reached its output token limit again after one repair attempt',
+                            );
+                        }
+                        try {
+                            report = parseAiDeepResearchReport(
+                                { markdown: repairedDraft.text },
+                                chartCandidates,
+                            );
+                        } catch (repairError) {
+                            throw new Error(
+                                `Deep Research judge returned invalid Markdown after one repair attempt (finish reason: ${repairedDraft.finishReason})`,
+                                { cause: repairError },
+                            );
+                        }
                     }
                 }
             }
@@ -668,12 +771,16 @@ export class AiDeepResearchExecutor {
         }
 
         // Chart evidence (queryUuids) lives in investigator subagent child
-        // rows; the report itself is the judge's top-level submission.
+        // rows; the report itself comes directly from the judge's output.
         const provenance = await this.getProvenance(run.prompt_uuid, {
             includeSubagentToolCalls: true,
         });
-        const queryUuids = getQueryUuids(provenance);
-        const report = getLatestReport(provenance);
+        const queryUuids = getQueryUuids(
+            getRunInvestigatorProvenance(
+                provenance,
+                run.ai_deep_research_run_uuid,
+            ),
+        );
 
         if (budgetExceeded) {
             return {
@@ -710,8 +817,7 @@ export class AiDeepResearchExecutor {
         if (!report) {
             return {
                 status: 'failed',
-                errorMessage:
-                    'Deep Research finished without submitting a report',
+                errorMessage: 'Deep Research finished without a valid report',
                 terminalReason: 'provider_error',
             };
         }

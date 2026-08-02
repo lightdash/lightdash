@@ -7,6 +7,10 @@ import type { RunAsyncQueryFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { getRunQuery } from './runQuery';
 
+vi.mock('../utils/renderEcharts', () => ({
+    renderEcharts: vi.fn().mockResolvedValue(Buffer.from('chart')),
+}));
+
 const makePrompt = (): AiWebAppPrompt => ({
     organizationUuid: 'org-uuid',
     projectUuid: 'project-uuid',

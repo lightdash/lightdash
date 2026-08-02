@@ -1,7 +1,9 @@
 import {
     aiDeepResearchChartDefinitionSchema,
+    aiDeepResearchReportSubmissionSchema,
     countDeepResearchFindings,
     findDeepResearchChartBlocks,
+    findDeepResearchChartCandidateRefs,
     findDeepResearchChartRefs,
     getDeepResearchChartKey,
     lintDeepResearchReport,
@@ -77,6 +79,47 @@ The dip aligns with contract renewals.
 
 - B2B churn explains the dip.
 `;
+
+const candidateReport = validReport.replace(
+    chartTag(UUID_A),
+    '<chart candidateId="chart-1">',
+);
+
+describe('findDeepResearchChartCandidateRefs', () => {
+    it('accepts compact candidate refs and preserves their ranges', () => {
+        const refs = findDeepResearchChartCandidateRefs(candidateReport);
+
+        expect(refs).toHaveLength(1);
+        expect(refs[0].candidateId).toBe('chart-1');
+        expect(candidateReport.slice(refs[0].start, refs[0].end)).toBe(
+            '<chart candidateId="chart-1">',
+        );
+        expect(
+            aiDeepResearchReportSubmissionSchema.safeParse({
+                markdown: candidateReport,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects model-authored attributes and chartless findings', () => {
+        expect(
+            aiDeepResearchReportSubmissionSchema.safeParse({
+                markdown: candidateReport.replace(
+                    '<chart candidateId="chart-1">',
+                    '<chart candidateId="chart-1" queryUuid="untrusted">',
+                ),
+            }).success,
+        ).toBe(false);
+        expect(
+            aiDeepResearchReportSubmissionSchema.safeParse({
+                markdown: candidateReport.replace(
+                    '<chart candidateId="chart-1">',
+                    '',
+                ),
+            }).success,
+        ).toBe(false);
+    });
+});
 
 describe('findDeepResearchChartRefs', () => {
     it('finds chart tags with offsets and summaries', () => {
@@ -249,7 +292,7 @@ describe('lintDeepResearchReport', () => {
             errors.some(
                 (e) =>
                     e.includes('Baseline revenue trend') &&
-                    e.includes('at most one chart per finding'),
+                    e.includes('exactly one chart per finding'),
             ),
         ).toBe(true);
     });

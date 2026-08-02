@@ -80,7 +80,6 @@ import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import { getSubmitInvestigationReport } from '../tools/submitInvestigationReport';
 import { getSubmitResearchHypotheses } from '../tools/submitResearchHypotheses';
-import { getSubmitResearchReport } from '../tools/submitResearchReport';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
 import type {
@@ -874,11 +873,6 @@ export const getAgentTools = (
             : null;
     const generateHashes = getGenerateHashes();
     const generateUuids = getGenerateUuids();
-    const submitResearchReport =
-        args.execution.mode === 'deep_research'
-            ? getSubmitResearchReport()
-            : null;
-
     const listProjects = getListProjects({
         listProjects: dependencies.listProjects,
     });
@@ -973,14 +967,13 @@ export const getAgentTools = (
         ...(loadSkill ? { loadSkill } : {}),
         ...(loadProjectContext ? { loadProjectContext } : {}),
         ...(loadMcpTools ? { loadMcpTools } : {}),
-        ...(submitResearchReport ? { submitResearchReport } : {}),
     };
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
 
-    // Structured deep-research phases replace the toolset: planner and judge
-    // are single-purpose model calls, and investigators trade the report tool
-    // for their per-hypothesis submission tool.
+    // Structured deep-research phases replace the toolset: the planner uses
+    // its submission tool, the judge returns plain text, and investigators
+    // add their per-hypothesis submission tool.
     const research =
         args.execution.mode === 'deep_research'
             ? args.execution.research
@@ -995,12 +988,10 @@ export const getAgentTools = (
                     }),
                 };
             case 'judge':
-                return submitResearchReport ? { submitResearchReport } : null;
+                return {};
             case 'investigator': {
-                const { submitResearchReport: omitted, ...investigatorTools } =
-                    mergedTools;
                 return {
-                    ...investigatorTools,
+                    ...mergedTools,
                     submitInvestigationReport: getSubmitInvestigationReport({
                         onReport: research.onReport,
                     }),
@@ -1192,7 +1183,11 @@ const getAgentMessages = (
             case 'judge':
                 return [
                     AI_DEEP_RESEARCH_INSTRUCTIONS,
-                    getAiDeepResearchJudgeInstructions(research.investigations),
+                    getAiDeepResearchJudgeInstructions(
+                        research.investigations,
+                        research.chartCandidates,
+                        research.repair,
+                    ),
                 ];
             case undefined:
                 return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];
@@ -1554,12 +1549,19 @@ export const generateAgentResponse = async ({
             `Generation complete. Result text length: ${result.text.length}, finishReason: ${result.finishReason}`,
         );
 
+        if (args.execution.mode === 'deep_research') {
+            await args.execution.onGenerationComplete?.({
+                text: result.text,
+                finishReason: result.finishReason,
+            });
+        }
+
         // Invariant: a finished prompt must persist either a response or an
         // error message. Empty (or whitespace-only) text under the step cap
         // would otherwise be stored as a blank response with no explanation
-        // for the user. Structured deep-research phases are exempt: their
-        // deliverable is a forced submission tool call, so ending on it with
-        // no trailing text is a success, not an empty response.
+        // for the user. Structured research phases handle their deliverables
+        // in the executor: planner/investigator tools and judge text (including
+        // one bounded repair for empty output).
         const isStructuredResearchPhase =
             args.execution.mode === 'deep_research' &&
             args.execution.research !== undefined;

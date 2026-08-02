@@ -9,7 +9,6 @@ import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch
 import {
     AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
     AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
-    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     getAiDeepResearchPhaseBudgets,
 } from './AiDeepResearchAgent';
 import { AiDeepResearchExecutor } from './AiDeepResearchExecutor';
@@ -20,6 +19,23 @@ const budget = {
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
     maxHypotheses: 2,
+};
+
+const QUERY_UUID = '11111111-1111-4111-8111-111111111111';
+const CHART_TITLE = 'Revenue baseline';
+const chartConfig = {
+    defaultVizType: 'line' as const,
+    xAxisDimension: 'orders_created_month',
+    yAxisMetrics: ['orders_count'],
+    groupBy: null,
+    xAxisType: 'time' as const,
+    stackBars: null,
+    lineType: 'line' as const,
+    funnelDataInput: null,
+    xAxisLabel: 'Month',
+    yAxisLabel: 'Orders',
+    secondaryYAxisMetric: null,
+    secondaryYAxisLabel: null,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
@@ -79,10 +95,26 @@ const report = {
 
 The monthly trend was stable.
 
+<chart id="${QUERY_UUID}" title="${CHART_TITLE}" description="Monthly revenue baseline">
+
 ## Conclusion
 
 - Revenue remained stable.`,
-    charts: [],
+    charts: [
+        {
+            source: 'warehouse' as const,
+            queryUuid: QUERY_UUID,
+            title: CHART_TITLE,
+            chartConfig,
+        },
+    ],
+};
+
+const reportSubmissionInput = {
+    markdown: report.markdown.replace(
+        `<chart id="${QUERY_UUID}" title="${CHART_TITLE}" description="Monthly revenue baseline">`,
+        '<chart candidateId="chart-1">',
+    ),
 };
 
 const hypothesis = (index: number): AiDeepResearchHypothesis => ({
@@ -158,18 +190,22 @@ const toolProvenance = ({
     toolCallId,
     toolArgs,
     result,
+    metadata = { status: 'success' },
+    parentToolCallId = null,
 }: {
     toolName: string;
     toolCallId: string;
     toolArgs: object;
     result: string;
+    metadata?: Record<string, unknown>;
+    parentToolCallId?: string | null;
 }) =>
     ({
         toolCall: {
             uuid: `call-${toolCallId}`,
             promptUuid: 'prompt-1',
             toolCallId,
-            parentToolCallId: null,
+            parentToolCallId,
             createdAt: new Date(),
             toolArgs,
             toolType: toolName.startsWith('mcp_') ? 'mcp' : 'built-in',
@@ -184,19 +220,46 @@ const toolProvenance = ({
             toolCallId,
             createdAt: new Date(),
             result,
-            metadata: { status: 'success' },
+            metadata,
             toolType: toolName.startsWith('mcp_') ? 'mcp' : 'built-in',
             toolName,
         },
         approvalDecision: null,
     }) as AnyType;
 
-const reportSubmission = (toolCallId = 'report-1', input = report) =>
+const chartCandidateProvenance = (
+    overrides: {
+        toolCallId?: string;
+        title?: string;
+        queryUuid?: string;
+        parentToolCallId?: string | null;
+    } = {},
+) =>
     toolProvenance({
-        toolName: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-        toolCallId,
-        toolArgs: input,
-        result: JSON.stringify({ submitted: true }),
+        toolName: 'generateVisualization',
+        toolCallId: overrides.toolCallId ?? 'candidate-1',
+        toolArgs: {
+            title: overrides.title ?? CHART_TITLE,
+            description: 'Monthly revenue baseline',
+            queryConfig: {
+                exploreName: 'orders',
+                dimensions: ['orders_created_month'],
+                metrics: ['orders_count'],
+                sorts: [],
+                limit: null,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: null,
+            },
+            chartConfig,
+        },
+        result: 'Query completed',
+        metadata: {
+            status: 'success',
+            queryUuid: overrides.queryUuid ?? QUERY_UUID,
+        },
+        parentToolCallId:
+            overrides.parentToolCallId ?? 'deep-research:run-1:hypothesis-1',
     });
 
 const researchRole = (options: AnyType) => options.execution.research?.role;
@@ -208,8 +271,10 @@ const researchRole = (options: AnyType) => options.execution.research?.role;
  */
 const respondByRole = ({
     onInvestigate,
+    onJudge,
 }: {
     onInvestigate?: (options: AnyType) => Promise<string> | string;
+    onJudge?: (options: AnyType) => Promise<string> | string;
 } = {}) =>
     vi.fn(async (_user: SessionUser, options: AnyType) => {
         const { research } = options.execution;
@@ -229,20 +294,28 @@ const respondByRole = ({
                 research.onReport(investigationReport());
                 return 'investigated';
             }
+            case 'judge':
+                return onJudge
+                    ? onJudge(options)
+                    : reportSubmissionInput.markdown;
             default:
-                return 'judged';
+                return '';
         }
     });
 
 const buildExecutor = ({
     generateAgentThreadResponse = respondByRole(),
-    provenance = [reportSubmission()],
-    childProvenance = provenance,
+    provenance = [],
+    childProvenance,
 }: {
     generateAgentThreadResponse?: AnyType;
     provenance?: AnyType[];
     childProvenance?: AnyType[];
 } = {}) => {
+    const completeProvenance = childProvenance ?? [
+        chartCandidateProvenance(),
+        ...provenance,
+    ];
     const session = {
         userUuid: 'user-1',
         organizationUuid: 'org-1',
@@ -259,7 +332,7 @@ const buildExecutor = ({
         getToolCallsAndResultsForPrompt: vi.fn(
             async (_promptUuid: string, options?: AnyType) =>
                 options?.includeSubagentToolCalls
-                    ? childProvenance
+                    ? completeProvenance
                     : provenance,
         ),
     };
@@ -291,13 +364,14 @@ const callsByRole = (mock: AnyType, role: string | undefined) =>
     );
 
 describe('getAiDeepResearchPhaseBudgets', () => {
-    it('reserves fixed capacity for planning and judging and splits the rest across investigators', () => {
+    it('reserves tool capacity for planning and gives the rest to investigators', () => {
         const phases = getAiDeepResearchPhaseBudgets(budget);
 
         expect(phases.planner.maxToolCalls).toBe(2);
-        expect(phases.judge.maxToolCalls).toBe(4);
-        // (20 - 2 - 4) / 2 hypotheses
-        expect(phases.investigator.maxToolCalls).toBe(7);
+        expect(phases.judge.maxToolCalls).toBe(0);
+        expect(phases.judge.maxWarehouseQueries).toBe(0);
+        // (20 - 2) / 2 hypotheses
+        expect(phases.investigator.maxToolCalls).toBe(9);
         expect(phases.investigator.maxWarehouseQueries).toBe(5);
         expect(phases.investigator.maxResultRows).toBe(budget.maxResultRows);
     });
@@ -361,7 +435,6 @@ describe('AiDeepResearchExecutor', () => {
     });
 
     it('plans, investigates every hypothesis, judges, and completes with child-row evidence', async () => {
-        const queryUuid = '11111111-1111-4111-8111-111111111111';
         const generateAgentThreadResponse = respondByRole({
             onInvestigate: async (options: AnyType) => {
                 await options.execution.onStepUsage({
@@ -386,15 +459,15 @@ describe('AiDeepResearchExecutor', () => {
         const { executor, aiDeepResearchRunModel, aiAgentModel } =
             buildExecutor({
                 generateAgentThreadResponse,
-                provenance: [reportSubmission()],
                 childProvenance: [
+                    chartCandidateProvenance(),
                     toolProvenance({
                         toolName: 'runSql',
                         toolCallId: 'query-1',
                         toolArgs: {},
-                        result: JSON.stringify({ queryUuid }),
+                        result: JSON.stringify({ queryUuid: QUERY_UUID }),
+                        parentToolCallId: 'deep-research:run-1:hypothesis-1',
                     }),
-                    reportSubmission(),
                 ],
             });
 
@@ -405,7 +478,7 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toEqual({
             status: 'completed',
             report,
-            warehouseQueryUuids: [queryUuid],
+            warehouseQueryUuids: [QUERY_UUID],
             terminalReason: null,
         });
         expect(
@@ -449,7 +522,7 @@ describe('AiDeepResearchExecutor', () => {
         ]);
         investigatorCalls.forEach(([, options]: AnyType[]) => {
             expect(options.execution.budget).toMatchObject({
-                maxToolCalls: 7,
+                maxToolCalls: 9,
                 maxWarehouseQueries: 5,
             });
         });
@@ -478,6 +551,36 @@ describe('AiDeepResearchExecutor', () => {
         ).toHaveBeenLastCalledWith('prompt-1', {
             includeSubagentToolCalls: true,
         });
+    });
+
+    it('deduplicates visualization candidates that share one query', async () => {
+        const generateAgentThreadResponse = respondByRole();
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            childProvenance: [
+                chartCandidateProvenance(),
+                chartCandidateProvenance({
+                    toolCallId: 'candidate-2',
+                    title: 'Revenue baseline table',
+                }),
+                chartCandidateProvenance({
+                    toolCallId: 'foreign-candidate',
+                    title: 'Foreign run chart',
+                    parentToolCallId: 'deep-research:other-run:hypothesis-1',
+                }),
+            ],
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({ status: 'completed' });
+
+        const judgeCall = callsByRole(generateAgentThreadResponse, 'judge')[0];
+        expect(judgeCall[1].execution.research.chartCandidates).toEqual([
+            expect.objectContaining({ candidateId: 'chart-1' }),
+        ]);
     });
 
     it('starts every investigator before any of them resolves', async () => {
@@ -799,19 +902,23 @@ describe('AiDeepResearchExecutor', () => {
         ).toBe(true);
     });
 
-    it('retries the judge once with forced report submission when no report was submitted', async () => {
-        const generateAgentThreadResponse = respondByRole();
-        const { executor, aiAgentModel } = buildExecutor({
-            generateAgentThreadResponse,
-            provenance: [],
-            childProvenance: [reportSubmission()],
+    it('repairs invalid judge Markdown once using validation errors and finish reason', async () => {
+        let attempts = 0;
+        const generateAgentThreadResponse = respondByRole({
+            onJudge: async (options) => {
+                attempts += 1;
+                const text =
+                    attempts === 1
+                        ? 'Truncated report without required sections'
+                        : reportSubmissionInput.markdown;
+                await options.execution.onGenerationComplete?.({
+                    text,
+                    finishReason: attempts === 1 ? 'length' : 'stop',
+                });
+                return text;
+            },
         });
-        // First top-level read (post-judge check) finds nothing; the forced
-        // retry submits, and the final child-inclusive read returns it.
-        aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
-            async (_promptUuid: string, options?: AnyType) =>
-                options?.includeSubagentToolCalls ? [reportSubmission()] : [],
-        );
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
 
         const result = await executor.execute(run(), {
             signal: new AbortController().signal,
@@ -820,13 +927,69 @@ describe('AiDeepResearchExecutor', () => {
         expect(result).toMatchObject({ status: 'completed', report });
         const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
         expect(judgeCalls).toHaveLength(2);
-        expect(judgeCalls[1][1]).toMatchObject({
-            toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
-            forceToolHints: true,
+        expect(judgeCalls[1][1].execution.research.repair).toMatchObject({
+            draft: 'Truncated report without required sections',
+            finishReason: 'length',
+        });
+        expect(judgeCalls[1][1].execution.research.repair.errors).toContain(
+            'Conclusion',
+        );
+        expect(judgeCalls[1][1].toolHints).toBeUndefined();
+    });
+
+    it('repairs schema-valid Markdown when the provider stopped at its output limit', async () => {
+        let attempts = 0;
+        const generateAgentThreadResponse = respondByRole({
+            onJudge: async (options) => {
+                attempts += 1;
+                await options.execution.onGenerationComplete?.({
+                    text: reportSubmissionInput.markdown,
+                    finishReason: attempts === 1 ? 'length' : 'stop',
+                });
+                return reportSubmissionInput.markdown;
+            },
+        });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({ status: 'completed', report });
+
+        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
+        expect(judgeCalls).toHaveLength(2);
+        expect(judgeCalls[1][1].execution.research.repair).toMatchObject({
+            finishReason: 'length',
+            errors: expect.stringContaining('output token limit'),
         });
     });
 
-    it('returns a partial result when execution fails after a valid report was saved', async () => {
+    it('rejects a repair that also stops at the output limit', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onJudge: async (options) => {
+                await options.execution.onGenerationComplete?.({
+                    text: reportSubmissionInput.markdown,
+                    finishReason: 'length',
+                });
+                return reportSubmissionInput.markdown;
+            },
+        });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            errorMessage: expect.stringContaining(
+                'output token limit again after one repair attempt',
+            ),
+        });
+    });
+
+    it('fails when the provider disconnects before the judge returns a report', async () => {
         const { executor } = buildExecutor({
             generateAgentThreadResponse: vi
                 .fn()
@@ -838,23 +1001,34 @@ describe('AiDeepResearchExecutor', () => {
                 signal: new AbortController().signal,
             }),
         ).resolves.toEqual({
-            status: 'partially_completed',
-            report,
-            warehouseQueryUuids: [],
+            status: 'failed',
+            errorMessage: 'provider disconnected',
             terminalReason: 'provider_error',
         });
     });
 
-    it('uses the latest valid submitted report when a later draft is invalid', async () => {
+    it('fails with an actionable error after one invalid repair', async () => {
         const { executor } = buildExecutor({
-            provenance: [
-                reportSubmission('report-valid'),
-                reportSubmission('report-invalid', {
-                    markdown: 'No structured report',
-                    charts: [],
-                }),
-            ],
+            generateAgentThreadResponse: respondByRole({
+                onJudge: () => 'No structured report',
+            }),
         });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toMatchObject({
+            status: 'failed',
+            terminalReason: 'provider_error',
+            errorMessage: expect.stringContaining(
+                'invalid Markdown after one repair attempt',
+            ),
+        });
+    });
+
+    it('completes from valid judge assistant text without a report tool call', async () => {
+        const { executor } = buildExecutor();
 
         await expect(
             executor.execute(run(), {
@@ -863,25 +1037,28 @@ describe('AiDeepResearchExecutor', () => {
         ).resolves.toEqual({
             status: 'completed',
             report,
-            warehouseQueryUuids: [],
+            warehouseQueryUuids: [QUERY_UUID],
             terminalReason: null,
         });
     });
 
-    it('fails when execution ends without a valid submitted report', async () => {
+    it('fails when execution ends without a valid report', async () => {
         const { executor } = buildExecutor({
-            provenance: [],
-            childProvenance: [],
+            generateAgentThreadResponse: respondByRole({
+                onJudge: () => '',
+            }),
         });
 
         await expect(
             executor.execute(run(), {
                 signal: new AbortController().signal,
             }),
-        ).resolves.toEqual({
+        ).resolves.toMatchObject({
             status: 'failed',
-            errorMessage: 'Deep Research finished without submitting a report',
             terminalReason: 'provider_error',
+            errorMessage: expect.stringContaining(
+                'invalid Markdown after one repair attempt',
+            ),
         });
     });
 });

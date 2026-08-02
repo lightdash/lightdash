@@ -8,6 +8,7 @@ import {
     ProjectContextEntry,
     WarehouseTypes,
     type AiDeepResearchActivity,
+    type AiDeepResearchChartCandidate,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchHypothesis,
     type AiDeepResearchInvestigation,
@@ -119,8 +120,8 @@ export type AiAgentRequestingUser = {
 /**
  * The structured phase a deep-research call plays. Absent for the legacy
  * single-loop behavior. Planner and investigator hand their results back
- * through callbacks fired by their submission tools; the judge reports
- * through the existing submitResearchReport path.
+ * through callbacks fired by their submission tools; the judge returns its
+ * report as plain assistant text.
  */
 export type AiDeepResearchExecutionRole =
     | {
@@ -136,6 +137,12 @@ export type AiDeepResearchExecutionRole =
     | {
           role: 'judge';
           investigations: AiDeepResearchInvestigation[];
+          chartCandidates: AiDeepResearchChartCandidate[];
+          repair?: {
+              draft: string;
+              errors: string;
+              finishReason: string;
+          };
       };
 
 export type AiDeepResearchStepUsage = {
@@ -166,6 +173,10 @@ export type AiAgentExecutionConfig =
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
           ) => void | Promise<void>;
+          onGenerationComplete?: (result: {
+              text: string;
+              finishReason: string;
+          }) => void | Promise<void>;
           research: AiDeepResearchExecutionRole;
           /**
            * Persists this call's tool activity as subagent children so it

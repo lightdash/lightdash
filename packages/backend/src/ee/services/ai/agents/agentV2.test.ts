@@ -4,10 +4,12 @@ import {
     type AiUsageEvent,
 } from '../../../../analytics/aiUsage';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
+import { AiAgentEmptyResponseError } from '../utils/errorMessages';
 import {
     buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
     buildForcedFirstStep,
+    generateAgentResponse,
     getAgentTools,
     getDeepResearchBudgetInstruction,
     getPromptMcpServers,
@@ -17,6 +19,13 @@ import {
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+const mocks = vi.hoisted(() => ({ generateText: vi.fn() }));
+
+vi.mock('ai', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('ai')>()),
+    generateText: mocks.generateText,
+}));
 
 describe('recordAgentStepUsage', () => {
     const usage = {
@@ -109,6 +118,7 @@ describe('recordAgentStepUsage', () => {
                 research: {
                     role: 'judge',
                     investigations: [],
+                    chartCandidates: [],
                 },
             },
         });
@@ -172,6 +182,169 @@ describe('storeInvalidAgentToolCall', () => {
         resolveStore();
         await persistence;
         expect(finished).toBe(true);
+    });
+});
+
+describe('generateAgentResponse completion', () => {
+    const makeArgs = (execution: AiAgentArgs['execution']): AiAgentArgs =>
+        ({
+            agentSettings: {
+                uuid: 'agent-1',
+                name: 'Research agent',
+                version: 1,
+                updatedAt: new Date('2026-08-02T00:00:00.000Z'),
+                instruction: null,
+                tags: [],
+                spaceAccess: [],
+                enableDataAccess: false,
+                enableSelfImprovement: false,
+                enableContentTools: false,
+                enableUserContext: false,
+            },
+            autoApproveSql: false,
+            autoApproveSqlUserUuid: null,
+            availableSkills: [],
+            callOptions: {},
+            canManageAgent: false,
+            canRunSql: false,
+            debugLoggingEnabled: false,
+            deepResearchRuns: [],
+            enableAiWriteback: false,
+            enableCodingAgent: false,
+            enableContentTools: false,
+            enableDataAccess: false,
+            enableEditProjectContext: false,
+            enableGrepFields: false,
+            enablePreviewDeploySetup: false,
+            enableRepoDiscovery: false,
+            enableSelfImprovement: false,
+            execution,
+            findExploresFieldSearchSize: 10,
+            findFieldsPageSize: 10,
+            getDashboardChartsPageSize: 10,
+            keyManagement: 'self-managed',
+            knowledgeDocuments: [],
+            maxQueryLimit: 500,
+            mcpServers: [],
+            messageHistory: [{ role: 'user', content: 'Question' }],
+            model: { provider: 'openai', modelId: 'test-model' },
+            modelReasoningEnabled: false,
+            organizationId: 'org-1',
+            projectContext: [],
+            projectContextEnabled: false,
+            promptUuid: 'prompt-1',
+            providerOptions: {},
+            repoFsRoot: null,
+            repoFsSupportsCodeSearch: false,
+            requestingUser: null,
+            runSqlMaxLimit: 500,
+            siteUrl: 'http://localhost',
+            slackChannelId: null,
+            telemetryEnabled: false,
+            threadUuid: 'thread-1',
+            toolDescriptionMaxChars: 1_000,
+            toolHints: [],
+            useSlackStreamCard: false,
+            userId: 'user-1',
+            warehouseSchema: null,
+            warehouseType: null,
+            writebackAttribution: null,
+            aiAgentMemoryEnabled: false,
+        }) as unknown as AiAgentArgs;
+
+    const makeDependencies = (): AiAgentDependencies =>
+        new Proxy(
+            {
+                listExplores: vi.fn().mockResolvedValue([]),
+                updateProgress: vi.fn().mockResolvedValue(undefined),
+                updatePrompt: vi.fn().mockResolvedValue(undefined),
+                perf: {
+                    measureGenerateResponseTime: vi.fn(),
+                    measureStreamResponseTime: vi.fn(),
+                    measureStreamFirstChunk: vi.fn(),
+                    measureTTFT: vi.fn(),
+                },
+            },
+            {
+                get: (target, property) =>
+                    Reflect.get(target, property) ?? vi.fn(),
+            },
+        ) as unknown as AiAgentDependencies;
+
+    const makeMcpToolSetup = (): AgentMcpToolSetup => ({
+        tools: {},
+        mcpToolNameToServerUuid: {},
+        unavailableMcpServers: [],
+        closeMcpClients: vi.fn().mockResolvedValue(undefined),
+    });
+
+    beforeEach(() => {
+        mocks.generateText.mockReset();
+        mocks.generateText.mockResolvedValue({
+            text: '',
+            finishReason: 'length',
+            steps: [],
+            usage: { totalTokens: 0 },
+        });
+    });
+
+    it('awaits empty judge generation completion without raising an empty-response error', async () => {
+        let releaseCompletion: () => void = () => undefined;
+        let didResolve = false;
+        const onGenerationComplete = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    releaseCompletion = resolve;
+                }),
+        );
+        const response = generateAgentResponse({
+            args: makeArgs({
+                mode: 'deep_research',
+                runUuid: 'run-1',
+                phase: 'synthesizing',
+                maxSteps: 2,
+                budget: {
+                    maxTokens: 1_000,
+                    maxToolCalls: 0,
+                    maxWarehouseQueries: 0,
+                    maxResultRows: 100,
+                    maxHypotheses: 2,
+                },
+                initialTokenUsage: 0,
+                onGenerationComplete,
+                research: {
+                    role: 'judge',
+                    investigations: [],
+                    chartCandidates: [],
+                },
+            }),
+            dependencies: makeDependencies(),
+            mcpToolSetup: makeMcpToolSetup(),
+        }).then((result) => {
+            didResolve = true;
+            return result;
+        });
+
+        await vi.waitFor(() => {
+            expect(onGenerationComplete).toHaveBeenCalledWith({
+                text: '',
+                finishReason: 'length',
+            });
+        });
+        expect(didResolve).toBe(false);
+
+        releaseCompletion();
+        await expect(response).resolves.toBe('');
+    });
+
+    it('still rejects an empty standard response', async () => {
+        await expect(
+            generateAgentResponse({
+                args: makeArgs({ mode: 'standard', maxSteps: 2 }),
+                dependencies: makeDependencies(),
+                mcpToolSetup: makeMcpToolSetup(),
+            }),
+        ).rejects.toBeInstanceOf(AiAgentEmptyResponseError);
     });
 });
 
@@ -591,7 +764,7 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('getPullRequestDiff');
     });
 
-    it('adds the report tool while preserving inherited built-in and MCP tools in deep research', () => {
+    it('adds the investigation submission tool while preserving inherited built-in and MCP tools', () => {
         const args = buildArgs({
             enableCodingAgent: false,
             enableAiWriteback: true,
@@ -642,6 +815,36 @@ describe('getAgentTools workstream tool gate', () => {
                 'loadMcpTools',
                 'mcp_github__create_issue',
             ]),
+        );
+    });
+
+    it('gives the judge no tools so its assistant text is the report', () => {
+        const args = buildArgs({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+        });
+        args.execution = {
+            mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'synthesizing',
+            maxSteps: 2,
+            budget: {
+                maxTokens: 10_000,
+                maxToolCalls: 20,
+                maxWarehouseQueries: 10,
+                maxResultRows: 1_000,
+                maxHypotheses: 2,
+            },
+            initialTokenUsage: 0,
+            research: {
+                role: 'judge',
+                investigations: [],
+                chartCandidates: [],
+            },
+        };
+
+        expect(getAgentTools(args, depsStub(), [], mcpStub, new Map())).toEqual(
+            {},
         );
     });
 });

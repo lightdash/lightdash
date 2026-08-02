@@ -143,6 +143,7 @@ import {
     ToolCallPart,
     ToolModelMessage,
     UserModelMessage,
+    type CallSettings,
     type Output,
     type ToolSet,
 } from 'ai';
@@ -412,6 +413,7 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 const DEEP_RESEARCH_STEP_HEADROOM = 10;
+const DEEP_RESEARCH_JUDGE_MAX_OUTPUT_TOKENS = 16_384;
 const DEEP_RESEARCH_QUERY_RESULTS_EXPIRATION_MS =
     AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS * 24 * 60 * 60 * 1_000;
 
@@ -433,6 +435,10 @@ type GenerateAgentExecutionOptions =
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
           ) => void | Promise<void>;
+          onGenerationComplete?: (result: {
+              text: string;
+              finishReason: string;
+          }) => void | Promise<void>;
           research: AiDeepResearchExecutionRole;
           parentToolCallId?: string | null;
       };
@@ -441,6 +447,17 @@ export const shouldIncludeAttachedMcpServers = (
     executionMode: GenerateAgentExecutionOptions['mode'],
     researchRole?: AiDeepResearchExecutionRole['role'],
 ) => executionMode === 'standard' || researchRole === 'investigator';
+
+export const getAgentCallOptions = (
+    callOptions: CallSettings,
+    execution: GenerateAgentExecutionOptions,
+): CallSettings =>
+    execution.mode === 'deep_research' && execution.research.role === 'judge'
+        ? {
+              ...callOptions,
+              maxOutputTokens: DEEP_RESEARCH_JUDGE_MAX_OUTPUT_TOKENS,
+          }
+        : callOptions;
 
 // Planner and judge are single-purpose structured calls: enough steps for a
 // submission plus schema-correction retries, nothing more.
@@ -9073,6 +9090,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 onStepUsage: responseExecution.onStepUsage,
                 onExecutionContextResolved:
                     responseExecution.onExecutionContextResolved,
+                onGenerationComplete: responseExecution.onGenerationComplete,
                 research: responseExecution.research,
                 parentToolCallId: responseExecution.parentToolCallId ?? null,
             };
@@ -9088,6 +9106,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             userId: user.userUuid,
 
             ...modelProperties,
+            callOptions: getAgentCallOptions(
+                modelProperties.callOptions,
+                responseExecution,
+            ),
 
             agentSettings,
             requestingUser,
