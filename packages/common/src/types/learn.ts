@@ -104,6 +104,44 @@ export const LearnCourseSchema = z
     })
     .passthrough();
 
+export type LearnCourseProgress = {
+    courseId: string;
+    startedAt: string | null;
+    completedAt: string | null;
+    lessonsCompleted: string[];
+    quiz: {
+        bestScore: number | null;
+        passed: boolean;
+        passedAt: string | null;
+    } | null;
+    lastEventAt: string | null;
+};
+
+export const LearnProgressResponseSchema = z
+    .object({
+        email: z.string(),
+        courses: z.array(
+            z
+                .object({
+                    courseId: z.string(),
+                    startedAt: z.string().nullable(),
+                    completedAt: z.string().nullable(),
+                    lessonsCompleted: z.array(z.string()),
+                    quiz: z
+                        .object({
+                            bestScore: z.number().nullable(),
+                            passed: z.boolean(),
+                            passedAt: z.string().nullable(),
+                        })
+                        .passthrough()
+                        .nullable(),
+                    lastEventAt: z.string().nullable(),
+                })
+                .passthrough(),
+        ),
+    })
+    .passthrough();
+
 export type LearnEventVerb =
     | 'started'
     | 'progressed'
@@ -132,6 +170,42 @@ export type LearnEventInput = {
     occurredAt: string;
 };
 
+export const LearnEventInputSchema: z.ZodType<LearnEventInput> = z
+    .object({
+        verb: z.enum([
+            'started',
+            'progressed',
+            'completed',
+            'passed',
+            'failed',
+        ]),
+        object: z
+            .object({
+                type: z.enum(['course', 'lesson', 'quiz']),
+                course: z.string().min(1),
+                lesson: z.string().optional(),
+                contentHash: z.string().optional(),
+                version: z.number().int().optional(),
+            })
+            .strict(),
+        result: z
+            .object({
+                score: z.number().min(0).max(100).optional(),
+                passed: z.boolean().optional(),
+                completion: z.boolean().optional(),
+            })
+            .strict()
+            .optional(),
+        occurredAt: z.string().datetime({ offset: true }),
+    })
+    .strict() as unknown as z.ZodType<LearnEventInput>;
+
+export type LearnProgressResults = {
+    /** Null when the instance has no Learn service token — progress is client-local. */
+    courses: LearnCourseProgress[] | null;
+    serverSynced: boolean;
+};
+
 export type ApiLearnCatalogueResponse = {
     status: 'ok';
     results: LearnCatalogue;
@@ -140,4 +214,14 @@ export type ApiLearnCatalogueResponse = {
 export type ApiLearnCourseResponse = {
     status: 'ok';
     results: LearnCourse;
+};
+
+export type ApiLearnProgressResponse = {
+    status: 'ok';
+    results: LearnProgressResults;
+};
+
+export type ApiLearnEventsResponse = {
+    status: 'ok';
+    results: { accepted: number };
 };

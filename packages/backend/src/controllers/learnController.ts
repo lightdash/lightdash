@@ -3,13 +3,18 @@ import {
     type ApiErrorPayload,
     type ApiLearnCatalogueResponse,
     type ApiLearnCourseResponse,
+    type ApiLearnEventsResponse,
+    type ApiLearnProgressResponse,
+    type LearnEventInput,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Hidden,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Request,
     Response,
     Route,
@@ -65,6 +70,51 @@ export class LearnController extends BaseController {
             results: await this.services
                 .getLearnService()
                 .getCourse(req.account, courseId),
+        };
+    }
+
+    /**
+     * Get the signed-in user's Learn progress rollups. `courses` is null when
+     * the instance has no Learn service token configured (client-local mode).
+     * @summary Get Learn progress
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/progress')
+    @OperationId('getLearnProgress')
+    async getLearnProgress(
+        @Request() req: express.Request,
+    ): Promise<ApiLearnProgressResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getLearnService()
+                .getProgress(req.account),
+        };
+    }
+
+    /**
+     * Append learning events for the signed-in user. The event source is
+     * always recorded as 'learn' server-side.
+     * @summary Record Learn events
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/events')
+    @OperationId('recordLearnEvents')
+    async recordLearnEvents(
+        @Request() req: express.Request,
+        @Body() body: LearnEventInput[],
+    ): Promise<ApiLearnEventsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getLearnService()
+                .recordEvents(req.account, body),
         };
     }
 }

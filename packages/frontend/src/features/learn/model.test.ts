@@ -7,9 +7,11 @@ import {
     badgeStates,
     cardState,
     emptyRollup,
+    mergeRollups,
     pathProgress,
     pathsFromCatalogue,
     rollupFromEvents,
+    rollupFromServer,
 } from './model';
 
 const entry = (
@@ -73,6 +75,44 @@ describe('rollupFromEvents', () => {
 
     it('returns an empty rollup when no events match the course', () => {
         expect(rollupFromEvents([], 'a')).toEqual(emptyRollup());
+    });
+});
+
+describe('rollupFromServer / mergeRollups', () => {
+    it('maps server progress rows onto the rollup shape', () => {
+        const rollup = rollupFromServer({
+            courseId: 'a',
+            startedAt: '2026-08-01T00:00:00.000Z',
+            completedAt: null,
+            lessonsCompleted: ['l1', 'l2'],
+            quiz: { bestScore: 70, passed: false, passedAt: null },
+            lastEventAt: '2026-08-01T00:00:00.000Z',
+        });
+        expect(rollup.started).toBe(true);
+        expect(rollup.completed).toBe(false);
+        expect(rollup.bestScore).toBe(70);
+        expect(rollup.lessonsCompleted.size).toBe(2);
+    });
+
+    it('merges local and server rollups by union / max', () => {
+        const local = {
+            ...emptyRollup(),
+            started: true,
+            lessonsCompleted: new Set(['l1']),
+            bestScore: 50,
+        };
+        const server = {
+            ...emptyRollup(),
+            lessonsCompleted: new Set(['l2']),
+            bestScore: 90,
+            passed: true,
+            completed: true,
+        };
+        const merged = mergeRollups(local, server);
+        expect([...merged.lessonsCompleted].sort()).toEqual(['l1', 'l2']);
+        expect(merged.bestScore).toBe(90);
+        expect(merged.passed).toBe(true);
+        expect(cardState(merged)).toBe('done');
     });
 });
 
