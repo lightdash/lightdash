@@ -294,7 +294,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                                     variant="subtle"
                                                     color="gray"
                                                 >
-                                                    View review
+                                                    View issue
                                                 </Button>
                                             )}
                                             {threadPreviewTarget && (

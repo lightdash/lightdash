@@ -1,4 +1,6 @@
 import '@mantine-8/core/styles.layer.css';
+import '@mantine-8/code-highlight/styles.css';
+import '@mantine-8/tiptap/styles.css';
 import {
     FilterOperator,
     getErrorMessage,
@@ -6,7 +8,7 @@ import {
     type LanguageMap,
     type SavedChart,
 } from '@lightdash/common';
-import { ModalsProvider } from '@mantine/modals';
+import { ModalsProvider } from '@mantine-8/modals';
 import {
     useEffect,
     useRef,
@@ -20,11 +22,13 @@ import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
+import { type EmbedExploreChart } from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
 import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
+import MetricsCatalogPage from '../src/pages/MetricsCatalog';
 import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
@@ -37,13 +41,16 @@ import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
 import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
 import {
     createLightdashApiClient,
+    type LightdashAiAgentThread,
+    type LightdashAiAgentThreadResults,
     type LightdashApiClientConfig,
     type LightdashContentItem,
     type LightdashContentResults,
     type LightdashSdkApiAuth,
+    type ListAiAgentThreadsOptions,
     type ListContentOptions,
 } from './api';
-import { useLightdashContent } from './hooks';
+import { useLightdashAiAgentThreads, useLightdashContent } from './hooks';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
@@ -80,8 +87,14 @@ type AiAgentProps = Omit<
     'contentOverrides' | 'filters' | 'onExplore'
 > & {
     agentUuid: string;
+    onThreadChange?: (options: { threadUuid: string }) => void;
     threadUuid?: string;
 };
+
+type MetricsCatalogProps = Omit<
+    BaseProps,
+    'contentOverrides' | 'filters' | 'onExplore'
+>;
 
 const decodeJWT = (token: string) => {
     const splits = token.split('.');
@@ -183,10 +196,20 @@ const getDashboardContainerStyles = (
         (theme ? 'var(--mantine-color-body)' : undefined),
 });
 
+const getSavedChartExploreHandler = (onExplore: BaseProps['onExplore']) =>
+    onExplore
+        ? ({ chart }: { chart: EmbedExploreChart }) => {
+              if ('uuid' in chart) {
+                  onExplore({ chart });
+              }
+          }
+        : undefined;
+
 const getAiAgentEmbedUrl = ({
     agentUuid,
     instanceUrl,
     projectUuid,
+    targetOrigin,
     theme,
     threadUuid,
     token,
@@ -194,6 +217,7 @@ const getAiAgentEmbedUrl = ({
     agentUuid: string;
     instanceUrl: string;
     projectUuid: string;
+    targetOrigin?: string;
     theme: AiAgentProps['theme'];
     threadUuid?: string;
     token: string;
@@ -209,10 +233,41 @@ const getAiAgentEmbedUrl = ({
     if (theme) {
         url.searchParams.set('theme', theme);
     }
+    if (targetOrigin) {
+        url.searchParams.set('targetOrigin', targetOrigin);
+    }
 
     url.hash = token;
     return url.toString();
 };
+
+const AI_AGENT_THREAD_CHANGED_EVENT = 'lightdash:aiAgentThreadChanged';
+
+type AiAgentThreadChangedMessage = {
+    type: typeof AI_AGENT_THREAD_CHANGED_EVENT;
+    payload: {
+        agentUuid: string;
+        projectUuid: string;
+        threadUuid: string;
+    };
+};
+
+const isAiAgentThreadChangedMessage = (
+    data: unknown,
+): data is AiAgentThreadChangedMessage =>
+    typeof data === 'object' &&
+    data !== null &&
+    'type' in data &&
+    data.type === AI_AGENT_THREAD_CHANGED_EVENT &&
+    'payload' in data &&
+    typeof data.payload === 'object' &&
+    data.payload !== null &&
+    'agentUuid' in data.payload &&
+    typeof data.payload.agentUuid === 'string' &&
+    'projectUuid' in data.payload &&
+    typeof data.payload.projectUuid === 'string' &&
+    'threadUuid' in data.payload &&
+    typeof data.payload.threadUuid === 'string';
 
 const SdkProviders: FC<
     PropsWithChildren<{
@@ -311,7 +366,7 @@ const Dashboard: FC<DashboardProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={onExplore}
+                onExplore={getSavedChartExploreHandler(onExplore)}
             >
                 <EmbedDashboard
                     containerStyles={getDashboardContainerStyles(styles, theme)}
@@ -455,7 +510,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={onExplore}
+                onExplore={getSavedChartExploreHandler(onExplore)}
             >
                 <DashboardBuilderContent
                     containerStyles={getDashboardContainerStyles(styles, theme)}
@@ -525,7 +580,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
                 projectUuid={projectUuid}
                 filters={filters}
                 contentOverrides={contentOverrides}
-                onExplore={onExplore}
+                onExplore={getSavedChartExploreHandler(onExplore)}
             >
                 <EmbedExplore
                     exploreId={exploreId}
@@ -623,12 +678,44 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
 const AiAgent: FC<AiAgentProps> = ({
     agentUuid,
     instanceUrl,
+    onThreadChange,
     styles,
     theme,
     threadUuid,
     token: tokenOrTokenPromise,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const instanceOrigin = new URL(instanceUrl).origin;
+    const targetOrigin =
+        typeof window !== 'undefined' && onThreadChange
+            ? window.location.origin
+            : undefined;
+
+    useEffect(() => {
+        if (!tokenContext || !onThreadChange) {
+            return undefined;
+        }
+
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== instanceOrigin) {
+                return;
+            }
+            if (!isAiAgentThreadChangedMessage(event.data)) {
+                return;
+            }
+            if (
+                event.data.payload.projectUuid !== tokenContext.projectUuid ||
+                event.data.payload.agentUuid !== agentUuid
+            ) {
+                return;
+            }
+
+            onThreadChange({ threadUuid: event.data.payload.threadUuid });
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [agentUuid, instanceOrigin, onThreadChange, tokenContext]);
 
     if (!tokenContext) {
         return null;
@@ -641,6 +728,7 @@ const AiAgent: FC<AiAgentProps> = ({
                 agentUuid,
                 instanceUrl,
                 projectUuid: tokenContext.projectUuid,
+                targetOrigin,
                 theme,
                 threadUuid,
                 token: tokenContext.token,
@@ -657,14 +745,65 @@ const AiAgent: FC<AiAgentProps> = ({
     );
 };
 
+const MetricsCatalog: FC<MetricsCatalogProps> = ({
+    instanceUrl,
+    styles,
+    theme,
+    token: tokenOrTokenPromise,
+}) => {
+    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
+
+    if (!tokenContext) {
+        return null;
+    }
+
+    return (
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
+            <EmbedProvider
+                embedToken={tokenContext.token}
+                projectUuid={tokenContext.projectUuid}
+                onExplore={({ chart }) => setExploreChart(chart)}
+                onBackToDashboard={() => setExploreChart(undefined)}
+            >
+                {exploreChart ? (
+                    <EmbedExplore
+                        exploreId={exploreChart.tableName}
+                        savedChart={exploreChart}
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                    />
+                ) : (
+                    <div
+                        style={{
+                            ...getDashboardContainerStyles(styles, theme),
+                            overflow: 'hidden',
+                        }}
+                    >
+                        <MetricsCatalogPage />
+                    </div>
+                )}
+            </EmbedProvider>
+        </SdkProviders>
+    );
+};
+
 const Lightdash = {
     AiAgent,
     Dashboard,
     DashboardBuilder,
+    MetricsCatalog,
     Explore,
     Chart,
     FilterOperator,
     createLightdashApiClient,
+    useLightdashAiAgentThreads,
     useLightdashContent,
 };
 
@@ -675,15 +814,20 @@ export {
     Dashboard,
     DashboardBuilder,
     Explore,
+    MetricsCatalog,
     FilterOperator,
     createLightdashApiClient,
+    useLightdashAiAgentThreads,
     useLightdashContent,
 };
 export type {
+    LightdashAiAgentThread,
+    LightdashAiAgentThreadResults,
     LightdashApiClientConfig,
     LightdashContentItem,
     LightdashContentResults,
     LightdashSdkApiAuth,
+    ListAiAgentThreadsOptions,
     ListContentOptions,
 };
 // ts-unused-exports:disable-next-line

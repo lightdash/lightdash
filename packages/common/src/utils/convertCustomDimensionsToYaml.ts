@@ -91,6 +91,7 @@ const warehouseClientMock: WarehouseClient = {
     getAdapterType() {
         throw new NotImplementedError('getCatalog not implemented');
     },
+    supportsCteMaterialization: () => true,
     getAllTables() {
         throw new NotImplementedError('getCatalog not implemented');
     },

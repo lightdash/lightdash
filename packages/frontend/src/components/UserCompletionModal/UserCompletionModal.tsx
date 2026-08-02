@@ -1,5 +1,6 @@
 import {
     CompleteUserSchema,
+    FeatureFlags,
     getEmailDomain,
     LightdashMode,
     validateOrganizationEmailDomains,
@@ -8,48 +9,38 @@ import {
 import { Button, Checkbox, Select, Stack, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconConfetti } from '@tabler/icons-react';
-import shuffle from 'lodash/shuffle';
+import { useIsMutating } from '@tanstack/react-query';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import { useEffect, useMemo, type FC } from 'react';
+import { type FC, useEffect, useMemo, useState } from 'react';
+import { Navigate, useLocation } from 'react-router';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineModal from '../common/MantineModal';
-
-const jobTitles = [
-    ...shuffle([
-        'Data/Analytics Leader (manager, director, etc.)',
-        'Data Scientist',
-        'Data Analyst',
-        'Data Engineer',
-        'Analytics Engineer',
-        'Software Engineer',
-        'Sales',
-        'Marketing',
-        'Product',
-        'Operations',
-        'Customer Service',
-        'Student',
-    ]),
-    'Other',
-];
+import { jobTitles } from './jobTitles';
 
 const UserCompletionModal: FC = () => {
     const { health, user } = useApp();
 
     const canEnterOrganizationName = user.data?.organizationName === '';
 
-    const validate = zodResolver(
-        canEnterOrganizationName
-            ? CompleteUserSchema
-            : // User is not creating org, just accepting invite
-              // They cannot input org name so don't validate it for backwards compat reasons
-              CompleteUserSchema.omit({ organizationName: true }),
+    const validate = useMemo(
+        () =>
+            zodResolver(
+                canEnterOrganizationName
+                    ? CompleteUserSchema
+                    : // User is not creating org, just accepting invite
+                      // They cannot input org name so don't validate it for backwards compat reasons
+                      CompleteUserSchema.omit({ organizationName: true }),
+            ),
+        [canEnterOrganizationName],
     );
 
     const form = useForm<CompleteUserArgs>({
         initialValues: {
             organizationName: '',
             jobTitle: '',
+            howDidYouHearAboutUs: '',
             enableEmailDomainAccess: false,
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
@@ -60,11 +51,15 @@ const UserCompletionModal: FC = () => {
     const { isLoading, mutate, isSuccess } = useUserCompleteMutation();
 
     const handleSubmit = form.onSubmit((data) => {
+        const payload = {
+            ...data,
+            howDidYouHearAboutUs: data.howDidYouHearAboutUs?.trim() ?? '',
+        };
         if (user.data?.organizationName) {
-            const { organizationName, ...rest } = data;
+            const { organizationName, ...rest } = payload;
             mutate(rest);
         } else {
-            mutate(data);
+            mutate(payload);
         }
     });
 
@@ -115,7 +110,11 @@ const UserCompletionModal: FC = () => {
                     form="complete_user"
                     loading={isLoading}
                     disabled={
-                        !(form.values.organizationName && form.values.jobTitle)
+                        !(
+                            form.values.organizationName &&
+                            form.values.jobTitle &&
+                            form.values.howDidYouHearAboutUs.trim()
+                        )
                     }
                 >
                     Next
@@ -149,6 +148,14 @@ const UserCompletionModal: FC = () => {
                         required
                         placeholder="Select your role"
                         {...form.getInputProps('jobTitle')}
+                    />
+
+                    <TextInput
+                        label="How did you hear about us?"
+                        placeholder="Google, a colleague, a podcast..."
+                        disabled={isLoading}
+                        required
+                        {...form.getInputProps('howDidYouHearAboutUs')}
                     />
 
                     <Stack gap="xs">
@@ -192,7 +199,42 @@ const UserCompletionModal: FC = () => {
 };
 
 const UserCompletionModalWithUser = () => {
-    const { user } = useApp();
+    const { user, health } = useApp();
+    const location = useLocation();
+    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const isCompletingUser =
+        useIsMutating({ mutationKey: ['user_complete'] }) > 0;
+    const [hasCompletedSetup, setHasCompletedSetup] = useState(
+        user.data?.isSetupComplete === true,
+    );
+
+    if (user.data?.isSetupComplete && !hasCompletedSetup) {
+        setHasCompletedSetup(true);
+    }
+
+    if (orgSetupPageFlag.isLoading) {
+        return null;
+    }
+
+    if (orgSetupPageFlag.data?.enabled) {
+        const shouldSetup =
+            user.data &&
+            !user.data.isSetupComplete &&
+            health.isSuccess &&
+            !isCompletingUser &&
+            !hasCompletedSetup;
+        return shouldSetup ? (
+            <Navigate
+                to={
+                    location.pathname && location.pathname !== '/'
+                        ? `/organization-setup?redirect=${encodeURIComponent(
+                              location.pathname,
+                          )}`
+                        : '/organization-setup'
+                }
+            />
+        ) : null;
+    }
 
     if (!user.isSuccess) {
         return null;

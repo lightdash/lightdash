@@ -3,6 +3,7 @@ import {
     ParameterError,
     type AiWritebackRequestBody,
     type ApiAiWritebackResponse,
+    type ApiAiWritebackRunStatusResponse,
     type ApiCiChecksResponse,
     type ApiClosePullRequestResponse,
     type ApiErrorPayload,
@@ -13,6 +14,7 @@ import {
     type ApiPullRequestDiffResponse,
     type ClosePullRequestRequestBody,
     type MergePullRequestRequestBody,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -41,9 +43,11 @@ import { AiWritebackService } from '../services/AiWritebackService/AiWritebackSe
 import { PreviewDeploySetupService } from '../services/PreviewDeploySetupService/PreviewDeploySetupService';
 
 // The target repo (owner/repo) and dbt sub-folder are resolved server-side from
-// the project's dbt connection, so the body only carries the prompt.
+// the chosen dbt source. `dbtSourceUuid` selects it when the project has more
+// than one; omit it to target the primary or let the run infer/ask.
 const aiWritebackBodySchema = z.object({
     prompt: z.string().trim().min(1, 'prompt is required'),
+    dbtSourceUuid: z.string().trim().uuid().optional(),
 });
 
 const mergePullRequestBodySchema = z.object({
@@ -88,17 +92,46 @@ export class AiWritebackController extends BaseController {
                 parsed.error.errors[0]?.message ?? 'Invalid request parameters',
             );
         }
-        const { prompt } = parsed.data;
+        const { prompt, dbtSourceUuid } = parsed.data;
         this.setStatus(200);
         const result = await this.getAiWritebackService().run({
             user: toSessionUser(req.account),
             projectUuid,
             prompt,
+            dbtSourceUuid,
             source: 'api',
         });
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Poll the status of a writeback run started via the editDbtProject chat
+     * tool or the run_ai_writeback MCP tool. Terminal statuses are 'ready'
+     * (check prUrl) and 'error' (check errorMessage); anything else is
+     * pending/in-progress. Scoped to the caller's own organization.
+     * @summary Get writeback run status
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/status/{aiWritebackRunUuid}')
+    @OperationId('getAiWritebackRunStatus')
+    async getAiWritebackRunStatus(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() aiWritebackRunUuid: UUID,
+    ): Promise<ApiAiWritebackRunStatusResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAiWritebackService().getRunStatus(
+            toSessionUser(req.account),
+            aiWritebackRunUuid,
+        );
+        return {
+            status: 'ok',
+            results,
         };
     }
 

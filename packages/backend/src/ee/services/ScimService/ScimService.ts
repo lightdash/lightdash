@@ -70,6 +70,15 @@ type ScimServiceArguments = {
 
 const NO_ROLE_KEYWORD = 'no-role';
 
+// Entra exposes roles[primary eq "True"].value as a target mapping, even
+// though SCIM defines primary as a boolean. Normalize that specific filter
+// so the patch library can match our standards-compliant primary: true value.
+const normalizeScimPatchPath = (path: string): string =>
+    path.replace(
+        /roles\s*\[\s*primary\s+eq\s+["']true["']\s*\]/gi,
+        'roles[primary eq true]',
+    );
+
 export class ScimService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -587,6 +596,10 @@ export class ScimService extends BaseService {
                 roles: dedupedRoles,
             });
 
+            const finalUser = await this.userModel.getUserDetailsByUuid(
+                dbUser.userUuid,
+            );
+
             // verify user email on create if coming from scim
             await this.emailModel.verifyUserEmailIfExists(
                 dbUser.userUuid,
@@ -611,10 +624,13 @@ export class ScimService extends BaseService {
             });
 
             // Get user project roles
-            const userRoles = await this.getUserScimRoles(dbUser, allScimRoles);
+            const userRoles = await this.getUserScimRoles(
+                finalUser,
+                allScimRoles,
+            );
 
             // Construct SCIM-compliant response
-            return this.convertLightdashUserToScimUser(dbUser, userRoles);
+            return this.convertLightdashUserToScimUser(finalUser, userRoles);
         } catch (error) {
             if (error instanceof ParameterError) {
                 throw new ScimError({
@@ -717,33 +733,34 @@ export class ScimService extends BaseService {
 
             // Update user's organization role if provided in the extension schema
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
-            if (extensionData?.role && extensionData.role !== dbUser.role) {
-                // Validate that the role is a valid OrganizationMemberRole
-                if (!isOrganizationMemberRole(extensionData.role)) {
+            const extensionRole = extensionData?.role;
+            if (extensionRole) {
+                if (!isOrganizationMemberRole(extensionRole)) {
                     throw new ParameterError(
-                        `Invalid role: ${
-                            extensionData.role
-                        }. Role must be one of: ${Object.values(
+                        `Invalid role: ${extensionRole}. Role must be one of: ${Object.values(
                             OrganizationMemberRole,
                         ).join(', ')}`,
                     );
                 }
 
-                await this.organizationMemberProfileModel.updateOrganizationMember(
-                    organizationUuid,
-                    userUuid,
-                    {
-                        role: extensionData.role,
-                    },
-                );
+                if (user.active !== false && extensionRole !== dbUser.role) {
+                    await this.organizationMemberProfileModel.updateOrganizationMember(
+                        organizationUuid,
+                        userUuid,
+                        {
+                            role: extensionRole,
+                        },
+                    );
+                }
             }
 
-            // Update user org and project roles
-            await this.upsertUserRoles({
-                organizationUuid,
-                userUuid,
-                roles: dedupedRoles,
-            });
+            if (user.active !== false) {
+                await this.upsertUserRoles({
+                    organizationUuid,
+                    userUuid,
+                    roles: dedupedRoles,
+                });
+            }
 
             // If active status changes, either true or false
             // We delete all openid identities for the user's email and user uuid
@@ -760,51 +777,20 @@ export class ScimService extends BaseService {
 
             // If setting user to inactive, drop org role to MEMBER and remove project roles
             if (user.active === false) {
-                try {
-                    if (dbUser.role !== OrganizationMemberRole.MEMBER) {
-                        await this.organizationMemberProfileModel.updateOrganizationMember(
-                            organizationUuid,
-                            userUuid,
-                            {
-                                role: OrganizationMemberRole.MEMBER,
-                            },
-                        );
-                        this.logger.info(
-                            'SCIM: Updated user organisation role to MEMBER',
-                            {
-                                userUuid,
-                                organizationUuid,
-                                role: OrganizationMemberRole.MEMBER,
-                            },
-                        );
-                    }
-                } catch (e) {
-                    this.logger.error(
-                        `Failed to drop organization role for inactive user ${userUuid} to MEMBER: ${getErrorMessage(
-                            e,
-                        )}`,
-                    );
-                }
-                try {
-                    const projectsCount =
-                        await this.rolesModel.removeUserAccessFromAllProjects(
-                            dbUser.userUuid,
-                        );
-                    this.logger.info(
-                        'SCIM: Removed user roles from all projects',
-                        {
-                            userUuid,
-                            organizationUuid,
-                            projectsCount,
-                        },
-                    );
-                } catch (e) {
-                    this.logger.error(
-                        `Failed to remove project roles for inactive user ${userUuid}: ${getErrorMessage(
-                            e,
-                        )}`,
-                    );
-                }
+                await this.rolesModel.setUserOrgAndProjectRoles(
+                    organizationUuid,
+                    userUuid,
+                    OrganizationMemberRole.MEMBER,
+                    [],
+                    false,
+                );
+                this.logger.info(
+                    'SCIM: Reset organization and project roles for inactive user',
+                    {
+                        userUuid,
+                        organizationUuid,
+                    },
+                );
 
                 // Remove user from all groups in the organization when deactivated
                 try {
@@ -914,7 +900,7 @@ export class ScimService extends BaseService {
                 projectUuid: string;
                 roleId: string;
             }> = [];
-            let desiredOrgRoleUuid: OrganizationMemberRole | undefined;
+            let desiredOrgRoleUuid: string | undefined;
 
             for (const role of roles) {
                 const { roleUuid, projectUuid } = ScimService.parseRoleId(
@@ -929,7 +915,7 @@ export class ScimService extends BaseService {
                             roleId: roleUuid,
                         });
                     }
-                } else if (isOrganizationMemberRole(roleUuid)) {
+                } else {
                     desiredOrgRoleUuid = roleUuid;
                 }
             }
@@ -1003,7 +989,14 @@ export class ScimService extends BaseService {
             // use lib to construct patched user object
             const patchedDbUserObj = scimPatch(
                 scimDbUser as PatchLibScimResource,
-                patchOp.Operations,
+                patchOp.Operations.map((operation) =>
+                    operation.path === undefined
+                        ? operation
+                        : {
+                              ...operation,
+                              path: normalizeScimPatchPath(operation.path),
+                          },
+                ),
             );
             this.logger.info('SCIM: Applied patch operations to user', {
                 userUuid,
@@ -1121,6 +1114,10 @@ export class ScimService extends BaseService {
                 );
             }
 
+            const userToDelete = await this.userModel.getUserDetailsByUuid(
+                dbUser.userUuid,
+            );
+
             await this.userModel.delete(dbUser.userUuid);
 
             this.logger.info('SCIM: Successfully deleted user', {
@@ -1140,6 +1137,7 @@ export class ScimService extends BaseService {
                     email: dbUser.email,
                     organizationId: dbUser.organizationUuid,
                     deletedUserId: dbUser.userUuid,
+                    isTrackingAnonymized: userToDelete.isTrackingAnonymized,
                 },
             });
             return undefined;
@@ -1886,11 +1884,15 @@ export class ScimService extends BaseService {
         // Check for invalid role values
         const invalidRoles = roles
             .map((role) => role.value)
-            .filter(
-                (roleValue) =>
-                    !validRoleValues.includes(roleValue) &&
-                    !roleValue.toLowerCase().endsWith(NO_ROLE_KEYWORD),
-            );
+            .filter((roleValue) => {
+                const { projectUuid, roleUuid } =
+                    ScimService.parseRoleId(roleValue);
+                const isProjectNoRole =
+                    Boolean(projectUuid) &&
+                    roleUuid.toLowerCase() === NO_ROLE_KEYWORD;
+
+                return !validRoleValues.includes(roleValue) && !isProjectNoRole;
+            });
 
         if (invalidRoles.length > 0) {
             throw new ParameterError(
@@ -1986,6 +1988,12 @@ export class ScimService extends BaseService {
             organizationUuid,
             'user',
         );
+        const organizationCustomRoles = customRoles.filter(
+            (role) => role.level === 'organization',
+        );
+        const projectCustomRoles = customRoles.filter(
+            (role) => role.level === 'project',
+        );
 
         // Get all projects for the organization, ignoring preview projects
         const allProjects = await wrapSentryTransaction(
@@ -2009,6 +2017,9 @@ export class ScimService extends BaseService {
                 }),
             );
         });
+        organizationCustomRoles.forEach((role) => {
+            allScimRoles.push(this.convertLightdashRoleToScimRole(role));
+        });
 
         // For each project, add system roles and custom roles
         nonPreviewProjects.forEach((project) => {
@@ -2023,7 +2034,7 @@ export class ScimService extends BaseService {
             });
 
             // Add project-level custom roles
-            customRoles.forEach((role) => {
+            projectCustomRoles.forEach((role) => {
                 allScimRoles.push(
                     this.convertLightdashRoleToScimRole(role, {
                         projectUuid: project.projectUuid,
@@ -2041,19 +2052,25 @@ export class ScimService extends BaseService {
     }
 
     private async getUserScimRoles(
-        user: Pick<LightdashUser, 'userUuid' | 'role'>,
+        user: Pick<LightdashUser, 'userUuid' | 'role' | 'roleUuid'>,
         availableScimRoles: ScimRole[],
     ): Promise<ScimUserRole[]> {
         try {
             const allRoles: ScimUserRole[] = [];
+            const organizationRoleId = user.roleUuid ?? user.role;
 
             // Add organization role if present
-            if (user?.role) {
+            if (organizationRoleId) {
                 const scimRole = availableScimRoles.find(
-                    (role) => role.value === user.role,
+                    (role) => role.value === organizationRoleId,
                 );
                 if (scimRole) {
-                    allRoles.push(scimRole);
+                    allRoles.push({
+                        value: scimRole.value,
+                        display: scimRole.display,
+                        type: scimRole.type,
+                        primary: true,
+                    });
                 }
             }
 

@@ -1,4 +1,5 @@
 import {
+    BigNumberDataModel,
     CartesianChartDataModel,
     ChartKind,
     isPivotChartLayout,
@@ -24,6 +25,12 @@ const getChartDataModel = (
     switch (type) {
         case ChartKind.PIE:
             return new PieChartDataModel({
+                resultsRunner,
+                fieldConfig: fieldConfig,
+            });
+
+        case ChartKind.BIG_NUMBER:
+            return new BigNumberDataModel({
                 resultsRunner,
                 fieldConfig: fieldConfig,
             });

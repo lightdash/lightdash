@@ -1,5 +1,6 @@
 import { ExploreType, type Explore } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,6 +31,13 @@ vi.mock('../../../features/virtualView', () => ({
     EditVirtualViewModal: () => null,
     DeleteVirtualViewModal: () => null,
 }));
+vi.mock(
+    '../../../features/contentAsCode/components/VirtualViewAsCodeModal',
+    () => ({
+        default: ({ opened }: { opened: boolean }) =>
+            opened ? <div role="dialog">Virtual view as code modal</div> : null,
+    }),
+);
 vi.mock('../../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
 }));
@@ -58,13 +66,14 @@ const exploreQuery = (overrides: Partial<ExploreQuery>): ExploreQuery =>
         ...overrides,
     }) as unknown as ExploreQuery;
 
-const renderPanel = () =>
+const renderPanel = (appMocks?: Parameters<typeof renderWithProviders>[1]) =>
     renderWithProviders(
         <MemoryRouter>
             <Provider store={createExplorerStore()}>
                 <ExplorePanel />
             </Provider>
         </MemoryRouter>,
+        appMocks,
     );
 
 describe('ExplorePanel loading state', () => {
@@ -105,5 +114,49 @@ describe('ExplorePanel loading state', () => {
         renderPanel();
 
         expect(screen.queryByTestId('explore-tree')).not.toBeNull();
+    });
+});
+
+describe('ExplorePanel virtual view actions', () => {
+    beforeEach(() => {
+        mockUseExplore.mockReset();
+    });
+
+    it('opens content as code from the virtual view menu', async () => {
+        const user = userEvent.setup();
+        mockUseExplore.mockReturnValue(
+            exploreQuery({
+                data: { ...mockExplore, type: ExploreType.VIRTUAL },
+            }),
+        );
+
+        renderPanel({
+            user: {
+                abilityRules: [
+                    {
+                        action: 'view',
+                        subject: 'ContentAsCode',
+                        conditions: {
+                            organizationUuid:
+                                '172a2270-000f-42be-9c68-c4752c23ae51',
+                            projectUuid: 'project-uuid',
+                        },
+                    },
+                ],
+            },
+        });
+
+        await user.click(
+            await screen.findByRole('button', {
+                name: 'Virtual view actions',
+            }),
+        );
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'View as code' }),
+        );
+
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            'Virtual view as code modal',
+        );
     });
 });

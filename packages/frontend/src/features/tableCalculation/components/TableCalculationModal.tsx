@@ -7,6 +7,7 @@ import {
     isSqlTableCalculation,
     isTemplateTableCalculation,
     NumberSeparator,
+    TableCalculationTotalMode,
     TableCalculationType,
     type CustomFormat,
     type GeneratedFormulaTableCalculation,
@@ -25,10 +26,12 @@ import {
     HoverCard,
     Loader,
     Popover,
+    Select,
     Stack,
     Text,
     TextInput,
     Tooltip,
+    type ComboboxItem,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
@@ -102,6 +105,54 @@ type TableCalculationFormInputs = {
     formula: string;
     format: CustomFormat;
     type?: TableCalculationType;
+    totalMode?: TableCalculationTotalMode;
+};
+
+const totalModeMeta: Record<
+    TableCalculationTotalMode,
+    { label: string; description: string }
+> = {
+    [TableCalculationTotalMode.FORMULA]: {
+        label: 'Apply calculation to the totals',
+        description:
+            'Runs the formula over the totals of the columns it references. Best for ratios and percentages.',
+    },
+    [TableCalculationTotalMode.SUM_OF_ROWS]: {
+        label: 'Sum of the row values',
+        description:
+            "Adds up the calculation's value from every row. Best for row-level transformations.",
+    },
+    [TableCalculationTotalMode.NONE]: {
+        label: 'No totals',
+        description: 'Shows no totals for this calculation.',
+    },
+};
+
+const totalModeOptions = Object.entries(totalModeMeta).map(
+    ([value, { label }]) => ({ value, label }),
+);
+
+// renderOption replaces Mantine's whole option node, including the built-in
+// selection check — render it manually from `checked`.
+const renderTotalModeOption = ({
+    option,
+    checked,
+}: {
+    option: ComboboxItem;
+    checked?: boolean;
+}) => {
+    const meta = totalModeMeta[option.value as TableCalculationTotalMode];
+    return (
+        <Group flex={1} justify="space-between" wrap="nowrap" gap="xs">
+            <Stack gap={0}>
+                <Text size="sm">{meta.label}</Text>
+                <Text size="xs" c="dimmed">
+                    {meta.description}
+                </Text>
+            </Stack>
+            {checked && <MantineIcon icon={IconCheck} size="sm" />}
+        </Group>
+    );
 };
 
 enum EditMode {
@@ -206,6 +257,9 @@ const TableCalculationModal: FC<Props> = ({
                     ? tableCalculation.formula
                     : '',
             type: tableCalculation?.type || TableCalculationType.NUMBER,
+            totalMode:
+                tableCalculation?.totalMode ||
+                TableCalculationTotalMode.FORMULA,
             format: {
                 type:
                     tableCalculation?.format?.type || CustomFormatType.DEFAULT,
@@ -399,7 +453,7 @@ const TableCalculationModal: FC<Props> = ({
             return;
         }
 
-        const { name, sql, formula, format, type } = form.values;
+        const { name, sql, formula, format, type, totalMode } = form.values;
         try {
             const isNewCalculation = !tableCalculation;
             const nameChanged =
@@ -427,6 +481,7 @@ const TableCalculationModal: FC<Props> = ({
                         displayName: name,
                         format,
                         type,
+                        totalMode,
                         template: editedTemplate ?? tableCalculation.template,
                     },
                     { mode: 'template', generatedByAi: false },
@@ -441,6 +496,7 @@ const TableCalculationModal: FC<Props> = ({
                         displayName: name,
                         format,
                         type,
+                        totalMode,
                         formula: normalizedFormula,
                     },
                     {
@@ -455,6 +511,7 @@ const TableCalculationModal: FC<Props> = ({
                         displayName: name,
                         format,
                         type,
+                        totalMode,
                         sql,
                     },
                     {
@@ -523,6 +580,17 @@ const TableCalculationModal: FC<Props> = ({
                     type: CustomFormatType.DEFAULT,
                     separator: NumberSeparator.DEFAULT,
                 });
+            }
+            // Summing row values only makes sense for numeric results;
+            // 'none' stays valid for any type.
+            if (
+                next !== TableCalculationType.NUMBER &&
+                form.values.totalMode === TableCalculationTotalMode.SUM_OF_ROWS
+            ) {
+                form.setFieldValue(
+                    'totalMode',
+                    TableCalculationTotalMode.FORMULA,
+                );
             }
             form.setFieldValue('type', next);
         },
@@ -968,6 +1036,27 @@ const TableCalculationModal: FC<Props> = ({
                     dataType={selectedTableCalculationType}
                     onDataTypeChange={handleDataTypeChange}
                 />
+
+                {selectedTableCalculationType ===
+                    TableCalculationType.NUMBER && (
+                    <Select
+                        label="Totals"
+                        data={totalModeOptions}
+                        allowDeselect={false}
+                        renderOption={renderTotalModeOption}
+                        value={
+                            form.values.totalMode ??
+                            TableCalculationTotalMode.FORMULA
+                        }
+                        onChange={(value) =>
+                            value &&
+                            form.setFieldValue(
+                                'totalMode',
+                                value as TableCalculationTotalMode,
+                            )
+                        }
+                    />
+                )}
 
                 <TextInput
                     ref={nameInputRef}

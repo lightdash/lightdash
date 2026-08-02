@@ -21,6 +21,7 @@ import {
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -45,6 +46,7 @@ export class DashboardController extends BaseController {
      * Promote dashboard to its upstream project
      * @summary Promote dashboard
      * @param dashboardUuidOrSlug uuid or slug for the dashboard to run
+     * @param projectUuid project to resolve a slug in, required when the slug exists in multiple projects (e.g. preview projects)
      * @param req express request
      */
     @Middlewares([
@@ -58,6 +60,7 @@ export class DashboardController extends BaseController {
     async promoteDashboard(
         @Path() dashboardUuidOrSlug: UuidOrSlug,
         @Request() req: express.Request,
+        @Query() projectUuid?: UUID,
     ): Promise<ApiPromoteDashboardResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -68,6 +71,7 @@ export class DashboardController extends BaseController {
                 .promoteDashboard(
                     toSessionUser(req.account),
                     dashboardUuidOrSlug,
+                    { projectUuid },
                 ),
         };
     }
@@ -76,6 +80,7 @@ export class DashboardController extends BaseController {
      * Get diff from dashboard to promote
      * @summary Get dashboard promotion diff
      * @param dashboardUuidOrSlug uuid or slug for the dashboard to check diff
+     * @param projectUuid project to resolve a slug in, required when the slug exists in multiple projects (e.g. preview projects)
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -85,6 +90,7 @@ export class DashboardController extends BaseController {
     async promoteDashboardDiff(
         @Path() dashboardUuidOrSlug: UuidOrSlug,
         @Request() req: express.Request,
+        @Query() projectUuid?: UUID,
     ): Promise<ApiPromotionChangesResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -95,6 +101,7 @@ export class DashboardController extends BaseController {
                 .getPromoteDashboardDiff(
                     toSessionUser(req.account),
                     dashboardUuidOrSlug,
+                    { projectUuid },
                 ),
         };
     }

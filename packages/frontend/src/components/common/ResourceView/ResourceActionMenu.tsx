@@ -29,6 +29,7 @@ import {
 import { type FC, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { FavoritePersonalDataAppModal } from '../../../features/apps/components/FavoritePersonalDataAppModal';
 import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
 import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
@@ -86,6 +87,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const [isPromoteAppOpen, setIsPromoteAppOpen] = useState(false);
+    const [isFavoriteSpaceModalOpen, setIsFavoriteSpaceModalOpen] =
+        useState(false);
     const { mutate: duplicateApp } = useDuplicateApp();
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
@@ -268,9 +271,47 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             return assertUnreachable(item, 'Resource type not supported');
     }
 
-    if (!userCanManage && !favoritesContext) {
+    // Duplicating a data app forks it into the user's own personal app, so the
+    // backend only asks for view access plus `create:DataApp` — not manage
+    // rights on the source app.
+    const canDuplicateDataApp =
+        item.type === ResourceViewItemType.DATA_APP &&
+        user.data?.ability?.can(
+            'create',
+            subject('DataApp', {
+                organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
+    if (!userCanManage && !canDuplicateDataApp && !favoritesContext) {
         return null;
     }
+
+    // Apps duplicate synchronously via a direct mutation; charts and dashboards
+    // open a modal that lets the user pick a name/space first.
+    const duplicateDataAppMenuItem = (
+        <Menu.Item
+            component="button"
+            role="menuitem"
+            leftSection={<MantineIcon icon={IconCopy} size={18} />}
+            onClick={() => {
+                if (!projectUuid) return;
+                duplicateApp(
+                    { projectUuid, appUuid: item.data.uuid },
+                    {
+                        onSuccess: ({ appUuid: newAppUuid }) => {
+                            void navigate(
+                                `/projects/${projectUuid}/apps/${newAppUuid}`,
+                            );
+                        },
+                    },
+                );
+            }}
+        >
+            Duplicate
+        </Menu.Item>
+    );
 
     return (
         <>
@@ -314,6 +355,12 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 )
                             }
                             onClick={() => {
+                                // Space-less apps can't be favorited — offer
+                                // the same move-to-space flow as the app header
+                                if (isPersonalDataApp && !isFavorited) {
+                                    setIsFavoriteSpaceModalOpen(true);
+                                    return;
+                                }
                                 favoritesContext.toggleFavorite(
                                     item.type,
                                     item.data.uuid,
@@ -327,24 +374,32 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     )}
 
                     {isChartOrDashboard && !isSqlChart && (
-                        <AskAiAgentMenuItem
-                            projectUuid={projectUuid}
-                            chartUuid={
-                                isResourceViewItemChart(item)
-                                    ? item.data.uuid
-                                    : undefined
-                            }
-                            dashboardUuid={
-                                isResourceViewItemDashboard(item)
-                                    ? item.data.uuid
-                                    : undefined
-                            }
-                            clickedFrom="resource_action_menu"
-                            withDivider={userCanManage && !favoritesContext}
-                        />
+                        <>
+                            <AskAiAgentMenuItem
+                                projectUuid={projectUuid}
+                                chartUuid={
+                                    isResourceViewItemChart(item)
+                                        ? item.data.uuid
+                                        : undefined
+                                }
+                                dashboardUuid={
+                                    isResourceViewItemDashboard(item)
+                                        ? item.data.uuid
+                                        : undefined
+                                }
+                                clickedFrom="resource_action_menu"
+                            />
+                            {/* TODO: add a create-issue entry point once the issues flow is finalized */}
+                        </>
                     )}
 
-                    {userCanManage && favoritesContext && <Menu.Divider />}
+                    {(userCanManage || canDuplicateDataApp) &&
+                        favoritesContext && <Menu.Divider />}
+
+                    {/* A user who can't manage the app can still fork it. */}
+                    {!userCanManage &&
+                        canDuplicateDataApp &&
+                        duplicateDataAppMenuItem}
 
                     {userCanManage && (
                         <>
@@ -386,9 +441,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     : 'Rename'}
                             </Menu.Item>
 
+                            {canDuplicateDataApp
+                                ? duplicateDataAppMenuItem
+                                : null}
                             {item.type === ResourceViewItemType.CHART ||
-                            item.type === ResourceViewItemType.DASHBOARD ||
-                            item.type === ResourceViewItemType.DATA_APP ? (
+                            item.type === ResourceViewItemType.DASHBOARD ? (
                                 <Menu.Item
                                     component="button"
                                     role="menuitem"
@@ -399,32 +456,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         />
                                     }
                                     onClick={() => {
-                                        // Data apps are duplicated synchronously
-                                        // with a direct mutation; charts and
-                                        // dashboards open a modal that lets the
-                                        // user pick a name/space first.
-                                        if (
-                                            item.type ===
-                                            ResourceViewItemType.DATA_APP
-                                        ) {
-                                            if (!projectUuid) return;
-                                            duplicateApp(
-                                                {
-                                                    projectUuid,
-                                                    appUuid: item.data.uuid,
-                                                },
-                                                {
-                                                    onSuccess: ({
-                                                        appUuid: newAppUuid,
-                                                    }) => {
-                                                        void navigate(
-                                                            `/projects/${projectUuid}/apps/${newAppUuid}`,
-                                                        );
-                                                    },
-                                                },
-                                            );
-                                            return;
-                                        }
                                         onAction({
                                             type: ResourceViewItemAction.DUPLICATE,
                                             item,
@@ -715,6 +746,16 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         appUuid={item.data.uuid}
                         opened
                         onClose={() => setIsPromoteAppOpen(false)}
+                    />
+                )}
+            {isFavoriteSpaceModalOpen &&
+                projectUuid &&
+                item.type === ResourceViewItemType.DATA_APP && (
+                    <FavoritePersonalDataAppModal
+                        projectUuid={projectUuid}
+                        app={item.data}
+                        opened
+                        onClose={() => setIsFavoriteSpaceModalOpen(false)}
                     />
                 )}
         </>

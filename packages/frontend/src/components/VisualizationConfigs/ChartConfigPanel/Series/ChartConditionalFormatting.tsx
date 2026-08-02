@@ -1,12 +1,13 @@
 import {
     createConditionalFormattingConfigWithSingleColor,
+    FilterOperator,
     getItemId,
+    isConditionalFormattingWithCompareTarget,
     isConditionalFormattingWithValues,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithSingleColor,
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
-    type FilterOperator,
 } from '@lightdash/common';
 import { Accordion, Divider, Group } from '@mantine-8/core';
 import { produce } from 'immer';
@@ -33,10 +34,19 @@ import {
     mergeChartConditionalFormattingConfigs,
 } from './chartConditionalFormattingUtils';
 
+// A values-based rule with nothing filled in yet (fresh configs are created
+// with an empty `equals` rule)
+const isIncompleteRule = (rule: ConditionalFormattingWithFilterOperator) =>
+    isConditionalFormattingWithValues(rule) &&
+    !isConditionalFormattingWithCompareTarget(rule) &&
+    (rule.values ?? []).length === 0 &&
+    rule.operator !== FilterOperator.NULL &&
+    rule.operator !== FilterOperator.NOT_NULL;
+
 type ItemProps = {
     colorPalette: string[];
     config: ConditionalFormattingConfigWithSingleColor;
-    field: FilterableItem | undefined;
+    fields: FilterableItem[];
     index: number;
     isOpen: boolean;
     onChange: (config: ConditionalFormattingConfigWithSingleColor) => void;
@@ -48,7 +58,7 @@ type ItemProps = {
 const ChartConditionalFormattingItem: FC<ItemProps> = ({
     colorPalette,
     config,
-    field,
+    fields,
     index,
     isOpen,
     onChange,
@@ -56,6 +66,13 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
     addNewItem,
     removeItem,
 }) => {
+    const field = useMemo(
+        () =>
+            fields.find(
+                (candidate) => getItemId(candidate) === config.target?.fieldId,
+            ),
+        [fields, config.target?.fieldId],
+    );
     const accordionValue = `${index}`;
 
     const handleControlClick = useCallback(() => {
@@ -119,8 +136,9 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
     );
 
     const description = useMemo(() => {
-        if (config.rules.length === 0) return undefined;
+        if (config.rules.length === 0) return 'No condition set';
         const firstRule = config.rules[0];
+        if (isIncompleteRule(firstRule)) return 'No condition set';
         const operator =
             filterOperatorLabel[firstRule.operator] ?? firstRule.operator;
         const values = isConditionalFormattingWithValues(firstRule)
@@ -153,11 +171,17 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
             <Accordion.Panel>
                 <Config.Section>
                     <FieldSelect
-                        disabled
+                        disabled={fields.length <= 1}
                         size="xs"
                         item={field}
-                        items={field ? [field] : []}
-                        onChange={() => undefined}
+                        items={fields}
+                        onChange={(newField) => {
+                            if (!newField) return;
+                            onChange({
+                                ...config,
+                                target: { fieldId: getItemId(newField) },
+                            });
+                        }}
                         hasGrouping
                         label={<Config.Label>Select Field</Config.Label>}
                     />
@@ -210,7 +234,9 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
 
 type Props = {
     colorPalette: string[];
-    field: FilterableItem | undefined;
+    fields: FilterableItem[];
+    // When true, all rules share a single target field (stacked charts)
+    enforceSingleTarget: boolean;
     conditionalFormattings: ConditionalFormattingConfig[];
     onSetConditionalFormattings: (
         configs: ConditionalFormattingConfig[],
@@ -219,13 +245,11 @@ type Props = {
 
 export const ChartConditionalFormatting: FC<Props> = ({
     colorPalette,
-    field,
+    fields,
+    enforceSingleTarget,
     conditionalFormattings,
     onSetConditionalFormattings,
 }) => {
-    const { openItems, handleAccordionChange, addNewItem, removeItem } =
-        useControlledAccordion();
-
     const supportedConfigs = useMemo(
         () =>
             getSupportedChartConditionalFormattingConfigs(
@@ -233,6 +257,16 @@ export const ChartConditionalFormatting: FC<Props> = ({
             ),
         [conditionalFormattings],
     );
+
+    // Expand the rule right away when the panel opens with a single
+    // not-yet-configured rule (fresh from the "Apply custom colors" toggle)
+    const { openItems, handleAccordionChange, addNewItem, removeItem } =
+        useControlledAccordion(
+            supportedConfigs.length === 1 &&
+                supportedConfigs[0].rules.every(isIncompleteRule)
+                ? ['0']
+                : [],
+        );
 
     const configIdsRef = useRef<string[]>([]);
 
@@ -261,7 +295,14 @@ export const ChartConditionalFormatting: FC<Props> = ({
     );
 
     const handleAdd = useCallback(() => {
-        const fieldTarget = field ? { fieldId: getItemId(field) } : null;
+        // With a single shared target, new rules follow the existing one
+        const sharedTarget = enforceSingleTarget
+            ? supportedConfigs[0]?.target
+            : undefined;
+        const defaultField = fields[0];
+        const fieldTarget =
+            sharedTarget ??
+            (defaultField ? { fieldId: getItemId(defaultField) } : null);
         setSupportedConfigs(
             produce(supportedConfigs, (draft) => {
                 draft.push(
@@ -276,7 +317,8 @@ export const ChartConditionalFormatting: FC<Props> = ({
     }, [
         addNewItem,
         colorPalette,
-        field,
+        enforceSingleTarget,
+        fields,
         setSupportedConfigs,
         supportedConfigs,
     ]);
@@ -298,13 +340,24 @@ export const ChartConditionalFormatting: FC<Props> = ({
             index: number,
             newConfig: ConditionalFormattingConfigWithSingleColor,
         ) => {
+            const targetChanged =
+                newConfig.target?.fieldId !==
+                supportedConfigs[index]?.target?.fieldId;
             setSupportedConfigs(
                 produce(supportedConfigs, (draft) => {
                     draft[index] = newConfig;
+                    // Single shared target: retarget every rule together
+                    if (enforceSingleTarget && targetChanged) {
+                        draft.forEach((config, configIndex) => {
+                            if (configIndex !== index) {
+                                config.target = newConfig.target;
+                            }
+                        });
+                    }
                 }),
             );
         },
-        [setSupportedConfigs, supportedConfigs],
+        [enforceSingleTarget, setSupportedConfigs, supportedConfigs],
     );
 
     return (
@@ -326,7 +379,7 @@ export const ChartConditionalFormatting: FC<Props> = ({
                         key={configIdsRef.current[index] ?? index}
                         colorPalette={colorPalette}
                         config={config}
-                        field={field}
+                        fields={fields}
                         index={index}
                         isOpen={openItems.includes(`${index}`)}
                         onChange={(newConfig) => handleChange(index, newConfig)}

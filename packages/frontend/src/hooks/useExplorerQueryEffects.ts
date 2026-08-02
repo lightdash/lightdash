@@ -3,7 +3,7 @@ import {
     getFieldsFromMetricQuery,
     assertUnreachable,
 } from '@lightdash/common';
-import { useLocalStorage } from '@mantine/hooks';
+import { useLocalStorage } from '@mantine-8/hooks';
 import { useEffect, useMemo } from 'react';
 import {
     AUTO_FETCH_ENABLED_DEFAULT,

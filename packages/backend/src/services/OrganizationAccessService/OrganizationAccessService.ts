@@ -70,6 +70,17 @@ export class OrganizationAccessService extends BaseService {
             organizationName: account.organization.name,
         };
 
+        const isBlocked = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.OrganizationTrialBlock,
+        });
+
+        if (isBlocked.enabled) {
+            return {
+                status: OrganizationAccessStatus.TRIAL_EXPIRED,
+            };
+        }
+
         const isWarning = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.OrganizationTrialWarning,

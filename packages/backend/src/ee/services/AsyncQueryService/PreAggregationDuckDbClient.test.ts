@@ -1,18 +1,29 @@
 import { DimensionType, type WarehouseClient } from '@lightdash/common';
+import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
-import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     metricQueryMock,
     preAggregateExplore,
 } from '../../../services/ProjectService/ProjectService.mock';
 import { warehouseClientMock } from '../../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import {
     PreAggregationDuckDbClient,
     PreAggregationDuckDbResolveReason,
 } from './PreAggregationDuckDbClient';
+
+vi.mock('../../../utils/QueryBuilder/QueryComposer', () => ({
+    QueryComposer: vi.fn(
+        function MockQueryComposer(this: { getSql: () => string }) {
+            this.getSql = vi.fn().mockReturnValue('SELECT * FROM test');
+        },
+    ),
+}));
+
+const QueryComposerMock = vi.mocked(QueryComposer);
 
 describe('PreAggregationDuckDbClient', () => {
     const getClient = ({
@@ -42,16 +53,14 @@ describe('PreAggregationDuckDbClient', () => {
             },
         };
         const preAggregateModel = {
-            getActiveMaterialization: jest
+            getActiveMaterialization: vi
                 .fn()
                 .mockResolvedValue(activeMaterialization),
         };
         const projectModel = {
-            getExploreFromCache: jest
-                .fn()
-                .mockResolvedValue(preAggregateExplore),
+            getExploreFromCache: vi.fn().mockResolvedValue(preAggregateExplore),
         };
-        const createDuckdbWarehouseClient = jest
+        const createDuckdbWarehouseClient = vi
             .fn()
             .mockReturnValue(warehouseClientMock as unknown as WarehouseClient);
 
@@ -104,16 +113,17 @@ describe('PreAggregationDuckDbClient', () => {
     };
 
     beforeEach(() => {
-        jest.clearAllMocks();
-        jest.spyOn(ProjectService, '_compileQuery').mockResolvedValue({
-            query: 'SELECT * FROM test',
-        } as unknown as Awaited<
-            ReturnType<typeof ProjectService._compileQuery>
-        >);
+        vi.clearAllMocks();
+        QueryComposerMock.mockImplementation(function MockQueryComposer(this: {
+            getSql: () => string;
+        }) {
+            this.getSql = vi.fn().mockReturnValue('SELECT * FROM test');
+            return this;
+        } as unknown as () => QueryComposer);
     });
 
     afterEach(() => {
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     test('returns unresolved when no active materialization exists', async () => {
@@ -156,6 +166,48 @@ describe('PreAggregationDuckDbClient', () => {
         ).not.toHaveBeenCalled();
     });
 
+    test('creates the explicitly scoped pre-aggregate DuckDB client', () => {
+        const createForPreAggregateSpy = vi.spyOn(
+            DuckdbWarehouseClient,
+            'createForPreAggregate',
+        );
+        const client = new PreAggregationDuckDbClient({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            },
+            preAggregateModel: {
+                getActiveMaterialization: vi.fn(),
+            },
+            projectModel: {
+                getExploreFromCache: vi.fn(),
+            },
+        });
+
+        const warehouseClient = client.createExecutionWarehouseClient();
+
+        expect(warehouseClient).toBeInstanceOf(DuckdbWarehouseClient);
+        expect(createForPreAggregateSpy).toHaveBeenCalledWith(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'mock_endpoint',
+                    region: 'mock_region',
+                    accessKey: undefined,
+                    secretKey: undefined,
+                    forcePathStyle: false,
+                    useSsl: true,
+                },
+            },
+            expect.objectContaining({
+                instanceCacheKey: 'pre-aggregate-query-instance',
+            }),
+        );
+    });
+
     test('returns resolved DuckDB query/client and patches pre-aggregate sqlTable', async () => {
         const { client, createDuckdbWarehouseClient } = getClient();
 
@@ -166,7 +218,8 @@ describe('PreAggregationDuckDbClient', () => {
             query: 'SELECT * FROM test',
             warehouseClient: warehouseClientMock,
         });
-        expect(ProjectService._compileQuery).toHaveBeenCalledWith(
+        expect(QueryComposerMock).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 explore: expect.objectContaining({
                     name: '__preagg__valid_explore__rollup',
@@ -216,7 +269,9 @@ describe('PreAggregationDuckDbClient', () => {
     });
 
     test('logs selected materialization metadata for debugging', async () => {
-        const loggerSpy = jest.spyOn(Logger, 'info').mockImplementation();
+        const loggerSpy = vi
+            .spyOn(Logger, 'info')
+            .mockImplementation(() => Logger);
         const { client } = getClient();
 
         await client.resolve({
@@ -265,7 +320,8 @@ describe('PreAggregationDuckDbClient', () => {
 
         await client.resolve(baseResolveArgs);
 
-        expect(ProjectService._compileQuery).toHaveBeenCalledWith(
+        expect(QueryComposerMock).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 explore: expect.objectContaining({
                     tables: expect.objectContaining({
@@ -305,7 +361,8 @@ describe('PreAggregationDuckDbClient', () => {
 
         await client.resolve(baseResolveArgs);
 
-        expect(ProjectService._compileQuery).toHaveBeenCalledWith(
+        expect(QueryComposerMock).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 explore: expect.objectContaining({
                     tables: expect.objectContaining({

@@ -9,8 +9,13 @@ export enum TemplateType {
 
 const echartsAxisColor = '#6e7079';
 
+// Query results are injected at render time, but vega-lite's JSON schema
+// requires `data` on unit specs, so declare a named placeholder source
+const resultsData = { name: 'results' };
+
 const barChartTemplate = {
     $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    data: resultsData,
     mark: 'bar',
     encoding: {
         x: {
@@ -34,6 +39,7 @@ const barChartTemplate = {
 
 const heatmapTemplate = {
     $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    data: resultsData,
     mark: 'rect',
     encoding: {
         x: {
@@ -63,6 +69,7 @@ const heatmapTemplate = {
 
 const bubblePlotsTemplate = {
     $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    data: resultsData,
     mark: 'point',
     encoding: {
         x: {
@@ -90,7 +97,6 @@ const bubblePlotsTemplate = {
 
 const funnelChartTemplate = {
     $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
-    mark: 'funnel',
     config: {
         view: {
             strokeWidth: 0,
@@ -147,7 +153,7 @@ const funnelChartTemplate = {
             mark: { type: 'text', color: 'black' },
             encoding: {
                 y: {
-                    field: 'orders_status',
+                    field: 'field_x',
                     type: 'nominal',
                     axis: null,
                     sort: null,
@@ -159,7 +165,7 @@ const funnelChartTemplate = {
             mark: { type: 'text', color: echartsAxisColor },
             encoding: {
                 y: {
-                    field: 'orders_status',
+                    field: 'field_x',
                     type: 'nominal',
                     axis: null,
                     sort: null,
@@ -178,65 +184,90 @@ const funnelChartTemplate = {
 };
 
 const waterfallChartTemplate = {
-    $schema: 'https://vega.github.io/schema/vega-lite/v2.json',
-    mark: 'waterfall',
+    $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+    transform: [
+        {
+            window: [{ op: 'sum', field: 'field_y', as: 'sum' }],
+            frame: [null, 0],
+        },
+        {
+            window: [{ op: 'lead', field: 'field_x', as: 'lead_x' }],
+            frame: [0, 1],
+        },
+        {
+            calculate: 'datum.lead_x === null ? datum.field_x : datum.lead_x',
+            as: 'lead_x',
+        },
+        { calculate: 'datum.sum - datum.field_y', as: 'previous_sum' },
+        { calculate: '(datum.sum + datum.previous_sum) / 2', as: 'center' },
+    ],
     encoding: {
         x: {
             field: 'field_x',
             type: 'field_type_x',
-        },
-        y: {
-            field: 'field_y',
-            type: 'quantitative',
-            axis: { title: 'field_y' },
-        },
-        y2: {
-            field: 'field_extra',
-            type: 'quantitative',
+            sort: null,
+            axis: {
+                labelColor: echartsAxisColor,
+                tickColor: echartsAxisColor,
+            },
         },
     },
     layer: [
         {
             mark: 'bar',
             encoding: {
-                color: {
-                    type: 'ordinal',
-                    _comment: 'chose a field to color by',
-                    _field: 'type', //placeholder field for type
-                    scale: {
-                        domain: ['total', 'increase', 'decrease'],
-                        range: ['blue', 'green', 'red'],
+                y: {
+                    field: 'previous_sum',
+                    type: 'quantitative',
+                    title: 'field_y',
+                    axis: {
+                        labelColor: echartsAxisColor,
+                        tickColor: echartsAxisColor,
                     },
+                },
+                y2: { field: 'sum' },
+                color: {
+                    condition: {
+                        test: 'datum.field_y < 0',
+                        value: '#dd6b66',
+                    },
+                    value: '#91cc75',
                 },
             },
         },
         {
-            mark: 'text',
+            mark: {
+                type: 'rule',
+                color: echartsAxisColor,
+                opacity: 1,
+                strokeWidth: 1,
+                xOffset: -22,
+                x2Offset: 22,
+            },
             encoding: {
-                y: {
-                    field: 'field_y',
-                    type: 'quantitative',
-                },
-                text: {
-                    field: 'field_y',
-                    type: 'nominal',
-                },
-                color: {
-                    value: 'black',
-                },
+                x2: { field: 'lead_x' },
+                y: { field: 'sum', type: 'quantitative' },
+            },
+        },
+        {
+            mark: { type: 'text', baseline: 'middle', dy: -8 },
+            encoding: {
+                y: { field: 'sum', type: 'quantitative' },
+                text: { field: 'field_y', type: 'quantitative' },
+                color: { value: 'black' },
             },
         },
     ],
 };
 
 const mapTemplate = {
+    $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
     projection: {
+        // change scale and center to zoom into a region
         type: 'mercator',
-        _comment: 'change scale and center to zoom into a region',
         scale: 100,
         center: [10, 50],
     },
-    mark: 'map',
     layer: [
         {
             data: {

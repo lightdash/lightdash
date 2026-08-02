@@ -157,7 +157,7 @@ export const getSearchItemMap = (
         item: item,
         searchRank: item.search_rank,
         location: {
-            pathname: `/projects/${projectUuid}/apps/${item.uuid}/preview`,
+            pathname: `/projects/${projectUuid}/apps/${item.uuid}/view`,
         },
     }));
 

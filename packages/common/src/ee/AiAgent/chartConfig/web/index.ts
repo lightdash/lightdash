@@ -7,4 +7,4 @@ export { getAvailableChartTypes } from './shared/getAvailableChartTypes';
 export { getGroupByDimensions } from './shared/getGroupByDimensions';
 
 // Types
-export type { AiAgentChartTypeOption, AiVizMetadata } from './types';
+export type { AiAgentChartTypeOption } from './types';

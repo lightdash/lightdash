@@ -1,7 +1,6 @@
 import { sanitizeHtml, type Comment } from '@lightdash/common';
 import {
     ActionIcon,
-    Avatar,
     Box,
     getDefaultZIndex,
     Grid,
@@ -10,7 +9,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { useHover } from '@mantine/hooks';
+import { useHover } from '@mantine-8/hooks';
 import {
     IconArrowBackUp,
     IconCircleCheck,
@@ -19,6 +18,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
+import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
 import styles from './CommentDetail.module.css';
@@ -62,9 +62,14 @@ export const CommentDetail: FC<Props> = ({
         <Box ref={ref}>
             <Grid columns={20}>
                 <Grid.Col span={2}>
-                    <Avatar radius="xl" size="sm" color="ldGray.6">
+                    <LightdashUserAvatar
+                        size="sm"
+                        userUuid={comment.user.userUuid}
+                        avatarUrl={comment.user.avatarUrl}
+                        avatarGradient={comment.user.avatarGradient}
+                    >
                         {getNameInitials(comment.user.name)}
-                    </Avatar>
+                    </LightdashUserAvatar>
                 </Grid.Col>
                 <Grid.Col span={18}>
                     <Group justify="space-between">

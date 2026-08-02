@@ -1,4 +1,6 @@
 import {
+    getUserAvatarUrl,
+    isUserAvatarColorValue,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -23,6 +25,8 @@ import {
     DbOrganization,
     OrganizationTableName,
 } from '../database/entities/organizations';
+import { UserAvatarsTableName } from '../database/entities/userAvatars';
+import { UserOAuthGrantsTableName } from '../database/entities/userOAuthGrants';
 import { DbUser, UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { getColumnMatchRegexQuery } from './SearchModel/utils/search';
@@ -40,6 +44,8 @@ type DbOrganizationMemberProfile = {
     role: OrganizationMemberRole;
     role_uuid: string | null;
     expires_at?: Date;
+    avatar_gradient: string | null;
+    avatar_content_hash: string | null;
 };
 
 const SelectColumns = [
@@ -51,9 +57,12 @@ const SelectColumns = [
     `${EmailTableName}.email`,
     `${OrganizationTableName}.organization_uuid`,
     `${OrganizationMembershipsTableName}.role`,
+    `${OrganizationMembershipsTableName}.role_uuid`,
     `${InviteLinkTableName}.expires_at`,
     `${UserTableName}.created_at as user_created_at`,
     `${UserTableName}.updated_at as user_updated_at`,
+    `${UserTableName}.avatar_gradient`,
+    `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
 ];
 
 export class OrganizationMemberProfileModel {
@@ -90,6 +99,11 @@ export class OrganizationMemberProfileModel {
                     InviteLinkTableName,
                     `${UserTableName}.user_uuid`,
                     `${InviteLinkTableName}.user_uuid`,
+                )
+                .leftJoin(
+                    UserAvatarsTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${UserAvatarsTableName}.user_uuid`,
                 );
     }
 
@@ -114,6 +128,14 @@ export class OrganizationMemberProfileModel {
             isPending,
             userCreatedAt: member.user_created_at,
             userUpdatedAt: member.user_updated_at,
+            avatarUrl: member.avatar_content_hash
+                ? getUserAvatarUrl(member.user_uuid, member.avatar_content_hash)
+                : null,
+            avatarGradient:
+                member.avatar_gradient &&
+                isUserAvatarColorValue(member.avatar_gradient)
+                    ? member.avatar_gradient
+                    : null,
         };
     }
 
@@ -159,18 +181,35 @@ export class OrganizationMemberProfileModel {
 
         // Filter by users with Google Drive refresh token (using subquery to avoid duplicates)
         if (googleOidcOnly) {
-            query = query.whereExists(
-                this.database
-                    .select(1)
-                    .from(OpenIdIdentitiesTableName)
-                    .whereRaw(
-                        `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
+            query = query.where((builder) =>
+                builder
+                    .whereExists(
+                        this.database
+                            .select(1)
+                            .from(UserOAuthGrantsTableName)
+                            .whereRaw(
+                                `${UserOAuthGrantsTableName}.user_uuid = ${UserTableName}.user_uuid`,
+                            )
+                            .andWhere(
+                                `${UserOAuthGrantsTableName}.provider`,
+                                OpenIdIdentityIssuerType.GOOGLE,
+                            ),
                     )
-                    .andWhere(
-                        `${OpenIdIdentitiesTableName}.issuer_type`,
-                        OpenIdIdentityIssuerType.GOOGLE,
-                    )
-                    .whereNotNull(`${OpenIdIdentitiesTableName}.refresh_token`),
+                    .orWhereExists(
+                        this.database
+                            .select(1)
+                            .from(OpenIdIdentitiesTableName)
+                            .whereRaw(
+                                `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
+                            )
+                            .andWhere(
+                                `${OpenIdIdentitiesTableName}.issuer_type`,
+                                OpenIdIdentityIssuerType.GOOGLE,
+                            )
+                            .whereNotNull(
+                                `${OpenIdIdentitiesTableName}.refresh_token`,
+                            ),
+                    ),
             );
         }
 
@@ -206,6 +245,77 @@ export class OrganizationMemberProfileModel {
                 ),
             ),
         };
+    }
+
+    async getAllOrganizationMembers(
+        organizationUuid: string,
+    ): Promise<OrganizationMemberProfile[]> {
+        const members = await this.queryBuilder()
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select<DbOrganizationMemberProfile[]>(SelectColumns)
+            .orderBy(`${EmailTableName}.email`, 'asc');
+
+        const usersHaveAuthenticationRows =
+            await UserModel.findIfUsersHaveAuthentication(this.database, {
+                userUuids: members.map((member) => member.user_uuid),
+            });
+        const usersHaveAuthenticationMap = new Map(
+            usersHaveAuthenticationRows.map((row) => [
+                row.user_uuid,
+                row.has_authentication,
+            ]),
+        );
+
+        return members.map((member) =>
+            OrganizationMemberProfileModel.parseRow(
+                member,
+                usersHaveAuthenticationMap.get(member.user_uuid) || false,
+            ),
+        );
+    }
+
+    async findOrganizationMembersByEmails(
+        organizationUuid: string,
+        emails: string[],
+    ): Promise<OrganizationMemberProfile[]> {
+        const normalizedEmails = [
+            ...new Set(emails.map((email) => email.trim().toLowerCase())),
+        ];
+        if (normalizedEmails.length === 0) return [];
+
+        const members = await this.queryBuilder()
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereRaw('LOWER(??) = ANY(?::text[])', [
+                `${EmailTableName}.email`,
+                normalizedEmails,
+            ])
+            .select<DbOrganizationMemberProfile[]>(SelectColumns)
+            .orderBy(`${EmailTableName}.email`, 'asc')
+            .orderBy(`${UserTableName}.user_uuid`, 'asc');
+
+        const usersHaveAuthenticationRows =
+            await UserModel.findIfUsersHaveAuthentication(this.database, {
+                userUuids: members.map((member) => member.user_uuid),
+            });
+        const usersHaveAuthenticationMap = new Map(
+            usersHaveAuthenticationRows.map((row) => [
+                row.user_uuid,
+                row.has_authentication,
+            ]),
+        );
+
+        return members.map((member) =>
+            OrganizationMemberProfileModel.parseRow(
+                member,
+                usersHaveAuthenticationMap.get(member.user_uuid) || false,
+            ),
+        );
     }
 
     async getOrganizationMembersAndGroups(
@@ -251,6 +361,11 @@ export class OrganizationMemberProfileModel {
                 `${UserTableName}.user_uuid`,
                 `${InviteLinkTableName}.user_uuid`,
             )
+            .leftJoin(
+                UserAvatarsTableName,
+                `${UserTableName}.user_uuid`,
+                `${UserAvatarsTableName}.user_uuid`,
+            )
             .groupBy(
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.user_id`,
@@ -262,6 +377,8 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationMembershipsTableName}.role`,
                 `${OrganizationMembershipsTableName}.role_uuid`,
                 `${InviteLinkTableName}.expires_at`,
+                `${UserTableName}.avatar_gradient`,
+                `${UserAvatarsTableName}.content_hash`,
             )
             .select(
                 `${UserTableName}.user_uuid`,
@@ -276,6 +393,8 @@ export class OrganizationMemberProfileModel {
                 `${InviteLinkTableName}.expires_at`,
                 `${UserTableName}.created_at as user_created_at`,
                 `${UserTableName}.updated_at as user_updated_at`,
+                `${UserTableName}.avatar_gradient`,
+                `${UserAvatarsTableName}.content_hash as avatar_content_hash`,
             )
             .select<DbOrganizationMemberProfile[]>(
                 this.database.raw(
@@ -301,18 +420,36 @@ export class OrganizationMemberProfileModel {
 
         // Filter by users with Google Drive refresh token (using subquery to avoid duplicates)
         if (googleOidcOnly) {
-            orgMembersAndGroupsQuery = orgMembersAndGroupsQuery.whereExists(
-                this.database
-                    .select(1)
-                    .from(OpenIdIdentitiesTableName)
-                    .whereRaw(
-                        `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
-                    )
-                    .andWhere(
-                        `${OpenIdIdentitiesTableName}.issuer_type`,
-                        OpenIdIdentityIssuerType.GOOGLE,
-                    )
-                    .whereNotNull(`${OpenIdIdentitiesTableName}.refresh_token`),
+            orgMembersAndGroupsQuery = orgMembersAndGroupsQuery.where(
+                (builder) =>
+                    builder
+                        .whereExists(
+                            this.database
+                                .select(1)
+                                .from(UserOAuthGrantsTableName)
+                                .whereRaw(
+                                    `${UserOAuthGrantsTableName}.user_uuid = ${UserTableName}.user_uuid`,
+                                )
+                                .andWhere(
+                                    `${UserOAuthGrantsTableName}.provider`,
+                                    OpenIdIdentityIssuerType.GOOGLE,
+                                ),
+                        )
+                        .orWhereExists(
+                            this.database
+                                .select(1)
+                                .from(OpenIdIdentitiesTableName)
+                                .whereRaw(
+                                    `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
+                                )
+                                .andWhere(
+                                    `${OpenIdIdentitiesTableName}.issuer_type`,
+                                    OpenIdIdentityIssuerType.GOOGLE,
+                                )
+                                .whereNotNull(
+                                    `${OpenIdIdentitiesTableName}.refresh_token`,
+                                ),
+                        ),
             );
         }
 

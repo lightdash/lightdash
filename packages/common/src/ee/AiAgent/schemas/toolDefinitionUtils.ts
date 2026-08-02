@@ -6,14 +6,15 @@ import {
     type McpToolResultBuilders,
     type StandardAgentToolOutput,
     type ToolDescription,
+    type ToolDescriptionContext,
     type ToolRuntime,
 } from './defineTool';
 
 export const resolveDescription = (
     description: ToolDescription,
-    runtimeName: string,
+    context: ToolDescriptionContext,
 ): string =>
-    typeof description === 'function' ? description(runtimeName) : description;
+    typeof description === 'function' ? description(context) : description;
 
 export const assertAvailable = (
     name: string,

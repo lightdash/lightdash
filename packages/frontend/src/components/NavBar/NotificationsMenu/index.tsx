@@ -159,7 +159,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                 {!hasValidationNotifications &&
                     !hasDashboardCommentsNotifications &&
                     !hasAiReviewNotifications && (
-                        <Menu.Item>No notifications</Menu.Item>
+                        <Menu.Item fz="sm">No notifications</Menu.Item>
                     )}
             </Menu.Dropdown>
         </Menu>

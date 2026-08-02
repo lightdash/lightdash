@@ -1,12 +1,12 @@
 import { type ApiErrorDetail } from '@lightdash/common';
 import { Text } from '@mantine-8/core';
-import { Prism } from '@mantine/prism';
 import {
     IconAlertCircle,
     IconLock,
     IconMoodPuzzled,
 } from '@tabler/icons-react';
 import React, { useMemo, type ComponentProps, type FC } from 'react';
+import CodeBlock from '../CodeBlock/CodeBlock';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
 
 const DEFAULT_ERROR_PROPS: ComponentProps<typeof SuboptimalState> = {
@@ -32,11 +32,14 @@ const ErrorState: FC<{
                             <Text maw={400} fw="bold">
                                 Contact support with the following information:
                             </Text>
-                            <Prism ta="left" language="yaml" pr="lg">
-                                {`\nError ID: ${
+                            <CodeBlock
+                                code={`\nError ID: ${
                                     error.sentryEventId || 'n/a'
                                 }\nTrace ID: ${error.sentryTraceId || 'n/a'}`}
-                            </Prism>
+                                language="yaml"
+                                pr="lg"
+                                ta="left"
+                            />
                         </>
                     )}
                 </>

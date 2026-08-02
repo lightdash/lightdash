@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
@@ -6,7 +7,6 @@ import {
     ActionIcon,
     Badge,
     Box,
-    Button,
     Center,
     Group,
     Popover,
@@ -18,11 +18,10 @@ import {
 import {
     IconChevronRight,
     IconInfoCircle,
-    IconSettings,
+    IconNotebook,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Link,
     useLocation,
     useNavigate,
     useParams,
@@ -31,6 +30,8 @@ import {
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { AgentSettingsSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
@@ -40,6 +41,7 @@ import {
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { getPromptContextItemKey } from '../../features/aiCopilot/components/ChatElements/contentReferenceUtils';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
+import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
@@ -74,8 +76,12 @@ const AgentsRouterPage = () => {
     });
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
+    const { data: memoryFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAgentMemory,
+    );
 
-    const [sqlMode, setSqlMode] = useState(false);
+    const [sqlMode, setSqlMode] = useState(true);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
@@ -151,19 +157,29 @@ const AgentsRouterPage = () => {
     const handleRouteError = useCallback(
         ({
             fallbackAgent,
+            context,
             message,
+            optimisticContext,
+            toolHints,
         }: {
             fallbackAgent?: { uuid: string };
+            context?: AiPromptContextInput;
             message: string;
+            optimisticContext?: AiPromptContext;
+            toolHints: string[];
         }) => {
             setPendingPrompt(message);
             if (fallbackAgent && projectUuid) {
-                void navigate(
-                    `/projects/${projectUuid}/ai-agents/${fallbackAgent.uuid}/threads`,
-                );
+                void createThreadForAgent({
+                    agentUuid: fallbackAgent.uuid,
+                    context,
+                    message,
+                    optimisticContext,
+                    toolHints,
+                });
             }
         },
-        [navigate, projectUuid, setPendingPrompt],
+        [createThreadForAgent, projectUuid, setPendingPrompt],
     );
 
     const {
@@ -283,18 +299,37 @@ const AgentsRouterPage = () => {
             }
         >
             <Box className={classes.routerView}>
-                {canManageAgents && (
-                    <Button
-                        component={Link}
-                        to={settingsHref}
-                        variant="default"
-                        size="xs"
-                        leftSection={<MantineIcon icon={IconSettings} />}
-                        className={classes.routerSettingsButton}
-                    >
-                        Settings
-                    </Button>
-                )}
+                <Group gap={4} className={classes.routerActions}>
+                    {memoryFlag?.enabled && (
+                        <UnstyledButton
+                            type="button"
+                            className={classes.memoriesButton}
+                            onClick={() => setIsMemoriesModalOpen(true)}
+                        >
+                            <Group gap={6} wrap="nowrap" align="center">
+                                <MantineIcon
+                                    icon={IconNotebook}
+                                    size="sm"
+                                    color="ldGray.6"
+                                />
+                                <Text size="xs">Memories</Text>
+                            </Group>
+                        </UnstyledButton>
+                    )}
+                    {canManageAgents && (
+                        <AgentSettingsSelector
+                            agents={agents ?? []}
+                            projectUuid={projectUuid!}
+                            askAiSettingsHref={settingsHref}
+                        />
+                    )}
+                </Group>
+
+                <MyMemoriesModal
+                    opened={isMemoriesModalOpen}
+                    onClose={() => setIsMemoriesModalOpen(false)}
+                    projectUuid={projectUuid!}
+                />
 
                 <Center h="100%">
                     <Stack

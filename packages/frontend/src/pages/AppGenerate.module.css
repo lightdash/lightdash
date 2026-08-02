@@ -20,6 +20,29 @@
     min-width: 300px;
 }
 
+/* Collapsed: the panel becomes a slim rail that keeps the toggle visible in
+   the same top-left spot. Collapse is CSS-only — the panel-group layout is
+   untouched, so expanding restores the exact pre-collapse width. Rail width
+   = sidebarHeader horizontal padding (2 × xs) + the 22px ActionIcon. */
+.chatPanelOuter[data-collapsed='true'] {
+    min-width: 38px;
+    max-width: 38px;
+}
+
+/* Hide the chat content from view, the tab order, and the a11y tree —
+   only the header row hosting the toggle stays interactive. */
+.chatPanelOuter[data-collapsed='true'] .chatMessages,
+.chatPanelOuter[data-collapsed='true'] .chatInputArea {
+    visibility: hidden;
+}
+
+/* Toggle row pinned to the sidebar's top-left. */
+.sidebarHeader {
+    display: flex;
+    flex: 0 0 auto;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+}
+
 /* Compose stage: the chat panel becomes a centered card on the muted
    backdrop, then morphs into the split sidebar (see .chatPanel's
    view-transition-name) on first submit. */
@@ -88,9 +111,33 @@
     letter-spacing: -0.02em;
 }
 
+/* Non-interactive "starting point" chip. Sits in a row of borderless icon
+   controls, so it reads as a filled tag rather than another button. */
 .startingFromChip {
     align-self: center;
     max-width: 220px;
+    min-width: 0;
+    padding: 5px 10px;
+    border-radius: var(--mantine-radius-xl);
+    cursor: default;
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-9);
+        background-color: var(--mantine-color-ldGray-1);
+    }
+    @mixin dark {
+        color: var(--mantine-color-ldGray-8);
+        background-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.startingFromLabel {
+    @mixin light {
+        color: var(--mantine-color-ldGray-7);
+    }
+    @mixin dark {
+        color: var(--mantine-color-ldGray-6);
+    }
 }
 
 .chatPanelCompose {
@@ -224,10 +271,16 @@
     color: var(--mantine-color-dimmed) !important;
 }
 
-/* Align the "continue building" hint with the status text above it, which is
- * rendered via AiMarkdown and carries the shared 7px markdown padding-left. */
-.buildingHint {
-    padding-left: 7px;
+/* Matches the Reasoning/Activity rows' 12px horizontal padding so the
+ * working line's text starts flush with their icon chips. */
+.workingLine {
+    padding-left: 12px;
+}
+
+/* Same 12px inset for the assistant meta row (version chip + timestamp) so
+ * the chip lines up with the Reasoning/Activity icon chips below it. */
+.assistantBubbleMeta {
+    padding-left: 12px;
 }
 
 .chatInputArea {
@@ -261,92 +314,10 @@
     padding-top: var(--mantine-spacing-sm);
 }
 
-.inputWrapper {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-xs);
-    border-radius: var(--mantine-radius-lg);
-    padding: var(--mantine-spacing-sm);
-    transition:
-        border-color 150ms ease,
-        box-shadow 150ms ease;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-ldGray-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-2);
-        border: 1px solid var(--mantine-color-ldDark-6);
-    }
-
-    &:focus-within {
-        @mixin light {
-            border-color: var(--mantine-color-ldGray-5);
-            box-shadow: 0 0 0 4px var(--mantine-color-ldGray-2);
-        }
-        @mixin dark {
-            border-color: var(--mantine-color-ldDark-7);
-            box-shadow: 0 0 0 4px var(--mantine-color-ldDark-4);
-        }
-    }
-}
-
 .attachedResources {
     display: flex;
     flex-direction: column;
     gap: var(--mantine-spacing-xs);
-}
-
-.inputBottomRow {
-    flex-wrap: nowrap;
-}
-
-.textarea {
-    border: none;
-    background: transparent;
-    resize: none;
-    padding: 0;
-    padding-right: var(--mantine-spacing-sm);
-    font-size: var(--mantine-font-size-sm);
-    line-height: 1.5;
-    min-height: unset;
-
-    &:focus {
-        outline: none;
-        box-shadow: none;
-    }
-}
-
-.textareaRoot {
-    width: 100%;
-}
-
-.textareaWrapper {
-    --input-bd: transparent;
-    --input-bg: transparent;
-}
-
-.submitButton {
-    flex-shrink: 0;
-    border-radius: var(--mantine-radius-xl);
-    transition:
-        transform 150ms ease,
-        opacity 150ms ease;
-
-    background-color: var(--mantine-color-foreground-0);
-
-    &:hover:not(:disabled) {
-        background-color: var(--mantine-color-foreground-1);
-    }
-
-    &:disabled {
-        opacity: 0.4;
-    }
-
-    &:active:not(:disabled) {
-        transform: scale(0.95);
-    }
 }
 
 .resizeHandle {
@@ -371,6 +342,13 @@
             background-color: var(--mantine-color-ldDark-6);
             box-shadow: 0 0 0 1px var(--mantine-color-ldDark-6);
         }
+    }
+
+    /* Disabled while the chat panel is collapsed — keep the 1px divider as
+       the rail's edge but drop the resize affordance. */
+    &[data-panel-resize-handle-enabled='false'] {
+        cursor: default;
+        pointer-events: none;
     }
 }
 
@@ -411,47 +389,6 @@
     }
     @mixin dark {
         color: var(--mantine-color-ldDark-8);
-    }
-}
-
-.loadingDots {
-    display: inline-flex;
-    gap: 4px;
-    align-items: center;
-}
-
-.loadingDot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    animation: dotPulse 1.4s ease-in-out infinite;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-5);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-8);
-    }
-}
-
-.loadingDot:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.loadingDot:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes dotPulse {
-    0%,
-    80%,
-    100% {
-        opacity: 0.3;
-        transform: scale(0.8);
-    }
-    40% {
-        opacity: 1;
-        transform: scale(1);
     }
 }
 

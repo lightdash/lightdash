@@ -6,7 +6,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedState } from '@mantine/hooks';
+import { useDebouncedState } from '@mantine-8/hooks';
 import {
     IconEye,
     IconEyeOff,
@@ -50,6 +50,7 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
 
     return (
         <TextInput
+            size="xs"
             disabled={!isColumnVisible(fieldId)}
             placeholder={getFieldLabelDefault(fieldId)}
             defaultValue={value}
@@ -63,18 +64,25 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
     );
 };
 
-type ColumnConfigurationProps = {
+export type ColumnConfigurationProps = {
     fieldId: string;
 
     /**
      * When provided, the freeze toggle controls all listed fieldIds together.
      */
     syncFreezeWith?: string[];
+
+    /**
+     * Hides the freeze toggle for fields that can't be meaningfully frozen,
+     * e.g. metrics in a pivoted table with metrics as columns.
+     */
+    hideFreezeToggle?: boolean;
 };
 
 const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     fieldId,
     syncFreezeWith,
+    hideFreezeToggle = false,
 }) => {
     const { pivotDimensions, visualizationConfig, resultsData } =
         useVisualizationContext();
@@ -108,7 +116,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     );
 
     // Pivoted dimensions become column headers and can't be frozen.
-    const shouldShowFreezeToggle = !isPivotingDimension;
+    const shouldShowFreezeToggle = !isPivotingDimension && !hideFreezeToggle;
 
     // When syncFreezeWith is set, the lock visually reflects "any sibling
     // frozen" and clicking flips the entire group in lockstep.

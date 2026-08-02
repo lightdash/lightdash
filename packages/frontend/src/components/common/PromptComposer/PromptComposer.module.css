@@ -1,0 +1,362 @@
+/* Shared prompt composer chrome. Two variants:
+ *  - card:   editor stacked above a toolbar row (AI agent chat, data apps)
+ *  - inline: editor and actions on a single row (compact thread composer) */
+
+.root {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    transition:
+        border-color 520ms cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow 520ms cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .root {
+        transition: none;
+    }
+}
+
+.root[data-variant='card'] {
+    flex-direction: column;
+    border-radius: rem(24px);
+    overflow: hidden;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+        border: 1px solid var(--mantine-color-ldGray-2);
+        box-shadow:
+            0 8px 24px rgba(15, 23, 42, 0.05),
+            0 1px 4px rgba(15, 23, 42, 0.04);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-6);
+        border: 1px solid var(--mantine-color-dark-4);
+        box-shadow:
+            0 10px 32px rgba(0, 0, 0, 0.22),
+            0 1px 4px rgba(0, 0, 0, 0.18);
+    }
+
+    &:focus-within {
+        @mixin light {
+            border-color: var(--mantine-color-gray-4);
+            box-shadow:
+                0 10px 28px rgba(15, 23, 42, 0.06),
+                0 0 0 2px rgba(15, 23, 42, 0.04);
+        }
+
+        @mixin dark {
+            border-color: var(--mantine-color-dark-3);
+            box-shadow:
+                0 12px 36px rgba(0, 0, 0, 0.26),
+                0 0 0 2px rgba(255, 255, 255, 0.04);
+        }
+    }
+}
+
+.root[data-variant='inline'] {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    gap: 4px;
+    padding: 4px var(--mantine-spacing-xs);
+    border-radius: rem(18px);
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+        border: 1px solid var(--mantine-color-ldGray-2);
+    }
+
+    @mixin dark {
+        background-color: var(--ai-chat-input-bg, var(--mantine-color-dark-8));
+        border: 1px solid var(--mantine-color-ldDark-6);
+    }
+
+    &:focus-within {
+        @mixin light {
+            border-color: var(--mantine-color-ldGray-4);
+        }
+
+        @mixin dark {
+            border-color: var(--mantine-color-ldDark-5);
+        }
+    }
+}
+
+/* Accent rules come after the variant rules on purpose — same specificity,
+ * so source order decides and the mode tint wins. */
+.root[data-accent='indigo'] {
+    @mixin light {
+        border-color: var(--mantine-color-indigo-3);
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-indigo-0) 38%,
+            var(--mantine-color-white)
+        );
+        box-shadow:
+            0 8px 24px rgba(76, 110, 245, 0.08),
+            0 0 0 1px rgba(76, 110, 245, 0.06);
+    }
+
+    @mixin dark {
+        border-color: var(--mantine-color-indigo-8);
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-indigo-9) 16%,
+            var(--mantine-color-dark-6)
+        );
+    }
+}
+
+.root[data-variant='inline'][data-accent='indigo'] {
+    @mixin dark {
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-indigo-9) 16%,
+            var(--ai-chat-input-bg, var(--mantine-color-dark-8))
+        );
+    }
+}
+
+.root[data-variant='card'][data-accent='indigo']:focus-within {
+    @mixin light {
+        border-color: var(--mantine-color-indigo-4);
+        box-shadow:
+            0 10px 28px rgba(76, 110, 245, 0.1),
+            0 0 0 2px rgba(76, 110, 245, 0.08);
+    }
+
+    @mixin dark {
+        border-color: var(--mantine-color-indigo-7);
+    }
+}
+
+.root[data-variant='inline'][data-accent='indigo']:focus-within {
+    @mixin light {
+        border-color: var(--mantine-color-indigo-3);
+    }
+
+    @mixin dark {
+        border-color: var(--mantine-color-indigo-8);
+    }
+}
+
+.root[data-accent='indigo'] .header {
+    color: var(--mantine-color-indigo-6);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.root[data-variant='card'] .header {
+    padding: rem(12px) rem(20px) 0;
+}
+
+.editorRoot {
+    border: none;
+    background: transparent;
+    flex: 1;
+    min-width: 0;
+    --rte-bg: transparent;
+    --rte-border-color: transparent;
+
+    :global(.mantine-RichTextEditor-content),
+    :global(.mantine-8-RichTextEditor-content) {
+        background: transparent;
+        border: none;
+    }
+}
+
+/* --- card editor surface --- */
+
+.editorContent {
+    padding: rem(22px) rem(24px) rem(10px);
+    line-height: 1.5;
+    max-height: 240px;
+    overflow-y: auto;
+    background: transparent;
+
+    :global(.ProseMirror) {
+        outline: none;
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+        padding: 0;
+    }
+
+    :global(p.is-empty.is-editor-empty::before) {
+        content: attr(data-placeholder);
+        float: left;
+        pointer-events: none;
+        height: 0;
+
+        @mixin light {
+            color: var(--mantine-color-ldGray-6);
+        }
+
+        @mixin dark {
+            color: var(--mantine-color-ldGray-7);
+        }
+    }
+}
+
+.root[data-variant='card'][data-size='lg'] .editorContent {
+    font-size: var(--mantine-font-size-md);
+    min-height: rem(118px);
+
+    :global(.ProseMirror) {
+        min-height: rem(82px);
+    }
+}
+
+.root[data-variant='card'][data-size='md'] .editorContent {
+    padding: rem(14px) rem(16px) rem(6px);
+    font-size: var(--mantine-font-size-sm);
+    min-height: rem(88px);
+    max-height: rem(200px);
+
+    :global(.ProseMirror) {
+        min-height: rem(80px);
+    }
+}
+
+.root[data-variant='card'][data-size='sm'] .editorContent {
+    padding: rem(14px) rem(18px) rem(6px);
+    font-size: var(--mantine-font-size-sm);
+    min-height: rem(60px);
+
+    :global(.ProseMirror) {
+        min-height: rem(34px);
+    }
+}
+
+/* --- inline editor surface --- */
+
+.inlineEditorWrap {
+    /* Single source of truth for where inline text begins. The caret sits at
+       the ProseMirror padding edge, and the placeholder overlay has to land on
+       exactly the same pixel — binding both to this var stops them drifting. */
+    --composer-inline-inset: rem(22px);
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.inlineEditorContent {
+    padding: 0 var(--mantine-spacing-xs) 0 0;
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.5;
+    min-height: 24px;
+    max-height: 144px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    background: transparent;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+
+    :global(.ProseMirror) {
+        outline: none;
+        background: transparent;
+        padding-left: var(--composer-inline-inset);
+    }
+
+    :global(.ProseMirror p) {
+        margin: 0;
+        padding: 0;
+    }
+}
+
+.inlinePlaceholder {
+    position: absolute;
+    left: var(--composer-inline-inset);
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.5;
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-6);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-7);
+    }
+}
+
+/* --- attachments + toolbar --- */
+
+.attachments {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    padding: 0 rem(12px);
+}
+
+.root[data-size='md'] .attachments {
+    padding: 0 rem(12px);
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-xs);
+    min-height: rem(50px);
+    padding: 0 rem(8px) rem(8px);
+}
+
+.root[data-size='md'] .toolbar,
+.root[data-size='sm'] .toolbar {
+    min-height: rem(44px);
+    padding: 0 rem(8px) rem(8px);
+}
+
+.toolbarSection {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+}
+
+.inlineActions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+@media (max-width: 48em) {
+    .root[data-variant='card'] {
+        border-radius: rem(22px);
+    }
+
+    .root[data-variant='card'][data-size='lg'] .editorContent {
+        padding: rem(20px) rem(18px) rem(12px);
+        min-height: rem(112px);
+
+        :global(.ProseMirror) {
+            min-height: rem(70px);
+        }
+    }
+
+    .toolbar {
+        min-height: rem(52px);
+        padding: 0 rem(8px) rem(8px);
+    }
+
+    .toolbarSection {
+        min-width: auto;
+    }
+}

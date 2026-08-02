@@ -273,4 +273,26 @@ export class OrganizationDesignModel {
             return mapDbFile(row);
         });
     }
+
+    /**
+     * Remove every file row for a design. Returns the deleted rows so the
+     * caller can delete exactly those S3 objects — sweeping the design's
+     * whole S3 prefix instead would race with a concurrent upload.
+     */
+    async removeAllFiles(
+        designUuid: string,
+    ): Promise<ApiOrganizationDesignFile[]> {
+        return this.database.transaction(async (trx) => {
+            const rows = await trx(OrganizationDesignFilesTableName)
+                .where('design_uuid', designUuid)
+                .delete()
+                .returning('*');
+            if (rows.length > 0) {
+                await trx(OrganizationDesignsTableName)
+                    .where('design_uuid', designUuid)
+                    .update({ updated_at: trx.fn.now() as unknown as Date });
+            }
+            return rows.map(mapDbFile);
+        });
+    }
 }

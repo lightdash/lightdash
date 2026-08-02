@@ -1,6 +1,6 @@
-import { TimeInput } from '@mantine/dates';
+import { TextInput } from '@mantine-8/core';
 import dayjs from 'dayjs';
-import React, { type FC } from 'react';
+import { type FC } from 'react';
 import { parseCronExpression } from './cronInputUtils';
 
 const getTimePickerValue = (hours: number, minutes: number) => {
@@ -29,11 +29,12 @@ const TimePicker: FC<{
     };
 
     return (
-        <TimeInput
-            w="7xl"
+        <TextInput
+            type="time"
+            w={96}
             disabled={disabled}
             value={getTimePickerValue(hours, minutes)}
-            onChange={(val) => handleChange(val.target.value)}
+            onChange={(event) => handleChange(event.currentTarget.value)}
         />
     );
 };

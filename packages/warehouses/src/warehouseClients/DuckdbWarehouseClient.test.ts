@@ -8,12 +8,24 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import fs from 'fs/promises';
+import type { Mock } from 'vitest';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
+    type DuckdbS3Credentials,
 } from './DuckdbWarehouseClient';
 
-const createInstanceMock = jest.fn();
+const createInstanceMock = vi.fn();
+
+const duckdbS3Credentials = {
+    type: 'duckdb_s3',
+    s3Config: {
+        endpoint: 'localhost:9000',
+        region: 'us-east-1',
+        forcePathStyle: true,
+        useSsl: false,
+    },
+} satisfies DuckdbS3Credentials;
 
 // Must provide DuckDBTypeId since mapFieldTypeFromTypeId references it at runtime
 const DUCKDB_TYPE_IDS = {
@@ -44,39 +56,36 @@ const DUCKDB_TYPE_IDS = {
     BLOB: 18,
 } as const;
 
-jest.mock(
-    '@duckdb/node-api',
-    () => ({
-        DuckDBTypeId: {
-            BOOLEAN: 1,
-            TINYINT: 2,
-            SMALLINT: 3,
-            INTEGER: 4,
-            BIGINT: 5,
-            UTINYINT: 6,
-            USMALLINT: 7,
-            UINTEGER: 8,
-            UBIGINT: 9,
-            FLOAT: 10,
-            DOUBLE: 11,
-            TIMESTAMP: 12,
-            DATE: 13,
-            TIME: 14,
-            DECIMAL: 19,
-            HUGEINT: 25,
-            TIMESTAMP_S: 27,
-            TIMESTAMP_MS: 28,
-            TIMESTAMP_NS: 29,
-            TIMESTAMP_TZ: 31,
-            TIME_TZ: 32,
-            UHUGEINT: 49,
-        },
-        DuckDBInstance: {
-            create: (...args: unknown[]) => createInstanceMock(...args),
-        },
-    }),
-    { virtual: true },
-);
+vi.mock('@duckdb/node-api', () => ({
+    DuckDBTypeId: {
+        BOOLEAN: 1,
+        TINYINT: 2,
+        SMALLINT: 3,
+        INTEGER: 4,
+        BIGINT: 5,
+        UTINYINT: 6,
+        USMALLINT: 7,
+        UINTEGER: 8,
+        UBIGINT: 9,
+        FLOAT: 10,
+        DOUBLE: 11,
+        TIMESTAMP: 12,
+        DATE: 13,
+        TIME: 14,
+        DECIMAL: 19,
+        HUGEINT: 25,
+        TIMESTAMP_S: 27,
+        TIMESTAMP_MS: 28,
+        TIMESTAMP_NS: 29,
+        TIMESTAMP_TZ: 31,
+        TIME_TZ: 32,
+        UHUGEINT: 49,
+    },
+    DuckDBInstance: {
+        create: (...args: unknown[]) => createInstanceMock(...args),
+    },
+    version: () => 'v1.5.2',
+}));
 
 const getMockStreamResult = (
     chunks: Record<string, unknown>[][],
@@ -103,19 +112,20 @@ const createMockExtractStatements = (
         statementType: number;
     }>,
 ) =>
-    jest.fn(async () => ({
+    vi.fn(async () => ({
         count: overrides?.count ?? 1,
         prepare: async () => ({
             statementType: overrides?.statementType ?? 1, // SELECT
-            destroySync: jest.fn(),
+            destroySync: vi.fn(),
         }),
     }));
 
 const createMockConnection = (
-    streamMock: jest.Mock,
-    runMock: jest.Mock = jest.fn(),
+    streamMock: Mock,
+    runMock: Mock = vi.fn(),
     opts?: {
-        extractStatements?: jest.Mock;
+        extractStatements?: Mock;
+        interrupt?: Mock;
     },
 ) => ({
     connect: async () => ({
@@ -123,10 +133,11 @@ const createMockConnection = (
         stream: streamMock,
         extractStatements:
             opts?.extractStatements ?? createMockExtractStatements(),
-        closeSync: jest.fn(),
-        disconnectSync: jest.fn(),
+        interrupt: opts?.interrupt ?? vi.fn(),
+        closeSync: vi.fn(),
+        disconnectSync: vi.fn(),
     }),
-    closeSync: jest.fn(),
+    closeSync: vi.fn(),
 });
 
 describe('mapFieldTypeFromTypeId', () => {
@@ -191,7 +202,7 @@ describe('mapFieldTypeFromTypeId', () => {
 
 describe('DuckdbWarehouseClient', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         DuckdbWarehouseClient.resetSharedDuckdbStateForTesting();
     });
 
@@ -204,7 +215,7 @@ describe('DuckdbWarehouseClient', () => {
             },
         ];
 
-        const streamMock = jest.fn(async () =>
+        const streamMock = vi.fn(async () =>
             getMockStreamResult(
                 [rows],
                 [
@@ -240,14 +251,14 @@ describe('DuckdbWarehouseClient', () => {
         const chunk1 = [{ id: 1 }, { id: 2 }];
         const chunk2 = [{ id: 3 }];
 
-        const streamMock = jest.fn(async () =>
+        const streamMock = vi.fn(async () =>
             getMockStreamResult([chunk1, chunk2], [DUCKDB_TYPE_IDS.INTEGER]),
         );
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = DuckdbWarehouseClient.createForPreAggregate();
-        const streamCallback = jest.fn();
+        const client = new DuckdbWarehouseClient();
+        const streamCallback = vi.fn();
         const result = await client.executeAsyncQuery(
             {
                 sql: 'SELECT id FROM t',
@@ -267,13 +278,13 @@ describe('DuckdbWarehouseClient', () => {
     });
 
     it('should handle empty result set', async () => {
-        const streamMock = jest.fn(async () =>
+        const streamMock = vi.fn(async () =>
             getMockStreamResult([], [DUCKDB_TYPE_IDS.INTEGER]),
         );
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = DuckdbWarehouseClient.createForPreAggregate();
+        const client = new DuckdbWarehouseClient();
         const result = await client.runQuery('SELECT id FROM empty_table');
 
         expect(result.rows).toEqual([]);
@@ -281,8 +292,8 @@ describe('DuckdbWarehouseClient', () => {
     });
 
     it('should set timezone, S3 config, and shared resource limits before streaming', async () => {
-        const runMock = jest.fn();
-        const streamMock = jest.fn(async () =>
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
             getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
         );
 
@@ -332,8 +343,8 @@ describe('DuckdbWarehouseClient', () => {
     });
 
     it('should use DuckDB credential chain for S3 config without static credentials', async () => {
-        const runMock = jest.fn();
-        const streamMock = jest.fn(async () =>
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
             getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
         );
 
@@ -371,9 +382,88 @@ describe('DuckdbWarehouseClient', () => {
         expect(secretSql).not.toContain("SECRET '");
     });
 
+    it('should load bundled extensions without runtime installs', async () => {
+        const accessMock = vi.spyOn(fs, 'access').mockResolvedValue();
+        try {
+            const runMock = vi.fn();
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = DuckdbWarehouseClient.createForPreAggregate({
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 's3.eu-west-1.amazonaws.com',
+                    region: 'eu-west-1',
+                    forcePathStyle: false,
+                    useSsl: true,
+                },
+            });
+
+            await client.runQuery('SELECT 1 AS val');
+
+            expect(runMock).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    "duckdbExtensions/v1.5.2/httpfs.duckdb_extension';",
+                ),
+            );
+            expect(runMock).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    "duckdbExtensions/v1.5.2/aws.duckdb_extension';",
+                ),
+            );
+            expect(runMock).not.toHaveBeenCalledWith('INSTALL httpfs;');
+            expect(runMock).not.toHaveBeenCalledWith('INSTALL aws;');
+        } finally {
+            accessMock.mockRestore();
+        }
+    });
+
+    it('should surface bundled extension load failures', async () => {
+        const accessMock = vi.spyOn(fs, 'access').mockResolvedValue();
+        try {
+            const loadError = new Error('Invalid bundled extension');
+            const runMock = vi.fn(async (sql: string) => {
+                if (sql.includes('httpfs.duckdb_extension')) {
+                    throw loadError;
+                }
+            });
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = DuckdbWarehouseClient.createForPreAggregate({
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: true,
+                    useSsl: false,
+                },
+            });
+
+            await expect(client.runQuery('SELECT 1 AS val')).rejects.toThrow(
+                loadError,
+            );
+            expect(runMock).not.toHaveBeenCalledWith('INSTALL httpfs;');
+        } finally {
+            accessMock.mockRestore();
+        }
+    });
+
     it('should use static DuckDB S3 credentials when configured', async () => {
-        const runMock = jest.fn();
-        const streamMock = jest.fn(async () =>
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
             getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
         );
 
@@ -412,8 +502,8 @@ describe('DuckdbWarehouseClient', () => {
     });
 
     it('should treat instanceCacheKey as the shared instance identity', async () => {
-        const runMock = jest.fn();
-        const streamMock = jest.fn(async () =>
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
             getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
         );
 
@@ -476,8 +566,170 @@ describe('DuckdbWarehouseClient', () => {
         expect(runMock).not.toHaveBeenCalledWith('SET threads = 8;');
     });
 
-    it('should log structured DuckDB profile metrics with query tags', async () => {
-        const runMock = jest.fn(async (sql: string) => {
+    it('hardens each query connection on a shared instance', async () => {
+        const bootstrapRunMock = vi.fn();
+        const queryRunMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        const connectMock = vi
+            .fn()
+            .mockResolvedValueOnce({
+                run: bootstrapRunMock,
+                closeSync: vi.fn(),
+                disconnectSync: vi.fn(),
+            })
+            .mockResolvedValueOnce({
+                run: queryRunMock,
+                stream: streamMock,
+                extractStatements: createMockExtractStatements(),
+                closeSync: vi.fn(),
+                disconnectSync: vi.fn(),
+            });
+        createInstanceMock.mockResolvedValue({
+            connect: connectMock,
+            closeSync: vi.fn(),
+        });
+
+        const client = new DuckdbWarehouseClient(undefined, {
+            instanceCacheKey: 'shared-query-hardening',
+            sharedResourceLimits: { memoryLimit: '256MB', threads: 1 },
+        });
+
+        await client.runQuery('SELECT 1 AS val');
+
+        expect(queryRunMock.mock.calls.map(([sql]) => sql)).toEqual([
+            "SET memory_limit = '256MB';",
+            'SET threads = 1;',
+            'SET allow_community_extensions = false;',
+            'SET autoinstall_known_extensions = false;',
+            'SET autoload_known_extensions = false;',
+            'SET allow_unredacted_secrets = false;',
+        ]);
+    });
+
+    it('confines embedded user queries without writing profiles to local files', async () => {
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        const logger = { info: vi.fn() };
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = new DuckdbWarehouseClient(
+            {
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.EMBEDDED,
+                dataset: 'jaffle_shop',
+            },
+            { logger },
+        );
+        await client.runQuery('SELECT 1 AS val');
+
+        expect(createInstanceMock).toHaveBeenCalledWith(
+            expect.stringContaining('jaffle_shop.duckdb'),
+            {
+                access_mode: 'READ_ONLY',
+                memory_limit: '256MB',
+                threads: '1',
+            },
+        );
+
+        expect(runMock).toHaveBeenCalledWith(
+            "SET disabled_filesystems = 'LocalFileSystem';",
+        );
+        expect(runMock).not.toHaveBeenCalledWith(
+            "PRAGMA enable_profiling='json';",
+        );
+    });
+
+    it('rejects embedded queries beyond the process concurrency budget', async () => {
+        const pendingStreams: Array<
+            (result: ReturnType<typeof getMockStreamResult>) => void
+        > = [];
+        const streamMock = vi.fn(
+            () =>
+                new Promise<ReturnType<typeof getMockStreamResult>>(
+                    (resolve) => {
+                        pendingStreams.push(resolve);
+                    },
+                ),
+        );
+
+        createInstanceMock.mockImplementation(async () =>
+            createMockConnection(streamMock),
+        );
+
+        const createClient = () =>
+            new DuckdbWarehouseClient({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.EMBEDDED,
+                dataset: 'jaffle_shop',
+            });
+
+        const firstQuery = createClient().runQuery('SELECT 1 AS val');
+        const secondQuery = createClient().runQuery('SELECT 2 AS val');
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+
+        await expect(
+            createClient().runQuery('SELECT 3 AS val'),
+        ).rejects.toThrow(
+            'Playground query capacity is full. Try again shortly.',
+        );
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+
+        pendingStreams.forEach((resolve) =>
+            resolve(
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            ),
+        );
+        await Promise.all([firstQuery, secondQuery]);
+    });
+
+    it('rejects concurrent embedded queries for the same organization', async () => {
+        let resolveStream: (
+            result: ReturnType<typeof getMockStreamResult>,
+        ) => void = () => {};
+        const streamMock = vi.fn(
+            () =>
+                new Promise<ReturnType<typeof getMockStreamResult>>(
+                    (resolve) => {
+                        resolveStream = resolve;
+                    },
+                ),
+        );
+        createInstanceMock.mockImplementation(async () =>
+            createMockConnection(streamMock),
+        );
+
+        const createClient = () =>
+            new DuckdbWarehouseClient({
+                type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.EMBEDDED,
+                dataset: 'jaffle_shop',
+            });
+        const tags = { organization_uuid: 'organization-1' };
+
+        const firstQuery = createClient().runQuery('SELECT 1 AS val', tags);
+        await vi.waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+
+        await expect(
+            createClient().runQuery('SELECT 2 AS val', tags),
+        ).rejects.toThrow(
+            'Playground query capacity is full. Try again shortly.',
+        );
+
+        resolveStream(
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        await firstQuery;
+    });
+
+    it('logs structured profiles for non-embedded queries and reports metrics', async () => {
+        const runMock = vi.fn(async (sql: string) => {
             const match = sql.match(/^PRAGMA profiling_output='(.+)';$/);
             if (match) {
                 await fs.writeFile(
@@ -499,16 +751,20 @@ describe('DuckdbWarehouseClient', () => {
                 );
             }
         });
-        const streamMock = jest.fn(async () =>
+        const streamMock = vi.fn(async () =>
             getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
         );
-        const logger = { info: jest.fn() };
+        const logger = { info: vi.fn() };
+        const onQueryProfile = vi.fn();
 
         createInstanceMock.mockResolvedValue(
             createMockConnection(streamMock, runMock),
         );
 
-        const client = new DuckdbWarehouseClient(undefined, { logger });
+        const client = new DuckdbWarehouseClient(undefined, {
+            logger,
+            onQueryProfile,
+        });
         await client.runQuery('SELECT 1 AS val', {
             query_uuid: 'query-123',
             chart_uuid: 'chart-123',
@@ -535,10 +791,20 @@ describe('DuckdbWarehouseClient', () => {
                 scanAmplification: 9905024 / 68,
             }),
         );
+        expect(onQueryProfile).toHaveBeenCalledWith(
+            expect.objectContaining({
+                latencyMs: 4747,
+                readParquetMs: 4632,
+                bytesRead: 20225287,
+            }),
+        );
+        expect(runMock).not.toHaveBeenCalledWith(
+            "SET disabled_filesystems = 'LocalFileSystem';",
+        );
     });
 
-    it('should log raw profile timings when DuckDB reports cpu above latency', async () => {
-        const runMock = jest.fn(async (sql: string) => {
+    it('logs raw profile timings when DuckDB reports cpu above latency', async () => {
+        const runMock = vi.fn(async (sql: string) => {
             const match = sql.match(/^PRAGMA profiling_output='(.+)';$/);
             if (match) {
                 await fs.writeFile(
@@ -553,10 +819,10 @@ describe('DuckdbWarehouseClient', () => {
                 );
             }
         });
-        const streamMock = jest.fn(async () =>
+        const streamMock = vi.fn(async () =>
             getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
         );
-        const logger = { info: jest.fn() };
+        const logger = { info: vi.fn() };
 
         createInstanceMock.mockResolvedValue(
             createMockConnection(streamMock, runMock),
@@ -600,12 +866,12 @@ describe('DuckdbWarehouseClient', () => {
                 statementType: 4,
             },
         ])('should reject $name', async ({ sql, statementType }) => {
-            const streamMock = jest.fn(async () =>
+            const streamMock = vi.fn(async () =>
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
             );
 
             createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock, jest.fn(), {
+                createMockConnection(streamMock, vi.fn(), {
                     extractStatements: createMockExtractStatements({
                         statementType,
                     }),
@@ -620,12 +886,12 @@ describe('DuckdbWarehouseClient', () => {
         });
 
         it('should reject multiple statements', async () => {
-            const streamMock = jest.fn(async () =>
+            const streamMock = vi.fn(async () =>
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
             );
 
             createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock, jest.fn(), {
+                createMockConnection(streamMock, vi.fn(), {
                     extractStatements: createMockExtractStatements({
                         count: 2,
                     }),
@@ -640,31 +906,203 @@ describe('DuckdbWarehouseClient', () => {
             );
         });
 
-        it.each(['current_setting', 'duckdb_settings', 'duckdb_secrets'])(
-            'should reject queries with %s()',
-            async (blockedFunction) => {
-                const streamMock = jest.fn(async () =>
-                    getMockStreamResult(
-                        [[{ val: 1 }]],
-                        [DUCKDB_TYPE_IDS.INTEGER],
-                    ),
+        it.each([
+            'current_setting',
+            'duckdb_settings',
+            'duckdb_secrets',
+            'query',
+            'query_table',
+        ])('should reject queries with %s()', async (blockedFunction) => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runQuery(`SELECT * FROM ${blockedFunction}()`),
+            ).rejects.toThrow(
+                `SQL validation error: function '${blockedFunction}' is not allowed`,
+            );
+        });
+
+        it.each([
+            'read_csv',
+            'read_csv_auto',
+            'read_json',
+            'read_json_auto',
+            'read_json_objects',
+            'read_json_objects_auto',
+            'read_ndjson',
+            'read_ndjson_auto',
+            'read_ndjson_objects',
+            'read_ndjson_objects_auto',
+            'read_parquet',
+            'read_text',
+            'read_blob',
+            'read_xlsx',
+            'parquet_scan',
+            'glob',
+            'sqlite_scan',
+            'postgres_scan',
+            'mysql_scan',
+        ])('should reject user queries with %s()', async (blockedFunction) => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const extractStatementsMock = createMockExtractStatements();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, vi.fn(), {
+                    extractStatements: extractStatementsMock,
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runQuery(`SELECT * FROM ${blockedFunction}('/tmp/a')`),
+            ).rejects.toThrow(
+                `SQL validation error: function '${blockedFunction}' is not allowed`,
+            );
+            expect(extractStatementsMock).not.toHaveBeenCalled();
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it('should keep file readers blocked when only S3 is configured', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const extractStatementsMock = createMockExtractStatements();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, vi.fn(), {
+                    extractStatements: extractStatementsMock,
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient(duckdbS3Credentials);
+            await expect(
+                client.runQuery(
+                    "SELECT * FROM read_parquet('s3://bucket/data.parquet')",
+                ),
+            ).rejects.toThrow(
+                "SQL validation error: function 'read_parquet' is not allowed",
+            );
+            expect(extractStatementsMock).not.toHaveBeenCalled();
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            {
+                format: 'Parquet',
+                sql: "SELECT * FROM read_parquet('s3://bucket/data.parquet')",
+            },
+            {
+                format: 'inferred JSONL',
+                sql: "SELECT * FROM read_json_auto('s3://bucket/data.jsonl')",
+            },
+            {
+                format: 'typed JSONL',
+                sql: "SELECT * FROM read_json('s3://bucket/data.jsonl', format='newline_delimited')",
+            },
+        ])(
+            'should allow pre-aggregate clients to read S3 $format files',
+            async ({ sql }) => {
+                const rows = [{ val: 1 }];
+                const streamMock = vi.fn(async () =>
+                    getMockStreamResult([rows], [DUCKDB_TYPE_IDS.INTEGER]),
                 );
+                const extractStatementsMock = createMockExtractStatements();
 
                 createInstanceMock.mockResolvedValue(
-                    createMockConnection(streamMock),
+                    createMockConnection(streamMock, vi.fn(), {
+                        extractStatements: extractStatementsMock,
+                    }),
                 );
 
-                const client = new DuckdbWarehouseClient();
-                await expect(
-                    client.runQuery(`SELECT * FROM ${blockedFunction}()`),
-                ).rejects.toThrow(
-                    `SQL validation error: function '${blockedFunction}' is not allowed`,
-                );
+                const client =
+                    DuckdbWarehouseClient.createForPreAggregate(
+                        duckdbS3Credentials,
+                    );
+                const result = await client.runQuery(sql);
+
+                expect(result.rows).toEqual(rows);
+                expect(extractStatementsMock).toHaveBeenCalledTimes(1);
+                expect(streamMock).toHaveBeenCalledTimes(1);
             },
         );
 
+        it('should keep pre-aggregate queries read-only', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, vi.fn(), {
+                    extractStatements: createMockExtractStatements({
+                        statementType: 11, // COPY
+                    }),
+                }),
+            );
+
+            const client =
+                DuckdbWarehouseClient.createForPreAggregate(
+                    duckdbS3Credentials,
+                );
+            await expect(
+                client.runQuery("COPY t TO 's3://bucket/data.parquet'"),
+            ).rejects.toThrow(
+                'SQL validation error: only SELECT statements are allowed',
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it('should keep secret introspection blocked for pre-aggregate queries', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client =
+                DuckdbWarehouseClient.createForPreAggregate(
+                    duckdbS3Credentials,
+                );
+            await expect(
+                client.runQuery(
+                    "SELECT current_setting('s3_secret_access_key')",
+                ),
+            ).rejects.toThrow(
+                "SQL validation error: function 'current_setting' is not allowed",
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it('should reject user queries that use file table paths', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(
+                client.runQuery("SELECT * FROM '/tmp/data.parquet'"),
+            ).rejects.toThrow(
+                'SQL validation error: file table paths are not allowed',
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
         it('should ignore blocked functions inside SQL comments', async () => {
-            const streamMock = jest.fn(async () =>
+            const streamMock = vi.fn(async () =>
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
             );
 
@@ -680,9 +1118,25 @@ describe('DuckdbWarehouseClient', () => {
             expect(result.rows).toEqual([{ val: 1 }]);
         });
 
+        it('should ignore blocked file readers inside SQL comments', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            const result = await client.runQuery(
+                "SELECT 1 -- SELECT * FROM read_parquet('/tmp/data.parquet')",
+            );
+            expect(result.rows).toEqual([{ val: 1 }]);
+        });
+
         it('should allow COPY statements in runSql', async () => {
-            const streamMock = jest.fn();
-            const runMock = jest.fn();
+            const streamMock = vi.fn();
+            const runMock = vi.fn();
 
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock, {
@@ -698,6 +1152,23 @@ describe('DuckdbWarehouseClient', () => {
             );
             expect(runMock).toHaveBeenCalledWith(
                 "COPY table TO 's3://bucket/data.parquet' (FORMAT PARQUET)",
+            );
+        });
+
+        it('should allow internal SQL to read staged files', async () => {
+            const streamMock = vi.fn();
+            const runMock = vi.fn();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await client.runSql(
+                "CREATE TABLE staged AS SELECT * FROM read_parquet('s3://bucket/data.parquet')",
+            );
+            expect(runMock).toHaveBeenCalledWith(
+                "CREATE TABLE staged AS SELECT * FROM read_parquet('s3://bucket/data.parquet')",
             );
         });
 
@@ -718,8 +1189,8 @@ describe('DuckdbWarehouseClient', () => {
                 statementType: 21,
             },
         ])('should reject $name in runSql', async ({ sql, statementType }) => {
-            const streamMock = jest.fn();
-            const runMock = jest.fn();
+            const streamMock = vi.fn();
+            const runMock = vi.fn();
 
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock, {
@@ -737,8 +1208,8 @@ describe('DuckdbWarehouseClient', () => {
         });
 
         it('should reject introspection functions in runSql', async () => {
-            const streamMock = jest.fn();
-            const runMock = jest.fn();
+            const streamMock = vi.fn();
+            const runMock = vi.fn();
 
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock),
@@ -758,7 +1229,7 @@ describe('DuckdbWarehouseClient', () => {
         });
 
         it('should allow valid SELECT queries', async () => {
-            const streamMock = jest.fn(async () =>
+            const streamMock = vi.fn(async () =>
                 getMockStreamResult(
                     [[{ id: 1, name: 'test' }]],
                     [DUCKDB_TYPE_IDS.INTEGER, DUCKDB_TYPE_IDS.VARCHAR],
@@ -779,19 +1250,32 @@ describe('DuckdbWarehouseClient', () => {
 
     it.each([
         {
-            name: 'pass token in connection string for MotherDuck',
+            name: 'pass encoded token in SaaS-mode connection string for MotherDuck',
             credentials: {
                 type: WarehouseTypes.DUCKDB as const,
                 connectionType: DuckdbConnectionType.MOTHERDUCK as const,
                 database: 'my_database',
                 schema: 'main',
+                token: 'my_motherduck_token+with=symbols',
+            },
+            expectedPath:
+                'md:my_database?motherduck_token=my_motherduck_token%2Bwith%3Dsymbols&saas_mode=true',
+        },
+        {
+            name: 'encode MotherDuck database names before adding connection parameters',
+            credentials: {
+                type: WarehouseTypes.DUCKDB as const,
+                connectionType: DuckdbConnectionType.MOTHERDUCK as const,
+                database: 'analytics?motherduck_token=other&saas_mode=false',
+                schema: 'main',
                 token: 'my_motherduck_token',
             },
-            expectedPath: 'md:my_database?motherduck_token=my_motherduck_token',
+            expectedPath:
+                'md:analytics%3Fmotherduck_token%3Dother%26saas_mode%3Dfalse?motherduck_token=my_motherduck_token&saas_mode=true',
         },
     ])('should $name', async ({ credentials, expectedPath }) => {
-        const runMock = jest.fn();
-        const streamMock = jest.fn(async () =>
+        const runMock = vi.fn();
+        const streamMock = vi.fn(async () =>
             getMockStreamResult([[{ id: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
         );
 
@@ -804,17 +1288,17 @@ describe('DuckdbWarehouseClient', () => {
         await client.runQuery('SELECT 1 AS id');
 
         expect(createInstanceMock).toHaveBeenCalledWith(expectedPath);
-        expect(runMock).toHaveBeenCalledWith(
-            'SET allow_community_extensions = false;',
+        expect(runMock).not.toHaveBeenCalledWith(
+            expect.stringContaining('allow_community_extensions'),
         );
-        expect(runMock).toHaveBeenCalledWith(
-            'SET autoinstall_known_extensions = false;',
+        expect(runMock).not.toHaveBeenCalledWith(
+            expect.stringContaining('autoinstall_known_extensions'),
         );
-        expect(runMock).toHaveBeenCalledWith(
-            'SET autoload_known_extensions = false;',
+        expect(runMock).not.toHaveBeenCalledWith(
+            expect.stringContaining('autoload_known_extensions'),
         );
-        expect(runMock).toHaveBeenCalledWith(
-            'SET allow_unredacted_secrets = false;',
+        expect(runMock).not.toHaveBeenCalledWith(
+            expect.stringContaining('allow_unredacted_secrets'),
         );
     });
 
@@ -847,7 +1331,7 @@ describe('DuckdbWarehouseClient', () => {
     });
 
     it('should default getFields database to the configured DuckDB database', async () => {
-        const runMock = jest.fn(async () => ({
+        const runMock = vi.fn(async () => ({
             getRowObjects: async () => [
                 {
                     column_name: 'order_id',
@@ -861,7 +1345,7 @@ describe('DuckdbWarehouseClient', () => {
         }));
 
         createInstanceMock.mockResolvedValue(
-            createMockConnection(jest.fn(), runMock),
+            createMockConnection(vi.fn(), runMock),
         );
 
         const client = new DuckdbWarehouseClient({
@@ -886,23 +1370,26 @@ describe('DuckdbWarehouseClient', () => {
                     },
                 },
             },
+            __lightdashTimestampDomains: {
+                analytics: {
+                    main: { orders: { created_at: 'naive' } },
+                },
+            },
         });
     });
 
     describe('DuckLake bootstrap', () => {
         const captureRunMock = () =>
-            jest.fn().mockResolvedValue({
+            vi.fn().mockResolvedValue({
                 getRowObjects: async () => [],
             });
 
-        const collectStatements = (runMock: jest.Mock): string[] =>
+        const collectStatements = (runMock: Mock): string[] =>
             runMock.mock.calls.map((c) => c[0] as string);
 
         it('attaches a postgres-catalog + S3 DuckLake in the correct order', async () => {
             const runMock = captureRunMock();
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[]], []),
-            );
+            const streamMock = vi.fn(async () => getMockStreamResult([[]], []));
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock),
             );
@@ -937,11 +1424,12 @@ describe('DuckdbWarehouseClient', () => {
             expect(joined).not.toMatch(/INSTALL httpfs/);
             expect(joined).not.toMatch(/LOAD httpfs/);
 
-            // Hardening flips autoload to TRUE for DuckLake.
             expect(stmts).toEqual(
                 expect.arrayContaining([
                     'SET autoinstall_known_extensions = true;',
                     'SET autoload_known_extensions = true;',
+                    'SET autoinstall_known_extensions = false;',
+                    'SET autoload_known_extensions = false;',
                     'SET allow_community_extensions = false;',
                     'SET allow_unredacted_secrets = false;',
                 ]),
@@ -957,13 +1445,19 @@ describe('DuckdbWarehouseClient', () => {
                 /SECRET __lightdash_ducklake\s/.test(s),
             );
             const attachIdx = stmts.findIndex((s) =>
-                /^ATTACH 'ducklake:__lightdash_ducklake'/.test(s),
+                s.startsWith("ATTACH 'ducklake:__lightdash_ducklake'"),
             );
 
             expect(catalogIdx).toBeGreaterThanOrEqual(0);
             expect(dataIdx).toBeGreaterThan(catalogIdx);
             expect(duckLakeSecretIdx).toBeGreaterThan(dataIdx);
             expect(attachIdx).toBeGreaterThan(duckLakeSecretIdx);
+            expect(
+                stmts.lastIndexOf('SET autoinstall_known_extensions = false;'),
+            ).toBeGreaterThan(attachIdx);
+            expect(
+                stmts.lastIndexOf('SET autoload_known_extensions = false;'),
+            ).toBeGreaterThan(attachIdx);
 
             expect(stmts[catalogIdx]).toMatch(/TYPE postgres/);
             expect(stmts[catalogIdx]).toMatch(/HOST 'pg.example.com'/);
@@ -976,9 +1470,7 @@ describe('DuckdbWarehouseClient', () => {
 
         it('uses inline ATTACH (no ducklake secret) for SQLite catalog + local data path', async () => {
             const runMock = captureRunMock();
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[]], []),
-            );
+            const streamMock = vi.fn(async () => getMockStreamResult([[]], []));
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock),
             );
@@ -1006,8 +1498,8 @@ describe('DuckdbWarehouseClient', () => {
             expect(joined).not.toMatch(/SECRET __lightdash_ducklake\s/);
             expect(
                 stmts.some((s) =>
-                    /^ATTACH 'ducklake:sqlite:\/tmp\/ducklake\.sqlite' AS "ducklake" \(DATA_PATH '\/tmp\/ducklake-data', READ_ONLY\);/.test(
-                        s,
+                    s.startsWith(
+                        "ATTACH 'ducklake:sqlite:/tmp/ducklake.sqlite' AS \"ducklake\" (DATA_PATH '/tmp/ducklake-data', READ_ONLY);",
                     ),
                 ),
             ).toBe(true);
@@ -1015,14 +1507,12 @@ describe('DuckdbWarehouseClient', () => {
 
         it('rejects user SQL that contains ATTACH even in DuckLake mode', async () => {
             const runMock = captureRunMock();
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[]], []),
-            );
-            const extractStatements = jest.fn(async () => ({
+            const streamMock = vi.fn(async () => getMockStreamResult([[]], []));
+            const extractStatements = vi.fn(async () => ({
                 count: 1,
                 prepare: async () => ({
                     statementType: 25, // ATTACH
-                    destroySync: jest.fn(),
+                    destroySync: vi.fn(),
                 }),
             }));
             createInstanceMock.mockResolvedValue(
@@ -1052,9 +1542,7 @@ describe('DuckdbWarehouseClient', () => {
 
         it('keeps autoload disabled for non-DuckLake modes', async () => {
             const runMock = captureRunMock();
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[]], []),
-            );
+            const streamMock = vi.fn(async () => getMockStreamResult([[]], []));
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock),
             );

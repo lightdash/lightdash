@@ -49,6 +49,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                     return 'Map';
                 case ChartKind.SANKEY:
                     return 'Sankey';
+                case ChartKind.DATA_APP_VIZ:
+                    return 'Data app visualization';
                 default:
                     return 'Chart';
             }
@@ -85,7 +87,7 @@ export const getResourceUrl = (projectUuid: string, item: ResourceViewItem) => {
         case ResourceViewItemType.SPACE:
             return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
         case ResourceViewItemType.DATA_APP:
-            return `/projects/${projectUuid}/apps/${item.data.uuid}/preview`;
+            return `/projects/${projectUuid}/apps/${item.data.uuid}/view`;
         default:
             return assertUnreachable(item, `Can't get URL for ${itemType}`);
     }

@@ -26,6 +26,7 @@ import {
     IconCircleCheck,
     IconCircleCheckFilled,
     IconCirclesRelation,
+    IconCode,
     IconCopy,
     IconDatabaseExport,
     IconDots,
@@ -52,6 +53,7 @@ import {
 } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
 import {
     explorerActions,
     selectHasUnsavedChanges,
@@ -114,7 +116,9 @@ import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import SaveChartButton from '../SaveChartButton';
+import SaveChartButton, {
+    type VerificationSavePrompt,
+} from '../SaveChartButton';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
 const SavedChartsHeader: FC = () => {
@@ -189,6 +193,7 @@ const SavedChartsHeader: FC = () => {
         useDisclosure();
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure();
+    const [isChartAsCodeModalOpen, chartAsCodeModalHandlers] = useDisclosure();
 
     const { user, health } = useApp();
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
@@ -320,6 +325,16 @@ const SavedChartsHeader: FC = () => {
             subject('SavedChart', { ...savedChart }),
         );
 
+    const userCanViewContentAsCode =
+        project &&
+        user.data?.ability.can(
+            'view',
+            subject('ContentAsCode', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        );
+
     const userCanPromoteChart =
         savedChart &&
         !savedChart?.dashboardUuid &&
@@ -359,6 +374,17 @@ const SavedChartsHeader: FC = () => {
     const isChartVerified =
         savedChart?.verification !== null &&
         savedChart?.verification !== undefined;
+
+    const isOwnVerification =
+        savedChart?.verification?.verifiedBy.userUuid === user.data?.userUuid;
+
+    let verificationSavePrompt: VerificationSavePrompt | undefined;
+    if (isChartVerified) {
+        verificationSavePrompt =
+            canManageContentVerification || isOwnVerification
+                ? 'confirm-keep'
+                : 'warn-removal';
+    }
 
     const userCanPinChart = user.data?.ability.can(
         'manage',
@@ -418,6 +444,7 @@ const SavedChartsHeader: FC = () => {
                     onClose={() => {
                         blocker.reset();
                     }}
+                    role="alertdialog"
                     title="Unsaved changes"
                     icon={IconAlertCircle}
                     cancelLabel="Stay"
@@ -549,7 +576,8 @@ const SavedChartsHeader: FC = () => {
                 </div>
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
-                    userCanManageExplore) && (
+                    userCanManageExplore ||
+                    userCanViewContentAsCode) && (
                     <Group gap="xs">
                         {userCanManageExplore && !isEditMode && (
                             <ExploreFromHereButton />
@@ -585,9 +613,8 @@ const SavedChartsHeader: FC = () => {
                                             onSaveModalOpenChange={
                                                 setIsSaveModalOpen
                                             }
-                                            showVerificationSaveOptions={
-                                                isChartVerified &&
-                                                canManageContentVerification
+                                            verificationSavePrompt={
+                                                verificationSavePrompt
                                             }
                                         />
                                         <Button
@@ -639,9 +666,9 @@ const SavedChartsHeader: FC = () => {
                                         projectUuid={projectUuid}
                                         chartUuid={savedChart.uuid}
                                         clickedFrom="saved_chart_header"
-                                        withDivider
                                     />
                                 )}
+                                {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                                 <Menu.Label>Manage</Menu.Label>
                                 {userCanManageChart &&
                                     !hasUnsavedChanges &&
@@ -819,6 +846,23 @@ const SavedChartsHeader: FC = () => {
                                         </Menu.Item>
                                     )}
 
+                                {userCanViewContentAsCode && savedChart && (
+                                    <>
+                                        <Menu.Divider />
+                                        <Menu.Label>Content as code</Menu.Label>
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconCode} />
+                                            }
+                                            onClick={
+                                                chartAsCodeModalHandlers.open
+                                            }
+                                        >
+                                            View as code
+                                        </Menu.Item>
+                                    </>
+                                )}
+
                                 <Menu.Divider />
                                 <Menu.Label>Integrations</Menu.Label>
                                 {userCanCreateDeliveriesAndAlerts && (
@@ -899,6 +943,7 @@ const SavedChartsHeader: FC = () => {
                             <Menu.Target>
                                 <ActionIcon
                                     variant="default"
+                                    aria-label="Chart actions"
                                     disabled={!unsavedChartVersion.tableName}
                                 >
                                     <MantineIcon icon={IconDots} />
@@ -1062,6 +1107,16 @@ const SavedChartsHeader: FC = () => {
                         hasUnsavedChanges={hasUnsavedChanges && isEditMode}
                     />
                 )}
+
+            {savedChart && projectUuid && (
+                <ChartAsCodeModal
+                    opened={isChartAsCodeModalOpen}
+                    onClose={chartAsCodeModalHandlers.close}
+                    projectUuid={projectUuid}
+                    chartUuid={savedChart.uuid}
+                    hasUnsavedChanges={hasUnsavedChanges && isEditMode}
+                />
+            )}
         </TrackSection>
     );
 };

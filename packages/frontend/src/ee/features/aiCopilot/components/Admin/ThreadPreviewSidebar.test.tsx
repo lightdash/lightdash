@@ -79,7 +79,7 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
                         content:
                             'Active user means a customer with a completed checkout in the last 28 days.',
                         terms: ['active user'],
-                        objects: ['customers'],
+                        objects: [{ type: 'explore', name: 'customers' }],
                     },
                     createdAt: new Date('2026-06-10T08:00:00.000Z'),
                 },
@@ -90,6 +90,23 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
     useCreateAiAgentReviewItemWriteback: () => ({
         isLoading: false,
         mutate: vi.fn(),
+    }),
+    useAddAiAgentReviewItemComment: () => ({
+        isLoading: false,
+        mutate: vi.fn(),
+    }),
+    useUpdateAiAgentReviewItemPriority: () => ({
+        isLoading: false,
+        mutate: vi.fn(),
+    }),
+    useAiAgentReviewItemActivity: () => ({
+        data: {
+            events: [],
+            liveState: null,
+            liveMessage: null,
+            verdictStale: false,
+        },
+        isLoading: false,
     }),
 }));
 
@@ -160,7 +177,7 @@ describe('ThreadPreviewSidebar', () => {
         fireEvent.click(screen.getByRole('button', { name: /why flagged/i }));
         expect(
             screen.getAllByText(
-                'Adds project context: Active user means a customer with a completed checkout in the last 28 days.',
+                'Adds project context: Active user means a customer with a completed checkout in the last 28 days. Objects: explore "customers".',
             ).length,
         ).toBeGreaterThan(0);
 

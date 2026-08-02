@@ -1,9 +1,12 @@
 import {
     AdminNotificationPayload,
     AdminNotificationType,
+    assertUnreachable,
     CreateProjectMember,
+    EmailSenderIdentity,
     getErrorMessage,
     InviteLink,
+    InviteLinkPurpose,
     MissingConfigError,
     PasswordResetLink,
     ProjectMemberRole,
@@ -11,6 +14,7 @@ import {
     SchedulerFormat,
     SessionUser,
     SmptError,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import fs from 'fs';
@@ -25,6 +29,10 @@ import SMTPPool from 'nodemailer/lib/smtp-pool';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import {
+    buildFailureCountPhrase,
+    toEmailFailureFields,
+} from '../../utils/partialFailureUtils';
 
 const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
 
@@ -43,6 +51,21 @@ function isNodemailerSmtpError(
     error: unknown,
 ): error is SMTPConnection.SMTPError {
     return error instanceof Error;
+}
+
+function isRetryableSmtpError(error: unknown): boolean {
+    return (
+        isNodemailerSmtpError(error) &&
+        ((error.code &&
+            // Check if the error code is in the list of retryable error codes
+            RETRYABLE_ERROR_CODES.includes(error.code)) ||
+            // Check if the error message contains any of the retryable error codes
+            RETRYABLE_ERROR_CODES.some((code) =>
+                error.message.includes(code),
+            ) ||
+            // It can be either `Connection timeout` or `Timeout`
+            error.message.toLowerCase().includes('timeout'))
+    );
 }
 
 // Timeout configurations based on Nodemailer defaults, adjusted for scheduler compatibility
@@ -227,6 +250,22 @@ export default class EmailClient {
         },
     ] as const;
 
+    /**
+     * Translates a resolved per-organization sender identity (email
+     * whitelabelling) into nodemailer `from` / `replyTo` overrides. A null
+     * identity — or a null `from` within it — leaves the instance default From
+     * untouched.
+     */
+    private static senderMailFields(
+        sender?: EmailSenderIdentity | null,
+    ): Pick<Mail.Options, 'from' | 'replyTo'> {
+        if (!sender) return {};
+        return {
+            ...(sender.from ? { from: sender.from } : {}),
+            ...(sender.replyTo ? { replyTo: sender.replyTo } : {}),
+        };
+    }
+
     private async sendEmail(
         options: Mail.Options & EmailTemplate,
     ): Promise<void> {
@@ -276,17 +315,7 @@ export default class EmailClient {
                     return; // Success, exit retry loop
                 } catch (error) {
                     const isLastAttempt = attempt === maxRetries;
-                    const isRetryableError =
-                        isNodemailerSmtpError(error) &&
-                        ((error.code &&
-                            // Check if the error code is in the list of retryable error codes
-                            RETRYABLE_ERROR_CODES.includes(error.code)) ||
-                            // Check if the error message contains any of the retryable error codes
-                            RETRYABLE_ERROR_CODES.some((code) =>
-                                error.message.includes(code),
-                            ) ||
-                            // It can be either `Connection timeout` or `Timeout`
-                            error.message.toLowerCase().includes('timeout'));
+                    const isRetryableError = isRetryableSmtpError(error);
 
                     if (isLastAttempt || !isRetryableError) {
                         const isFileError =
@@ -413,8 +442,9 @@ export default class EmailClient {
             });
         }
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your Google Sheets sync <strong>"${schedulerName}"</strong> failed.</p>
+            <p>Your Google Sheets sync <strong>"${safeName}"</strong> failed.</p>
             <br />
             <br />
             <br />
@@ -463,8 +493,9 @@ export default class EmailClient {
 
         const urlWithRef = appendCorrelationRef(schedulerUrl, correlationId);
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to send.</p>
+            <p>Your scheduled delivery <strong>"${safeName}"</strong> failed to send.</p>
             <br />
             <br />
             <br />
@@ -558,8 +589,9 @@ export default class EmailClient {
             )
             .join('');
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
+            <p>Your scheduled delivery <strong>"${safeName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
                 totalTargets > 1 ? 's' : ''
             }.</p>
             <br />
@@ -592,21 +624,48 @@ export default class EmailClient {
     public async sendInviteEmail(
         userThatInvited: Pick<
             SessionUser,
-            'firstName' | 'lastName' | 'organizationName'
+            'firstName' | 'lastName' | 'email' | 'organizationName'
         >,
         invite: InviteLink,
     ) {
-        return this.sendEmail({
-            to: invite.email,
-            subject: `You've been invited to join Lightdash`,
-            template: 'invitation',
-            context: {
-                orgName: userThatInvited.organizationName,
-                inviteUrl: `${invite.inviteUrl}?from=email`,
-                host: this.lightdashConfig.siteUrl,
-            },
-            text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${invite.inviteUrl}?from=email`,
-        });
+        const inviteUrl = `${invite.inviteUrl}?from=email`;
+        switch (invite.purpose) {
+            case InviteLinkPurpose.Member:
+                return this.sendEmail({
+                    to: invite.email,
+                    subject: `You've been invited to join Lightdash`,
+                    template: 'invitation',
+                    context: {
+                        orgName: userThatInvited.organizationName,
+                        inviteUrl,
+                        host: this.lightdashConfig.siteUrl,
+                    },
+                    text: `Your teammates at ${userThatInvited.organizationName} are using Lightdash to discover and share data insights. Click on the link below within the next 72 hours to join your team and start exploring your data! ${inviteUrl}`,
+                });
+            case InviteLinkPurpose.Setup: {
+                const inviterName =
+                    `${userThatInvited.firstName} ${userThatInvited.lastName}`.trim() ||
+                    userThatInvited.email ||
+                    'A teammate';
+                return this.sendEmail({
+                    to: invite.email,
+                    subject: `${inviterName} needs your help setting up Lightdash for ${userThatInvited.organizationName}`,
+                    template: 'setupInvitation',
+                    context: {
+                        inviterName,
+                        orgName: userThatInvited.organizationName,
+                        inviteUrl,
+                        host: this.lightdashConfig.siteUrl,
+                    },
+                    text: `${inviterName} is setting up Lightdash for ${userThatInvited.organizationName} and needs someone with data-warehouse access to connect their data. Lightdash is the Agentic BI platform for modern data teams — build and manage analytics straight from the tools you already use, with AI handling the busywork. Built on dbt. Loved by developers. Actually used by businesses. Accept the invite and we'll take you straight to connecting ${userThatInvited.organizationName}'s data warehouse — the last step before your team can start asking questions of their data. This link is valid for the next 72 hours. ${inviteUrl}`,
+                });
+            }
+            default:
+                return assertUnreachable(
+                    invite.purpose,
+                    `Unknown invite link purpose: ${invite.purpose}`,
+                );
+        }
     }
 
     public async sendProjectAccessEmail(
@@ -671,6 +730,7 @@ export default class EmailClient {
         expirationDays?: number,
         deliveryType: string = 'Scheduled delivery',
         imageBuffer?: Buffer,
+        sender?: EmailSenderIdentity | null,
     ) {
         const useCidImage =
             this.lightdashConfig.smtp?.inlineImageCid === true &&
@@ -703,13 +763,14 @@ export default class EmailClient {
         }
 
         return this.sendEmail({
+            ...EmailClient.senderMailFields(sender),
             to: recipient,
             subject,
             template: 'imageNotification',
             context: {
                 title,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 imageUrl: useCidImage ? 'cid:chart-image' : imageUrl,
                 description,
                 date,
@@ -745,6 +806,7 @@ export default class EmailClient {
         expirationDays?: number,
         asAttachment?: boolean,
         format?: SchedulerFormat,
+        sender?: EmailSenderIdentity | null,
     ) {
         const csvUrl = attachment.path;
         const attachments =
@@ -755,6 +817,7 @@ export default class EmailClient {
                 : undefined;
 
         return this.sendEmail({
+            ...EmailClient.senderMailFields(sender),
             to: recipient,
             subject,
             template: 'chartCsvNotification',
@@ -762,7 +825,7 @@ export default class EmailClient {
                 title,
                 description,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 date,
                 frequency,
                 url,
@@ -802,6 +865,8 @@ export default class EmailClient {
         asAttachment?: boolean,
         format?: SchedulerFormat,
         failures?: PartialFailure[],
+        notices?: DeliveryNotice[],
+        sender?: EmailSenderIdentity | null,
     ) {
         const csvUrls = attachments.filter(
             (attachment) => !attachment.truncated,
@@ -827,6 +892,7 @@ export default class EmailClient {
             csvUrls.length === 0 && failures && failures.length > 0;
 
         return this.sendEmail({
+            ...EmailClient.senderMailFields(sender),
             to: recipient,
             subject,
             template: 'dashboardCsvNotification',
@@ -834,7 +900,7 @@ export default class EmailClient {
                 title,
                 description,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 date,
                 frequency,
                 csvUrls,
@@ -852,8 +918,13 @@ export default class EmailClient {
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
-                failures,
+                failures: failures?.map(toEmailFailureFields),
+                failureCountPhrase: failures
+                    ? buildFailureCountPhrase(failures)
+                    : undefined,
                 hasFailures: failures && failures.length > 0,
+                notices,
+                hasNotices: notices && notices.length > 0,
                 allChartsFailed,
             },
             text: title,
@@ -967,7 +1038,7 @@ export default class EmailClient {
             template: 'genericNotification',
             context: {
                 title,
-                message: marked(message),
+                message: sanitizeHtml(marked(message)),
                 host: this.lightdashConfig.siteUrl,
             },
             text: `${title}\n\n${message}`,

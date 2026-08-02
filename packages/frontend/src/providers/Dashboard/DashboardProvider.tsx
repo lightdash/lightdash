@@ -1,5 +1,6 @@
 import {
     applyDimensionOverrides,
+    applyMetricOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     DashboardTileTypes,
@@ -9,6 +10,7 @@ import {
     getFilterInteractivityValue,
     getItemId,
     getMissingRequiredParameters,
+    getUnmetFilterRequirements,
     isDashboardChartTileType,
     isFilterLockedOnTab,
     isStandardDateGranularity,
@@ -44,7 +46,6 @@ import React, {
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
-import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
 import {
     convertSdkFilterToDashboardFilter,
@@ -85,7 +86,7 @@ type DashboardProviderProps = React.PropsWithChildren<{
     schedulerDashboardFilters?: DashboardFilters | undefined;
     schedulerFilters?: DashboardFilterRule[] | undefined;
     schedulerParameters?: ParametersValuesMap | undefined;
-    schedulerTabsSelected?: string[] | undefined;
+    schedulerTabsSelected?: (string | null)[] | undefined;
     dateZoom?: DateGranularity | string | undefined;
     projectUuid?: string;
     embedToken?: string;
@@ -255,6 +256,14 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             setIsAddFilterDisabled(true);
         }
     }, [dashboard]);
+
+    // Editor-authored note shown to viewers while filter rules are unmet;
+    // unsaved edits win over the saved config value
+    const [editedRequiredFiltersNote, setRequiredFiltersNote] =
+        useState<string>();
+    const requiredFiltersNote =
+        editedRequiredFiltersNote ??
+        currentDashboardConfig?.requiredFiltersNote;
 
     const [parameterDefinitions, setParameterDefinitions] =
         useState<ParameterDefinitions>({});
@@ -1155,14 +1164,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 };
 
                 if (safeOverrides.metrics?.length > 0) {
-                    updated.metrics = prevFilters.metrics.map((metric) => {
-                        const override = safeOverrides.metrics.find(
-                            (m) => m.id === metric.id,
-                        );
-                        return override
-                            ? { ...override, tileTargets: metric.tileTargets }
-                            : metric;
-                    });
+                    updated.metrics = applyMetricOverrides(
+                        prevFilters,
+                        safeOverrides,
+                    );
                 }
 
                 return updated;
@@ -1643,45 +1648,9 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setSavedParameters,
     ]);
 
-    // Filters that are required to have a value set
-    const requiredDashboardFilters = useMemo(
-        () =>
-            [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
-                // Get filters that are required to have a value set (required) and that have no default value set (disabled)
-                .filter((f) => f.required && f.disabled)
-                .reduce<Pick<DashboardFilterRule, 'id' | 'label'>[]>(
-                    (acc, f) => {
-                        const field =
-                            allFilterableFieldsMap[f.target.fieldId] ??
-                            allFilterableMetricsMap[f.target.fieldId];
-
-                        let label = '';
-
-                        if (f.label) {
-                            label = f.label;
-                        } else if (field) {
-                            label = getConditionalRuleLabelFromItem(
-                                f,
-                                field,
-                            ).field;
-                        }
-
-                        return [
-                            ...acc,
-                            {
-                                id: f.id,
-                                label,
-                            },
-                        ];
-                    },
-                    [],
-                ),
-        [
-            dashboardFilters.dimensions,
-            dashboardFilters.metrics,
-            allFilterableFieldsMap,
-            allFilterableMetricsMap,
-        ],
+    const unmetFilterRequirements = useMemo(
+        () => getUnmetFilterRequirements(dashboardFilters),
+        [dashboardFilters],
     );
 
     const value = {
@@ -1702,6 +1671,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setActiveTab,
         setDashboardTemporaryFilters,
         dashboardFilters,
+        originalDashboardFilters,
         dashboardTemporaryFilters: safeTemporaryFilters,
         addDimensionDashboardFilter,
         updateDimensionDashboardFilter,
@@ -1741,11 +1711,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         dashboardCommentsCheck,
         dashboardComments,
         hasTileComments,
-        requiredDashboardFilters,
+        unmetFilterRequirements,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
         isAddFilterDisabled,
         setIsAddFilterDisabled,
+        requiredFiltersNote,
+        setRequiredFiltersNote,
         setSavedParameters,
         parametersHaveChanged,
         dashboardParameters: parameters,

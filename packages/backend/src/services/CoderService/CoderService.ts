@@ -1,71 +1,155 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
+    AlertAsCode,
     AlreadyExistsError,
+    ApiAlertAsCodeListResponse,
+    ApiAlertAsCodeUpsertResponse,
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
+    ApiGoogleSheetsSyncAsCodeListResponse,
+    ApiGoogleSheetsSyncAsCodeUpsertResponse,
+    ApiScheduledDeliveryAsCodeListResponse,
+    ApiScheduledDeliveryAsCodeUpsertResponse,
+    ApiSpaceAsCodeListResponse,
+    ApiSpaceAsCodeUpsertResponse,
+    ApiVirtualViewAsCodeListResponse,
+    ApiVirtualViewAsCodeUpsertResponse,
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeInternalization,
+    ChartGoogleSheetsSyncAsCode,
+    ChartScheduledDeliveryAsCode,
     ChartSummary,
     ContentAsCodeType,
     ContentType,
     CreateSavedChart,
+    CreateSchedulerTarget,
     currentVersion,
     DashboardAsCode,
     DashboardAsCodeInternalization,
+    DashboardAsCodeUpsertResult,
     DashboardChartTileAsCode,
     DashboardDAO,
+    DashboardDataAppTileAsCode,
+    DashboardFilterRule,
+    DashboardGoogleSheetsSyncAsCode,
     DashboardMarkdownTileAsCode,
+    DashboardScheduledDeliveryAsCode,
     DashboardSqlChartTileAsCode,
-    DashboardTile,
     DashboardTileAsCode,
     DashboardTileTarget,
     DashboardTileTypes,
+    DimensionType,
+    Explore,
+    ExploreType,
     ForbiddenError,
     friendlyName,
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
+    getParameterReferences,
+    isChartScheduler,
+    isDashboardScheduler,
+    isEmailTarget,
+    isExploreError,
+    isGoogleChatTarget,
+    isMsTeamsTarget,
+    isSchedulerCsvOptions,
+    isSchedulerGsheetsOptions,
+    isSchedulerImageOptions,
+    isSlackTarget,
     NotFoundError,
+    NotificationFrequency,
+    OrganizationMemberRole,
     ParameterError,
     Project,
     ProjectType,
     PromotionAction,
     PromotionChanges,
     SavedChartDAO,
+    ScheduledDeliveryAsCode,
+    ScheduledDeliveryFormatAsCode,
+    ScheduledDeliveryTargetAsCode,
+    SchedulerAndTargets,
+    SchedulerFormat,
     SessionUser,
+    snakeCaseName,
     Space,
     SpaceAsCode,
+    SpaceAsCodeAction,
     SpaceMemberRole,
     SqlChartAsCode,
     UpdatedByUser,
+    validateEmail,
+    VirtualViewAsCode,
     type ContentVerificationInfo,
-    type DashboardConfig,
     type DashboardTileWithSlug,
-    type DateZoomConfig,
-    type DateZoomTileTarget,
-    type FilterGroup,
-    type FilterGroupInput,
-    type FilterGroupItem,
-    type FilterGroupItemInput,
-    type FilterRule,
     type Filters,
-    type FiltersInput,
+    type GoogleSheetsSyncAsCode,
     type SpaceSummaryBase,
 } from '@lightdash/common';
+import type { Knex } from 'knex';
+import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import { AppModel } from '../../models/AppModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { GroupsModel } from '../../models/GroupsModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
-import { SpaceModel } from '../../models/SpaceModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
+import {
+    SpaceModel,
+    type ResolvedSpaceCodeUserAccess,
+} from '../../models/SpaceModel';
+import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
+import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import { DashboardService } from '../DashboardService/DashboardService';
+import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
+import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import { SchedulerService } from '../SchedulerService/SchedulerService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    getChartContentAsCodePermissionChecks,
+    type ContentAsCodeSqlPermissionCheckResult,
+    type CurrentChartSqlItems,
+} from './chartPermissions';
+import {
+    getConfigWithDateZoomTileSlugs,
+    getConfigWithDateZoomTileUuids,
+    getFiltersWithTileSlugs,
+    getFiltersWithTileUuids,
+    getTileSlugForTileUuid,
+    isAnyChartTile,
+    withTileWarnings,
+} from './dashboardReferences';
+import { normalizeFilterIds, stripFilterIds } from './filterIds';
+import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
+import { VirtualViewCoder } from './handlers/VirtualViewCoder';
 import { paginateAsCode } from './pagination';
+import {
+    getDashboardScheduledDeliveryFiltersWithTileSlugs,
+    getDashboardScheduledDeliveryFiltersWithTileUuids,
+    getDashboardTabSlug,
+    getDashboardTabUuid,
+    getScheduledDeliveryFormat,
+    getScheduledDeliveryTargetKey,
+    getScheduledDeliveryTargetsAsCode,
+} from './scheduledContent';
+
+type ContentAsCodeSpaceContentMetadata = {
+    savedChartUuid?: string;
+    dashboardUuid?: string;
+    savedSqlUuid?: string | null;
+};
 
 type CoderServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -73,12 +157,21 @@ type CoderServiceArguments = {
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
+    appModel: AppModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
+    schedulerModel: SchedulerModel;
+    schedulerService: SchedulerService;
+    savedChartService: SavedChartService;
+    dashboardService: DashboardService;
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    projectService?: ProjectService;
+    groupsModel: GroupsModel;
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
+    userModel: UserModel;
 };
 
 type UpsertContentAsCodeOptions = {
@@ -88,52 +181,6 @@ type UpsertContentAsCodeOptions = {
     spaceNames?: Record<string, string>;
     mode?: 'upsert' | 'create';
 };
-
-const normalizeFilterGroupItem = (
-    item: FilterGroupItemInput,
-): FilterGroupItem => {
-    if ('or' in item) {
-        return {
-            ...item,
-            id: item.id ?? uuidv4(),
-            or: item.or.map(normalizeFilterGroupItem),
-        };
-    }
-    if ('and' in item) {
-        return {
-            ...item,
-            id: item.id ?? uuidv4(),
-            and: item.and.map(normalizeFilterGroupItem),
-        };
-    }
-    return { ...(item as FilterRule), id: item.id ?? uuidv4() };
-};
-
-const normalizeFilterGroup = (
-    group: FilterGroupInput | undefined,
-): FilterGroup | undefined => {
-    if (!group) return undefined;
-    return normalizeFilterGroupItem(group) as FilterGroup;
-};
-
-const normalizeFilterIds = (filters: FiltersInput): Filters => ({
-    dimensions: normalizeFilterGroup(filters.dimensions),
-    metrics: normalizeFilterGroup(filters.metrics),
-    tableCalculations: normalizeFilterGroup(filters.tableCalculations),
-});
-
-type AnyChartTile = Extract<
-    DashboardTileAsCode | DashboardTile,
-    {
-        type: DashboardTileTypes.SAVED_CHART | DashboardTileTypes.SQL_CHART;
-    }
->;
-
-const isAnyChartTile = (
-    tile: DashboardTileAsCode | DashboardTile,
-): tile is AnyChartTile =>
-    tile.type === DashboardTileTypes.SAVED_CHART ||
-    tile.type === DashboardTileTypes.SQL_CHART;
 
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
@@ -146,9 +193,19 @@ export class CoderService extends BaseService {
 
     savedSqlModel: SavedSqlModel;
 
+    appModel: AppModel;
+
     dashboardModel: DashboardModel;
 
     spaceModel: SpaceModel;
+
+    schedulerModel: SchedulerModel;
+
+    schedulerService: SchedulerService;
+
+    savedChartService: SavedChartService;
+
+    dashboardService: DashboardService;
 
     schedulerClient: SchedulerClient;
 
@@ -158,18 +215,46 @@ export class CoderService extends BaseService {
 
     contentVerificationModel: ContentVerificationModel;
 
+    projectService?: ProjectService;
+
+    groupsModel: GroupsModel;
+
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
+
+    userModel: UserModel;
+
+    private readonly virtualViewCoder: VirtualViewCoder;
+
+    private readonly scheduledContentCoder: ScheduledContentCoder;
+
+    static getChartContentAsCodePermissionChecks(
+        nextChart: ChartAsCode,
+        currentChart?: CurrentChartSqlItems,
+    ): ContentAsCodeSqlPermissionCheckResult[] {
+        return getChartContentAsCodePermissionChecks(nextChart, currentChart);
+    }
+
     constructor({
         lightdashConfig,
         analytics,
         projectModel,
         savedChartModel,
         savedSqlModel,
+        appModel,
         dashboardModel,
         spaceModel,
+        schedulerModel,
+        schedulerService,
+        savedChartService,
+        dashboardService,
         schedulerClient,
         promoteService,
         spacePermissionService,
         contentVerificationModel,
+        projectService,
+        groupsModel,
+        organizationMemberProfileModel,
+        userModel,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -177,12 +262,103 @@ export class CoderService extends BaseService {
         this.projectModel = projectModel;
         this.savedChartModel = savedChartModel;
         this.savedSqlModel = savedSqlModel;
+        this.appModel = appModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
+        this.schedulerModel = schedulerModel;
+        this.schedulerService = schedulerService;
+        this.savedChartService = savedChartService;
+        this.dashboardService = dashboardService;
         this.schedulerClient = schedulerClient;
         this.promoteService = promoteService;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.projectService = projectService;
+        this.groupsModel = groupsModel;
+        this.organizationMemberProfileModel = organizationMemberProfileModel;
+        this.userModel = userModel;
+        this.virtualViewCoder = new VirtualViewCoder({
+            projectModel,
+            projectService,
+        });
+        this.scheduledContentCoder = new ScheduledContentCoder({
+            projectModel,
+            savedChartModel,
+            dashboardModel,
+            schedulerModel,
+            schedulerService,
+            savedChartService,
+            dashboardService,
+        });
+    }
+
+    async getVirtualViews(
+        user: SessionUser,
+        projectUuid: string,
+        slugs?: string[],
+    ): Promise<ApiVirtualViewAsCodeListResponse['results']> {
+        return this.virtualViewCoder.list(user, projectUuid, slugs);
+    }
+
+    async upsertVirtualView(
+        account: Account,
+        projectUuid: string,
+        slug: string,
+        virtualView: VirtualViewAsCode,
+        force = false,
+    ): Promise<ApiVirtualViewAsCodeUpsertResponse['results']> {
+        return this.virtualViewCoder.upsert(
+            account,
+            projectUuid,
+            slug,
+            virtualView,
+            force,
+        );
+    }
+
+    private static handleContentAsCodeSqlPermissionChecks({
+        checks,
+        auditedAbility,
+        project,
+        slug,
+    }: {
+        checks: ContentAsCodeSqlPermissionCheckResult[];
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
+        slug: string;
+    }) {
+        const missingChecks = checks.filter(({ check }) => {
+            switch (check) {
+                case 'customSqlDimension':
+                    return auditedAbility.cannot(
+                        'manage',
+                        subject('CustomFields', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid: project.projectUuid,
+                            metadata: { slug },
+                        }),
+                    );
+                case 'sqlTableCalculation':
+                    return auditedAbility.cannot(
+                        'manage',
+                        subject('CustomSqlTableCalculations', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid: project.projectUuid,
+                            metadata: { slug },
+                        }),
+                    );
+                default:
+                    return assertUnreachable(
+                        check,
+                        `Unknown content-as-code SQL permission check: ${check}`,
+                    );
+            }
+        });
+
+        if (missingChecks.length === 0) return;
+        throw new ForbiddenError(
+            missingChecks.map(({ message }) => message).join('; '),
+        );
     }
 
     private static transformSpaces(
@@ -193,6 +369,1024 @@ export class CoderService extends BaseService {
             spaceName: space.name,
             slug: getContentAsCodePathFromLtreePath(space.path),
         }));
+    }
+
+    private static assertObjectKeys(
+        value: unknown,
+        allowedKeys: readonly string[],
+        label: string,
+    ): asserts value is Record<string, unknown> {
+        if (
+            typeof value !== 'object' ||
+            value === null ||
+            Array.isArray(value)
+        ) {
+            throw new ParameterError(`${label} must be an object`);
+        }
+        const unknownKeys = Object.keys(value).filter(
+            (key) => !allowedKeys.includes(key),
+        );
+        if (unknownKeys.length > 0) {
+            throw new ParameterError(
+                `${label} contains unknown properties: ${unknownKeys.join(', ')}`,
+            );
+        }
+    }
+
+    private static normalizeSpaceAsCode(spaceInput: SpaceAsCode): SpaceAsCode {
+        CoderService.assertObjectKeys(
+            spaceInput,
+            ['contentType', 'version', 'spaceName', 'slug', 'access'],
+            'Space',
+        );
+        if (spaceInput.contentType !== ContentAsCodeType.SPACE) {
+            throw new ParameterError('Invalid space contentType');
+        }
+        if (spaceInput.version !== undefined && spaceInput.version !== 1) {
+            throw new ParameterError(
+                `Unsupported space version ${spaceInput.version}`,
+            );
+        }
+        if (
+            typeof spaceInput.spaceName !== 'string' ||
+            !spaceInput.spaceName.trim()
+        ) {
+            throw new ParameterError('Space name is required');
+        }
+        if (
+            typeof spaceInput.slug !== 'string' ||
+            spaceInput.slug !== spaceInput.slug.trim() ||
+            !/^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/.test(spaceInput.slug) ||
+            getContentAsCodePathFromLtreePath(
+                getLtreePathFromContentAsCodePath(spaceInput.slug),
+            ) !== spaceInput.slug
+        ) {
+            throw new ParameterError(
+                'Space slug must be a canonical hierarchy path',
+            );
+        }
+        if (spaceInput.access === undefined) {
+            return {
+                contentType: ContentAsCodeType.SPACE,
+                ...(spaceInput.version === 1 ? { version: 1 as const } : {}),
+                spaceName: spaceInput.spaceName,
+                slug: spaceInput.slug,
+            };
+        }
+        if (spaceInput.version !== 1) {
+            throw new ParameterError(
+                'Space access requires space schema version 1',
+            );
+        }
+
+        CoderService.assertObjectKeys(
+            spaceInput.access,
+            [
+                'inheritParentPermissions',
+                'projectMemberAccessRole',
+                'users',
+                'groups',
+            ],
+            'Space access',
+        );
+        const { access } = spaceInput;
+        if (typeof access.inheritParentPermissions !== 'boolean') {
+            throw new ParameterError(
+                'inheritParentPermissions must be a boolean',
+            );
+        }
+        const validRoles = new Set(Object.values(SpaceMemberRole));
+        if (
+            access.projectMemberAccessRole !== null &&
+            !validRoles.has(access.projectMemberAccessRole)
+        ) {
+            throw new ParameterError(
+                'projectMemberAccessRole must be viewer, editor, admin, or null',
+            );
+        }
+        if (!Array.isArray(access.users) || !Array.isArray(access.groups)) {
+            throw new ParameterError(
+                'Space access users and groups must be arrays',
+            );
+        }
+
+        const users = access.users.map((entry, index) => {
+            CoderService.assertObjectKeys(
+                entry,
+                ['email', 'role'],
+                `Space access user ${index + 1}`,
+            );
+            if (
+                typeof entry.email !== 'string' ||
+                !validateEmail(entry.email.trim())
+            ) {
+                throw new ParameterError(
+                    `Space access user ${index + 1} has an invalid email`,
+                );
+            }
+            if (!validRoles.has(entry.role)) {
+                throw new ParameterError(
+                    `Space access user ${entry.email} has an invalid role`,
+                );
+            }
+            return {
+                email: entry.email.trim().toLowerCase(),
+                role: entry.role,
+            };
+        });
+        const duplicateEmails = users
+            .map(({ email }) => email)
+            .filter((email, index, emails) => emails.indexOf(email) !== index);
+        if (duplicateEmails.length > 0) {
+            throw new ParameterError(
+                `Space access contains duplicate users: ${[
+                    ...new Set(duplicateEmails),
+                ].join(', ')}`,
+            );
+        }
+
+        const groups = access.groups.map((entry, index) => {
+            CoderService.assertObjectKeys(
+                entry,
+                ['name', 'role'],
+                `Space access group ${index + 1}`,
+            );
+            if (typeof entry.name !== 'string' || !entry.name.trim()) {
+                throw new ParameterError(
+                    `Space access group ${index + 1} requires a name`,
+                );
+            }
+            if (!validRoles.has(entry.role)) {
+                throw new ParameterError(
+                    `Space access group ${entry.name} has an invalid role`,
+                );
+            }
+            return { name: entry.name, role: entry.role };
+        });
+        const duplicateGroups = groups
+            .map(({ name }) => name)
+            .filter((name, index, names) => names.indexOf(name) !== index);
+        if (duplicateGroups.length > 0) {
+            throw new ParameterError(
+                `Space access contains duplicate groups: ${[
+                    ...new Set(duplicateGroups),
+                ].join(', ')}`,
+            );
+        }
+
+        return {
+            contentType: ContentAsCodeType.SPACE,
+            version: 1,
+            spaceName: spaceInput.spaceName,
+            slug: spaceInput.slug,
+            access: {
+                inheritParentPermissions: access.inheritParentPermissions,
+                projectMemberAccessRole: access.projectMemberAccessRole,
+                users: users.sort((left, right) =>
+                    left.email.localeCompare(right.email),
+                ),
+                groups: groups.sort((left, right) =>
+                    left.name.localeCompare(right.name),
+                ),
+            },
+        };
+    }
+
+    async getSpaces(
+        account: Account,
+        projectUuid: string,
+    ): Promise<ApiSpaceAsCodeListResponse['results']> {
+        const { user } = getAccountApiAccessContext(account);
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('ContentAsCode', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('You are not allowed to download spaces');
+        }
+
+        const allProjectSpaces =
+            await this.spaceModel.getSpacesByProjectUuid(projectUuid);
+        const projectSpaces = allProjectSpaces.filter(
+            (space) => !space.isDefaultUserSpace,
+        );
+        const accessibleSpaceUuids = new Set(
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                projectSpaces.map(({ uuid }) => uuid),
+            ),
+        );
+        const rawAccess = await this.spacePermissionService.getRawDirectAccess(
+            projectSpaces.map(({ uuid }) => uuid),
+        );
+        const directUserEmails = [
+            ...new Set(
+                Object.values(rawAccess)
+                    .flatMap(({ users }) => users)
+                    .flatMap(({ email }) =>
+                        email === null ? [] : [email.toLowerCase()],
+                    ),
+            ),
+        ];
+        const organizationMembers =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                project.organizationUuid,
+                directUserEmails,
+            );
+        const membersByUuid = new Map(
+            organizationMembers.map((member) => [member.userUuid, member]),
+        );
+        const memberEmailCounts = organizationMembers.reduce<
+            Map<string, number>
+        >((counts, member) => {
+            const email = member.email.toLowerCase();
+            counts.set(email, (counts.get(email) ?? 0) + 1);
+            return counts;
+        }, new Map());
+        const rawGroups = Object.values(rawAccess).flatMap(
+            ({ groups }) => groups,
+        );
+        const uniqueRawGroups = [
+            ...new Map(
+                rawGroups.map((group) => [group.groupUuid, group]),
+            ).values(),
+        ];
+        const portableGroupUuids = new Set(
+            (
+                await Promise.all(
+                    uniqueRawGroups.map(async (group) => {
+                        if (group.name === null) return null;
+                        const matches = (
+                            await this.groupsModel.find({
+                                organizationUuid: project.organizationUuid,
+                                name: group.name,
+                            })
+                        ).data;
+                        return matches.length === 1 &&
+                            matches[0].uuid === group.groupUuid
+                            ? group.groupUuid
+                            : null;
+                    }),
+                )
+            ).filter((groupUuid): groupUuid is string => groupUuid !== null),
+        );
+        const pathCounts = allProjectSpaces.reduce<Map<string, number>>(
+            (counts, space) =>
+                counts.set(space.path, (counts.get(space.path) ?? 0) + 1),
+            new Map(),
+        );
+        const spaces: SpaceAsCode[] = [];
+        const skipped: ApiSpaceAsCodeListResponse['results']['skipped'] = [];
+        const skippedPaths = new Set<string>();
+        const skippedSpaceUuids = new Set<string>();
+        const spacesByUuid = new Map(
+            allProjectSpaces.map((space) => [space.uuid, space]),
+        );
+
+        projectSpaces
+            .filter(({ uuid }) => accessibleSpaceUuids.has(uuid))
+            .sort((left, right) => {
+                const depthDifference =
+                    left.path.split('.').length - right.path.split('.').length;
+                return depthDifference || left.path.localeCompare(right.path);
+            })
+            .forEach((space) => {
+                const slug = getContentAsCodePathFromLtreePath(space.path);
+                if ((pathCounts.get(space.path) ?? 0) > 1) {
+                    skippedSpaceUuids.add(space.uuid);
+                    if (!skippedPaths.has(space.path)) {
+                        skipped.push({
+                            slug,
+                            reason: 'Multiple spaces use this hierarchy path',
+                        });
+                        skippedPaths.add(space.path);
+                    }
+                    return;
+                }
+                const directParentPath = space.path.includes('.')
+                    ? space.path.slice(0, space.path.lastIndexOf('.'))
+                    : null;
+                if (
+                    (directParentPath === null) !==
+                    (space.parentSpaceUuid === null)
+                ) {
+                    skippedSpaceUuids.add(space.uuid);
+                    skipped.push({
+                        slug,
+                        reason: 'Space parent does not match its hierarchy path',
+                    });
+                    return;
+                }
+                const visitedAncestorUuids = new Set<string>();
+                let ancestorUuid = space.parentSpaceUuid;
+                let descendantPath = space.path;
+                while (ancestorUuid !== null) {
+                    if (visitedAncestorUuids.has(ancestorUuid)) {
+                        skippedSpaceUuids.add(space.uuid);
+                        skipped.push({
+                            slug,
+                            reason: 'Space hierarchy contains a parent cycle',
+                        });
+                        return;
+                    }
+                    visitedAncestorUuids.add(ancestorUuid);
+                    const ancestor = spacesByUuid.get(ancestorUuid);
+                    const expectedAncestorPath = descendantPath.slice(
+                        0,
+                        descendantPath.lastIndexOf('.'),
+                    );
+                    if (
+                        !ancestor ||
+                        ancestor.isDefaultUserSpace ||
+                        !accessibleSpaceUuids.has(ancestorUuid) ||
+                        skippedSpaceUuids.has(ancestorUuid)
+                    ) {
+                        skippedSpaceUuids.add(space.uuid);
+                        skipped.push({
+                            slug,
+                            reason: skippedSpaceUuids.has(ancestorUuid)
+                                ? 'An ancestor space could not be exported portably'
+                                : 'An ancestor space is not accessible for portable export',
+                        });
+                        return;
+                    }
+                    if (ancestor.path !== expectedAncestorPath) {
+                        skippedSpaceUuids.add(space.uuid);
+                        skipped.push({
+                            slug,
+                            reason: 'Space parent does not match its hierarchy path',
+                        });
+                        return;
+                    }
+                    descendantPath = ancestor.path;
+                    ancestorUuid = ancestor.parentSpaceUuid;
+                }
+
+                const directAccess = rawAccess[space.uuid] ?? {
+                    users: [],
+                    groups: [],
+                };
+                const metadataOnlySpace: SpaceAsCode = {
+                    contentType: ContentAsCodeType.SPACE,
+                    spaceName: space.name,
+                    slug,
+                };
+                if (
+                    directAccess.users.some(
+                        ({ userUuid, email, isInternal }) => {
+                            if (isInternal || email === null) return true;
+                            const member = membersByUuid.get(userUuid);
+                            const normalizedEmail = email.toLowerCase();
+                            return (
+                                member === undefined ||
+                                member.email.toLowerCase() !==
+                                    normalizedEmail ||
+                                memberEmailCounts.get(normalizedEmail) !== 1
+                            );
+                        },
+                    )
+                ) {
+                    spaces.push(metadataOnlySpace);
+                    skipped.push({
+                        slug,
+                        reason: 'Direct access contains a user without a portable organization identity',
+                    });
+                    return;
+                }
+                if (
+                    directAccess.groups.some(
+                        ({ groupUuid, name }) =>
+                            name === null || !portableGroupUuids.has(groupUuid),
+                    )
+                ) {
+                    spaces.push(metadataOnlySpace);
+                    skipped.push({
+                        slug,
+                        reason: 'Direct access contains a group without a portable name',
+                    });
+                    return;
+                }
+
+                const users = directAccess.users.map(({ email, role }) => ({
+                    email: email!.toLowerCase(),
+                    role,
+                }));
+                const groups = directAccess.groups.map(({ name, role }) => ({
+                    name: name!,
+                    role,
+                }));
+                if (
+                    new Set(users.map(({ email }) => email)).size !==
+                        users.length ||
+                    new Set(groups.map(({ name }) => name)).size !==
+                        groups.length
+                ) {
+                    spaces.push(metadataOnlySpace);
+                    skipped.push({
+                        slug,
+                        reason: 'Direct access contains ambiguous portable principals',
+                    });
+                    return;
+                }
+
+                spaces.push({
+                    ...metadataOnlySpace,
+                    version: 1,
+                    access: {
+                        inheritParentPermissions:
+                            space.inheritParentPermissions,
+                        projectMemberAccessRole: space.projectMemberAccessRole,
+                        users: users.sort((left, right) =>
+                            left.email.localeCompare(right.email),
+                        ),
+                        groups: groups.sort((left, right) =>
+                            left.name.localeCompare(right.name),
+                        ),
+                    },
+                });
+            });
+
+        return { spaces, skipped };
+    }
+
+    private async assertSpaceUploaderRetainsManage({
+        user,
+        auditedAbility,
+        project,
+        parentSpaceUuid,
+        access,
+        trx,
+        resolvedUserAccess,
+    }: {
+        user: SessionUser;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
+        parentSpaceUuid: string | null;
+        access: NonNullable<SpaceAsCode['access']>;
+        trx: Knex;
+        resolvedUserAccess: ResolvedSpaceCodeUserAccess[];
+    }): Promise<void> {
+        let inheritsFromOrgOrProject =
+            access.inheritParentPermissions && parentSpaceUuid === null;
+        const proposedUserAccess: Array<{
+            userUuid: string;
+            role: SpaceMemberRole;
+        }> = [];
+
+        if (access.inheritParentPermissions && parentSpaceUuid !== null) {
+            const parentContext =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    parentSpaceUuid,
+                    { trx },
+                );
+            inheritsFromOrgOrProject = parentContext.inheritsFromOrgOrProject;
+            proposedUserAccess.push(...parentContext.access);
+        }
+        const directActorAccess = resolvedUserAccess.find(
+            ({ userUuid }) => userUuid === user.userUuid,
+        );
+        if (directActorAccess) {
+            proposedUserAccess.push({
+                userUuid: user.userUuid,
+                role: directActorAccess.role,
+            });
+        }
+        if (
+            access.projectMemberAccessRole !== null &&
+            ((await this.projectModel.hasProjectMembership(
+                project.projectUuid,
+                user.userUuid,
+                { trx },
+            )) ||
+                (user.role !== undefined &&
+                    user.role !== OrganizationMemberRole.MEMBER))
+        ) {
+            proposedUserAccess.push({
+                userUuid: user.userUuid,
+                role: access.projectMemberAccessRole,
+            });
+        }
+
+        const requestedGroups = access.groups.filter(
+            ({ role }) => role === SpaceMemberRole.ADMIN,
+        );
+        if (requestedGroups.length > 0) {
+            const groups = (
+                await Promise.all(
+                    requestedGroups.map(({ name }) =>
+                        this.groupsModel.find(
+                            {
+                                organizationUuid: project.organizationUuid,
+                                name,
+                            },
+                            undefined,
+                            { trx },
+                        ),
+                    ),
+                )
+            ).flatMap(({ data }) => data);
+            if (groups.length !== requestedGroups.length) {
+                // Let transactional principal validation report missing or
+                // ambiguous groups instead of masking it as a lockout.
+                return;
+            }
+            const memberships = await this.groupsModel.findUserInGroups(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                    groupUuids: groups.map(({ uuid }) => uuid),
+                },
+                { trx },
+            );
+            if (
+                memberships.some(({ userUuid }) => userUuid === user.userUuid)
+            ) {
+                proposedUserAccess.push({
+                    userUuid: user.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                });
+            }
+        }
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Space', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                    inheritsFromOrgOrProject,
+                    access: proposedUserAccess,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Space access would remove your permission to manage the space',
+            );
+        }
+    }
+
+    private async validateSpaceAccessPrincipals(
+        organizationUuid: string,
+        access: NonNullable<SpaceAsCode['access']>,
+    ): Promise<void> {
+        const members =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                organizationUuid,
+                access.users.map(({ email }) => email),
+            );
+        const membersByEmail = members.reduce<Map<string, typeof members>>(
+            (map, member) => {
+                const email = member.email.toLowerCase();
+                map.set(email, [...(map.get(email) ?? []), member]);
+                return map;
+            },
+            new Map(),
+        );
+        access.users.forEach(({ email }) => {
+            const matches = membersByEmail.get(email) ?? [];
+            if (matches.length === 0) {
+                throw new ParameterError(
+                    `User ${email} is not a member of this organization`,
+                );
+            }
+            if (matches.length > 1) {
+                throw new ParameterError(
+                    `User email ${email} is ambiguous in this organization`,
+                );
+            }
+        });
+
+        const groupMatches = await Promise.all(
+            access.groups.map(async ({ name }) => ({
+                name,
+                matches: (
+                    await this.groupsModel.find({
+                        organizationUuid,
+                        name,
+                    })
+                ).data,
+            })),
+        );
+        groupMatches.forEach(({ name, matches }) => {
+            if (matches.length === 0) {
+                throw new ParameterError(
+                    `Group ${name} does not exist in this organization`,
+                );
+            }
+            if (matches.length > 1) {
+                throw new ParameterError(
+                    `Group name ${name} is ambiguous in this organization`,
+                );
+            }
+        });
+    }
+
+    private async hasNonPortableDirectSpaceAccess(
+        organizationUuid: string,
+        access: RawSpaceDirectAccess,
+    ): Promise<boolean> {
+        const emails = access.users.flatMap(({ email }) =>
+            email === null ? [] : [email.toLowerCase()],
+        );
+        const members =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                organizationUuid,
+                [...new Set(emails)],
+            );
+        const membersByUuid = new Map(
+            members.map((member) => [member.userUuid, member]),
+        );
+        const memberEmailCounts = members.reduce<Map<string, number>>(
+            (counts, member) => {
+                const email = member.email.toLowerCase();
+                counts.set(email, (counts.get(email) ?? 0) + 1);
+                return counts;
+            },
+            new Map(),
+        );
+        if (
+            access.users.some(({ userUuid, email, isInternal }) => {
+                if (isInternal || email === null) return true;
+                const normalizedEmail = email.toLowerCase();
+                const member = membersByUuid.get(userUuid);
+                return (
+                    member === undefined ||
+                    member.email.toLowerCase() !== normalizedEmail ||
+                    memberEmailCounts.get(normalizedEmail) !== 1
+                );
+            })
+        ) {
+            return true;
+        }
+
+        const portableGroups = await Promise.all(
+            access.groups.map(async ({ groupUuid, name }) => {
+                if (name === null) return false;
+                const matches = (
+                    await this.groupsModel.find({ organizationUuid, name })
+                ).data;
+                return matches.length === 1 && matches[0].uuid === groupUuid;
+            }),
+        );
+        return portableGroups.some((portable) => !portable);
+    }
+
+    async upsertSpace(
+        account: Account,
+        projectUuid: string,
+        spaceInput: SpaceAsCode,
+        options: {
+            skipSpaceCreate?: boolean;
+            publicSpaceCreate?: boolean;
+        } = {},
+    ): Promise<ApiSpaceAsCodeUpsertResponse['results']> {
+        const { user } = getAccountApiAccessContext(account);
+        const desiredSpace = CoderService.normalizeSpaceAsCode(spaceInput);
+        const project = await this.projectModel.get(projectUuid);
+        if (!project) {
+            throw new NotFoundError(`Project ${projectUuid} not found`);
+        }
+        const auditedAbility = this.createAuditedAbility(account);
+        CoderService.checkContentAsCodeWriteAccess({
+            auditedAbility,
+            project,
+            slug: desiredSpace.slug,
+        });
+
+        const path = getLtreePathFromContentAsCodePath(desiredSpace.slug);
+        const matches = await this.spaceModel.findByProjectAndPath(
+            projectUuid,
+            path,
+        );
+        if (matches.some(({ isDefaultUserSpace }) => isDefaultUserSpace)) {
+            throw new ParameterError(
+                `Generated personal space "${desiredSpace.slug}" cannot be managed as code`,
+            );
+        }
+        if (matches.length > 1) {
+            throw new ParameterError(
+                `Multiple spaces use hierarchy path "${desiredSpace.slug}"`,
+            );
+        }
+        const existingSpace = matches[0];
+        if (!existingSpace && options.skipSpaceCreate) {
+            throw new NotFoundError(
+                `Space ${desiredSpace.slug} does not exist, skipping creation`,
+            );
+        }
+
+        const parentPath = path.includes('.')
+            ? path.slice(0, path.lastIndexOf('.'))
+            : null;
+        let parentSpace = null;
+        if (parentPath !== null) {
+            let parentMatches = await this.spaceModel.findByProjectAndPath(
+                projectUuid,
+                parentPath,
+            );
+            if (
+                parentMatches.length === 0 &&
+                desiredSpace.access === undefined &&
+                !existingSpace
+            ) {
+                const parentSlug =
+                    getContentAsCodePathFromLtreePath(parentPath);
+                const parentPathSegment = parentPath.slice(
+                    parentPath.lastIndexOf('.') + 1,
+                );
+                await this.upsertSpace(
+                    account,
+                    projectUuid,
+                    {
+                        contentType: ContentAsCodeType.SPACE,
+                        spaceName: friendlyName(parentPathSegment),
+                        slug: parentSlug,
+                    },
+                    options,
+                );
+                parentMatches = await this.spaceModel.findByProjectAndPath(
+                    projectUuid,
+                    parentPath,
+                );
+            }
+            if (
+                parentMatches.some(
+                    ({ isDefaultUserSpace }) => isDefaultUserSpace,
+                )
+            ) {
+                throw new ParameterError(
+                    `Generated personal space "${getContentAsCodePathFromLtreePath(
+                        parentPath,
+                    )}" cannot be used as an as-code parent`,
+                );
+            }
+            if (parentMatches.length !== 1) {
+                throw new ParameterError(
+                    parentMatches.length === 0
+                        ? `Parent space "${getContentAsCodePathFromLtreePath(
+                              parentPath,
+                          )}" must exist before "${desiredSpace.slug}"`
+                        : `Multiple spaces use parent hierarchy path "${getContentAsCodePathFromLtreePath(
+                              parentPath,
+                          )}"`,
+                );
+            }
+            [parentSpace] = parentMatches;
+        }
+        const parentSpaceUuid = parentSpace?.uuid ?? null;
+        if (
+            existingSpace &&
+            existingSpace.parentSpaceUuid !== parentSpaceUuid
+        ) {
+            throw new ParameterError(
+                `Existing space "${desiredSpace.slug}" has an inconsistent parent`,
+            );
+        }
+
+        const metadataChanged =
+            !existingSpace || existingSpace.name !== desiredSpace.spaceName;
+        if (
+            existingSpace &&
+            desiredSpace.access === undefined &&
+            !metadataChanged
+        ) {
+            if (
+                !(await this.spacePermissionService.can(
+                    'view',
+                    user,
+                    existingSpace.uuid,
+                ))
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to view space "${desiredSpace.slug}"`,
+                );
+            }
+            return { action: SpaceAsCodeAction.NO_CHANGES };
+        }
+
+        if (existingSpace) {
+            if (
+                !(await this.spacePermissionService.can(
+                    'manage',
+                    user,
+                    existingSpace.uuid,
+                ))
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to manage space "${desiredSpace.slug}"`,
+                );
+            }
+        } else {
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Space', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                        metadata: { spaceName: desiredSpace.spaceName },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to create space "${desiredSpace.slug}"`,
+                );
+            }
+            if (
+                parentSpaceUuid !== null &&
+                !(await this.spacePermissionService.can(
+                    'manage',
+                    user,
+                    parentSpaceUuid,
+                ))
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
+                        parentPath!,
+                    )}"`,
+                );
+            }
+        }
+
+        const rawAccess = existingSpace
+            ? ((
+                  await this.spacePermissionService.getRawDirectAccess([
+                      existingSpace.uuid,
+                  ])
+              )[existingSpace.uuid] ?? { users: [], groups: [] })
+            : { users: [], groups: [] };
+        const hasNonPortableDirectAccess =
+            desiredSpace.access !== undefined && existingSpace !== undefined
+                ? await this.hasNonPortableDirectSpaceAccess(
+                      project.organizationUuid,
+                      rawAccess,
+                  )
+                : false;
+        const warnings =
+            desiredSpace.access && hasNonPortableDirectAccess
+                ? [
+                      'Applying this access policy will remove direct service-account, internal-user, or unresolved user/group grants that cannot be represented as code',
+                  ]
+                : [];
+
+        if (desiredSpace.access) {
+            await this.validateSpaceAccessPrincipals(
+                project.organizationUuid,
+                desiredSpace.access,
+            );
+        }
+
+        let accessChanged = desiredSpace.access !== undefined;
+        if (
+            existingSpace &&
+            desiredSpace.access &&
+            !hasNonPortableDirectAccess
+        ) {
+            const currentAccess = {
+                inheritParentPermissions:
+                    existingSpace.inheritParentPermissions,
+                projectMemberAccessRole: existingSpace.projectMemberAccessRole,
+                users: rawAccess.users
+                    .map(({ email, role }) => ({
+                        email: email!.toLowerCase(),
+                        role,
+                    }))
+                    .sort((left, right) =>
+                        left.email.localeCompare(right.email),
+                    ),
+                groups: rawAccess.groups
+                    .map(({ name, role }) => ({ name: name!, role }))
+                    .sort((left, right) => left.name.localeCompare(right.name)),
+            };
+            accessChanged = !isEqual(currentAccess, desiredSpace.access);
+        }
+        if (existingSpace && !metadataChanged && !accessChanged) {
+            return { action: SpaceAsCodeAction.NO_CHANGES };
+        }
+
+        const applyInput = {
+            projectUuid,
+            userId: user.userId,
+            actorUserUuid: user.userUuid,
+            actorServiceAccountUuid:
+                account.authentication.type === 'service-account'
+                    ? account.authentication.serviceAccountUuid
+                    : null,
+            spaceUuid: existingSpace?.uuid ?? null,
+            name: desiredSpace.spaceName,
+            path,
+            parentSpaceUuid,
+            inheritParentPermissionsOnCreate:
+                parentSpace?.inheritParentPermissions ??
+                options.publicSpaceCreate === true,
+            ...(desiredSpace.access === undefined && parentSpaceUuid !== null
+                ? { copyParentAccessOnLegacyCreate: true }
+                : {}),
+            ...(desiredSpace.access ? { access: desiredSpace.access } : {}),
+        };
+        await this.spaceModel.applySpaceAsCode(applyInput, {
+            beforeMutation: async (trx, { userAccess }) => {
+                const reloadedUser =
+                    await this.userModel.findSessionUserAndOrgByUuid(
+                        user.userUuid,
+                        project.organizationUuid,
+                        { trx },
+                    );
+                // Service-account users are always inactive by design;
+                // applySpaceAsCode rechecks the service_accounts row instead.
+                if (
+                    account.authentication.type !== 'service-account' &&
+                    !reloadedUser.isActive
+                ) {
+                    throw new ForbiddenError(
+                        'The authenticated user is no longer active',
+                    );
+                }
+                const currentUser: SessionUser = {
+                    ...reloadedUser,
+                    requestContext: user.requestContext,
+                    serviceAccount: user.serviceAccount,
+                };
+                const currentAbility = this.createAuditedAbility(currentUser);
+                CoderService.checkContentAsCodeWriteAccess({
+                    auditedAbility: currentAbility,
+                    project,
+                    slug: desiredSpace.slug,
+                });
+
+                if (
+                    existingSpace &&
+                    !(await this.spacePermissionService.can(
+                        'manage',
+                        currentUser,
+                        existingSpace.uuid,
+                        { trx },
+                    ))
+                ) {
+                    throw new ForbiddenError(
+                        `You don't have permission to manage space "${desiredSpace.slug}"`,
+                    );
+                }
+                if (
+                    !existingSpace &&
+                    currentAbility.cannot(
+                        'create',
+                        subject('Space', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid,
+                            metadata: {
+                                spaceName: desiredSpace.spaceName,
+                            },
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        `You don't have permission to create space "${desiredSpace.slug}"`,
+                    );
+                }
+                if (
+                    !existingSpace &&
+                    parentSpaceUuid !== null &&
+                    !(await this.spacePermissionService.can(
+                        'manage',
+                        currentUser,
+                        parentSpaceUuid,
+                        { trx },
+                    ))
+                ) {
+                    throw new ForbiddenError(
+                        `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
+                            parentPath!,
+                        )}"`,
+                    );
+                }
+                if (desiredSpace.access) {
+                    await this.assertSpaceUploaderRetainsManage({
+                        user: currentUser,
+                        auditedAbility: currentAbility,
+                        project,
+                        parentSpaceUuid,
+                        access: desiredSpace.access!,
+                        trx,
+                        resolvedUserAccess: userAccess,
+                    });
+                }
+            },
+        });
+
+        return {
+            action: existingSpace
+                ? SpaceAsCodeAction.UPDATE
+                : SpaceAsCodeAction.CREATE,
+            ...(warnings.length > 0 ? { warnings } : {}),
+        };
     }
 
     private static transformChart(
@@ -210,12 +1404,25 @@ export class CoderService extends BaseService {
 
         const spaceSlug = getContentAsCodePathFromLtreePath(contentSpace.path);
 
+        const additionalMetrics = chart.metricQuery.additionalMetrics?.map(
+            ({ uuid: _uuid, ...metric }) => metric,
+        );
+        const dimensionOverrides =
+            chart.metricQuery.dimensionOverrides &&
+            Object.keys(chart.metricQuery.dimensionOverrides).length > 0
+                ? chart.metricQuery.dimensionOverrides
+                : undefined;
+
         return {
             name: chart.name,
             description: chart.description,
             tableName: chart.tableName,
             updatedAt: chart.updatedAt,
-            metricQuery: chart.metricQuery,
+            metricQuery: {
+                ...chart.metricQuery,
+                additionalMetrics,
+                dimensionOverrides,
+            },
             chartConfig: chart.chartConfig,
             pivotConfig: chart.pivotConfig,
             dashboardSlug: chart.dashboardUuid
@@ -270,184 +1477,15 @@ export class CoderService extends BaseService {
         );
     }
 
-    static getChartSlugForTileUuid = (
-        dashboard: DashboardDAO,
-        uuid: string,
-    ) => {
-        const tile = dashboard.tiles.find((t) => t.uuid === uuid);
-        if (tile && isAnyChartTile(tile)) {
-            if (tile.properties.chartSlug == null) {
-                return undefined;
-            }
-            const hasMultipleTilesWithSameChartSlug =
-                dashboard.tiles.filter(
-                    (t) =>
-                        isAnyChartTile(t) &&
-                        t.properties.chartSlug === tile.properties.chartSlug,
-                ).length > 1;
-            if (hasMultipleTilesWithSameChartSlug) {
-                const chartSlugIndex = dashboard.tiles
-                    .filter(
-                        (t) =>
-                            isAnyChartTile(t) &&
-                            t.properties.chartSlug ===
-                                tile.properties.chartSlug,
-                    )
-                    .findIndex((t) => t.uuid === uuid);
-                return `${tile.properties.chartSlug}-${chartSlugIndex + 1}`;
-            }
-            return tile.properties.chartSlug;
-        }
-        return undefined;
-    };
+    static getTileSlugForTileUuid = getTileSlugForTileUuid;
 
-    /* Convert dashboard filters from tile uuids to tile slugs
-     * DashboardDAO to DashboardAsCode
-     */
-    static getFiltersWithTileSlugs(
-        dashboard: DashboardDAO,
-    ): Required<NonNullable<DashboardAsCode['filters']>> {
-        const dimensionFiltersWithoutUuids: NonNullable<
-            DashboardAsCode['filters']
-        >['dimensions'] = dashboard.filters.dimensions.map((filter) => {
-            const tileTargets = Object.entries(filter.tileTargets ?? {}).reduce<
-                Record<string, DashboardTileTarget>
-            >((acc, [tileUuid, target]) => {
-                const tileSlug = CoderService.getChartSlugForTileUuid(
-                    dashboard,
-                    tileUuid,
-                );
-                if (!tileSlug) return acc;
-                return {
-                    ...acc,
-                    [tileSlug]: target,
-                };
-            }, {});
-            return {
-                ...filter,
-                id: undefined,
-                tileTargets,
-            };
-        });
+    static getFiltersWithTileSlugs = getFiltersWithTileSlugs;
 
-        return {
-            ...dashboard.filters,
-            dimensions: dimensionFiltersWithoutUuids,
-        };
-    }
+    static getFiltersWithTileUuids = getFiltersWithTileUuids;
 
-    /* Convert dashboard filters from tile slugs to tile uuids
-     * DashboardAsCode to DashboardDAO
-     */
-    static getFiltersWithTileUuids(
-        dashboardAsCode: DashboardAsCode,
-        tilesWithUuids: DashboardTileWithSlug[],
-    ): DashboardDAO['filters'] {
-        const dimensionFiltersWithUuids: DashboardDAO['filters']['dimensions'] =
-            (dashboardAsCode.filters?.dimensions ?? []).map((filter) => {
-                const tileTargets = Object.entries(
-                    filter.tileTargets ?? {},
-                ).reduce<Record<string, DashboardTileTarget>>(
-                    (acc, [tileSlug, target]) => {
-                        const tileUuid = tilesWithUuids.find(
-                            (t) =>
-                                isAnyChartTile(t) &&
-                                // Match first by tileSlug, then by chartSlug (for the case of tile not having a slug)
-                                (t.tileSlug === tileSlug ||
-                                    t.properties.chartSlug === tileSlug),
-                        )?.uuid;
-                        if (!tileUuid) {
-                            console.error(
-                                `Tile with slug ${tileSlug} not found in tilesWithUuids`,
-                            );
-                            return acc;
-                        }
-                        return {
-                            ...acc,
-                            [tileUuid]: target,
-                        };
-                    },
-                    {},
-                );
-                return {
-                    ...filter,
-                    id: uuidv4(),
-                    tileTargets,
-                };
-            });
-        return {
-            metrics: dashboardAsCode.filters?.metrics ?? [],
-            tableCalculations: dashboardAsCode.filters?.tableCalculations ?? [],
-            dimensions: dimensionFiltersWithUuids,
-        };
-    }
+    static getConfigWithDateZoomTileSlugs = getConfigWithDateZoomTileSlugs;
 
-    /* Convert date zoom control tileTargets from tile uuids to tile slugs
-     * DashboardDAO to DashboardAsCode
-     */
-    static getConfigWithDateZoomTileSlugs(
-        dashboard: DashboardDAO,
-    ): DashboardConfig | undefined {
-        const { config } = dashboard;
-        if (!config?.dateZoomConfig) return config;
-
-        const tileTargets = Object.entries(
-            config.dateZoomConfig.tileTargets ?? {},
-        ).reduce<Record<string, DateZoomTileTarget>>(
-            (acc, [tileUuid, target]) => {
-                const tileSlug = CoderService.getChartSlugForTileUuid(
-                    dashboard,
-                    tileUuid,
-                );
-                if (!tileSlug) return acc;
-                return { ...acc, [tileSlug]: target };
-            },
-            {},
-        );
-
-        return {
-            ...config,
-            dateZoomConfig: { ...config.dateZoomConfig, tileTargets },
-        };
-    }
-
-    /* Convert date zoom control tileTargets from tile slugs to tile uuids
-     * DashboardAsCode to DashboardDAO
-     */
-    static getConfigWithDateZoomTileUuids(
-        config: DashboardConfig,
-        tilesWithUuids: DashboardTileWithSlug[],
-    ): DashboardConfig {
-        const { dateZoomConfig } = config;
-        if (!dateZoomConfig) return config;
-
-        const tileTargets = Object.entries(
-            dateZoomConfig.tileTargets ?? {},
-        ).reduce<Record<string, DateZoomTileTarget>>(
-            (acc, [tileSlug, target]) => {
-                const tileUuid = tilesWithUuids.find(
-                    (t) =>
-                        isAnyChartTile(t) &&
-                        // Match first by tileSlug, then by chartSlug (for the case of tile not having a slug)
-                        (t.tileSlug === tileSlug ||
-                            t.properties.chartSlug === tileSlug),
-                )?.uuid;
-                if (!tileUuid) {
-                    console.error(
-                        `Tile with slug ${tileSlug} not found for date zoom target`,
-                    );
-                    return acc;
-                }
-                return { ...acc, [tileUuid]: target };
-            },
-            {},
-        );
-
-        return {
-            ...config,
-            dateZoomConfig: { ...dateZoomConfig, tileTargets },
-        };
-    }
+    static getConfigWithDateZoomTileUuids = getConfigWithDateZoomTileUuids;
 
     private static transformDashboard(
         dashboard: DashboardDAO,
@@ -462,16 +1500,28 @@ export class CoderService extends BaseService {
         }
 
         const spaceSlug = getContentAsCodePathFromLtreePath(contentSpace.path);
+        const sortedTabs = [...dashboard.tabs].sort(
+            (left, right) => left.order - right.order,
+        );
+        const dashboardWithSortedTabs = {
+            ...dashboard,
+            tabs: sortedTabs,
+        };
 
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
             (tile): DashboardTileAsCode => {
+                const tabSlug = tile.tabUuid
+                    ? getDashboardTabSlug(dashboardWithSortedTabs, tile.tabUuid)
+                    : null;
                 if (isAnyChartTile(tile)) {
                     if (tile.type === DashboardTileTypes.SAVED_CHART) {
                         const chartTile: DashboardChartTileAsCode = {
                             ...tile,
                             type: DashboardTileTypes.SAVED_CHART,
                             uuid: undefined,
-                            tileSlug: CoderService.getChartSlugForTileUuid(
+                            tabUuid: undefined,
+                            tabSlug,
+                            tileSlug: CoderService.getTileSlugForTileUuid(
                                 dashboard,
                                 tile.uuid,
                             ),
@@ -490,7 +1540,9 @@ export class CoderService extends BaseService {
                         ...tile,
                         type: DashboardTileTypes.SQL_CHART,
                         uuid: undefined,
-                        tileSlug: CoderService.getChartSlugForTileUuid(
+                        tabUuid: undefined,
+                        tabSlug,
+                        tileSlug: CoderService.getTileSlugForTileUuid(
                             dashboard,
                             tile.uuid,
                         ),
@@ -509,6 +1561,8 @@ export class CoderService extends BaseService {
                         ...tile,
                         type: DashboardTileTypes.MARKDOWN,
                         uuid: undefined,
+                        tabUuid: undefined,
+                        tabSlug,
                         tileSlug: undefined,
                         properties: {
                             title: tile.properties.title,
@@ -519,14 +1573,47 @@ export class CoderService extends BaseService {
                     return markdownTile;
                 }
 
+                if (tile.type === DashboardTileTypes.DATA_APP) {
+                    const dataAppTile: DashboardDataAppTileAsCode = {
+                        ...tile,
+                        type: DashboardTileTypes.DATA_APP,
+                        uuid: undefined,
+                        tabUuid: undefined,
+                        tabSlug,
+                        tileSlug: CoderService.getTileSlugForTileUuid(
+                            dashboard,
+                            tile.uuid,
+                        ),
+                        properties: {
+                            title: tile.properties.title,
+                            hideTitle: tile.properties.hideTitle,
+                            appSlug: tile.properties.appSlug ?? null,
+                        },
+                    };
+                    return dataAppTile;
+                }
+
                 // Other non-chart tiles already match the as-code shape
                 return {
                     ...tile,
                     tileSlug: undefined,
                     uuid: undefined,
+                    tabUuid: undefined,
+                    tabSlug,
                 };
             },
             [],
+        );
+        tilesWithoutUuids.sort(
+            (left, right) =>
+                left.y - right.y ||
+                left.x - right.x ||
+                (left.tabSlug ?? '').localeCompare(right.tabSlug ?? '') ||
+                (left.tileSlug ?? '').localeCompare(right.tileSlug ?? '') ||
+                left.type.localeCompare(right.type) ||
+                JSON.stringify(left.properties).localeCompare(
+                    JSON.stringify(right.properties),
+                ),
         );
 
         const dashboardAsCode: DashboardAsCode = {
@@ -536,7 +1623,12 @@ export class CoderService extends BaseService {
             tiles: tilesWithoutUuids,
 
             filters: CoderService.getFiltersWithTileSlugs(dashboard),
-            tabs: dashboard.tabs,
+            tabs: sortedTabs.map(({ uuid, name, order, hidden }) => ({
+                slug: getDashboardTabSlug(dashboardWithSortedTabs, uuid),
+                name,
+                order,
+                hidden,
+            })),
             slug: dashboard.slug,
             ...(dashboard.config
                 ? {
@@ -560,10 +1652,55 @@ export class CoderService extends BaseService {
         return dashboardAsCode;
     }
 
+    private static convertTabsWithSlugsToUuids(
+        tabs: DashboardAsCode['tabs'],
+        existingTabs: DashboardDAO['tabs'] = [],
+    ): {
+        tabs: DashboardDAO['tabs'];
+        tabUuidsBySlug: Map<string, string>;
+    } {
+        const sortedExistingTabs = [...existingTabs].sort(
+            (left, right) => left.order - right.order,
+        );
+        const existingDashboard = { tabs: sortedExistingTabs };
+        const existingTabUuidsBySlug = new Map(
+            sortedExistingTabs.map((tab) => [
+                getDashboardTabSlug(existingDashboard, tab.uuid),
+                tab.uuid,
+            ]),
+        );
+        const tabUuidsBySlug = new Map<string, string>();
+
+        const tabsWithUuids = tabs.map(({ slug, uuid, ...tab }) => {
+            if (slug && tabUuidsBySlug.has(slug)) {
+                throw new ParameterError(
+                    `Dashboard tab slug "${slug}" is duplicated`,
+                );
+            }
+
+            const resolvedUuid =
+                (slug ? existingTabUuidsBySlug.get(slug) : undefined) ??
+                uuid ??
+                uuidv4();
+
+            if (slug) {
+                tabUuidsBySlug.set(slug, resolvedUuid);
+            }
+
+            return {
+                ...tab,
+                uuid: resolvedUuid,
+            };
+        });
+
+        return { tabs: tabsWithUuids, tabUuidsBySlug };
+    }
+
     async convertTileWithSlugsToUuids(
         projectUuid: string,
         tiles: DashboardTileAsCode[],
-    ): Promise<DashboardTileWithSlug[]> {
+        tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
+    ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
@@ -572,13 +1709,89 @@ export class CoderService extends BaseService {
             return [...acc, tile.properties.chartSlug];
         }, []);
 
+        const appTiles = tiles.filter(
+            (tile): tile is DashboardDataAppTileAsCode =>
+                tile.type === DashboardTileTypes.DATA_APP,
+        );
+        const appSlugs = appTiles.reduce<string[]>((acc, tile) => {
+            const { appSlug } = tile.properties;
+            return appSlug ? [...acc, appSlug] : acc;
+        }, []);
+        // Pre-slug YAML carries appUuid instead of appSlug; resolve those too
+        // so legacy content-as-code files keep working.
+        const legacyAppUuids = appTiles.reduce<string[]>((acc, tile) => {
+            const { appSlug, appUuid } = tile.properties;
+            return !appSlug && appUuid ? [...acc, appUuid] : acc;
+        }, []);
+        const [slugRows, legacyRows] =
+            appTiles.length > 0
+                ? await Promise.all([
+                      this.appModel.findAppsBySlugs(projectUuid, appSlugs),
+                      this.appModel.findAppsByUuids(
+                          projectUuid,
+                          legacyAppUuids,
+                      ),
+                  ])
+                : [[], []];
+        const appRows = [...slugRows, ...legacyRows];
+        const appUuidBySlug = new Map(
+            appRows.map((row) => [row.slug, row.app_id]),
+        );
+        const knownAppUuids = new Set(appRows.map((row) => row.app_id));
+        const warnings: string[] = [];
+
         const withResolvedTileUuid = (
             tile: DashboardTileAsCode,
             chartInfo?: { uuid: string; isSql: boolean },
-        ): DashboardTileWithSlug => {
+        ): DashboardTileWithSlug | null => {
+            const { tabSlug, ...tileWithoutTabSlug } = tile;
+            let { tabUuid } = tile;
+            if (tabSlug === null) {
+                tabUuid = null;
+            } else if (tabSlug !== undefined) {
+                tabUuid = tabUuidsBySlug.get(tabSlug);
+            }
+            if (tabSlug && !tabUuid) {
+                throw new NotFoundError(
+                    `Dashboard tab "${tabSlug}" referenced by tile was not found`,
+                );
+            }
+
+            if (tile.type === DashboardTileTypes.DATA_APP) {
+                const { appSlug, appUuid: legacyAppUuid } = tile.properties;
+                // Pre-slug YAML carries appUuid; accept it only when the app
+                // actually lives in this project.
+                let resolvedAppUuid: string | undefined;
+                if (appSlug) {
+                    resolvedAppUuid = appUuidBySlug.get(appSlug);
+                } else if (legacyAppUuid && knownAppUuids.has(legacyAppUuid)) {
+                    resolvedAppUuid = legacyAppUuid;
+                }
+                if (!resolvedAppUuid) {
+                    warnings.push(
+                        appSlug || legacyAppUuid
+                            ? `Data app "${
+                                  appSlug ?? legacyAppUuid
+                              }" was not found in this project — tile skipped. Upload the app first, then re-upload the dashboard.`
+                            : `Data app tile "${tile.properties.title}" has no app reference to resolve — tile skipped.`,
+                    );
+                    return null;
+                }
+                return {
+                    ...tileWithoutTabSlug,
+                    tabUuid,
+                    uuid: tile.uuid ?? uuidv4(),
+                    properties: {
+                        ...tile.properties,
+                        appUuid: resolvedAppUuid,
+                    },
+                } as DashboardTileWithSlug;
+            }
+
             if (!isAnyChartTile(tile)) {
                 return {
-                    ...tile,
+                    ...tileWithoutTabSlug,
+                    tabUuid,
                     uuid: tile.uuid ?? uuidv4(),
                 } as DashboardTileWithSlug;
             }
@@ -588,7 +1801,8 @@ export class CoderService extends BaseService {
 
             if (isSqlChart) {
                 return {
-                    ...tile,
+                    ...tileWithoutTabSlug,
+                    tabUuid,
                     uuid: tile.uuid ?? uuidv4(),
                     type: DashboardTileTypes.SQL_CHART,
                     properties: {
@@ -600,7 +1814,8 @@ export class CoderService extends BaseService {
             }
 
             return {
-                ...tile,
+                ...tileWithoutTabSlug,
+                tabUuid,
                 uuid: tile.uuid ?? uuidv4(),
                 type: DashboardTileTypes.SAVED_CHART,
                 properties: {
@@ -612,7 +1827,14 @@ export class CoderService extends BaseService {
         };
 
         if (chartSlugs.length === 0) {
-            return tiles.map((tile) => withResolvedTileUuid(tile));
+            return {
+                tiles: tiles
+                    .map((tile) => withResolvedTileUuid(tile))
+                    .filter(
+                        (tile): tile is DashboardTileWithSlug => tile !== null,
+                    ),
+                warnings,
+            };
         }
 
         // Query both regular charts and SQL charts in parallel
@@ -644,18 +1866,23 @@ export class CoderService extends BaseService {
             }),
         );
 
-        return tiles.map((tile) => {
-            if (isAnyChartTile(tile)) {
-                const { chartSlug } = tile.properties;
-                if (chartSlug == null) {
-                    return withResolvedTileUuid(tile);
-                }
-                const chartInfo = chartSlugToInfo.get(chartSlug);
-                return withResolvedTileUuid(tile, chartInfo);
-            }
+        return {
+            tiles: tiles
+                .map((tile) => {
+                    if (isAnyChartTile(tile)) {
+                        const { chartSlug } = tile.properties;
+                        if (chartSlug == null) {
+                            return withResolvedTileUuid(tile);
+                        }
+                        const chartInfo = chartSlugToInfo.get(chartSlug);
+                        return withResolvedTileUuid(tile, chartInfo);
+                    }
 
-            return withResolvedTileUuid(tile);
-        });
+                    return withResolvedTileUuid(tile);
+                })
+                .filter((tile): tile is DashboardTileWithSlug => tile !== null),
+            warnings,
+        };
     }
 
     /*
@@ -1207,6 +2434,97 @@ export class CoderService extends BaseService {
         };
     }
 
+    static getDashboardTabSlug = getDashboardTabSlug;
+
+    static getDashboardTabUuid = getDashboardTabUuid;
+
+    async getScheduledDeliveries(
+        user: SessionUser,
+        projectUuid: string,
+        slugs?: string[],
+        contentType?: ContentAsCodeType.SCHEDULED_DELIVERY,
+    ): Promise<ApiScheduledDeliveryAsCodeListResponse['results']>;
+
+    async getScheduledDeliveries(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[] | undefined,
+        contentType: ContentAsCodeType.ALERT,
+    ): Promise<ApiAlertAsCodeListResponse['results']>;
+
+    async getScheduledDeliveries(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[] | undefined,
+        contentType: ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+    ): Promise<ApiGoogleSheetsSyncAsCodeListResponse['results']>;
+
+    async getScheduledDeliveries(
+        user: SessionUser,
+        projectUuid: string,
+        slugs?: string[],
+        contentType:
+            | ContentAsCodeType.SCHEDULED_DELIVERY
+            | ContentAsCodeType.ALERT
+            | ContentAsCodeType.GOOGLE_SHEETS_SYNC = ContentAsCodeType.SCHEDULED_DELIVERY,
+    ): Promise<
+        | ApiScheduledDeliveryAsCodeListResponse['results']
+        | ApiAlertAsCodeListResponse['results']
+        | ApiGoogleSheetsSyncAsCodeListResponse['results']
+    > {
+        switch (contentType) {
+            case ContentAsCodeType.ALERT:
+                return this.scheduledContentCoder.getScheduledDeliveries(
+                    user,
+                    projectUuid,
+                    slugs,
+                    ContentAsCodeType.ALERT,
+                );
+            case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
+                return this.scheduledContentCoder.getScheduledDeliveries(
+                    user,
+                    projectUuid,
+                    slugs,
+                    ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+                );
+            case ContentAsCodeType.SCHEDULED_DELIVERY:
+                return this.scheduledContentCoder.getScheduledDeliveries(
+                    user,
+                    projectUuid,
+                    slugs,
+                    ContentAsCodeType.SCHEDULED_DELIVERY,
+                );
+            default:
+                return assertUnreachable(
+                    contentType,
+                    'Unknown scheduled content type',
+                );
+        }
+    }
+
+    async upsertScheduledDelivery(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        delivery:
+            | ScheduledDeliveryAsCode
+            | AlertAsCode
+            | GoogleSheetsSyncAsCode,
+        force = false,
+    ): Promise<
+        | ApiScheduledDeliveryAsCodeUpsertResponse['results']
+        | ApiAlertAsCodeUpsertResponse['results']
+        | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
+    > {
+        return this.scheduledContentCoder.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            slug,
+            delivery,
+            force,
+        );
+    }
+
     private async syncVerification({
         user,
         projectUuid,
@@ -1305,21 +2623,12 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    projectUuid: project.projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    upstreamProjectUuid: project.upstreamProjectUuid,
-                    type: project.type,
-                    createdByUserUuid: project.createdByUserUuid,
-                    metadata: { slug },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        const { canUploadAnyContent, allowSpaceCreate } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+            });
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const chartWithDefaults = {
@@ -1352,6 +2661,26 @@ export class CoderService extends BaseService {
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (chart === undefined) {
+            if (!canUploadAnyContent) {
+                CoderService.handleContentAsCodeSqlPermissionChecks({
+                    checks: CoderService.getChartContentAsCodePermissionChecks(
+                        chartWithDefaults,
+                    ),
+                    auditedAbility,
+                    project,
+                    slug,
+                });
+
+                await this.assertCreateAccessForSpaceSlug({
+                    user,
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: chartWithDefaults.spaceSlug,
+                    subjectType: 'SavedChart',
+                    errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
+                });
+            }
+
             const { space, created: spaceCreated } =
                 await this.getOrCreateSpace(
                     projectUuid,
@@ -1360,7 +2689,26 @@ export class CoderService extends BaseService {
                     skipSpaceCreate,
                     publicSpaceCreate,
                     spaceNames,
+                    allowSpaceCreate,
                 );
+            // Fetched once, reused by the placeholder-dashboard check below
+            const spaceAccessContexts = canUploadAnyContent
+                ? null
+                : await this.spacePermissionService.getSpacesAccessContext(
+                      user.userUuid,
+                      [space.uuid],
+                  );
+            if (spaceAccessContexts !== null) {
+                await this.assertSpaceContentAccess({
+                    userUuid: user.userUuid,
+                    auditedAbility,
+                    action: 'create',
+                    subjectType: 'SavedChart',
+                    spaceUuids: [space.uuid],
+                    errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
+                    accessContexts: spaceAccessContexts,
+                });
+            }
 
             console.info(
                 `Creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
@@ -1380,6 +2728,17 @@ export class CoderService extends BaseService {
 
                 let dashboardUuid: string = dashboard?.uuid;
                 if (!dashboard) {
+                    if (spaceAccessContexts !== null) {
+                        await this.assertSpaceContentAccess({
+                            userUuid: user.userUuid,
+                            auditedAbility,
+                            action: 'create',
+                            subjectType: 'Dashboard',
+                            spaceUuids: [space.uuid],
+                            errorMessage: `You don't have access to create dashboards in space "${chartWithDefaults.spaceSlug}"`,
+                            accessContexts: spaceAccessContexts,
+                        });
+                    }
                     // Charts within dashboards need a dashboard first,
                     // so we will create a placeholder dashboard for this
                     // which we can update later
@@ -1401,6 +2760,23 @@ export class CoderService extends BaseService {
                     );
 
                     dashboardUuid = newDashboard.uuid;
+                } else if (!canUploadAnyContent) {
+                    // Chart lives in the dashboard, not the YAML space.
+                    // Mirrors SavedChartService: only SavedChart create in
+                    // the dashboard's space is required.
+                    if (!dashboard.spaceUuid) {
+                        throw new ForbiddenError(
+                            `You don't have access to create charts in dashboard "${chartWithDefaults.dashboardSlug}"`,
+                        );
+                    }
+                    await this.assertSpaceContentAccess({
+                        userUuid: user.userUuid,
+                        auditedAbility,
+                        action: 'create',
+                        subjectType: 'SavedChart',
+                        spaceUuids: [dashboard.spaceUuid],
+                        errorMessage: `You don't have access to create charts in dashboard "${chartWithDefaults.dashboardSlug}"`,
+                    });
                 }
                 createChart = {
                     ...chartWithDefaults,
@@ -1461,9 +2837,57 @@ export class CoderService extends BaseService {
         console.info(
             `Updating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
         );
-        // Although, promotionService already upsertSpaces
-        // We want to create a new space based on the slug, not the uuid
-        // Then there is no need to do promoteService.upsertSpaces
+        const targetSpace = !canUploadAnyContent
+            ? await this.findAccessibleSpace(
+                  projectUuid,
+                  chartWithDefaults.spaceSlug,
+                  user,
+              )
+            : undefined;
+        if (!canUploadAnyContent) {
+            if (
+                targetSpace === undefined &&
+                !skipSpaceCreate &&
+                !allowSpaceCreate
+            ) {
+                throw new ForbiddenError(
+                    `You don't have access to create space "${chartWithDefaults.spaceSlug}"`,
+                );
+            }
+
+            // find() coalesces spaceUuid to the dashboard's space for
+            // dashboard-contained charts, so this covers both kinds
+            if (!chart.spaceUuid) {
+                throw new ForbiddenError(
+                    `You don't have access to update chart "${slug}"`,
+                );
+            }
+
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'SavedChart',
+                spaceUuids: [
+                    ...(targetSpace ? [targetSpace.uuid] : []),
+                    ...(chart.spaceUuid ? [chart.spaceUuid] : []),
+                ],
+                metadata: { savedChartUuid: chart.uuid },
+                errorMessage: `You don't have access to update chart "${slug}"`,
+            });
+
+            const currentChart = await this.savedChartModel.get(chart.uuid);
+            CoderService.handleContentAsCodeSqlPermissionChecks({
+                checks: CoderService.getChartContentAsCodePermissionChecks(
+                    chartWithDefaults,
+                    currentChart,
+                ),
+                auditedAbility,
+                project,
+                slug,
+            });
+        }
+
         const { space } = await this.getOrCreateSpace(
             projectUuid,
             chartWithDefaults.spaceSlug,
@@ -1471,7 +2895,19 @@ export class CoderService extends BaseService {
             skipSpaceCreate,
             undefined,
             spaceNames,
+            allowSpaceCreate,
         );
+        if (!canUploadAnyContent && space.uuid !== targetSpace?.uuid) {
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'SavedChart',
+                spaceUuids: [space.uuid],
+                metadata: { savedChartUuid: chart.uuid },
+                errorMessage: `You don't have access to update chart "${slug}"`,
+            });
+        }
 
         const { promotedChart, upstreamChart } =
             await this.promoteService.getPromoteCharts(
@@ -1542,21 +2978,12 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    projectUuid: project.projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    upstreamProjectUuid: project.upstreamProjectUuid,
-                    type: project.type,
-                    createdByUserUuid: project.createdByUserUuid,
-                    metadata: { slug },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        const { canUploadAnyContent, allowSpaceCreate } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+            });
 
         // Default updatedAt to now when missing (e.g. user-authored YAML)
         const sqlChartWithDefaults = {
@@ -1570,6 +2997,37 @@ export class CoderService extends BaseService {
         });
         const existingSqlChart = sqlChartRows[0];
 
+        // SQL chart uploads mirror SavedSqlService. Check CustomSql before
+        // resolving the space so a rejection cannot orphan a new space.
+        const isUpdate = existingSqlChart !== undefined;
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata:
+                        existingSqlChart !== undefined
+                            ? { savedSqlUuid: existingSqlChart.saved_sql_uuid }
+                            : {},
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (!isUpdate && !canUploadAnyContent) {
+            await this.assertCreateAccessForSpaceSlug({
+                user,
+                auditedAbility,
+                projectUuid,
+                spaceSlug: sqlChartWithDefaults.spaceSlug,
+                subjectType: 'SavedChart',
+                metadata: { savedSqlUuid: null },
+                errorMessage: `You don't have access to create Saved SQL chart "${slug}"`,
+            });
+        }
+
         const { space, created: spaceCreated } = await this.getOrCreateSpace(
             projectUuid,
             sqlChartAsCode.spaceSlug,
@@ -1577,7 +3035,24 @@ export class CoderService extends BaseService {
             skipSpaceCreate,
             publicSpaceCreate,
             spaceNames,
+            allowSpaceCreate,
         );
+
+        const savedChartAction = isUpdate ? 'update' : 'create';
+        await this.assertSpaceContentAccess({
+            userUuid: user.userUuid,
+            auditedAbility,
+            action: savedChartAction,
+            subjectType: 'SavedChart',
+            spaceUuids: [
+                space.uuid,
+                ...(existingSqlChart ? [existingSqlChart.space_uuid] : []),
+            ],
+            metadata: {
+                savedSqlUuid: existingSqlChart?.saved_sql_uuid ?? null,
+            },
+            errorMessage: `You don't have access to ${savedChartAction} Saved SQL chart "${slug}"`,
+        });
 
         if (existingSqlChart === undefined) {
             // Create new SQL chart
@@ -1671,6 +3146,281 @@ export class CoderService extends BaseService {
         return promotionChanges;
     }
 
+    private async findAccessibleSpace(
+        projectUuid: string,
+        spaceSlug: string,
+        user: SessionUser,
+    ): Promise<SpaceSummaryBase | undefined> {
+        const [space] = await this.spaceModel.find({
+            path: getLtreePathFromContentAsCodePath(spaceSlug),
+            projectUuid,
+        });
+
+        if (
+            space !== undefined &&
+            !(await this.spacePermissionService.can('view', user, space.uuid))
+        ) {
+            throw new ForbiddenError(
+                `You don't have access to the private space "${spaceSlug}"`,
+            );
+        }
+
+        return space;
+    }
+
+    private async getClosestAncestorSpaceAccessContext(
+        userUuid: string,
+        projectUuid: string,
+        spaceSlug: string,
+    ) {
+        const spaceUuid = await this.spaceModel.findClosestAncestorByPath({
+            path: getLtreePathFromContentAsCodePath(spaceSlug),
+            projectUuid,
+        });
+        if (spaceUuid === null) return undefined;
+
+        const accessContexts =
+            await this.spacePermissionService.getSpacesAccessContext(userUuid, [
+                spaceUuid,
+            ]);
+        return accessContexts[spaceUuid];
+    }
+
+    // Throws unless the caller can write content as code. `canUploadAnyContent`
+    // (manage:ContentAsCode) allows uploading any content, so the granular
+    // space/SQL checks below don't apply.
+    private static checkContentAsCodeWriteAccess({
+        auditedAbility,
+        project,
+        slug,
+    }: {
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<
+            Project,
+            | 'projectUuid'
+            | 'organizationUuid'
+            | 'upstreamProjectUuid'
+            | 'type'
+            | 'createdByUserUuid'
+        >;
+        slug: string;
+    }): { canUploadAnyContent: boolean; allowSpaceCreate: boolean } {
+        const contentAsCodeSubject = subject('ContentAsCode', {
+            projectUuid: project.projectUuid,
+            organizationUuid: project.organizationUuid,
+            upstreamProjectUuid: project.upstreamProjectUuid,
+            type: project.type,
+            createdByUserUuid: project.createdByUserUuid,
+            metadata: { slug },
+        });
+        const canUploadAnyContent = auditedAbility.can(
+            'manage',
+            contentAsCodeSubject,
+        );
+        if (auditedAbility.cannot('create', contentAsCodeSubject)) {
+            throw new ForbiddenError(
+                `You don't have permission to upload content as code to this project (content slug "${slug}")`,
+            );
+        }
+        const allowSpaceCreate =
+            canUploadAnyContent ||
+            auditedAbility.can(
+                'create',
+                subject('Space', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
+        return { canUploadAnyContent, allowSpaceCreate };
+    }
+
+    private async assertSpaceContentAccess({
+        userUuid,
+        auditedAbility,
+        action,
+        subjectType,
+        spaceUuids,
+        metadata,
+        errorMessage,
+        accessContexts,
+    }: {
+        userUuid: string;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        action: 'create' | 'update';
+        subjectType: 'SavedChart' | 'Dashboard';
+        spaceUuids: string[];
+        metadata?: ContentAsCodeSpaceContentMetadata;
+        errorMessage: string;
+        // Pre-fetched contexts to avoid refetching for the same spaces
+        accessContexts?: Awaited<
+            ReturnType<SpacePermissionService['getSpacesAccessContext']>
+        >;
+    }): Promise<void> {
+        const uniqueSpaceUuids = [...new Set(spaceUuids)];
+        if (uniqueSpaceUuids.length === 0) return;
+        const spaceAccessContexts =
+            accessContexts ??
+            (await this.spacePermissionService.getSpacesAccessContext(
+                userUuid,
+                uniqueSpaceUuids,
+            ));
+        const lacksAccess = uniqueSpaceUuids.some((spaceUuid) =>
+            auditedAbility.cannot(
+                action,
+                subject(subjectType, {
+                    ...spaceAccessContexts[spaceUuid],
+                    ...(metadata !== undefined ? { metadata } : {}),
+                }),
+            ),
+        );
+        if (lacksAccess) {
+            throw new ForbiddenError(errorMessage);
+        }
+    }
+
+    // Target space missing: gate create on the closest existing ancestor
+    // BEFORE creating the space, so a denied create can't orphan a space.
+    private async assertCreateAccessForSpaceSlug({
+        user,
+        auditedAbility,
+        projectUuid,
+        spaceSlug,
+        subjectType,
+        metadata,
+        errorMessage,
+    }: {
+        user: SessionUser;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        projectUuid: string;
+        spaceSlug: string;
+        subjectType: 'SavedChart' | 'Dashboard';
+        metadata?: ContentAsCodeSpaceContentMetadata;
+        errorMessage: string;
+    }): Promise<void> {
+        const targetSpace = await this.findAccessibleSpace(
+            projectUuid,
+            spaceSlug,
+            user,
+        );
+        if (targetSpace !== undefined) return;
+        const ancestorSpaceAccessContext =
+            await this.getClosestAncestorSpaceAccessContext(
+                user.userUuid,
+                projectUuid,
+                spaceSlug,
+            );
+        if (
+            ancestorSpaceAccessContext !== undefined &&
+            auditedAbility.cannot(
+                'create',
+                subject(subjectType, {
+                    ...ancestorSpaceAccessContext,
+                    ...(metadata !== undefined ? { metadata } : {}),
+                }),
+            )
+        ) {
+            throw new ForbiddenError(errorMessage);
+        }
+    }
+
+    // Tiles reference charts by slug with no permission filter; ensure the
+    // caller can view every referenced chart in its own space.
+    private async assertTileChartsViewAccess({
+        userUuid,
+        auditedAbility,
+        projectUuid,
+        tiles,
+    }: {
+        userUuid: string;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        projectUuid: string;
+        tiles: DashboardAsCode['tiles'];
+    }): Promise<void> {
+        const chartSlugs = tiles.reduce<string[]>((acc, tile) => {
+            if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
+                return acc;
+            }
+            return [...acc, tile.properties.chartSlug];
+        }, []);
+        if (chartSlugs.length === 0) return;
+
+        const [charts, sqlChartRows] = await Promise.all([
+            this.savedChartModel.find({
+                slugs: chartSlugs,
+                projectUuid,
+                excludeChartsSavedInDashboard: false,
+                includeOrphanChartsWithinDashboard: true,
+            }),
+            this.savedSqlModel.find({
+                slugs: chartSlugs,
+                projectUuid,
+            }),
+        ]);
+        const referencedCharts = [
+            ...charts.map((chart) => ({
+                slug: chart.slug,
+                spaceUuid: chart.spaceUuid,
+                metadata: { savedChartUuid: chart.uuid },
+            })),
+            ...sqlChartRows.map((row) => ({
+                slug: row.slug,
+                spaceUuid: row.space_uuid,
+                metadata: { savedSqlUuid: row.saved_sql_uuid },
+            })),
+        ];
+        if (referencedCharts.length === 0) return;
+
+        const spaceAccessContexts =
+            await this.spacePermissionService.getSpacesAccessContext(userUuid, [
+                ...new Set(referencedCharts.map((chart) => chart.spaceUuid)),
+            ]);
+        const inaccessibleChartSlugs = referencedCharts
+            .filter((chart) =>
+                auditedAbility.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        ...spaceAccessContexts[chart.spaceUuid],
+                        metadata: chart.metadata,
+                    }),
+                ),
+            )
+            .map((chart) => chart.slug);
+        if (inaccessibleChartSlugs.length > 0) {
+            throw new ForbiddenError(
+                `You don't have access to chart(s) referenced by this dashboard: ${inaccessibleChartSlugs.join(
+                    ', ',
+                )}`,
+            );
+        }
+    }
+
+    private async assertDashboardUpdateAccess({
+        userUuid,
+        auditedAbility,
+        dashboard,
+        additionalSpaceUuids = [],
+    }: {
+        userUuid: string;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        dashboard: { uuid: string; slug: string; spaceUuid: string | null };
+        additionalSpaceUuids?: string[];
+    }): Promise<void> {
+        if (!dashboard.spaceUuid) {
+            throw new ForbiddenError(
+                `You don't have access to update dashboard "${dashboard.slug}"`,
+            );
+        }
+        await this.assertSpaceContentAccess({
+            userUuid,
+            auditedAbility,
+            action: 'update',
+            subjectType: 'Dashboard',
+            spaceUuids: [dashboard.spaceUuid, ...additionalSpaceUuids],
+            metadata: { dashboardUuid: dashboard.uuid },
+            errorMessage: `You don't have access to update dashboard "${dashboard.slug}"`,
+        });
+    }
+
     async getOrCreateSpace(
         projectUuid: string,
         spaceSlug: string,
@@ -1678,29 +3428,25 @@ export class CoderService extends BaseService {
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
         spaceNames?: Record<string, string>,
+        allowSpaceCreate = false,
     ): Promise<{ space: SpaceSummaryBase; created: boolean }> {
-        const [existingSpace] = await this.spaceModel.find({
-            path: getLtreePathFromContentAsCodePath(spaceSlug),
+        const existingSpace = await this.findAccessibleSpace(
             projectUuid,
-        });
+            spaceSlug,
+            user,
+        );
 
         if (existingSpace !== undefined) {
-            if (
-                !(await this.spacePermissionService.can(
-                    'view',
-                    user,
-                    existingSpace.uuid,
-                ))
-            ) {
-                throw new ForbiddenError(
-                    "You don't have access to a private space",
-                );
-            }
             return { space: existingSpace, created: false };
         }
         if (skipSpaceCreate) {
             throw new NotFoundError(
                 `Space ${spaceSlug} does not exist, skipping creation`,
+            );
+        }
+        if (!allowSpaceCreate) {
+            throw new ForbiddenError(
+                `You don't have access to create space "${spaceSlug}"`,
             );
         }
         const path = getLtreePathFromContentAsCodePath(spaceSlug);
@@ -1827,7 +3573,7 @@ export class CoderService extends BaseService {
         slug: string,
         dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
-    ): Promise<PromotionChanges> {
+    ): Promise<DashboardAsCodeUpsertResult> {
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -1840,21 +3586,12 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    projectUuid: project.projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    upstreamProjectUuid: project.upstreamProjectUuid,
-                    type: project.type,
-                    createdByUserUuid: project.createdByUserUuid,
-                    metadata: { slug },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        const { canUploadAnyContent, allowSpaceCreate } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+            });
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const dashboardWithDefaults = {
@@ -1876,24 +3613,57 @@ export class CoderService extends BaseService {
                   projectUuid,
               })
             : [undefined];
-        const tilesWithUuids = await this.convertTileWithSlugsToUuids(
-            projectUuid,
-            dashboardWithDefaults.tiles,
-        );
+        const existingDashboard = dashboardSummary
+            ? await this.dashboardModel.getByIdOrSlug(dashboardSummary.uuid)
+            : undefined;
+        const { tabs: tabsWithUuids, tabUuidsBySlug } =
+            CoderService.convertTabsWithSlugsToUuids(
+                dashboardWithDefaults.tabs,
+                existingDashboard?.tabs,
+            );
+        const dashboardWithResolvedTabs = {
+            ...dashboardWithDefaults,
+            tabs: tabsWithUuids,
+        };
+        const { tiles: tilesWithUuids, warnings: tileWarnings } =
+            await this.convertTileWithSlugsToUuids(
+                projectUuid,
+                dashboardWithResolvedTabs.tiles,
+                tabUuidsBySlug,
+            );
+        if (!canUploadAnyContent) {
+            await this.assertTileChartsViewAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                projectUuid,
+                tiles: dashboardWithDefaults.tiles,
+            });
+        }
 
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
-            dashboardWithDefaults,
+            dashboardWithResolvedTabs,
             tilesWithUuids,
         );
-        const dashboardConfig = dashboardWithDefaults.config
+        const dashboardConfig = dashboardWithResolvedTabs.config
             ? CoderService.getConfigWithDateZoomTileUuids(
-                  dashboardWithDefaults.config,
+                  dashboardWithResolvedTabs.config,
                   tilesWithUuids,
               )
-            : dashboardWithDefaults.config;
+            : dashboardWithResolvedTabs.config;
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
+            if (!canUploadAnyContent) {
+                await this.assertCreateAccessForSpaceSlug({
+                    user,
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: dashboardWithDefaults.spaceSlug,
+                    subjectType: 'Dashboard',
+                    errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
+                });
+            }
+
             const { space, created: spaceCreated } =
                 await this.getOrCreateSpace(
                     projectUuid,
@@ -1902,12 +3672,23 @@ export class CoderService extends BaseService {
                     skipSpaceCreate,
                     publicSpaceCreate,
                     spaceNames,
+                    allowSpaceCreate,
                 );
+            if (!canUploadAnyContent) {
+                await this.assertSpaceContentAccess({
+                    userUuid: user.userUuid,
+                    auditedAbility,
+                    action: 'create',
+                    subjectType: 'Dashboard',
+                    spaceUuids: [space.uuid],
+                    errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
+                });
+            }
 
             const newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
-                    ...dashboardWithDefaults,
+                    ...dashboardWithResolvedTabs,
                     tiles: tilesWithUuids,
                     forceSlug: shouldUseExactSlug,
                     filters: dashboardFilters,
@@ -1926,37 +3707,63 @@ export class CoderService extends BaseService {
                 verified: dashboardAsCode.verified,
             });
 
-            return {
-                dashboards: [
-                    {
-                        action: PromotionAction.CREATE,
-                        data: {
-                            ...newDashboard,
-                            spaceSlug: dashboardWithDefaults.spaceSlug,
-                            spacePath: getContentAsCodePathFromLtreePath(
-                                dashboardWithDefaults.spaceSlug,
-                            ),
+            return withTileWarnings(
+                {
+                    dashboards: [
+                        {
+                            action: PromotionAction.CREATE,
+                            data: {
+                                ...newDashboard,
+                                spaceSlug: dashboardWithDefaults.spaceSlug,
+                                spacePath: getContentAsCodePathFromLtreePath(
+                                    dashboardWithDefaults.spaceSlug,
+                                ),
+                            },
                         },
-                    },
-                ],
-                charts: [],
-                spaces: spaceCreated
-                    ? [{ action: PromotionAction.CREATE, data: space }]
-                    : [],
-            };
+                    ],
+                    charts: [],
+                    spaces: spaceCreated
+                        ? [{ action: PromotionAction.CREATE, data: space }]
+                        : [],
+                },
+                tileWarnings,
+            );
         }
         // Use promote service to update existing dashboard
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardSummary.uuid,
-        );
+        const dashboard = existingDashboard!;
 
         console.info(
             `Updating dashboard "${dashboard.name}" on project ${projectUuid}`,
         );
 
+        const targetSpace = !canUploadAnyContent
+            ? await this.findAccessibleSpace(
+                  projectUuid,
+                  dashboardWithDefaults.spaceSlug,
+                  user,
+              )
+            : undefined;
+        if (!canUploadAnyContent) {
+            if (
+                targetSpace === undefined &&
+                !skipSpaceCreate &&
+                !allowSpaceCreate
+            ) {
+                throw new ForbiddenError(
+                    `You don't have access to create space "${dashboardWithDefaults.spaceSlug}"`,
+                );
+            }
+            await this.assertDashboardUpdateAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                dashboard,
+                additionalSpaceUuids: targetSpace ? [targetSpace.uuid] : [],
+            });
+        }
+
         const dashboardWithUuids = {
-            ...dashboardWithDefaults,
+            ...dashboardWithResolvedTabs,
             tiles: tilesWithUuids,
             config: dashboardConfig,
         };
@@ -1980,8 +3787,6 @@ export class CoderService extends BaseService {
             upstreamDashboard,
         );
 
-        // Although, promotionService already upsertSpaces
-        // We want to create a new space based on the slug, not the uuid
         const { space } = await this.getOrCreateSpace(
             projectUuid,
             dashboardWithDefaults.spaceSlug,
@@ -1989,7 +3794,19 @@ export class CoderService extends BaseService {
             skipSpaceCreate,
             undefined,
             spaceNames,
+            allowSpaceCreate,
         );
+        if (!canUploadAnyContent && space.uuid !== targetSpace?.uuid) {
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'Dashboard',
+                spaceUuids: [space.uuid],
+                metadata: { dashboardUuid: dashboard.uuid },
+                errorMessage: `You don't have access to update dashboard "${slug}"`,
+            });
+        }
 
         //  we force the new space on the upstreamDashboard
         if (upstreamDashboard.dashboard)
@@ -2047,6 +3864,6 @@ export class CoderService extends BaseService {
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
         );
-        return promotionChanges;
+        return withTileWarnings(promotionChanges, tileWarnings);
     }
 }

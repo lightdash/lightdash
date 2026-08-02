@@ -235,6 +235,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                     <InputBase
                         component="button"
                         type="button"
+                        radius="md"
                         size="xs"
                         pointer
                         onClick={() => combobox.toggleDropdown()}

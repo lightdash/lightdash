@@ -9,7 +9,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import type { CachedWarehouse, DbtClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
-const readFileSpy = jest.spyOn(fs, 'readFile');
+const readFileSpy = vi.spyOn(fs, 'readFile');
 
 describe('getLightdashProjectConfig', () => {
     const VALID_CONFIG_CONTENTS =
@@ -44,9 +44,9 @@ describe('getLightdashProjectConfig', () => {
         'spotlight:\n default_visibility: invalid_value';
 
     const mockProjectAdapter = new DbtBaseProjectAdapter(
-        jest.fn() as unknown as DbtClient,
-        jest.fn() as unknown as WarehouseClient,
-        jest.fn() as unknown as CachedWarehouse,
+        vi.fn() as unknown as DbtClient,
+        vi.fn() as unknown as WarehouseClient,
+        vi.fn() as unknown as CachedWarehouse,
         SupportedDbtVersions.V1_9,
         './some/path/to/dbt/project',
     );
@@ -82,8 +82,7 @@ describe('getLightdashProjectConfig', () => {
 
     describe('Missing config file', () => {
         it('should load the default config', async () => {
-            // ! Throwing a mock error, not something we should rely on but when running the test in jest `e instanceof Error` is false, but when running the code in node it is true
-            // ! Check: https://github.com/jestjs/jest/issues/11808
+            // ! Throwing a mock error, not something we should rely on but different test runtimes can disagree with node on `e instanceof Error`
             readFileSpy.mockRejectedValueOnce(
                 new MockedFSError('file not found', 'ENOENT'),
             );
@@ -99,9 +98,9 @@ describe('getLightdashProjectConfig', () => {
 
 describe('getProjectContext', () => {
     const mockProjectAdapter = new DbtBaseProjectAdapter(
-        jest.fn() as unknown as DbtClient,
-        jest.fn() as unknown as WarehouseClient,
-        jest.fn() as unknown as CachedWarehouse,
+        vi.fn() as unknown as DbtClient,
+        vi.fn() as unknown as WarehouseClient,
+        vi.fn() as unknown as CachedWarehouse,
         SupportedDbtVersions.V1_9,
         './some/path/to/dbt/project',
     );

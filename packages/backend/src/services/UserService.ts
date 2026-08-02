@@ -1,3 +1,10 @@
+import { GetRoleCredentialsCommand, SSOClient } from '@aws-sdk/client-sso';
+import {
+    CreateTokenCommand,
+    RegisterClientCommand,
+    SSOOIDCClient,
+    StartDeviceAuthorizationCommand,
+} from '@aws-sdk/client-sso-oidc';
 import { subject } from '@casl/ability';
 import {
     ActivateUser,
@@ -13,16 +20,19 @@ import {
     DatabricksAuthenticationType,
     DeactivatedAccountError,
     DeleteOpenIdentity,
+    EmailStatus,
     EmailStatusExpiring,
-    ExpiredError,
     FeatureFlags,
     ForbiddenError,
     getEmailDomain,
+    getUserAvatarUrl,
     hasInviteCode,
     hasProperty,
     InviteLink,
+    InviteLinkPurpose,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
+    isUserAvatarColorValue,
     isUserWithOrg,
     isValidTimezone,
     LightdashMode,
@@ -40,6 +50,11 @@ import {
     ParameterError,
     PasswordReset,
     ProjectMemberRole,
+    RedshiftAuthenticationType,
+    RedshiftAwsSsoCompleteRequest,
+    RedshiftAwsSsoCompleteResults,
+    RedshiftAwsSsoStartRequest,
+    RedshiftAwsSsoStartResults,
     RegisterOrActivateUser,
     resolveEffectiveOrganizationSettings,
     ServiceAccount,
@@ -59,10 +74,16 @@ import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
-import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import {
+    LightdashAnalytics,
+    type OnboardingFlow,
+    type OneTimePasscodeFailureReason,
+    type OneTimePasscodePurpose,
+} from '../analytics/LightdashAnalytics';
 import * as AccountFactory from '../auth/account';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
+import { UserOAuthGrantProvider } from '../database/entities/userOAuthGrants';
 import {
     createAuditLogEvent,
     createUnknownAuthActor,
@@ -90,18 +111,34 @@ import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
-import { UserModel } from '../models/UserModel';
+import { UserAvatarModel } from '../models/UserAvatarModel';
+import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
+import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
+import { processAvatarImage } from '../utils/processAvatarImage';
 import { BaseService } from './BaseService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
+
+const AWS_SSO_DEVICE_GRANT_TYPE =
+    'urn:ietf:params:oauth:grant-type:device_code';
+
+type RedshiftAwsSsoSession = {
+    clientId: string;
+    clientSecret: string;
+    deviceCode: string;
+    region: string;
+    startUrl: string;
+    expiresAt: number;
+};
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     inviteLinkModel: InviteLinkModel;
     userModel: UserModel;
+    userOAuthGrantsModel: UserOAuthGrantsModel;
     groupsModel: GroupsModel;
     sessionModel: SessionModel;
     emailModel: EmailModel;
@@ -118,6 +155,7 @@ type UserServiceArguments = {
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
+    userAvatarModel: UserAvatarModel;
 };
 
 function isSameMinute(a: Date | null, b: Date): boolean {
@@ -129,6 +167,10 @@ export type AuthAuditContext = {
     ip?: string;
     userAgent?: string;
     requestId?: string;
+};
+
+type LoginWithOpenIdOptions = {
+    isLinkFlow?: boolean;
 };
 
 const emitAuthAuditEvent = ({
@@ -198,6 +240,10 @@ export class UserService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly userOAuthGrantsModel: UserOAuthGrantsModel;
+
+    private readonly userAvatarModel: UserAvatarModel;
+
     private readonly groupsModel: GroupsModel;
 
     private readonly sessionModel: SessionModel;
@@ -234,11 +280,14 @@ export class UserService extends BaseService {
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
 
+    private readonly emailOneTimePasscodeResendIntervalSeconds = 60;
+
     constructor({
         lightdashConfig,
         analytics,
         inviteLinkModel,
         userModel,
+        userOAuthGrantsModel,
         groupsModel,
         sessionModel,
         emailModel,
@@ -255,12 +304,14 @@ export class UserService extends BaseService {
         warehouseAvailableTablesModel,
         projectModel,
         featureFlagModel,
+        userAvatarModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
+        this.userOAuthGrantsModel = userOAuthGrantsModel;
         this.groupsModel = groupsModel;
         this.sessionModel = sessionModel;
         this.emailModel = emailModel;
@@ -278,6 +329,7 @@ export class UserService extends BaseService {
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
+        this.userAvatarModel = userAvatarModel;
     }
 
     private identifyUser(
@@ -310,24 +362,51 @@ export class UserService extends BaseService {
         }
     }
 
+    private async getOnboardingFlow(
+        user?: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<OnboardingFlow> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NewOnboarding,
+        });
+        return enabled ? 'new' : 'legacy';
+    }
+
     private async tryVerifyUserEmail(
         user: LightdashUser,
         email: string,
+        method: 'otp' | 'link' | 'sso',
     ): Promise<void> {
         const updatedEmails = await this.emailModel.verifyUserEmailIfExists(
             user.userUuid,
             email,
         );
         if (updatedEmails.length > 0) {
+            const onboardingFlow = await this.getOnboardingFlow(user);
+            const location = user.isSetupComplete ? 'settings' : 'onboarding';
             this.analytics.track({
                 userId: user.userUuid,
                 event: 'user.verified',
                 properties: {
                     email,
-                    location: user.isSetupComplete ? 'settings' : 'onboarding',
+                    location,
                     isTrackingAnonymized: user.isTrackingAnonymized,
+                    method,
+                    onboardingFlow,
                 },
             });
+            if (location === 'onboarding') {
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'onboarding.step_completed',
+                    properties: {
+                        step: 'verified',
+                        stepIndex: 2,
+                        onboardingFlow,
+                        organizationId: user.organizationUuid,
+                    },
+                });
+            }
         }
     }
 
@@ -336,11 +415,30 @@ export class UserService extends BaseService {
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
         const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
-        const userEmail = isOpenIdUser(activateUser)
-            ? activateUser.openId.email
-            : inviteLink.email;
+        return this.activateUserFromInviteLink(inviteLink, activateUser);
+    }
 
-        if (isOpenIdUser(activateUser)) {
+    async activateUserFromInviteWithoutPassword(
+        inviteCode: string,
+    ): Promise<SessionUser> {
+        const inviteLink = await this.getInviteLink(inviteCode);
+        const user = await this.activateUserFromInviteLink(inviteLink);
+        // The invite link was delivered to this address, so opening it proves
+        // mailbox ownership — same trust as OpenID email verification.
+        await this.tryVerifyUserEmail(user, inviteLink.email, 'link');
+        return this.userModel.findSessionUserByUUID(user.userUuid);
+    }
+
+    private async activateUserFromInviteLink(
+        inviteLink: InviteLink,
+        activateUser?: ActivateUser | OpenIdUser,
+    ): Promise<LightdashUser> {
+        const userEmail =
+            activateUser && isOpenIdUser(activateUser)
+                ? activateUser.openId.email
+                : inviteLink.email;
+
+        if (activateUser && isOpenIdUser(activateUser)) {
             if (
                 (await this.isLoginMethodAllowed(
                     userEmail,
@@ -370,10 +468,14 @@ export class UserService extends BaseService {
                 `Provided email ${userEmail} does not match the invited email.`,
             );
         }
-        const user = await this.userModel.activateUser(
-            inviteLink.userUuid,
-            activateUser,
-        );
+        const user = activateUser
+            ? await this.userModel.activateUser(
+                  inviteLink.userUuid,
+                  activateUser,
+              )
+            : await this.userModel.activateUserWithoutPassword(
+                  inviteLink.userUuid,
+              );
         await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
 
         // Apply default project memberships from allowed email domains config.
@@ -420,6 +522,18 @@ export class UserService extends BaseService {
         }
 
         this.identifyUser(user);
+        let userConnectionType:
+            | 'email_only'
+            | 'password'
+            | OpenIdIdentityIssuerType;
+        if (!activateUser) {
+            userConnectionType = 'email_only';
+        } else if (isOpenIdUser(activateUser)) {
+            userConnectionType = activateUser.openId.issuerType;
+        } else {
+            userConnectionType = 'password';
+        }
+        const onboardingFlow = await this.getOnboardingFlow(user);
         this.analytics.track({
             event: 'user.created',
             userId: user.userUuid,
@@ -427,11 +541,37 @@ export class UserService extends BaseService {
                 context: 'accept_invite',
                 createdUserId: user.userUuid,
                 organizationId: user.organizationUuid,
-                userConnectionType: 'password',
+                userConnectionType,
+                onboardingFlow,
+                isOrganizationCreator: false,
             },
         });
-        if (!isOpenIdUser(activateUser)) {
-            await this.sendOneTimePasscodeToPrimaryEmail(user);
+        this.analytics.track({
+            event: 'user.logged_in',
+            userId: user.userUuid,
+            properties: {
+                loginProvider:
+                    userConnectionType === 'email_only'
+                        ? 'invite_link'
+                        : userConnectionType,
+            },
+        });
+        if (inviteLink.purpose === InviteLinkPurpose.Setup) {
+            this.analytics.track({
+                event: 'setup_invite.accepted',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: inviteLink.organizationUuid,
+                    invitePurpose: InviteLinkPurpose.Setup,
+                    onboardingFlow,
+                },
+            });
+        }
+        if (activateUser && !isOpenIdUser(activateUser)) {
+            await this.sendOneTimePasscodeToPrimaryEmail(
+                user,
+                'signup_verification',
+            );
         }
         return user;
     }
@@ -470,6 +610,7 @@ export class UserService extends BaseService {
                 email: userToDelete.email,
                 organizationId: userToDelete.organizationUuid,
                 deletedUserId: userToDelete.userUuid,
+                isTrackingAnonymized: userToDelete.isTrackingAnonymized,
             },
         });
     }
@@ -502,12 +643,16 @@ export class UserService extends BaseService {
                 );
             if (
                 remainingAdmins.length === 0 &&
-                admin.userUuid === userUuidToDelete
+                admin?.userUuid === userUuidToDelete
             ) {
                 throw new ForbiddenError(
                     'Organization must have at least one admin',
                 );
             }
+        } else if (userToDelete && user.userUuid !== userUuidToDelete) {
+            // There is no org to scope a permission check against, so only
+            // the account owner can remove it (e.g. "Cancel registration").
+            throw new ForbiddenError();
         }
 
         if (!userToDelete) {
@@ -544,7 +689,12 @@ export class UserService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const { expiresAt, email, role } = createInviteLink;
+        const { email, role } = createInviteLink;
+        const purpose = createInviteLink.purpose ?? InviteLinkPurpose.Member;
+        // Same default expiry as the invite modal in the frontend
+        const expiresAt =
+            createInviteLink.expiresAt ??
+            new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
@@ -565,13 +715,33 @@ export class UserService extends BaseService {
         }
 
         let userUuid: string;
-        const userRole = auditedAbility.can(
+        const canGrantRoles = auditedAbility.can(
             'manage',
             subject('OrganizationMemberProfile', { organizationUuid }),
-        )
-            ? role || OrganizationMemberRole.MEMBER
-            : OrganizationMemberRole.MEMBER;
+        );
+        let userRole: OrganizationMemberRole;
+        switch (purpose) {
+            case InviteLinkPurpose.Member:
+                userRole = canGrantRoles
+                    ? role || OrganizationMemberRole.MEMBER
+                    : OrganizationMemberRole.MEMBER;
+                break;
+            case InviteLinkPurpose.Setup:
+                if (!canGrantRoles) {
+                    throw new ForbiddenError(
+                        'A setup invite requires permission to grant the admin role',
+                    );
+                }
+                userRole = OrganizationMemberRole.ADMIN;
+                break;
+            default:
+                return assertUnreachable(
+                    purpose,
+                    `Unknown invite link purpose: ${purpose}`,
+                );
+        }
         if (!existingUserWithEmail) {
+            const onboardingFlow = await this.getOnboardingFlow(user);
             const pendingUser = await this.userModel.createPendingUser(
                 organizationUuid,
                 {
@@ -580,6 +750,8 @@ export class UserService extends BaseService {
                     lastName: '',
                     role: userRole,
                 },
+                true,
+                onboardingFlow === 'new' ? false : undefined,
             );
             userUuid = pendingUser.userUuid;
         } else {
@@ -596,6 +768,15 @@ export class UserService extends BaseService {
                 userRole,
                 undefined,
             );
+        } else if (
+            existingUserWithEmail &&
+            purpose === InviteLinkPurpose.Setup
+        ) {
+            await this.organizationMemberProfileModel.updateOrganizationMember(
+                organizationUuid,
+                existingUserWithEmail.userUuid,
+                { role: OrganizationMemberRole.ADMIN },
+            );
         }
 
         const inviteLink = await this.inviteLinkModel.upsert(
@@ -603,6 +784,7 @@ export class UserService extends BaseService {
             expiresAt,
             organizationUuid,
             userUuid,
+            purpose,
         );
         await this.emailClient.sendInviteEmail(user, inviteLink);
         this.analytics.track({
@@ -719,6 +901,7 @@ export class UserService extends BaseService {
         inviteCode: string | undefined,
         refreshToken?: string,
         context?: AuthAuditContext,
+        options?: LoginWithOpenIdOptions,
     ): Promise<SessionUser> {
         this.logger.info(
             `Starting loginWithOpenId - Email: ${
@@ -734,6 +917,7 @@ export class UserService extends BaseService {
                 authenticatedUser,
                 inviteCode,
                 refreshToken,
+                options,
             );
             emitAuthAuditEvent({
                 actor: createActorFromUser(loggedInUser),
@@ -806,7 +990,14 @@ export class UserService extends BaseService {
         authenticatedUser: SessionUser | undefined,
         inviteCode: string | undefined,
         refreshToken: string | undefined,
+        options: LoginWithOpenIdOptions | undefined,
     ): Promise<SessionUser> {
+        if (options?.isLinkFlow && !authenticatedUser) {
+            throw new AuthorizationError(
+                'You must be logged in to connect a Google account',
+            );
+        }
+
         const openIdSession = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
@@ -837,6 +1028,15 @@ export class UserService extends BaseService {
         );
         // Identity already exists. Update the identity attributes and login the user
         if (openIdSession) {
+            if (
+                options?.isLinkFlow &&
+                openIdSession.userUuid !== authenticatedUser?.userUuid
+            ) {
+                throw new ForbiddenError(
+                    'This Google account is already connected to another Lightdash user',
+                );
+            }
+
             if (!openIdSession.isActive) {
                 this.logger.info(
                     `User ${openIdSession.userUuid} account is deactivated`,
@@ -877,7 +1077,11 @@ export class UserService extends BaseService {
                 ...openIdUser.openId,
                 refreshToken,
             });
-            await this.tryVerifyUserEmail(loginUser, openIdUser.openId.email);
+            await this.tryVerifyUserEmail(
+                loginUser,
+                openIdUser.openId.email,
+                'sso',
+            );
             this.identifyUser(loginUser);
             this.analytics.track({
                 userId: loginUser.userUuid,
@@ -1066,7 +1270,11 @@ export class UserService extends BaseService {
             openIdUser,
             inviteCode,
         );
-        await this.tryVerifyUserEmail(createdUser, openIdUser.openId.email);
+        await this.tryVerifyUserEmail(
+            createdUser,
+            openIdUser.openId.email,
+            'sso',
+        );
         const allowedOrgs =
             await this.organizationModel.getAllowedOrgsForDomain(
                 getEmailDomain(openIdUser.openId.email),
@@ -1128,7 +1336,17 @@ export class UserService extends BaseService {
             );
             return this.userModel.findSessionUserByUUID(user.userUuid);
         }
-        const user = await this.registerUser(openIdUser);
+        const user = await this.registerUser(
+            openIdUser,
+            await this.getOnboardingFlow(),
+        );
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'user.logged_in',
+            properties: {
+                loginProvider: openIdUser.openId.issuerType,
+            },
+        });
         return this.userModel.findSessionUserByUUID(user.userUuid);
     }
 
@@ -1146,7 +1364,11 @@ export class UserService extends BaseService {
             refreshToken,
             teamId: openIdUser.openId.teamId,
         });
-        await this.tryVerifyUserEmail(sessionUser, openIdUser.openId.email);
+        await this.tryVerifyUserEmail(
+            sessionUser,
+            openIdUser.openId.email,
+            'sso',
+        );
         this.analytics.track({
             userId: sessionUser.userUuid,
             event: 'user.identity_linked',
@@ -1180,6 +1402,7 @@ export class UserService extends BaseService {
             isTrackingAnonymized,
             isMarketingOptedIn,
             enableEmailDomainAccess,
+            howDidYouHearAboutUs,
         }: CompleteUserArgs,
     ): Promise<LightdashUser> {
         if (!isUserWithOrg(user)) {
@@ -1235,6 +1458,10 @@ export class UserService extends BaseService {
                 );
             }
         }
+        const answer =
+            typeof howDidYouHearAboutUs === 'string'
+                ? howDidYouHearAboutUs.trim().slice(0, 1000)
+                : undefined;
         const completeUser = await this.userModel.updateUser(
             user.userUuid,
             undefined,
@@ -1242,8 +1469,23 @@ export class UserService extends BaseService {
                 isSetupComplete: true,
                 isTrackingAnonymized,
                 isMarketingOptedIn,
+                howDidYouHearAboutUs: answer,
             },
         );
+
+        if (answer !== undefined) {
+            const onboardingFlow = await this.getOnboardingFlow(user);
+            this.analytics.track({
+                event: 'hear_about_us.submitted',
+                userId: completeUser.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid,
+                    onboardingFlow,
+                    answered: answer.length > 0,
+                    answer: answer.length > 0 ? answer : null,
+                },
+            });
+        }
 
         this.identifyUser(completeUser);
         this.analytics.track({
@@ -1292,17 +1534,7 @@ export class UserService extends BaseService {
     }
 
     async getInviteLink(inviteCode: string): Promise<InviteLink> {
-        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
-        const now = new Date();
-        if (inviteLink.expiresAt <= now) {
-            try {
-                await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
-            } catch (e) {
-                throw new NotFoundError('Invite link not found');
-            }
-            throw new ExpiredError('Invite link expired');
-        }
-        return inviteLink;
+        return this.inviteLinkModel.getByCode(inviteCode);
     }
 
     async loginWithPassword(
@@ -1440,6 +1672,16 @@ export class UserService extends BaseService {
             throw new ParameterError(`Invalid timezone: ${data.timezone}`);
         }
 
+        if (
+            data.avatarGradient !== undefined &&
+            data.avatarGradient !== null &&
+            !isUserAvatarColorValue(data.avatarGradient)
+        ) {
+            throw new ParameterError(
+                `Invalid avatar gradient: ${data.avatarGradient}`,
+            );
+        }
+
         const updatedUser = await this.userModel.updateUser(
             user.userUuid,
             user.email,
@@ -1450,6 +1692,7 @@ export class UserService extends BaseService {
                 isMarketingOptedIn: data.isMarketingOptedIn,
                 isTrackingAnonymized: data.isTrackingAnonymized,
                 timezone: data.timezone,
+                avatarGradient: data.avatarGradient,
             },
         );
         this.identifyUser(updatedUser);
@@ -1465,10 +1708,50 @@ export class UserService extends BaseService {
         });
 
         if (emailChanged) {
-            await this.sendOneTimePasscodeToPrimaryEmail(updatedUser);
+            await this.sendOneTimePasscodeToPrimaryEmail(
+                updatedUser,
+                'email_change',
+            );
         }
 
         return updatedUser;
+    }
+
+    async updateAvatar(
+        user: SessionUser,
+        body: Buffer,
+    ): Promise<{ avatarUrl: string }> {
+        const { image, contentHash } = await processAvatarImage(body);
+        await this.userAvatarModel.upsert(user.userUuid, image, contentHash);
+        this.userModel.invalidateSessionUserCache(user.userUuid);
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'user_avatar.updated',
+            properties: {
+                organizationId: user.organizationUuid,
+            },
+        });
+        return { avatarUrl: getUserAvatarUrl(user.userUuid, contentHash) };
+    }
+
+    async deleteAvatar(user: SessionUser): Promise<void> {
+        await this.userAvatarModel.delete(user.userUuid);
+        this.userModel.invalidateSessionUserCache(user.userUuid);
+    }
+
+    async getAvatarImage(
+        actor: SessionUser,
+        userUuid: string,
+        contentHash: string,
+    ): Promise<Buffer> {
+        const target = await this.userModel.getUserDetailsByUuid(userUuid);
+        if (
+            !actor.organizationUuid ||
+            actor.organizationUuid !== target.organizationUuid
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.userAvatarModel.getImage(userUuid, contentHash);
     }
 
     async registerOrActivateUser(
@@ -1481,21 +1764,58 @@ export class UserService extends BaseService {
                 lastName: user.lastName,
                 password: user.password,
             });
-        } else {
+        } else if ('password' in user) {
+            const onboardingFlow = await this.getOnboardingFlow();
             await this.checkNewUserRegistrationAllowed(undefined, user.email);
 
-            lightdashUser = await this.registerUser({
-                firstName: user.firstName,
-                lastName: user.lastName,
-                email: user.email,
-                password: user.password,
+            lightdashUser = await this.registerUser(
+                {
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    email: user.email,
+                    password: user.password,
+                },
+                onboardingFlow,
+            );
+        } else {
+            const onboardingFlow = await this.getOnboardingFlow();
+            if (onboardingFlow !== 'new') {
+                throw new ForbiddenError('Email-only signup is not enabled');
+            }
+            if (!this.lightdashConfig.smtp) {
+                throw new ForbiddenError(
+                    'Email-only signup requires an email server to be configured',
+                );
+            }
+
+            await this.checkNewUserRegistrationAllowed(undefined, user.email);
+
+            lightdashUser = await this.registerUser(
+                {
+                    firstName: '',
+                    lastName: '',
+                    email: user.email,
+                },
+                onboardingFlow,
+            );
+            // The register endpoint calls req.login on the returned session
+            // user, so signup establishes the first (passwordless) session.
+            this.analytics.track({
+                event: 'user.logged_in',
+                userId: lightdashUser.userUuid,
+                properties: {
+                    loginProvider: 'email_otp',
+                },
             });
         }
 
         return this.userModel.findSessionUserByUUID(lightdashUser.userUuid);
     }
 
-    private async registerUser(createUser: CreateUserArgs | OpenIdUser) {
+    private async registerUser(
+        createUser: CreateUserArgs | CreatePasswordlessUserArgs | OpenIdUser,
+        onboardingFlow: OnboardingFlow,
+    ) {
         if (isOpenIdUser(createUser)) {
             if (
                 (await this.isLoginMethodAllowed(
@@ -1518,7 +1838,23 @@ export class UserService extends BaseService {
             );
         }
 
-        const user = await this.userModel.createUser(createUser);
+        let userConnectionType:
+            | 'password'
+            | 'email_only'
+            | OpenIdIdentityIssuerType;
+        if (isOpenIdUser(createUser)) {
+            userConnectionType = createUser.openId.issuerType;
+        } else if ('password' in createUser) {
+            userConnectionType = 'password';
+        } else {
+            userConnectionType = 'email_only';
+        }
+
+        const user = await this.userModel.createUser(
+            createUser,
+            true,
+            onboardingFlow === 'new' ? false : undefined,
+        );
         this.identifyUser({
             ...user,
             isMarketingOptedIn: user.isMarketingOptedIn,
@@ -1527,12 +1863,22 @@ export class UserService extends BaseService {
             event: 'user.created',
             userId: user.userUuid,
             properties: {
-                context: 'accept_invite',
+                context: 'registration',
                 createdUserId: user.userUuid,
                 organizationId: user.organizationUuid,
-                userConnectionType: isOpenIdUser(createUser)
-                    ? createUser.openId.issuerType
-                    : 'password',
+                userConnectionType,
+                onboardingFlow,
+                isOrganizationCreator: true,
+            },
+        });
+        this.analytics.track({
+            event: 'onboarding.step_completed',
+            userId: user.userUuid,
+            properties: {
+                step: 'signup',
+                stepIndex: 1,
+                onboardingFlow,
+                organizationId: user.organizationUuid,
             },
         });
         if (isOpenIdUser(createUser)) {
@@ -1544,7 +1890,10 @@ export class UserService extends BaseService {
                 },
             });
         } else {
-            await this.sendOneTimePasscodeToPrimaryEmail(user);
+            await this.sendOneTimePasscodeToPrimaryEmail(
+                user,
+                'signup_verification',
+            );
         }
         return user;
     }
@@ -1735,8 +2084,16 @@ export class UserService extends BaseService {
     }
 
     async sendOneTimePasscodeToPrimaryEmail(
-        user: Pick<SessionUser, 'userUuid'>,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        purpose: OneTimePasscodePurpose,
     ): Promise<EmailStatusExpiring> {
+        const currentEmailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        const isResend = Boolean(
+            currentEmailStatus.otp &&
+            !this.isOtpExpired(currentEmailStatus.otp.createdAt),
+        );
         const passcode =
             this.lightdashConfig.mode === LightdashMode.PR ||
             this.lightdashConfig.mode === LightdashMode.DEV
@@ -1745,10 +2102,23 @@ export class UserService extends BaseService {
         const emailStatus = await this.emailModel.createPrimaryEmailOtp({
             passcode,
             userUuid: user.userUuid,
+            resetAttemptsIfOtpCreatedBefore: new Date(
+                Date.now() - this.emailOneTimePasscodeExpirySeconds * 1000,
+            ),
         });
         await this.emailClient.sendOneTimePasscodeEmail({
             recipient: emailStatus.email,
             passcode,
+        });
+        const onboardingFlow = await this.getOnboardingFlow(user);
+        this.analytics.track({
+            event: 'one_time_passcode.sent',
+            userId: user.userUuid,
+            properties: {
+                purpose,
+                isResend,
+                onboardingFlow,
+            },
         });
         return {
             ...emailStatus,
@@ -1761,6 +2131,172 @@ export class UserService extends BaseService {
                 ),
             },
         };
+    }
+
+    private async trackOneTimePasscodeFailed(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        purpose: OneTimePasscodePurpose,
+        reason: OneTimePasscodeFailureReason,
+    ): Promise<void> {
+        const onboardingFlow = await this.getOnboardingFlow(user);
+        this.analytics.track({
+            event: 'one_time_passcode.failed',
+            userId: user.userUuid,
+            properties: {
+                purpose,
+                reason,
+                onboardingFlow,
+            },
+        });
+    }
+
+    private async isStrictlyPasswordlessUser(
+        user: LightdashUser,
+        email: string,
+    ): Promise<boolean> {
+        const [hasPassword, hasOpenIdIdentity, isEmailLoginAllowed] =
+            await Promise.all([
+                this.userModel.hasPassword(user.userUuid),
+                this.userModel.hasOpenIdIdentity(user.userUuid),
+                this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL_OTP),
+            ]);
+        return !hasPassword && !hasOpenIdIdentity && isEmailLoginAllowed;
+    }
+
+    // OTP login is deliberately NOT gated on the NewOnboarding flag: accounts
+    // enrolled as strictly passwordless have no other way to sign in, so a
+    // flag rollback must not strand them. The flag gates enrollment only.
+    async requestEmailOtpLogin(email: string): Promise<void> {
+        const normalizedEmail = email.toLowerCase();
+        const user = await this.userModel.findUserByEmail(normalizedEmail);
+        if (
+            !user ||
+            !user.isActive ||
+            !(await this.isStrictlyPasswordlessUser(user, normalizedEmail))
+        ) {
+            return;
+        }
+        const emailStatus = await this.emailModel.getPrimaryEmailStatus(
+            user.userUuid,
+        );
+        if (
+            emailStatus.otp &&
+            Date.now() - emailStatus.otp.createdAt.getTime() <
+                this.emailOneTimePasscodeResendIntervalSeconds * 1000
+        ) {
+            return;
+        }
+        await this.sendOneTimePasscodeToPrimaryEmail(user, 'login');
+    }
+
+    async loginWithEmailOtp(
+        email: string,
+        passcode: string,
+        context?: AuthAuditContext,
+    ): Promise<SessionUser> {
+        const normalizedEmail = email.toLowerCase();
+        const invalidCode = () => {
+            emitAuthAuditEvent({
+                actor: createUnknownAuthActor(normalizedEmail),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'denied',
+                reason: 'Invalid or expired code',
+                metadata: { loginProvider: 'email_otp' },
+                context,
+            });
+            return new AuthorizationError('Invalid or expired code');
+        };
+
+        const user = await this.userModel.findUserByEmail(normalizedEmail);
+        if (
+            !user ||
+            !user.isActive ||
+            !(await this.isStrictlyPasswordlessUser(user, normalizedEmail))
+        ) {
+            throw invalidCode();
+        }
+
+        let emailStatus: EmailStatus;
+        try {
+            emailStatus = await this.emailModel.getPrimaryEmailStatus(
+                user.userUuid,
+            );
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                await this.trackOneTimePasscodeFailed(user, 'login', 'invalid');
+                throw invalidCode();
+            }
+            throw error;
+        }
+
+        if (!emailStatus.otp) {
+            await this.trackOneTimePasscodeFailed(user, 'login', 'invalid');
+            throw invalidCode();
+        }
+        if (this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts)) {
+            await this.trackOneTimePasscodeFailed(
+                user,
+                'login',
+                'max_attempts',
+            );
+            throw invalidCode();
+        }
+        if (this.isOtpExpired(emailStatus.otp.createdAt)) {
+            await this.trackOneTimePasscodeFailed(user, 'login', 'expired');
+            throw invalidCode();
+        }
+
+        try {
+            await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
+                userUuid: user.userUuid,
+                passcode,
+            });
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                await this.emailModel.incrementPrimaryEmailOtpAttempts(
+                    user.userUuid,
+                );
+                await this.trackOneTimePasscodeFailed(user, 'login', 'invalid');
+                throw invalidCode();
+            }
+            throw error;
+        }
+
+        let sessionUser: SessionUser;
+        try {
+            sessionUser = await this.userModel.findSessionUserByUUID(
+                user.userUuid,
+            );
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                throw invalidCode();
+            }
+            throw error;
+        }
+        await this.tryVerifyUserEmail(sessionUser, emailStatus.email, 'otp');
+        await this.emailModel.deleteEmailOtp(
+            sessionUser.userUuid,
+            emailStatus.email,
+        );
+        this.identifyUser(sessionUser);
+        this.analytics.track({
+            userId: sessionUser.userUuid,
+            event: 'user.logged_in',
+            properties: {
+                loginProvider: 'email_otp',
+            },
+        });
+        emitAuthAuditEvent({
+            actor: createActorFromUser(sessionUser),
+            action: 'login',
+            resourceType: 'Session',
+            status: 'allowed',
+            organizationUuid: sessionUser.organizationUuid,
+            metadata: { loginProvider: 'email_otp' },
+            context,
+        });
+        return sessionUser;
     }
 
     private isOtpExpired(createdAt: Date) {
@@ -1777,6 +2313,9 @@ export class UserService extends BaseService {
     ): Promise<EmailStatusExpiring> {
         // Attempt to verify the passcode if it's provided
         if (passcode) {
+            const purpose = user.isSetupComplete
+                ? 'email_change'
+                : 'signup_verification';
             try {
                 const emailStatus =
                     await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
@@ -1788,10 +2327,29 @@ export class UserService extends BaseService {
                     !this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts) &&
                     !this.isOtpExpired(emailStatus.otp.createdAt)
                 ) {
-                    await this.tryVerifyUserEmail(user, emailStatus.email);
+                    await this.tryVerifyUserEmail(
+                        user,
+                        emailStatus.email,
+                        'otp',
+                    );
                     await this.emailModel.deleteEmailOtp(
                         user.userUuid,
                         emailStatus.email,
+                    );
+                } else {
+                    let reason: OneTimePasscodeFailureReason = 'invalid';
+                    if (
+                        emailStatus.otp &&
+                        this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts)
+                    ) {
+                        reason = 'max_attempts';
+                    } else if (emailStatus.otp) {
+                        reason = 'expired';
+                    }
+                    await this.trackOneTimePasscodeFailed(
+                        user,
+                        purpose,
+                        reason,
                     );
                 }
             } catch (e) {
@@ -1799,6 +2357,11 @@ export class UserService extends BaseService {
                 if (e instanceof NotFoundError) {
                     await this.emailModel.incrementPrimaryEmailOtpAttempts(
                         user.userUuid,
+                    );
+                    await this.trackOneTimePasscodeFailed(
+                        user,
+                        purpose,
+                        'invalid',
                     );
                 } else {
                     throw e;
@@ -1982,6 +2545,15 @@ export class UserService extends BaseService {
             actor: user,
             userToDelete,
             context: 'leave_organization',
+        });
+        this.analytics.track({
+            event: 'user.left_organization',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                wasOrganizationAdmin:
+                    member.role === OrganizationMemberRole.ADMIN,
+            },
         });
 
         this.logger.info('User left organization', {
@@ -2299,10 +2871,11 @@ export class UserService extends BaseService {
                     'Snowflake client is not configured',
                 );
             }
-            const refreshToken: string = await this.userModel.getRefreshToken(
-                user.userUuid,
-                OpenIdIdentityIssuerType.SNOWFLAKE,
-            );
+            const refreshToken =
+                await this.userOAuthGrantsModel.getRefreshToken(
+                    user.userUuid,
+                    OpenIdIdentityIssuerType.SNOWFLAKE,
+                );
             const { accessToken } =
                 await UserService.generateSnowflakeAccessToken(refreshToken);
             return accessToken;
@@ -2314,15 +2887,16 @@ export class UserService extends BaseService {
                     'Databricks client is not configured',
                 );
             }
-            const refreshToken: string = await this.userModel.getRefreshToken(
-                user.userUuid,
-                OpenIdIdentityIssuerType.DATABRICKS,
-            );
+            const refreshToken =
+                await this.userOAuthGrantsModel.getRefreshToken(
+                    user.userUuid,
+                    OpenIdIdentityIssuerType.DATABRICKS,
+                );
             const accessToken =
                 await UserService.generateDatabricksAccessToken(refreshToken);
             return accessToken;
         }
-        const refreshToken: string = await this.userModel.getRefreshToken(
+        const refreshToken = await this.userOAuthGrantsModel.getRefreshToken(
             user.userUuid,
             OpenIdIdentityIssuerType.GOOGLE,
         );
@@ -2408,6 +2982,7 @@ export class UserService extends BaseService {
     async isLoginMethodAllowed(email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
+            case LocalIssuerTypes.EMAIL_OTP:
                 return !this.lightdashConfig.auth.disablePasswordAuthentication;
             case OpenIdIdentityIssuerType.GOOGLE:
                 // Enabled by default, but an org can disable Google sign-in
@@ -2437,8 +3012,28 @@ export class UserService extends BaseService {
      * @param user
      * @returns accessToken
      */
+    async storeOAuthGrant(
+        user: SessionUser,
+        provider: UserOAuthGrantProvider,
+        refreshToken: string,
+        scopes: string[],
+        profile: Pick<OpenIdUser['openId'], 'subject' | 'email'>,
+    ): Promise<void> {
+        await this.userOAuthGrantsModel.upsertGrant({
+            userUuid: user.userUuid,
+            provider,
+            subject: profile.subject,
+            email: profile.email,
+            scopes,
+            refreshToken,
+        });
+    }
+
     async getRefreshToken(userUuid: string): Promise<string> {
-        return this.userModel.getRefreshToken(userUuid);
+        return this.userOAuthGrantsModel.getRefreshToken(
+            userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
+        );
     }
 
     async getWarehouseCredentials(user: SessionUser) {
@@ -2463,6 +3058,14 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
+        // Guard before deleting: an OAuth callback without a refresh token
+        // must not wipe the user's working credentials.
+        if (!refreshToken) {
+            throw new ParameterError(
+                'Cannot create BigQuery user credentials without a Google refresh token',
+            );
+        }
+
         // Remove old BigQuery credentials to prevent duplicates on re-authentication
         await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
             user.userUuid,
@@ -2598,6 +3201,224 @@ export class UserService extends BaseService {
         }
 
         return this.createWarehouseCredentials(user, databricksCredentials);
+    }
+
+    static isAwsSsoAuthorizationPending(error: unknown): boolean {
+        const errorName = (error as { name?: string })?.name;
+        return (
+            errorName === 'AuthorizationPendingException' ||
+            errorName === 'SlowDownException'
+        );
+    }
+
+    private static validateRedshiftAwsSsoStartRequest(
+        data: RedshiftAwsSsoStartRequest,
+    ) {
+        try {
+            if (!data.startUrl) {
+                throw new Error('Missing start URL');
+            }
+            const startUrl = new URL(data.startUrl);
+            if (startUrl.protocol !== 'https:') {
+                throw new Error('Invalid protocol');
+            }
+        } catch {
+            throw new ParameterError('AWS access portal URL must be valid.');
+        }
+
+        if (!data.region?.trim()) {
+            throw new ParameterError(
+                'AWS IAM Identity Center region is required.',
+            );
+        }
+    }
+
+    private static validateRedshiftAwsSsoCompleteRequest(
+        data: RedshiftAwsSsoCompleteRequest,
+    ) {
+        if (!data.accountId || !/^\d{12}$/.test(data.accountId.trim())) {
+            throw new ParameterError(
+                'AWS account ID must be a 12 digit number.',
+            );
+        }
+
+        if (!data.roleName?.trim()) {
+            throw new ParameterError('AWS role name is required.');
+        }
+    }
+
+    async startRedshiftAwsSsoDeviceAuthorization(
+        data: RedshiftAwsSsoStartRequest,
+    ): Promise<{
+        session: RedshiftAwsSsoSession;
+        results: RedshiftAwsSsoStartResults;
+    }> {
+        UserService.validateRedshiftAwsSsoStartRequest(data);
+
+        const region = data.region!.trim();
+        const startUrl = data.startUrl!.trim();
+        this.logger.info('Starting Redshift AWS SSO device authorization', {
+            region,
+        });
+        const client = new SSOOIDCClient({ region });
+        const registeredClient = await client.send(
+            new RegisterClientCommand({
+                clientName: 'Lightdash Redshift AWS SSO',
+                clientType: 'public',
+            }),
+        );
+
+        if (!registeredClient.clientId || !registeredClient.clientSecret) {
+            throw new ParameterError(
+                'AWS IAM Identity Center did not return client registration details.',
+            );
+        }
+
+        const authorization = await client.send(
+            new StartDeviceAuthorizationCommand({
+                clientId: registeredClient.clientId,
+                clientSecret: registeredClient.clientSecret,
+                startUrl,
+            }),
+        );
+
+        if (
+            !authorization.deviceCode ||
+            !authorization.verificationUri ||
+            !authorization.verificationUriComplete ||
+            !authorization.userCode ||
+            authorization.expiresIn === undefined ||
+            authorization.interval === undefined
+        ) {
+            throw new ParameterError(
+                'AWS IAM Identity Center did not return device authorization details.',
+            );
+        }
+
+        return {
+            session: {
+                clientId: registeredClient.clientId,
+                clientSecret: registeredClient.clientSecret,
+                deviceCode: authorization.deviceCode,
+                region,
+                startUrl,
+                expiresAt: Date.now() + authorization.expiresIn * 1000,
+            },
+            results: {
+                verificationUri: authorization.verificationUri,
+                verificationUriComplete: authorization.verificationUriComplete,
+                userCode: authorization.userCode,
+                expiresIn: authorization.expiresIn,
+                interval: authorization.interval,
+            },
+        };
+    }
+
+    async completeRedshiftAwsSsoDeviceAuthorization(
+        user: SessionUser,
+        session: RedshiftAwsSsoSession | undefined,
+        data: RedshiftAwsSsoCompleteRequest,
+    ): Promise<RedshiftAwsSsoCompleteResults> {
+        if (!session) {
+            throw new ParameterError('AWS SSO login has not been started.');
+        }
+
+        if (session.expiresAt < Date.now()) {
+            throw new ParameterError('AWS SSO login has expired. Try again.');
+        }
+
+        UserService.validateRedshiftAwsSsoCompleteRequest(data);
+
+        const oidcClient = new SSOOIDCClient({ region: session.region });
+        let accessToken: string | undefined;
+
+        try {
+            const token = await oidcClient.send(
+                new CreateTokenCommand({
+                    clientId: session.clientId,
+                    clientSecret: session.clientSecret,
+                    deviceCode: session.deviceCode,
+                    grantType: AWS_SSO_DEVICE_GRANT_TYPE,
+                }),
+            );
+            accessToken = token.accessToken;
+        } catch (e) {
+            if (UserService.isAwsSsoAuthorizationPending(e)) {
+                return { status: 'pending' };
+            }
+            throw e;
+        }
+
+        if (!accessToken) {
+            throw new ParameterError(
+                'AWS IAM Identity Center did not return an access token.',
+            );
+        }
+
+        const ssoClient = new SSOClient({ region: session.region });
+        const roleCredentials = await ssoClient.send(
+            new GetRoleCredentialsCommand({
+                accessToken,
+                accountId: data.accountId!.trim(),
+                roleName: data.roleName!.trim(),
+            }),
+        );
+
+        const awsCredentials = roleCredentials.roleCredentials;
+        if (
+            !awsCredentials?.accessKeyId ||
+            !awsCredentials.secretAccessKey ||
+            !awsCredentials.sessionToken
+        ) {
+            throw new ParameterError(
+                'AWS IAM Identity Center did not return role credentials.',
+            );
+        }
+
+        const roleName = data.roleName!.trim();
+        const credentialsName =
+            data.credentialsName?.trim() || `Redshift AWS SSO (${roleName})`;
+        const projectName = data.projectName?.trim();
+        const redshiftCredentials: UpsertUserWarehouseCredentials = {
+            name: credentialsName,
+            credentials: {
+                type: WarehouseTypes.REDSHIFT,
+                authenticationType: RedshiftAuthenticationType.IAM_BROWSER,
+                user: data.databaseUser?.trim() ?? '',
+                accessKeyId: awsCredentials.accessKeyId,
+                secretAccessKey: awsCredentials.secretAccessKey,
+                sessionToken: awsCredentials.sessionToken,
+            },
+        };
+
+        const existingCredentials = data.projectUuid
+            ? await this.userWarehouseCredentialsModel.findForProject(
+                  data.projectUuid,
+                  user.userUuid,
+                  WarehouseTypes.REDSHIFT,
+              )
+            : undefined;
+        const credentials = existingCredentials
+            ? await this.updateWarehouseCredentials(
+                  user,
+                  existingCredentials.uuid,
+                  redshiftCredentials,
+              )
+            : await this.createWarehouseCredentials(
+                  user,
+                  {
+                      ...redshiftCredentials,
+                      name: projectName
+                          ? `Redshift AWS SSO (${projectName})`
+                          : redshiftCredentials.name,
+                  },
+                  data.projectUuid,
+              );
+
+        return {
+            status: 'authenticated',
+            credentials,
+        };
     }
 
     async createWarehouseCredentials(
@@ -2785,6 +3606,30 @@ export class UserService extends BaseService {
 
         const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
         const hasPassword = await this.userModel.hasPasswordByEmail(email);
+        // Not gated on the NewOnboarding flag: an enrolled passwordless
+        // account must keep its only sign-in path across a flag rollback.
+        let shouldShowEmailOtp = false;
+        if (existingUser && !hasPassword) {
+            const [hasPasswordLogin, hasOpenIdIdentity, isEmailLoginAllowed] =
+                await Promise.all([
+                    this.userModel.hasPassword(existingUser.userUuid),
+                    this.userModel.hasOpenIdIdentity(existingUser.userUuid),
+                    this.isLoginMethodAllowed(
+                        email,
+                        LocalIssuerTypes.EMAIL_OTP,
+                    ),
+                ]);
+            shouldShowEmailOtp =
+                !hasPasswordLogin && !hasOpenIdIdentity && isEmailLoginAllowed;
+        }
+        const applyEmailOtpOption = (options: LoginOptionTypes[]) =>
+            shouldShowEmailOtp && options.includes(LocalIssuerTypes.EMAIL)
+                ? options.map((option) =>
+                      option === LocalIssuerTypes.EMAIL
+                          ? LocalIssuerTypes.EMAIL_OTP
+                          : option,
+                  )
+                : options;
 
         let ssoOptionsForUser: OpenIdIdentityIssuerType[];
         let passwordAllowedForUser: boolean;
@@ -2830,10 +3675,12 @@ export class UserService extends BaseService {
         // new signup.
         if (showOptions.length === 0) {
             return {
-                showOptions: Array.from(instancesOptions).filter(
-                    (o) =>
-                        googleEnabledForUser ||
-                        o !== OpenIdIdentityIssuerType.GOOGLE,
+                showOptions: applyEmailOtpOption(
+                    Array.from(instancesOptions).filter(
+                        (o) =>
+                            googleEnabledForUser ||
+                            o !== OpenIdIdentityIssuerType.GOOGLE,
+                    ),
                 ),
                 forceRedirect: false,
                 redirectUri: undefined,
@@ -2857,8 +3704,9 @@ export class UserService extends BaseService {
                 ).href,
             };
         }
+        const loginOptions = applyEmailOtpOption(showOptions);
         return {
-            showOptions,
+            showOptions: loginOptions,
             forceRedirect: false,
             redirectUri: undefined,
         };

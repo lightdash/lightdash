@@ -28,6 +28,7 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../utils/populateCustomMetricsSQL';
+import { getQueryResultSummary } from '../utils/queryResultSummary';
 import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -125,6 +126,7 @@ export const validateRunQueryTool = (
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
         queryTool.queryConfig.tableCalculations,
+        aggregations,
     );
 
     // Validate sort fields exist
@@ -227,7 +229,10 @@ export const getRunQuery = ({
                         artifactType: 'chart',
                         title: toolArgs.title,
                         description: toolArgs.description,
-                        vizConfig: expandedToolArgs,
+                        vizConfig: {
+                            source: 'semantic',
+                            config: expandedToolArgs,
+                        },
                     });
 
                 // Early artifact creation for non-data-access mode
@@ -239,6 +244,12 @@ export const getRunQuery = ({
                     };
                 }
 
+                const requestedLimit = queryTool.queryConfig.limit;
+                const effectiveLimit = getValidAiQueryLimit(
+                    requestedLimit,
+                    maxLimit,
+                );
+
                 const metricQuery = {
                     exploreName: queryTool.queryConfig.exploreName,
                     dimensions: queryTool.queryConfig.dimensions,
@@ -247,10 +258,7 @@ export const getRunQuery = ({
                         ...sort,
                         nullsFirst: sort.nullsFirst ?? undefined,
                     })),
-                    limit: getValidAiQueryLimit(
-                        queryTool.queryConfig.limit,
-                        maxLimit,
-                    ),
+                    limit: effectiveLimit,
                     filters: queryTool.queryConfig.filters,
                     additionalMetrics: populatedCustomMetrics,
                     customMetrics: queryTool.queryConfig.customMetrics,
@@ -316,16 +324,25 @@ export const getRunQuery = ({
                     }
                 }
 
+                const resultSummary = getQueryResultSummary({
+                    rowCount: queryResults.rows.length,
+                    requestedLimit,
+                    effectiveLimit,
+                    maxLimit,
+                });
+
                 if (!enableDataAccess) {
                     return {
-                        result: `Success.`,
+                        result: `Success. ${resultSummary}`,
                         metadata: { status: 'success', chartImageUrl },
                     };
                 }
 
                 const csv = convertQueryResultsToCsv(queryResults);
                 return {
-                    result: serializeData(csv, 'csv'),
+                    result: [resultSummary, serializeData(csv, 'csv')].join(
+                        '\n\n',
+                    ),
                     metadata: { status: 'success', chartImageUrl },
                 };
             } catch (e) {

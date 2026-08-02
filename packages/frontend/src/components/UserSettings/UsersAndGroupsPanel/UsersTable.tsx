@@ -18,7 +18,7 @@ import {
     Text,
     useMantineTheme,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -49,17 +49,19 @@ import {
     type ContentTableVirtualizer,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
+import ConfirmAdminSelfDowngradeModal from './ConfirmAdminSelfDowngradeModal';
 import InviteSuccess from './InviteSuccess';
 import UsersActionMenu from './UsersActionMenu';
 import { UsersTopToolbar } from './UsersTopToolbar';
 
 const fetchSize = 50;
 
-interface UsersTableProps {
-    onInviteClick: () => void;
-}
+type PendingRoleChange = {
+    userId: string;
+    roleId: string;
+};
 
-const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
+const UsersTable: FC = () => {
     const theme = useMantineTheme();
     const { user: activeUser } = useApp();
     const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -73,6 +75,8 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
     const [inviteSuccessFor, setInviteSuccessFor] = useState<string | null>(
         null,
     );
+    const [pendingRoleChange, setPendingRoleChange] =
+        useState<PendingRoleChange | null>(null);
 
     // Callback to handle when an invite is sent
     const handleInviteSent = useCallback((userUuid: string) => {
@@ -142,6 +146,42 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
 
     const updateUserRole = useUpsertOrganizationUserRoleAssignmentMutation();
     const organizationRolesQuery = useOrganizationRoles();
+
+    const handleRoleChange = useCallback(
+        (user: OrganizationMemberProfile, newRole: string) => {
+            const isCurrentUser = activeUser.data?.userUuid === user.userUuid;
+            const isAdminSelfDowngrade =
+                isCurrentUser &&
+                user.role === OrganizationMemberRole.ADMIN &&
+                newRole !== OrganizationMemberRole.ADMIN;
+
+            if (isAdminSelfDowngrade) {
+                setPendingRoleChange({
+                    userId: user.userUuid,
+                    roleId: newRole,
+                });
+                return;
+            }
+
+            updateUserRole.mutate({
+                userId: user.userUuid,
+                roleId: newRole,
+            });
+        },
+        [activeUser.data?.userUuid, updateUserRole],
+    );
+
+    const handleConfirmAdminSelfDowngrade = useCallback(() => {
+        if (!pendingRoleChange) {
+            return;
+        }
+
+        updateUserRole.mutate(pendingRoleChange, {
+            onSuccess: () => {
+                setPendingRoleChange(null);
+            },
+        });
+    }, [pendingRoleChange, updateUserRole]);
 
     const organizationRoleOptions = useMemo(() => {
         const systemRoles = Object.values(OrganizationMemberRole).map(
@@ -270,10 +310,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                             data={organizationRoleOptions}
                             onChange={(newRole: string | null) => {
                                 if (newRole) {
-                                    updateUserRole.mutate({
-                                        userId: user.userUuid,
-                                        roleId: newRole,
-                                    });
+                                    handleRoleChange(user, newRole);
                                 }
                             }}
                             value={user.roleUuid ?? user.role}
@@ -372,7 +409,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         inviteLink,
         inviteSuccessFor,
         isGroupManagementEnabled,
-        updateUserRole,
+        handleRoleChange,
         organizationRoleOptions,
         organizationRolesQuery.isLoading,
         activeUser.data?.userUuid,
@@ -459,14 +496,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
             };
         },
         renderTopToolbar: () => (
-            <UsersTopToolbar
-                search={search}
-                setSearch={setSearch}
-                isFetching={isFetching || isLoading}
-                currentResultsCount={totalFetched}
-                canInvite={canInvite}
-                onInviteClick={onInviteClick}
-            />
+            <UsersTopToolbar search={search} setSearch={setSearch} />
         ),
         renderBottomToolbar: () => (
             <Box
@@ -519,7 +549,17 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         },
     });
 
-    return <ContentTable table={table} />;
+    return (
+        <>
+            <ContentTable table={table} />
+            <ConfirmAdminSelfDowngradeModal
+                opened={pendingRoleChange !== null}
+                loading={updateUserRole.isLoading}
+                onClose={() => setPendingRoleChange(null)}
+                onConfirm={handleConfirmAdminSelfDowngrade}
+            />
+        </>
+    );
 };
 
 export default UsersTable;

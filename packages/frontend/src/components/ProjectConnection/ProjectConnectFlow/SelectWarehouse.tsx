@@ -1,17 +1,19 @@
 import { subject } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
-import { Alert, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Alert, Stack, Text, SimpleGrid } from '@mantine-8/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import OnboardingButton from './common/OnboardingButton';
 import { OnboardingConnectTitle } from './common/OnboardingTitle';
 import OnboardingWrapper from './common/OnboardingWrapper';
 import InviteExpertFooter from './InviteExpertFooter';
-import { type SelectedWarehouse } from './types';
+import { OtherWarehouse, type SelectedWarehouse } from './types';
 import { getWarehouseIcon, WarehouseTypeLabels } from './utils';
 
 interface SelectWarehouseProps {
@@ -25,6 +27,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
 }) => {
     const { user } = useApp();
     const { data: organization } = useOrganization();
+    const { track } = useTracking();
 
     const canCreateProject = user.data?.ability?.can(
         'create',
@@ -63,7 +66,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                         </Alert>
                     )}
 
-                    <Text color="dimmed">Select your warehouse:</Text>
+                    <Text c="dimmed">Select your warehouse:</Text>
 
                     <SimpleGrid cols={2} spacing="sm">
                         {WarehouseTypeLabels.map((item) => (
@@ -73,7 +76,24 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                                 onClick={
                                     canCreateProject === false
                                         ? undefined
-                                        : () => onSelect(item.key)
+                                        : () => {
+                                              track({
+                                                  name: EventName.ONBOARDING_WAREHOUSE_SELECTED,
+                                                  properties: {
+                                                      organizationId:
+                                                          organization?.organizationUuid ??
+                                                          '',
+                                                      warehouse: item.key,
+                                                      tier:
+                                                          item.key ===
+                                                          OtherWarehouse.Other
+                                                              ? 'other'
+                                                              : 'all',
+                                                      onboardingFlow: 'legacy',
+                                                  },
+                                              });
+                                              onSelect(item.key);
+                                          }
                                 }
                                 style={{
                                     opacity:

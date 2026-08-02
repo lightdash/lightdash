@@ -1,5 +1,5 @@
-import { Popover, TextInput } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { TextInput, Popover } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import { type FC, type ReactNode } from 'react';
 
 type Props = {

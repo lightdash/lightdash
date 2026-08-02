@@ -6,7 +6,7 @@ import {
     RenameType,
     ValidationTarget,
 } from '@lightdash/common';
-import { InvalidArgumentError, Option, program } from 'commander';
+import { InvalidArgumentError, Option, program, type Command } from 'commander';
 import { validate } from 'uuid';
 import {
     DEFAULT_DBT_PROFILES_DIR as defaultProfilesDir,
@@ -16,7 +16,10 @@ import {
 } from './env';
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
+import { createAppHandler } from './handlers/apps/createApp';
+import { appsPreviewHandler } from './handlers/apps/preview';
 import { compileHandler } from './handlers/compile';
+import { connectSnowflakeHandler } from './handlers/connectSnowflake';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
 import { deployHandler } from './handlers/deploy';
@@ -40,11 +43,13 @@ import {
     stopPreviewHandler,
 } from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
+import { renameProjectHandler } from './handlers/renameProject';
 import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
 import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
+import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
 // Trigger CLI tests
 // Suppress AWS SDK V2 warning, imported by snowflake SDK
@@ -83,6 +88,8 @@ function parseDisableTimestampConversionOption(
     }
     return value.toLowerCase() === 'true';
 }
+
+const validateWarehouseColumnsDescription = `Check physical \${TABLE}.column references in dimensions and metrics by executing zero-row queries against the warehouse. Requires warehouse credentials.`;
 
 function parseProjectArgument(value: string | undefined): string | undefined {
     if (value === undefined) {
@@ -173,6 +180,19 @@ ${styles.bold('Examples:')}
   )} ${styles.secondary('-- logs in to a Lightdash instance')}
 `,
     );
+
+program
+    .command('connect-snowflake')
+    .description('Connects Lightdash to Snowflake using browser-based SSO')
+    .requiredOption('--code <one-time-code>', 'One-time Lightdash connect code')
+    .requiredOption('--url <lightdash-url>', 'Lightdash instance URL')
+    .requiredOption('--account <account>', 'Snowflake account identifier')
+    .option('--user <username>', 'Snowflake username override')
+    .option('--database <database>', 'Snowflake database override')
+    .option('--warehouse <warehouse>', 'Snowflake warehouse override')
+    .option('--role <role>', 'Snowflake role override')
+    .option('--schema <schema>', 'Snowflake schema override')
+    .action((options) => connectSnowflakeHandler(options));
 
 // LOGIN
 program
@@ -281,6 +301,12 @@ configProgram
     .description('Show the currently selected project')
     .option('--verbose', undefined, false)
     .action(getProjectHandler);
+configProgram
+    .command('rename-project')
+    .description('Rename the currently selected project')
+    .requiredOption('--name <name>', 'New project name')
+    .option('--verbose', undefined, false)
+    .action(renameProjectHandler);
 configProgram
     .command('unset-project')
     .description('Clear the currently selected project')
@@ -447,6 +473,15 @@ program
         'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
         parseDisableTimestampConversionOption,
     )
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
+    )
     .action(compileHandler);
 
 program
@@ -576,6 +611,15 @@ program
         '--expires-in <hours>',
         'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
     )
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
+    )
     .action(previewHandler);
 
 program
@@ -702,6 +746,15 @@ program
         '--expires-in <hours>',
         'Number of hours until the preview project auto-expires (default: 720, i.e. 30 days)',
     )
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
+    )
     .action(startPreviewHandler);
 
 program
@@ -714,9 +767,57 @@ program
     .option('--verbose', undefined, false)
     .action(stopPreviewHandler);
 
-program
+const ORGANIZATION_MODE_OPTIONS = new Set([
+    'organization',
+    'path',
+    'sendInvites',
+    'verbose',
+]);
+
+const withOrganizationMode =
+    <
+        Options extends {
+            organization: boolean;
+            sendInvites?: boolean;
+        },
+    >(
+        handler: (options: Options) => Promise<void>,
+    ) =>
+    async (options: Options, command: Command): Promise<void> => {
+        if (!options.organization && options.sendInvites) {
+            command.error(
+                `error: option '--send-invites' requires option '--organization'`,
+                { code: 'commander.missingMandatoryOptionValue' },
+            );
+        }
+        if (options.organization) {
+            const conflictingOption = Object.keys(options).find(
+                (optionName) => {
+                    const source = command.getOptionValueSource(optionName);
+                    return (
+                        !ORGANIZATION_MODE_OPTIONS.has(optionName) &&
+                        source !== undefined &&
+                        source !== 'default'
+                    );
+                },
+            );
+            if (conflictingOption) {
+                const conflictingFlag = conflictingOption.replace(
+                    /[A-Z]/g,
+                    (letter) => `-${letter.toLowerCase()}`,
+                );
+                command.error(
+                    `error: option '--organization' cannot be used with option '--${conflictingFlag}'`,
+                    { code: 'commander.conflictingOption' },
+                );
+            }
+        }
+        await handler(options);
+    };
+
+const downloadCommand = program
     .command('download')
-    .description('Downloads charts and dashboards as code')
+    .description('Downloads project or organization content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -728,6 +829,38 @@ program
         'specify dashboard slugs, uuids or urls to download',
         [],
     )
+    .option('--agents <slugs...>', 'specify AI agent slugs to download', [])
+    .option(
+        '--include-agents',
+        "include all of the project's AI agents (enterprise)",
+        false,
+    )
+    .option('--alerts <slugs...>', 'specify alert slugs to download', [])
+    .option(
+        '--virtual-views <slugs...>',
+        'specify virtual view slugs to download',
+        [],
+    )
+    .option(
+        '--google-sheets <slugs...>',
+        'specify Google Sheets sync slugs to download',
+        [],
+    )
+    .option(
+        '--scheduled-deliveries <slugs...>',
+        'specify scheduled delivery slugs to download',
+        [],
+    )
+    .option(
+        '--external-connections <slugs...>',
+        'specify external connection slugs to download (enterprise)',
+        [],
+    )
+    .option(
+        '--include-external-connections',
+        "include all of the project's data-app external connections (enterprise)",
+        false,
+    )
     .option(
         '-l, --language-map',
         'generate a language maps for the downloaded charts and dashboards',
@@ -735,12 +868,17 @@ program
     )
     .option(
         '-p, --path <path>',
-        'specify a custom path to download charts and dashboards',
+        'specify a custom path to download content',
         undefined,
     )
     .option(
         '--nested',
         'organize downloads in nested folders by project and space (default: flat structure)',
+        false,
+    )
+    .option(
+        '--root-spaces',
+        'write new flat space definitions at the content root instead of spaces/ (legacy layout)',
         false,
     )
     .option(
@@ -751,14 +889,72 @@ program
     )
     .option(
         '--skip-spaces',
-        'skip writing space metadata files during download',
+        'skip downloading space definitions and access',
         false,
     )
-    .action(downloadHandler);
+    .option(
+        '--spaces-only',
+        'download only space definitions and access',
+        false,
+    )
+    .option('--skip-charts', 'skip downloading charts', false)
+    .option('--skip-dashboards', 'skip downloading dashboards', false)
+    .option('--include-alerts', 'include all alerts in the download', false)
+    .option(
+        '--include-virtual-views',
+        'include all virtual views in the download',
+        false,
+    )
+    .option(
+        '--include-google-sheets',
+        'include all Google Sheets syncs in the download',
+        false,
+    )
+    .option(
+        '--include-scheduled-deliveries',
+        'include all scheduled deliveries in the download',
+        false,
+    )
+    .option(
+        '--include-all',
+        'include all optional content in the download',
+        false,
+    )
+    .option(
+        '--strip-pivot-series',
+        'strip per-value pivot series config from chart YAML for portable downloads',
+        false,
+    )
+    .option(
+        '--apps <appReferences...>',
+        'Download only the specified data apps, by UUID, slug, or app URL (enterprise). Works for apps not added to a space.',
+    )
+    .option(
+        '--include-apps',
+        "Include all of the project's data apps (enterprise), capped at --apps-limit (default: 50)",
+        false,
+    )
+    .option(
+        '--apps-limit <number>',
+        'Maximum number of data apps downloaded by --include-apps or --include-all (default: 50)',
+        undefined,
+    )
+    .option(
+        '--apps-only',
+        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appReferences...>, --include-apps, or --include-all.',
+        false,
+    )
+    .option(
+        '--organization',
+        'download all organization-scoped resources without selecting a project',
+        false,
+    );
 
-program
+downloadCommand.action(withOrganizationMode(downloadHandler));
+
+const uploadCommand = program
     .command('upload')
-    .description('Uploads charts and dashboards as code')
+    .description('Uploads project or organization content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -770,14 +966,36 @@ program
         'specify dashboard slugs to force upload',
         [],
     )
+    .option('--agents <slugs...>', 'specify AI agent slugs to upload', [])
+    .option('--alerts <slugs...>', 'specify alert slugs to upload', [])
+    .option(
+        '--virtual-views <slugs...>',
+        'specify virtual view slugs to upload',
+        [],
+    )
+    .option(
+        '--google-sheets <slugs...>',
+        'specify Google Sheets sync slugs to upload',
+        [],
+    )
+    .option(
+        '--scheduled-deliveries <slugs...>',
+        'specify scheduled delivery slugs to upload',
+        [],
+    )
+    .option(
+        '--external-connections <slugs...>',
+        'specify external connection slugs to upload (enterprise)',
+        [],
+    )
     .option(
         '--force',
-        'Force upload even if local files have not changed, use this when you want to upload files to a new project',
+        'Force upload unchanged files and allow destructive virtual-view column changes',
         false,
     )
     .option(
         '-p, --path <path>',
-        'specify a custom path to upload charts and dashboards from',
+        'specify a custom path to upload content from',
         undefined,
     )
     .option(
@@ -791,7 +1009,32 @@ program
         'Skip space creation if it does not exist',
         false,
     )
+    .option(
+        '--skip-space-access',
+        'upload spaces without applying their access policies',
+        false,
+    )
+    .option(
+        '--skip-spaces',
+        'skip uploading space definitions and access',
+        false,
+    )
+    .option('--spaces-only', 'upload only space definitions and access', false)
     .option('--public', 'Create new spaces as public instead of private', false)
+    .option('--skip-agents', 'skip uploading AI agents', false)
+    .option('--skip-alerts', 'skip uploading alerts', false)
+    .option('--skip-virtual-views', 'skip uploading virtual views', false)
+    .option('--skip-google-sheets', 'skip uploading Google Sheets syncs', false)
+    .option(
+        '--skip-scheduled-deliveries',
+        'skip uploading scheduled deliveries',
+        false,
+    )
+    .option(
+        '--skip-external-connections',
+        'skip uploading external connections',
+        false,
+    )
     .option(
         '--concurrency <number>',
         'Number of parallel uploads (default: 1)',
@@ -804,7 +1047,80 @@ program
     )
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .option('--gzip', 'Enable gzip compression for request bodies', false)
-    .action(uploadHandler);
+    .option(
+        '--apps <appReferences...>',
+        'Upload only the specified data apps, by UUID, slug, or app URL (enterprise).',
+    )
+    .option(
+        '--include-apps',
+        'Upload all app folders on disk (enterprise).',
+        false,
+    )
+    .option(
+        '--create-new',
+        'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml. The new app gets a fresh slug.',
+        false,
+    )
+    .option(
+        '--organization',
+        'upload all organization-scoped resources without selecting a project',
+        false,
+    )
+    .option(
+        '--send-invites',
+        'send invitations to eligible pending users during organization upload',
+        false,
+    );
+
+uploadCommand.action(withOrganizationMode(uploadHandler));
+
+const appsProgram = program
+    .command('apps')
+    .description('Work with data apps (enterprise)');
+appsProgram
+    .command('create <name>')
+    .description('Creates a new data app locally')
+    .option('--description <text>', 'Set the app description', '')
+    .option('--slug <slug>', 'Override the app slug')
+    .option(
+        '-p, --path <path>',
+        'Specify the Lightdash content root (default: ./lightdash)',
+    )
+    .option(
+        '--project <project uuid>',
+        'Specify the project the app will use',
+        parseProjectArgument,
+        undefined,
+    )
+    .option('-y, --assume-yes', 'approve npm package installation', false)
+    .option('--verbose', undefined, false)
+    .addHelpText(
+        'after',
+        `\n${styles.bold('Example:')}\n  ${styles.title(
+            '⚡',
+        )}️lightdash ${styles.bold(
+            'apps create "Revenue explorer"',
+        )} ${styles.secondary(
+            '-- creates ./lightdash/apps/revenue-explorer',
+        )}\n`,
+    )
+    .action(createAppHandler);
+appsProgram
+    .command('preview [path]')
+    .description(
+        'Preview a downloaded data app locally against a real Lightdash instance, authenticated as you. Your credential stays in the CLI, behind a local proxy limited to data-app SDK routes.',
+    )
+    .option(
+        '--project <project uuid>',
+        'preview against a specific project (default: the projectUuid in lightdash-app.yml)',
+    )
+    .option('--url <url>', 'Lightdash server URL (default: your login config)')
+    .option(
+        '--token <token>',
+        'API key / personal access token (default: your login config)',
+    )
+    .option('--verbose', undefined, false)
+    .action(appsPreviewHandler);
 
 program
     .command('deploy')
@@ -927,6 +1243,15 @@ program
         '1',
     )
     .option('--gzip', 'Enable gzip compression for request bodies', false)
+    .option(
+        '--validate-warehouse-columns',
+        validateWarehouseColumnsDescription,
+        false,
+    )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
+    )
     .action(deployHandler);
 
 program
@@ -1016,6 +1341,23 @@ program
         new Option('--only <elems...>', 'Specify project elements to validate')
             .choices(Object.values(ValidationTarget))
             .default(Object.values(ValidationTarget)),
+    )
+    .option(
+        '--validate-warehouse-columns',
+        `${validateWarehouseColumnsDescription} Only applies when tables are validated.`,
+        false,
+    )
+    .option(
+        '--include-spaces <spaceSlugs...>',
+        'Only report validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
+    )
+    .option(
+        '--exclude-spaces <spaceSlugs...>',
+        'Skip validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
+    )
+    .option(
+        '--no-partial-compilation',
+        'Fail when a field or join cannot be compiled instead of returning a partial explore',
     )
     .action(validateHandler);
 
@@ -1252,6 +1594,41 @@ ${styles.bold('Examples:')}
     .action(lintHandler);
 
 program
+    .command('warehouse-catalog')
+    .description(
+        "Explore the selected project's raw warehouse databases, schemas, tables, and fields",
+    )
+    .option('--database <name>', 'Filter by exact database name')
+    .option('--schema <name>', 'Filter by exact schema name')
+    .option('--table <name>', 'Filter by exact table name')
+    .option(
+        '--include-fields',
+        'Include field names and Lightdash types for one fully qualified table',
+        false,
+    )
+    .option(
+        '--refresh',
+        'Refetch warehouse metadata and refresh the server catalog cache first',
+        false,
+    )
+    .option('--json', 'Emit machine-readable JSON instead of a table', false)
+    .option('--verbose', 'Show detailed output', false)
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')} lightdash ${styles.bold('warehouse-catalog')}
+  ${styles.title('⚡')} lightdash ${styles.bold(
+      'warehouse-catalog',
+  )} --database analytics --schema public
+  ${styles.title('⚡')} lightdash ${styles.bold(
+      'warehouse-catalog',
+  )} --database analytics --schema public --table orders --include-fields --json
+`,
+    )
+    .action(warehouseCatalogHandler);
+
+program
     .command('pre-aggregate-audit')
     .description(
         'Audit pre-aggregate hit/miss coverage for a dashboard (or every dashboard with --all)',
@@ -1357,8 +1734,12 @@ program
     .description(
         'Export a deployed chart as a PNG image. The chart must already exist on the server.',
     )
-    .argument('<chart>', 'Chart slug')
+    .argument('<chart>', 'Chart UUID or slug')
     .requiredOption('-o, --output <file>', 'Output file path for the PNG image')
+    .option(
+        '--project <uuid>',
+        'Lightdash project UUID (defaults to the currently selected project)',
+    )
     .option('--verbose', 'Show detailed output', false)
     .action(exportChartImageHandler);
 

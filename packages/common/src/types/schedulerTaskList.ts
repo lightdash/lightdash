@@ -1,18 +1,23 @@
 import includes from 'lodash/includes';
 import {
+    type AgentOnboardingJobPayload,
     type AiAgentEvalRunJobPayload,
     type AiAgentReviewClassifierJobPayload,
     type AiAgentReviewRemediationCompileJobPayload,
     type AiAgentReviewRemediationPreviewJobPayload,
     type AiAgentReviewRemediationRunJobPayload,
     type AiAgentReviewWritebackJobPayload,
+    type AiDeepResearchJobPayload,
+    type AiWritebackSource,
     type ChartReference,
+    type DashboardBlueprint,
     type DataAppClaudeModel,
     type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
     type SlackPromptJobPayload,
 } from '../ee';
+import { type UUID } from './api/uuid';
 import { type SchedulerIndexCatalogJobPayload } from './catalog';
 import { type UploadGsheetPayload } from './gdrive';
 import { type RenameResourcesPayload } from './rename';
@@ -50,9 +55,22 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     version: number;
     prompt: string;
     template?: DataAppTemplate; // starter template selected on creation; absent on iteration
+    /** @deprecated Use `fileIds` — still read so jobs enqueued before the
+     *  rename keep working after a deploy. */
     imageIds?: string[];
+    // Staged attachment ids (images, PDFs, text files). Type and filename are
+    // resolved from the staged S3 object's ContentType/metadata at write time.
+    fileIds?: string[];
     isIteration: boolean;
+    // Upgrade-as-iteration: the worker destroys the app's sandbox (carrying
+    // the Claude session best-effort) so this run cold-starts on the current
+    // template image. Absent on ordinary jobs.
+    isUpgrade?: boolean;
     chartReferences?: ChartReference[];
+    // Structural snapshot of the attached dashboard (tabs, tile layout,
+    // filters). Written into the sandbox as a layout blueprint alongside the
+    // flattened chartReferences. Absent when no dashboard was attached.
+    dashboardBlueprint?: DashboardBlueprint;
     // Claude model the user picked for this version. Absent on jobs enqueued
     // before the picker shipped — the pipeline falls back to
     // DEFAULT_DATA_APP_CLAUDE_MODEL in that case.
@@ -62,6 +80,56 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     // and system-prompt augmentation entirely. Absent on jobs enqueued
     // before the theme picker shipped.
     designUuid?: string | null;
+};
+
+export type AppBuildFromSourceJobPayload = TraceTaskBase & {
+    appUuid: string;
+    version: number;
+};
+
+export type AiWritebackPipelineJobPayload = TraceTaskBase & {
+    aiWritebackRunUuid: string;
+    prompt: string;
+    aiThreadUuid?: string;
+    dbtSourceUuid?: string;
+    prUrl?: string | null;
+    startNewPullRequest?: boolean;
+    source: AiWritebackSource;
+};
+
+export type AiDeepResearchPipelineJobPayload = TraceTaskBase &
+    AiDeepResearchJobPayload;
+
+export type AgentOnboardingPipelineJobPayload = TraceTaskBase &
+    AgentOnboardingJobPayload;
+
+export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
+    aiWritebackRunUuid: string;
+    // Serializes back-to-back edits in the same thread: the pipeline job runs on
+    // a per-thread graphile queue keyed by this, so a second edit waits for the
+    // first to finish instead of racing it into the workstream lock.
+    aiThreadUuid: string;
+    promptUuid: string;
+    isSlackPrompt: boolean;
+    toolCallId: string;
+    writebackPrompt: string;
+    source: AiWritebackSource;
+    prUrl: string | null;
+    startNewPullRequest: boolean | null;
+    suppressWritebackPreview?: boolean;
+};
+
+export type AiAgentMemoryDistillJobPayload = TraceTaskBase & {
+    threadUuid: UUID;
+    sweptUpdatedAt: string;
+    // Manual trigger only: bypass the watermark skip so an already-distilled
+    // thread re-distills. Optional because jobs enqueued before this field
+    // existed are still in the queue.
+    force?: boolean;
+};
+
+export type AiAgentMemoryConsolidatePartitionJobPayload = TraceTaskBase & {
+    ownerUserUuid: UUID;
 };
 
 export const EE_SCHEDULER_TASKS = {
@@ -76,7 +144,20 @@ export const EE_SCHEDULER_TASKS = {
     EMBED_ARTIFACT_VERSION: 'embedArtifactVersion',
     GENERATE_ARTIFACT_QUESTION: 'generateArtifactQuestion',
     APP_GENERATE_PIPELINE: 'appGeneratePipeline',
+    APP_BUILD_FROM_SOURCE: 'appBuildFromSource',
+    AI_WRITEBACK_PIPELINE: 'aiWritebackPipeline',
+    AI_DEEP_RESEARCH: 'aiDeepResearch',
+    AGENT_ONBOARDING_RUN: 'agentOnboardingRun',
+    AI_AGENT_EDIT_DBT_PROJECT_PIPELINE: 'aiAgentEditDbtProjectPipeline',
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
+    SWEEP_STALE_AI_WRITEBACK_RUNS: 'sweepStaleAiWritebackRuns',
+    SWEEP_STALE_AI_DEEP_RESEARCH_RUNS: 'sweepStaleAiDeepResearchRuns',
+    SWEEP_AI_AGENT_MEMORY_THREADS: 'sweepAiAgentMemoryThreads',
+    AI_AGENT_MEMORY_DISTILL: 'aiAgentMemoryDistill',
+    CONSOLIDATE_AI_AGENT_MEMORIES: 'consolidateAiAgentMemories',
+    CONSOLIDATE_AI_AGENT_MEMORY_PARTITION: 'consolidateAiAgentMemoryPartition',
+    CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
+    CLEAN_AI_DEEP_RESEARCH_REPORTS: 'cleanAiDeepResearchReports',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -115,6 +196,9 @@ export const SCHEDULER_TASKS = {
     MANAGED_AGENT_HEARTBEAT: 'managedAgentHeartbeat',
     CLEAN_EXPIRED_PREVIEWS: 'cleanExpiredPreviews',
     INGEST_PROJECT_CONTEXT: 'ingestProjectContext',
+    COMPACT_USAGE_EVENTS: 'compactUsageEvents',
+    POLL_EMAIL_WHITELABEL: 'pollEmailWhitelabelVerification',
+    CLEAN_WAREHOUSE_CONNECT_CODES: 'cleanWarehouseConnectCodes',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -159,6 +243,9 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: ManagedAgentHeartbeatPayload;
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: TraceTaskBase;
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: TraceTaskBase;
+    [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: TraceTaskBase;
+    [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;
@@ -169,7 +256,20 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
+    [SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
+    [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: TraceTaskBase;
+    [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
+    [SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: TraceTaskBase;
+    [SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: AiAgentMemoryDistillJobPayload;
+    [SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES]: TraceTaskBase;
+    [SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION]: AiAgentMemoryConsolidatePartitionJobPayload;
+    [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
+    [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
+    [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
+    [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
+    [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
+    [SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
 }
 
 export interface EETaskPayloadMap {
@@ -184,7 +284,20 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
+    [EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: AiAgentMemoryDistillJobPayload;
+    [EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION]: AiAgentMemoryConsolidatePartitionJobPayload;
+    [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
+    [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
+    [EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: AgentOnboardingPipelineJobPayload;
+    [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
 }
 
 export type SchedulerTaskName =

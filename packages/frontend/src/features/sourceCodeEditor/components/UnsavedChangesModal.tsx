@@ -15,6 +15,7 @@ const UnsavedChangesModal: FC<UnsavedChangesModalProps> = ({
     <MantineModal
         opened={opened}
         onClose={onClose}
+        role="alertdialog"
         title="Unsaved changes"
         icon={IconAlertTriangle}
         description="You have unsaved changes. Are you sure you want to discard them?"

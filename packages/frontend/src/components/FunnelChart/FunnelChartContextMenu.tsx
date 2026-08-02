@@ -1,6 +1,6 @@
 import { type ResultRow, type ResultValue } from '@lightdash/common';
 import { Box, Menu, Portal, type MenuProps } from '@mantine-8/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard } from '@mantine-8/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';

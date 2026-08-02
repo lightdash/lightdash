@@ -1,4 +1,6 @@
 import {
+    MetricType,
+    type CustomMetricBaseTransformed,
     type TableCalcsSchema,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
@@ -34,7 +36,6 @@ describe('validateAxisFields', () => {
                 xAxisType: null,
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -59,7 +60,6 @@ describe('validateAxisFields', () => {
                 xAxisType: null,
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -86,7 +86,6 @@ describe('validateAxisFields', () => {
                 xAxisType: 'time',
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -114,7 +113,6 @@ describe('validateAxisFields', () => {
                 xAxisType: 'time',
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -148,7 +146,6 @@ describe('validateAxisFields', () => {
                 xAxisType: 'time',
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -180,7 +177,6 @@ describe('validateAxisFields', () => {
                 xAxisType: 'time',
                 stackBars: null,
                 lineType: 'line',
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -212,7 +208,6 @@ describe('validateAxisFields', () => {
                 xAxisType: 'time',
                 stackBars: null,
                 lineType: 'line',
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -250,7 +245,6 @@ describe('validateAxisFields', () => {
                 xAxisType: 'time',
                 stackBars: null,
                 lineType: 'line',
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -298,7 +292,6 @@ describe('validateAxisFields', () => {
                 xAxisType: 'time',
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'Date',
                 yAxisLabel: 'Revenue & Count',
                 secondaryYAxisMetric: null,
@@ -331,7 +324,6 @@ describe('validateAxisFields', () => {
                 xAxisType: 'category',
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -361,7 +353,6 @@ describe('validateAxisFields', () => {
                 xAxisType: null,
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -391,7 +382,6 @@ describe('validateAxisFields', () => {
                 xAxisType: null,
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -421,7 +411,6 @@ describe('validateAxisFields', () => {
                 xAxisType: 'time',
                 stackBars: null,
                 lineType: null,
-                funnelDataInput: null,
                 xAxisLabel: 'xAxisLabel',
                 yAxisLabel: 'yAxisLabel',
                 secondaryYAxisMetric: null,
@@ -441,6 +430,67 @@ describe('validateAxisFields', () => {
                     selectedMetrics,
                 ),
             ).not.toThrow();
+        });
+
+        it('should not throw when a yAxis custom metric is provided via the customMetrics arg but is not in queryConfig.metrics', () => {
+            // The agent commonly defines an aggregation custom metric and puts
+            // its id on the Y-axis without also adding it to queryConfig.metrics.
+            // A custom metric is a selected metric, so this must be accepted.
+            const chartConfig: ToolRunQueryArgsTransformed['chartConfig'] = {
+                defaultVizType: 'bar',
+                xAxisDimension: 'orders_order_date',
+                yAxisMetrics: ['orders_won_opportunities'],
+                groupBy: null,
+                xAxisType: 'time',
+                stackBars: null,
+                lineType: null,
+                xAxisLabel: 'xAxisLabel',
+                yAxisLabel: 'yAxisLabel',
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
+            };
+
+            const customMetrics: CustomMetricBaseTransformed[] = [
+                {
+                    table: 'orders',
+                    name: 'won_opportunities',
+                    label: 'Won opportunities',
+                    description: 'Distinct count of won opportunities',
+                    baseDimensionName: 'order_id',
+                    type: MetricType.COUNT_DISTINCT,
+                    filters: undefined,
+                },
+            ];
+
+            expect(() =>
+                validateAxisFields(
+                    chartConfig,
+                    ['orders_order_date'],
+                    [], // empty queryConfig.metrics on purpose
+                    undefined,
+                    customMetrics,
+                ),
+            ).not.toThrow();
+        });
+
+        it('should throw when the yAxis custom metric is in neither queryConfig.metrics nor customMetrics', () => {
+            const chartConfig: ToolRunQueryArgsTransformed['chartConfig'] = {
+                defaultVizType: 'bar',
+                xAxisDimension: 'orders_order_date',
+                yAxisMetrics: ['orders_won_opportunities'],
+                groupBy: null,
+                xAxisType: 'time',
+                stackBars: null,
+                lineType: null,
+                xAxisLabel: 'xAxisLabel',
+                yAxisLabel: 'yAxisLabel',
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
+            };
+
+            expect(() =>
+                validateAxisFields(chartConfig, ['orders_order_date'], []),
+            ).toThrow(/orders_won_opportunities/);
         });
     });
 });

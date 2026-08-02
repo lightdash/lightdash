@@ -3,30 +3,32 @@ import { Request } from 'express';
 
 // oktaStrategy reads the lightdashConfig singleton; mock it with a mutable
 // `okta` block so each test can toggle the instance-level env config.
-const mockOktaEnv: {
-    oauth2Issuer: string | undefined;
-    oktaDomain: string | undefined;
-    oauth2ClientId: string | undefined;
-    oauth2ClientSecret: string | undefined;
-    authorizationServerId: string | undefined;
-    extraScopes: string | undefined;
-    callbackPath: string;
-    loginPath: string;
-} = {
-    oauth2Issuer: undefined,
-    oktaDomain: undefined,
-    oauth2ClientId: undefined,
-    oauth2ClientSecret: undefined,
-    authorizationServerId: undefined,
-    extraScopes: undefined,
-    callbackPath: '/oauth/redirect/okta',
-    loginPath: '/login/okta',
-};
+const mockOktaEnv = vi.hoisted(
+    (): {
+        oauth2Issuer: string | undefined;
+        oktaDomain: string | undefined;
+        oauth2ClientId: string | undefined;
+        oauth2ClientSecret: string | undefined;
+        authorizationServerId: string | undefined;
+        extraScopes: string | undefined;
+        callbackPath: string;
+        loginPath: string;
+    } => ({
+        oauth2Issuer: undefined,
+        oktaDomain: undefined,
+        oauth2ClientId: undefined,
+        oauth2ClientSecret: undefined,
+        authorizationServerId: undefined,
+        extraScopes: undefined,
+        callbackPath: '/oauth/redirect/okta',
+        loginPath: '/login/okta',
+    }),
+);
 
-jest.mock('../../../config/lightdashConfig', () => {
-    const { lightdashConfigMock } = jest.requireActual(
-        '../../../config/lightdashConfig.mock',
-    );
+vi.mock('../../../config/lightdashConfig', async () => {
+    const { lightdashConfigMock } = await vi.importActual<
+        typeof import('../../../config/lightdashConfig.mock')
+    >('../../../config/lightdashConfig.mock');
     return {
         lightdashConfig: {
             ...lightdashConfigMock,
@@ -80,13 +82,13 @@ const perOrgMethod = {
 const makeReq = ({
     loginHint,
     issuer,
-    findEnabledMethodForEmail = jest.fn(),
-    findEnabledOktaMethodForIssuer = jest.fn(),
+    findEnabledMethodForEmail = vi.fn(),
+    findEnabledOktaMethodForIssuer = vi.fn(),
 }: {
     loginHint?: string;
     issuer?: string;
-    findEnabledMethodForEmail?: jest.Mock;
-    findEnabledOktaMethodForIssuer?: jest.Mock;
+    findEnabledMethodForEmail?: import('vitest').Mock;
+    findEnabledOktaMethodForIssuer?: import('vitest').Mock;
 }): Request =>
     ({
         query: {
@@ -127,9 +129,7 @@ describe('getOktaConfigFromEnv', () => {
 describe('resolveOktaConfig', () => {
     test('env-only customer (no per-org match) falls back to env config', async () => {
         setEnv(FULL_ENV);
-        const findEnabledMethodForEmail = jest
-            .fn()
-            .mockResolvedValue(undefined);
+        const findEnabledMethodForEmail = vi.fn().mockResolvedValue(undefined);
         const req = makeReq({
             loginHint: 'user@env-customer.com',
             findEnabledMethodForEmail,
@@ -151,7 +151,7 @@ describe('resolveOktaConfig', () => {
 
     test('no login hint + env present → env config', async () => {
         setEnv(FULL_ENV);
-        const findEnabledMethodForEmail = jest.fn();
+        const findEnabledMethodForEmail = vi.fn();
         const req = makeReq({ findEnabledMethodForEmail });
 
         const resolved = await resolveOktaConfig(req);
@@ -163,10 +163,10 @@ describe('resolveOktaConfig', () => {
 
     test('per-org match takes precedence over env config', async () => {
         setEnv(FULL_ENV);
-        const findEnabledMethodForEmail = jest
+        const findEnabledMethodForEmail = vi
             .fn()
             .mockResolvedValue(perOrgMethod);
-        const findEnabledOktaMethodForIssuer = jest.fn();
+        const findEnabledOktaMethodForIssuer = vi.fn();
         const req = makeReq({
             loginHint: 'user@acme.com',
             issuer: 'https://env.okta.com',
@@ -188,8 +188,8 @@ describe('resolveOktaConfig', () => {
 
     test('per-org issuer match supports Okta dashboard launch', async () => {
         setEnv({});
-        const findEnabledMethodForEmail = jest.fn();
-        const findEnabledOktaMethodForIssuer = jest
+        const findEnabledMethodForEmail = vi.fn();
+        const findEnabledOktaMethodForIssuer = vi
             .fn()
             .mockResolvedValue(perOrgMethod);
         const req = makeReq({
@@ -212,7 +212,7 @@ describe('resolveOktaConfig', () => {
 
     test('issuer miss falls back to env config', async () => {
         setEnv(FULL_ENV);
-        const findEnabledOktaMethodForIssuer = jest
+        const findEnabledOktaMethodForIssuer = vi
             .fn()
             .mockResolvedValue(undefined);
         const req = makeReq({
@@ -231,9 +231,7 @@ describe('resolveOktaConfig', () => {
 
     test('no per-org match and no env config → undefined', async () => {
         setEnv({}); // env unset
-        const findEnabledMethodForEmail = jest
-            .fn()
-            .mockResolvedValue(undefined);
+        const findEnabledMethodForEmail = vi.fn().mockResolvedValue(undefined);
         const req = makeReq({
             loginHint: 'user@nowhere.com',
             findEnabledMethodForEmail,

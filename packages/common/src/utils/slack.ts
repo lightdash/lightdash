@@ -41,6 +41,40 @@ export const getSlackErrorCode = (error: unknown): string | undefined => {
 };
 
 /**
+ * Extracts the indices of the blocks Slack rejected from an invalid_blocks
+ * error. Slack reports block-level failures in response_metadata.messages as
+ * strings containing json-pointers, e.g.
+ * "[ERROR] downloading image failed [json-pointer:/blocks/3/image_url]".
+ * [WARN] entries are ignored — Slack mixes non-fatal warnings into the same
+ * list and those blocks were not the cause of the rejection.
+ * Returns an empty array when the error carries no block pointers.
+ */
+export const getSlackInvalidBlockIndices = (error: unknown): number[] => {
+    if (getSlackErrorCode(error) !== 'invalid_blocks') return [];
+    const { data } = error as { data: Record<string, unknown> };
+    const responseMetadata = data.response_metadata;
+    if (
+        !responseMetadata ||
+        typeof responseMetadata !== 'object' ||
+        !('messages' in responseMetadata) ||
+        !Array.isArray(responseMetadata.messages)
+    ) {
+        return [];
+    }
+    const indices = responseMetadata.messages.reduce<Set<number>>(
+        (acc, message) => {
+            if (typeof message !== 'string' || !message.includes('[ERROR]'))
+                return acc;
+            const match = message.match(/json-pointer:\/blocks\/(\d+)/);
+            if (match) acc.add(Number(match[1]));
+            return acc;
+        },
+        new Set(),
+    );
+    return [...indices].sort((a, b) => a - b);
+};
+
+/**
  * Checks if a Slack error is unrecoverable (installation is broken).
  */
 export const isUnrecoverableSlackError = (error: unknown): boolean => {

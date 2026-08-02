@@ -1,8 +1,13 @@
 import {
+    AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES,
+    AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS,
     AnyType,
     PreAggregateMissReason,
     QueryExecutionContext,
     QueryHistoryStatus,
+    type AiAgentMemoryConsolidationOperationType,
+    type AiAgentMemoryConsolidationRejectionReason,
+    type WarehousePhaseTimings,
 } from '@lightdash/common';
 import { EventEmitter } from 'events';
 import express from 'express';
@@ -55,6 +60,27 @@ const SCHEDULED_CONTEXTS: ReadonlySet<string> = new Set<string>([
     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
 ]);
 
+export const AI_AGENT_MEMORY_DISTILL_OUTCOMES = [
+    'disabled',
+    'skipped',
+    'memory',
+    'no_op',
+    'failed',
+] as const;
+
+export type AiAgentMemoryDistillOutcome =
+    (typeof AI_AGENT_MEMORY_DISTILL_OUTCOMES)[number];
+
+export const AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES = [
+    'consolidated',
+    'skipped',
+    'failed',
+    'aborted',
+] as const;
+
+export type AiAgentMemoryConsolidateOutcome =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES)[number];
+
 export function getQueryContextLabel(
     context: string,
 ): 'interactive' | 'scheduled' {
@@ -95,6 +121,39 @@ export default class PrometheusMetrics {
     public aiAgentStreamFirstChunkHistogram: prometheus.Histogram | null = null;
 
     public aiAgentTTFTHistogram: prometheus.Histogram | null = null;
+
+    // AI agent memory background pipeline (sweep + distill jobs)
+    public aiAgentMemoryDistillCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    public aiAgentMemoryDistillDurationHistogram: prometheus.Histogram<'outcome'> | null =
+        null;
+
+    public aiAgentMemorySweepEnqueuedCounter: prometheus.Counter | null = null;
+
+    public aiAgentMemoryUnknownToolPolicyCounter: prometheus.Counter | null =
+        null;
+
+    public aiAgentMemoryCitedCounter: prometheus.Counter | null = null;
+
+    public aiDeepResearchReportCleanupCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    // AI agent memory consolidation pass (daily cron)
+    public aiAgentMemoryConsolidateCounter: prometheus.Counter<'outcome'> | null =
+        null;
+
+    public aiAgentMemoryConsolidateDurationHistogram: prometheus.Histogram<'outcome'> | null =
+        null;
+
+    public aiAgentMemoryConsolidateOperationCounter: prometheus.Counter<'operation'> | null =
+        null;
+
+    public aiAgentMemoryConsolidateRejectedCounter: prometheus.Counter<'reason'> | null =
+        null;
+
+    public aiAgentMemoryEligiblePartitionsCounter: prometheus.Counter | null =
+        null;
 
     // repoShell (read-only repo VFS) GitHub API latency
     public repoFsGithubTreeDurationHistogram: prometheus.Histogram | null =
@@ -168,6 +227,36 @@ export default class PrometheusMetrics {
 
     public queryCacheHitCounter: prometheus.Counter<string> | null = null;
 
+    // Usage event stream writer metrics
+    public usageEventsPushedCounter: prometheus.Counter | null = null;
+
+    public usageEventsFlushedCounter: prometheus.Counter | null = null;
+
+    public usageEventsDroppedCounter: prometheus.Counter | null = null;
+
+    public usageEventsPutFailuresCounter: prometheus.Counter | null = null;
+
+    public usageEventsRawPutsCounter: prometheus.Counter | null = null;
+
+    public usageEventsCompactedPartitionsCounter: prometheus.Counter | null =
+        null;
+
+    public usageEventsCompactionFailuresCounter: prometheus.Counter | null =
+        null;
+
+    public usageEventsCompactionRunDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    public usageEventsCompactionPartitionDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    public usageEventsCompactionPartitionBytesHistogram: prometheus.Histogram | null =
+        null;
+
+    public usageEventsCompactionBacklogGauge: prometheus.Gauge | null = null;
+
+    public usageEventsRawObjectsGauge: prometheus.Gauge | null = null;
+
     public preAggregateMaterializationFileSizeHistogram: prometheus.Histogram<string> | null =
         null;
 
@@ -205,6 +294,8 @@ export default class PrometheusMetrics {
     private totalDurationHistogram: prometheus.Histogram | null = null;
 
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
+
+    private warehousePhaseDurationHistogram: prometheus.Histogram | null = null;
 
     private overheadDurationHistogram: prometheus.Histogram | null = null;
 
@@ -297,6 +388,18 @@ export default class PrometheusMetrics {
                     buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
                     ...rest,
                 });
+
+                this.warehousePhaseDurationHistogram = new prometheus.Histogram(
+                    {
+                        name: 'lightdash_query_warehouse_phase_duration_seconds',
+                        help: 'Warehouse query duration split by phase (connect/session/query/fetch)',
+                        labelNames: ['phase', 'warehouse_type', 'context'],
+                        buckets: [
+                            0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120,
+                        ],
+                        ...rest,
+                    },
+                );
 
                 this.overheadDurationHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_overhead_duration_seconds',
@@ -424,6 +527,100 @@ export default class PrometheusMetrics {
                     ],
                     ...rest,
                 });
+
+                // AI agent memory background pipeline
+                this.aiAgentMemoryDistillCounter = new prometheus.Counter({
+                    name: 'ai_agent_memory_distill_total',
+                    help: 'AI agent memory distill jobs by outcome (disabled | skipped | memory | no_op | failed)',
+                    labelNames: ['outcome'],
+                    ...rest,
+                });
+
+                this.aiAgentMemoryDistillDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_agent_memory_distill_duration_ms',
+                        help: 'AI agent memory distill job duration in ms by outcome',
+                        labelNames: ['outcome'],
+                        buckets: [
+                            100, 250, 500, 1000, 2500, 5000, 10000, 20000,
+                            30000, 60000, 120000, 300000,
+                        ],
+                        ...rest,
+                    });
+
+                this.aiAgentMemorySweepEnqueuedCounter = new prometheus.Counter(
+                    {
+                        name: 'ai_agent_memory_sweep_enqueued_total',
+                        help: 'Threads enqueued for memory distill by the sweep job',
+                        ...rest,
+                    },
+                );
+
+                this.aiAgentMemoryUnknownToolPolicyCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_unknown_tool_policy_total',
+                        help: 'Tool calls serialized with the fallback memory distill policy',
+                        ...rest,
+                    });
+
+                this.aiAgentMemoryCitedCounter = new prometheus.Counter({
+                    name: 'ai_agent_memory_cited_total',
+                    help: 'Memories cited in an agent response, counted once per memory per response',
+                    ...rest,
+                });
+
+                this.aiDeepResearchReportCleanupCounter =
+                    new prometheus.Counter({
+                        name: 'ai_deep_research_report_cleanup_total',
+                        help: 'Deep Research reports processed by cleanup outcome',
+                        labelNames: ['outcome'],
+                        ...rest,
+                    });
+
+                // AI agent memory consolidation pass
+                this.aiAgentMemoryConsolidateCounter = new prometheus.Counter({
+                    name: 'ai_agent_memory_consolidate_total',
+                    help: 'AI agent memory consolidation runs by outcome (consolidated | skipped | failed | aborted)',
+                    labelNames: ['outcome'],
+                    ...rest,
+                });
+
+                this.aiAgentMemoryConsolidateDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_agent_memory_consolidate_duration_ms',
+                        help: 'AI agent memory consolidation run duration in ms by outcome',
+                        labelNames: ['outcome'],
+                        // A reasoning call on the org's default model, so the
+                        // tail runs minutes rather than seconds.
+                        buckets: [
+                            100, 500, 1000, 5000, 15000, 30000, 60000, 120000,
+                            300000, 600000,
+                        ],
+                        ...rest,
+                    });
+
+                this.aiAgentMemoryConsolidateOperationCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_consolidate_operations_total',
+                        help: 'AI agent memory consolidation operations applied by type (merge | supersede | retire)',
+                        labelNames: ['operation'],
+                        ...rest,
+                    });
+
+                this.aiAgentMemoryConsolidateRejectedCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_consolidate_rejected_total',
+                        help: 'AI agent memory consolidation operations rejected by reason',
+                        labelNames: ['reason'],
+                        ...rest,
+                    });
+
+                this.aiAgentMemoryEligiblePartitionsCounter =
+                    new prometheus.Counter({
+                        name: 'ai_agent_memory_eligible_partitions_total',
+                        help: 'Partitions eligible for memory consolidation, counted per cron tick',
+                        ...rest,
+                    });
 
                 // repoShell GitHub API latency (per-request round-trips)
                 const githubRequestBuckets = [
@@ -572,6 +769,46 @@ export default class PrometheusMetrics {
                 AI_WRITEBACK_STAGES.forEach((stage) => {
                     this.aiWritebackStageDurationHistogram?.zero({ stage });
                 });
+                AI_AGENT_MEMORY_DISTILL_OUTCOMES.forEach((outcome) => {
+                    this.aiAgentMemoryDistillCounter?.inc({ outcome }, 0);
+                    this.aiAgentMemoryDistillDurationHistogram?.zero({
+                        outcome,
+                    });
+                });
+                this.aiAgentMemorySweepEnqueuedCounter?.inc(0);
+                this.aiAgentMemoryUnknownToolPolicyCounter?.inc(0);
+                this.aiAgentMemoryCitedCounter?.inc(0);
+                (['scanned', 'expired', 'failed'] as const).forEach(
+                    (outcome) => {
+                        this.aiDeepResearchReportCleanupCounter?.inc(
+                            { outcome },
+                            0,
+                        );
+                    },
+                );
+                AI_AGENT_MEMORY_CONSOLIDATE_OUTCOMES.forEach((outcome) => {
+                    this.aiAgentMemoryConsolidateCounter?.inc({ outcome }, 0);
+                    this.aiAgentMemoryConsolidateDurationHistogram?.zero({
+                        outcome,
+                    });
+                });
+                AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES.forEach(
+                    (operation) => {
+                        this.aiAgentMemoryConsolidateOperationCounter?.inc(
+                            { operation },
+                            0,
+                        );
+                    },
+                );
+                AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS.forEach(
+                    (reason) => {
+                        this.aiAgentMemoryConsolidateRejectedCounter?.inc(
+                            { reason },
+                            0,
+                        );
+                    },
+                );
+                this.aiAgentMemoryEligiblePartitionsCounter?.inc(0);
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
@@ -741,6 +978,97 @@ export default class PrometheusMetrics {
                         'context',
                         'has_pre_aggregate_match',
                     ],
+                    ...rest,
+                });
+
+                // Usage event stream writer metrics
+                this.usageEventsPushedCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_pushed_total',
+                    help: 'Total usage events pushed into the event stream buffer',
+                    ...rest,
+                });
+
+                this.usageEventsFlushedCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_flushed_total',
+                    help: 'Total usage events flushed to the S3 raw zone',
+                    ...rest,
+                });
+
+                this.usageEventsDroppedCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_dropped_total',
+                    help: 'Total usage events dropped because the buffer was full',
+                    ...rest,
+                });
+
+                this.usageEventsPutFailuresCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_put_failures_total',
+                    help: 'Total usage event batches dropped after exhausting S3 PUT retries',
+                    ...rest,
+                });
+
+                this.usageEventsRawPutsCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_raw_puts_total',
+                    help: 'Total raw usage event objects written to object storage',
+                    ...rest,
+                });
+
+                this.usageEventsCompactedPartitionsCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_usage_events_compacted_partitions_total',
+                        help: 'Total raw usage event partitions compacted to parquet',
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionFailuresCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_usage_events_compaction_failures_total',
+                        help: 'Total usage event partition compactions that failed',
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionRunDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_usage_events_compaction_run_duration_ms',
+                        help: 'Duration of a full usage events compaction run in milliseconds',
+                        labelNames: ['outcome'],
+                        buckets: [
+                            1_000, 5_000, 15_000, 60_000, 300_000, 900_000,
+                            1_800_000, 3_600_000,
+                        ],
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionPartitionDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_usage_events_compaction_partition_duration_ms',
+                        help: 'Duration of a single partition compaction in milliseconds',
+                        labelNames: ['outcome'],
+                        buckets: [
+                            100, 500, 1_000, 5_000, 15_000, 60_000, 300_000,
+                        ],
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionPartitionBytesHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_usage_events_compaction_partition_raw_bytes',
+                        help: 'Total gzip raw bytes read per partition compaction (DuckDB memory pressure signal)',
+                        buckets: [
+                            10_000, 100_000, 1_000_000, 10_000_000, 50_000_000,
+                            100_000_000, 250_000_000, 1_000_000_000,
+                        ],
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionBacklogGauge = new prometheus.Gauge({
+                    name: 'lightdash_usage_events_compaction_backlog_partitions',
+                    help: 'Closed raw partitions still awaiting compaction after the last run (cap deferrals + failures)',
+                    ...rest,
+                });
+
+                this.usageEventsRawObjectsGauge = new prometheus.Gauge({
+                    name: 'lightdash_usage_events_raw_objects',
+                    help: 'Raw usage event objects left in the raw zone after the last compaction run (open partitions + failed/deferred)',
                     ...rest,
                 });
 
@@ -1129,6 +1457,24 @@ export default class PrometheusMetrics {
         );
     }
 
+    public observeWarehousePhaseDurations(
+        phaseTimings: WarehousePhaseTimings,
+        warehouseType: string,
+        context: string,
+    ) {
+        const contextLabel = getQueryContextLabel(context);
+        Object.entries(phaseTimings).forEach(([phase, durationMs]) => {
+            this.warehousePhaseDurationHistogram?.observe(
+                {
+                    phase,
+                    warehouse_type: warehouseType,
+                    context: contextLabel,
+                },
+                durationMs / 1000,
+            );
+        });
+    }
+
     public observeOverheadDuration(durationMs: number, context: string) {
         if (durationMs < 0) {
             Logger.warn(
@@ -1283,6 +1629,73 @@ export default class PrometheusMetrics {
         }
     }
 
+    public trackAiAgentMemoryDistill(
+        outcome: AiAgentMemoryDistillOutcome,
+        durationMs: number,
+    ) {
+        this.aiAgentMemoryDistillCounter?.inc({ outcome });
+        this.aiAgentMemoryDistillDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public incrementAiAgentMemorySweepEnqueued(count: number) {
+        this.aiAgentMemorySweepEnqueuedCounter?.inc(count);
+    }
+
+    public incrementAiAgentMemoryUnknownToolPolicy() {
+        this.aiAgentMemoryUnknownToolPolicyCounter?.inc();
+    }
+
+    public incrementAiAgentMemoryCited(count: number) {
+        this.aiAgentMemoryCitedCounter?.inc(count);
+    }
+
+    public incrementAiDeepResearchReportCleanup(
+        outcome: 'scanned' | 'expired' | 'failed',
+        count: number,
+    ) {
+        this.aiDeepResearchReportCleanupCounter?.inc({ outcome }, count);
+    }
+
+    public trackAiAgentMemoryConsolidate(
+        outcome: AiAgentMemoryConsolidateOutcome,
+        durationMs: number,
+    ) {
+        this.aiAgentMemoryConsolidateCounter?.inc({ outcome });
+        this.aiAgentMemoryConsolidateDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public trackAiAgentMemoryConsolidateOperations(args: {
+        applied: Record<AiAgentMemoryConsolidationOperationType, number>;
+        rejected: Record<AiAgentMemoryConsolidationRejectionReason, number>;
+    }) {
+        Object.entries(args.applied).forEach(([operation, count]) => {
+            if (count > 0) {
+                this.aiAgentMemoryConsolidateOperationCounter?.inc(
+                    { operation },
+                    count,
+                );
+            }
+        });
+        Object.entries(args.rejected).forEach(([reason, count]) => {
+            if (count > 0) {
+                this.aiAgentMemoryConsolidateRejectedCounter?.inc(
+                    { reason },
+                    count,
+                );
+            }
+        });
+    }
+
+    public incrementAiAgentMemoryEligiblePartitions(count: number) {
+        this.aiAgentMemoryEligiblePartitionsCounter?.inc(count);
+    }
+
     public observeAiWritebackSandboxCreateDuration(durationMs: number) {
         this.aiWritebackSandboxCreateDurationHistogram?.observe(durationMs);
     }
@@ -1306,6 +1719,64 @@ export default class PrometheusMetrics {
 
     public observeAiWritebackStageDuration(stage: string, durationMs: number) {
         this.aiWritebackStageDurationHistogram?.observe({ stage }, durationMs);
+    }
+
+    public incrementUsageEventsPushed() {
+        this.usageEventsPushedCounter?.inc();
+    }
+
+    public incrementUsageEventsFlushed(count: number) {
+        this.usageEventsFlushedCounter?.inc(count);
+    }
+
+    public incrementUsageEventsDropped() {
+        this.usageEventsDroppedCounter?.inc();
+    }
+
+    public incrementUsageEventsPutFailure() {
+        this.usageEventsPutFailuresCounter?.inc();
+    }
+
+    public incrementUsageEventsRawPuts() {
+        this.usageEventsRawPutsCounter?.inc();
+    }
+
+    public incrementUsageEventsCompactedPartitions() {
+        this.usageEventsCompactedPartitionsCounter?.inc();
+    }
+
+    public incrementUsageEventsCompactionFailures() {
+        this.usageEventsCompactionFailuresCounter?.inc();
+    }
+
+    public observeUsageEventsCompactionRunDuration(
+        durationMs: number,
+        outcome: 'success' | 'partial',
+    ) {
+        this.usageEventsCompactionRunDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public observeUsageEventsCompactionPartition(
+        durationMs: number,
+        outcome: 'success' | 'failed',
+        rawBytes: number,
+    ) {
+        this.usageEventsCompactionPartitionDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+        this.usageEventsCompactionPartitionBytesHistogram?.observe(rawBytes);
+    }
+
+    public setUsageEventsCompactionBacklog(partitions: number) {
+        this.usageEventsCompactionBacklogGauge?.set(partitions);
+    }
+
+    public setUsageEventsRawObjects(count: number) {
+        this.usageEventsRawObjectsGauge?.set(count);
     }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {

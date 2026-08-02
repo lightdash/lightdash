@@ -1,7 +1,8 @@
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
-import { ChartType, type ChartConfig } from '../../../../../types/savedCharts';
+import { type ChartConfig } from '../../../../../types/savedCharts';
 import { type ToolRunQueryArgsTransformed } from '../../../schemas';
+import { getTableChartConfig } from '../generateTableVizConfigTool/getTableChartConfig';
 import { canRenderAsChart } from '../shared/canRenderAsChart';
 import { type AiAgentChartTypeOption } from '../types';
 import { getBarChartConfig } from './viz/bar';
@@ -31,7 +32,7 @@ export const getRunQueryChartConfig = ({
 
     if (!canRenderAsChart(chartType, metricQuery)) {
         // Fallback to table if chart type is not valid
-        return { type: ChartType.TABLE };
+        return getTableChartConfig();
     }
 
     const { chartConfig } = queryTool;
@@ -42,7 +43,7 @@ export const getRunQueryChartConfig = ({
 
     switch (chartType) {
         case 'table':
-            return { type: ChartType.TABLE };
+            return getTableChartConfig();
 
         case 'bar':
             return getBarChartConfig({

@@ -36,6 +36,7 @@ import {
     parsePullNumber,
     parsePullRequestUrl,
     progressTextForStage,
+    redactTokens,
     resolvePrMetadataValue,
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
@@ -284,6 +285,39 @@ describe('extractPrMetadata', () => {
                 sanitizedStdout: 'Reply.',
             }),
         );
+    });
+
+    // vector-(b): a token the agent echoed must never ride into the PR body or
+    // the user-facing reply.
+    it('redacts token-shaped substrings from the parsed PR text', () => {
+        const token = `ghs_${'a'.repeat(36)}`;
+        const stdout = `Used ${token} to clone.\n\n${wrap(
+            'Add metric',
+            `Adds a metric (debug token ${token}).`,
+        )}`;
+        const result = extractPrMetadata(stdout);
+        expect(result.description).not.toContain(token);
+        expect(result.description).toContain('[REDACTED]');
+        expect(result.sanitizedStdout).not.toContain(token);
+    });
+});
+
+describe('redactTokens', () => {
+    it('redacts GitHub and GitLab token shapes and URL credentials', () => {
+        expect(redactTokens(`ghp_${'a'.repeat(36)}`)).toBe('[REDACTED]');
+        expect(redactTokens(`ghs_${'b'.repeat(36)}`)).toBe('[REDACTED]');
+        expect(redactTokens(`github_pat_${'c'.repeat(40)}`)).toBe('[REDACTED]');
+        expect(redactTokens(`glpat-${'d'.repeat(20)}`)).toBe('[REDACTED]');
+        expect(
+            redactTokens(
+                'clone https://x-access-token:secrettoken@github.com/o/r.git',
+            ),
+        ).toBe('clone https://[REDACTED]@github.com/o/r.git');
+    });
+
+    it('leaves ordinary text untouched', () => {
+        const text = 'Adds a revenue metric to the orders model.';
+        expect(redactTokens(text)).toBe(text);
     });
 });
 
@@ -652,6 +686,7 @@ describe('dbtSandboxVenvBin', () => {
         [SupportedDbtVersions.V1_9, '/usr/local/dbt1.9/bin'],
         [SupportedDbtVersions.V1_10, '/usr/local/dbt1.10/bin'],
         [SupportedDbtVersions.V1_11, '/usr/local/dbt1.11/bin'],
+        [SupportedDbtVersions.V1_12, '/usr/local/dbt1.12/bin'],
     ])('maps %s to its venv bin dir', (version, expected) => {
         expect(dbtSandboxVenvBin(version)).toBe(expected);
     });
@@ -668,6 +703,7 @@ describe('dbtSandboxVenvBin', () => {
             SupportedDbtVersions.V1_9,
             SupportedDbtVersions.V1_10,
             SupportedDbtVersions.V1_11,
+            SupportedDbtVersions.V1_12,
         ];
         expect(new Set(covered)).toEqual(
             new Set(Object.values(SupportedDbtVersions)),

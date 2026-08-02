@@ -6,13 +6,13 @@ import {
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
-import { clsx } from '@mantine/core';
 import {
     getHotkeyHandler,
     useClipboard,
     useDisclosure,
     useTimeout,
-} from '@mantine/hooks';
+} from '@mantine-8/hooks';
+import { clsx } from '@mantine/core';
 import { type Cell } from '@tanstack/react-table';
 import {
     useCallback,
@@ -20,9 +20,9 @@ import {
     useMemo,
     useRef,
     useState,
+    type CSSProperties,
     type FC,
 } from 'react';
-import { type CSSProperties } from 'styled-components';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
 import { type JsonCellValue } from '../../JsonViewer/utils';

@@ -36,7 +36,6 @@ export const ResourceTypeFilter = ({
             value: 'chart',
             label: (
                 <Tooltip
-                    variant="xs"
                     label="Show only chart schedulers"
                     withinPortal
                     maw={200}
@@ -51,7 +50,6 @@ export const ResourceTypeFilter = ({
             value: 'dashboard',
             label: (
                 <Tooltip
-                    variant="xs"
                     label="Show only dashboard schedulers"
                     withinPortal
                     maw={200}

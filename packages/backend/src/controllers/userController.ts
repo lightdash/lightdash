@@ -4,21 +4,33 @@ import {
     ApiGetAccountResponse,
     ApiGetAuthenticatedUserResponse,
     ApiGetLoginOptionsResponse,
+    ApiLoginEmailOtpRequest,
+    ApiLoginEmailOtpResponse,
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
+    ApiVerifyLoginEmailOtpRequest,
+    ApiVerifyLoginEmailOtpResponse,
     assertRegisteredAccount,
     CreatePersonalAccessToken,
+    getEmailSchema,
     getRequestMethod,
+    hasInviteCode,
+    isEmailOnlyUser,
     LightdashRequestMethodHeader,
     NotFoundError,
     ParameterError,
     PersonalAccessToken,
     PersonalAccessTokenWithToken,
+    RedshiftAwsSsoCompleteRequest,
+    RedshiftAwsSsoCompleteResponse,
+    RedshiftAwsSsoStartRequest,
+    RedshiftAwsSsoStartResponse,
     RegisterOrActivateUser,
     UpsertUserWarehouseCredentials,
     UserWarehouseCredentials,
     validatePassword,
+    WarehouseTypes,
 } from '@lightdash/common';
 import {
     Body,
@@ -101,10 +113,23 @@ export class UserController extends BaseController {
         @Body()
         body: RegisterOrActivateUser,
     ): Promise<ApiRegisterUserResponse> {
-        if (!validatePassword(req.body.password)) {
-            throw new ParameterError(
-                'Password must contain at least 8 characters, 1 letter and 1 number or 1 special character',
-            );
+        if ('inviteCode' in body && !hasInviteCode(body)) {
+            throw new ParameterError('Invalid invite code');
+        }
+        if (!isEmailOnlyUser(body)) {
+            if (!validatePassword(body.password)) {
+                throw new ParameterError(
+                    'Password must contain at least 8 characters, 1 letter and 1 number or 1 special character',
+                );
+            }
+            if (
+                typeof body.firstName !== 'string' ||
+                typeof body.lastName !== 'string'
+            ) {
+                throw new ParameterError(
+                    'First name and last name are required',
+                );
+            }
         }
         const sessionUser = await this.services
             .getUserService()
@@ -136,9 +161,13 @@ export class UserController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiEmailStatusResponse> {
         assertRegisteredAccount(req.account);
+        const user = toSessionUser(req.account);
         const status = await this.services
             .getUserService()
-            .sendOneTimePasscodeToPrimaryEmail(toSessionUser(req.account));
+            .sendOneTimePasscodeToPrimaryEmail(
+                user,
+                user.isSetupComplete ? 'email_change' : 'signup_verification',
+            );
         this.setStatus(200);
         return {
             status: 'ok',
@@ -353,6 +382,131 @@ export class UserController extends BaseController {
     }
 
     /**
+     * Start Redshift AWS SSO login
+     * @summary Start Redshift AWS SSO login
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/warehouseCredentials/redshift/aws-sso/start')
+    @OperationId('startRedshiftAwsSsoWarehouseCredentials')
+    async startRedshiftAwsSsoWarehouseCredentials(
+        @Request() req: express.Request,
+        @Body() body: RedshiftAwsSsoStartRequest,
+    ): Promise<RedshiftAwsSsoStartResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        let startRequest = body;
+        if (body.projectUuid) {
+            const project = await this.services
+                .getProjectService()
+                .getProject(body.projectUuid, req.account);
+            if (project.warehouseConnection?.type !== WarehouseTypes.REDSHIFT) {
+                throw new ParameterError(
+                    'Redshift AWS SSO credentials can only be created for Redshift projects.',
+                );
+            }
+            if (
+                !project.warehouseConnection.awsSsoStartUrl ||
+                !project.warehouseConnection.awsSsoRegion
+            ) {
+                throw new ParameterError(
+                    'Redshift AWS SSO credentials require AWS IAM Identity Center to be configured on the project.',
+                );
+            }
+            startRequest = {
+                ...body,
+                startUrl:
+                    body.startUrl ?? project.warehouseConnection.awsSsoStartUrl,
+                region: body.region ?? project.warehouseConnection.awsSsoRegion,
+            };
+        }
+        const { session, results } = await this.services
+            .getUserService()
+            .startRedshiftAwsSsoDeviceAuthorization(startRequest);
+        req.session.oauth = {
+            ...(req.session.oauth ?? {}),
+            redshiftAwsSso: session,
+        };
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Complete Redshift AWS SSO login
+     * @summary Complete Redshift AWS SSO login
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/warehouseCredentials/redshift/aws-sso/complete')
+    @OperationId('completeRedshiftAwsSsoWarehouseCredentials')
+    async completeRedshiftAwsSsoWarehouseCredentials(
+        @Request() req: express.Request,
+        @Body() body: RedshiftAwsSsoCompleteRequest,
+    ): Promise<RedshiftAwsSsoCompleteResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        let completeRequest = body;
+        if (body.projectUuid) {
+            const project = await this.services
+                .getProjectService()
+                .getProject(body.projectUuid, req.account);
+            if (project.warehouseConnection?.type !== WarehouseTypes.REDSHIFT) {
+                throw new ParameterError(
+                    'Redshift AWS SSO credentials can only be created for Redshift projects.',
+                );
+            }
+            if (
+                !project.warehouseConnection.awsSsoAccountId ||
+                !project.warehouseConnection.awsSsoRoleName
+            ) {
+                throw new ParameterError(
+                    'Redshift AWS SSO credentials require AWS IAM Identity Center to be configured on the project.',
+                );
+            }
+            completeRequest = {
+                ...body,
+                accountId:
+                    body.accountId ??
+                    project.warehouseConnection.awsSsoAccountId,
+                roleName:
+                    body.roleName ?? project.warehouseConnection.awsSsoRoleName,
+            };
+        }
+        const results = await this.services
+            .getUserService()
+            .completeRedshiftAwsSsoDeviceAuthorization(
+                toSessionUser(req.account),
+                req.session.oauth?.redshiftAwsSso,
+                completeRequest,
+            );
+
+        if (results.status === 'authenticated') {
+            if (body.projectUuid) {
+                try {
+                    await this.services
+                        .getProjectService()
+                        .upsertProjectCredentialsPreference(
+                            toSessionUser(req.account),
+                            body.projectUuid,
+                            results.credentials.uuid,
+                        );
+                } catch (e) {
+                    Logger.warn(
+                        `Failed to set Redshift AWS SSO credentials preference for project ${body.projectUuid}`,
+                        e,
+                    );
+                }
+            }
+            delete req.session.oauth?.redshiftAwsSso;
+        }
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
      * Update user warehouse credentials
      * @summary Update warehouse credentials
      */
@@ -423,6 +577,52 @@ export class UserController extends BaseController {
         };
     }
 
+    @Post('/login-email-otp')
+    @OperationId('LoginEmailOtp')
+    async requestEmailOtpLogin(
+        @Body() body: ApiLoginEmailOtpRequest,
+    ): Promise<ApiLoginEmailOtpResponse> {
+        if (!getEmailSchema().safeParse(body.email).success) {
+            throw new ParameterError('Invalid email address');
+        }
+        await this.services.getUserService().requestEmailOtpLogin(body.email);
+        this.setStatus(200);
+        return { status: 'ok' };
+    }
+
+    @Post('/login-email-otp/verify')
+    @OperationId('VerifyLoginEmailOtp')
+    async verifyEmailOtpLogin(
+        @Request() req: express.Request,
+        @Body() body: ApiVerifyLoginEmailOtpRequest,
+    ): Promise<ApiVerifyLoginEmailOtpResponse> {
+        if (!getEmailSchema().safeParse(body.email).success) {
+            throw new ParameterError('Invalid email address');
+        }
+        if (!/^\d{6}$/.test(body.passcode)) {
+            throw new ParameterError('Invalid passcode format');
+        }
+        const sessionUser = await this.services
+            .getUserService()
+            .loginWithEmailOtp(body.email, body.passcode, {
+                ip: req.ip,
+                userAgent: req.get('user-agent'),
+            });
+        return new Promise((resolve, reject) => {
+            req.login(sessionUser, (error) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                this.setStatus(200);
+                resolve({
+                    status: 'ok',
+                    results: sessionUser,
+                });
+            });
+        });
+    }
+
     /**
      * List personal access tokens
      * @summary List personal access tokens
@@ -455,6 +655,7 @@ export class UserController extends BaseController {
     @Middlewares([
         // NOTE: We do NOT allow personal access tokens to be created with PAT authentication
         allowOauthAuthentication, // Allow creating PAT from OAuth tokens
+        isAuthenticated,
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')

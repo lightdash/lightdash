@@ -15,7 +15,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     IconAlertTriangleFilled,
     IconClock,
@@ -520,6 +520,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         <Menu.Target>
                                             <ActionIcon
                                                 variant="subtle"
+                                                color="gray"
                                                 style={{
                                                     ':hover': {
                                                         backgroundColor:

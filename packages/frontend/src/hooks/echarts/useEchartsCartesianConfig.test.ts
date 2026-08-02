@@ -1,31 +1,43 @@
 import {
+    assignSeriesZByOrder,
     CartesianSeriesType,
+    createConditionalFormattingConfigWithSingleColor,
     DimensionType,
+    REFERENCE_LINE_Z,
     FieldType,
+    FilterOperator,
     TimeFrames,
     transformToPercentageStacking,
     type Dimension,
     type EChartsSeries,
     type Field,
+    type ItemsMap,
     type ResultRow,
+    type Series,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 import timezonePlugin from 'dayjs/plugin/timezone';
 import utcPlugin from 'dayjs/plugin/utc';
 import { describe, expect, test, vi } from 'vitest';
 import {
+    applyConditionalFormattingToStackedSeries,
     applyLegendPlacementToGrid,
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
+    getLongestLabelsForAxis,
     getMinAndMaxValues,
+    getNiceTickBound,
+    getPinnedDayTickFormatter,
     getStackTotalSeries,
+    getTimeAxisPinnedTickValues,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
     relocateMarkLinesToVisibleSeries,
     resolveCartesianGranularityLabels,
     selectContinuousDateRange,
+    transformStack100ByValueAxis,
 } from './useEchartsCartesianConfig';
 
 dayjs.extend(utcPlugin);
@@ -352,6 +364,360 @@ describe('getMinAndMaxValues', () => {
         expect(
             getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
         ).toStrictEqual([0, 0]);
+    });
+});
+
+describe('getNiceTickBound', () => {
+    test('rounds data max up to the nice tick boundary ECharts picks', () => {
+        expect(getNiceTickBound(314)).toBe(350);
+        expect(getNiceTickBound(96)).toBe(100);
+        expect(getNiceTickBound(222)).toBe(250);
+        expect(getNiceTickBound(1135)).toBe(1200);
+        expect(getNiceTickBound(50)).toBe(50);
+    });
+
+    test('rounds negative bounds away from zero', () => {
+        expect(getNiceTickBound(-222)).toBe(-250);
+        expect(getNiceTickBound(-96)).toBe(-100);
+    });
+
+    test('handles zero and non-finite values', () => {
+        expect(getNiceTickBound(0)).toBe(0);
+        expect(getNiceTickBound(Infinity)).toBe(0);
+        expect(getNiceTickBound(NaN)).toBe(0);
+    });
+
+    test('handles fractional values', () => {
+        // 0.8 is already on a nice boundary (4 × 0.2)
+        expect(getNiceTickBound(0.8)).toBeCloseTo(0.8);
+        expect(getNiceTickBound(0.83)).toBeCloseTo(1);
+    });
+});
+
+describe('getLongestLabelsForAxis', () => {
+    const rows: ResultRow[] = [
+        {
+            metric_small: { value: { raw: 9, formatted: '9' } },
+            metric_large: { value: { raw: 314, formatted: '314' } },
+        },
+        {
+            metric_small: { value: { raw: 5, formatted: '5' } },
+            metric_large: { value: { raw: 46, formatted: '46' } },
+        },
+    ];
+
+    test('returns the longest label for every field on the axis', () => {
+        expect(
+            getLongestLabelsForAxis({
+                rows,
+                axisIds: ['metric_small', 'metric_large'],
+            }),
+        ).toStrictEqual(['9', '314']);
+    });
+
+    test('ignores undefined and duplicate axis ids', () => {
+        expect(
+            getLongestLabelsForAxis({
+                rows,
+                axisIds: ['metric_small', undefined, 'metric_small'],
+            }),
+        ).toStrictEqual(['9']);
+    });
+
+    test('skips fields with no values in the rows', () => {
+        expect(
+            getLongestLabelsForAxis({
+                rows,
+                axisIds: ['metric_missing', 'metric_large'],
+            }),
+        ).toStrictEqual(['314']);
+    });
+
+    test('falls back to pivot column variants of the field', () => {
+        const pivotedRows: ResultRow[] = [
+            {
+                metric_large_any_channel_a: {
+                    value: { raw: 9, formatted: '9' },
+                },
+                metric_large_any_channel_b: {
+                    value: { raw: 1135, formatted: '1,135' },
+                },
+            },
+        ];
+        expect(
+            getLongestLabelsForAxis({
+                rows: pivotedRows,
+                axisIds: ['metric_large'],
+            }),
+        ).toStrictEqual(['1,135']);
+    });
+
+    test('returns an empty array for empty rows or axis ids', () => {
+        expect(
+            getLongestLabelsForAxis({ rows: [], axisIds: ['metric_small'] }),
+        ).toStrictEqual([]);
+        expect(getLongestLabelsForAxis({ rows, axisIds: [] })).toStrictEqual(
+            [],
+        );
+    });
+});
+
+describe('getTimeAxisPinnedTickValues', () => {
+    const axisId = 'date_axis';
+    const createRows = (dates: (string | null)[]): ResultRow[] =>
+        dates.map((d) => ({
+            [axisId]: { value: { raw: d, formatted: String(d) } },
+        }));
+    const dayField = {
+        timeInterval: TimeFrames.DAY,
+        name: 'test_date',
+        table: 'test_table',
+    } as unknown as Field;
+    const barSeries = [
+        { type: CartesianSeriesType.BAR },
+    ] as unknown as Series[];
+    const lineSeries = [
+        { type: CartesianSeriesType.LINE },
+    ] as unknown as Series[];
+
+    test('pins sorted unique instants when day values are not UTC midnights', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows([
+                '2026-03-01T04:00:00Z',
+                '2026-02-18T04:00:00Z',
+                '2026-03-01T04:00:00Z',
+            ]),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([
+            Date.UTC(2026, 1, 18, 4),
+            Date.UTC(2026, 2, 1, 4),
+        ]);
+    });
+
+    test('parses naive timestamp strings as UTC', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows(['2020-07-27T04:00:00Z', '2020-07-29T04:00:00']),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([
+            Date.UTC(2020, 6, 27, 4),
+            Date.UTC(2020, 6, 29, 4),
+        ]);
+    });
+
+    test('keeps auto ticks for UTC-midnight days, consecutive or sparse', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18', '2026-02-19', '2026-02-20']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18', '2026-02-25', '2026-03-03']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('skips null raw values', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows(['2026-02-18T04:00:00Z', null]),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([Date.UTC(2026, 1, 18, 4)]);
+    });
+
+    test('returns undefined when the time axis is timezone-shifted', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18T04:00:00Z']),
+                'time',
+                barSeries,
+                true,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined without a bar series', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18']),
+                'time',
+                lineSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined for non-day intervals', () => {
+        const monthField = {
+            ...(dayField as object),
+            timeInterval: TimeFrames.MONTH,
+        } as unknown as Field;
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                monthField,
+                createRows(['2026-02-01']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined for non-time axis types', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18']),
+                'category',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined when rows are empty', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                [],
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('pins non-midnight day values (days truncated in a non-UTC timezone)', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows(['2025-07-01T04:00:00Z', '2025-07-02T04:00:00Z']),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([
+            Date.UTC(2025, 6, 1, 4),
+            Date.UTC(2025, 6, 2, 4),
+        ]);
+    });
+
+    test('returns undefined for interval-less dimensions', () => {
+        const noIntervalField = {
+            name: 'test_date',
+            table: 'test_table',
+        } as unknown as Field;
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                noIntervalField,
+                createRows(['2025-07-01T04:00:00Z', '2025-07-02T04:00:00Z']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined above the pinned tick cap', () => {
+        // Non-midnight values so only the cap rule applies
+        const manyDays = Array.from({ length: 401 }, (_, i) => {
+            const d = new Date(Date.UTC(2024, 0, 1, 4) + i * 24 * 3600 * 1000);
+            return d.toISOString();
+        });
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(manyDays),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+});
+
+describe('getPinnedDayTickFormatter', () => {
+    const ticks = [
+        Date.UTC(2025, 11, 1), // Dec 1
+        Date.UTC(2025, 11, 29), // Dec 29
+        Date.UTC(2026, 0, 5), // Jan 5 — first tick of Jan, not the 1st
+        Date.UTC(2026, 0, 8), // Jan 8
+        Date.UTC(2026, 1, 1), // Feb 1
+        Date.UTC(2026, 1, 3), // Feb 3
+    ];
+    const formatter = getPinnedDayTickFormatter(ticks);
+
+    test('renders month starts as bold month', () => {
+        expect(formatter(Date.UTC(2025, 11, 1))).toBe('{bold|Dec}');
+        expect(formatter(Date.UTC(2026, 1, 1))).toBe('{bold|Feb}');
+    });
+
+    test('renders Jan 1 as bold year', () => {
+        expect(
+            getPinnedDayTickFormatter([Date.UTC(2026, 0, 1)])(
+                Date.UTC(2026, 0, 1),
+            ),
+        ).toBe('{bold|2026}');
+    });
+
+    test('keeps month context when a month has no tick on the 1st', () => {
+        expect(formatter(Date.UTC(2026, 0, 5))).toBe('{bold|Jan} 5');
+    });
+
+    test('renders remaining ticks as plain day numbers', () => {
+        expect(formatter(Date.UTC(2025, 11, 29))).toBe('29');
+        expect(formatter(Date.UTC(2026, 0, 8))).toBe('8');
+        expect(formatter(Date.UTC(2026, 1, 3))).toBe('3');
+    });
+
+    test('renders non-midnight instants by their UTC day (negative-offset warehouse tz)', () => {
+        // Local Jul 2 midnight in America/New_York = Jul 2 T04:00Z — UTC and
+        // local calendar days agree
+        const tz = [Date.UTC(2025, 6, 1, 4), Date.UTC(2025, 6, 2, 4)];
+        const f = getPinnedDayTickFormatter(tz);
+        expect(f(Date.UTC(2025, 6, 1, 4))).toBe('{bold|Jul}');
+        expect(f(Date.UTC(2025, 6, 2, 4))).toBe('2');
+    });
+
+    test('renders non-midnight instants by their UTC day (positive-offset warehouse tz)', () => {
+        // Local Jul 1 midnight at UTC+2 = Jun 30 T22:00Z. Intentionally
+        // labelled "30" — the UTC calendar day — because the results table
+        // and tooltips format the same raw value in UTC and must agree with
+        // the chart. The bold month marker lands on the first tick whose UTC
+        // month changes (local Jul 2 = Jul 1 T22:00Z → "Jul").
+        const tz = [
+            Date.UTC(2025, 5, 29, 22), // local Jun 30
+            Date.UTC(2025, 5, 30, 22), // local Jul 1
+            Date.UTC(2025, 6, 1, 22), // local Jul 2
+            Date.UTC(2025, 6, 2, 22), // local Jul 3
+        ];
+        const f = getPinnedDayTickFormatter(tz);
+        // First tick of the sequence doubles as first tick of its month
+        expect(f(Date.UTC(2025, 5, 29, 22))).toBe('{bold|Jun} 29');
+        expect(f(Date.UTC(2025, 5, 30, 22))).toBe('30');
+        expect(f(Date.UTC(2025, 6, 1, 22))).toBe('{bold|Jul}');
+        expect(f(Date.UTC(2025, 6, 2, 22))).toBe('2');
     });
 });
 
@@ -1435,6 +1801,285 @@ describe('getStackTotalSeries', () => {
         );
         expect(result).toHaveLength(0);
     });
+
+    // Totals above a user-configured axis max used to be dropped entirely:
+    // the zero-height synthetic bar landed outside the grid and was clipped
+    // away together with its label. Those totals are carried on an extra
+    // invisible un-stacked line series pinned to the axis max so the label
+    // renders at the plot's top edge instead.
+    describe('axis max clamping', () => {
+        const verticalSeries: EChartsSeries[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+                encode: { x: 'cat', y: 'a', tooltip: [], seriesName: 'a' },
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+                encode: { x: 'cat', y: 'b', tooltip: [], seriesName: 'b' },
+            },
+        ];
+        const rows = [
+            { cat: 'A', a: 600, b: 300 }, // total 900 — above max
+            { cat: 'B', a: 400, b: 300 }, // total 700 — exactly max
+            { cat: 'C', a: 300, b: 200 }, // total 500 — below max
+        ];
+
+        test('carries totals above the configured value-axis max on an invisible line series', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [700],
+            );
+            expect(result).toHaveLength(2);
+            // The stacked total series is untouched
+            expect(result[0].stack).toBe('my_stack');
+            expect(result[0].data).toEqual([
+                ['A', 0, 900],
+                ['B', 0, 700],
+                ['C', 0, 500],
+            ]);
+            // The carrier only holds the overflowing total, pinned to the max
+            expect(result[1].type).toBe(CartesianSeriesType.LINE);
+            expect(result[1].stack).toBeUndefined();
+            expect(result[1].data).toEqual([['A', 700, 900]]);
+            expect(result[1].label?.position).toBe('bottom');
+            expect(result[1].lineStyle?.opacity).toBe(0);
+        });
+
+        test('carrier formatter renders the total, not the pinned value', () => {
+            const result = getStackTotalSeries(
+                rows,
+                [
+                    {
+                        ...verticalSeries[0],
+                        pivotReference: { field: 'a' },
+                    },
+                    verticalSeries[1],
+                ],
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [700],
+            );
+            const formatter = result[1].label?.formatter;
+            expect(formatter).toBeDefined();
+            expect(formatter!({ data: ['A', 700, 900] } as any)).toContain(
+                '900',
+            );
+        });
+
+        test('pins flipped-axis totals to the max with a left label', () => {
+            const flippedSeries: EChartsSeries[] = verticalSeries.map((s) => ({
+                ...s,
+                encode: {
+                    ...s.encode!,
+                    x: s.encode!.y,
+                    y: s.encode!.x,
+                },
+            }));
+            const result = getStackTotalSeries(
+                rows,
+                flippedSeries,
+                itemsMap,
+                true,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [700],
+            );
+            expect(result).toHaveLength(2);
+            expect(result[1].data).toEqual([[700, 'A', 900]]);
+            expect(result[1].label?.position).toBe('left');
+        });
+
+        test('emits no carrier when no axis max is configured', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].data).toEqual([
+                ['A', 0, 900],
+                ['B', 0, 700],
+                ['C', 0, 500],
+            ]);
+        });
+
+        test('emits no carrier when all totals fit under the max', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [1000],
+            );
+            expect(result).toHaveLength(1);
+        });
+
+        test('emits no carrier for 100% stacked charts', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                true,
+                undefined,
+                undefined,
+                [50],
+            );
+            expect(result).toHaveLength(1);
+        });
+
+        test('reads the max for the series axis index', () => {
+            const rightAxisSeries = verticalSeries.map((s) => ({
+                ...s,
+                yAxisIndex: 1,
+            }));
+            const result = getStackTotalSeries(
+                rows,
+                rightAxisSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [10, 700],
+            );
+            expect(result).toHaveLength(2);
+            expect(result[1].data).toEqual([['A', 700, 900]]);
+            expect(result[1].yAxisIndex).toBe(1);
+        });
+    });
+});
+
+describe('transformStack100ByValueAxis', () => {
+    const barOnAxis = (y: string, yAxisIndex: number): EChartsSeries => ({
+        type: CartesianSeriesType.BAR,
+        stack: 'stack',
+        yAxisIndex,
+        encode: { x: 'x', y, tooltip: [y], seriesName: y },
+    });
+
+    // Series on the secondary axis were previously skipped, leaving raw values
+    // the tooltip then rendered with a "%" suffix.
+    test('normalizes stacked series on the secondary axis', () => {
+        const rows = [
+            { x: 'A', chA: 30, chB: 10 },
+            { x: 'B', chA: 20, chB: 20 },
+        ];
+        const { transformedResults, originalValues } =
+            transformStack100ByValueAxis(
+                rows,
+                'x',
+                [barOnAxis('chA', 1), barOnAxis('chB', 1)],
+                false,
+            );
+
+        expect(transformedResults[0].chA).toBe(75);
+        expect(transformedResults[0].chB).toBe(25);
+        expect(transformedResults[1].chA).toBe(50);
+        expect(transformedResults[1].chB).toBe(50);
+        // Original absolute values are preserved for tooltip counts.
+        expect(originalValues.get('A')?.get('chA')).toBe(30);
+        expect(originalValues.get('B')?.get('chB')).toBe(20);
+    });
+
+    test('normalizes each value axis against its own total, not across axes', () => {
+        const rows = [{ x: 'A', p0: 25, p1: 75, s0: 10, s1: 90 }];
+        const { transformedResults } = transformStack100ByValueAxis(
+            rows,
+            'x',
+            [
+                barOnAxis('p0', 0),
+                barOnAxis('p1', 0),
+                barOnAxis('s0', 1),
+                barOnAxis('s1', 1),
+            ],
+            false,
+        );
+
+        // Primary axis normalizes against 100 (25 + 75); secondary against
+        // 100 (10 + 90). A single cross-axis total would give 12.5 / 37.5 / …
+        expect(transformedResults[0].p0).toBe(25);
+        expect(transformedResults[0].p1).toBe(75);
+        expect(transformedResults[0].s0).toBe(10);
+        expect(transformedResults[0].s1).toBe(90);
+    });
+
+    test('reads the X-encoded hash and xAxisIndex when axes are flipped', () => {
+        const rows = [{ y: 'A', chA: 30, chB: 10 }];
+        const flippedBar = (x: string): EChartsSeries => ({
+            type: CartesianSeriesType.BAR,
+            stack: 'stack',
+            xAxisIndex: 1,
+            encode: { x, y: 'y', tooltip: [x], seriesName: x },
+        });
+
+        const { transformedResults } = transformStack100ByValueAxis(
+            rows,
+            'y',
+            [flippedBar('chA'), flippedBar('chB')],
+            true,
+        );
+
+        expect(transformedResults[0].chA).toBe(75);
+        expect(transformedResults[0].chB).toBe(25);
+    });
+
+    test('ignores series without a stack (e.g. line/scatter) so their values stay raw', () => {
+        const rows = [{ x: 'A', bar: 30, line: 10 }];
+        const lineSeries: EChartsSeries = {
+            type: CartesianSeriesType.LINE,
+            stack: undefined,
+            yAxisIndex: 0,
+            encode: {
+                x: 'x',
+                y: 'line',
+                tooltip: ['line'],
+                seriesName: 'line',
+            },
+        };
+
+        const { transformedResults, originalValues } =
+            transformStack100ByValueAxis(
+                rows,
+                'x',
+                [barOnAxis('bar', 0), lineSeries],
+                false,
+            );
+
+        // The single stacked bar is 100% of its own stack.
+        expect(transformedResults[0].bar).toBe(100);
+        // The un-stacked line keeps its raw value and no percentage entry.
+        expect(transformedResults[0].line).toBe(10);
+        expect(originalValues.get('A')?.has('line')).toBe(false);
+    });
 });
 
 describe('mergeLegendSettings', () => {
@@ -1443,6 +2088,17 @@ describe('mergeLegendSettings', () => {
 
     test('returns defaults when config is undefined', () => {
         const result = mergeLegendSettings(undefined, selected, series);
+        expect(result).toMatchObject({
+            show: true,
+            type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
+            selected,
+        });
+    });
+
+    test('returns defaults when config is empty', () => {
+        const result = mergeLegendSettings({}, selected, series);
         expect(result).toMatchObject({
             show: true,
             type: 'scroll',
@@ -1728,5 +2384,229 @@ describe('relocateMarkLinesToVisibleSeries (PROD-7119)', () => {
 
         expect(result).toBe(series);
         expect(markLineData(result[1])).toHaveLength(0);
+    });
+});
+
+describe('applyConditionalFormattingToStackedSeries', () => {
+    const revenueField = {
+        compiledSql: '',
+        tablesReferences: [],
+        fieldType: FieldType.DIMENSION,
+        hidden: false,
+        label: 'Revenue',
+        name: 'revenue',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '',
+        type: DimensionType.NUMBER,
+    } as ItemsMap[string];
+    const costField = {
+        ...revenueField,
+        label: 'Cost',
+        name: 'cost',
+    } as ItemsMap[string];
+    const itemsMap: ItemsMap = {
+        orders_revenue: revenueField,
+        orders_cost: costField,
+    };
+
+    const belowThresholdRed = (fieldId: string) => {
+        const config = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            { fieldId },
+        );
+        config.rules = [
+            {
+                id: 'r1',
+                operator: FilterOperator.LESS_THAN,
+                values: [100],
+            },
+        ];
+        return config;
+    };
+
+    const rawRows = [
+        { orders_category: 'a', orders_revenue: 50, orders_cost: 50 },
+        { orders_category: 'b', orders_revenue: 150, orders_cost: 50 },
+    ];
+
+    const mkStackedSeries = (fieldId: string): EChartsSeries =>
+        ({
+            type: CartesianSeriesType.BAR,
+            stack: 'stack-all-series',
+            color: '#123456',
+            encode: {
+                x: 'orders_category',
+                y: fieldId,
+                yRef: { field: fieldId },
+            },
+        }) as unknown as EChartsSeries;
+
+    test('normal stacks: colors matching per-item data and preserves rounded-corner itemStyle', () => {
+        const series = {
+            ...mkStackedSeries('orders_revenue'),
+            data: [
+                {
+                    value: ['a', 50],
+                    itemStyle: { borderRadius: [4, 4, 0, 0] },
+                },
+                { value: ['b', 150] },
+            ],
+        };
+
+        const [result] = applyConditionalFormattingToStackedSeries({
+            seriesList: [series],
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        expect(result.data).toEqual([
+            {
+                value: ['a', 50],
+                itemStyle: { borderRadius: [4, 4, 0, 0], color: '#ff0000' },
+            },
+            { value: ['b', 150] },
+        ]);
+    });
+
+    test('normal stacks: untargeted series in the stack stays untouched', () => {
+        const series = {
+            ...mkStackedSeries('orders_cost'),
+            data: [{ value: ['a', 50] }, { value: ['b', 50] }],
+        };
+
+        const [result] = applyConditionalFormattingToStackedSeries({
+            seriesList: [series],
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        expect(result.data).toEqual([
+            { value: ['a', 50] },
+            { value: ['b', 50] },
+        ]);
+    });
+
+    test('100% stacks: dataset-bound series get a callback evaluating raw values', () => {
+        const series = mkStackedSeries('orders_revenue');
+
+        const [result] = applyConditionalFormattingToStackedSeries({
+            seriesList: [series],
+            // Simulates 100% mode: the dataset holds normalized percentages,
+            // but evaluation uses the raw rows by index
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        const colorFn = (
+            result.itemStyle as {
+                color: (params: { dataIndex: number }) => string;
+            }
+        ).color;
+        expect(colorFn({ dataIndex: 0 })).toBe('#ff0000');
+        expect(colorFn({ dataIndex: 1 })).toBe('#123456');
+    });
+
+    test('passes through non-stacked and non-bar series', () => {
+        const flatBar = {
+            type: CartesianSeriesType.BAR,
+            color: '#123456',
+            encode: { yRef: { field: 'orders_revenue' } },
+        } as unknown as EChartsSeries;
+        const line = {
+            type: CartesianSeriesType.LINE,
+            stack: 'stack-all-series',
+            color: '#123456',
+            encode: { yRef: { field: 'orders_cost' } },
+        } as unknown as EChartsSeries;
+
+        const result = applyConditionalFormattingToStackedSeries({
+            seriesList: [flatBar, line],
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        expect(result[0]).toBe(flatBar);
+        expect(result[1]).toBe(line);
+    });
+});
+
+describe('assignSeriesZByOrder', () => {
+    const mkSeries = (type: CartesianSeriesType, name: string): EChartsSeries =>
+        ({ type, name }) as unknown as EChartsSeries;
+
+    test('assigns a strictly increasing z matching array position', () => {
+        const result = assignSeriesZByOrder([
+            mkSeries(CartesianSeriesType.AREA, 'area'),
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].z!).toBe(2);
+        expect(result[1].z!).toBeGreaterThan(result[0].z!);
+    });
+
+    test('later series paint on top regardless of type (bar over area)', () => {
+        const area = mkSeries(CartesianSeriesType.AREA, 'area');
+        const bar = mkSeries(CartesianSeriesType.BAR, 'bar');
+
+        // area first in list -> lower z -> painted behind the bar
+        const result = assignSeriesZByOrder([area, bar]);
+        const areaZ = result.find((s) => s.name === 'area')?.z ?? 0;
+        const barZ = result.find((s) => s.name === 'bar')?.z ?? 0;
+
+        expect(barZ).toBeGreaterThan(areaZ);
+    });
+
+    test('keeps every series z below the reference-line z, even with many series', () => {
+        const many = Array.from({ length: 40 }, (_, i) =>
+            mkSeries(CartesianSeriesType.BAR, `s${i}`),
+        );
+
+        const result = assignSeriesZByOrder(many);
+
+        result.forEach((s) => expect(s.z!).toBeLessThan(REFERENCE_LINE_Z));
+        // still strictly ordered
+        for (let i = 1; i < result.length; i += 1) {
+            expect(result[i].z!).toBeGreaterThan(result[i - 1].z!);
+        }
+    });
+
+    test('pins markLine z so persisted config cannot sink reference lines', () => {
+        const withRefLine = {
+            ...mkSeries(CartesianSeriesType.AREA, 'area'),
+            markLine: { z: 1, data: [{ yAxis: 5 }] },
+        } as unknown as EChartsSeries;
+
+        const result = assignSeriesZByOrder([
+            withRefLine,
+            mkSeries(CartesianSeriesType.BAR, 'bar'),
+        ]);
+
+        expect(result[0].markLine).toMatchObject({
+            z: REFERENCE_LINE_Z,
+            data: [{ yAxis: 5 }],
+        });
+        // series without a markLine don't gain one
+        expect(result[1].markLine).toBeUndefined();
+    });
+
+    test('preserves other series properties and does not mutate the input', () => {
+        const input = [mkSeries(CartesianSeriesType.LINE, 'line')];
+        const result = assignSeriesZByOrder(input);
+
+        expect(result[0]).toMatchObject({
+            type: CartesianSeriesType.LINE,
+            name: 'line',
+            z: 2,
+        });
+        expect(input[0]).not.toHaveProperty('z');
+    });
+
+    test('handles an empty series list', () => {
+        expect(assignSeriesZByOrder([])).toEqual([]);
     });
 });

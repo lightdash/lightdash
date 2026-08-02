@@ -44,6 +44,7 @@ export const warehouseClientMock: WarehouseClient = {
         queryMetadata: null,
         totalRows: 0,
         durationMs: 0,
+        phaseTimings: {},
     }),
     runQuery: () =>
         Promise.resolve({
@@ -59,6 +60,7 @@ export const warehouseClientMock: WarehouseClient = {
     getNullSafeEqualSql: defaultNullSafeEqualSql,
     getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+    supportsCteMaterialization: () => true,
     getMetricSql: (sql, metric) => {
         switch (metric.type) {
             case MetricType.AVERAGE:

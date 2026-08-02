@@ -19,10 +19,10 @@ const renderPicker = (
     );
 
 describe('ThemePicker compact', () => {
-    it('renders the no-theme label as a single-line pill trigger', () => {
+    it('collapses to an "Apply theme" call to action when none is selected', () => {
         renderPicker({ compact: true });
         const trigger = screen.getByRole('button', {
-            name: /Theme: No theme/i,
+            name: /Apply theme/i,
         });
         expect(trigger).toBeInTheDocument();
         // Description line is suppressed in compact mode.

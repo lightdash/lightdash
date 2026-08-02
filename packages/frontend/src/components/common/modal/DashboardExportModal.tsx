@@ -23,14 +23,13 @@ import {
     IconScreenshot,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-import { useLocation } from 'react-router';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CsvFormattingOptions } from '../../../features/scheduler/components/CsvFormattingOptions';
 import { Limit, Values } from '../../../features/scheduler/components/types';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../features/scheduler/constants';
 import {
     useExportDashboardContent,
-    useExportDashboard,
+    useExportDashboardContentPreview,
 } from '../../../hooks/dashboard/useDashboard';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import Callout from '../Callout';
@@ -54,18 +53,18 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     const [exportType, setExportType] = useState<
         SchedulerFormat.IMAGE | SchedulerFormat.CSV | SchedulerFormat.XLSX
     >(SchedulerFormat.IMAGE);
-    const location = useLocation();
     const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardContext((c) => c.allFilters);
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
 
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
         (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined
     >(CUSTOM_WIDTH_OPTIONS[1].value);
-    const exportDashboardMutation = useExportDashboard();
+    const exportPreviewMutation = useExportDashboardContentPreview();
 
     const [formatted, setFormatted] = useState<Values>(Values.FORMATTED);
     const [limit, setLimit] = useState<Limit>(Limit.TABLE);
@@ -94,11 +93,15 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         );
     }, [allTabsSelected, dashboard.tiles, selectedTabs]);
 
+    // Filters and parameters are part of the key so a cached preview is not
+    // reused after the user changes the dashboard view.
     const getPreviewKey = useCallback(
         (width: string) => {
-            return `${width}-${selectedTabs.join('-')}`;
+            return `${width}-${selectedTabs.join('-')}-${JSON.stringify(
+                dashboardFilters,
+            )}-${JSON.stringify(parameterValues)}`;
         },
-        [selectedTabs],
+        [selectedTabs, dashboardFilters, parameterValues],
     );
 
     const currentPreview = previewChoice
@@ -132,14 +135,9 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             format: exportType,
             options:
                 exportType === SchedulerFormat.IMAGE ? {} : getCsvOptions(),
-            dashboardFilters:
-                exportType === SchedulerFormat.IMAGE
-                    ? undefined
-                    : dashboardFilters,
-            dateZoomGranularity:
-                exportType === SchedulerFormat.IMAGE
-                    ? undefined
-                    : dateZoomGranularity,
+            dashboardFilters,
+            dateZoomGranularity,
+            parameters: parameterValues,
             customViewportWidth:
                 exportType === SchedulerFormat.IMAGE && previewChoice
                     ? parseInt(previewChoice)
@@ -156,6 +154,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportType,
         getCsvOptions,
         onClose,
+        parameterValues,
         previewChoice,
     ]);
 
@@ -165,32 +164,18 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             return;
         }
 
-        const queryParams = new URLSearchParams(location.search);
-
-        exportDashboardMutation.mutate({
-            dashboard,
-            gridWidth: undefined,
-            queryFilters: `?${queryParams.toString()}`,
-            selectedTabs: exportSelectedTabs,
-        });
-    }, [
-        dashboard,
-        exportDashboardMutation,
-        exportSelectedTabs,
-        getPreviewKey,
-        location.search,
-        previewChoice,
-        previews,
-    ]);
+        handleAsyncExport();
+    }, [getPreviewKey, handleAsyncExport, previewChoice, previews]);
 
     const handlePreviewClick = useCallback(async () => {
-        const queryParams = new URLSearchParams(location.search);
-
-        const url = await exportDashboardMutation.mutateAsync({
+        const url = await exportPreviewMutation.mutateAsync({
             dashboard,
-            gridWidth: previewChoice ? parseInt(previewChoice) : undefined,
-            queryFilters: `?${queryParams.toString()}`,
-            isPreview: true,
+            customViewportWidth: previewChoice
+                ? parseInt(previewChoice)
+                : undefined,
+            dashboardFilters,
+            dateZoomGranularity,
+            parameters: parameterValues,
             selectedTabs: exportSelectedTabs,
         });
 
@@ -203,10 +188,12 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         }
     }, [
         dashboard,
-        exportDashboardMutation,
+        dashboardFilters,
+        dateZoomGranularity,
+        exportPreviewMutation,
         exportSelectedTabs,
         getPreviewKey,
-        location.search,
+        parameterValues,
         previewChoice,
     ]);
 
@@ -239,7 +226,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
 
         return (
             <Button
-                loading={exportDashboardMutation.isLoading}
+                loading={exportDashboardContentMutation.isLoading}
                 onClick={handleImageExport}
                 disabled={!hasTilesInSelectedTabs()}
                 leftSection={
@@ -330,7 +317,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                                 <Tooltip
                                     withinPortal
                                     maw={400}
-                                    variant="xs"
                                     multiline
                                     label="When unchecked, choose specific tabs to include in the export."
                                 >
@@ -399,7 +385,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     <Stack gap="xs">
                         <PreviewAndCustomizeScreenshot
                             containerWidth={gridWidth}
-                            exportMutation={exportDashboardMutation}
+                            isLoading={exportPreviewMutation.isLoading}
                             previewChoice={previewChoice}
                             setPreviewChoice={setPreviewChoice}
                             onPreviewClick={handlePreviewClick}

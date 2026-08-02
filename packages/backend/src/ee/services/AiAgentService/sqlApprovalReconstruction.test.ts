@@ -4,6 +4,8 @@ type Row = Parameters<
     typeof AiAgentService.buildToolCallTurnMessages
 >[0][number];
 
+type History = Parameters<typeof AiAgentService.backfillDanglingToolResults>[0];
+
 const call = (toolCallId: string, sql: string) =>
     ({ toolCallId, toolName: 'runSql', toolArgs: { sql } }) as Row['toolCall'];
 
@@ -137,6 +139,105 @@ describe('AiAgentService SQL-approval history reconstruction', () => {
             toolCallId: 'tc1',
             output: { type: 'json', value: 'Tool result unavailable.' },
         });
+    });
+
+    it('backfillDanglingToolResults leaves valid history untouched', () => {
+        const history = [
+            { role: 'user', content: 'hi' },
+            {
+                role: 'assistant',
+                content: [
+                    {
+                        type: 'tool-call',
+                        toolCallId: 'tc1',
+                        toolName: 'runSql',
+                        input: {},
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-result',
+                        toolCallId: 'tc1',
+                        toolName: 'runSql',
+                        output: { type: 'json', value: '1 row' },
+                    },
+                ],
+            },
+        ] as unknown as History;
+
+        expect(AiAgentService.backfillDanglingToolResults(history)).toEqual(
+            history,
+        );
+    });
+
+    it('backfillDanglingToolResults backfills a blocked mid-history call but keeps the trailing resume input dangling', () => {
+        const approvalPair = (id: string) => [
+            {
+                role: 'assistant',
+                content: [
+                    {
+                        type: 'tool-call',
+                        toolCallId: id,
+                        toolName: 'runSql',
+                        input: {},
+                    },
+                    {
+                        type: 'tool-approval-request',
+                        approvalId: `sql-approval:${id}`,
+                        toolCallId: id,
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                content: [
+                    {
+                        type: 'tool-approval-response',
+                        approvalId: `sql-approval:${id}`,
+                        approved: true,
+                    },
+                ],
+            },
+        ];
+
+        // A = blocked earlier in the turn (no result), C = trailing resume input.
+        const history = [
+            ...approvalPair('A'),
+            ...approvalPair('C'),
+        ] as unknown as History;
+
+        const out = AiAgentService.backfillDanglingToolResults(history);
+
+        // A's approval-response is followed by a synthetic result.
+        expect(content(out[1])[0].type).toBe('tool-approval-response');
+        expect(out[2]).toMatchObject({
+            role: 'tool',
+            content: [
+                {
+                    type: 'tool-result',
+                    toolCallId: 'A',
+                    output: { type: 'json', value: 'Tool result unavailable.' },
+                },
+            ],
+        });
+        // C (the trailing resume input) stays result-less and last.
+        const last = out[out.length - 1];
+        expect(content(last)[0]).toMatchObject({
+            type: 'tool-approval-response',
+            approvalId: 'sql-approval:C',
+        });
+        expect(
+            out.some(
+                (m) =>
+                    m.role === 'tool' &&
+                    content(m).some(
+                        (p) => p.type === 'tool-result' && p.toolCallId === 'C',
+                    ),
+            ),
+        ).toBe(false);
     });
 
     it('hasUnresolvedSqlApproval is true only for a decided, result-less call', () => {

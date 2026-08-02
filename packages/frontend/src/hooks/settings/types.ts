@@ -8,6 +8,19 @@ import {
 import { type Icon as TablerIcon } from '@tabler/icons-react';
 import { type UserWithAbility } from '../user/useUser';
 
+/**
+ * An in-page sub-section heading (e.g. "User impersonation" inside the org
+ * "General" page). Indexed by the settings search so page content — not just
+ * the sidebar label — surfaces the parent nav entry. This is search metadata
+ * only; the page component owns the actual rendering.
+ */
+export type SettingsPageSection = {
+    /** The heading shown on the page. */
+    title: string;
+    /** Search aliases for this sub-section, e.g. "impersonate". */
+    keywords: string[];
+};
+
 export type SettingsNavigationItem = {
     label: string;
     to: string;
@@ -16,6 +29,12 @@ export type SettingsNavigationItem = {
     aiAgentIcon?: boolean;
     /** Hidden search aliases so e.g. "sso" finds "Single Sign-On". */
     keywords: string[];
+    /**
+     * In-page sub-sections indexed by the settings search so a match on page
+     * content surfaces this entry (e.g. "impersonation" finds the "General"
+     * page). Omit when the page has no notable sub-sections.
+     */
+    pageSections?: SettingsPageSection[];
     children: SettingsNavigationItem[];
     exact?: boolean;
     onClick?: () => void;
@@ -44,18 +63,25 @@ export type SettingsContext = {
     isLeaveOrganizationEnabled: boolean;
     isCustomRolesEnabled: boolean | undefined;
     isProLimitsEnabled: boolean;
+    isOrganizationRoadmapEnabled: boolean;
+    isOrganizationRoadmapLoading: boolean;
     isSsoOrganizationSettingsEnabled: boolean;
+    isEmailWhitelabelEnabled: boolean;
     isScimTokenManagementEnabled: FeatureFlag | undefined;
     isServiceAccountsEnabled: boolean;
     isAiCopilotEnabledOrTrial: boolean;
+    isDeepResearchEnabled: boolean;
     shouldShowAiAgentReviews: boolean;
+    shouldShowAiAgentMemories: boolean;
     // Org-level AI settings access (router config, org settings, review queue).
     canManageOrgAiAgent: boolean;
     // True when the user can manage org AI settings OR has AI agent access in at
     // least one project they can reach. Gates visibility of the "Ask AI" area.
     hasAnyAiAgentAccess: boolean;
     isAiOrganizationSettingsLoading: boolean;
+    isDeepResearchFlagLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
+    isDataAppsFlagLoading: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;

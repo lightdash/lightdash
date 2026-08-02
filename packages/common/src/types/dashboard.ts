@@ -93,6 +93,9 @@ export type DashboardDataAppTileProperties = {
         title: string;
         hideTitle?: boolean;
         appUuid: string;
+        // Portable project-scoped identity, set by the backend on read.
+        // Mirrors `chartSlug` on chart tiles.
+        appSlug?: string | null;
         // Set by the backend when the referenced app has been soft-deleted,
         // so the frontend can render a placeholder instead of trying to load
         // a missing iframe.
@@ -236,6 +239,8 @@ export type DashboardConfig = {
     dateZoomGranularities?: (DateGranularity | string)[];
     defaultDateZoomGranularity?: DateGranularity | string;
     dateZoomConfig?: DateZoomConfig;
+    /** Editor-authored note shown to viewers while filter rules are unmet */
+    requiredFiltersNote?: string;
 };
 
 export type Dashboard = {

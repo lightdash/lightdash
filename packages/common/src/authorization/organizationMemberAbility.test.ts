@@ -48,6 +48,38 @@ const defineAbilityForOrganizationMember = (
 };
 
 describe('Organization member permissions', () => {
+    it('allows only admins to view their organization roadmap', () => {
+        const adminAbility =
+            defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
+        const memberAbility =
+            defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
+
+        expect(
+            adminAbility.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                }),
+            ),
+        ).toBe(true);
+        expect(
+            adminAbility.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: 'another-organization',
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            memberAbility.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: ORGANIZATION_MEMBER.organizationUuid,
+                }),
+            ),
+        ).toBe(false);
+    });
+
     describe('Member permissions', () => {
         let ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
         describe('when user is an organization admin', () => {
@@ -589,6 +621,15 @@ describe('Organization member permissions', () => {
                     defineAbilityForOrganizationMember(ORGANIZATION_EDITOR);
             });
 
+            it('can create but cannot manage content as code', () => {
+                const contentAsCode = subject('ContentAsCode', {
+                    organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                });
+
+                expect(ability.can('create', contentAsCode)).toEqual(true);
+                expect(ability.can('manage', contentAsCode)).toEqual(false);
+            });
+
             it('cannot manage organizations', () => {
                 expect(ability.can('manage', 'Organization')).toEqual(false);
             });
@@ -988,6 +1029,10 @@ describe('Organization member permissions', () => {
                 expect(ability.can('manage', 'SqlRunner')).toEqual(false);
             });
 
+            it('cannot view compiled SQL', () => {
+                expect(ability.can('view', 'CompiledSql')).toEqual(false);
+            });
+
             it('can use the SemanticViewer', () => {
                 expect(ability.can('manage', 'SemanticViewer')).toEqual(true);
             });
@@ -1085,8 +1130,24 @@ describe('Organization member permissions', () => {
                 );
             });
 
+            it('can create content as code through manage', () => {
+                expect(
+                    ability.can(
+                        'create',
+                        subject('ContentAsCode', {
+                            organizationUuid:
+                                ORGANIZATION_DEVELOPER.organizationUuid,
+                        }),
+                    ),
+                ).toEqual(true);
+            });
+
             it('can run SQL Queries', () => {
                 expect(ability.can('manage', 'SqlRunner')).toEqual(true);
+            });
+
+            it('can view compiled SQL', () => {
+                expect(ability.can('view', 'CompiledSql')).toEqual(true);
             });
 
             it('can use the SemanticViewer', () => {

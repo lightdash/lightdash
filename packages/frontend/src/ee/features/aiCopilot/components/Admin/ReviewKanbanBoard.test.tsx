@@ -25,6 +25,10 @@ vi.mock('../../hooks/useAiAgentAdmin', () => ({
         mutate: vi.fn(),
         isLoading: false,
     }),
+    useUpdateAiAgentReviewItemPriority: () => ({
+        mutate: vi.fn(),
+        isLoading: false,
+    }),
 }));
 
 vi.mock('../../../../../hooks/useProjectUsersWithRolesV2', () => ({

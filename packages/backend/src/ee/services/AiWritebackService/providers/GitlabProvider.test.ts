@@ -3,28 +3,30 @@ import {
     createPullRequest,
     getMergeRequest,
 } from '../../../../clients/gitlab/Gitlab';
+import { DeniedPathError } from '../deniedPaths';
 import type { GitlabConnection, GitlabInstallation } from '../types';
 import { GitlabProvider } from './GitlabProvider';
 
-jest.mock('../../../../clients/gitlab/Gitlab', () => ({
-    createPullRequest: jest.fn(),
-    getMergeRequest: jest.fn(),
-    updateMergeRequest: jest.fn(),
-    getGitlabUser: jest.fn(),
-    getOrRefreshToken: jest.fn(),
+vi.mock('../../../../clients/gitlab/Gitlab', () => ({
+    createPullRequest: vi.fn(),
+    getMergeRequest: vi.fn(),
+    updateMergeRequest: vi.fn(),
+    getGitlabUser: vi.fn(),
+    getOrRefreshToken: vi.fn(),
 }));
 
-const mockCreatePullRequest = createPullRequest as jest.MockedFunction<
-    typeof createPullRequest
->;
-const mockGetMergeRequest = getMergeRequest as jest.MockedFunction<
+const mockCreatePullRequest =
+    createPullRequest as import('vitest').MockedFunction<
+        typeof createPullRequest
+    >;
+const mockGetMergeRequest = getMergeRequest as import('vitest').MockedFunction<
     typeof getMergeRequest
 >;
 
 const provider = new GitlabProvider({
     gitlabAppInstallationsModel: {} as never,
     gitlabConfig: { clientId: 'id', clientSecret: 'secret' },
-    logger: { info: jest.fn(), warn: jest.fn() } as never,
+    logger: { info: vi.fn(), warn: vi.fn() } as never,
 });
 
 const connection: GitlabConnection = {
@@ -45,13 +47,13 @@ const installation: GitlabInstallation = {
 const fakeSandbox = () => ({
     sandboxId: 'sbx-1',
     git: {
-        status: jest.fn().mockResolvedValue({ currentBranch: 'main' }),
-        createBranch: jest.fn().mockResolvedValue(undefined),
-        add: jest.fn().mockResolvedValue(undefined),
-        commit: jest.fn().mockResolvedValue(undefined),
-        push: jest.fn().mockResolvedValue(undefined),
+        status: vi.fn().mockResolvedValue({ currentBranch: 'main' }),
+        createBranch: vi.fn().mockResolvedValue(undefined),
+        add: vi.fn().mockResolvedValue(undefined),
+        commit: vi.fn().mockResolvedValue(undefined),
+        push: vi.fn().mockResolvedValue(undefined),
     },
-    commands: { run: jest.fn().mockResolvedValue({ exitCode: 0, stdout: '' }) },
+    commands: { run: vi.fn().mockResolvedValue({ exitCode: 0, stdout: '' }) },
 });
 
 const openMr = {
@@ -83,7 +85,7 @@ describe('GitlabProvider.getCloneTarget', () => {
 });
 
 describe('GitlabProvider.openPullRequest', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     it('pushes the branch over oauth2 and opens a merge request', async () => {
         mockCreatePullRequest.mockResolvedValue({
@@ -100,7 +102,8 @@ describe('GitlabProvider.openPullRequest', () => {
             title: 'Add metric',
             description: 'Adds revenue.',
             user: { userUuid: 'u1' } as never,
-            setStage: jest.fn(),
+            setStage: vi.fn(),
+            denyCiPaths: false,
         });
 
         expect(result.prUrl).toBe(
@@ -145,7 +148,8 @@ describe('GitlabProvider.openPullRequest', () => {
                 lastName: 'Doe',
                 email: 'jane@acme.com',
             } as never,
-            setStage: jest.fn(),
+            setStage: vi.fn(),
+            denyCiPaths: false,
         });
 
         expect(sandbox.git.commit).toHaveBeenCalledWith(
@@ -154,10 +158,37 @@ describe('GitlabProvider.openPullRequest', () => {
             expect.anything(),
         );
     });
+
+    it('rejects a CI-touching commit (general agent) without pushing or opening an MR', async () => {
+        const sandbox = fakeSandbox();
+        // The denied-path gate probes staged paths with `--name-status -z`;
+        // return a CI/workflow path for that call, empty for everything else.
+        sandbox.commands.run = vi.fn(async (cmd: string) =>
+            cmd.includes('--name-status')
+                ? { exitCode: 0, stdout: 'A\0.github/workflows/deploy.yml\0' }
+                : { exitCode: 0, stdout: '' },
+        );
+
+        await expect(
+            provider.openPullRequest({
+                sandbox: sandbox as never,
+                connection,
+                installation,
+                title: 'Add workflow',
+                description: 'Adds CI.',
+                user: { userUuid: 'u1' } as never,
+                setStage: vi.fn(),
+                denyCiPaths: true,
+            }),
+        ).rejects.toBeInstanceOf(DeniedPathError);
+
+        expect(mockCreatePullRequest).not.toHaveBeenCalled();
+        expect(sandbox.git.push).not.toHaveBeenCalled();
+    });
 });
 
 describe('GitlabProvider.adoptPullRequest', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     const adopt = (prUrl: string) =>
         provider.adoptPullRequest({ prUrl, connection, installation });

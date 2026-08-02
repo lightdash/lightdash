@@ -43,8 +43,8 @@ const bigqueryCredentials: CreateBigqueryCredentials = {
 };
 
 export const encryptionUtilMock = {
-    encrypt: jest.fn(() => Buffer.from('encrypted')),
-    decrypt: jest.fn((encrypted: Buffer) => encrypted.toString()),
+    encrypt: vi.fn(() => Buffer.from('encrypted')),
+    decrypt: vi.fn((encrypted: Buffer) => encrypted.toString()),
 } as AnyType as EncryptionUtil;
 
 export const projectUuid = 'project uuid';
@@ -119,6 +119,7 @@ export const expectedProject: Project = {
     hasDefaultUserSpaces: false,
     colorPaletteUuid: null,
     expiresAt: null,
+    provisioningSource: null,
 };
 
 const metricFilter: MetricFilterRule = {

@@ -20,7 +20,7 @@ export const SourceFilter = ({
     const data = [
         {
             label: (
-                <Tooltip withinPortal variant="xs" label="All sources">
+                <Tooltip withinPortal label="All sources">
                     <Box>
                         <Text fz="xs" fw={500}>
                             All
@@ -32,7 +32,7 @@ export const SourceFilter = ({
         },
         {
             label: (
-                <Tooltip withinPortal variant="xs" label="Web app threads">
+                <Tooltip withinPortal label="Web app threads">
                     <Box>
                         <MantineIcon
                             icon={IconMessageCircleStar}
@@ -45,7 +45,7 @@ export const SourceFilter = ({
         },
         {
             label: (
-                <Tooltip withinPortal variant="xs" label="Slack threads">
+                <Tooltip withinPortal label="Slack threads">
                     <Box>
                         <MantineIcon icon={IconBrandSlack} {...iconProps} />
                     </Box>

@@ -68,6 +68,7 @@ const SuboptimalState: FC<Props> = ({
             {description && (
                 <Box c="dimmed" fz="xs" maw={400} mt={title ? -10 : 0}>
                     <Text
+                        component="div"
                         size="xs"
                         className={adaptive ? classes.description : undefined}
                         style={

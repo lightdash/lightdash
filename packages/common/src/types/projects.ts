@@ -33,6 +33,7 @@ export enum WarehouseTypes {
 export enum DuckdbConnectionType {
     MOTHERDUCK = 'motherduck',
     DUCKLAKE = 'ducklake',
+    EMBEDDED = 'embedded',
 }
 
 export type SshTunnelConfiguration = {
@@ -57,7 +58,9 @@ export type CreateBigqueryCredentials = {
     timeoutSeconds: number | undefined;
     priority: 'interactive' | 'batch' | undefined;
     authenticationType?: BigqueryAuthenticationType;
-    keyfileContents: Record<string, string>; // used for both sso and private key
+    // Index signature (not Record) so tsoa generates additionalProperties and
+    // intersection-body validation preserves the keyfile fields.
+    keyfileContents: { [key: string]: string }; // used for both sso and private key
     requireUserCredentials?: boolean;
     retries: number | undefined;
     location: string | undefined;
@@ -240,6 +243,17 @@ export type DuckdbMotherduckCredentials = Omit<
     SensitiveCredentialsFieldNames
 >;
 
+export type CreateDuckdbEmbeddedCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    connectionType: DuckdbConnectionType.EMBEDDED;
+    dataset: string;
+    requireUserCredentials?: boolean;
+    dataTimezone?: string;
+    startOfWeek?: number;
+    schema?: string;
+};
+export type DuckdbEmbeddedCredentials = CreateDuckdbEmbeddedCredentials;
+
 export enum DucklakeCatalogType {
     POSTGRES = 'postgres',
     SQLITE = 'sqlite',
@@ -367,11 +381,13 @@ export type DuckdbDucklakeCredentials = Omit<
 
 export type CreateDuckdbCredentials =
     | CreateDuckdbMotherduckCredentials
-    | CreateDuckdbDucklakeCredentials;
+    | CreateDuckdbDucklakeCredentials
+    | CreateDuckdbEmbeddedCredentials;
 
 export type DuckdbCredentials =
     | DuckdbMotherduckCredentials
-    | DuckdbDucklakeCredentials;
+    | DuckdbDucklakeCredentials
+    | DuckdbEmbeddedCredentials;
 
 /**
  * Rows created before the connectionType field was introduced are
@@ -449,6 +465,7 @@ export const stripDucklakeNestedSensitive = (
 export enum RedshiftAuthenticationType {
     PASSWORD = 'password',
     IAM = 'iam',
+    IAM_BROWSER = 'iam_browser',
 }
 
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
@@ -486,6 +503,10 @@ export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     sessionToken?: string;
     assumeRoleArn?: string;
     assumeRoleExternalId?: string;
+    awsSsoStartUrl?: string;
+    awsSsoRegion?: string;
+    awsSsoAccountId?: string;
+    awsSsoRoleName?: string;
 };
 export type RedshiftCredentials = Omit<
     CreateRedshiftCredentials,
@@ -498,6 +519,8 @@ export enum SnowflakeAuthenticationType {
     PRIVATE_KEY = 'private_key',
     SSO = 'sso',
     EXTERNAL_BROWSER = 'external_browser',
+    /** CLI-only interactive browser sign-in; never persisted as a project credential */
+    OAUTH_AUTHORIZATION_CODE = 'oauth_authorization_code',
     NONE = 'none',
 }
 
@@ -623,10 +646,15 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
         return newCredentials;
     }
 
-    // Only add non sensitive fields from base credentials to avoid conflicts with authentication methods
+    // Only add non sensitive fields from base credentials to avoid conflicts with authentication methods.
+    // assumeRoleArn/assumeRoleExternalId are authentication config tied to the base credentials, so they
+    // must not be inherited when the preview supplies its own credentials (otherwise the preview tries to
+    // assume the parent's role with credentials that aren't authorized to).
     const keysToExclude = [
         ...sensitiveCredentialsFieldNames,
         'authenticationType',
+        'assumeRoleArn',
+        'assumeRoleExternalId',
     ];
     const filteredBaseCredentials = Object.fromEntries(
         Object.entries(baseCredentials).filter(
@@ -738,6 +766,7 @@ export enum SupportedDbtVersions {
     V1_9 = 'v1.9',
     V1_10 = 'v1.10',
     V1_11 = 'v1.11',
+    V1_12 = 'v1.12',
 }
 
 // Make it an enum to avoid TSOA errors
@@ -762,12 +791,66 @@ export function isDbtVersion110OrHigher(
 
 export type DbtVersionOption = SupportedDbtVersions | DbtVersionOptionLatest;
 
-export const getLatestSupportDbtVersion = (): SupportedDbtVersions => {
-    const versions = Object.values(SupportedDbtVersions);
-    return versions[versions.length - 1];
+const dbtWarehousesExcept = (
+    ...unsupported: WarehouseTypes[]
+): WarehouseTypes[] =>
+    Object.values(WarehouseTypes).filter((w) => !unsupported.includes(w));
+
+/**
+ * Warehouse adapters installed for each dbt version in the production image
+ * (see the "Installing multiple versions of dbt" block in `/dockerfile`). This
+ * is the source of truth for which `(dbt version, warehouse)` combinations
+ * Lightdash can actually run, and it gates which version `latest` may point to
+ * (see `LATEST_SUPPORTED_DBT_VERSION`).
+ *
+ * Keep this in sync with `/dockerfile` whenever an adapter is added to or
+ * dropped from a version. The exhaustive `Record` forces every new
+ * `SupportedDbtVersions` member to declare its adapter coverage.
+ */
+export const DBT_VERSION_SUPPORTED_WAREHOUSES: Record<
+    SupportedDbtVersions,
+    WarehouseTypes[]
+> = {
+    [SupportedDbtVersions.V1_4]: dbtWarehousesExcept(
+        WarehouseTypes.ATHENA,
+        WarehouseTypes.DUCKDB,
+    ),
+    [SupportedDbtVersions.V1_5]: dbtWarehousesExcept(
+        WarehouseTypes.ATHENA,
+        WarehouseTypes.DUCKDB,
+    ),
+    [SupportedDbtVersions.V1_6]: dbtWarehousesExcept(
+        WarehouseTypes.ATHENA,
+        WarehouseTypes.DUCKDB,
+    ),
+    [SupportedDbtVersions.V1_7]: dbtWarehousesExcept(
+        WarehouseTypes.ATHENA,
+        WarehouseTypes.DUCKDB,
+    ),
+    [SupportedDbtVersions.V1_8]: dbtWarehousesExcept(WarehouseTypes.ATHENA),
+    [SupportedDbtVersions.V1_9]: dbtWarehousesExcept(),
+    [SupportedDbtVersions.V1_10]: dbtWarehousesExcept(),
+    [SupportedDbtVersions.V1_11]: dbtWarehousesExcept(),
+    [SupportedDbtVersions.V1_12]: dbtWarehousesExcept(
+        WarehouseTypes.DATABRICKS,
+    ),
 };
 
-/** Resolve a `DbtVersionOption` to a concrete version (`latest` → newest). */
+export const getDbtVersionSupportedWarehouses = (
+    version: SupportedDbtVersions,
+): WarehouseTypes[] => DBT_VERSION_SUPPORTED_WAREHOUSES[version];
+
+export const isWarehouseSupportedByDbtVersion = (
+    version: SupportedDbtVersions,
+    warehouseType: WarehouseTypes,
+): boolean => DBT_VERSION_SUPPORTED_WAREHOUSES[version].includes(warehouseType);
+
+export const LATEST_SUPPORTED_DBT_VERSION: SupportedDbtVersions =
+    SupportedDbtVersions.V1_11;
+
+export const getLatestSupportDbtVersion = (): SupportedDbtVersions =>
+    LATEST_SUPPORTED_DBT_VERSION;
+
 export const resolveDbtVersion = (
     option: DbtVersionOption,
 ): SupportedDbtVersions =>
@@ -860,6 +943,103 @@ export type DbtProjectConfig =
     | DbtNoneProjectConfig
     | DbtManifestProjectConfig;
 
+/**
+ * One dbt source connected to a project (PROD-7484 multiple dbt sources). The
+ * project's own `dbt_connection` is the primary source (precedence 0); when a
+ * project has no source rows it runs the single-source path unchanged (N=0
+ * short-circuit). `dbtConnection` is the decrypted per-source connection; the
+ * source is recompiled from it at deploy/preview time and its manifest merged
+ * with the others.
+ *
+ * `hasCredentialError` is true when the stored connection could not be
+ * decrypted (e.g. an encryption secret rotation) — `dbtConnection` is then
+ * `null` even though a connection was originally saved. Callers must not let
+ * one source's credential error fail an operation over every source (listing,
+ * compiling); only an operation that actually needs this source's connection
+ * (editing, compiling this one source) should fail, and should name the
+ * source when it does.
+ */
+export type ProjectDbtSource = {
+    projectDbtSourceUuid: string;
+    projectUuid: string;
+    name: string;
+    isPrimary: boolean;
+    precedence: number;
+    dbtConnection: DbtProjectConfig | null;
+    hasCredentialError: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type CreateProjectDbtSource = {
+    name: string;
+    isPrimary: boolean;
+    precedence: number;
+    dbtConnection: DbtProjectConfig | null;
+};
+
+export type UpdateProjectDbtSource = {
+    name?: string;
+    precedence?: number;
+    dbtConnection?: DbtProjectConfig | null;
+};
+
+/**
+ * Non-sensitive view of a dbt source for API responses — never includes the
+ * decrypted connection (which holds credentials). The primary source is
+ * synthesised from the project's own dbt_connection. `repository`, `branch` and
+ * `projectSubPath` are the git-backed source's identity (null for non-git
+ * connections); they are safe to expose — only secrets are stripped.
+ *
+ * `hasCredentialError` is always `false` for the synthesised primary source.
+ * See `ProjectDbtSource` for what it means on an additional source.
+ */
+export type ProjectDbtSourceSummary = {
+    projectDbtSourceUuid: string;
+    name: string;
+    isPrimary: boolean;
+    precedence: number;
+    type: DbtProjectType | null;
+    repository: string | null;
+    branch: string | null;
+    projectSubPath: string | null;
+    hasCredentialError: boolean;
+};
+
+export type ApiCreateProjectDbtSource = {
+    name: string;
+    dbtConnection: DbtProjectConfig;
+};
+
+export type ApiProjectDbtSourcesResponse = {
+    status: 'ok';
+    results: ProjectDbtSourceSummary[];
+};
+
+export type ApiProjectDbtSourceResponse = {
+    status: 'ok';
+    results: ProjectDbtSourceSummary;
+};
+
+/**
+ * A single dbt source including its connection, with sensitive credentials
+ * (tokens, keys) stripped — used to pre-fill the edit form. Secrets left out
+ * here are preserved on update via `mergeMissingDbtConfigSecrets`.
+ */
+export type ProjectDbtSourceWithConnection = ProjectDbtSourceSummary & {
+    dbtConnection: DbtProjectConfig | null;
+};
+
+export type ApiProjectDbtSourceWithConnectionResponse = {
+    status: 'ok';
+    results: ProjectDbtSourceWithConnection;
+};
+
+export type ApiUpdateProjectDbtSource = {
+    name?: string;
+    dbtConnection?: DbtProjectConfig;
+};
+
 export const isGitProjectType = (
     connection: DbtProjectConfig,
 ): connection is
@@ -931,6 +1111,7 @@ export type Project = {
     projectDefaults?: ProjectDefaults;
     colorPaletteUuid: string | null;
     expiresAt: Date | null;
+    provisioningSource?: string | null;
 };
 
 export type ProjectSummary = Pick<
@@ -941,12 +1122,37 @@ export type ProjectSummary = Pick<
     | 'type'
     | 'upstreamProjectUuid'
     | 'createdByUserUuid'
+    | 'provisioningSource'
 >;
 
 export type ApiProjectResponse = {
     status: 'ok';
     results: Project;
 };
+
+export type EnsurePlaygroundProjectResults = {
+    projectUuid: string;
+    created: boolean;
+};
+
+export const playgroundProjectTriggers = [
+    'invite_expert',
+    'agent_onboarding_wait',
+] as const;
+
+export type PlaygroundProjectTrigger =
+    (typeof playgroundProjectTriggers)[number];
+
+export type EnsurePlaygroundProjectRequest = {
+    trigger?: PlaygroundProjectTrigger;
+};
+
+export type ApiEnsurePlaygroundProjectResponse = {
+    status: 'ok';
+    results: EnsurePlaygroundProjectResults;
+};
+
+export type UpdateProjectDetails = Partial<Pick<Project, 'name'>>;
 
 export type ApiGetProjectGroupAccesses = {
     status: 'ok';

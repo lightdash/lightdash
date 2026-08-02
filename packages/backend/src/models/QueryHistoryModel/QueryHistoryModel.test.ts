@@ -27,6 +27,60 @@ describe('QueryHistoryModel', () => {
             expect(result.length).toBe(64);
         });
 
+        test('data timezone changes the hash', () => {
+            const withDataTz = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid: null,
+                dataTimezone: 'Asia/Tokyo',
+            });
+            const withoutDataTz = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid: null,
+            });
+            const withOtherDataTz = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid: null,
+                dataTimezone: 'America/New_York',
+            });
+            expect(withDataTz).not.toBe(withoutDataTz);
+            expect(withDataTz).not.toBe(withOtherDataTz);
+        });
+
+        test('undefined data timezone keeps existing keys stable', () => {
+            const explicitUndefined = QueryHistoryModel.getCacheKey(
+                projectUuid,
+                {
+                    sql,
+                    timezone,
+                    userUuid: null,
+                    dataTimezone: undefined,
+                },
+            );
+            const omitted = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone,
+                userUuid: null,
+            });
+            expect(explicitUndefined).toBe(omitted);
+        });
+
+        test('data timezone component cannot collide with the display timezone component', () => {
+            const displayOnly = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                timezone: 'UTC',
+                userUuid: null,
+            });
+            const dataOnly = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                userUuid: null,
+                dataTimezone: 'UTC',
+            });
+            expect(displayOnly).not.toBe(dataOnly);
+        });
+
         test('should generate different hashes for different projects with same SQL', () => {
             const projectUuid2 = 'different-project-uuid';
             const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {

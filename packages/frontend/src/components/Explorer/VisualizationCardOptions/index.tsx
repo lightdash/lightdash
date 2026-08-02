@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     CartesianSeriesType,
     ChartType,
+    FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
 import { Button, Menu } from '@mantine-8/core';
@@ -19,15 +20,18 @@ import {
     IconGauge,
     IconGitMerge,
     IconMap,
+    IconPuzzle,
     IconSquareNumber1,
     IconTable,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC, type ReactNode } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import {
     isBigNumberVisualizationConfig,
     isCartesianVisualizationConfig,
     isCustomVisualizationConfig,
+    isDataAppVizVisualizationConfig,
     isFunnelVisualizationConfig,
     isGaugeVisualizationConfig,
     isMapVisualizationConfig,
@@ -48,6 +52,9 @@ const VisualizationCardOptions: FC = memo(() => {
         resultsData,
         pivotDimensions,
     } = useVisualizationContext();
+    const dataAppsEnabled =
+        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
+        true;
     const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
 
     const cartesianConfig = useMemo(() => {
@@ -195,6 +202,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Sankey',
                     icon: <MantineIcon icon={IconGitMerge} color="ldGray" />,
+                };
+            case ChartType.DATA_APP_VIZ:
+                return {
+                    text: 'Data app visualization',
+                    icon: <MantineIcon icon={IconPuzzle} color="ldGray" />,
                 };
             default: {
                 return assertUnreachable(
@@ -504,6 +516,25 @@ const VisualizationCardOptions: FC = memo(() => {
                 >
                     Custom
                 </Menu.Item>
+
+                {dataAppsEnabled && (
+                    <Menu.Item
+                        disabled={disabled}
+                        color={
+                            isDataAppVizVisualizationConfig(visualizationConfig)
+                                ? 'blue'
+                                : undefined
+                        }
+                        leftSection={<MantineIcon icon={IconPuzzle} />}
+                        onClick={() => {
+                            setStacking(undefined);
+                            setCartesianType(undefined);
+                            setChartType(ChartType.DATA_APP_VIZ);
+                        }}
+                    >
+                        Data app visualization
+                    </Menu.Item>
+                )}
             </Menu.Dropdown>
         </Menu>
     );

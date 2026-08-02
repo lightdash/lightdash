@@ -55,6 +55,7 @@ const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
                     appUuid={appUuid}
                     identityKey={`${appUuid}:${tokenQuery.data!.version}`}
                     dashboardFilters={undefined}
+                    urlStateSync
                 />
             )}
         </Box>

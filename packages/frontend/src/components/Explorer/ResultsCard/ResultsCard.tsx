@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine/core';
+import { ActionIcon, Group, Popover, SegmentedControl } from '@mantine-8/core';
 import { IconShare2 } from '@tabler/icons-react';
 import {
     memo,
@@ -121,7 +121,7 @@ const ResultsCard: FC = memo(() => {
             headerElement={
                 // Hide header controls when in grouped view
                 isGroupedView ? null : (
-                    <Group noWrap spacing="xs">
+                    <Group wrap="nowrap" gap="xs">
                         {tableName && sorts.length > 0 && (
                             <SortButton isEditMode={isEditMode} sorts={sorts} />
                         )}
@@ -132,7 +132,7 @@ const ResultsCard: FC = memo(() => {
                 projectUuid &&
                 resultsIsOpen &&
                 tableName && (
-                    <Group spacing="xs" noWrap>
+                    <Group gap="xs" wrap="nowrap">
                         {!isGroupedDisabled && (
                             <SegmentedControl
                                 size="xs"

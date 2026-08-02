@@ -1,4 +1,7 @@
-import { type ApiAiAgentThreadResponse } from '@lightdash/common';
+import {
+    isToolEditDbtProjectResult,
+    type ApiAiAgentThreadResponse,
+} from '@lightdash/common';
 import { useEffect } from 'react';
 import { useAiAgentThreadStreaming } from '../streaming/useAiAgentThreadStreamQuery';
 
@@ -6,22 +9,28 @@ const POLL_INTERVAL_MS = 2000;
 
 type Thread = ApiAiAgentThreadResponse['results'] | undefined;
 
-/**
- * Polls the thread query while there is a pending assistant message and no
- * active stream — covers the gap between submission and the first stream
- * chunk, and the case where the stream never connects (e.g. Slack-created
- * threads).
- */
+const hasPendingWriteback = (thread: Thread): boolean =>
+    thread?.messages?.some(
+        (message) =>
+            message.role === 'assistant' &&
+            message.toolResults?.some(
+                (toolResult) =>
+                    isToolEditDbtProjectResult(toolResult) &&
+                    toolResult.metadata.status === 'pending',
+            ),
+    ) ?? false;
+
 export const usePendingThreadRefetch = (
     thread: Thread,
     threadUuid: string,
     refetch: () => unknown,
 ) => {
     const isStreaming = useAiAgentThreadStreaming(threadUuid);
-    const isPending = thread?.messages?.some(
-        (message) =>
-            message.role === 'assistant' && message.status === 'pending',
-    );
+    const isPending =
+        thread?.messages?.some(
+            (message) =>
+                message.role === 'assistant' && message.status === 'pending',
+        ) || hasPendingWriteback(thread);
 
     useEffect(() => {
         if (!isPending || isStreaming) return;

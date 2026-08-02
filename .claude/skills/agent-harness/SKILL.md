@@ -1,5 +1,7 @@
 ---
 name: agent-harness
+metadata:
+  internal: true
 description: Guide for AI agents running in the isolated agent-harness environment. Use when you need to discover your agent ID, find your ports, manage your stack with agent-cli.sh, run verification, or understand the multi-agent development setup.
 ---
 

@@ -248,13 +248,19 @@ jobs:
         with:
           mode: firewall-free
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Read packageManager
+        id: package-manager
+        run: |
+          version=$(node -p 'JSON.parse(require("fs").readFileSync("package.json","utf8")).packageManager.split("+")[0]')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache node_modules
         id: cache-node-modules
@@ -263,7 +269,7 @@ jobs:
           path: |
             node_modules
             packages/*/node_modules
-          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ steps.package-manager.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
@@ -477,290 +483,128 @@ jobs:
           git push origin main
 
   # ============================================================================
-  # Job 4: Data App E2B template — publish a tag matching this release
+  # Job 4: Update Helm chart default version
   # ============================================================================
-  # Two paths:
-  #   build  — full E2B template rebuild when sandboxes/data-apps/** or
-  #            packages/query-sdk/** changed since the previous release.
-  #   retag  — fast path that re-tags the existing :latest build with the new
-  #            release version, so every released version still has a pinned
-  #            tag without burning E2B build minutes on a no-op rebuild.
-  data-app-template-resolve:
-    name: Resolve E2B template build action
-    runs-on: depot-ubuntu-24.04-4
-    outputs:
-      action: ${{ steps.plan.outputs.action }}
-      primary_tag: ${{ steps.plan.outputs.primary_tag }}
-      source_tag: ${{ steps.plan.outputs.source_tag }}
+  update-helm-chart:
+    name: Update Helm Chart Version
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      # The push must use a PAT (not GITHUB_TOKEN): pushes made with the
+      # default token don't trigger workflows, and the chart is published by
+      # helm-charts' ci-release workflow on push to main.
+      - name: Checkout helm-charts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          fetch-depth: 0
-          ref: ${{ github.event.release.tag_name }}
+          repository: lightdash/helm-charts
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          path: helm-charts
 
-      - name: Plan build
-        id: plan
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+      - name: Bump chart version and appVersion
+        working-directory: helm-charts
         run: |
-          set -euo pipefail
-          PRIMARY_TAG="$RELEASE_TAG"
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${RELEASE_TAG}$" | tail -1 || true)
-          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$RELEASE_TAG" ]; then
-            echo "No previous tag found — performing full build"
-            ACTION="build"
-            SOURCE_TAG=""
-          else
-            CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$RELEASE_TAG" -- 'sandboxes/data-apps/' 'packages/query-sdk/' || true)
-            if [ -n "$CHANGED" ]; then
-              echo "Template/SDK changed since $PREVIOUS_TAG — performing full build"
-              echo "$CHANGED"
-              ACTION="build"
-              SOURCE_TAG=""
-            else
-              echo "No template/SDK changes since $PREVIOUS_TAG — re-tagging :latest"
-              ACTION="retag"
-              SOURCE_TAG="latest"
-            fi
-          fi
-          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
-          echo "primary_tag=$PRIMARY_TAG" >> "$GITHUB_OUTPUT"
-          echo "source_tag=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          CHART=charts/lightdash/Chart.yaml
 
-  data-app-template-build:
-    name: Build E2B template (${{ matrix.region }})
-    needs: data-app-template-resolve
-    if: needs.data-app-template-resolve.outputs.action == 'build'
-    runs-on: depot-ubuntu-24.04-4
-    strategy:
-      fail-fast: false
-      matrix:
-        region: [us, eu]
-    env:
-      E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
-      E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
-      E2B_TEMPLATE_NAME: lightdash-data-app
-      E2B_TEMPLATE_TAG: ${{ needs.data-app-template-resolve.outputs.primary_tag }}
-      E2B_TEMPLATE_EXTRA_TAGS: latest
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
+          CURRENT_CHART_VERSION=$(awk '/^version:/{print $2}' "$CHART")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_CHART_VERSION"
+          NEW_CHART_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.release.tag_name }}
+          sed -i "s/^version: .*/version: $NEW_CHART_VERSION/" "$CHART"
+          sed -i "s/^appVersion: .*/appVersion: $VERSION/" "$CHART"
 
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
+          echo "Chart version: $CURRENT_CHART_VERSION -> $NEW_CHART_VERSION, appVersion -> $VERSION"
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
-          cache-dependency-path: 'pnpm-lock.yaml'
-
-      - name: Install root deps
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Install sandbox deps
-        working-directory: sandboxes/data-apps
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Build & publish E2B template
-        working-directory: sandboxes/data-apps
-        run: pnpm run build
-
-  data-app-template-retag:
-    name: Re-tag existing E2B build (${{ matrix.region }})
-    needs: data-app-template-resolve
-    if: needs.data-app-template-resolve.outputs.action == 'retag'
-    runs-on: depot-ubuntu-24.04-4
-    strategy:
-      fail-fast: false
-      matrix:
-        region: [us, eu]
-    env:
-      E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
-      E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
-      E2B_TEMPLATE_NAME: lightdash-data-app
-      E2B_TEMPLATE_TAG: ${{ needs.data-app-template-resolve.outputs.primary_tag }}
-      E2B_TEMPLATE_SOURCE_TAG: ${{ needs.data-app-template-resolve.outputs.source_tag }}
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.release.tag_name }}
-
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Install sandbox deps
-        working-directory: sandboxes/data-apps
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Re-tag :latest build with release version
-        working-directory: sandboxes/data-apps
-        run: pnpm exec tsx assign-tag.ts
-
-  # ============================================================================
-  # Job 5: AI Writeback E2B template — publish a tag matching this release
-  # ============================================================================
-  # Mirrors the data-app template jobs above. Two paths:
-  #   build  — full E2B template rebuild when sandboxes/ai-writeback/**
-  #            changed since the previous release.
-  #   retag  — fast path that re-tags the existing :latest build with the new
-  #            release version, so every released version still has a pinned
-  #            tag without burning E2B build minutes on a no-op rebuild.
-  # The build is self-contained (no root workspace deps), so there is no
-  # "Install root deps" step.
-  ai-writeback-template-resolve:
-    name: Resolve AI writeback E2B template build action
-    runs-on: depot-ubuntu-24.04-4
-    outputs:
-      action: ${{ steps.plan.outputs.action }}
-      primary_tag: ${{ steps.plan.outputs.primary_tag }}
-      source_tag: ${{ steps.plan.outputs.source_tag }}
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.release.tag_name }}
-
-      - name: Plan build
-        id: plan
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+      # Same helm-docs version as helm-charts' own generate-helm-docs workflow,
+      # which only runs on PRs and so won't cover a direct push to main
+      - name: Regenerate chart README
         run: |
-          set -euo pipefail
-          PRIMARY_TAG="$RELEASE_TAG"
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${RELEASE_TAG}$" | tail -1 || true)
-          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$RELEASE_TAG" ]; then
-            echo "No previous tag found — performing full build"
-            ACTION="build"
-            SOURCE_TAG=""
-          else
-            CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$RELEASE_TAG" -- 'sandboxes/ai-writeback/' || true)
-            if [ -n "$CHANGED" ]; then
-              echo "Template changed since $PREVIOUS_TAG — performing full build"
-              echo "$CHANGED"
-              ACTION="build"
-              SOURCE_TAG=""
-            else
-              echo "No template changes since $PREVIOUS_TAG — re-tagging :latest"
-              ACTION="retag"
-              SOURCE_TAG="latest"
-            fi
-          fi
-          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
-          echo "primary_tag=$PRIMARY_TAG" >> "$GITHUB_OUTPUT"
-          echo "source_tag=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
+          docker run --rm -v "$PWD/helm-charts:/helm-docs" jnorwood/helm-docs:v1.7.0
 
-  ai-writeback-template-build:
-    name: Build AI writeback E2B template (${{ matrix.region }})
-    needs: ai-writeback-template-resolve
-    if: needs.ai-writeback-template-resolve.outputs.action == 'build'
-    runs-on: depot-ubuntu-24.04-4
+      - name: Commit and push to main
+        working-directory: helm-charts
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add charts/lightdash/Chart.yaml charts/lightdash/README.md
+          git commit -m "chore(release): update Lightdash to $VERSION"
+          git push origin main
+
+  # ============================================================================
+  # Job 5: Publish versioned E2B templates
+  # ============================================================================
+  e2b-templates:
+    name: Publish ${{ matrix.template.display_name }} (${{ matrix.region }})
     strategy:
       fail-fast: false
       matrix:
         region: [us, eu]
-    env:
-      E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
-      E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
-      E2B_AI_WRITEBACK_TEMPLATE_NAME: lightdash-ai-writeback
-      E2B_AI_WRITEBACK_TEMPLATE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.primary_tag }}
-      E2B_AI_WRITEBACK_TEMPLATE_EXTRA_TAGS: latest
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.release.tag_name }}
-
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Install sandbox deps
-        working-directory: sandboxes/ai-writeback
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Build & publish E2B template
-        working-directory: sandboxes/ai-writeback
-        run: pnpm run build
-
-  ai-writeback-template-retag:
-    name: Re-tag existing AI writeback E2B build (${{ matrix.region }})
-    needs: ai-writeback-template-resolve
-    if: needs.ai-writeback-template-resolve.outputs.action == 'retag'
-    runs-on: depot-ubuntu-24.04-4
-    strategy:
-      fail-fast: false
-      matrix:
-        region: [us, eu]
-    env:
-      E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
-      E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
-      E2B_AI_WRITEBACK_TEMPLATE_NAME: lightdash-ai-writeback
-      E2B_AI_WRITEBACK_TEMPLATE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.primary_tag }}
-      E2B_AI_WRITEBACK_TEMPLATE_SOURCE_TAG: ${{ needs.ai-writeback-template-resolve.outputs.source_tag }}
-    steps:
-      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-        with:
-          egress-policy: audit
-
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.release.tag_name }}
-
-      - name: Setup Socket Firewall
-        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
-        with:
-          mode: firewall-free
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Install sandbox deps
-        working-directory: sandboxes/ai-writeback
-        run: sfw pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Re-tag :latest build with release version
-        working-directory: sandboxes/ai-writeback
-        run: pnpm exec tsx assign-tag.ts
+        template:
+          - display_name: data app E2B template
+            directory: sandboxes/data-apps
+            name: lightdash-data-app
+            name_env: E2B_TEMPLATE_NAME
+            tag_env: E2B_TEMPLATE_TAG
+            extra_tags_env: E2B_TEMPLATE_EXTRA_TAGS
+            source_tag_env: E2B_TEMPLATE_SOURCE_TAG
+            additional_watch_paths: packages/query-sdk
+            install_root_deps: true
+          - display_name: AI writeback E2B template
+            directory: sandboxes/ai-writeback
+            name: lightdash-ai-writeback
+            name_env: E2B_AI_WRITEBACK_TEMPLATE_NAME
+            tag_env: E2B_AI_WRITEBACK_TEMPLATE_TAG
+            extra_tags_env: E2B_AI_WRITEBACK_TEMPLATE_EXTRA_TAGS
+            source_tag_env: E2B_AI_WRITEBACK_TEMPLATE_SOURCE_TAG
+            additional_watch_paths: |
+              packages/cli
+              packages/common
+              packages/warehouses
+              skills
+            install_root_deps: false
+          - display_name: coding agent E2B template
+            directory: sandboxes/ai-coding-agent
+            name: lightdash-ai-coding-agent
+            name_env: E2B_CODING_AGENT_TEMPLATE_NAME
+            tag_env: E2B_CODING_AGENT_TEMPLATE_TAG
+            extra_tags_env: E2B_CODING_AGENT_TEMPLATE_EXTRA_TAGS
+            source_tag_env: E2B_CODING_AGENT_TEMPLATE_SOURCE_TAG
+            additional_watch_paths: ''
+            install_root_deps: false
+          - display_name: agent onboarding E2B template
+            directory: sandboxes/agent-onboarding
+            name: lightdash-agent-onboarding
+            name_env: E2B_AGENT_ONBOARDING_TEMPLATE_NAME
+            tag_env: E2B_AGENT_ONBOARDING_TEMPLATE_TAG
+            extra_tags_env: E2B_AGENT_ONBOARDING_TEMPLATE_EXTRA_TAGS
+            source_tag_env: E2B_AGENT_ONBOARDING_TEMPLATE_SOURCE_TAG
+            additional_watch_paths: |
+              packages/cli
+              packages/common
+              packages/warehouses
+              skills
+            install_root_deps: false
+    uses: ./.github/workflows/publish-e2b-template.yml
+    with:
+      release_tag: ${{ github.event.release.tag_name }}
+      template_directory: ${{ matrix.template.directory }}
+      template_name: ${{ matrix.template.name }}
+      template_name_env: ${{ matrix.template.name_env }}
+      template_tag_env: ${{ matrix.template.tag_env }}
+      template_extra_tags_env: ${{ matrix.template.extra_tags_env }}
+      template_source_tag_env: ${{ matrix.template.source_tag_env }}
+      additional_watch_paths: ${{ matrix.template.additional_watch_paths }}
+      install_root_deps: ${{ matrix.template.install_root_deps }}
+      e2b_domain: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
+    secrets:
+      e2b_api_key: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}

@@ -1,23 +1,32 @@
 import { Anchor, Box, Group, Text, Tooltip } from '@mantine-8/core';
 import { type FC } from 'react';
-import { DefaultValue } from '../../../../components/common/TagInput/DefaultValue/DefaultValue';
-import { TagInput } from '../../../../components/common/TagInput/TagInput';
+import { PillTagsInput } from '../../../../components/common/TagsInput/PillTagsInput';
+import { TagPill } from '../../../../components/common/TagsInput/TagPill';
 import MsTeamsSvg from '../../../../svgs/msteams.svg?react';
+import classes from './SchedulerWebhookPill.module.css';
 
 type MicrosoftTeamsDestinationProps = {
     onChange: (val: string[]) => void;
     msTeamTargets: string[];
+    /** Omit the leading icon when the parent renders its own destination label */
+    hideIcon?: boolean;
 };
 
-const withTooltip = (Component: FC<any>) => {
-    return ({ value, onRemove, ...props }: any) => (
-        <Tooltip label={value} withinPortal multiline w="500px">
-            <Component value={value} onRemove={onRemove} {...props} />
-        </Tooltip>
-    );
-};
-
-const RenderValueWithTooltip = withTooltip(DefaultValue);
+const renderWebhookPill = ({
+    value,
+    onRemove,
+}: {
+    value: string;
+    onRemove: () => void;
+}) => (
+    <Tooltip label={value} withinPortal multiline w="500px">
+        <TagPill
+            label={value}
+            onRemove={onRemove}
+            className={classes.webhookPill}
+        />
+    </Tooltip>
+);
 
 const validateMsTeamsWebhook = (webhook: string): boolean => {
     if (webhook.length === 0) return false;
@@ -29,34 +38,31 @@ const validateMsTeamsWebhook = (webhook: string): boolean => {
 
 export const SchedulerFormMicrosoftTeamsInput: FC<
     MicrosoftTeamsDestinationProps
-> = ({ onChange, msTeamTargets }) => {
+> = ({ onChange, msTeamTargets, hideIcon }) => {
     return (
-        <Group wrap="nowrap" mb="sm" align="flex-start">
-            <Box pt="xxs">
-                <MsTeamsSvg
-                    style={{
-                        margin: '5px 2px',
-                        width: '20px',
-                        height: '20px',
-                    }}
-                />
-            </Box>
+        <Group wrap="nowrap" mb={hideIcon ? 0 : 'sm'} align="flex-start">
+            {!hideIcon && (
+                <Box pt="xxs">
+                    <MsTeamsSvg
+                        style={{
+                            margin: '5px 2px',
+                            width: '20px',
+                            height: '20px',
+                        }}
+                    />
+                </Box>
+            )}
             <Box w="100%">
-                <TagInput
-                    sx={{
-                        span: {
-                            maxWidth: '280px',
-                        },
-                    }}
+                <PillTagsInput
                     radius="md"
                     clearable
                     placeholder="Enter Microsoft Teams Workflow or webhook URLs"
                     value={msTeamTargets}
                     allowDuplicates={false}
                     splitChars={[',', ' ']}
-                    validationFunction={validateMsTeamsWebhook}
+                    validate={validateMsTeamsWebhook}
                     onChange={onChange}
-                    valueComponent={RenderValueWithTooltip}
+                    renderPill={renderWebhookPill}
                 />
                 <Text size="xs" c="dimmed" mt={4}>
                     <Anchor

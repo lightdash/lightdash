@@ -14,6 +14,10 @@ describe('Space', () => {
 
     const createPrivateSpace = () => {
         const timestamp = new Date().toISOString();
+        let privateSpaceUrl: string;
+        let privateSpaceUuid: string;
+        let privateChartUuid: string;
+        let privateDashboardUuid: string;
 
         // Create private space
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
@@ -36,6 +40,12 @@ describe('Space', () => {
 
         // Wait for space page to load
         cy.contains(`Private space ${timestamp}`).should('be.visible');
+        cy.url()
+            .should('match', /\/spaces\/[0-9a-f-]{36}$/)
+            .then((url) => {
+                privateSpaceUrl = url;
+                privateSpaceUuid = url.split('/').at(-1)!;
+            });
 
         // Create new chart
         cy.get('[data-testid="Space/AddButton"]').click();
@@ -66,62 +76,49 @@ describe('Space', () => {
             .click();
 
         cy.contains('Success! Chart was saved.').should('exist');
+        cy.url()
+            .should('match', /\/saved\/[0-9a-f-]{36}\/view$/)
+            .then((url) => {
+                privateChartUuid = url.split('/').at(-2)!;
+            });
 
-        // Go back to space using breadcrumbs
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
-        cy.contains(`Private space ${timestamp}`).click();
-
-        // Create new dashboard
-        cy.get('[data-testid="Space/AddButton"]').click();
-        cy.contains('Create new dashboard').click();
-        cy.findByPlaceholderText('eg. KPI Dashboard').type(
-            `Private dashboard ${timestamp}`,
+        cy.then(() =>
+            cy
+                .request<{ results: { uuid: string } }>({
+                    method: 'POST',
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
+                    body: {
+                        name: `Private dashboard ${timestamp}`,
+                        spaceUuid: privateSpaceUuid,
+                        tiles: [],
+                        tabs: [],
+                    },
+                })
+                .then((response) => {
+                    expect(response.status).to.eq(201);
+                    privateDashboardUuid = response.body.results.uuid;
+                }),
         );
-        cy.findByText('Next').click();
-        cy.findByText('Create').click();
-        // At this point the dashboard is created, but empty
-        // TODO add private chart to dashboard ?
 
-        // Go back to space using url
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`); // I think we need to refresh the page for the items to appear
-        cy.contains(`Private space ${timestamp}`).click();
+        cy.then(() => {
+            cy.visit(privateSpaceUrl);
+        });
 
         // Check all items exist in private space
         cy.contains('All').click();
         cy.contains(`Private dashboard ${timestamp}`);
         cy.contains(`Private chart ${timestamp}`);
+
+        return cy.then(() => ({
+            privateSpaceUuid,
+            privateChartUuid,
+            privateDashboardUuid,
+        }));
     };
 
-    it.only('Another non-admin user cannot see private content', () => {
-        createPrivateSpace();
-
-        // We assume the previous test has been run and the private space has been created
-        // If this is causing issues, try reusing the `createPrivateChart` from spacePermissions.cy.ts
-        cy.request({
-            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
-            failOnStatusCode: false,
-        }).then((resp) => {
-            expect(resp.status).to.eq(200);
-            const privateSpace = resp.body.results.find(
-                (space) =>
-                    space.name.toLowerCase().startsWith('private space') &&
-                    space.chartCount !== '0' &&
-                    space.dashboardCount !== '0',
-            ); // Get a private space with charts and dashboards
-            expect(privateSpace).to.not.eq(undefined);
-
-            cy.request({
-                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${privateSpace.uuid}`,
-                failOnStatusCode: false,
-            }).then((spaceResp) => {
-                expect(spaceResp.status).to.eq(200);
-
-                const privateChart = spaceResp.body.results.queries[0];
-                const privateDashboard = spaceResp.body.results.dashboards[0];
-
-                expect(privateChart).to.not.eq(undefined);
-                expect(privateDashboard).to.not.eq(undefined);
-
+    it('Another non-admin user cannot see private content', () => {
+        createPrivateSpace().then(
+            ({ privateSpaceUuid, privateChartUuid, privateDashboardUuid }) => {
                 cy.loginWithPermissions('member', [
                     {
                         role: 'editor',
@@ -144,25 +141,17 @@ describe('Space', () => {
                 cy.contains(JAFFLE_SHOP_SPACE_NAME);
                 cy.contains('Private space').should('not.exist');
 
-                // Navigate to private space and make sure we get a forbidden error
-                cy.visit(
-                    `/projects/${SEED_PROJECT.project_uuid}/spaces/${privateSpace.uuid}`,
-                );
-                cy.contains('You need access');
-
-                // Navigate to private chart and make sure we get a forbidden error
-                cy.visit(
-                    `/projects/${SEED_PROJECT.project_uuid}/saved/${privateChart.uuid}`,
-                );
-                cy.contains('You need access');
-
-                // Navigate to private dashboard and make sure we get a forbidden error
-                cy.visit(
-                    `/projects/${SEED_PROJECT.project_uuid}/dashboards/${privateDashboard.uuid}`,
-                );
-                cy.contains('You need access');
-            });
-        });
+                for (const url of [
+                    `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${privateSpaceUuid}`,
+                    `/api/v2/projects/${SEED_PROJECT.project_uuid}/saved/${privateChartUuid}`,
+                    `/api/v2/projects/${SEED_PROJECT.project_uuid}/dashboards/${privateDashboardUuid}`,
+                ]) {
+                    cy.request({ url, failOnStatusCode: false })
+                        .its('status')
+                        .should('eq', 403);
+                }
+            },
+        );
     });
 });
 
@@ -262,9 +251,11 @@ describe('Editor access to spaces', () => {
     });
 
     it('can see all public and private spaces w/ access in Tree view', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.contains('New').click();
-        cy.contains('Arrange multiple charts into a single view.').click();
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
+        cy.contains('Parent Space 1').click();
+        cy.contains('Child Space 1.1').click();
+        cy.get('[data-testid="Space/AddButton"]').click();
+        cy.contains('Create new dashboard').click();
         cy.findByPlaceholderText('eg. KPI Dashboard').type(
             `Test Dashboard ${new Date().toISOString()}`,
         );

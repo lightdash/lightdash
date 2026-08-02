@@ -187,6 +187,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('view', 'OrganizationDesign', {
             organizationUuid,
         });
+        can('view', 'ContentVerification', {
+            organizationUuid,
+        });
     },
     [ServiceAccountScope.ORG_EDIT]: ({
         organizationUuid,
@@ -243,6 +246,9 @@ const applyServiceAccountStaticAbilities: Record<
             userUuid,
             builder: { can },
         });
+        can('view', 'Roadmap', {
+            organizationUuid,
+        });
         can('manage', 'PreAggregation', {
             organizationUuid,
         });
@@ -253,6 +259,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('manage', 'CustomFields', {
+            organizationUuid,
+        });
+        can('view', 'CompiledSql', {
             organizationUuid,
         });
         can('manage', 'CustomSqlTableCalculations', {
@@ -327,6 +336,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'DataApp', {
             organizationUuid,
         });
+        can('manage', 'DataAppDependency', {
+            organizationUuid,
+        });
         can('manage', 'ExternalConnection', {
             organizationUuid,
         });
@@ -358,6 +370,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'Organization', {
             organizationUuid,
         });
+        can('manage', 'OrganizationColorPalette', {
+            organizationUuid,
+        });
         can('view', 'Analytics', {
             organizationUuid,
         });
@@ -365,6 +380,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('manage', 'PinnedItems', {
+            organizationUuid,
+        });
+        can('manage', 'ProjectHomepage', {
             organizationUuid,
         });
         can('manage', 'Group', {

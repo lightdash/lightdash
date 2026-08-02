@@ -222,7 +222,10 @@ const ChartHistory = () => {
                                                         closeOnClickOutside
                                                     >
                                                         <Menu.Target>
-                                                            <ActionIcon variant="subtle">
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="gray"
+                                                            >
                                                                 <IconDots
                                                                     size={16}
                                                                 />
@@ -263,7 +266,11 @@ const ChartHistory = () => {
                             />
                         ))}
                     </Stack>
-                    <Callout variant="info" title="Data freshness">
+                    <Callout
+                        variant="info"
+                        title="Data freshness"
+                        flex="0 0 auto"
+                    >
                         Version history preview changes chart configuration and
                         setup, but always queries the latest version of the data
                         itself

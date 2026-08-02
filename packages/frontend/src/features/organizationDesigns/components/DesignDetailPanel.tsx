@@ -1,4 +1,7 @@
 import {
+    checkThemeLimits,
+    getThemeTotalBytes,
+    MAX_THEME_TOTAL_BYTES,
     type ApiOrganizationDesign,
     type ApiOrganizationDesignFile,
 } from '@lightdash/common';
@@ -6,6 +9,7 @@ import {
     ActionIcon,
     Badge,
     Box,
+    Button,
     Center,
     Divider,
     Group,
@@ -21,9 +25,12 @@ import {
 import { useForm } from '@mantine/form';
 import { IconCheck, IconDownload, IconTrash } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
+import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import {
     useClearDefaultOrganizationDesign,
+    useDeleteAllDesignFiles,
     useDeleteDesignFile,
     useOrganizationDesign,
     useSetDefaultOrganizationDesign,
@@ -113,6 +120,7 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
     const setDefault = useSetDefaultOrganizationDesign();
     const clearDefault = useClearDefaultOrganizationDesign();
     const deleteFile = useDeleteDesignFile();
+    const deleteAllFiles = useDeleteAllDesignFiles();
 
     const form = useForm({
         initialValues: {
@@ -124,6 +132,13 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
     const [pendingDeleteUuid, setPendingDeleteUuid] = useState<string | null>(
         null,
     );
+    const [clearFilesOpen, setClearFilesOpen] = useState(false);
+
+    // Theme size guardrail: files are streamed into the sandbox on each build,
+    // so an oversized theme times out when applied. Surface the budget as it fills.
+    const totalBytes = getThemeTotalBytes(design.files);
+    const limitViolation = checkThemeLimits(design.files);
+    const nearLimit = totalBytes >= MAX_THEME_TOTAL_BYTES * 0.8;
 
     const trimmedName = form.values.name.trim();
     const trimmedDescription = form.values.description.trim();
@@ -299,7 +314,35 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
             {/* Right column: files */}
             <Stack gap="md" flex={1}>
                 <Box>
-                    <Title order={6}>Files</Title>
+                    <Group justify="space-between" align="baseline">
+                        <Title order={6}>Files</Title>
+                        <Group gap="xs" align="baseline">
+                            <Text
+                                size="xs"
+                                c={limitViolation ? 'red.6' : 'ldGray.6'}
+                            >
+                                {design.files.length} files ·{' '}
+                                {formatBytes(totalBytes)} /{' '}
+                                {formatBytes(MAX_THEME_TOTAL_BYTES)}
+                            </Text>
+                            {design.files.length > 0 && (
+                                <Button
+                                    variant="subtle"
+                                    color="red"
+                                    size="compact-xs"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconTrash}
+                                            size={12}
+                                        />
+                                    }
+                                    onClick={() => setClearFilesOpen(true)}
+                                >
+                                    Delete all
+                                </Button>
+                            )}
+                        </Group>
+                    </Group>
                     <Text size="sm" c="ldGray.6" mt={4}>
                         Drag &amp; drop CSS, font, image, or markdown
                         instruction files. They&apos;ll be picked up
@@ -307,7 +350,27 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                     </Text>
                 </Box>
 
-                <DesignFileUpload designUuid={design.designUuid} />
+                {(limitViolation || nearLimit) && (
+                    <Callout variant="warning">
+                        {limitViolation
+                            ? `This theme is over the ${formatBytes(
+                                  MAX_THEME_TOTAL_BYTES,
+                              )} limit (currently ${formatBytes(
+                                  totalBytes,
+                              )}). Apps won't apply it until you remove some assets.`
+                            : `This theme is getting large (${formatBytes(
+                                  totalBytes,
+                              )} of ${formatBytes(
+                                  MAX_THEME_TOTAL_BYTES,
+                              )}). Large themes are slower to generate and can fail to apply — keep only the assets you need.`}
+                    </Callout>
+                )}
+
+                <DesignFileUpload
+                    designUuid={design.designUuid}
+                    themeName={design.name}
+                    existingFiles={design.files}
+                />
 
                 {design.files.length === 0 ? (
                     <Text size="sm" c="ldGray.6" ta="center" py="md">
@@ -342,6 +405,26 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                     </Stack>
                 )}
             </Stack>
+
+            <MantineModal
+                opened={clearFilesOpen}
+                onClose={() => setClearFilesOpen(false)}
+                variant="delete"
+                title="Delete all files"
+                description={`Are you sure you want to delete all ${design.files.length} files from "${design.name}"?`}
+                size="md"
+                confirmLoading={deleteAllFiles.isLoading}
+                onConfirm={() =>
+                    deleteAllFiles.mutate(design.designUuid, {
+                        onSuccess: () => setClearFilesOpen(false),
+                    })
+                }
+            >
+                <span>
+                    The theme itself is kept, along with its description, extra
+                    instructions, and anything already using it.
+                </span>
+            </MantineModal>
         </Group>
     );
 };

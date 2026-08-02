@@ -6,9 +6,16 @@ import {
 import { Knex } from 'knex';
 
 export default class KnexPaginate {
+    /**
+     * `countQuery`, when provided, is used for the total count instead of the
+     * data query. It must return the same number of rows — use it when the
+     * data query carries expensive computed columns (e.g. window functions)
+     * that don't affect the row count.
+     */
     static async paginate<TRecord extends {}, TResult>(
         query: Knex.QueryBuilder<TRecord, TResult>,
         paginateArgs?: KnexPaginateArgs,
+        countQuery?: Knex.QueryBuilder,
     ): Promise<KnexPaginatedData<TResult>> {
         if (paginateArgs) {
             const { page, pageSize } = paginateArgs;
@@ -26,7 +33,7 @@ export default class KnexPaginate {
                 WITH count_cte AS (?)
                 SELECT count(*) as count FROM count_cte
             `,
-                [query.clone().clear('limit').clear('offset')],
+                [(countQuery ?? query).clone().clear('limit').clear('offset')],
             );
             const dataPromise = query.clone().offset(offset).limit(pageSize);
             const [countData, data] = await Promise.all([

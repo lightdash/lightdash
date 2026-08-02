@@ -69,6 +69,30 @@ describe('rehypeAiAgentContentLinks', () => {
         });
     });
 
+    it('marks chart scheduled delivery deep-links instead of chart links', () => {
+        expect(
+            processHref(
+                '/projects/project-uuid/saved/chart-uuid/view?scheduler_uuid=scheduler-uuid',
+            ),
+        ).toMatchObject({
+            href: '/projects/project-uuid/saved/chart-uuid/view?scheduler_uuid=scheduler-uuid',
+            'data-content-type': 'scheduled-delivery-link',
+            'data-scheduler-uuid': 'scheduler-uuid',
+        });
+    });
+
+    it('marks dashboard scheduled delivery deep-links instead of dashboard links', () => {
+        expect(
+            processHref(
+                '/projects/project-uuid/dashboards/dashboard-uuid/view?scheduler_uuid=scheduler-uuid',
+            ),
+        ).toMatchObject({
+            href: '/projects/project-uuid/dashboards/dashboard-uuid/view?scheduler_uuid=scheduler-uuid',
+            'data-content-type': 'scheduled-delivery-link',
+            'data-scheduler-uuid': 'scheduler-uuid',
+        });
+    });
+
     it('marks absolute settings deep-links with a same-origin relative path', () => {
         expect(
             processHref('https://app.lightdash.cloud/generalSettings/profile'),

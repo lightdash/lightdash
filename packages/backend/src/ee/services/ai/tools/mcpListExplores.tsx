@@ -1,12 +1,10 @@
 import {
-    convertFieldRefToFieldId,
     Explore,
-    isJoinModelRequiredFilter,
     listExploresToolDefinition,
     mcpToolListExploresOutputSchema,
-    type ModelRequiredFilterRule,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
@@ -17,28 +15,8 @@ type Dependencies = {
 
 const toolDefinition = listExploresToolDefinition.for('mcp');
 
-const getRequiredFilterMetadata = (
-    filter: ModelRequiredFilterRule,
-    fallbackTableName: string,
-) => {
-    const tableName = isJoinModelRequiredFilter(filter)
-        ? filter.target.tableName
-        : fallbackTableName;
-
-    return {
-        fieldId: convertFieldRefToFieldId(filter.target.fieldRef, tableName),
-        fieldRef: filter.target.fieldRef,
-        tableName,
-        operator: filter.operator,
-        values: filter.values,
-        settings: filter.settings,
-        required: filter.required ?? true,
-    };
-};
-
 const renderExplore = (explore: Explore) => {
-    const requiredFilters =
-        explore.tables[explore.baseTable].requiredFilters ?? [];
+    const requiredFilters = getExploreRequiredFilters(explore);
 
     return (
         <explore
@@ -60,28 +38,21 @@ const renderExplore = (explore: Explore) => {
             </joinedTables>
             {requiredFilters.length > 0 && (
                 <requiredFilters count={requiredFilters.length}>
-                    {requiredFilters.map((filter) => {
-                        const metadata = getRequiredFilterMetadata(
-                            filter,
-                            explore.baseTable,
-                        );
-
-                        return (
-                            <filter
-                                fieldId={metadata.fieldId}
-                                fieldRef={metadata.fieldRef}
-                                tableName={metadata.tableName}
-                                operator={metadata.operator}
-                                values={JSON.stringify(metadata.values ?? [])}
-                                settings={
-                                    metadata.settings
-                                        ? JSON.stringify(metadata.settings)
-                                        : undefined
-                                }
-                                required={metadata.required}
-                            />
-                        );
-                    })}
+                    {requiredFilters.map((filter) => (
+                        <filter
+                            fieldId={filter.fieldId}
+                            fieldRef={filter.fieldRef}
+                            tableName={filter.tableName}
+                            operator={filter.operator}
+                            values={JSON.stringify(filter.values ?? [])}
+                            settings={
+                                filter.settings
+                                    ? JSON.stringify(filter.settings)
+                                    : undefined
+                            }
+                            required={filter.required}
+                        />
+                    ))}
                 </requiredFilters>
             )}
         </explore>

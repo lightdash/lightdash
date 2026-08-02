@@ -6,7 +6,7 @@ import {
     type EChartsSeries,
 } from '@lightdash/common';
 import { Menu, Portal } from '@mantine-8/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard } from '@mantine-8/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import {
     memo,

@@ -1,7 +1,14 @@
 .dropdown {
-    min-width: 260px;
-    max-width: 360px;
     font-family: var(--mantine-font-family);
+    padding: var(--mantine-spacing-xs) 0;
+}
+
+/* Menu.Item's label is a flex row by default; theme options stack a name
+   over a description, so the label needs to be a block. */
+.option :global(.mantine-Menu-itemLabel),
+.option :global(.mantine-8-Menu-itemLabel) {
+    display: block;
+    min-width: 0;
 }
 
 /* Mantine Button forces white-space:nowrap on its label, which defeats
@@ -10,42 +17,6 @@
 .triggerWrap {
     white-space: normal;
     font-family: var(--mantine-font-family);
-}
-
-.option {
-    display: flex;
-    align-items: flex-start;
-    width: 100%;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
-    text-align: left;
-    font-family: var(--mantine-font-family);
-    transition: background-color 80ms ease;
-}
-
-.option:hover {
-    background-color: var(--mantine-color-default-hover);
-}
-
-.option[aria-pressed='true'] {
-    @mixin light {
-        background-color: var(--mantine-color-gray-0);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-6);
-    }
-}
-
-.footer {
-    border-top: 1px solid var(--mantine-color-default-border);
-}
-
-.manageLink {
-    display: inline-block;
-    cursor: pointer;
-}
-
-.manageLink:hover {
-    text-decoration: underline;
 }
 
 .swatch {
@@ -57,4 +28,32 @@
         var(--mantine-color-ldGray-3),
         var(--mantine-color-ldGray-5)
     );
+}
+
+/* Compact trigger sits in a toolbar row of borderless controls. Once a theme
+   is chosen it becomes a filled state chip, matching the template chip it
+   sits beside. */
+.compactTrigger {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.compactTrigger[data-selected='true'] {
+    @mixin light {
+        color: var(--mantine-color-ldGray-9);
+        background-color: var(--mantine-color-ldGray-1);
+    }
+    @mixin dark {
+        color: var(--mantine-color-ldGray-8);
+        background-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.compactPrefix {
+    @mixin light {
+        color: var(--mantine-color-ldGray-7);
+    }
+    @mixin dark {
+        color: var(--mantine-color-ldGray-6);
+    }
 }

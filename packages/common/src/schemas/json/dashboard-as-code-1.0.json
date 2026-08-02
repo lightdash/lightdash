@@ -60,7 +60,12 @@
                     "required": ["chartSlug"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -138,6 +143,10 @@
                         "type": "string"
                     },
                     "type": "array"
+                },
+                "requiredFiltersNote": {
+                    "description": "Editor-authored note shown to viewers while filter rules are unmet",
+                    "type": "string"
                 }
             },
             "required": ["isDateZoomDisabled"],
@@ -153,11 +162,18 @@
                 },
                 "properties": {
                     "additionalProperties": false,
+                    "description": "From T, pick a set of properties whose keys are in the union K",
                     "properties": {
                         "appDeletedAt": {
+                            "description": "Legacy read-only deletion marker. Ignored on upload, never written by download.",
+                            "type": ["string", "null"]
+                        },
+                        "appSlug": {
+                            "description": "Portable project-scoped reference written by download.",
                             "type": ["string", "null"]
                         },
                         "appUuid": {
+                            "description": "Legacy project-local reference. Accepted on upload, never written by download.",
                             "type": "string"
                         },
                         "hideTitle": {
@@ -167,10 +183,15 @@
                             "type": "string"
                         }
                     },
-                    "required": ["appUuid", "title"],
+                    "required": ["title"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -238,11 +259,15 @@
                             },
                             "type": "array"
                         },
+                        "requiredGroupId": {
+                            "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
+                            "type": "string"
+                        },
                         "singleValue": {
                             "type": "boolean"
                         },
                         "tileTargets": {
-                            "$ref": "#/$defs/Record_string.DashboardTileTarget_"
+                            "$ref": "#/$defs/DashboardTileTargets"
                         }
                     },
                     "type": "object"
@@ -271,7 +296,12 @@
                     "required": ["text"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -328,7 +358,12 @@
                     "required": ["url", "title"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -385,7 +420,12 @@
                     "required": ["content", "title"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -461,7 +501,12 @@
                     "required": ["chartName", "chartSlug"],
                     "type": "object"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -509,11 +554,16 @@
                     "minimum": 0,
                     "type": "number"
                 },
+                "slug": {
+                    "description": "Portable tab identifier used by new downloads.",
+                    "type": "string"
+                },
                 "uuid": {
+                    "description": "Legacy project-local identifier. Accepted on upload for backwards compatibility.",
                     "type": "string"
                 }
             },
-            "required": ["order", "name", "uuid"],
+            "required": ["order", "name"],
             "type": "object"
         },
         "DashboardTileAsCode": {
@@ -545,7 +595,12 @@
                     "minimum": 1,
                     "type": "number"
                 },
+                "tabSlug": {
+                    "description": "Portable reference to the dashboard tab containing this tile.",
+                    "type": ["string", "null"]
+                },
                 "tabUuid": {
+                    "description": "Legacy project-local tab reference. Accepted on upload for backwards compatibility.",
                     "type": ["string", "null"]
                 },
                 "tileSlug": {
@@ -588,6 +643,14 @@
                     "type": "boolean"
                 }
             ]
+        },
+        "DashboardTileTargets": {
+            "additionalProperties": {
+                "$ref": "#/$defs/DashboardTileTarget"
+            },
+            "description": "Deliberately an index-signature literal, not `Record<string, ...>`. When\nTSOA first resolves `Record<string, DashboardTileTarget>` inside a mapped\ntype (e.g. `Omit<DashboardFilterRule, 'id'>` in content-as-code types), it\ncaches an EMPTY model under the shared `Record_string.DashboardTileTarget_`\nname, and request validation then strips every tileTargets entry from\nbodies — silently breaking dashboard filters on SQL chart tiles. The\nindex-signature form resolves correctly in every context.",
+            "properties": {},
+            "type": "object"
         },
         "DashboardTileTypes": {
             "enum": [
@@ -810,6 +873,19 @@
             },
             "type": "object"
         },
+        "Pick_DashboardDataAppTileProperties-at-properties.title-or-hideTitle_": {
+            "description": "From T, pick a set of properties whose keys are in the union K",
+            "properties": {
+                "hideTitle": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            },
+            "required": ["title"],
+            "type": "object"
+        },
         "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
@@ -843,6 +919,10 @@
                     "description": "Whether this filter is required",
                     "type": "boolean"
                 },
+                "requiredGroupId": {
+                    "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
+                    "type": "string"
+                },
                 "settings": {
                     "description": "Additional settings for date/time filters"
                 },
@@ -854,7 +934,7 @@
                     "description": "Target field for the filter"
                 },
                 "tileTargets": {
-                    "$ref": "#/$defs/Record_string.DashboardTileTarget_"
+                    "$ref": "#/$defs/DashboardTileTargets"
                 },
                 "values": {
                     "description": "Values to filter by",
@@ -884,14 +964,6 @@
         "Record_string.DashboardParameterValue_": {
             "additionalProperties": {
                 "$ref": "#/$defs/DashboardParameterValue"
-            },
-            "description": "Construct a type with a set of properties K of type T",
-            "properties": {},
-            "type": "object"
-        },
-        "Record_string.DashboardTileTarget_": {
-            "additionalProperties": {
-                "$ref": "#/$defs/DashboardTileTarget"
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},

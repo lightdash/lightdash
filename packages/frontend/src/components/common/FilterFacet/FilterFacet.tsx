@@ -234,7 +234,7 @@ const FilterFacet = ({
         <Popover position="bottom-start" withArrow shadow="md" radius="md">
             <Popover.Target>
                 {tooltipLabel ? (
-                    <Tooltip withinPortal variant="xs" label={tooltipLabel}>
+                    <Tooltip withinPortal label={tooltipLabel}>
                         {trigger}
                     </Tooltip>
                 ) : (
@@ -258,7 +258,7 @@ const FilterFacet = ({
                                 onSearchChange(e.currentTarget.value)
                             }
                             leftSection={
-                                <MantineIcon icon={IconSearch} size="xs" />
+                                <MantineIcon icon={IconSearch} size="md" />
                             }
                             rightSection={
                                 loading || loadingMore ? (

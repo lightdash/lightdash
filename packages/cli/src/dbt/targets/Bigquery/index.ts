@@ -4,8 +4,8 @@ import {
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import { JSONSchemaType } from 'ajv';
-import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../../ajv';
 import { Target } from '../../types';
 import { getBigqueryCredentialsFromOauth } from './oauth';
@@ -26,7 +26,7 @@ type BigqueryTarget = {
     execution_project?: string;
 };
 
-export const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
+const bigqueryTargetJsonSchema: JSONSchemaType<BigqueryTarget> = {
     type: 'object',
     properties: {
         project: {

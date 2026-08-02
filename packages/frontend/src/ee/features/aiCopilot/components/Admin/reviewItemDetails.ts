@@ -1,5 +1,7 @@
 import {
+    formatAiProjectContextObjectRef,
     type AiAgentRecommendationAction,
+    type AiAgentReviewItemPriority,
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentRootCause,
@@ -37,13 +39,30 @@ export const reviewRootCauseColors: Record<AiAgentRootCause, string> = {
     ambiguous: 'gray',
 };
 
+export const reviewPriorityLabels: Record<AiAgentReviewItemPriority, string> = {
+    urgent: 'Urgent',
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+    none: 'No priority',
+};
+
+export const reviewPriorityColors: Record<AiAgentReviewItemPriority, string> = {
+    urgent: 'red',
+    high: 'orange',
+    medium: 'yellow',
+    low: 'blue',
+    none: 'gray',
+};
+
 export const writebackBlockedReasonLabels: Record<
     AiAgentReviewItemWritebackBlockedReason,
     string
 > = {
-    reviews_disabled: 'Reviews are not enabled for this organization',
+    reviews_disabled: 'Issues are not enabled for this organization',
     unsupported_root_cause: 'No writeback strategy for this root cause',
-    missing_project: 'No project is linked to this finding',
+    missing_project: 'No project is linked to this issue',
+    missing_agent: 'No agent is linked to this issue',
     missing_project_context_entry: 'No project context entry was generated',
     project_context_disabled: 'Project context is not enabled',
     unsupported_source_control: 'Project is not connected to GitHub or GitLab',
@@ -52,8 +71,28 @@ export const writebackBlockedReasonLabels: Record<
     pull_request_open: 'A pull request is already open',
     source_thread_writeback_exists:
         'The agent already opened a pull request in the source thread',
-    terminal_state: 'Finding is already closed',
+    terminal_state: 'Issue is already closed',
     writeback_in_progress: 'Writeback is already in progress',
+};
+
+/**
+ * One-line explanations of what a blocked reason means and how to unblock it.
+ * Only the actionable reasons get a description; the rest fall back to the
+ * short label alone.
+ */
+export const writebackBlockedReasonDescriptions: Partial<
+    Record<AiAgentReviewItemWritebackBlockedReason, string>
+> = {
+    unsupported_source_control:
+        'Connect this project to GitHub or GitLab so Lightdash can open a pull request that fixes issues like this for you.',
+    reviews_disabled:
+        'Turn on Issues for your organization to let agents file and fix issues automatically.',
+    git_app_not_installed:
+        'Install the Lightdash app on your repository so it can open pull requests.',
+    project_context_disabled:
+        'Enable project context so Lightdash can propose updates to your project knowledge.',
+    missing_writeback_config:
+        'Ask an admin to configure the writeback runtime to enable automatic fixes.',
 };
 
 export const shouldShowWritebackBlockedReason = (
@@ -146,8 +185,10 @@ const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
 };
 
 const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
-    reviewItem.primaryRootCause === 'ambiguous' ||
-    reviewItem.latestFinding?.fixTargets.includes('feedback_needed') === true;
+    reviewItem.source !== 'manual' &&
+    (reviewItem.primaryRootCause === 'ambiguous' ||
+        reviewItem.latestFinding?.fixTargets.includes('feedback_needed') ===
+            true);
 
 export const getIssueTitle = (reviewItem: AiAgentReviewItemSummary): string => {
     if (isTriageReviewItem(reviewItem)) {
@@ -181,6 +222,10 @@ export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
         return 'Could be a real failure or a normal change in user intent.';
     }
 
+    if (reviewItem.source === 'manual') {
+        return reviewItem.description || 'Manually filed issue.';
+    }
+
     return (
         reviewItem.latestFinding?.recommendation?.rationale ??
         `Review agent judged this as ${reviewRootCauseLabels[reviewItem.primaryRootCause].toLowerCase()}.`
@@ -193,9 +238,14 @@ export const getReviewReasoningText = (
     const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
 
     if (contextEntry) {
+        const objectRefs = contextEntry.objects
+            .map(formatAiProjectContextObjectRef)
+            .join(', ');
         return `${
             contextEntry.op === 'update' ? 'Updates' : 'Adds'
-        } project context: ${contextEntry.content}`;
+        } project context: ${contextEntry.content}${
+            objectRefs ? ` Objects: ${objectRefs}.` : ''
+        }`;
     }
 
     return getWhyText(reviewItem);

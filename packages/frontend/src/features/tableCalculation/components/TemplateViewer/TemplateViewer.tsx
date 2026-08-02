@@ -5,7 +5,7 @@ import {
     WindowFunctionType,
     type TableCalculationTemplate,
 } from '@lightdash/common';
-import { Badge, Group, MultiSelect, Stack, Text } from '@mantine/core';
+import { Badge, Group, MultiSelect, Stack, Text } from '@mantine-8/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { useColumns } from '../../../../hooks/useColumns';
 import { selectDimensions, useExplorerSelector } from '../../../explorer/store';
@@ -123,8 +123,8 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
     }
 
     return (
-        <Stack spacing="md">
-            <Stack spacing="xs">
+        <Stack gap="md">
+            <Stack gap="xs">
                 <Group>
                     <Text fw={600} size="sm">
                         Type:
@@ -169,7 +169,7 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
             )}
 
             {supportsPartitionBy && !readOnly && (
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     <Text fw={600} size="sm">
                         Partition By:
                     </Text>
@@ -180,6 +180,8 @@ export const TemplateViewer: FC<TemplateViewerProps> = ({
                         placeholder="No partitioning (all rows)"
                         searchable
                         clearable
+                        maxDropdownHeight={220}
+                        hidePickedOptions
                     />
                 </Stack>
             )}

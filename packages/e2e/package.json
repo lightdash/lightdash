@@ -1,6 +1,6 @@
 {
     "name": "e2e",
-    "version": "0.3258.1",
+    "version": "1.59.0",
     "private": true,
     "license": "MIT",
     "main": "index.js",
@@ -8,7 +8,7 @@
         "cypress:open": "cypress open --e2e",
         "cypress:open:native": "RUNTIME=native cypress open --e2e",
         "cypress:run": "cypress run",
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./cypress",
         "fix-lint": "pnpm run linter ./cypress --fix",
@@ -17,14 +17,15 @@
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
-        "@testing-library/cypress": "10.0.3",
-        "cypress": "14.3.2",
-        "cypress-file-upload": "5.0.8",
+        "@testing-library/cypress": "10.1.3",
+        "cypress": "15.18.1",
         "cypress-split": "1.24.29",
         "dayjs": "1.11.10",
-        "js-yaml": "4.2.0"
+        "js-yaml": "4.3.0"
     },
     "devDependencies": {
-        "typescript": "6.0.3"
+        "oxlint": "1.75.0",
+        "oxlint-tsgolint": "7.0.2001",
+        "typescript": "npm:@typescript/typescript6@6.0.2"
     }
 }

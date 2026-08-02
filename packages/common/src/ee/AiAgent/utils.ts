@@ -1,4 +1,8 @@
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
+import type {
+    AiChartArtifactConfig,
+    AiLegacySemanticChartArtifactConfig,
+} from './index';
 import {
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
@@ -116,6 +120,50 @@ export const parseVizConfig = (
             vizTool,
             metricQuery,
         } as const;
+    }
+
+    return null;
+};
+
+export const parseAiArtifactChartConfig = (
+    config: unknown,
+): AiChartArtifactConfig | null => {
+    if (!config || typeof config !== 'object') return null;
+
+    if (
+        'source' in config &&
+        config.source === 'sql' &&
+        'sql' in config &&
+        typeof config.sql === 'string' &&
+        'limit' in config &&
+        typeof config.limit === 'number'
+    ) {
+        return {
+            source: 'sql',
+            sql: config.sql,
+            limit: config.limit,
+        };
+    }
+
+    if (
+        'source' in config &&
+        config.source === 'semantic' &&
+        'config' in config &&
+        config.config &&
+        typeof config.config === 'object' &&
+        parseVizConfig(config.config)
+    ) {
+        return {
+            source: 'semantic',
+            config: config.config as AiLegacySemanticChartArtifactConfig,
+        };
+    }
+
+    if (parseVizConfig(config)) {
+        return {
+            source: 'semantic',
+            config: config as AiLegacySemanticChartArtifactConfig,
+        };
     }
 
     return null;

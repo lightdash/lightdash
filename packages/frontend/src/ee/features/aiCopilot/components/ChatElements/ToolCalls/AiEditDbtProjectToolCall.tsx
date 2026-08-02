@@ -13,8 +13,7 @@ import {
     ThemeIcon,
 } from '@mantine-8/core';
 import {
-    IconBrandGithub,
-    IconBrandGitlab,
+    IconAlertTriangle,
     IconCheck,
     IconChevronDown,
     IconEye,
@@ -23,7 +22,6 @@ import {
     IconGitPullRequest,
     IconGitPullRequestClosed,
     IconSettings,
-    type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -39,6 +37,7 @@ import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { isMergeable } from './pullRequestActions';
+import { INSTALL_ACTIONS, summarisePrUrl } from './pullRequestCardUtils';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { WritebackDiffModal } from './WritebackDiffModal';
 
@@ -62,49 +61,8 @@ type Props = {
     threadUuid?: string;
 };
 
-// Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle"
-// so the user can verify which repo the PR landed in at a glance. The PR number
-// itself lives on the link button. Best-effort — any non-GitHub host or
-// malformed path falls back to the raw hostname.
-const summarisePrUrl = (prUrl: string): string | null => {
-    try {
-        const url = new URL(prUrl);
-        const segments = url.pathname.split('/').filter(Boolean);
-        if (
-            url.hostname === 'github.com' &&
-            segments.length >= 4 &&
-            segments[2] === 'pull'
-        ) {
-            const [owner, repo] = segments;
-            return `${owner}/${repo}`;
-        }
-        return url.hostname;
-    } catch {
-        return null;
-    }
-};
-
-// A writeback can't open a PR until the org installs the matching git app.
-// The agent's prose already explains the problem, so we surface only the
-// one-click action — each `installUrl` is the same install entry point as the
-// Integrations settings page, opened in a new tab so the user keeps their thread.
-const INSTALL_ACTIONS: Record<
-    'github_not_installed' | 'gitlab_not_installed',
-    { icon: TablerIcon; installUrl: string; cta: string }
-> = {
-    github_not_installed: {
-        icon: IconBrandGithub,
-        installUrl: '/api/v1/github/install',
-        cta: 'Install GitHub App',
-    },
-    gitlab_not_installed: {
-        icon: IconBrandGitlab,
-        installUrl: '/api/v1/gitlab/install',
-        cta: 'Connect GitLab',
-    },
-};
-
-const InstallAppButton: FC<{
+// ts-unused-exports:disable-next-line
+export const InstallAppButton: FC<{
     action: (typeof INSTALL_ACTIONS)[keyof typeof INSTALL_ACTIONS];
 }> = ({ action }) => (
     <Group gap={0}>
@@ -128,7 +86,8 @@ const InstallAppButton: FC<{
  * preview entry is omitted when there's no preview (non-GitHub run, failed
  * preview, or a setup PR). Owns the diff modal it launches.
  */
-const PullRequestViewMenu: FC<{
+// ts-unused-exports:disable-next-line
+export const PullRequestViewMenu: FC<{
     projectUuid: string;
     prUrl: string;
     previewUrl: string | null;
@@ -445,6 +404,54 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 </Paper>
             );
         }
+        if (metadata.errorCode === 'git_write_permission') {
+            return (
+                <Paper withBorder p="sm" radius="md">
+                    <Group gap="xs" align="flex-start" wrap="nowrap">
+                        <ThemeIcon
+                            variant="light"
+                            color="red"
+                            radius="md"
+                            size="md"
+                        >
+                            <MantineIcon icon={IconAlertTriangle} size={16} />
+                        </ThemeIcon>
+                        <Stack gap="xs">
+                            <Stack gap={2}>
+                                <Text size="sm" fw={500}>
+                                    No write access to this repository
+                                </Text>
+                                <Text size="xs" c="ldGray.6">
+                                    The change was prepared, but no pull request
+                                    could be opened — this project's Git
+                                    connection doesn't have permission to create
+                                    a branch. An admin needs to reconnect via
+                                    the GitHub/GitLab App, or grant the personal
+                                    access token write access to contents and
+                                    pull requests, before retrying.
+                                </Text>
+                            </Stack>
+                            <Group gap={0}>
+                                <Button
+                                    component={Link}
+                                    to={`/generalSettings/projectManagement/${projectUuid}/settings`}
+                                    variant="default"
+                                    size="compact-sm"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconSettings}
+                                            size={14}
+                                        />
+                                    }
+                                >
+                                    Edit project connection
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </Group>
+                </Paper>
+            );
+        }
         // The thread's pull request was already merged or closed, so further
         // edits can't be added here. Not a failure — guide the user to a new
         // thread rather than show a red error.
@@ -477,11 +484,52 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 </Paper>
             );
         }
-        // Any other error (e.g. a write-permission 403, or an unclassified
-        // failure): the agent's own reply already explains what went wrong and,
-        // where relevant, how to fix it — so a separate red "Writeback failed"
-        // card would only duplicate that prose without adding an action. Render
-        // nothing and let the agent's message carry the explanation.
+        return (
+            <Paper withBorder p="sm" radius="md">
+                <Group gap="xs" align="flex-start" wrap="nowrap">
+                    <ThemeIcon
+                        variant="light"
+                        color="red"
+                        radius="md"
+                        size="md"
+                    >
+                        <MantineIcon icon={IconAlertTriangle} size={16} />
+                    </ThemeIcon>
+                    <Stack gap={2}>
+                        <Text size="sm" fw={500}>
+                            The change couldn't be completed
+                        </Text>
+                        <Text size="xs" c="ldGray.6">
+                            No pull request was opened. Ask again, or rephrase
+                            the request, to retry.
+                        </Text>
+                    </Stack>
+                </Group>
+            </Paper>
+        );
+    }
+
+    if (metadata.status === 'pending') {
+        return (
+            <Paper withBorder p="sm" radius="md">
+                <Group gap="xs" align="center" wrap="nowrap">
+                    <ThemeIcon
+                        variant="light"
+                        color="ldGray"
+                        radius="md"
+                        size="md"
+                    >
+                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                    </ThemeIcon>
+                    <Text size="sm" c="ldGray.7">
+                        Working on the change — this can take a few minutes.
+                    </Text>
+                </Group>
+            </Paper>
+        );
+    }
+
+    if (metadata.needsDbtSourceSelection) {
         return null;
     }
 

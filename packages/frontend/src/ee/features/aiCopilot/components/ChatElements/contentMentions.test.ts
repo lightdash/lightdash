@@ -59,6 +59,33 @@ describe('contentMentions', () => {
         ]);
     });
 
+    it('dedupes duplicate dashboard input without merging refs', () => {
+        expect(
+            mergeAiPromptContextInput(
+                [
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: 'dashboard-1',
+                        dashboardSlug: 'exec-dashboard',
+                    },
+                ],
+                [
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: 'dashboard-1',
+                        dashboardSlug: 'duplicate-dashboard',
+                    },
+                ],
+            ),
+        ).toEqual([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+            },
+        ]);
+    });
+
     it('dedupes file and repository context by their natural key, first wins', () => {
         expect(
             mergeAiPromptContextInput(

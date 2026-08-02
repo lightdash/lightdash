@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     Anchor,
     Button,
@@ -38,14 +39,21 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
 
     const isLoading = isProjectLoading || isPalettesLoading || isHealthLoading;
     const canManageOrgPalettes =
-        user.data?.ability?.can('update', 'Organization') ?? false;
+        (user.data?.ability?.can('update', 'Organization') ||
+            user.data?.ability?.can(
+                'manage',
+                subject('OrganizationColorPalette', {
+                    organizationUuid: user.data?.organizationUuid,
+                }),
+            )) ??
+        false;
 
     return (
         <Stack gap="sm" pos="relative">
             <LoadingOverlay visible={isLoading} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={4}>Appearance</Title>
+                    <Title order={5}>Color palette</Title>
                     <Text c="ldGray.6" fz="sm">
                         Choose which organization color palette charts in this
                         project should use, or inherit the organization's active

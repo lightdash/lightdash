@@ -1,4 +1,5 @@
 import {
+    isAppScheduler,
     isChartScheduler,
     isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
@@ -15,9 +16,12 @@ import {
     type DashboardFilterRule,
     type Filters,
     type ParametersValuesMap,
+    type SchedulerAiAugmentation,
     type SchedulerAndTargets,
+    type SchedulerAppState,
     type SchedulerCsvOptions,
     type SchedulerImageOptions,
+    type SchedulerPdfOptions,
 } from '@lightdash/common';
 import { createFormContext } from '@mantine/form';
 import intersection from 'lodash/intersection';
@@ -34,6 +38,7 @@ export interface SchedulerFormValues {
         limit: Limit;
         customLimit: number;
         withPdf: boolean;
+        pagePerTab: boolean;
         asAttachment: boolean;
         exportPivotedData: boolean;
         xlsxFileLayout: NonNullable<SchedulerCsvOptions['xlsxFileLayout']>;
@@ -47,13 +52,17 @@ export interface SchedulerFormValues {
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    /** App deliveries only: snapshot of the app's shareable URL state. */
+    appState?: SchedulerAppState | null;
     thresholds?: Array<{
         fieldId: string;
         operator: ThresholdOperator;
-        value: number;
+        value: number | '';
     }>;
     includeLinks: boolean;
     notificationFrequency?: NotificationFrequency;
+    // Saved to the EE ai-augmentation sub-resource, not the scheduler body.
+    aiAugmentation: SchedulerAiAugmentation | null;
 }
 
 const [SchedulerFormProvider, useSchedulerFormContext, useSchedulerForm] =
@@ -72,6 +81,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
         limit: Limit.TABLE,
         customLimit: 1,
         withPdf: false,
+        pagePerTab: false,
         asAttachment: false,
         exportPivotedData: true,
         xlsxFileLayout: 'zip',
@@ -85,8 +95,10 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     parameters: undefined,
     customViewportWidth: undefined,
     selectedTabs: null,
+    appState: null,
     thresholds: [],
     includeLinks: true,
+    aiAugmentation: null,
 };
 
 export const DEFAULT_VALUES_ALERT: SchedulerFormValues = {
@@ -148,6 +160,13 @@ export const getFormValuesFromScheduler = (
         formOptions.xlsxFileLayout = options.xlsxFileLayout ?? 'zip';
     } else if (isSchedulerImageOptions(options)) {
         formOptions.withPdf = options.withPdf || false;
+        formOptions.pagePerTab = options.pagePerTab || false;
+    }
+    if (
+        schedulerData.format === SchedulerFormat.PDF &&
+        'pagePerTab' in options
+    ) {
+        formOptions.pagePerTab = options.pagePerTab || false;
     }
 
     const emailTargets: string[] = [];
@@ -188,9 +207,14 @@ export const getFormValuesFromScheduler = (
             chartFilters: schedulerData.filters,
             parameters: schedulerData.parameters,
         }),
+        ...(isAppScheduler(schedulerData) && {
+            appState: schedulerData.appState ?? null,
+        }),
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
         includeLinks: schedulerData.includeLinks !== false,
+        // Populated separately from the ai-augmentation sub-resource.
+        aiAugmentation: null,
     };
 };
 
@@ -221,9 +245,14 @@ export const transformFormValues = (
     } else if (values.format === SchedulerFormat.IMAGE) {
         options = {
             withPdf: values.options.withPdf,
+            pagePerTab: values.options.withPdf
+                ? values.options.pagePerTab
+                : undefined,
         } satisfies SchedulerImageOptions;
     } else if (values.format === SchedulerFormat.PDF) {
-        options = {};
+        options = {
+            pagePerTab: values.options.pagePerTab,
+        } satisfies SchedulerPdfOptions;
     }
 
     const emailTargets = (values.emailTargets || []).map((email: string) => ({
@@ -273,7 +302,16 @@ export const transformFormValues = (
             filters: values.chartFilters,
             parameters: values.parameters,
         }),
-        thresholds: values.thresholds,
+        thresholds: values.thresholds?.filter(
+            (
+                threshold,
+            ): threshold is typeof threshold & {
+                value: number;
+            } => typeof threshold.value === 'number',
+        ),
+        ...(resourceType === 'app' && {
+            appState: values.appState ?? undefined,
+        }),
         enabled: true,
         notificationFrequency:
             'notificationFrequency' in values

@@ -53,5 +53,7 @@ export interface FileStorageClient {
 
     objectExists(fileName: string): Promise<boolean>;
 
+    deleteFile(fileName: string): Promise<void>;
+
     isEnabled(): boolean;
 }

@@ -1,11 +1,14 @@
+import { subject } from '@casl/ability';
 import {
     ChartKind,
     type ChartContent,
+    type AiModelOption,
     type DataAppClaudeModel,
     type ExternalConnection,
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Box,
     Button,
     CloseButton,
@@ -15,12 +18,13 @@ import {
     LoadingOverlay,
     Popover,
     ScrollArea,
+    Stack,
     Text,
     TextInput,
     Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     IconArrowLeft,
     IconCamera,
@@ -29,24 +33,44 @@ import {
     IconClick,
     IconDatabase,
     IconDatabasePlus,
+    IconFileDescription,
     IconLayoutDashboard,
+    IconLink,
     IconPhoto,
     IconPlugConnected,
     IconPlus,
     IconSearch,
-    IconSparkles,
     IconX,
 } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useMemo,
+    useState,
+    type ClipboardEvent,
+    type FC,
+} from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
+import { useProject } from '../../hooks/useProject';
+import useApp from '../../providers/App/useApp';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import classes from './AppResourcePicker.module.css';
+import {
+    useAttachResourceLink,
+    type AttachableResourceType,
+    type AttachLinkOutcome,
+} from './hooks/useAttachResourceLink';
+
+type AttachFromLink = (
+    input: string,
+    accepts: AttachableResourceType,
+) => Promise<AttachLinkOutcome>;
 
 export type SelectedChart = {
     uuid: string;
@@ -58,6 +82,8 @@ export type SelectedChart = {
      * actual values. Default false because rows can be sensitive.
      */
     includeSampleData: boolean;
+    /** When true the chart is linked (run live by uuid) rather than copied. */
+    linkLive: boolean;
 };
 
 export type SelectedDashboard = {
@@ -90,19 +116,25 @@ const SAMPLE_DATA_TOOLTIP =
  * Button that captures a screenshot of the live preview and adds it as an
  * image attachment. Shows a loader while the capture is in flight.
  *
- * Always rendered so the toolbar shape is stable; pass `disabled` when the
- * preview isn't mounted or the iframe SDK hasn't announced screenshot support.
+ * Rendered only once the preview is mounted and the iframe SDK has announced
+ * screenshot support — an always-present but permanently dead control reads as
+ * broken on the compose screen, where no app exists yet.
  */
 export const ScreenshotButton: FC<{
     onClick: () => void;
     disabled: boolean;
     loading?: boolean;
 }> = ({ onClick, disabled, loading }) => (
-    <Tooltip label="Capture screenshot" withArrow position="top">
+    <Tooltip
+        label="Capture a screenshot of the preview and attach it"
+        withArrow
+        position="top"
+    >
         <ActionIcon
-            variant="default"
-            size="lg"
-            radius="md"
+            variant="subtle"
+            color="gray"
+            size="md"
+            radius="xl"
             onClick={onClick}
             disabled={disabled}
             loading={loading}
@@ -119,8 +151,8 @@ export const ScreenshotButton: FC<{
  * inserted as bracketed references at the textarea cursor (e.g.
  * `[button "Total Revenue"]: `), so the user can compose targeted edits.
  *
- * Always rendered so the toolbar shape is stable; pass `disabled` when the
- * preview isn't mounted or the iframe SDK hasn't announced inspector support.
+ * Rendered only once the iframe SDK has announced inspector support, for the
+ * same reason as the screenshot button.
  */
 export const InspectButton: FC<{
     enabled: boolean;
@@ -128,18 +160,23 @@ export const InspectButton: FC<{
     disabled?: boolean;
 }> = ({ enabled, onToggle, disabled }) => (
     <Tooltip
-        label={enabled ? 'Inspect mode: on' : 'Inspect element'}
+        label={
+            enabled
+                ? 'Inspect mode on - click any element in the preview'
+                : 'Point at an element in the preview to reference it'
+        }
         withArrow
         position="top"
     >
         <ActionIcon
-            variant={enabled ? 'filled' : 'default'}
-            color={enabled ? 'violet' : undefined}
-            size="lg"
-            radius="md"
+            variant={enabled ? 'light' : 'subtle'}
+            color={enabled ? 'indigo' : 'gray'}
+            size="md"
+            radius="xl"
             onClick={onToggle}
             disabled={disabled}
             aria-label="Toggle element inspector"
+            aria-pressed={enabled}
         >
             <MantineIcon icon={IconClick} size={16} />
         </ActionIcon>
@@ -189,6 +226,22 @@ const findModelOption = (value: DataAppClaudeModel): ModelOption =>
     MODEL_OPTIONS.find((o) => o.isDefault) ??
     MODEL_OPTIONS[0];
 
+// All data-app models are Anthropic's; the shared selector keys models by
+// "provider:name".
+const DATA_APP_MODEL_PROVIDER = 'anthropic';
+
+const toModelKey = (value: DataAppClaudeModel): string =>
+    `${DATA_APP_MODEL_PROVIDER}:${value}`;
+
+const toModelOption = (opt: ModelOption): AiModelOption => ({
+    name: opt.value,
+    displayName: opt.label,
+    description: opt.tagline,
+    provider: DATA_APP_MODEL_PROVIDER,
+    default: opt.isDefault === true,
+    supportsReasoning: false,
+});
+
 /**
  * Picker for the Claude model the agent uses to build the data app.
  *
@@ -196,90 +249,63 @@ const findModelOption = (value: DataAppClaudeModel): ModelOption =>
  * also editable mid-iteration — `claude --continue` accepts a fresh
  * `--model` flag each turn while preserving the prior conversation context.
  *
- * The label of the current choice ("Sonnet" / "Haiku") is shown on the
- * trigger so the user doesn't have to open the popover to confirm what
- * they're about to run with. The advantages are summarised in the popover
- * itself rather than a tooltip, so both options are visible at the same time.
+ * Renders the shared `ModelSelector` so the data-app composer and the AI
+ * agent chat offer the same control; the data-app model union is mapped onto
+ * the provider-qualified model options that selector expects.
  */
 export const ModelPicker: FC<{
     value: DataAppClaudeModel;
     onChange: (value: DataAppClaudeModel) => void;
     disabled?: boolean;
-}> = ({ value, onChange, disabled }) => {
-    const [opened, setOpened] = useState(false);
-    const current = findModelOption(value);
+    /** Restrict the picker to these models (org admin visibility settings).
+     *  Defaults to all models when omitted. */
+    visibleModels?: DataAppClaudeModel[];
+}> = ({ value, onChange, disabled, visibleModels }) => {
+    const models = useMemo(
+        () =>
+            MODEL_OPTIONS.filter(
+                (opt) => !visibleModels || visibleModels.includes(opt.value),
+            ).map(toModelOption),
+        [visibleModels],
+    );
 
     return (
-        <Popover
-            opened={opened}
-            onChange={setOpened}
-            position="top-end"
-            offset={8}
-            shadow="md"
-            trapFocus
-        >
-            <Popover.Target>
-                <Tooltip
-                    label={`Claude model: ${current.label}`}
-                    withArrow
-                    position="top"
-                >
-                    <ActionIcon
-                        variant="default"
-                        size="lg"
-                        radius="md"
-                        onClick={() => setOpened((o) => !o)}
-                        disabled={disabled}
-                        aria-label={`Claude model: ${current.label}`}
-                    >
-                        <MantineIcon icon={IconSparkles} size={16} />
-                    </ActionIcon>
-                </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown className={classes.queryDropdown} p={0}>
-                <Box py="xs">
-                    {MODEL_OPTIONS.map((opt) => {
-                        const isActive = opt.value === value;
-                        return (
-                            <UnstyledButton
-                                key={opt.value}
-                                className={classes.attachMenuItem}
-                                onClick={() => {
-                                    onChange(opt.value);
-                                    setOpened(false);
-                                }}
-                                aria-pressed={isActive}
-                            >
-                                <Box flex={1}>
-                                    <Group gap="xs" align="center">
-                                        <Text size="sm" fw={500}>
-                                            {opt.label}
-                                        </Text>
-                                        {opt.isDefault && (
-                                            <Text size="xs" c="dimmed">
-                                                Default
-                                            </Text>
-                                        )}
-                                        {isActive && (
-                                            <MantineIcon
-                                                icon={IconCheck}
-                                                size={14}
-                                                color="indigo.6"
-                                            />
-                                        )}
-                                    </Group>
-                                    <Text size="xs" c="dimmed">
-                                        {opt.tagline}
-                                    </Text>
-                                </Box>
-                            </UnstyledButton>
-                        );
-                    })}
-                </Box>
-            </Popover.Dropdown>
-        </Popover>
+        <ModelSelector
+            models={models}
+            value={toModelKey(findModelOption(value).value)}
+            onChange={(modelKey) => {
+                const picked = MODEL_OPTIONS.find(
+                    (opt) => toModelKey(opt.value) === modelKey,
+                );
+                if (picked) onChange(picked.value);
+            }}
+            disabled={disabled}
+            variant="subtle"
+            color="gray"
+            size="xs"
+        />
     );
 };
+
+/**
+ * Bound to paste rather than to every keystroke: a half-typed URL is still a
+ * syntactically valid link, so `onChange` would fire lookups for ids that
+ * don't exist yet. Clears the box on success, leaves the text on failure.
+ */
+const useLinkPasteHandler = (
+    attachFromLink: AttachFromLink,
+    accepts: AttachableResourceType,
+    setSearchQuery: (value: string) => void,
+) =>
+    useCallback(
+        async (event: ClipboardEvent<HTMLInputElement>) => {
+            const pasted = event.clipboardData.getData('text');
+            if ((await attachFromLink(pasted, accepts)) === 'attached') {
+                setSearchQuery('');
+            }
+        },
+        [attachFromLink, accepts, setSearchQuery],
+    );
 
 /**
  * Internal: chart list with search. Used inside `AttachButton`'s popover.
@@ -292,7 +318,17 @@ const QueryPickerView: FC<{
     onDeselect: (uuid: string) => void;
     onDone: () => void;
     enabled: boolean;
-}> = ({ selectedCharts, onSelect, onDeselect, onDone, enabled }) => {
+    attachFromLink: AttachFromLink;
+    isResolvingLink: boolean;
+}> = ({
+    selectedCharts,
+    onSelect,
+    onDeselect,
+    onDone,
+    enabled,
+    attachFromLink,
+    isResolvingLink,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -344,10 +380,17 @@ const QueryPickerView: FC<{
                     name: chart.name,
                     chartKind: chart.chartKind ?? ChartKind.VERTICAL_BAR,
                     includeSampleData: false,
+                    linkLive: false,
                 });
             }
         },
         [onSelect, onDeselect, selectedUuids],
+    );
+
+    const handlePasteLink = useLinkPasteHandler(
+        attachFromLink,
+        'chart',
+        setSearchQuery,
     );
 
     return (
@@ -355,15 +398,16 @@ const QueryPickerView: FC<{
             <Box px="xs" pb="xs">
                 <TextInput
                     size="xs"
-                    placeholder="Search queries..."
+                    placeholder="Search or paste a link..."
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     rightSection={
-                        isFetching && !isInitialLoading ? (
+                        (isFetching && !isInitialLoading) || isResolvingLink ? (
                             <Loader size={14} />
                         ) : undefined
                     }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    onPaste={(e) => void handlePasteLink(e)}
                     autoFocus
                 />
             </Box>
@@ -459,43 +503,85 @@ const QueryPickerView: FC<{
 };
 
 /**
- * Renders selected images as rounded thumbnails with remove buttons.
+ * Renders selected attachments with remove buttons: images as rounded
+ * thumbnails, other files as filename pills matching the query-pill look.
  */
-export const SelectedImageSection: FC<{
-    images: Array<{ previewUrl: string }>;
-    onRemove: (previewUrl: string) => void;
+export const SelectedAttachmentSection: FC<{
+    attachments: Array<{
+        id: string;
+        /** Object URL for image thumbnails; null renders a filename pill. */
+        previewUrl: string | null;
+        filename: string;
+    }>;
+    onRemove: (id: string) => void;
     disabled?: boolean;
     loading?: boolean;
-}> = ({ images, onRemove, disabled, loading }) => {
-    if (images.length === 0) return null;
+}> = ({ attachments, onRemove, disabled, loading }) => {
+    if (attachments.length === 0) return null;
 
     return (
         <Group gap="xs">
-            {images.map((img) => (
-                <Box key={img.previewUrl} className={classes.imageItem}>
-                    <Image
-                        src={img.previewUrl}
-                        className={classes.imageThumb}
-                        alt="Attached"
-                    />
-                    <LoadingOverlay
-                        visible={loading ?? false}
-                        loaderProps={{ size: 'xs' }}
-                        overlayProps={{
-                            radius: 'md',
-                            backgroundOpacity: 0.5,
-                        }}
-                    />
-                    {!loading && (
-                        <CloseButton
-                            size="xs"
-                            className={classes.imageRemove}
-                            onClick={() => onRemove(img.previewUrl)}
-                            disabled={disabled}
+            {attachments.map((att) =>
+                att.previewUrl ? (
+                    <Box key={att.id} className={classes.imageItem}>
+                        <Image
+                            src={att.previewUrl}
+                            className={classes.imageThumb}
+                            alt="Attached"
                         />
-                    )}
-                </Box>
-            ))}
+                        <LoadingOverlay
+                            visible={loading ?? false}
+                            loaderProps={{ size: 'xs' }}
+                            overlayProps={{
+                                radius: 'md',
+                                backgroundOpacity: 0.5,
+                            }}
+                        />
+                        {!loading && (
+                            <CloseButton
+                                size="xs"
+                                className={classes.imageRemove}
+                                onClick={() => onRemove(att.id)}
+                                disabled={disabled}
+                            />
+                        )}
+                    </Box>
+                ) : (
+                    <Box
+                        key={att.id}
+                        className={`${classes.selectedQueryItem} ${classes.fileItem}`}
+                    >
+                        <Box className={classes.selectedQueryItemIcon}>
+                            <MantineIcon icon={IconFileDescription} size={12} />
+                        </Box>
+                        <Text
+                            fw={500}
+                            truncate
+                            className={classes.selectedQueryItemName}
+                        >
+                            {att.filename}
+                        </Text>
+                        <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            color="gray"
+                            radius="xl"
+                            onClick={() => onRemove(att.id)}
+                            disabled={disabled || loading}
+                        >
+                            <MantineIcon icon={IconX} size={10} />
+                        </ActionIcon>
+                        <LoadingOverlay
+                            visible={loading ?? false}
+                            loaderProps={{ size: 'xs' }}
+                            overlayProps={{
+                                radius: 'xl',
+                                backgroundOpacity: 0.5,
+                            }}
+                        />
+                    </Box>
+                ),
+            )}
         </Group>
     );
 };
@@ -556,6 +642,50 @@ const InlineDataToggle: FC<{
     </Tooltip>
 );
 
+const AddLinkButton: FC<{ onClick: () => void; disabled?: boolean }> = ({
+    onClick,
+    disabled,
+}) => (
+    <Tooltip
+        label="Link live — run this chart by reference so the app updates when the chart changes in Lightdash."
+        multiline
+        w={260}
+        withArrow
+    >
+        <UnstyledButton
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={classes.addDataButton}
+            aria-label="Link live"
+        >
+            <MantineIcon icon={IconLink} size={12} />
+        </UnstyledButton>
+    </Tooltip>
+);
+
+const InlineLinkToggle: FC<{ onClick: () => void; disabled?: boolean }> = ({
+    onClick,
+    disabled,
+}) => (
+    <Tooltip
+        label="Linked live — click to unlink (revert to a copied query)."
+        multiline
+        w={260}
+        withArrow
+    >
+        <UnstyledButton
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className={classes.inlineDataToggle}
+            aria-label="Linked: on"
+        >
+            <MantineIcon icon={IconLink} size={12} />
+        </UnstyledButton>
+    </Tooltip>
+);
+
 /**
  * Renders selected queries as a list using the same visual as the picker.
  * Each row carries a per-chart sample-data toggle; off by default because
@@ -565,8 +695,17 @@ export const SelectedQuerySection: FC<{
     charts: SelectedChart[];
     onRemove: (uuid: string) => void;
     onToggleSampleData: (uuid: string) => void;
+    onToggleLink: (uuid: string) => void;
+    sampleDataEnabled: boolean;
     disabled?: boolean;
-}> = ({ charts, onRemove, onToggleSampleData, disabled }) => {
+}> = ({
+    charts,
+    onRemove,
+    onToggleSampleData,
+    onToggleLink,
+    sampleDataEnabled,
+    disabled,
+}) => {
     if (charts.length === 0) return null;
 
     return (
@@ -575,7 +714,7 @@ export const SelectedQuerySection: FC<{
                 <Box key={chart.uuid} className={classes.selectedQueryItemRow}>
                     <Box
                         className={`${classes.selectedQueryItem} ${
-                            chart.includeSampleData
+                            chart.includeSampleData || chart.linkLive
                                 ? classes.selectedQueryItemActive
                                 : ''
                         }`}
@@ -596,11 +735,21 @@ export const SelectedQuerySection: FC<{
                         >
                             {chart.name}
                         </Text>
-                        {chart.includeSampleData && (
-                            <InlineDataToggle
-                                onClick={() => onToggleSampleData(chart.uuid)}
+                        {chart.linkLive ? (
+                            <InlineLinkToggle
+                                onClick={() => onToggleLink(chart.uuid)}
                                 disabled={disabled}
                             />
+                        ) : (
+                            sampleDataEnabled &&
+                            chart.includeSampleData && (
+                                <InlineDataToggle
+                                    onClick={() =>
+                                        onToggleSampleData(chart.uuid)
+                                    }
+                                    disabled={disabled}
+                                />
+                            )
                         )}
                         <ActionIcon
                             size="xs"
@@ -613,9 +762,17 @@ export const SelectedQuerySection: FC<{
                             <MantineIcon icon={IconX} size={10} />
                         </ActionIcon>
                     </Box>
-                    {!chart.includeSampleData && (
-                        <AddDataButton
-                            onClick={() => onToggleSampleData(chart.uuid)}
+                    {sampleDataEnabled &&
+                        !chart.linkLive &&
+                        !chart.includeSampleData && (
+                            <AddDataButton
+                                onClick={() => onToggleSampleData(chart.uuid)}
+                                disabled={disabled}
+                            />
+                        )}
+                    {!chart.linkLive && (
+                        <AddLinkButton
+                            onClick={() => onToggleLink(chart.uuid)}
                             disabled={disabled}
                         />
                     )}
@@ -626,17 +783,27 @@ export const SelectedQuerySection: FC<{
 };
 
 /**
- * Internal: dashboard list with search. Used inside `AttachButton`'s
- * popover. Single-select: clicking a different dashboard replaces the
- * current one (and tells the parent to close the popover); clicking the
- * already-selected dashboard deselects and keeps the popover open.
+ * Internal: dashboard list with search. Interaction-identical to
+ * `QueryPickerView`; only the selection model differs — single-select, so
+ * picking a different dashboard replaces the current one.
  */
 const DashboardPickerView: FC<{
     selectedDashboard: SelectedDashboard | null;
     onSelect: (dashboard: SelectedDashboard) => void;
     onDeselect: () => void;
+    onDone: () => void;
     enabled: boolean;
-}> = ({ selectedDashboard, onSelect, onDeselect, enabled }) => {
+    attachFromLink: AttachFromLink;
+    isResolvingLink: boolean;
+}> = ({
+    selectedDashboard,
+    onSelect,
+    onDeselect,
+    onDone,
+    enabled,
+    attachFromLink,
+    isResolvingLink,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -667,15 +834,25 @@ const DashboardPickerView: FC<{
         [onSelect, onDeselect, selectedDashboard],
     );
 
+    const handlePasteLink = useLinkPasteHandler(
+        attachFromLink,
+        'dashboard',
+        setSearchQuery,
+    );
+
     return (
         <>
             <Box px="xs" pb="xs">
                 <TextInput
                     size="xs"
-                    placeholder="Search dashboards..."
+                    placeholder="Search or paste a link..."
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
+                    rightSection={
+                        isResolvingLink ? <Loader size={14} /> : undefined
+                    }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    onPaste={(e) => void handlePasteLink(e)}
                     autoFocus
                 />
             </Box>
@@ -724,6 +901,11 @@ const DashboardPickerView: FC<{
                     })
                 )}
             </ScrollArea.Autosize>
+            <Box className={classes.attachPickerFooter}>
+                <Button size="compact-xs" radius="md" onClick={onDone}>
+                    Done
+                </Button>
+            </Box>
         </>
     );
 };
@@ -745,6 +927,24 @@ const ConnectionPickerView: FC<{
     const { data: connections, isInitialLoading } = useExternalConnections(
         enabled ? projectUuid : undefined,
     );
+
+    // Only project/org admins can create connections; mirror the gate the
+    // Project Settings → Data app connections page uses.
+    const { user } = useApp();
+    const { data: project } = useProject(projectUuid);
+    const canManageConnections =
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('ExternalConnection', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+    const createConnectionUrl = projectUuid
+        ? `/generalSettings/projectManagement/${projectUuid}/dataAppConnections?create=1`
+        : undefined;
 
     const selectedUuids = useMemo(
         () => new Set(selectedConnections.map((c) => c.externalConnectionUuid)),
@@ -795,9 +995,19 @@ const ConnectionPickerView: FC<{
                         <Loader size="sm" />
                     </Group>
                 ) : filtered.length === 0 ? (
-                    <Text size="xs" c="dimmed" ta="center" p="sm">
-                        No external connections found
-                    </Text>
+                    <Stack gap={4} align="center" p="sm">
+                        <Text size="xs" c="dimmed" ta="center">
+                            {(connections?.length ?? 0) === 0
+                                ? 'No external connections yet'
+                                : 'No connections match your search'}
+                        </Text>
+                        {(connections?.length ?? 0) === 0 &&
+                            !canManageConnections && (
+                                <Text size="xs" c="dimmed" ta="center">
+                                    Ask a project admin to add one.
+                                </Text>
+                            )}
+                    </Stack>
                 ) : (
                     filtered.map((connection) => {
                         const isSelected = selectedUuids.has(
@@ -838,6 +1048,21 @@ const ConnectionPickerView: FC<{
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>
+                {canManageConnections && createConnectionUrl && (
+                    <Anchor
+                        href={createConnectionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        mr="auto"
+                    >
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon icon={IconPlus} size={14} />
+                            <Text size="xs" fw={500}>
+                                New connection
+                            </Text>
+                        </Group>
+                    </Anchor>
+                )}
                 <Button size="compact-xs" radius="md" onClick={onDone}>
                     Done
                 </Button>
@@ -865,9 +1090,9 @@ export const AttachButton: FC<{
     selectedConnections: SelectedConnection[];
     onSelectConnection: (connection: SelectedConnection) => void;
     onDeselectConnection: (uuid: string) => void;
-    onAddImages: () => void;
+    onAddFiles: () => void;
     disabled: boolean;
-    imagesDisabled: boolean;
+    filesDisabled: boolean;
 }> = ({
     selectedCharts,
     onSelectChart,
@@ -878,10 +1103,11 @@ export const AttachButton: FC<{
     selectedConnections,
     onSelectConnection,
     onDeselectConnection,
-    onAddImages,
+    onAddFiles,
     disabled,
-    imagesDisabled,
+    filesDisabled,
 }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const [opened, setOpened] = useState(false);
     const [view, setView] = useState<AttachView>('menu');
 
@@ -890,20 +1116,17 @@ export const AttachButton: FC<{
         if (!isOpen) setView('menu');
     }, []);
 
-    const handleSelectDashboard = useCallback(
-        (dashboard: SelectedDashboard) => {
-            onSelectDashboard(dashboard);
-            setOpened(false);
-            setView('menu');
-        },
-        [onSelectDashboard],
-    );
+    const { attachFromLink, isResolvingLink } = useAttachResourceLink({
+        projectUuid,
+        onSelectChart,
+        onSelectDashboard,
+    });
 
-    const handleImagesClick = useCallback(() => {
+    const handleFilesClick = useCallback(() => {
         setOpened(false);
         setView('menu');
-        onAddImages();
-    }, [onAddImages]);
+        onAddFiles();
+    }, [onAddFiles]);
 
     const headerTitle =
         // eslint-disable-next-line no-nested-ternary
@@ -930,17 +1153,28 @@ export const AttachButton: FC<{
             trapFocus
         >
             <Popover.Target>
-                <Tooltip label="Add resources" withArrow position="top">
-                    <ActionIcon
-                        variant="default"
-                        size="lg"
-                        radius="md"
+                <Tooltip
+                    label="Add charts, dashboards, connections or files"
+                    withArrow
+                    position="top"
+                >
+                    <Button
+                        variant="subtle"
+                        color="gray"
+                        size="xs"
+                        radius="xl"
+                        h="auto"
+                        px={8}
+                        py={6}
                         onClick={() => setOpened((o) => !o)}
                         disabled={disabled}
                         aria-label="Attach resources"
+                        leftSection={<MantineIcon icon={IconPlus} size={14} />}
                     >
-                        <MantineIcon icon={IconPlus} size={16} />
-                    </ActionIcon>
+                        <Text span size="xs" fw={600} lh={1.2} c="inherit">
+                            Attach
+                        </Text>
+                    </Button>
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown className={classes.queryDropdown} p={0}>
@@ -948,6 +1182,7 @@ export const AttachButton: FC<{
                     <Box py="xs">
                         <UnstyledButton
                             className={classes.attachMenuItem}
+                            ff="inherit"
                             onClick={() => setView('queries')}
                         >
                             <MantineIcon icon={IconChartBar} />
@@ -962,6 +1197,7 @@ export const AttachButton: FC<{
                         </UnstyledButton>
                         <UnstyledButton
                             className={classes.attachMenuItem}
+                            ff="inherit"
                             onClick={() => setView('dashboard')}
                         >
                             <MantineIcon icon={IconLayoutDashboard} />
@@ -976,25 +1212,27 @@ export const AttachButton: FC<{
                         </UnstyledButton>
                         <UnstyledButton
                             className={classes.attachMenuItem}
-                            onClick={handleImagesClick}
-                            disabled={imagesDisabled}
-                            data-disabled={imagesDisabled || undefined}
+                            onClick={handleFilesClick}
+                            disabled={filesDisabled}
+                            ff="inherit"
+                            data-disabled={filesDisabled || undefined}
                         >
                             <MantineIcon icon={IconPhoto} />
                             <Box flex={1}>
                                 <Text size="sm" fw={500}>
-                                    Images
+                                    Files
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {imagesDisabled
-                                        ? 'Image limit reached'
-                                        : 'Upload reference images'}
+                                    {filesDisabled
+                                        ? 'Attachment limit reached'
+                                        : 'Upload images, PDFs, or text files'}
                                 </Text>
                             </Box>
                         </UnstyledButton>
                         <UnstyledButton
                             className={classes.attachMenuItem}
                             onClick={() => setView('connections')}
+                            ff="inherit"
                         >
                             <MantineIcon icon={IconPlugConnected} />
                             <Box flex={1}>
@@ -1041,6 +1279,8 @@ export const AttachButton: FC<{
                                     setView('menu');
                                 }}
                                 enabled={opened}
+                                attachFromLink={attachFromLink}
+                                isResolvingLink={isResolvingLink}
                             />
                         ) : view === 'connections' ? (
                             <ConnectionPickerView
@@ -1056,9 +1296,15 @@ export const AttachButton: FC<{
                         ) : (
                             <DashboardPickerView
                                 selectedDashboard={selectedDashboard}
-                                onSelect={handleSelectDashboard}
+                                onSelect={onSelectDashboard}
                                 onDeselect={onDeselectDashboard}
+                                onDone={() => {
+                                    setOpened(false);
+                                    setView('menu');
+                                }}
                                 enabled={opened}
+                                attachFromLink={attachFromLink}
+                                isResolvingLink={isResolvingLink}
                             />
                         )}
                     </>
@@ -1076,56 +1322,65 @@ export const SelectedDashboardSection: FC<{
     dashboard: SelectedDashboard;
     onRemove: () => void;
     onToggleSampleData: () => void;
+    sampleDataEnabled: boolean;
     disabled?: boolean;
-}> = ({ dashboard, onRemove, onToggleSampleData, disabled }) => (
-    <Box className={classes.selectedQueryList}>
-        <Box className={classes.selectedQueryItemRow}>
-            <Box
-                className={`${classes.selectedQueryItem} ${
-                    dashboard.includeSampleData
-                        ? classes.selectedQueryItemActive
-                        : ''
-                }`}
-            >
-                <Box className={classes.selectedQueryItemIcon}>
-                    <MantineIcon
-                        icon={IconLayoutDashboard}
-                        size={12}
-                        color="green.6"
-                    />
-                </Box>
-                <Text
-                    fw={500}
-                    truncate
-                    className={classes.selectedQueryItemName}
+}> = ({
+    dashboard,
+    onRemove,
+    onToggleSampleData,
+    sampleDataEnabled,
+    disabled,
+}) => {
+    return (
+        <Box className={classes.selectedQueryList}>
+            <Box className={classes.selectedQueryItemRow}>
+                <Box
+                    className={`${classes.selectedQueryItem} ${
+                        dashboard.includeSampleData
+                            ? classes.selectedQueryItemActive
+                            : ''
+                    }`}
                 >
-                    {dashboard.name}
-                </Text>
-                {dashboard.includeSampleData && (
-                    <InlineDataToggle
+                    <Box className={classes.selectedQueryItemIcon}>
+                        <MantineIcon
+                            icon={IconLayoutDashboard}
+                            size={12}
+                            color="green.6"
+                        />
+                    </Box>
+                    <Text
+                        fw={500}
+                        truncate
+                        className={classes.selectedQueryItemName}
+                    >
+                        {dashboard.name}
+                    </Text>
+                    {sampleDataEnabled && dashboard.includeSampleData && (
+                        <InlineDataToggle
+                            onClick={onToggleSampleData}
+                            disabled={disabled}
+                            tooltipSuffix=" Applies to every chart in this dashboard."
+                        />
+                    )}
+                    <ActionIcon
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        radius="xl"
+                        onClick={onRemove}
+                        disabled={disabled}
+                    >
+                        <MantineIcon icon={IconX} size={10} />
+                    </ActionIcon>
+                </Box>
+                {sampleDataEnabled && !dashboard.includeSampleData && (
+                    <AddDataButton
                         onClick={onToggleSampleData}
                         disabled={disabled}
                         tooltipSuffix=" Applies to every chart in this dashboard."
                     />
                 )}
-                <ActionIcon
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    radius="xl"
-                    onClick={onRemove}
-                    disabled={disabled}
-                >
-                    <MantineIcon icon={IconX} size={10} />
-                </ActionIcon>
             </Box>
-            {!dashboard.includeSampleData && (
-                <AddDataButton
-                    onClick={onToggleSampleData}
-                    disabled={disabled}
-                    tooltipSuffix=" Applies to every chart in this dashboard."
-                />
-            )}
         </Box>
-    </Box>
-);
+    );
+};

@@ -1,4 +1,5 @@
 import type { ApiSuccessEmpty } from './api/success';
+import type { PromotionAction } from './promotion';
 
 export type RoleLevel = 'project' | 'organization';
 
@@ -44,10 +45,35 @@ export type CreateRole = {
 
 export type UpdateRole = {
     name?: string;
-    description?: string;
+    description?: string | null;
     scopes?: {
         add: string[];
         remove: string[];
+    };
+};
+
+export type CustomRoleAsCode = {
+    version: 1;
+    name: string;
+    description: string | null;
+    level: RoleLevel;
+    scopes: string[];
+};
+
+export type ApiCustomRoleAsCodeListResponse = {
+    status: 'ok';
+    results: {
+        customRoles: CustomRoleAsCode[];
+    };
+};
+
+export type ApiCustomRoleAsCodeUpsertResponse = {
+    status: 'ok';
+    results: {
+        action:
+            | PromotionAction.CREATE
+            | PromotionAction.UPDATE
+            | PromotionAction.NO_CHANGES;
     };
 };
 

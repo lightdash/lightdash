@@ -1,5 +1,6 @@
-import { Group, NumberInput } from '@mantine-8/core';
+import { Group } from '@mantine-8/core';
 import { type FC } from 'react';
+import { NumberInput } from '../../../common/NumberInput';
 import { Config } from '../../common/Config';
 
 type Props = {
@@ -12,6 +13,8 @@ export const AxisMinInterval: FC<Props> = ({ label, value, onChange }) => (
     <Group wrap="nowrap" gap="xs">
         <Config.Label>{label}</Config.Label>
         <NumberInput
+            decimalScale="unlimited"
+            size="xs"
             placeholder="Auto"
             value={value ?? ''}
             min={0}

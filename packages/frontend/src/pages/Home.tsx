@@ -14,6 +14,14 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { AdminHomepageControls } from '../ee/features/homepageBuilder/AdminHomepageControls';
+import { PersonalFavoritesBar } from '../ee/features/homepageBuilder/blocks/FavoritesBlock';
+import { DayOneHomepage } from '../ee/features/homepageBuilder/DayOneHomepage';
+import {
+    useHomepageBuilderFlag,
+    useResolvedHomepage,
+} from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
+import { PublishedHomepage } from '../ee/features/homepageBuilder/PublishedHomepage';
 import { ManagedAgentHomeCard } from '../ee/features/managedAgent/ManagedAgentHomeCard';
 import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
@@ -43,13 +51,24 @@ const Home: FC = () => {
 
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
+    // The commercial flag (per-org, default-off) is the only gate — AI-less
+    // orgs get the day-0/builder experience with the non-AI hero variant.
+    const {
+        isEnabled: isHomepageBuilderEnabled,
+        isLoading: isHomepageBuilderFlagLoading,
+    } = useHomepageBuilderFlag();
+    const resolvedHomepage = useResolvedHomepage(selectedProjectUuid, {
+        enabled: isHomepageBuilderEnabled,
+    });
 
     const isLoading =
         onboarding.isInitialLoading ||
         project.isInitialLoading ||
         isMostPopularAndRecentlyUpdatedLoading ||
         pinnedItems.isInitialLoading ||
-        favorites.isInitialLoading;
+        favorites.isInitialLoading ||
+        isHomepageBuilderFlagLoading ||
+        resolvedHomepage.isInitialLoading;
 
     const error = onboarding.error || project.error;
 
@@ -74,6 +93,64 @@ const Home: FC = () => {
     const isGitHubProject =
         project.data.type !== ProjectType.PREVIEW &&
         project.data.dbtConnection.type === DbtProjectType.GITHUB;
+
+    if (
+        isHomepageBuilderEnabled &&
+        resolvedHomepage.data?.type === 'homepage'
+    ) {
+        const { homepage } = resolvedHomepage.data;
+        const hasFavoritesBlock = homepage.config.rows.some((row) =>
+            row.blocks.some((block) => block.type === 'favorites'),
+        );
+        return (
+            <Page withFooter noContentPadding>
+                <AdminHomepageControls
+                    projectUuid={project.data.projectUuid}
+                    organizationUuid={project.data.organizationUuid}
+                    showNewHomepage
+                />
+                <PublishedHomepage
+                    config={homepage.config}
+                    projectUuid={project.data.projectUuid}
+                    topBar={
+                        !hasFavoritesBlock ? (
+                            <PersonalFavoritesBar
+                                projectUuid={project.data.projectUuid}
+                            />
+                        ) : null
+                    }
+                />
+            </Page>
+        );
+    }
+
+    if (
+        isHomepageBuilderEnabled &&
+        resolvedHomepage.data === null &&
+        onboarding.data.ranQuery
+    ) {
+        return (
+            <Page withFooter noContentPadding>
+                <AdminHomepageControls
+                    projectUuid={project.data.projectUuid}
+                    organizationUuid={project.data.organizationUuid}
+                />
+                <FavoritesProvider projectUuid={project.data.projectUuid}>
+                    <PinnedItemsProvider
+                        organizationUuid={project.data.organizationUuid}
+                        projectUuid={project.data.projectUuid}
+                        pinnedListUuid={project.data.pinnedListUuid || ''}
+                        allowDelete={false}
+                    >
+                        <DayOneHomepage
+                            projectUuid={project.data.projectUuid}
+                            pinnedItems={pinnedItems.data ?? []}
+                        />
+                    </PinnedItemsProvider>
+                </FavoritesProvider>
+            </Page>
+        );
+    }
 
     return (
         <Page withFixedContent withPaddedContent withFooter>

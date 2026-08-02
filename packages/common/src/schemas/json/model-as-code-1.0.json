@@ -193,6 +193,20 @@
                             },
                             "description": {
                                 "type": "string"
+                            },
+                            "ai_hint": {
+                                "oneOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ],
+                                "description": "Hints inherited by fields in this group for AI-powered query generation"
                             }
                         },
                         "required": ["label"]
@@ -483,6 +497,7 @@
                 },
                 "compact": {
                     "enum": [
+                        "auto",
                         "thousands",
                         "thousand",
                         "K",
@@ -613,6 +628,7 @@
                 },
                 "compact": {
                     "enum": [
+                        "auto",
                         "thousands",
                         "thousand",
                         "K",
@@ -877,6 +893,20 @@
                 "description": {
                     "type": "string",
                     "description": "Detailed description of the explore"
+                },
+                "tags": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ],
+                    "description": "Tags for organizing and filtering this explore. Overrides model tags when set."
                 },
                 "group_label": {
                     "type": "string",

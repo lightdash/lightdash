@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-export const useControlledAccordion = (defaultOpenItems = []) => {
+export const useControlledAccordion = (defaultOpenItems: string[] = []) => {
     const [openItems, setOpenItems] = useState<string[]>(defaultOpenItems);
 
     const handleAccordionChange = useCallback((itemValues: string[]) => {

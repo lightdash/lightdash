@@ -1,6 +1,7 @@
 import type {
     AiAgent,
     AiAgentThreadFilters,
+    ApiAiAgentArtifactVizQuery,
     ApiAiAgentAvatarUploadResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
@@ -15,6 +16,7 @@ import type {
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
+    ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
@@ -26,8 +28,6 @@ import type {
     ApiCloneAiAgentThreadShareResponse,
     ApiError,
     ApiAiMcpServerListResponse,
-    ApiRevertChangeRequest,
-    ApiRevertChangeResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
@@ -60,6 +60,7 @@ import {
     getAiAgentPageBase,
     isEmbedAiAgentRoute,
 } from './aiAgentRouting';
+import { AI_AGENT_ARTIFACT_KEY } from './useAiAgentArtifacts';
 import {
     AGENT_AI_MCP_SERVERS_KEY,
     PROJECT_AI_MCP_SERVERS_KEY,
@@ -167,6 +168,7 @@ export const useProjectCreateAiAgentMutation = (
     projectUuid: string,
     options?: {
         skipNavigation?: boolean;
+        skipSuccessToast?: boolean;
     },
 ) => {
     const navigate = useNavigate();
@@ -180,9 +182,11 @@ export const useProjectCreateAiAgentMutation = (
     >({
         mutationFn: (data) => createProjectAgent(projectUuid, data),
         onSuccess: (result) => {
-            showToastSuccess({
-                title: 'AI agent created successfully',
-            });
+            if (!options?.skipSuccessToast) {
+                showToastSuccess({
+                    title: 'AI agent created successfully',
+                });
+            }
             void queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid],
             });
@@ -596,6 +600,48 @@ export const useAiAgentThread = (
     });
 };
 
+const getAgentThreadWorkstreams = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) =>
+    lightdashApi<ApiAiAgentThreadWorkstreamsResponse['results']>({
+        url: `${getAiAgentApiBase(
+            projectUuid,
+        )}/${agentUuid}/threads/${threadUuid}/pull-requests`,
+        method: 'GET',
+        body: undefined,
+    });
+
+/**
+ * The pull requests (workstreams) the coding agent has opened in this thread,
+ * each with live PR state where available. Drives the in-thread workstreams
+ * panel. Silent on error — the panel is non-critical chrome.
+ */
+export const useAiAgentThreadWorkstreams = (
+    projectUuid: string,
+    agentUuid: string | undefined,
+    threadUuid: string | null | undefined,
+    options?: UseQueryOptions<
+        ApiAiAgentThreadWorkstreamsResponse['results'],
+        ApiError
+    >,
+) =>
+    useQuery<ApiAiAgentThreadWorkstreamsResponse['results'], ApiError>({
+        queryKey: [
+            AI_AGENTS_KEY,
+            projectUuid,
+            agentUuid,
+            'threads',
+            threadUuid,
+            'workstreams',
+        ],
+        queryFn: () =>
+            getAgentThreadWorkstreams(projectUuid, agentUuid!, threadUuid!),
+        enabled: !!agentUuid && !!threadUuid,
+        ...options,
+    });
+
 // Helper functions for thread creation
 
 /**
@@ -624,6 +670,7 @@ const toOptimisticContextItem = (
                 dashboardSlug: item.dashboardSlug ?? null,
                 displayName: null,
                 pinnedVersionUuid: null,
+                runtimeOverrides: item.runtimeOverrides ?? null,
             };
         case 'thread':
             return {
@@ -684,22 +731,29 @@ const createOptimisticMessages = (
     agent: AiAgent,
     context: AiPromptContext = [],
     hidden = false,
+    includeAssistantResponse = true,
 ) => {
-    return [
-        {
-            role: 'user' as const,
-            uuid: promptUuid,
-            threadUuid,
-            message: prompt,
-            createdAt: new Date().toISOString(),
-            user: {
-                name: getOptimisticUserName(user),
-                uuid: user?.userUuid ?? 'unknown',
-            },
-            context,
-            steers: [],
-            hidden,
+    const userMessage = {
+        role: 'user' as const,
+        uuid: promptUuid,
+        threadUuid,
+        message: prompt,
+        createdAt: new Date().toISOString(),
+        user: {
+            name: getOptimisticUserName(user),
+            uuid: user?.userUuid ?? 'unknown',
         },
+        context,
+        steers: [],
+        hidden,
+    };
+
+    if (!includeAssistantResponse) {
+        return [userMessage];
+    }
+
+    return [
+        userMessage,
         {
             role: 'assistant' as const,
             status: 'pending' as const,
@@ -840,6 +894,7 @@ export const useCreateAgentThreadMutation = (
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
             toolHints?: string[];
+            skipAgentResponse?: boolean;
         }
     >({
         mutationFn: ({
@@ -847,6 +902,7 @@ export const useCreateAgentThreadMutation = (
             optimisticContext: _optimisticContext,
             enableSqlMode: _enableSqlMode,
             toolHints: _toolHints,
+            skipAgentResponse: _skipAgentResponse,
             ...data
         }) => createAgentThread(projectUuid, agentUuid, data),
         onSuccess: async (thread, variables) => {
@@ -899,6 +955,8 @@ export const useCreateAgentThreadMutation = (
                             // post-stream refetch to fill them in.
                             variables.optimisticContext ??
                                 variables.context?.map(toOptimisticContextItem),
+                            false,
+                            !variables.skipAgentResponse,
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
@@ -909,67 +967,69 @@ export const useCreateAgentThreadMutation = (
                 },
             );
 
-            void streamMessage({
-                projectUuid,
-                agentUuid: thread.agentUuid,
-                threadUuid: thread.uuid,
-                messageUuid: thread.firstMessage.uuid,
-                enableSqlMode: variables.enableSqlMode,
-                toolHints: variables.toolHints,
-                onFinish: () =>
-                    queryClient.invalidateQueries({
-                        queryKey: [
-                            AI_AGENTS_KEY,
-                            projectUuid,
-                            agentUuid,
-                            'threads',
-                            thread.uuid,
-                        ],
-                    }),
-                onError: (errorMessage) => {
-                    queryClient.setQueryData(
-                        [
-                            AI_AGENTS_KEY,
-                            projectUuid,
-                            agentUuid,
-                            'threads',
-                            thread.uuid,
-                        ],
-                        (
-                            currentData:
-                                | ApiAiAgentThreadResponse['results']
-                                | undefined,
-                        ) =>
-                            markOptimisticAssistantMessageAsErrored(
-                                currentData,
-                                thread.firstMessage.uuid,
-                                errorMessage,
-                            ),
-                    );
+            if (!variables.skipAgentResponse) {
+                void streamMessage({
+                    projectUuid,
+                    agentUuid: thread.agentUuid,
+                    threadUuid: thread.uuid,
+                    messageUuid: thread.firstMessage.uuid,
+                    enableSqlMode: variables.enableSqlMode,
+                    toolHints: variables.toolHints,
+                    onFinish: () =>
+                        queryClient.invalidateQueries({
+                            queryKey: [
+                                AI_AGENTS_KEY,
+                                projectUuid,
+                                agentUuid,
+                                'threads',
+                                thread.uuid,
+                            ],
+                        }),
+                    onError: (errorMessage) => {
+                        queryClient.setQueryData(
+                            [
+                                AI_AGENTS_KEY,
+                                projectUuid,
+                                agentUuid,
+                                'threads',
+                                thread.uuid,
+                            ],
+                            (
+                                currentData:
+                                    | ApiAiAgentThreadResponse['results']
+                                    | undefined,
+                            ) =>
+                                markOptimisticAssistantMessageAsErrored(
+                                    currentData,
+                                    thread.firstMessage.uuid,
+                                    errorMessage,
+                                ),
+                        );
 
-                    void queryClient.invalidateQueries({
-                        queryKey: [
-                            AI_AGENTS_KEY,
-                            projectUuid,
-                            agentUuid,
-                            'threads',
-                            thread.uuid,
-                        ],
-                    });
-                },
-                refetchThread: () =>
-                    queryClient.invalidateQueries({
-                        queryKey: [
-                            AI_AGENTS_KEY,
-                            projectUuid,
-                            agentUuid,
-                            'threads',
-                            thread.uuid,
-                        ],
-                    }),
-                onToolCall: options?.onToolCall,
-                onToolResult: options?.onToolResult,
-            });
+                        void queryClient.invalidateQueries({
+                            queryKey: [
+                                AI_AGENTS_KEY,
+                                projectUuid,
+                                agentUuid,
+                                'threads',
+                                thread.uuid,
+                            ],
+                        });
+                    },
+                    refetchThread: () =>
+                        queryClient.invalidateQueries({
+                            queryKey: [
+                                AI_AGENTS_KEY,
+                                projectUuid,
+                                agentUuid,
+                                'threads',
+                                thread.uuid,
+                            ],
+                        }),
+                    onToolCall: options?.onToolCall,
+                    onToolResult: options?.onToolResult,
+                });
+            }
 
             options?.onCreated?.(thread);
 
@@ -1035,6 +1095,7 @@ export const useCreateAgentThreadMessageMutation = (
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
+            skipAgentResponse?: boolean;
         },
         { messageUuid: string }
     >({
@@ -1043,6 +1104,7 @@ export const useCreateAgentThreadMessageMutation = (
             enableSqlMode: _enableSqlMode,
             autoApproveSql: _autoApproveSql,
             toolHints: _toolHints,
+            skipAgentResponse: _skipAgentResponse,
             ...data
         }) =>
             agentUuid && threadUuid
@@ -1081,6 +1143,7 @@ export const useCreateAgentThreadMessageMutation = (
                                 data.optimisticContext ??
                                     data.context?.map(toOptimisticContextItem),
                                 data.hidden,
+                                !data.skipAgentResponse,
                             ),
                         ],
                     };
@@ -1114,6 +1177,10 @@ export const useCreateAgentThreadMessageMutation = (
                     };
                 },
             );
+
+            if (vars.skipAgentResponse) {
+                return;
+            }
 
             void streamMessage({
                 projectUuid,
@@ -1481,77 +1548,6 @@ export const useSavePromptQuery = (
     });
 };
 
-const revertChange = async ({
-    projectUuid,
-    agentUuid,
-    threadUuid,
-    promptUuid,
-    changeUuid,
-}: {
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    promptUuid: string;
-    changeUuid: string;
-}) =>
-    lightdashApi<ApiRevertChangeResponse>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/messages/${promptUuid}/revert-change`,
-        method: 'POST',
-        body: JSON.stringify({
-            changeUuid,
-        } satisfies ApiRevertChangeRequest),
-    });
-
-export const useRevertChangeMutation = (
-    projectUuid: string,
-    agentUuid: string,
-    threadUuid: string,
-) => {
-    const queryClient = useQueryClient();
-    const navigate = useNavigate();
-    const { showToastApiError, showToastSuccess } = useToaster();
-
-    return useMutation<
-        ApiRevertChangeResponse,
-        ApiError,
-        { promptUuid: string; changeUuid: string }
-    >({
-        mutationFn: ({ promptUuid, changeUuid }) => {
-            return revertChange({
-                projectUuid,
-                agentUuid,
-                threadUuid,
-                promptUuid,
-                changeUuid,
-            });
-        },
-        onSuccess: () => {
-            showToastSuccess({
-                title: 'Change reverted successfully',
-            });
-            void queryClient.invalidateQueries([
-                AI_AGENTS_KEY,
-                projectUuid,
-                agentUuid,
-                'threads',
-                threadUuid,
-            ]);
-        },
-        onError: ({ error }) => {
-            if (error?.statusCode === 403) {
-                void navigate(
-                    `/projects/${projectUuid}/ai-agents/not-authorized`,
-                );
-            } else {
-                showToastApiError({
-                    title: 'Failed to revert change',
-                    apiError: error,
-                });
-            }
-        },
-    });
-};
-
 const updateArtifactVersion = async ({
     projectUuid,
     agentUuid,
@@ -1570,6 +1566,27 @@ const updateArtifactVersion = async ({
         method: `PATCH`,
         body: JSON.stringify({
             savedDashboardUuid,
+        }),
+    });
+
+const updateArtifactVersionSavedSql = async ({
+    projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
+    savedSqlUuid,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+    savedSqlUuid: string | null;
+}) =>
+    lightdashApi<ApiSuccessEmpty>({
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/savedSql`,
+        method: `PATCH`,
+        body: JSON.stringify({
+            savedSqlUuid,
         }),
     });
 
@@ -1600,11 +1617,12 @@ export const useUpdateArtifactVersion = (
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: [
-                    AI_AGENTS_KEY,
+                    AI_AGENT_ARTIFACT_KEY,
                     projectUuid,
                     agentUuid,
-                    'artifacts',
                     artifactUuid,
+                    'version',
+                    versionUuid,
                 ],
             });
         },
@@ -1623,6 +1641,49 @@ export const useUpdateArtifactVersion = (
     });
 };
 
+export const useUpdateArtifactVersionSavedSql = (
+    projectUuid: string,
+    agentUuid: string,
+    artifactUuid: string,
+    versionUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { savedSqlUuid: string | null }
+    >({
+        mutationFn: ({ savedSqlUuid }) =>
+            updateArtifactVersionSavedSql({
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                savedSqlUuid,
+            }),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    AI_AGENT_ARTIFACT_KEY,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    'version',
+                    versionUuid,
+                ],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to link saved SQL chart',
+                apiError: error,
+            });
+        },
+    });
+};
+
 // Artifact functionality
 const getAiAgentArtifactVizQuery = async (args: {
     projectUuid: string;
@@ -1630,7 +1691,7 @@ const getAiAgentArtifactVizQuery = async (args: {
     artifactUuid: string;
     versionUuid: string;
 }) =>
-    lightdashApi<ApiAiAgentThreadMessageVizQuery>({
+    lightdashApi<ApiAiAgentArtifactVizQuery>({
         url: `${getAiAgentApiBase(args.projectUuid)}/${
             args.agentUuid
         }/artifacts/${args.artifactUuid}/versions/${
@@ -1652,10 +1713,7 @@ export const useAiAgentArtifactVizQuery = (
         artifactUuid: string;
         versionUuid: string;
     },
-    useQueryOptions?: UseQueryOptions<
-        ApiAiAgentThreadMessageVizQuery,
-        ApiError
-    >,
+    useQueryOptions?: UseQueryOptions<ApiAiAgentArtifactVizQuery, ApiError>,
 ) => {
     const navigate = useNavigate();
     const { data: activeProjectUuid } = useActiveProject();
@@ -1664,7 +1722,7 @@ export const useAiAgentArtifactVizQuery = (
     const { showToastApiError } = useToaster();
     const isEmbed = isEmbedAiAgentRoute();
 
-    return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
+    return useQuery<ApiAiAgentArtifactVizQuery, ApiError>({
         queryKey: [
             AI_AGENTS_KEY,
             'artifact-viz-query',

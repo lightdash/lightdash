@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: core queries matches snapshot for a field-reference query across tables 1`] = `
+exports[`MetricQueryBuilder snapshot: core queries > matches snapshot for a field-reference query across tables 1`] = `
 "SELECT
   "table1".dim1 + "table2".dim2 AS "table1_with_reference"
 FROM
@@ -14,7 +14,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: core queries matches snapshot for a metric query across two tables 1`] = `
+exports[`MetricQueryBuilder snapshot: core queries > matches snapshot for a metric query across two tables 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -37,7 +37,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: core queries matches snapshot for a metric-only query without default sorting 1`] = `
+exports[`MetricQueryBuilder snapshot: core queries > matches snapshot for a metric-only query without default sorting 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -54,7 +54,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: core queries matches snapshot for a query with additional metrics 1`] = `
+exports[`MetricQueryBuilder snapshot: core queries > matches snapshot for a query with additional metrics 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -77,7 +77,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: core queries matches snapshot for a simple metric query 1`] = `
+exports[`MetricQueryBuilder snapshot: core queries > matches snapshot for a simple metric query 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -99,7 +99,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: core queries matches snapshot for a simple metric query in BigQuery 1`] = `
+exports[`MetricQueryBuilder snapshot: core queries > matches snapshot for a simple metric query in BigQuery 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -121,7 +121,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: core queries matches snapshot for an all-join-types intermediary chain query 1`] = `
+exports[`MetricQueryBuilder snapshot: core queries > matches snapshot for an all-join-types intermediary chain query 1`] = `
 "SELECT
   "table5".dim1 AS "table5_dim1",
   MAX("table5".number_column) AS "table5_metric1"
@@ -139,7 +139,7 @@ LIMIT
   5"
 `;
 
-exports[`MetricQueryBuilder snapshot: core queries matches snapshot for an intermediary join-chain query 1`] = `
+exports[`MetricQueryBuilder snapshot: core queries > matches snapshot for an intermediary join-chain query 1`] = `
 "SELECT
   "table5".dim1 AS "table5_dim1",
   MAX("table5".number_column) AS "table5_metric1"
@@ -157,7 +157,7 @@ LIMIT
   5"
 `;
 
-exports[`MetricQueryBuilder snapshot: core queries matches snapshot for selected fields using intrinsic user attributes 1`] = `
+exports[`MetricQueryBuilder snapshot: core queries > matches snapshot for selected fields using intrinsic user attributes 1`] = `
 "SELECT
   CASE
     WHEN 'mock@lightdash.com' = 'mock@lightdash.com' THEN "table1".shared

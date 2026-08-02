@@ -7,30 +7,35 @@ type RegisteredToolCallback = (
 
 const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
-jest.mock('@sentry/node', () => ({
-    captureException: jest.fn(),
+vi.mock('@sentry/node', () => ({
+    captureException: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
     startSpanManual: (_options: unknown, callback: CallableFunction) =>
-        callback({ spanContext: () => ({ spanId: 'span-id' }) }, jest.fn()),
+        callback({ spanContext: () => ({ spanId: 'span-id' }) }, vi.fn()),
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
-jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
-    McpServer: jest.fn().mockImplementation(() => ({
-        registerResource: jest.fn(),
-        registerPrompt: jest.fn(),
-        registerTool: jest.fn(
-            (
-                name: string,
-                _config: Record<string, unknown>,
-                callback: RegisteredToolCallback,
-            ) => {
-                mockRegisteredMcpTools.set(name, callback);
-                return {};
-            },
-        ),
-    })),
+vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+    McpServer: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockMcpServer() {
+            return {
+                registerResource: vi.fn(),
+                registerPrompt: vi.fn(),
+                registerTool: vi.fn(
+                    (
+                        name: string,
+                        _config: Record<string, unknown>,
+                        callback: RegisteredToolCallback,
+                    ) => {
+                        mockRegisteredMcpTools.set(name, callback);
+                        return {};
+                    },
+                ),
+            };
+        },
+    ),
 }));
 
 const projectUuid = 'project-uuid';
@@ -49,9 +54,9 @@ const user = {
     userUuid,
     organizationUuid,
     ability: {
-        can: jest.fn(() => true),
-        cannot: jest.fn(() => false),
-        relevantRuleFor: jest.fn(() => undefined),
+        can: vi.fn(() => true),
+        cannot: vi.fn(() => false),
+        relevantRuleFor: vi.fn(() => undefined),
         rules: [],
     },
 };
@@ -59,8 +64,8 @@ const user = {
 const extra = {
     signal: new AbortController().signal,
     requestId: 'request-id',
-    sendNotification: jest.fn(),
-    sendRequest: jest.fn(),
+    sendNotification: vi.fn(),
+    sendRequest: vi.fn(),
     authInfo: {
         extra: {
             user,
@@ -85,6 +90,7 @@ type TestSpace = {
 type TestContentItem =
     | {
           contentType: 'chart' | 'dashboard' | 'data_app';
+          uuid: string;
           name: string;
           slug: string;
       }
@@ -143,7 +149,7 @@ const makeMcpService = ({
     };
 } = {}) => {
     const aiAgentService = {
-        getAgent: jest.fn().mockImplementation(async () => {
+        getAgent: vi.fn().mockImplementation(async () => {
             if (!agent) throw new Error('Agent not mocked');
             return {
                 description: null,
@@ -160,9 +166,26 @@ const makeMcpService = ({
 
     const toSpaceSlug = (path: string) =>
         path.replace(/\./g, '/').replace(/_/g, '-');
+    const getContentHref = (
+        item: Extract<
+            TestContentItem,
+            { contentType: 'chart' | 'dashboard' | 'data_app' }
+        >,
+    ) => {
+        switch (item.contentType) {
+            case 'dashboard':
+                return `/projects/${projectUuid}/dashboards/${item.uuid}/view#dashboard-link`;
+            case 'chart':
+                return `/projects/${projectUuid}/saved/${item.uuid}/view#chart-link`;
+            case 'data_app':
+                return `/projects/${projectUuid}/apps/${item.uuid}`;
+            default:
+                throw new Error(`Unsupported content type`);
+        }
+    };
     const aiAgentToolsService = {
-        createRuntime: jest.fn((runtimeContext: TestRuntimeContext) => ({
-            listContent: jest.fn(async ({ spaceSlug, page }) => {
+        createRuntime: vi.fn((runtimeContext: TestRuntimeContext) => ({
+            listContent: vi.fn(async ({ spaceSlug, page }) => {
                 if (spaceSlug === null) {
                     const visibleSpaces = spaces.filter(
                         (space) =>
@@ -175,6 +198,7 @@ const makeMcpService = ({
                             contentType: 'space',
                             name: space.name,
                             slug: toSpaceSlug(space.path),
+                            href: `/projects/${projectUuid}/spaces/${space.uuid}`,
                             chartCount: space.chartCount,
                             dashboardCount: space.dashboardCount,
                             childSpaceCount: space.childSpaceCount,
@@ -199,6 +223,7 @@ const makeMcpService = ({
                                   contentType: 'space',
                                   name: item.name,
                                   slug: toSpaceSlug(item.path),
+                                  href: `/projects/${projectUuid}/spaces/${item.uuid}`,
                                   chartCount: item.chartCount,
                                   dashboardCount: item.dashboardCount,
                                   childSpaceCount: item.childSpaceCount,
@@ -206,7 +231,10 @@ const makeMcpService = ({
                                   directAccess:
                                       item.access?.includes(userUuid) === true,
                               }
-                            : item,
+                            : {
+                                  ...item,
+                                  href: getContentHref(item),
+                              },
                     ),
                     pagination: contentResults.pagination,
                 };
@@ -215,19 +243,19 @@ const makeMcpService = ({
     };
 
     const projectService = {
-        getProject: jest.fn().mockResolvedValue({ organizationUuid }),
-        getSpaces: jest.fn().mockResolvedValue(spaces),
+        getProject: vi.fn().mockResolvedValue({ organizationUuid }),
+        getSpaces: vi.fn().mockResolvedValue(spaces),
     };
 
     const service = new McpService({
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
-            getSettings: jest.fn().mockResolvedValue({ aiAgentsVisible: true }),
+            getSettings: vi.fn().mockResolvedValue({ aiAgentsVisible: true }),
         },
         aiRouterService: {},
         aiWritebackService: {},
-        analytics: { track: jest.fn() },
+        analytics: { track: vi.fn() },
         asyncQueryService: {},
         catalogService: {},
         contentVerificationService: {},
@@ -245,7 +273,7 @@ const makeMcpService = ({
             siteUrl: 'https://lightdash.example',
         },
         mcpContextModel: {
-            getContext: jest.fn().mockResolvedValue({ context }),
+            getContext: vi.fn().mockResolvedValue({ context }),
         },
         projectModel: {},
         projectService,
@@ -330,6 +358,9 @@ describe('MCP list_content', () => {
         expect(text).toContain('contentType="space"');
         expect(text).toContain('name="Allowed Space"');
         expect(text).toContain('slug="allowed-space"');
+        expect(text).toContain(
+            `href="/projects/${projectUuid}/spaces/${allowedSpaceUuid}"`,
+        );
         expect(text).toContain('chartCount="2"');
         expect(text).not.toContain('Blocked Space');
     });
@@ -353,6 +384,7 @@ describe('MCP list_content', () => {
                 data: [
                     {
                         contentType: 'chart',
+                        uuid: 'revenue-chart-uuid',
                         name: 'Revenue Chart',
                         slug: 'revenue-chart',
                     },
@@ -386,7 +418,13 @@ describe('MCP list_content', () => {
         expect(text).toContain('spaceSlug="allowed-space"');
         expect(text).toContain('name="Revenue Chart"');
         expect(text).toContain('slug="revenue-chart"');
+        expect(text).toContain(
+            `href="/projects/${projectUuid}/saved/revenue-chart-uuid/view#chart-link"`,
+        );
         expect(text).toContain('name="Child Space"');
         expect(text).toContain('slug="allowed-space/child-space"');
+        expect(text).toContain(
+            `href="/projects/${projectUuid}/spaces/child-space-uuid"`,
+        );
     });
 });

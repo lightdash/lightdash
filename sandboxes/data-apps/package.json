@@ -3,10 +3,17 @@
     "type": "module",
     "scripts": {
         "build": "tsx build-sandbox.ts",
-        "test": "tsx test-generate.ts"
+        "test": "tsx test-generate.ts",
+        "bench": "tsx benchmark/run.ts",
+        "bench:render": "tsx benchmark/renderGate.ts",
+        "bench:gallery": "tsx benchmark/gallery.ts"
     },
     "dependencies": {
         "e2b": "2.15.0",
         "tsx": "4.0.0"
+    },
+    "devDependencies": {
+        "playwright": "1.57.0",
+        "yaml": "2.8.2"
     }
 }

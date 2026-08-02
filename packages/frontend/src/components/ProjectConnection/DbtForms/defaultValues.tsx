@@ -81,7 +81,7 @@ const dbtDefaultValues: DbtLocalProjectConfig = {
 } as const;
 
 // CLI
-const noneDefaultValues: DbtNoneProjectConfig = {
+export const noneDefaultValues: DbtNoneProjectConfig = {
     type: DbtProjectType.NONE,
     hideRefreshButton: false,
 } as const;

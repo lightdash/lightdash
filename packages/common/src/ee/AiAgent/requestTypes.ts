@@ -1,5 +1,8 @@
 import { type DateZoom } from '../../types/api/paginatedQuery';
-import { type DashboardFilters } from '../../types/filter';
+import {
+    type DashboardFilterRule,
+    type DashboardFilters,
+} from '../../types/filter';
 import { type PullRequestProvider } from '../../types/gitIntegration';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { type ChartKind } from '../../types/savedCharts';
@@ -30,6 +33,29 @@ export type AiChartRuntimeOverrides = {
     dateZoom?: DateZoom;
 };
 
+export type AiDashboardFilterRule = Omit<
+    DashboardFilterRule,
+    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId'
+>;
+
+export type AiDashboardFilters = {
+    dimensions: AiDashboardFilterRule[];
+    metrics: AiDashboardFilterRule[];
+    tableCalculations: AiDashboardFilterRule[];
+};
+
+export type AiDashboardActiveTab = {
+    uuid: string;
+    name: string;
+};
+
+export type AiDashboardRuntimeOverrides = {
+    activeTab?: AiDashboardActiveTab;
+    dashboardFilters?: AiDashboardFilters;
+    dashboardParameters?: ParametersValuesMap;
+    dateZoom?: DateZoom | null;
+};
+
 export type AiThread = {
     aiThreadUuid: string;
     organizationUuid: string;
@@ -43,10 +69,51 @@ export type AiPromptTokenUsage = {
     totalTokens: number;
 };
 
+/**
+ * Every origin an ai_thread can be created from. Canonical source for the
+ * DB column type and the admin/list filters — add new origins here.
+ */
+export const AI_THREAD_CREATED_FROM = [
+    'slack',
+    'web_app',
+    'evals',
+    'scheduler',
+] as const;
+export type AiThreadCreatedFrom = (typeof AI_THREAD_CREATED_FROM)[number];
+
+// Subsets use indexed access over const arrays (not Exclude<>, which tsoa
+// can't resolve at API boundaries); `satisfies` keeps each subset inside the
+// canonical union.
+
+/** Origins for threads created through the web app path — everything but Slack. */
+export const AI_WEB_APP_THREAD_CREATED_FROM = [
+    'web_app',
+    'evals',
+    'scheduler',
+] as const satisfies readonly AiThreadCreatedFrom[];
+export type AiWebAppThreadCreatedFrom =
+    (typeof AI_WEB_APP_THREAD_CREATED_FROM)[number];
+
+/** Origins handled through the Slack path. */
+export const AI_SLACK_THREAD_CREATED_FROM = [
+    'slack',
+    'web_app',
+] as const satisfies readonly AiThreadCreatedFrom[];
+export type AiSlackThreadCreatedFrom =
+    (typeof AI_SLACK_THREAD_CREATED_FROM)[number];
+
+/** Origins a thread can be cloned into — Slack and scheduler threads are never clone targets. */
+export const AI_CLONED_THREAD_CREATED_FROM = [
+    'web_app',
+    'evals',
+] as const satisfies readonly AiThreadCreatedFrom[];
+export type AiClonedThreadCreatedFrom =
+    (typeof AI_CLONED_THREAD_CREATED_FROM)[number];
+
 export type CreateSlackThread = {
     organizationUuid: string;
     projectUuid: string;
-    createdFrom: 'slack' | 'web_app';
+    createdFrom: AiSlackThreadCreatedFrom;
     slackUserId: string;
     slackChannelId: string;
     slackThreadTs: string;
@@ -57,7 +124,7 @@ export type CreateWebAppThread = {
     organizationUuid: string;
     projectUuid: string;
     userUuid: string;
-    createdFrom: 'web_app' | 'evals';
+    createdFrom: AiWebAppThreadCreatedFrom;
     agentUuid: string | null;
     embedSpaceUuid?: string | null;
 };
@@ -113,6 +180,7 @@ export type AiPromptContextItemInput =
           type: 'dashboard';
           dashboardUuid: string;
           dashboardSlug?: string | null;
+          runtimeOverrides?: AiDashboardRuntimeOverrides;
       }
     | {
           type: 'thread';
@@ -178,6 +246,7 @@ export type AiPromptContextItem =
           dashboardSlug: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
+          runtimeOverrides: AiDashboardRuntimeOverrides | null;
       }
     | {
           type: 'thread';
@@ -327,5 +396,5 @@ export type CloneThread = {
     sourceThreadUuid: string;
     sourcePromptUuid: string;
     targetUserUuid: string;
-    createdFrom?: 'web_app' | 'evals';
+    createdFrom?: AiClonedThreadCreatedFrom;
 };

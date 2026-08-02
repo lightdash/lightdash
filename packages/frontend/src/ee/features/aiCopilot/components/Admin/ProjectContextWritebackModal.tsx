@@ -1,6 +1,7 @@
 import { Loader, Stack, Text, ThemeIcon } from '@mantine-8/core';
 import { IconCheck, IconGitPullRequest, IconX } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
+import Callout from '../../../../../components/common/Callout';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import {
@@ -152,6 +153,15 @@ export const ProjectContextWritebackModal: FC<
                             still open the PR and review it on GitHub.
                         </Text>
                     )}
+
+                    {previewData?.available === true &&
+                        previewData.upgradesFileToV2 && (
+                            <Callout variant="info">
+                                This PR also upgrades your project context file
+                                to v2 — more performance improvements coming
+                                soon.
+                            </Callout>
+                        )}
 
                     {previewData?.available === true && (
                         <ProjectContextDiffPreview

@@ -16,6 +16,7 @@ import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/typ
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { LabelEditor } from '../common/LabelEditor';
+import compactStyles from '../mantineTheme.module.css';
 import classes from './BigNumberComparison.module.css';
 import { StyleOptions } from './common';
 
@@ -79,6 +80,10 @@ export const Comparison: React.FC = () => {
                     <Group gap="xs" align="center">
                         <Config.Heading>Show comparison</Config.Heading>
                         <Switch
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             checked={showComparison}
                             onChange={() => {
                                 setShowComparison(!showComparison);
@@ -162,13 +167,16 @@ export const Comparison: React.FC = () => {
                             </Group>
 
                             <Switch
+                                size="xs"
                                 label="Flip positive color"
                                 checked={flipColors}
                                 onChange={() => {
                                     setFlipColors(!flipColors);
                                 }}
                                 labelPosition="left"
-                                classNames={{ label: classes.switchLabel }}
+                                classNames={{
+                                    label: `${compactStyles.compactCheckboxLabel} ${classes.switchLabel}`,
+                                }}
                             />
 
                             {showStyle &&

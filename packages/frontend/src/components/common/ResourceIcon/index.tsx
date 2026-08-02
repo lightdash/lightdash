@@ -18,7 +18,6 @@ import {
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC, type ReactNode } from 'react';
-import { type StyledComponent } from 'styled-components';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 import classes from './ResourceIcon.module.css';
 import { getChartIcon } from './utils';
@@ -30,7 +29,8 @@ interface ResourceIconProps {
 interface IconBoxProps extends MantineIconProps {
     color: string;
     bg?: string;
-    icon: TablerIconType | StyledComponent<'svg', any, {}, never>;
+    icon: TablerIconType;
+    boxSize?: number;
 }
 
 export const IconBox: FC<IconBoxProps> = ({
@@ -38,9 +38,16 @@ export const IconBox: FC<IconBoxProps> = ({
     icon,
     size = 'lg',
     bg = 'ldGray.0',
+    boxSize = 32,
     ...mantineIconProps
 }) => (
-    <Paper w={32} h={32} radius="md" bg={bg} className={classes.iconBox}>
+    <Paper
+        w={boxSize}
+        h={boxSize}
+        radius="md"
+        bg={bg}
+        className={classes.iconBox}
+    >
         <MantineIcon
             icon={icon}
             color={color}

@@ -160,6 +160,49 @@ describe('useInfiniteQueryResults', () => {
         expect(result.current.error?.error?.message).toBeTruthy();
     });
 
+    it('surfaces expired Redshift IAM async query failures as token errors', async () => {
+        const errorResponse: ApiGetAsyncQueryResults = {
+            queryUuid: 'q1',
+            status: QueryHistoryStatus.ERROR,
+            error: 'Failed to mint Redshift IAM credentials: The security token included in the request is expired',
+            erroredAt: new Date(),
+        };
+        mockGetResultsPage.mockResolvedValue(errorResponse);
+
+        const { result } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.error).not.toBeNull();
+        });
+
+        expect(result.current.error?.error?.name).toBe('RedshiftIamTokenError');
+        expect(result.current.error?.error?.statusCode).toBe(401);
+    });
+
+    it('surfaces friendly Redshift IAM expiry messages as token errors', async () => {
+        const errorResponse: ApiGetAsyncQueryResults = {
+            queryUuid: 'q1',
+            status: QueryHistoryStatus.ERROR,
+            error: 'Your Redshift IAM AWS session has expired. Generate new AWS credentials and log in to Redshift again.',
+            erroredAt: new Date(),
+        };
+        mockGetResultsPage.mockResolvedValue(errorResponse);
+
+        const { result } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.error).not.toBeNull();
+        });
+
+        expect(result.current.error?.error?.name).toBe('RedshiftIamTokenError');
+    });
+
     it('resets pages when queryUuid changes', async () => {
         const page1Q1 = makeReadyPage(1, { queryUuid: 'q1', rows: 5 });
         const page1Q2 = makeReadyPage(1, { queryUuid: 'q2', rows: 3 });

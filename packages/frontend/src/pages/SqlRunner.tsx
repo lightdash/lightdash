@@ -1,5 +1,5 @@
 import { getFieldQuoteChar } from '@lightdash/common';
-import { ActionIcon, Group, Paper, Stack, Tooltip } from '@mantine/core';
+import { Group, Paper, Stack, ActionIcon, Tooltip } from '@mantine-8/core';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect } from 'react';
 import { Provider } from 'react-redux';
@@ -188,7 +188,7 @@ const SqlRunner = ({
             <Group
                 align="stretch"
                 grow
-                spacing="none"
+                gap="none"
                 p={0}
                 style={{ flex: 1 }}
                 w={'100%'}
@@ -197,17 +197,16 @@ const SqlRunner = ({
                     <Paper
                         shadow="none"
                         radius={0}
+                        withBorder={false}
                         px="sm"
                         py="lg"
                         style={{ flexGrow: 0 }}
                     >
-                        <Stack spacing="xs">
-                            <Tooltip
-                                variant="xs"
-                                label={'Open sidebar'}
-                                position="right"
-                            >
+                        <Stack gap="xs">
+                            <Tooltip label={'Open sidebar'} position="right">
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size="sm"
                                     onClick={() => handleSetSidebarOpen(true)}
                                 >

@@ -15,14 +15,14 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import {
-    Button,
     Center,
     Group,
     Loader,
     Skeleton,
+    Button,
     Tooltip,
-    useMantineColorScheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { flexRender, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -285,10 +285,9 @@ const TableRow: FC<TableRowProps> = ({
                         tooltipContent={tooltipContent || undefined}
                     >
                         {cell.getIsGrouped() ? (
-                            <Group spacing="xxs">
+                            <Group gap="xxs">
                                 <Button
-                                    compact
-                                    size="xs"
+                                    size="compact-xs"
                                     variant="subtle"
                                     styles={(theme) => ({
                                         root: {
@@ -296,7 +295,7 @@ const TableRow: FC<TableRowProps> = ({
                                             paddingLeft: theme.spacing.two,
                                             paddingRight: theme.spacing.xxs,
                                         },
-                                        leftIcon: {
+                                        section: {
                                             marginRight: 0,
                                         },
                                     })}
@@ -307,7 +306,7 @@ const TableRow: FC<TableRowProps> = ({
                                         e.preventDefault();
                                         toggleExpander();
                                     }}
-                                    leftIcon={
+                                    leftSection={
                                         <MantineIcon
                                             size={14}
                                             icon={

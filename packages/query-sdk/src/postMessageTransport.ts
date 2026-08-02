@@ -10,7 +10,9 @@
  */
 
 import { createApiTransport, type FetchAdapter } from './apiTransport';
+import { announceSdkManifest } from './manifest';
 import type {
+    ExternalFetchMethod,
     ExternalFetchOptions,
     ExternalFetchResult,
     Transport,
@@ -114,7 +116,7 @@ export type SdkExternalFetchRequest = {
     type: 'lightdash:sdk:external-fetch';
     id: string;
     alias: string;
-    method?: 'GET' | 'POST';
+    method?: ExternalFetchMethod;
     path: string;
     query?: Record<string, string>;
     body?: unknown;
@@ -355,6 +357,8 @@ type PostMessageTransportConfig = {
 export function createPostMessageTransport(
     config: PostMessageTransportConfig,
 ): Transport {
+    // Report this bundle's SDK capabilities so the host can offer upgrades.
+    announceSdkManifest(config.targetWindow);
     const adapter = createPostMessageFetchAdapter({
         targetWindow: config.targetWindow,
         timeoutMs: config.timeoutMs,

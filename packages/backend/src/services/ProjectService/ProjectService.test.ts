@@ -1,7 +1,12 @@
 import { Ability } from '@casl/ability';
 import {
     DbtProjectType,
+    DbtVersionOptionLatest,
+    DefaultSupportedDbtVersion,
     defineUserAbility,
+    DimensionType,
+    DownloadFileType,
+    DuckdbConnectionType,
     FeatureFlags,
     FilterOperator,
     ForbiddenError,
@@ -13,16 +18,21 @@ import {
     ParameterError,
     PreAggregateMissReason,
     ProjectType,
+    RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
+    SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     WarehouseTypes,
     type ChartSummary,
     type CreateWarehouseCredentials,
+    type DownloadFile,
     type Explore,
     type PossibleAbilities,
     type RegisteredAccount,
+    type UpdateProject,
 } from '@lightdash/common';
+import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -30,6 +40,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -44,6 +55,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
+import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -52,15 +64,18 @@ import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
+import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { ProjectAdapter } from '../../types';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     METRIC_QUERY,
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -103,20 +118,27 @@ import {
 // formatRows runs in a Worker thread for large result sets, but the Worker
 // constructor requires the built JS file which only exists after `pnpm build`.
 // This mock runs formatRows synchronously in the main thread instead.
-jest.mock('worker_threads', () => {
-    const { formatRows } = jest.requireActual('@lightdash/common');
+vi.mock('worker_threads', async () => {
+    const { formatRows } =
+        await vi.importActual<typeof import('@lightdash/common')>(
+            '@lightdash/common',
+        );
     return {
-        Worker: jest.fn().mockImplementation(
-            (
+        Worker: vi.fn().mockImplementation(
+            // eslint-disable-next-line prefer-arrow-callback
+            function MockWorker(
                 _path: string,
                 options: {
                     workerData: { rows: unknown[]; itemMap: unknown };
                 },
-            ) => {
+            ) {
                 const { rows, itemMap } = options.workerData;
-                const result = formatRows(rows, itemMap);
+                const result = formatRows(
+                    rows as Record<string, unknown>[],
+                    itemMap as Parameters<typeof formatRows>[1],
+                );
                 return {
-                    on: jest.fn(
+                    on: vi.fn(
                         (
                             event: string,
                             callback: (...args: unknown[]) => void,
@@ -126,82 +148,99 @@ jest.mock('worker_threads', () => {
                             }
                         },
                     ),
-                    terminate: jest.fn(),
+                    terminate: vi.fn(),
                 };
             },
         ),
     };
 });
 
-jest.mock('@lightdash/warehouses', () => ({
-    SshTunnel: jest.fn(() => ({
-        connect: jest.fn(() => warehouseClientMock.credentials),
-        disconnect: jest.fn(),
-    })),
-    exchangeDatabricksOAuthCredentials: jest.fn(),
-    refreshDatabricksOAuthToken: jest.fn(),
+vi.mock('@lightdash/warehouses', () => ({
+    SshTunnel: vi.fn().mockImplementation(
+        // eslint-disable-next-line prefer-arrow-callback
+        function MockSshTunnel() {
+            return {
+                connect: vi.fn(() => warehouseClientMock.credentials),
+                disconnect: vi.fn(),
+            };
+        },
+    ),
+    exchangeDatabricksOAuthCredentials: vi.fn(),
+    refreshDatabricksOAuthToken: vi.fn(),
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID: 'default-client-id',
 }));
 
 const projectModel = {
-    getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
-    get: jest.fn(async () => projectWithSensitiveFields),
-    getSummary: jest.fn(async () => projectSummary),
-    getTablesConfiguration: jest.fn(async () => tablesConfiguration),
-    updateTablesConfiguration: jest.fn(),
-    getExploreFromCache: jest.fn(async () => validExplore),
-    getQueryTimezone: jest.fn(async () => null),
-    getProjectWarehouseConfig: jest.fn(async () => ({
+    getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
+    get: vi.fn(async () => projectWithSensitiveFields),
+    getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
+    getSummary: vi.fn(async () => projectSummary),
+    getTablesConfiguration: vi.fn(async () => tablesConfiguration),
+    updateTablesConfiguration: vi.fn(),
+    getExploreFromCache: vi.fn(async () => validExplore),
+    getQueryTimezone: vi.fn(async () => null),
+    getProjectWarehouseConfig: vi.fn(async () => ({
         organizationWarehouseCredentialsUuid: null,
         queryTimezone: null,
     })),
-    findExploresFromCache: jest.fn(async () => allExplores),
-    getAllExploreSummaries: jest.fn(async () =>
+    findExploresFromCache: vi.fn(async () => allExplores),
+    getAllExploreSummaries: vi.fn(async () =>
         allExplores.map(exploreToSummaryWithAttributes),
     ),
-    lockProcess: jest.fn((projectUuid, fun) => fun()),
-    getWarehouseCredentialsForProject: jest.fn(
+    lockProcess: vi.fn((projectUuid, fun) => fun()),
+    getWarehouseCredentialsForProject: vi.fn(
         async () => warehouseClientMock.credentials,
     ),
-    getWarehouseClientFromCredentials: jest.fn(() => ({
+    getWarehouseClientFromCredentials: vi.fn(() => ({
         ...warehouseClientMock,
-        runQuery: jest.fn(async () => resultsWith1Row),
+        runQuery: vi.fn(async () => resultsWith1Row),
     })),
-    findExploreByTableName: jest.fn(async () => validExplore),
-    getAllExploresFromCache: jest.fn(async () => ({})),
-    getTableGroups: jest.fn(async () => ({})),
-    getCachedExploreNames: jest.fn(async () => []),
-    saveExploresToCache: jest.fn(async () => ({ cachedExploreUuids: [] })),
-    setTableGroups: jest.fn(async () => undefined),
-    updateProjectDefaults: jest.fn(async () => undefined),
-    updateDefaultUserSpaces: jest.fn(async () => undefined),
-    tryAcquireProjectLock: jest.fn(
+    findExploreByTableName: vi.fn(async () => validExplore),
+    getAllExploresFromCache: vi.fn(async () => ({})),
+    getTableGroups: vi.fn(async () => ({})),
+    getCachedExploreNames: vi.fn(async () => []),
+    saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
+    setTableGroups: vi.fn(async () => undefined),
+    updateProjectDefaults: vi.fn(async () => undefined),
+    updateDefaultUserSpaces: vi.fn(async () => undefined),
+    tryAcquireProjectLock: vi.fn(
         async (_projectUuid: string, onLockAcquired: () => Promise<void>) =>
             onLockAcquired(),
     ),
+    createWithOptionalCredentials: vi.fn(
+        async () => 'created-preview-project-uuid',
+    ),
+    delete: vi.fn(async () => undefined),
 };
 const preAggregateModel = {
-    upsertPreAggregateDefinitions: jest.fn(),
-    getPreAggregateDefinitionsForProject: jest.fn(async () => []),
-    getPreAggregateDefinitionByDefinitionName: jest.fn(async () => undefined),
-    getActiveMaterialization: jest.fn(async () => undefined),
+    upsertPreAggregateDefinitions: vi.fn(),
+    getPreAggregateDefinitionsForProject: vi.fn(async () => []),
+    getPreAggregateDefinitionByDefinitionName: vi.fn(async () => undefined),
+    getActiveMaterialization: vi.fn(async () => undefined),
 };
 const onboardingModel = {
-    getByOrganizationUuid: jest.fn(async () => ({
+    getByOrganizationUuid: vi.fn(async () => ({
         ranQueryAt: new Date(),
         shownSuccessAt: new Date(),
     })),
+    update: vi.fn(async () => undefined),
+    runInPlaygroundProvisioningLock: vi.fn(
+        async (
+            _organizationUuid: string,
+            callback: (transaction: object) => Promise<unknown>,
+        ) => callback({}),
+    ),
 };
 const savedChartModel = {
-    getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
-    find: jest.fn(async () => [] as ChartSummary[]),
+    getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
+    find: vi.fn(async () => [] as ChartSummary[]),
 };
 const jobModel = {
-    get: jest.fn(async () => job),
-    update: jest.fn(async () => undefined),
-    updateJobStep: jest.fn(async () => undefined),
-    setPendingJobsToSkipped: jest.fn(async () => undefined),
-    tryJobStep: jest.fn(
+    get: vi.fn(async () => job),
+    update: vi.fn(async () => undefined),
+    updateJobStep: vi.fn(async () => undefined),
+    setPendingJobsToSkipped: vi.fn(async () => undefined),
+    tryJobStep: vi.fn(
         async <T>(
             _jobUuid: string,
             _stepType: JobStepType,
@@ -210,52 +249,69 @@ const jobModel = {
     ),
 };
 const spaceModel = {
-    getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
-    find: jest.fn(async () => spacesWithSavedCharts),
+    getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
+    find: vi.fn(async () => spacesWithSavedCharts),
 };
 
 const userAttributesModel = {
-    getAttributeValuesForOrgMember: jest.fn(async () => ({})),
+    getAttributeValuesForOrgMember: vi.fn(async () => ({})),
 };
 
 const emailModel = {
-    getPrimaryEmailStatus: jest.fn(async (_userUuid: string) => ({
+    getPrimaryEmailStatus: vi.fn(async (_userUuid: string) => ({
         isVerified: true,
     })),
 };
 
 const schedulerClient = {
-    deleteScheduledPreAggregateCronJobsForProject: jest.fn(
-        async () => undefined,
-    ),
-    indexCatalog: jest.fn(async () => ({ jobId: 'catalog-job-1' })),
-    materializePreAggregate: jest.fn(async () => ({ jobId: 'job-1' })),
-    schedulePreAggregateCronJobs: jest.fn(async () => []),
+    deleteScheduledPreAggregateCronJobsForProject: vi.fn(async () => undefined),
+    indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
+    materializePreAggregate: vi.fn(async () => ({ jobId: 'job-1' })),
+    schedulePreAggregateCronJobs: vi.fn(async () => []),
 };
 
 const catalogModel = {
-    getCatalogItemsWithTags: jest.fn(async () => []),
-    getCatalogItemsWithIcons: jest.fn(async () => []),
-    getAllMetricsTreeEdges: jest.fn(async () => []),
-    getAllMetricsTreeNodes: jest.fn(async () => []),
+    getCatalogItemsWithTags: vi.fn(async () => []),
+    getCatalogItemsWithIcons: vi.fn(async () => []),
+    getAllMetricsTreeEdges: vi.fn(async () => []),
+    getAllMetricsTreeNodes: vi.fn(async () => []),
 };
 
 const tagsModel = {
-    replaceYamlTags: jest.fn(async () => ({ yamlTagsToCreateOrUpdate: [] })),
+    replaceYamlTags: vi.fn(async () => ({ yamlTagsToCreateOrUpdate: [] })),
 };
 
 const projectCompileLogModel = {
-    insert: jest.fn(async () => undefined),
+    insert: vi.fn(async () => undefined),
+};
+
+const getMockedAiAgentService = () => {
+    const provisionDefaultAgent =
+        vi.fn<AiAgentService['provisionDefaultAgent']>();
+    return {
+        provisionDefaultAgent,
+        getAiAgentService: () =>
+            ({ provisionDefaultAgent }) as unknown as AiAgentService,
+    };
 };
 
 const getMockedProjectService = (
     lightdashConfig: LightdashConfig,
-    overrides: { spacePermissionService?: SpacePermissionService } = {},
+    overrides: Partial<
+        Pick<
+            ConstructorParameters<typeof ProjectService>[0],
+            | 'spacePermissionService'
+            | 'provisionPlaygroundProject'
+            | 'downloadFileModel'
+            | 'getAiAgentService'
+        >
+    > = {},
 ) =>
     new ProjectService({
         lightdashConfig,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
+        projectDbtSourcesModel: {} as unknown as ProjectDbtSourcesModel,
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
@@ -271,12 +327,13 @@ const getMockedProjectService = (
         analyticsModel: {} as AnalyticsModel,
         dashboardModel: {} as DashboardModel,
         userWarehouseCredentialsModel: {
-            findForProjectWithSecrets: jest.fn(async () => undefined),
+            findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         emailModel: emailModel as unknown as EmailModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
-        downloadFileModel: {} as unknown as DownloadFileModel,
+        downloadFileModel:
+            overrides.downloadFileModel ?? ({} as unknown as DownloadFileModel),
         fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
         tagsModel: tagsModel as unknown as TagsModel,
@@ -284,25 +341,24 @@ const getMockedProjectService = (
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
+        userOAuthGrantsModel: {} as UserOAuthGrantsModel,
         featureFlagModel: {
             // Mirror production behaviour: ResultsCacheEnabled resolves from
             // the env-derived lightdashConfig.results.cacheEnabled when there
             // is no DB row.
-            get: jest.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => {
-                    if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
-                        return {
-                            id: featureFlagId,
-                            enabled: lightdashConfig.results.cacheEnabled,
-                        };
-                    }
-                    return { id: featureFlagId, enabled: false };
-                },
-            ),
+            get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
+                if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
+                    return {
+                        id: featureFlagId,
+                        enabled: lightdashConfig.results.cacheEnabled,
+                    };
+                }
+                return { id: featureFlagId, enabled: false };
+            }),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
-            find: jest.fn(async () => []),
-            replace: jest.fn(async () => undefined),
+            find: vi.fn(async () => []),
+            replace: vi.fn(async () => undefined),
         } as unknown as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as unknown as OrganizationWarehouseCredentialsModel,
@@ -310,12 +366,14 @@ const getMockedProjectService = (
         projectCompileLogModel:
             projectCompileLogModel as unknown as ProjectCompileLogModel,
         adminNotificationService: {
-            notifyConnectionSettingsChange: jest.fn(async () => undefined),
+            notifyConnectionSettingsChange: vi.fn(async () => undefined),
         } as unknown as AdminNotificationService,
         spacePermissionService:
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
+        provisionPlaygroundProject: overrides.provisionPlaygroundProject,
+        getAiAgentService: overrides.getAiAgentService,
         organizationSettingsModel: {
-            get: jest.fn(async () => ({
+            get: vi.fn(async () => ({
                 queryLimit: null,
                 csvCellsLimit: null,
             })),
@@ -345,7 +403,423 @@ describe('ProjectService', () => {
     const service = getMockedProjectService(lightdashConfigMock);
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
+    });
+
+    describe('ensurePlaygroundProject', () => {
+        test('throws ForbiddenError without invoking the provisioner when the user cannot create invite links', async () => {
+            const provisionPlaygroundProject = vi.fn(async () => ({
+                projectUuid: 'project-uuid',
+                created: true,
+            }));
+            const serviceWithProvisioner = getMockedProjectService(
+                lightdashConfigMock,
+                { provisionPlaygroundProject },
+            );
+            const userWithoutInviteLinkPermission: SessionUser = {
+                ...user,
+                organizationUuid: 'organization-uuid',
+                ability: new Ability<PossibleAbilities>([]),
+            };
+
+            await expect(
+                serviceWithProvisioner.ensurePlaygroundProject(
+                    userWithoutInviteLinkPermission,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+
+            expect(provisionPlaygroundProject).not.toHaveBeenCalled();
+        });
+    });
+
+    test('includes onboarding flow in project analytics properties', () => {
+        expect(
+            ProjectService.getAnalyticProperties(
+                {
+                    name: projectWithSensitiveFields.name,
+                    type: projectWithSensitiveFields.type,
+                    dbtConnection: projectWithSensitiveFields.dbtConnection,
+                    warehouseConnection: warehouseClientMock.credentials,
+                },
+                projectUuid,
+                user,
+                RequestMethod.WEB_APP,
+                'new',
+            ),
+        ).toMatchObject({ onboardingFlow: 'new' });
+    });
+
+    test.each([
+        [RedshiftAuthenticationType.IAM, RedshiftAuthenticationType.IAM],
+        [undefined, RedshiftAuthenticationType.PASSWORD],
+    ])(
+        'includes Redshift authentication type %s in project analytics properties',
+        (authenticationType, expectedAuthenticationType) => {
+            expect(
+                ProjectService.getAnalyticProperties(
+                    {
+                        name: projectWithSensitiveFields.name,
+                        type: projectWithSensitiveFields.type,
+                        dbtConnection: projectWithSensitiveFields.dbtConnection,
+                        warehouseConnection: {
+                            type: WarehouseTypes.REDSHIFT,
+                            host: 'localhost',
+                            user: 'analytics',
+                            password: 'password',
+                            port: 5439,
+                            dbname: 'analytics',
+                            schema: 'public',
+                            authenticationType,
+                        },
+                    },
+                    projectUuid,
+                    user,
+                    RequestMethod.WEB_APP,
+                    'new',
+                ),
+            ).toMatchObject({
+                authenticationType: expectedAuthenticationType,
+            });
+        },
+    );
+
+    test('does not compile and removes a preview when copying fails', async () => {
+        const previewProjectUuid = 'failed-preview-project-uuid';
+        (
+            projectModel.getWithSensitiveFields as import('vitest').Mock
+        ).mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            warehouseConnection: warehouseClientMock.credentials,
+        });
+        const createWithoutCompileSpy = vi
+            .spyOn(service, 'createWithoutCompile')
+            .mockResolvedValueOnce({
+                project: {
+                    ...projectWithSensitiveFields,
+                    projectUuid: previewProjectUuid,
+                    type: ProjectType.PREVIEW,
+                },
+                hasContentCopy: false,
+                accessCopyError: 'access copy failed',
+            });
+        const scheduleCompileProjectSpy = vi.spyOn(
+            service,
+            'scheduleCompileProject',
+        );
+
+        await expect(
+            service.createPreview(
+                user,
+                projectUuid,
+                { name: 'Failed preview', copyContent: true },
+                RequestMethod.WEB_APP,
+            ),
+        ).rejects.toThrow('Failed to copy preview project');
+
+        expect(projectModel.delete).toHaveBeenCalledWith(previewProjectUuid);
+        expect(scheduleCompileProjectSpy).not.toHaveBeenCalled();
+        createWithoutCompileSpy.mockRestore();
+        scheduleCompileProjectSpy.mockRestore();
+    });
+
+    test('attempts content copying when preview access copying fails', async () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'created-preview-project-uuid';
+        const previewUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Test organization',
+            organizationCreatedAt: new Date(),
+        };
+        const validateSpy = vi
+            .spyOn(
+                service as unknown as {
+                    validateProjectCreationPermissions: () => Promise<true>;
+                },
+                'validateProjectCreationPermissions',
+            )
+            .mockResolvedValue(true);
+        const expirationSpy = vi
+            .spyOn(service, 'getPreviewExpiresAt')
+            .mockResolvedValue(null);
+        const copyAccessSpy = vi
+            .spyOn(service, 'copyUserAccessOnPreview')
+            .mockRejectedValue(new Error('access copy failed'));
+        const copyContentSpy = vi
+            .spyOn(service, 'copyContentOnPreview')
+            .mockResolvedValue();
+        (projectModel.get as import('vitest').Mock)
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: upstreamProjectUuid,
+            })
+            .mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+            });
+
+        try {
+            const result = await service.createWithoutCompile(
+                previewUser,
+                {
+                    name: 'Preview with failed access copy',
+                    type: ProjectType.PREVIEW,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    upstreamProjectUuid,
+                    copyContent: true,
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            );
+
+            expect(copyContentSpy).toHaveBeenCalledWith(
+                upstreamProjectUuid,
+                previewProjectUuid,
+                previewUser,
+            );
+            expect(result).toMatchObject({
+                hasContentCopy: true,
+                accessCopyError: 'access copy failed',
+                contentCopyError: undefined,
+            });
+        } finally {
+            validateSpy.mockRestore();
+            expirationSpy.mockRestore();
+            copyAccessSpy.mockRestore();
+            copyContentSpy.mockRestore();
+        }
+    });
+
+    test('rejects externally supplied embedded DuckDB credentials', async () => {
+        await expect(
+            service.createWithoutCompile(
+                {
+                    ...user,
+                    organizationUuid:
+                        projectWithSensitiveFields.organizationUuid,
+                    organizationName: 'Organization',
+                    organizationCreatedAt: new Date(),
+                },
+                {
+                    name: 'Embedded project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    warehouseConnection: {
+                        type: WarehouseTypes.DUCKDB,
+                        connectionType: DuckdbConnectionType.EMBEDDED,
+                        dataset: 'jaffle_shop',
+                    },
+                },
+                RequestMethod.WEB_APP,
+            ),
+        ).rejects.toThrow(
+            'Embedded DuckDB connections can only be provisioned internally',
+        );
+    });
+
+    describe('default AI agent provisioning', () => {
+        test('provisions a default AI agent for a playground when the organization already has another project', async () => {
+            const createdProjectUuid = 'created-playground-project-uuid';
+            const { provisionDefaultAgent, getAiAgentService } =
+                getMockedAiAgentService();
+            const serviceWithAiAgent = getMockedProjectService(
+                lightdashConfigMock,
+                { getAiAgentService },
+            );
+            const creationUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+            };
+            const organizationProjects = [
+                {
+                    ...defaultProject,
+                    projectUuid: createdProjectUuid,
+                },
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing-project-uuid',
+                },
+            ];
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                createdProjectUuid,
+            );
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(
+                organizationProjects,
+            );
+            const validateSpy = vi
+                .spyOn(
+                    serviceWithAiAgent as unknown as {
+                        validateProjectCreationPermissions: () => Promise<true>;
+                    },
+                    'validateProjectCreationPermissions',
+                )
+                .mockResolvedValue(true);
+
+            try {
+                await serviceWithAiAgent.createWithoutCompile(
+                    creationUser,
+                    {
+                        name: 'Playground',
+                        type: ProjectType.DEFAULT,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                        warehouseConnection: {
+                            type: WarehouseTypes.DUCKDB,
+                            connectionType: DuckdbConnectionType.EMBEDDED,
+                            dataset: 'jaffle_shop',
+                        },
+                    },
+                    RequestMethod.WEB_APP,
+                    { source: 'playground' },
+                );
+
+                expect(provisionDefaultAgent).toHaveBeenCalledWith(
+                    creationUser,
+                    createdProjectUuid,
+                );
+            } finally {
+                validateSpy.mockRestore();
+                projectModel.getAllByOrganizationUuid.mockReset();
+            }
+        });
+
+        test('does not provision a default AI agent for normal creation when the organization already has multiple projects', async () => {
+            const createdProjectUuid = 'created-project-uuid';
+            const { provisionDefaultAgent, getAiAgentService } =
+                getMockedAiAgentService();
+            const serviceWithAiAgent = getMockedProjectService(
+                lightdashConfigMock,
+                { getAiAgentService },
+            );
+            const creationUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+            };
+            const organizationProjects = [
+                {
+                    ...defaultProject,
+                    projectUuid: createdProjectUuid,
+                },
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing-project-uuid-1',
+                },
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing-project-uuid-2',
+                },
+            ];
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                createdProjectUuid,
+            );
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(
+                organizationProjects,
+            );
+            const validateSpy = vi
+                .spyOn(
+                    serviceWithAiAgent as unknown as {
+                        validateProjectCreationPermissions: () => Promise<true>;
+                    },
+                    'validateProjectCreationPermissions',
+                )
+                .mockResolvedValue(true);
+
+            try {
+                await serviceWithAiAgent.createWithoutCompile(
+                    creationUser,
+                    {
+                        name: 'Project',
+                        type: ProjectType.DEFAULT,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    },
+                    RequestMethod.WEB_APP,
+                );
+
+                expect(provisionDefaultAgent).not.toHaveBeenCalled();
+            } finally {
+                validateSpy.mockRestore();
+                projectModel.getAllByOrganizationUuid.mockReset();
+            }
+        });
+    });
+
+    test('rejects embedded DuckDB credentials inherited from an upstream preview', async () => {
+        projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce({
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.EMBEDDED,
+            dataset: 'jaffle_shop',
+        });
+
+        await expect(
+            service.createWithoutCompile(
+                {
+                    ...user,
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: ['view', 'create'] },
+                    ]),
+                    organizationUuid:
+                        projectWithSensitiveFields.organizationUuid,
+                    organizationName: 'Organization',
+                    organizationCreatedAt: new Date(),
+                },
+                {
+                    name: 'Preview of the playground',
+                    type: ProjectType.PREVIEW,
+                    upstreamProjectUuid: projectUuid,
+                    copyWarehouseConnectionFromUpstreamProject: true,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                },
+                RequestMethod.WEB_APP,
+            ),
+        ).rejects.toThrow(
+            'Embedded DuckDB connections can only be provisioned internally',
+        );
+    });
+
+    test('deletes a playground and records its tombstone in the provisioning lock transaction', async () => {
+        const transaction = {};
+        const deletingUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'delete' },
+            ]),
+        };
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            provisioningSource: 'playground',
+        });
+        onboardingModel.runInPlaygroundProvisioningLock.mockImplementationOnce(
+            async (_organizationUuid, callback) => callback(transaction),
+        );
+
+        await service.delete(projectUuid, deletingUser);
+
+        expect(
+            onboardingModel.runInPlaygroundProvisioningLock,
+        ).toHaveBeenCalledWith(
+            projectWithSensitiveFields.organizationUuid,
+            expect.any(Function),
+        );
+        expect(onboardingModel.update).toHaveBeenCalledWith(
+            projectWithSensitiveFields.organizationUuid,
+            { playgroundProjectDeletedAt: expect.any(Date) },
+            transaction,
+        );
+        expect(projectModel.delete).toHaveBeenCalledWith(
+            projectUuid,
+            transaction,
+        );
+        expect(onboardingModel.update.mock.invocationCallOrder[0]).toBeLessThan(
+            projectModel.delete.mock.invocationCallOrder[0],
+        );
     });
 
     describe('refreshTablesAndProjectConfig for a CLI/NONE preview', () => {
@@ -395,23 +869,23 @@ describe('ProjectService', () => {
             );
 
         test('reuses the upstream explores and config instead of compiling from dbt', async () => {
-            const buildAdapterSpy = jest.spyOn(
+            const buildAdapterSpy = vi.spyOn(
                 service as unknown as { buildAdapter: () => unknown },
                 'buildAdapter',
             );
 
-            (projectModel.get as jest.Mock)
+            (projectModel.get as import('vitest').Mock)
                 .mockResolvedValueOnce(nonePreviewProject) // preview
                 .mockResolvedValueOnce(upstreamProject); // upstream
             (
-                projectModel.getAllExploresFromCache as jest.Mock
+                projectModel.getAllExploresFromCache as import('vitest').Mock
             ).mockResolvedValueOnce({ 'explore-uuid': validExplore });
-            (projectModel.getTableGroups as jest.Mock).mockResolvedValueOnce(
-                upstreamTableGroups,
-            );
+            (
+                projectModel.getTableGroups as import('vitest').Mock
+            ).mockResolvedValueOnce(upstreamTableGroups);
             (
                 service as unknown as {
-                    projectParametersModel: { find: jest.Mock };
+                    projectParametersModel: { find: import('vitest').Mock };
                 }
             ).projectParametersModel.find.mockResolvedValueOnce([
                 upstreamParameter,
@@ -440,7 +914,7 @@ describe('ProjectService', () => {
     });
 
     test('should run sql query', async () => {
-        jest.spyOn(analyticsMock, 'track');
+        vi.spyOn(analyticsMock, 'track');
         const result = await service.runSqlQuery(user, projectUuid, 'fake sql');
 
         expect(result).toEqual(resultsWith1Row);
@@ -469,7 +943,7 @@ describe('ProjectService', () => {
             projectUuid,
             tablesConfigurationWithNames,
         );
-        jest.spyOn(analyticsMock, 'track');
+        vi.spyOn(analyticsMock, 'track');
         expect(projectModel.updateTablesConfiguration).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledWith(
@@ -493,10 +967,10 @@ describe('ProjectService', () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
                 ...warehouseClientMock,
-                runQuery: jest.fn(async () => resultsWith501Rows),
+                runQuery: vi.fn(async () => resultsWith501Rows),
             }));
 
             const result = await service.runExploreQuery(
@@ -522,16 +996,16 @@ describe('ProjectService', () => {
                 database: 'test_db',
             };
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockImplementation(async () => databricksCredentials);
 
             // Reset mock to return 1 row results (previous test may have changed it)
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
                 ...warehouseClientMock,
                 credentials: databricksCredentials,
-                runQuery: jest.fn(async () => resultsWith1Row),
+                runQuery: vi.fn(async () => resultsWith1Row),
             }));
 
             const userCredentials = {
@@ -543,13 +1017,13 @@ describe('ProjectService', () => {
             };
 
             // Mock findForProjectWithSecrets to return user credentials
-            const findForProjectWithSecretsMock = jest.fn(
+            const findForProjectWithSecretsMock = vi.fn(
                 async () => userCredentials,
             );
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.findForProjectWithSecrets =
@@ -576,12 +1050,99 @@ describe('ProjectService', () => {
     });
 
     describe('user warehouse credentials override', () => {
+        test('should use user Redshift IAM identity when requireUserCredentials is true', async () => {
+            service.warehouseClients = {};
+
+            const projectRedshiftCredentials = {
+                type: WarehouseTypes.REDSHIFT,
+                host: 'cluster.redshift.amazonaws.com',
+                user: 'shared_project_user',
+                password: 'shared-project-password',
+                port: 5439,
+                dbname: 'dev',
+                schema: 'public',
+                authenticationType: RedshiftAuthenticationType.IAM,
+                region: 'us-east-1',
+                clusterIdentifier: 'analytics-cluster',
+                accessKeyId: 'PROJECT_KEY',
+                secretAccessKey: 'PROJECT_SECRET',
+                assumeRoleArn: 'arn:aws:iam::111:role/project-role',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+            ).mockImplementation(async () => projectRedshiftCredentials);
+
+            const userCredentials = {
+                uuid: 'user-redshift-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.REDSHIFT,
+                    authenticationType: RedshiftAuthenticationType.IAM,
+                    user: '',
+                    assumeRoleArn: 'arn:aws:iam::222:role/viewer-role',
+                    assumeRoleExternalId: 'viewer-external-id',
+                },
+            };
+
+            const findForProjectWithSecretsMock = vi.fn(
+                async () => userCredentials,
+            );
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+
+            const mergedCredentials = await (
+                service as unknown as {
+                    getWarehouseCredentials: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                    }) => Promise<Record<string, unknown>>;
+                }
+            ).getWarehouseCredentials({
+                projectUuid,
+                userId: sessionAccount.user.id,
+                isRegisteredUser: true,
+            });
+
+            expect(findForProjectWithSecretsMock).toHaveBeenCalledWith(
+                projectUuid,
+                sessionAccount.user.id,
+                WarehouseTypes.REDSHIFT,
+            );
+            expect(mergedCredentials).toEqual(
+                expect.objectContaining({
+                    type: WarehouseTypes.REDSHIFT,
+                    user: '',
+                    authenticationType: RedshiftAuthenticationType.IAM,
+                    region: 'us-east-1',
+                    clusterIdentifier: 'analytics-cluster',
+                    assumeRoleArn: 'arn:aws:iam::222:role/viewer-role',
+                    assumeRoleExternalId: 'viewer-external-id',
+                    userWarehouseCredentialsUuid: 'user-redshift-creds-uuid',
+                }),
+            );
+            expect(mergedCredentials).not.toEqual(
+                expect.objectContaining({
+                    password: 'shared-project-password',
+                    accessKeyId: 'PROJECT_KEY',
+                    secretAccessKey: 'PROJECT_SECRET',
+                    assumeRoleArn: 'arn:aws:iam::111:role/project-role',
+                }),
+            );
+        });
+
         test('should use user refreshToken instead of project refreshToken when requireUserCredentials is true', async () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};
 
             // Mock the token generation to avoid actual Snowflake API calls
-            jest.spyOn(
+            vi.spyOn(
                 UserService,
                 'generateSnowflakeAccessToken',
             ).mockResolvedValue({
@@ -602,7 +1163,7 @@ describe('ProjectService', () => {
                 requireUserCredentials: true,
             };
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockImplementation(async () => projectSnowflakeCredentials);
 
             // User credentials with refreshToken (correct field)
@@ -615,24 +1176,24 @@ describe('ProjectService', () => {
                 },
             };
 
-            const findForProjectWithSecretsMock = jest.fn(
+            const findForProjectWithSecretsMock = vi.fn(
                 async () => userCredentials,
             );
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.findForProjectWithSecrets =
                 findForProjectWithSecretsMock;
 
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation((creds: Record<string, unknown>) => ({
                 ...warehouseClientMock,
                 credentials: creds,
-                runQuery: jest.fn(async () => resultsWith1Row),
+                runQuery: vi.fn(async () => resultsWith1Row),
             }));
 
             await service.runExploreQuery(
@@ -660,7 +1221,7 @@ describe('ProjectService', () => {
             service.warehouseClients = {};
 
             // Mock the token generation to avoid actual Snowflake API calls
-            jest.spyOn(
+            vi.spyOn(
                 UserService,
                 'generateSnowflakeAccessToken',
             ).mockResolvedValue({
@@ -680,7 +1241,7 @@ describe('ProjectService', () => {
                 requireUserCredentials: true,
             };
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockImplementation(async () => projectSnowflakeCredentials);
 
             // User credentials with token instead of refreshToken (the bug scenario)
@@ -694,24 +1255,24 @@ describe('ProjectService', () => {
                 },
             };
 
-            const findForProjectWithSecretsMock = jest.fn(
+            const findForProjectWithSecretsMock = vi.fn(
                 async () => userCredentials,
             );
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.findForProjectWithSecrets =
                 findForProjectWithSecretsMock;
 
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation((creds: Record<string, unknown>) => ({
                 ...warehouseClientMock,
                 credentials: creds,
-                runQuery: jest.fn(async () => resultsWith1Row),
+                runQuery: vi.fn(async () => resultsWith1Row),
             }));
 
             // Should throw an error because user credentials have token instead of refreshToken
@@ -731,7 +1292,7 @@ describe('ProjectService', () => {
             service.warehouseClients = {};
 
             // Mock the token generation to avoid actual Snowflake API calls
-            jest.spyOn(
+            vi.spyOn(
                 UserService,
                 'generateSnowflakeAccessToken',
             ).mockResolvedValue({
@@ -752,28 +1313,26 @@ describe('ProjectService', () => {
                 requireUserCredentials: false,
             };
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockImplementation(async () => projectSnowflakeCredentials);
 
             // User credentials should NOT be fetched when requireUserCredentials is false
-            const findForProjectWithSecretsMock = jest.fn(
-                async () => undefined,
-            );
+            const findForProjectWithSecretsMock = vi.fn(async () => undefined);
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.findForProjectWithSecrets =
                 findForProjectWithSecretsMock;
 
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation((creds: Record<string, unknown>) => ({
                 ...warehouseClientMock,
                 credentials: creds,
-                runQuery: jest.fn(async () => resultsWith1Row),
+                runQuery: vi.fn(async () => resultsWith1Row),
             }));
 
             await service.runExploreQuery(
@@ -797,7 +1356,7 @@ describe('ProjectService', () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};
 
-            jest.spyOn(
+            vi.spyOn(
                 UserService,
                 'generateSnowflakeAccessToken',
             ).mockResolvedValue({
@@ -816,7 +1375,7 @@ describe('ProjectService', () => {
                 requireUserCredentials: true,
             };
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockImplementation(async () => projectSnowflakeCredentials);
 
             const userCredentials = {
@@ -828,15 +1387,15 @@ describe('ProjectService', () => {
                 },
             };
 
-            const findForProjectWithSecretsMock = jest.fn(
+            const findForProjectWithSecretsMock = vi.fn(
                 async () => userCredentials,
             );
-            const rotateRefreshTokenMock = jest.fn(async () => true);
+            const rotateRefreshTokenMock = vi.fn(async () => true);
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
-                        rotateRefreshToken: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
+                        rotateRefreshToken: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.findForProjectWithSecrets =
@@ -844,19 +1403,19 @@ describe('ProjectService', () => {
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
-                        rotateRefreshToken: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
+                        rotateRefreshToken: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.rotateRefreshToken =
                 rotateRefreshTokenMock;
 
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation((creds: Record<string, unknown>) => ({
                 ...warehouseClientMock,
                 credentials: creds,
-                runQuery: jest.fn(async () => resultsWith1Row),
+                runQuery: vi.fn(async () => resultsWith1Row),
             }));
 
             await service.runExploreQuery(
@@ -879,7 +1438,7 @@ describe('ProjectService', () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};
 
-            jest.spyOn(
+            vi.spyOn(
                 UserService,
                 'generateSnowflakeAccessToken',
             ).mockResolvedValue({
@@ -898,7 +1457,7 @@ describe('ProjectService', () => {
                 requireUserCredentials: true,
             };
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockImplementation(async () => projectSnowflakeCredentials);
 
             const userCredentials = {
@@ -910,15 +1469,15 @@ describe('ProjectService', () => {
                 },
             };
 
-            const findForProjectWithSecretsMock = jest.fn(
+            const findForProjectWithSecretsMock = vi.fn(
                 async () => userCredentials,
             );
-            const rotateRefreshTokenMock = jest.fn(async () => true);
+            const rotateRefreshTokenMock = vi.fn(async () => true);
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
-                        rotateRefreshToken: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
+                        rotateRefreshToken: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.findForProjectWithSecrets =
@@ -926,19 +1485,19 @@ describe('ProjectService', () => {
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
-                        rotateRefreshToken: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
+                        rotateRefreshToken: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.rotateRefreshToken =
                 rotateRefreshTokenMock;
 
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation((creds: Record<string, unknown>) => ({
                 ...warehouseClientMock,
                 credentials: creds,
-                runQuery: jest.fn(async () => resultsWith1Row),
+                runQuery: vi.fn(async () => resultsWith1Row),
             }));
 
             await service.runExploreQuery(
@@ -956,10 +1515,11 @@ describe('ProjectService', () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};
 
-            const { refreshDatabricksOAuthToken } = jest.requireMock(
-                '@lightdash/warehouses',
-            );
-            (refreshDatabricksOAuthToken as jest.Mock).mockResolvedValue({
+            const { refreshDatabricksOAuthToken } =
+                await import('@lightdash/warehouses');
+            (
+                refreshDatabricksOAuthToken as import('vitest').Mock
+            ).mockResolvedValue({
                 accessToken: 'fresh-u2m-access-token',
                 refreshToken: 'rotated-u2m-refresh-token',
             });
@@ -973,7 +1533,7 @@ describe('ProjectService', () => {
                 requireUserCredentials: true,
             };
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockImplementation(async () => projectDatabricksCredentials);
 
             const userCredentials = {
@@ -987,15 +1547,15 @@ describe('ProjectService', () => {
                 },
             };
 
-            const findForProjectWithSecretsMock = jest.fn(
+            const findForProjectWithSecretsMock = vi.fn(
                 async () => userCredentials,
             );
-            const rotateRefreshTokenMock = jest.fn(async () => true);
+            const rotateRefreshTokenMock = vi.fn(async () => true);
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
-                        rotateRefreshToken: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
+                        rotateRefreshToken: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.findForProjectWithSecrets =
@@ -1003,19 +1563,19 @@ describe('ProjectService', () => {
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
-                        rotateRefreshToken: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
+                        rotateRefreshToken: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.rotateRefreshToken =
                 rotateRefreshTokenMock;
 
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation((creds: Record<string, unknown>) => ({
                 ...warehouseClientMock,
                 credentials: creds,
-                runQuery: jest.fn(async () => resultsWith1Row),
+                runQuery: vi.fn(async () => resultsWith1Row),
             }));
 
             await service.runExploreQuery(
@@ -1038,10 +1598,11 @@ describe('ProjectService', () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};
 
-            const { refreshDatabricksOAuthToken } = jest.requireMock(
-                '@lightdash/warehouses',
-            );
-            (refreshDatabricksOAuthToken as jest.Mock).mockResolvedValue({
+            const { refreshDatabricksOAuthToken } =
+                await import('@lightdash/warehouses');
+            (
+                refreshDatabricksOAuthToken as import('vitest').Mock
+            ).mockResolvedValue({
                 accessToken: 'fresh-u2m-access-token',
                 refreshToken: 'user-u2m-refresh-token',
             });
@@ -1055,7 +1616,7 @@ describe('ProjectService', () => {
                 requireUserCredentials: true,
             };
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockImplementation(async () => projectDatabricksCredentials);
 
             const userCredentials = {
@@ -1069,15 +1630,15 @@ describe('ProjectService', () => {
                 },
             };
 
-            const findForProjectWithSecretsMock = jest.fn(
+            const findForProjectWithSecretsMock = vi.fn(
                 async () => userCredentials,
             );
-            const rotateRefreshTokenMock = jest.fn(async () => true);
+            const rotateRefreshTokenMock = vi.fn(async () => true);
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
-                        rotateRefreshToken: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
+                        rotateRefreshToken: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.findForProjectWithSecrets =
@@ -1085,19 +1646,19 @@ describe('ProjectService', () => {
             (
                 service as unknown as {
                     userWarehouseCredentialsModel: {
-                        findForProjectWithSecrets: jest.Mock;
-                        rotateRefreshToken: jest.Mock;
+                        findForProjectWithSecrets: import('vitest').Mock;
+                        rotateRefreshToken: import('vitest').Mock;
                     };
                 }
             ).userWarehouseCredentialsModel.rotateRefreshToken =
                 rotateRefreshTokenMock;
 
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation((creds: Record<string, unknown>) => ({
                 ...warehouseClientMock,
                 credentials: creds,
-                runQuery: jest.fn(async () => resultsWith1Row),
+                runQuery: vi.fn(async () => resultsWith1Row),
             }));
 
             await service.runExploreQuery(
@@ -1114,9 +1675,8 @@ describe('ProjectService', () => {
 
     describe('getWarehouseCredentialsForEmbed', () => {
         test('should refresh Databricks oauth_m2m credentials so the access token is populated', async () => {
-            const { exchangeDatabricksOAuthCredentials } = jest.requireMock(
-                '@lightdash/warehouses',
-            );
+            const { exchangeDatabricksOAuthCredentials } =
+                await import('@lightdash/warehouses');
 
             // Project credentials as stored in DB: m2m client id/secret but no token yet.
             const projectCredentials = {
@@ -1130,11 +1690,11 @@ describe('ProjectService', () => {
                 oauthClientSecret: 'client-secret',
             };
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockResolvedValueOnce(projectCredentials);
 
             (
-                exchangeDatabricksOAuthCredentials as jest.Mock
+                exchangeDatabricksOAuthCredentials as import('vitest').Mock
             ).mockResolvedValueOnce({
                 accessToken: 'fresh-m2m-access-token',
                 refreshToken: 'fresh-m2m-refresh-token',
@@ -1166,7 +1726,7 @@ describe('ProjectService', () => {
 
         test('should throw when project requires user credentials', async () => {
             (
-                projectModel.getWarehouseCredentialsForProject as jest.Mock
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
             ).mockResolvedValueOnce({
                 type: WarehouseTypes.DATABRICKS,
                 authenticationType: 'oauth_u2m',
@@ -1209,7 +1769,7 @@ describe('ProjectService', () => {
         });
         test('should get explores summary filtered by tag', async () => {
             (
-                projectModel.getTablesConfiguration as jest.Mock
+                projectModel.getTablesConfiguration as import('vitest').Mock
             ).mockImplementationOnce(async () => tablesConfigurationWithTags);
             const result = await service.getAllExploresSummary(
                 account,
@@ -1220,7 +1780,7 @@ describe('ProjectService', () => {
         });
         test('should get explores summary filtered by name', async () => {
             (
-                projectModel.getTablesConfiguration as jest.Mock
+                projectModel.getTablesConfiguration as import('vitest').Mock
             ).mockImplementationOnce(async () => tablesConfigurationWithNames);
             const result = await service.getAllExploresSummary(
                 account,
@@ -1242,12 +1802,12 @@ describe('ProjectService', () => {
         test('should include virtual explores when filtered by tags even if they do not match', async () => {
             const exploresWithVirtual = [...allExplores, virtualExplore];
             (
-                projectModel.getAllExploreSummaries as jest.Mock
+                projectModel.getAllExploreSummaries as import('vitest').Mock
             ).mockImplementationOnce(async () =>
                 exploresWithVirtual.map(exploreToSummaryWithAttributes),
             );
             (
-                projectModel.getTablesConfiguration as jest.Mock
+                projectModel.getTablesConfiguration as import('vitest').Mock
             ).mockImplementationOnce(async () => ({
                 tableSelection: {
                     type: 'WITH_TAGS',
@@ -1270,12 +1830,12 @@ describe('ProjectService', () => {
         test('should include virtual explores when filtered by names even if they do not match', async () => {
             const exploresWithVirtual = [...allExplores, virtualExplore];
             (
-                projectModel.getAllExploreSummaries as jest.Mock
+                projectModel.getAllExploreSummaries as import('vitest').Mock
             ).mockImplementationOnce(async () =>
                 exploresWithVirtual.map(exploreToSummaryWithAttributes),
             );
             (
-                projectModel.getTablesConfiguration as jest.Mock
+                projectModel.getTablesConfiguration as import('vitest').Mock
             ).mockImplementationOnce(async () => ({
                 tableSelection: {
                     type: 'WITH_NAMES',
@@ -1308,7 +1868,7 @@ describe('ProjectService', () => {
                 preAggregateExplore,
             ];
             (
-                projectModel.getAllExploreSummaries as jest.Mock
+                projectModel.getAllExploreSummaries as import('vitest').Mock
             ).mockImplementationOnce(async () =>
                 exploresWithPreAggregates.map(exploreToSummaryWithAttributes),
             );
@@ -1340,7 +1900,7 @@ describe('ProjectService', () => {
                 preAggregateExplore,
             ];
             (
-                projectModel.getAllExploreSummaries as jest.Mock
+                projectModel.getAllExploreSummaries as import('vitest').Mock
             ).mockImplementationOnce(async () =>
                 exploresWithPreAggregates.map(exploreToSummaryWithAttributes),
             );
@@ -1365,14 +1925,14 @@ describe('ProjectService', () => {
                 exploreWithRequiredAttributes,
             ];
             (
-                projectModel.getAllExploreSummaries as jest.Mock
+                projectModel.getAllExploreSummaries as import('vitest').Mock
             ).mockImplementationOnce(async () =>
                 exploresWithRequiredAttrs.map(exploreToSummaryWithAttributes),
             );
 
             // Mock user attributes to NOT have is_admin: 'true'
             (
-                userAttributesModel.getAttributeValuesForOrgMember as jest.Mock
+                userAttributesModel.getAttributeValuesForOrgMember as import('vitest').Mock
             ).mockImplementationOnce(async () => ({
                 is_admin: 'false',
             }));
@@ -1399,14 +1959,14 @@ describe('ProjectService', () => {
                 exploreWithRequiredAttributes,
             ];
             (
-                projectModel.getAllExploreSummaries as jest.Mock
+                projectModel.getAllExploreSummaries as import('vitest').Mock
             ).mockImplementationOnce(async () =>
                 exploresWithRequiredAttrs.map(exploreToSummaryWithAttributes),
             );
 
             // Mock user attributes to have is_admin: 'true'
             (
-                userAttributesModel.getAttributeValuesForOrgMember as jest.Mock
+                userAttributesModel.getAttributeValuesForOrgMember as import('vitest').Mock
             ).mockImplementationOnce(async () => ({
                 is_admin: 'true',
             }));
@@ -1436,7 +1996,7 @@ describe('ProjectService', () => {
                 },
             });
             (
-                projectModel.findExploresFromCache as jest.Mock
+                projectModel.findExploresFromCache as import('vitest').Mock
             ).mockImplementationOnce(async () => [preAggregateExplore]);
 
             const result = await serviceWithPreAggregatesEnabled.getExplore(
@@ -1457,7 +2017,7 @@ describe('ProjectService', () => {
                 },
             });
             (
-                projectModel.findExploresFromCache as jest.Mock
+                projectModel.findExploresFromCache as import('vitest').Mock
             ).mockImplementationOnce(async () => [preAggregateExplore]);
 
             await expect(
@@ -1472,13 +2032,13 @@ describe('ProjectService', () => {
         });
     });
     describe('getJobStatus', () => {
-        test('should get job with projectUuid if user belongs to org ', async () => {
+        test('should get job with projectUuid if user belongs to org', async () => {
             const result = await service.getJobStatus('jobUuid', user);
             expect(result).toEqual(job);
         });
-        test('should get job without projectUuid if user created the job ', async () => {
+        test('should get job without projectUuid if user created the job', async () => {
             const jobWithoutProjectUuid = { ...job, projectUuid: undefined };
-            (jobModel.get as jest.Mock).mockImplementationOnce(
+            (jobModel.get as import('vitest').Mock).mockImplementationOnce(
                 async () => jobWithoutProjectUuid,
             );
 
@@ -1488,7 +2048,7 @@ describe('ProjectService', () => {
 
         test('should not get job without projectUuid if user is different', async () => {
             const jobWithoutProjectUuid = { ...job, projectUuid: undefined };
-            (jobModel.get as jest.Mock).mockImplementationOnce(
+            (jobModel.get as import('vitest').Mock).mockImplementationOnce(
                 async () => jobWithoutProjectUuid,
             );
             const anotherUser: SessionUser = {
@@ -1618,7 +2178,7 @@ describe('ProjectService', () => {
                 ]),
             };
 
-            jest.spyOn(
+            vi.spyOn(
                 service as unknown as {
                     refreshTablesAndProjectConfig: () => Promise<unknown>;
                 },
@@ -1636,7 +2196,7 @@ describe('ProjectService', () => {
                 },
                 projectContext: undefined,
             });
-            (projectModel.getSummary as jest.Mock)
+            (projectModel.getSummary as import('vitest').Mock)
                 .mockResolvedValueOnce({
                     ...projectSummary,
                     projectUuid: previewProjectUuid,
@@ -1652,7 +2212,7 @@ describe('ProjectService', () => {
                     projectUuid: previewProjectUuid,
                     type: ProjectType.PREVIEW,
                 });
-            (projectModel.get as jest.Mock).mockResolvedValueOnce({
+            (projectModel.get as import('vitest').Mock).mockResolvedValueOnce({
                 ...projectWithSensitiveFields,
                 projectUuid: previewProjectUuid,
                 type: ProjectType.PREVIEW,
@@ -1687,7 +2247,9 @@ describe('ProjectService', () => {
                     { subject: 'Project', action: ['update', 'view'] },
                 ]),
             };
-            (projectModel.getSummary as jest.Mock).mockResolvedValueOnce({
+            (
+                projectModel.getSummary as import('vitest').Mock
+            ).mockResolvedValueOnce({
                 ...projectSummary,
                 type: ProjectType.DEFAULT,
             });
@@ -1714,11 +2276,11 @@ describe('ProjectService', () => {
             lookups: string[],
             store: Map<string, string>,
         ) => ({
-            getIfFresh: jest.fn(async (key: string) => {
+            getIfFresh: vi.fn(async (key: string) => {
                 lookups.push(key);
                 return store.get(key);
             }),
-            uploadResults: jest.fn(async (key: string, buffer: Buffer) => {
+            uploadResults: vi.fn(async (key: string, buffer: Buffer) => {
                 store.set(key, buffer.toString());
             }),
         });
@@ -1729,14 +2291,12 @@ describe('ProjectService', () => {
         });
 
         afterEach(() => {
-            jest.clearAllMocks();
+            vi.clearAllMocks();
         });
         test('should query unique values', async () => {
-            const runQueryMock = jest.fn(
-                async (_sql: string) => resultsWith1Row,
-            );
+            const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
                 ...warehouseClientMock,
                 runQuery: runQueryMock,
@@ -1760,12 +2320,73 @@ describe('ProjectService', () => {
                                    LIMIT 10`),
             );
         });
-        test('should query unique values with valid filters', async () => {
-            const runQueryMock = jest.fn(
-                async (_sql: string) => resultsWith1Row,
-            );
+        test('returns resultsWithLabels deduped by value for a label dimension', async () => {
+            const exploreWithLabelDimension: Explore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        dimensions: {
+                            ...validExplore.tables.a.dimensions,
+                            dim1: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                filterAutocomplete: {
+                                    fetchFromWarehouse: true,
+                                    labelDimension: 'label_dim',
+                                },
+                            },
+                            label_dim: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                name: 'label_dim',
+                                label: 'label_dim',
+                            },
+                        },
+                    },
+                },
+            };
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.findExploreByTableName as import('vitest').Mock
+            ).mockResolvedValueOnce(exploreWithLabelDimension);
+
+            const runQueryMock = vi.fn(async () => ({
+                fields: {
+                    a_dim1: { type: DimensionType.STRING },
+                    a_label_dim: { type: DimensionType.STRING },
+                },
+                rows: [
+                    { a_dim1: 'u1', a_label_dim: 'Alice' },
+                    { a_dim1: 'u1', a_label_dim: 'Alice dup' },
+                    { a_dim1: 'u2', a_label_dim: null },
+                ],
+            }));
+            (
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+
+            const result = await service.searchFieldUniqueValues(
+                user,
+                projectUuid,
+                'a',
+                'a_dim1',
+                '',
+                10,
+                undefined,
+            );
+
+            expect(result.results).toEqual(['u1', 'u2']);
+            expect(result.resultsWithLabels).toEqual([
+                { value: 'u1', label: 'Alice' },
+                { value: 'u2', label: 'u2' },
+            ]);
+        });
+        test('should query unique values with valid filters', async () => {
+            const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
+            (
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
                 ...warehouseClientMock,
                 runQuery: runQueryMock,
@@ -1841,18 +2462,16 @@ describe('ProjectService', () => {
             });
             serviceWithCache.warehouseClients = {};
 
-            const runQueryMock = jest.fn(
-                async (_sql: string) => resultsWith1Row,
-            );
+            const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
                 ...warehouseClientMock,
                 runQuery: runQueryMock,
             }));
 
             // Mock getWarehouseCredentials to simulate per-user credentials
-            jest.spyOn(
+            vi.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceWithCache as any,
                 'getWarehouseCredentials',
@@ -1926,18 +2545,16 @@ describe('ProjectService', () => {
             });
             serviceWithCache.warehouseClients = {};
 
-            const runQueryMock = jest.fn(
-                async (_sql: string) => resultsWith1Row,
-            );
+            const runQueryMock = vi.fn(async (_sql: string) => resultsWith1Row);
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockImplementation(() => ({
                 ...warehouseClientMock,
                 runQuery: runQueryMock,
             }));
 
             // No userWarehouseCredentialsUuid — shared project credentials
-            jest.spyOn(
+            vi.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceWithCache as any,
                 'getWarehouseCredentials',
@@ -2085,7 +2702,7 @@ describe('ProjectService', () => {
                 },
             });
 
-            (projectModel.get as jest.Mock).mockResolvedValueOnce({
+            (projectModel.get as import('vitest').Mock).mockResolvedValueOnce({
                 ...projectWithSensitiveFields,
                 type: ProjectType.PREVIEW,
             });
@@ -2146,7 +2763,7 @@ describe('ProjectService', () => {
             } as Explore;
 
             (
-                projectModel.findExploresFromCache as jest.Mock
+                projectModel.findExploresFromCache as import('vitest').Mock
             ).mockImplementation(
                 async (
                     _projectUuid: string,
@@ -2167,7 +2784,7 @@ describe('ProjectService', () => {
                     ),
             );
             (
-                preAggregateModel.getActiveMaterialization as jest.Mock
+                preAggregateModel.getActiveMaterialization as import('vitest').Mock
             ).mockResolvedValueOnce(undefined);
 
             const result =
@@ -2195,7 +2812,7 @@ describe('ProjectService', () => {
 
         test('refreshPreAggregates schedules only materializable definitions', async () => {
             (
-                preAggregateModel.getPreAggregateDefinitionsForProject as jest.Mock
+                preAggregateModel.getPreAggregateDefinitionsForProject as import('vitest').Mock
             ).mockResolvedValue([
                 {
                     preAggregateDefinitionUuid: 'def-valid',
@@ -2236,7 +2853,7 @@ describe('ProjectService', () => {
                 },
             ]);
             (
-                schedulerClient.materializePreAggregate as jest.Mock
+                schedulerClient.materializePreAggregate as import('vitest').Mock
             ).mockResolvedValueOnce({ jobId: 'job-valid' });
 
             const result = await service.refreshPreAggregates(
@@ -2260,7 +2877,7 @@ describe('ProjectService', () => {
 
         test('refreshPreAggregateByDefinitionName throws actionable error when definition is invalid', async () => {
             (
-                preAggregateModel.getPreAggregateDefinitionByDefinitionName as jest.Mock
+                preAggregateModel.getPreAggregateDefinitionByDefinitionName as import('vitest').Mock
             ).mockResolvedValue({
                 preAggregateDefinitionUuid: 'def-invalid',
                 projectUuid,
@@ -2363,20 +2980,20 @@ describe('ProjectService', () => {
         };
 
         beforeEach(() => {
-            jest.clearAllMocks();
+            vi.clearAllMocks();
         });
 
         test('returns charts from accessible spaces for a valid explore name', async () => {
             const spacePermissionService = {
-                getAccessibleSpaceUuids: jest.fn(async () => [spaceUuid]),
+                getAccessibleSpaceUuids: vi.fn(async () => [spaceUuid]),
             } as unknown as SpacePermissionService;
             const serviceWithPermissions = getMockedProjectService(
                 lightdashConfigMock,
                 { spacePermissionService },
             );
-            (savedChartModel.find as jest.Mock).mockResolvedValueOnce([
-                chartSummaryMock,
-            ]);
+            (
+                savedChartModel.find as import('vitest').Mock
+            ).mockResolvedValueOnce([chartSummaryMock]);
 
             const result = await serviceWithPermissions.getChartsByExploreName(
                 user,
@@ -2394,13 +3011,15 @@ describe('ProjectService', () => {
 
         test('returns empty array when no charts use the given explore', async () => {
             const spacePermissionService = {
-                getAccessibleSpaceUuids: jest.fn(async () => [spaceUuid]),
+                getAccessibleSpaceUuids: vi.fn(async () => [spaceUuid]),
             } as unknown as SpacePermissionService;
             const serviceWithPermissions = getMockedProjectService(
                 lightdashConfigMock,
                 { spacePermissionService },
             );
-            (savedChartModel.find as jest.Mock).mockResolvedValueOnce([]);
+            (
+                savedChartModel.find as import('vitest').Mock
+            ).mockResolvedValueOnce([]);
 
             const result = await serviceWithPermissions.getChartsByExploreName(
                 user,
@@ -2427,8 +3046,41 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('getCustomMetrics', () => {
+        test('returns custom metrics when the user can view the project', async () => {
+            (
+                savedChartModel.find as import('vitest').Mock
+            ).mockResolvedValueOnce([]);
+
+            const result = await service.getCustomMetrics(
+                user,
+                defaultProject.projectUuid,
+            );
+
+            expect(result).toEqual([]);
+            expect(savedChartModel.find).toHaveBeenCalledWith({
+                projectUuid: defaultProject.projectUuid,
+            });
+        });
+
+        test('throws ForbiddenError without querying charts when the user cannot view the project', async () => {
+            const restrictedUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([]),
+            } as unknown as SessionUser;
+
+            await expect(
+                service.getCustomMetrics(
+                    restrictedUser,
+                    defaultProject.projectUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(savedChartModel.find).not.toHaveBeenCalled();
+        });
+    });
+
     describe('getUserAttributes', () => {
-        // jest.clearAllMocks() in the outer afterEach does not drain
+        // vi.clearAllMocks() in the outer afterEach does not drain
         // mockImplementationOnce queues — reset the email mock per test so
         // queued rejections don't leak between cases.
         beforeEach(() => {
@@ -2523,12 +3175,12 @@ describe('ProjectService', () => {
         // The aware case derives from currentUtcWallClock(); pin the clock so
         // the rendered instants are deterministic.
         beforeEach(() => {
-            jest.useFakeTimers().setSystemTime(
+            vi.useFakeTimers().setSystemTime(
                 new Date('2026-06-08T14:30:00.000Z'),
             );
         });
         afterEach(() => {
-            jest.useRealTimers();
+            vi.useRealTimers();
         });
 
         it('throws ForbiddenError when timezone support is disabled', async () => {
@@ -2541,12 +3193,11 @@ describe('ProjectService', () => {
         });
 
         it('splits the preview into affected naive and unaffected aware groups (edit flow)', async () => {
-            jest.spyOn(
-                service,
-                'isTimezoneSupportEnabled',
-            ).mockResolvedValueOnce(true);
+            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+                true,
+            );
             (
-                projectModel.getWithSensitiveFields as jest.Mock
+                projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce({
                 ...projectWithSensitiveFields,
                 warehouseConnection: {
@@ -2554,10 +3205,10 @@ describe('ProjectService', () => {
                 } as CreateWarehouseCredentials,
             });
             (
-                projectModel.getWarehouseClientFromCredentials as jest.Mock
+                projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
             ).mockReturnValueOnce({
                 getAdapterType: () => SupportedDbtAdapter.POSTGRES,
-                runQuery: jest.fn(async () => ({
+                runQuery: vi.fn(async () => ({
                     fields: {},
                     rows: [{ naive_instant: '2026-06-08 18:30:00' }],
                 })),
@@ -2580,12 +3231,11 @@ describe('ProjectService', () => {
         });
 
         it('rejects an edit preview when the warehouse type was switched but not saved', async () => {
-            jest.spyOn(
-                service,
-                'isTimezoneSupportEnabled',
-            ).mockResolvedValueOnce(true);
+            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+                true,
+            );
             (
-                projectModel.getWithSensitiveFields as jest.Mock
+                projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce({
                 ...projectWithSensitiveFields,
                 warehouseConnection: {
@@ -2604,12 +3254,11 @@ describe('ProjectService', () => {
         });
 
         it('throws ForbiddenError when the user cannot update the project (edit flow)', async () => {
-            jest.spyOn(
-                service,
-                'isTimezoneSupportEnabled',
-            ).mockResolvedValueOnce(true);
+            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+                true,
+            );
             (
-                projectModel.getWithSensitiveFields as jest.Mock
+                projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce({
                 ...projectWithSensitiveFields,
                 warehouseConnection: {
@@ -2628,10 +3277,9 @@ describe('ProjectService', () => {
         });
 
         it('throws ForbiddenError when the user cannot create projects (create flow)', async () => {
-            jest.spyOn(
-                service,
-                'isTimezoneSupportEnabled',
-            ).mockResolvedValueOnce(true);
+            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
+                true,
+            );
 
             await expect(
                 service.previewDataTimezone(noAccessAccount, {
@@ -2641,20 +3289,150 @@ describe('ProjectService', () => {
             ).rejects.toThrowError(ForbiddenError);
         });
     });
+
+    describe('getFileStream', () => {
+        const getServiceWithDownloadFile = (downloadFile: DownloadFile) =>
+            getMockedProjectService(lightdashConfigMock, {
+                downloadFileModel: {
+                    getDownloadFile: vi.fn(async () => downloadFile),
+                } as unknown as DownloadFileModel,
+            });
+
+        it('returns a stream when the file belongs to the requested project', async () => {
+            const serviceWithFile = getServiceWithDownloadFile({
+                nanoid: 'file-id',
+                path: __filename,
+                createdAt: new Date(),
+                type: DownloadFileType.JSONL,
+                projectUuid: projectSummary.projectUuid,
+            });
+
+            const stream = await serviceWithFile.getFileStream(
+                user,
+                projectSummary.projectUuid,
+                'file-id',
+            );
+
+            expect(stream).toBeInstanceOf(Readable);
+        });
+
+        it('throws NotFoundError when the file belongs to a different project', async () => {
+            const serviceWithFile = getServiceWithDownloadFile({
+                nanoid: 'file-id',
+                path: '/tmp/file-id.jsonl',
+                createdAt: new Date(),
+                type: DownloadFileType.JSONL,
+                projectUuid: 'another-project-uuid',
+            });
+
+            await expect(
+                serviceWithFile.getFileStream(
+                    user,
+                    projectSummary.projectUuid,
+                    'file-id',
+                ),
+            ).rejects.toThrowError(NotFoundError);
+        });
+
+        it('throws NotFoundError when the file has no owning project', async () => {
+            const serviceWithFile = getServiceWithDownloadFile({
+                nanoid: 'file-id',
+                path: '/tmp/file-id.jsonl',
+                createdAt: new Date(),
+                type: DownloadFileType.JSONL,
+                projectUuid: null,
+            });
+
+            await expect(
+                serviceWithFile.getFileStream(
+                    user,
+                    projectSummary.projectUuid,
+                    'file-id',
+                ),
+            ).rejects.toThrowError(NotFoundError);
+        });
+    });
+
+    describe('validateConfigSecrets', () => {
+        const projectWithSnowflakeAuth = (
+            authenticationType: SnowflakeAuthenticationType,
+            requireUserCredentials?: boolean,
+        ): UpdateProject => ({
+            name: 'test-project',
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DefaultSupportedDbtVersion,
+            warehouseConnection: {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                user: 'test-user',
+                database: 'test-db',
+                warehouse: 'test-warehouse',
+                schema: 'test-schema',
+                authenticationType,
+                requireUserCredentials,
+            },
+        });
+
+        it('rejects Snowflake OAuth authorization code authentication', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+                    ),
+                ),
+            ).toThrowError(ParameterError);
+        });
+
+        it('rejects Snowflake external browser authentication without user credentials', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                    ),
+                ),
+            ).toThrowError(ParameterError);
+        });
+
+        it('allows Snowflake external browser authentication when user credentials are required', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                        true,
+                    ),
+                ),
+            ).not.toThrowError();
+        });
+
+        it.each([
+            SnowflakeAuthenticationType.PASSWORD,
+            SnowflakeAuthenticationType.PRIVATE_KEY,
+            SnowflakeAuthenticationType.SSO,
+            SnowflakeAuthenticationType.NONE,
+        ])('allows Snowflake %s authentication', (authenticationType) => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(authenticationType),
+                ),
+            ).not.toThrowError();
+        });
+    });
 });
 
-describe('ProjectService._compileQuery reserved parameters', () => {
+describe('QueryComposer reserved parameters', () => {
     it('resolves date_zoom to the else branch when no date zoom is applied', async () => {
-        const compiled = await ProjectService._compileQuery({
-            metricQuery: metricQueryReservedParameterDimension,
-            explore: exploreWithReservedParameterDimension,
-            warehouseSqlBuilder: warehouseClientMock,
-            intrinsicUserAttributes: {},
-            userAttributes: {},
-            timezone: 'UTC',
-            parameters: {},
-            availableParameterDefinitions: {},
-        });
+        const compiled = new QueryComposer(
+            { metricQuery: metricQueryReservedParameterDimension },
+            {
+                explore: exploreWithReservedParameterDimension,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: {},
+                userAttributes: {},
+                timezone: 'UTC',
+                parameters: {},
+                availableParameterDefinitions: {},
+            },
+        ).compile();
 
         expect(compiled.query).toContain("'other'");
         expect(compiled.query).not.toContain("'weekly'");
@@ -2664,21 +3442,149 @@ describe('ProjectService._compileQuery reserved parameters', () => {
 
     it('lets a user parameter named date_zoom win over the reserved value', async () => {
         // With no date zoom the reserved value is ''; a user date_zoom of 'week' must win.
-        const compiled = await ProjectService._compileQuery({
-            metricQuery: metricQueryReservedParameterDimension,
-            explore: exploreWithReservedParameterDimension,
-            warehouseSqlBuilder: warehouseClientMock,
-            intrinsicUserAttributes: {},
-            userAttributes: {},
-            timezone: 'UTC',
-            parameters: { date_zoom: 'week' },
-            availableParameterDefinitions: {
-                date_zoom: { label: 'My date zoom' },
+        const compiled = new QueryComposer(
+            { metricQuery: metricQueryReservedParameterDimension },
+            {
+                explore: exploreWithReservedParameterDimension,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: {},
+                userAttributes: {},
+                timezone: 'UTC',
+                parameters: { date_zoom: 'week' },
+                availableParameterDefinitions: {
+                    date_zoom: { label: 'My date zoom' },
+                },
             },
-        });
+        ).compile();
 
         expect(compiled.query).toContain("'weekly'");
         expect(compiled.query).not.toContain("'other'");
         expect(compiled.query).not.toContain('ld.parameters.date_zoom');
+    });
+});
+
+type ResolveCompileAdapterArgs = {
+    projectUuid: string;
+    organizationUuid: string | undefined;
+    userUuid: string;
+    primary: {
+        adapter: ProjectAdapter;
+        warehouseCredentials: CreateWarehouseCredentials;
+        cachedWarehouse: { warehouseCatalog: {}; warehouseTables: {} };
+        dbtVersionOption: DbtVersionOptionLatest;
+    };
+    manifestFetchAdapters: ProjectAdapter[];
+};
+
+// resolveCompileAdapter/buildMergedManifestAdapter/featureFlagModel/
+// projectDbtSourcesModel are private members; this narrow view exposes only
+// what these tests need to call/override, avoiding `any`.
+type ProjectServiceInternals = {
+    featureFlagModel: { get: (args: unknown) => Promise<unknown> };
+    projectDbtSourcesModel: { getSources: (projectUuid: string) => unknown };
+    resolveCompileAdapter: (
+        args: ResolveCompileAdapterArgs,
+    ) => Promise<ProjectAdapter>;
+    buildMergedManifestAdapter: (args: unknown) => Promise<ProjectAdapter>;
+};
+
+describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
+    const primaryAdapter = {
+        id: 'primary-adapter',
+    } as unknown as ProjectAdapter;
+    const primary = {
+        adapter: primaryAdapter,
+        warehouseCredentials: {} as CreateWarehouseCredentials,
+        cachedWarehouse: { warehouseCatalog: {}, warehouseTables: {} },
+        dbtVersionOption: DbtVersionOptionLatest.LATEST,
+    };
+    const baseArgs: ResolveCompileAdapterArgs = {
+        projectUuid: 'project-uuid',
+        organizationUuid: 'org-uuid',
+        userUuid: 'user-uuid',
+        primary,
+        manifestFetchAdapters: [],
+    };
+
+    const buildServiceWithMocks = (
+        flagEnabled: boolean,
+        sources: unknown[],
+    ) => {
+        const getSources = vi.fn(async () => sources);
+        const projectService = getMockedProjectService(
+            lightdashConfigMock,
+        ) as unknown as ProjectServiceInternals;
+        // featureFlagModel and projectDbtSourcesModel are private fields set in
+        // the constructor; override them post-construction for this test only.
+        projectService.featureFlagModel = {
+            get: vi.fn(async (args: unknown) => {
+                const { featureFlagId } = args as { featureFlagId: string };
+                return {
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.MultiDbtSources
+                            ? flagEnabled
+                            : false,
+                };
+            }),
+        };
+        projectService.projectDbtSourcesModel = { getSources };
+        return { projectService, getSources };
+    };
+
+    it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
+        const { projectService, getSources } = buildServiceWithMocks(false, [
+            { name: 'jaffle-2' },
+        ]);
+
+        const result = await projectService.resolveCompileAdapter(baseArgs);
+
+        expect(result).toBe(primaryAdapter);
+        expect(getSources).not.toHaveBeenCalled();
+    });
+
+    it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
+        const { projectService, getSources } = buildServiceWithMocks(true, []);
+
+        const result = await projectService.resolveCompileAdapter(baseArgs);
+
+        expect(result).toBe(primaryAdapter);
+        expect(getSources).toHaveBeenCalledTimes(1);
+    });
+
+    it('flag ON with >=1 source delegates to buildMergedManifestAdapter instead of returning the primary adapter', async () => {
+        const mergedAdapter = {
+            id: 'merged-adapter',
+        } as unknown as ProjectAdapter;
+        const { projectService } = buildServiceWithMocks(true, [
+            { name: 'jaffle-2' },
+        ]);
+        const buildMergedManifestAdapterSpy = vi
+            .spyOn(projectService, 'buildMergedManifestAdapter')
+            .mockResolvedValue(mergedAdapter);
+
+        const result = await projectService.resolveCompileAdapter(baseArgs);
+
+        expect(result).toBe(mergedAdapter);
+        expect(result).not.toBe(primaryAdapter);
+        expect(buildMergedManifestAdapterSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
+        const { projectService } = buildServiceWithMocks(true, [
+            { name: 'jaffle-2' },
+        ]);
+        vi.spyOn(
+            projectService,
+            'buildMergedManifestAdapter',
+        ).mockRejectedValue(
+            new ParameterError(
+                'Merging dbt sources found 1 naming collision: nodes "model.dup" is defined in both "primary" and "jaffle-2". Rename or remove the duplicate(s) before deploying.',
+            ),
+        );
+
+        await expect(
+            projectService.resolveCompileAdapter(baseArgs),
+        ).rejects.toThrow(ParameterError);
     });
 });

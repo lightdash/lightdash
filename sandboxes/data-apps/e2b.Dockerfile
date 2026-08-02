@@ -1,8 +1,8 @@
 FROM node:22
 
 # Global tooling
-RUN npm install -g pnpm@10.33.0
-RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g pnpm@11.17.0
+RUN npm install -g @anthropic-ai/claude-code@2.1.220
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY template/tailwind.config.js ./tailwind.config.js
 COPY template/postcss.config.js ./postcss.config.js
 COPY template/index.html ./index.html
 COPY template/skill.md ./skill.md
-COPY template/d3-reference.md ./d3-reference.md
+COPY template/references/ ./references/
 COPY lightdash-query-sdk.tgz ./lightdash-query-sdk.tgz
 
 # Swap workspace:* for the local tarball, then install
@@ -26,14 +26,25 @@ RUN sed -i 's|"workspace:[*]"|"file:lightdash-query-sdk.tgz"|' package.json && \
 # Copy starter source files (overwritten by Claude during generation)
 COPY template/src/ ./src/
 
-# Bootstrap shadcn/ui (generates src/components/ui/ and src/lib/)
+# Bootstrap shadcn/ui (generates src/components/ui/ and src/lib/).
+# Keep in sync with template/scripts/bootstrap.sh; every Radix package these
+# components import must be declared in template/package.json.
 RUN npx shadcn@2.3.0 init --defaults --force
 RUN npx shadcn@2.3.0 add --overwrite --yes \
     button badge card table dialog tabs select input label popover tooltip separator \
     skeleton dropdown-menu sheet scroll-area switch checkbox avatar alert progress resizable
 
-# Vendored Claude Code skills (e.g. frontend-design @ Apache-2.0). Auto-discovered
-# from /app/.claude/skills/ when Claude Code starts in the sandbox.
+# shadcn init --force rewrites tailwind.config.js to its legacy
+# hsl(var(--x)) convention, which clashes with index.css's raw oklch
+# variables — every color utility computes hsl(oklch(...)), invalid CSS
+# that browsers silently drop (dark-theme apps render black-on-black,
+# floating-surface chrome goes transparent). Restore the repo config so
+# raw `var(--x)` + complete oklch colors is the single convention.
+COPY template/tailwind.config.js ./tailwind.config.js
+
+# Claude Code skills — first-party plus vendored (frontend-design @ Apache-2.0).
+# The whole directory is copied, so a new skill needs no change here. Read from
+# /app/.claude/skills/ inside the sandbox.
 COPY template/.claude/ ./.claude/
 
 # E2B sandbox runs as 'user' — make /app writable

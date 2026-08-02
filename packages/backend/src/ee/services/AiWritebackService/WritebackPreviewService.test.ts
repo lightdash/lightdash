@@ -60,12 +60,15 @@ const githubProject = (): AnyType => ({
     },
 });
 
-const makeGithubClient = (): jest.Mocked<WritebackPreviewGithubClient> =>
-    ({
-        getInstallationToken: jest.fn().mockResolvedValue('installation-token'),
-        getPullRequest: jest.fn().mockResolvedValue(openPullRequest()),
-        createPullRequestComment: jest.fn().mockResolvedValue(undefined),
-    }) as AnyType;
+const makeGithubClient =
+    (): import('vitest').Mocked<WritebackPreviewGithubClient> =>
+        ({
+            getInstallationToken: vi
+                .fn()
+                .mockResolvedValue('installation-token'),
+            getPullRequest: vi.fn().mockResolvedValue(openPullRequest()),
+            createPullRequestComment: vi.fn().mockResolvedValue(undefined),
+        }) as AnyType;
 
 const buildService = (overrides: Record<string, AnyType> = {}) =>
     new WritebackPreviewService({
@@ -73,16 +76,16 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
             siteUrl: 'https://lightdash.example.com',
         } as AnyType,
         projectModel: {
-            get: jest.fn().mockResolvedValue(githubProject()),
+            get: vi.fn().mockResolvedValue(githubProject()),
         } as AnyType,
         projectService: {
-            createPreview: jest.fn().mockResolvedValue({
+            createPreview: vi.fn().mockResolvedValue({
                 projectUuid: 'preview-project-1',
                 compileJobUuid: 'compile-job-1',
             }),
         } as AnyType,
         githubAppInstallationsModel: {
-            getInstallationId: jest.fn().mockResolvedValue('installation-1'),
+            getInstallationId: vi.fn().mockResolvedValue('installation-1'),
         } as AnyType,
         githubClient: makeGithubClient(),
         ...overrides,
@@ -92,10 +95,10 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
     it('throws before GitHub or preview side effects without source code access', async () => {
         const githubClient = makeGithubClient();
         const projectService = {
-            createPreview: jest.fn(),
+            createPreview: vi.fn(),
         };
         const githubAppInstallationsModel = {
-            getInstallationId: jest.fn(),
+            getInstallationId: vi.fn(),
         };
         const service = buildService({
             githubClient,
@@ -121,7 +124,7 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
     it('creates a preview and posts the preview URL for authorized users', async () => {
         const githubClient = makeGithubClient();
         const projectService = {
-            createPreview: jest.fn().mockResolvedValue({
+            createPreview: vi.fn().mockResolvedValue({
                 projectUuid: 'preview-project-1',
                 compileJobUuid: 'compile-job-1',
             }),
@@ -157,7 +160,7 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
     it('returns null when the PR URL repo does not match the project repo', async () => {
         const githubClient = makeGithubClient();
         const projectService = {
-            createPreview: jest.fn(),
+            createPreview: vi.fn(),
         };
         const service = buildService({
             githubClient,
@@ -183,7 +186,7 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
             headRepoFullName: 'fork/analytics',
         });
         const projectService = {
-            createPreview: jest.fn(),
+            createPreview: vi.fn(),
         };
         const service = buildService({
             githubClient,

@@ -84,6 +84,7 @@ export const EditVirtualViewModal: FC<Props> = ({
             <MantineModal
                 opened={opened}
                 onClose={onClose}
+                role="alertdialog"
                 title="You have unsaved changes"
                 icon={IconAlertCircle}
                 description="Are you sure you want to leave this page? Changes you've made to your query will not be saved."

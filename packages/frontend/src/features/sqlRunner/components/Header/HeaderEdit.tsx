@@ -1,15 +1,15 @@
 import { type SqlChart } from '@lightdash/common';
 import {
-    ActionIcon,
-    Button,
     Group,
-    HoverCard,
-    Menu,
     Paper,
     Stack,
     Title,
+    Button,
+    ActionIcon,
+    HoverCard,
+    Menu,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconArrowBack,
     IconDots,
@@ -41,6 +41,7 @@ import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
+import headerStyles from './HeaderPaper.module.css';
 
 export const HeaderEdit: FC = () => {
     const queryClient = useQueryClient();
@@ -164,17 +165,11 @@ export const HeaderEdit: FC = () => {
                 withBorder={false}
                 px="md"
                 py="xs"
-                sx={(theme) => ({
-                    borderBottom: `1px solid ${
-                        theme.colorScheme === 'dark'
-                            ? theme.colors.ldDark[8]
-                            : theme.colors.ldGray[3]
-                    }`,
-                })}
+                className={headerStyles.paper}
             >
-                <Group position="apart">
-                    <Stack spacing="none">
-                        <Group spacing="two">
+                <Group justify="space-between">
+                    <Stack gap="none">
+                        <Group gap="two">
                             <TitleBreadCrumbs
                                 projectUuid={savedSqlChart.project.projectUuid}
                                 spaceUuid={savedSqlChart.space.uuid}
@@ -184,6 +179,8 @@ export const HeaderEdit: FC = () => {
                                 {savedSqlChart.name}
                             </Title>
                             <ActionIcon
+                                variant="subtle"
+                                color="gray"
                                 size="xs"
                                 onClick={() => {
                                     dispatch(toggleModal('updateChartModal'));
@@ -192,7 +189,7 @@ export const HeaderEdit: FC = () => {
                                 <MantineIcon icon={IconPencil} />
                             </ActionIcon>
                         </Group>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <UpdatedInfo
                                 updatedAt={savedSqlChart.lastUpdatedAt}
                                 user={savedSqlChart.lastUpdatedBy}
@@ -211,7 +208,7 @@ export const HeaderEdit: FC = () => {
                         </Group>
                     </Stack>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <HoverCard disabled={!hasUnrunChanges} withArrow>
                             <HoverCard.Target>
                                 <Button
@@ -239,7 +236,6 @@ export const HeaderEdit: FC = () => {
                             </Button>
                         ) : (
                             <Tooltip
-                                variant="xs"
                                 label="Back to view page"
                                 position="bottom"
                             >
@@ -261,7 +257,7 @@ export const HeaderEdit: FC = () => {
                             width={200}
                         >
                             <Menu.Target>
-                                <ActionIcon variant="subtle">
+                                <ActionIcon color="gray" variant="subtle">
                                     <MantineIcon icon={IconDots} />
                                 </ActionIcon>
                             </Menu.Target>
@@ -269,7 +265,9 @@ export const HeaderEdit: FC = () => {
                                 <Menu.Label>Manage</Menu.Label>
                                 <Menu.Item
                                     disabled={!config || !sql}
-                                    icon={<MantineIcon icon={IconTrash} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconTrash} />
+                                    }
                                     color="red"
                                     onClick={() =>
                                         dispatch(

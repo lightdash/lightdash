@@ -68,6 +68,7 @@ services:
 -   `docker-compose.dev.yml`: Full development environment
 -   `docker-compose.dev.mini.yml`: Minimal setup
 -   `docker-compose.preview.yml`: Preview deployments
+-   `docker-compose.db-snapshot.yml`: Builds the pre-seeded database snapshot that previews divert from
 
 </importantToKnow>
 

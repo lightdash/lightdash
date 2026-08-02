@@ -542,6 +542,13 @@ describe('Project member permissions', () => {
                 ability = defineAbilityForProjectMember(PROJECT_EDITOR);
             });
 
+            it('can create but cannot manage content as code', () => {
+                const contentAsCode = subject('ContentAsCode', { projectUuid });
+
+                expect(ability.can('create', contentAsCode)).toEqual(true);
+                expect(ability.can('manage', contentAsCode)).toEqual(false);
+            });
+
             it('can view and manage public & accessible dashboards', () => {
                 expect(
                     ability.can(
@@ -909,6 +916,15 @@ describe('Project member permissions', () => {
                 ).toEqual(false);
             });
 
+            it('cannot view compiled SQL', () => {
+                expect(
+                    ability.can(
+                        'view',
+                        subject('CompiledSql', { projectUuid }),
+                    ),
+                ).toEqual(false);
+            });
+
             it('can use the SemanticViewer', () => {
                 expect(
                     ability.can(
@@ -1092,11 +1108,29 @@ describe('Project member permissions', () => {
                 ability = defineAbilityForProjectMember(PROJECT_DEVELOPER);
             });
 
+            it('can create content as code through manage', () => {
+                expect(
+                    ability.can(
+                        'create',
+                        subject('ContentAsCode', { projectUuid }),
+                    ),
+                ).toEqual(true);
+            });
+
             it('can use SQL runner', () => {
                 expect(
                     ability.can(
                         'manage',
                         subject('SqlRunner', { projectUuid }),
+                    ),
+                ).toEqual(true);
+            });
+
+            it('can view compiled SQL', () => {
+                expect(
+                    ability.can(
+                        'view',
+                        subject('CompiledSql', { projectUuid }),
                     ),
                 ).toEqual(true);
             });

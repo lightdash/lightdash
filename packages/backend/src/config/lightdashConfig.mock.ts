@@ -133,6 +133,7 @@ export const lightdashConfigMock: LightdashConfig = {
         fileFormat: undefined,
         fileLevel: undefined,
         filePath: '',
+        auditActorAsString: false,
     },
     maxPayloadSize: '',
     pivotTable: { maxColumnLimit: 0 },
@@ -213,6 +214,10 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     smtp: undefined,
+    postmark: {
+        accountToken: undefined,
+        returnPathSubdomain: 'pm-bounces',
+    },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxPageSize: 2500,
@@ -235,6 +240,7 @@ export const lightdashConfigMock: LightdashConfig = {
             askAiButtonEnabled: false,
             embeddingEnabled: true,
             defaultProvider: 'openai',
+            selfManagedProviders: [],
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',
@@ -287,6 +293,7 @@ export const lightdashConfigMock: LightdashConfig = {
         browserEndpoint: 'ws://headless-browser:3000',
         maxScreenshotRetries: 5,
         retryBaseDelayMs: 3000,
+        screenshotTimeoutMs: 180000,
     },
     contentAsCode: {
         maxDownloads: 100,
@@ -318,6 +325,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     aiWriteback: {
         anthropicApiKey: null,
+        codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {
         enabled: true,
@@ -328,9 +336,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     editYamlInUi: {
         enabled: false,
-    },
-    partialCompilation: {
-        enabled: true,
     },
     funnelBuilder: {
         enabled: false,
@@ -346,6 +351,15 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         retentionDays: 30,
     },
+    pgWire: {
+        port: undefined,
+        host: undefined,
+        ssl: {
+            mode: 'require',
+            certPath: undefined,
+            keyPath: undefined,
+        },
+    },
     dashboardComments: {
         enabled: true,
     },
@@ -360,6 +374,13 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    usageEvents: {
+        enabled: false,
+        flushIntervalMs: 60000,
+        flushBatchSize: 1000,
+        bufferMaxSize: 10000,
+        s3: null,
+    },
     appRuntime: {
         enabled: false,
         lightdashOrigin: 'https://test.lightdash.cloud',
@@ -368,6 +389,7 @@ export const lightdashConfigMock: LightdashConfig = {
         cspAllowedOrigins: [],
         s3: null,
         e2bApiKey: null,
+        sampleDataEnabled: true,
         e2bTemplateName: 'lightdash-data-app',
         e2bTemplateTag: '',
         e2bAiWritebackTemplateName: 'lightdash-ai-writeback',
@@ -375,7 +397,52 @@ export const lightdashConfigMock: LightdashConfig = {
         sandboxProvider: 'e2b',
         sandboxDockerImage: 'lightdash-sandbox:local',
         sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
+        sandboxAgentOnboardingDockerImage: 'lightdash-agent-onboarding:local',
+        sandboxIdleTimeoutMs: 30 * 60 * 1000,
+        sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,
+        lambdaMicroVm: {
+            region: 'eu-west-1',
+            executionRoleArn: null,
+            ingressConnectorArn:
+                'arn:aws:lambda:eu-west-1:aws:network-connector:aws-network-connector:ALL_INGRESS',
+            egressConnectorArn:
+                'arn:aws:lambda:eu-west-1:aws:network-connector:aws-network-connector:INTERNET_EGRESS',
+            maxIdleDurationSeconds: 30 * 60,
+            suspendedDurationSeconds: 7 * 24 * 60 * 60,
+        },
+        lambdaMicroVmDataAppImageArn: null,
+        lambdaMicroVmAiWritebackImageArn: null,
+        azureSandboxes: {
+            subscriptionId: null,
+            resourceGroup: null,
+            region: 'eastus2',
+            apiVersion: '2026-02-01-preview',
+            tokenScope: 'https://management.azuredevcompute.io/.default',
+            resourceTier: 'M',
+        },
+        azureSandboxesDataAppGroup: null,
+        azureSandboxesDataAppDiskImage: null,
+        azureSandboxesAiWritebackGroup: null,
+        azureSandboxesAiWritebackDiskImage: null,
+        e2bAgentOnboardingTemplateName: 'lightdash-agent-onboarding',
+        e2bAgentOnboardingTemplateTag: 'test',
+        e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',
+        e2bCodingAgentTemplateTag: '',
+        otel: {
+            enabled: false,
+            endpoint: '',
+            protocol: 'http/protobuf',
+            exportIntervalMs: 1000,
+            auth: { type: 'none' },
+        },
+        dependencyRegistryHosts: ['registry.npmjs.org'],
+        dependencyInstallTimeoutMs: 120_000,
+        dependencyMinReleaseAgeDays: 0,
+        // Off in the test fixture (real default is `true`) so tests never make
+        // a live OSV call.
+        dependencyMalwareCheckEnabled: false,
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
+    previewFeatureFlags: { enabled: false },
 };

@@ -1,14 +1,34 @@
-import { QueryHistoryStatus } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    QueryHistoryStatus,
+    type FilterableItem,
+} from '@lightdash/common';
+import { waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../api';
+import { renderHookWithProviders } from '../testing/testUtils';
 import {
     getFieldValuesAsync,
     MAX_POLL_ATTEMPTS,
     pollForFieldValueResults,
+    useFieldValues,
 } from './useFieldValues';
 
 vi.mock('../api', () => ({
     lightdashApi: vi.fn(),
+}));
+
+vi.mock('../ee/providers/Embed/useEmbed', () => ({
+    default: vi.fn(() => ({ embedToken: undefined })),
+}));
+
+vi.mock('./useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
+}));
+
+vi.mock('./useSessionTimezone', () => ({
+    useSessionTimezone: vi.fn(() => null),
 }));
 
 describe('pollForFieldValueResults', () => {
@@ -214,5 +234,157 @@ describe('getFieldValuesAsync', () => {
         );
 
         expect(result.results).toEqual(['completed']);
+    });
+
+    it('builds resultsWithLabels from the value and label columns and dedups by value', async () => {
+        const executeResultWithLabel = {
+            queryUuid: 'query-uuid',
+            cacheMetadata: { cacheHit: false },
+            valueFieldId: 'users_user_id',
+            labelFieldId: 'users_user_name',
+        };
+        const readyResult = {
+            status: QueryHistoryStatus.READY,
+            queryUuid: 'query-uuid',
+            rows: [
+                {
+                    users_user_id: { value: { raw: 'u1', formatted: 'u1' } },
+                    users_user_name: {
+                        value: { raw: 'Alice', formatted: 'Alice' },
+                    },
+                },
+                {
+                    users_user_id: { value: { raw: 'u1', formatted: 'u1' } },
+                    users_user_name: {
+                        value: { raw: 'Alice dup', formatted: 'Alice dup' },
+                    },
+                },
+                {
+                    users_user_id: { value: { raw: 'u2', formatted: 'u2' } },
+                    users_user_name: { value: { raw: null, formatted: '' } },
+                },
+            ],
+            columns: {},
+            metadata: { performance: {} },
+            pivotDetails: null,
+        };
+
+        vi.mocked(lightdashApi)
+            .mockResolvedValueOnce(executeResultWithLabel as never)
+            .mockResolvedValueOnce(readyResult as never);
+
+        const result = await getFieldValuesAsync(
+            'project-uuid',
+            'users',
+            'users_user_id',
+            '',
+            false,
+            undefined,
+        );
+
+        expect(result.results).toEqual(['u1', 'u2']);
+        expect(result.resultsWithLabels).toEqual([
+            { value: 'u1', label: 'Alice' },
+            { value: 'u2', label: 'u2' },
+        ]);
+    });
+});
+
+describe('useFieldValues', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    const fieldWithStaticAutocomplete: FilterableItem = {
+        name: 'status',
+        type: DimensionType.STRING,
+        table: 'orders',
+        tableLabel: 'Orders',
+        label: 'Status',
+        fieldType: FieldType.DIMENSION,
+        sql: '${TABLE}.status',
+        hidden: false,
+        filterAutocomplete: {
+            values: [
+                { value: 'active', label: 'Active customer' },
+                { value: 'trial', label: 'Trial account' },
+            ],
+            fetchFromWarehouse: false,
+        },
+    };
+
+    const fieldWithWarehouseAutocomplete: FilterableItem = {
+        ...fieldWithStaticAutocomplete,
+        filterAutocomplete: {
+            values: [
+                { value: 'active', label: 'Active customer' },
+                { value: 'trial', label: 'Trial account' },
+            ],
+            fetchFromWarehouse: true,
+        },
+    };
+
+    it('uses local filter autocomplete values and avoids requesting field values', () => {
+        const { result } = renderHookWithProviders(() =>
+            useFieldValues(
+                'customer',
+                [],
+                'project-uuid',
+                fieldWithStaticAutocomplete,
+                undefined,
+                undefined,
+            ),
+        );
+
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(result.current.results).toEqual([
+            { value: 'active', label: 'Active customer' },
+        ]);
+    });
+
+    it('keeps YAML labels when suggestions or fetched results include the same raw value', async () => {
+        const staticResult = renderHookWithProviders(() =>
+            useFieldValues(
+                '',
+                ['active', 'prospect'],
+                'project-uuid',
+                fieldWithStaticAutocomplete,
+                undefined,
+                undefined,
+            ),
+        ).result;
+
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(staticResult.current.results).toEqual([
+            { value: 'active', label: 'Active customer' },
+            { value: 'prospect' },
+            { value: 'trial', label: 'Trial account' },
+        ]);
+
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            search: 'act',
+            results: ['active', 'prospect'],
+            cached: false,
+            refreshedAt: new Date('2026-06-29T09:00:00.000Z'),
+        } as never);
+
+        const fetchedResult = renderHookWithProviders(() =>
+            useFieldValues(
+                'act',
+                [],
+                'project-uuid',
+                fieldWithWarehouseAutocomplete,
+                undefined,
+                undefined,
+            ),
+        ).result;
+
+        await waitFor(() => {
+            expect(fetchedResult.current.results).toEqual([
+                { value: 'active', label: 'Active customer' },
+                { value: 'prospect' },
+                { value: 'trial', label: 'Trial account' },
+            ]);
+        });
     });
 });

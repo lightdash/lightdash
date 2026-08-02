@@ -21,24 +21,24 @@ describe('PreAggregateMaterializationService', () => {
     };
 
     const preAggregateModel = {
-        getPreAggregateDefinitionByUuid: jest.fn(),
-        insertInProgress: jest.fn(),
-        attachQueryUuid: jest.fn(),
-        markFailed: jest.fn(),
-        promoteToActive: jest.fn(),
-        getActiveMaterialization: jest.fn(),
+        getPreAggregateDefinitionByUuid: vi.fn(),
+        insertInProgress: vi.fn(),
+        attachQueryUuid: vi.fn(),
+        markFailed: vi.fn(),
+        promoteToActive: vi.fn(),
+        getActiveMaterialization: vi.fn(),
     };
 
     const queryHistoryModel = {
-        pollForQueryCompletion: jest.fn(),
+        pollForQueryCompletion: vi.fn(),
     };
 
     const asyncQueryService = {
-        executeAsyncMetricQuery: jest.fn(),
+        executeAsyncMetricQuery: vi.fn(),
     };
 
     const preAggregateResultsStorageClient = {
-        getFileSize: jest.fn(),
+        getFileSize: vi.fn(),
     };
 
     const service = new PreAggregateMaterializationService({
@@ -52,8 +52,10 @@ describe('PreAggregateMaterializationService', () => {
     });
 
     beforeEach(() => {
-        jest.clearAllMocks();
-        jest.spyOn(analyticsMock, 'trackAccount').mockImplementation();
+        vi.clearAllMocks();
+        vi.spyOn(analyticsMock, 'trackAccount').mockImplementation(
+            () => undefined,
+        );
         preAggregateModel.insertInProgress.mockResolvedValue({
             materializationUuid: 'mat-1',
         });

@@ -1,10 +1,11 @@
 import { type UserWarehouseCredentials } from '@lightdash/common';
-import { Anchor, Button, Group, Stack, Text, Title } from '@mantine-8/core';
+import { Anchor, Button, Text } from '@mantine-8/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
-import { EmptyState } from '../../common/EmptyState';
 import MantineIcon from '../../common/MantineIcon';
+import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { CreateCredentialsModal } from './CreateCredentialsModal';
 import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
@@ -38,67 +39,41 @@ export const MyWarehouseConnectionsPanel = () => {
     );
 
     return (
-        <>
-            <Stack mb="lg">
-                {credentials && credentials.length > 0 ? (
-                    <>
-                        <Group justify="space-between">
-                            <Stack gap="one">
-                                <Title order={5}>
-                                    My Warehouse connections
-                                </Title>
-                                <Text c="ldGray.6" fz="xs">
-                                    Add credentials to connect to your
-                                    warehouse.
-                                </Text>
-                            </Stack>
-                            <Button
-                                size="xs"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={() => setIsCreatingCredentials(true)}
-                            >
-                                Add new credentials
-                            </Button>
-                        </Group>
-                        {personalConnectionsCallout}
-                        <CredentialsTable
-                            credentials={credentials}
-                            setWarehouseCredentialsToBeDeleted={
-                                setWarehouseCredentialsToBeDeleted
-                            }
-                            setWarehouseCredentialsToBeEdited={
-                                setWarehouseCredentialsToBeEdited
-                            }
-                        />
-                    </>
-                ) : (
-                    <EmptyState
-                        icon={
-                            <MantineIcon
-                                icon={IconDatabaseCog}
-                                color="ldGray.6"
-                                stroke={1}
-                                size="5xl"
-                            />
+        <SettingsPage
+            title="My warehouse connections"
+            description="Manage the personal credentials used to connect Lightdash to warehouses."
+            actions={
+                <Button
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={() => setIsCreatingCredentials(true)}
+                >
+                    Add credentials
+                </Button>
+            }
+        >
+            {credentials && credentials.length > 0 ? (
+                <>
+                    {personalConnectionsCallout}
+                    <CredentialsTable
+                        credentials={credentials}
+                        setWarehouseCredentialsToBeDeleted={
+                            setWarehouseCredentialsToBeDeleted
                         }
-                        title="No credentials"
-                        description={
-                            <>
-                                <Text>
-                                    You haven't created any personal warehouse
-                                    connections yet!
-                                </Text>
-                                <br />
-                                {personalConnectionsCallout}
-                            </>
+                        setWarehouseCredentialsToBeEdited={
+                            setWarehouseCredentialsToBeEdited
                         }
-                    >
-                        <Button onClick={() => setIsCreatingCredentials(true)}>
-                            Add new credentials
-                        </Button>
-                    </EmptyState>
-                )}
-            </Stack>
+                    />
+                </>
+            ) : (
+                <SettingsEmptyState
+                    icon={IconDatabaseCog}
+                    title="No warehouse connections"
+                    description="Add personal credentials for projects that require them."
+                >
+                    {personalConnectionsCallout}
+                </SettingsEmptyState>
+            )}
 
             {!!warehouseCredentialsToBeEdited && (
                 <EditCredentialsModal
@@ -126,6 +101,6 @@ export const MyWarehouseConnectionsPanel = () => {
                     }
                 />
             )}
-        </>
+        </SettingsPage>
     );
 };

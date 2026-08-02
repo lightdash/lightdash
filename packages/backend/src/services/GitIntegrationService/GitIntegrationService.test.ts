@@ -21,12 +21,12 @@ import {
     SPACE_MODEL,
 } from './GitIntegrationService.mock';
 
-jest.mock('../../clients/github/Github.ts', () => ({
-    getFileContent: jest.fn().mockImplementation(() => ({
+vi.mock('../../clients/github/Github.ts', () => ({
+    getFileContent: vi.fn().mockImplementation(() => ({
         content: SCHEMA_YML,
         sha: 'sha',
     })),
-    updateFile: jest.fn().mockImplementation(() => undefined),
+    updateFile: vi.fn().mockImplementation(() => undefined),
 }));
 
 describe('GitIntegrationService', () => {
@@ -39,15 +39,15 @@ describe('GitIntegrationService', () => {
         githubAppInstallationsModel:
             GITHUB_APP_MODEL as unknown as GithubAppInstallationsModel,
         githubAppService: {
-            getValidUserToken: jest.fn().mockResolvedValue(undefined),
+            getValidUserToken: vi.fn().mockResolvedValue(undefined),
         } as unknown as GithubAppService,
         pullRequestsModel: {
-            create: jest.fn(),
+            create: vi.fn(),
         } as unknown as PullRequestsModel,
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('updateFile', () => {

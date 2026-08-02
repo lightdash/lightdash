@@ -1,4 +1,3 @@
-import { MantineProvider, type MantineTheme } from '@mantine/core';
 import type { Range } from '@tanstack/react-virtual';
 import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
@@ -12,23 +11,6 @@ interface VirtualizedTreeListProps {
     onToggleGroup: (groupKey: string) => void;
     onSelectedFieldChange: (fieldId: string, isDimension: boolean) => void;
 }
-
-const themeOverride = {
-    components: {
-        NavLink: {
-            styles: (theme: MantineTheme) => ({
-                root: {
-                    height: theme.spacing.xxl,
-                    padding: `0 ${theme.spacing.sm}`,
-                    flexGrow: 0,
-                },
-                rightSection: {
-                    marginLeft: theme.spacing.xxs,
-                },
-            }),
-        },
-    },
-};
 
 /**
  * Virtualized tree list using @tanstack/react-virtual
@@ -102,53 +84,49 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
     const virtualItems = virtualizer.getVirtualItems();
 
     return (
-        <MantineProvider inherit theme={themeOverride}>
+        <div
+            ref={parentRef}
+            data-testid="virtualized-tree-scroll-container"
+            className={classes.scrollContainer}
+        >
             <div
-                ref={parentRef}
-                data-testid="virtualized-tree-scroll-container"
-                className={classes.scrollContainer}
+                className={classes.sizer}
+                style={{ height: `${virtualizer.getTotalSize()}px` }}
             >
-                <div
-                    className={classes.sizer}
-                    style={{ height: `${virtualizer.getTotalSize()}px` }}
-                >
-                    {virtualItems.map((virtualItem) => {
-                        const item = items[virtualItem.index];
-                        const isStickyItem = isSticky(virtualItem.index);
-                        const isActiveStickyItem = isActiveSticky(
-                            virtualItem.index,
-                        );
+                {virtualItems.map((virtualItem) => {
+                    const item = items[virtualItem.index];
+                    const isStickyItem = isSticky(virtualItem.index);
+                    const isActiveStickyItem = isActiveSticky(
+                        virtualItem.index,
+                    );
 
-                        return (
-                            <div
-                                key={item.id}
-                                data-index={virtualItem.index}
-                                data-sticky-header={isStickyItem || undefined}
-                                className={classes.item}
-                                style={
-                                    isActiveStickyItem
-                                        ? { position: 'sticky' }
-                                        : {
-                                              position: 'absolute',
-                                              transform: `translateY(${virtualItem.start}px)`,
-                                          }
-                                }
-                            >
-                                <VirtualTreeItem
-                                    item={item}
-                                    sectionContexts={sectionContexts}
-                                    onToggleTable={onToggleTable}
-                                    onToggleGroup={onToggleGroup}
-                                    onSelectedFieldChange={
-                                        onSelectedFieldChange
-                                    }
-                                />
-                            </div>
-                        );
-                    })}
-                </div>
+                    return (
+                        <div
+                            key={item.id}
+                            data-index={virtualItem.index}
+                            data-sticky-header={isStickyItem || undefined}
+                            className={classes.item}
+                            style={
+                                isActiveStickyItem
+                                    ? { position: 'sticky' }
+                                    : {
+                                          position: 'absolute',
+                                          transform: `translateY(${virtualItem.start}px)`,
+                                      }
+                            }
+                        >
+                            <VirtualTreeItem
+                                item={item}
+                                sectionContexts={sectionContexts}
+                                onToggleTable={onToggleTable}
+                                onToggleGroup={onToggleGroup}
+                                onSelectedFieldChange={onSelectedFieldChange}
+                            />
+                        </div>
+                    );
+                })}
             </div>
-        </MantineProvider>
+        </div>
     );
 };
 

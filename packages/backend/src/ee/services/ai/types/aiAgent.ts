@@ -1,48 +1,72 @@
 import {
     AiAgent,
-    AiAgentDocumentSummary,
+    AiAgentDocumentContext,
+    AiDeepResearchBudget,
     AiMcpServer,
     AiMcpServerConnectionStatus,
     AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
+    type AiDeepResearchActivity,
+    type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchHypothesis,
+    type AiDeepResearchInvestigation,
+    type AiDeepResearchInvestigationReport,
+    type AiDeepResearchPhase,
+    type AiDeepResearchRunStatus,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';
+import {
+    AiKeyManagement,
+    type AiUsageTokens,
+} from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
+import type {
+    MemorySearchEntry,
+    ProjectContextSearchEntry,
+} from '../tools/memoryProjectContext';
 import {
     AnalyzeFieldImpactFn,
+    ClosePullRequestFn,
     ConsumePromptSteersFn,
     CreateContentFn,
     CreateOrUpdateArtifactFn,
+    CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
     DiscoverReposFn,
     EditContentFn,
     EditDbtProjectFn,
     EditProjectContextFn,
+    EditRepoFn,
     ExploreRepoFn,
     FindContentFn,
     FindExploresFn,
-    FindFieldFn,
+    FindFieldsFn,
     GetDashboardChartsFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
     GetProjectInfoFn,
     GetPromptFn,
+    GetPullRequestDiffFn,
     GetSavedChartFn,
+    GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
+    IsThreadSqlAutoApprovedFn,
     ListContentFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
     ListWarehouseTablesFn,
+    ListWorkstreamsFn,
     LoadAgentSkillFn,
     ReadContentFn,
     ReadPinnedThreadFn,
     RecordSqlApprovalFn,
+    ResolveUrlFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -52,6 +76,7 @@ import {
     SendSlackBlocksFn,
     SetupPreviewDeployFn,
     StoreReasoningFn,
+    StoreToolCallErrorFn,
     StoreToolCallFn,
     StoreToolResultsFn,
     SyncDbtProjectFn,
@@ -59,6 +84,7 @@ import {
     UpdateProgressFn,
     UpdatePromptFn,
     UpdateSlackMessageFn,
+    UpdateUserNameFn,
     ValidateContentFn,
     WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
@@ -79,12 +105,100 @@ export type UnavailableMcpServer = {
     status: AiMcpServerConnectionStatus;
 };
 
+export type AiAgentRequestingUserRole = {
+    name: string;
+    isTechnical: boolean;
+};
+
+export type AiAgentRequestingUser = {
+    name: string;
+    role: AiAgentRequestingUserRole | null;
+    groups: string[];
+};
+
+/**
+ * The structured phase a deep-research call plays. Absent for the legacy
+ * single-loop behavior. Planner and investigator hand their results back
+ * through callbacks fired by their submission tools; the judge reports
+ * through the existing submitResearchReport path.
+ */
+export type AiDeepResearchExecutionRole =
+    | {
+          role: 'planner';
+          maxHypotheses: number;
+          onHypotheses: (hypotheses: AiDeepResearchHypothesis[]) => void;
+      }
+    | {
+          role: 'investigator';
+          hypothesis: AiDeepResearchHypothesis;
+          onReport: (report: AiDeepResearchInvestigationReport) => void;
+      }
+    | {
+          role: 'judge';
+          investigations: AiDeepResearchInvestigation[];
+      };
+
+export type AiDeepResearchStepUsage = {
+    runUuid: string;
+    phase: AiDeepResearchPhase;
+    tokens: AiUsageTokens;
+};
+
+export type AiAgentExecutionConfig =
+    | {
+          mode: 'standard';
+          maxSteps: number;
+          budget?: never;
+          onStepUsage?: never;
+          research?: never;
+          parentToolCallId?: never;
+      }
+    | {
+          mode: 'deep_research';
+          runUuid: string;
+          phase: AiDeepResearchPhase;
+          maxSteps: number;
+          budget: AiDeepResearchBudget;
+          initialTokenUsage: number;
+          onStepUsage?: (
+              usage: AiDeepResearchStepUsage,
+          ) => void | Promise<void>;
+          onExecutionContextResolved?: (
+              snapshot: AiDeepResearchExecutionContextSnapshot,
+          ) => void | Promise<void>;
+          research: AiDeepResearchExecutionRole;
+          /**
+           * Persists this call's tool activity as subagent children so it
+           * stays out of rebuilt model history; null keeps it top-level.
+           */
+          parentToolCallId?: string | null;
+      };
+
+export type AiAgentDeepResearchRunContext = {
+    uuid: string;
+    question: string;
+    status: AiDeepResearchRunStatus;
+    phase: AiDeepResearchPhase | null;
+    activity: AiDeepResearchActivity | null;
+    progressCurrent: number | null;
+    progressTotal: number | null;
+    startedAt: string | null;
+    elapsedSeconds: number;
+    hasReport: boolean;
+};
+
 export type AiAgentArgs = AnyAiModel & {
+    // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
+    // Stamped by the model builder and carried through for usage analytics.
+    keyManagement: AiKeyManagement;
     agentSettings: AiAgent;
-    knowledgeDocuments: AiAgentDocumentSummary[];
+    requestingUser: AiAgentRequestingUser | null;
+    knowledgeDocuments: AiAgentDocumentContext[];
+    deepResearchRuns: AiAgentDeepResearchRunContext[];
     projectContext: ProjectContextEntry[];
     // Whether the project_context feature is on for this turn (Control = off).
     projectContextEnabled: boolean;
+    aiAgentMemoryEnabled: boolean;
     mcpServers: AiAgentMcpServer[];
     messageHistory: ModelMessage[];
     promptUuid: string;
@@ -96,7 +210,6 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
-    enableSearchSemanticLayer: boolean;
     enableAiWriteback: boolean;
     // Only on inside review-remediation work threads: lets the agent open/update
     // the project_context.yml PR via the deterministic editProjectContext tool.
@@ -106,6 +219,14 @@ export type AiAgentArgs = AnyAiModel & {
     writebackAttribution: AiWritebackAttribution | null;
     enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
+    // Experimental: swap the discoverFields sub-agent for a deterministic grep
+    // over the in-memory annotated explores (the `grepFields` tool). Gated by
+    // the `ai-grep-fields` feature flag.
+    enableGrepFields: boolean;
+    // Whether the general-purpose coding agent (`editRepo`) is available — the
+    // CodingAgent flag, the org has a writable Git installation, and (in Slack)
+    // a trusted prompt identity. Independent of enableAiWriteback.
+    enableCodingAgent: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.
     repoFsRoot: string | null;
@@ -118,10 +239,13 @@ export type AiAgentArgs = AnyAiModel & {
     // When the modern Slack streaming card is driving progress, tools render
     // their state into the card instead of the legacy bolt-gif placeholder.
     useSlackStreamCard: boolean;
+    // Originating Slack channel, so scheduling can target "this channel"
+    // without asking. Null for web and MCP prompts.
+    slackChannelId: string | null;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     availableSkills: AiAgentSkillReference[];
-    enableAgentRevamp: boolean;
+    modelReasoningEnabled: boolean | null;
 
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
@@ -132,6 +256,7 @@ export type AiAgentArgs = AnyAiModel & {
     siteUrl: string;
     canManageAgent: boolean;
     toolHints: string[];
+    execution: AiAgentExecutionConfig;
     /**
      * When true, the first tool hint is *forced* on the opening step
      * (toolChoice), not just suggested — used by the review Build-fix run to
@@ -155,15 +280,23 @@ export type AiAgentDependencies = {
     listExplores: ListExploresFn;
     // The whole cached project_context document.
     getProjectContextDocument: () => Promise<ProjectContextEntry[]>;
+    getAiAgentMemoryContextEntries: () => Promise<MemorySearchEntry[]>;
+    incrementAiAgentMemoryPulls: (
+        entries: ProjectContextSearchEntry[],
+    ) => Promise<void>;
     listContent: ListContentFn;
     findContent: FindContentFn;
     readContent: ReadContentFn;
+    resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
+    createScheduledDelivery: CreateScheduledDeliveryFn;
+    updateUserName: UpdateUserNameFn;
     validateContent: ValidateContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
-    findFields: FindFieldFn;
+    getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
+    findFields: FindFieldsFn;
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
     getExplore: GetExploreFn;
@@ -183,6 +316,7 @@ export type AiAgentDependencies = {
     updatePrompt: UpdatePromptFn;
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
+    storeToolCallError: StoreToolCallErrorFn;
     storeToolResults: StoreToolResultsFn;
     storeReasoning: StoreReasoningFn;
     isPromptInterrupted: IsPromptInterruptedFn;
@@ -192,14 +326,19 @@ export type AiAgentDependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
+    editRepo: EditRepoFn;
     syncDbtProject: SyncDbtProjectFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;
+    listWorkstreams: ListWorkstreamsFn;
+    closePullRequest: ClosePullRequestFn;
+    getPullRequestDiff: GetPullRequestDiffFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
     loadSkill: LoadAgentSkillFn;
     perf: PerformanceMetrics;
 };

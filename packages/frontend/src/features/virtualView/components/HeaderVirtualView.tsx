@@ -100,7 +100,6 @@ const ChartErrorListItem: FC<{
         <Group gap="xs" wrap="nowrap">
             <MantineIcon icon={IconAlertHexagon} color="orange" size={16} />
             <Tooltip
-                variant="xs"
                 withinPortal
                 label={
                     <Stack gap={2}>
@@ -554,11 +553,7 @@ export const HeaderVirtualView: FC<{
             </Group>
 
             <Group gap="sm">
-                <Tooltip
-                    variant="xs"
-                    label="No changes to save"
-                    disabled={hasChanges}
-                >
+                <Tooltip label="No changes to save" disabled={hasChanges}>
                     <Box>
                         <Button
                             size="xs"

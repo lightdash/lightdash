@@ -6,7 +6,7 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Anchor, Box, Button, Card, Flex } from '@mantine/core';
+import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine-8/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -28,6 +28,7 @@ import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import ProjectStatusCallout from './ProjectStatusCallout';
 import { type ProjectConnectionForm } from './types';
+import classes from './UpdateProjectConnection.module.css';
 import { useOnProjectError } from './useOnProjectError';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import { warehouseValueValidators } from './WarehouseForms/validators';
@@ -135,6 +136,7 @@ const UpdateProjectConnection: FC<{
                 >
                     Read docs{' '}
                     <Anchor
+                        inherit
                         href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
                         target="_blank"
                         rel="noreferrer"
@@ -165,16 +167,10 @@ const UpdateProjectConnection: FC<{
                     )}
 
                     <Card
-                        component={Flex}
-                        justify="space-between"
-                        align="center"
-                        pos="sticky"
+                        className={classes.stickyFooter}
                         withBorder
                         shadow="sm"
-                        sx={(theme) => ({
-                            zIndex: 1,
-                            bottom: `-${theme.spacing.xl}`,
-                        })}
+                        radius="sm"
                     >
                         <Box>
                             {latestCompilationLog && (
@@ -182,7 +178,7 @@ const UpdateProjectConnection: FC<{
                                     variant="subtle"
                                     color="gray"
                                     size="xs"
-                                    rightIcon={
+                                    rightSection={
                                         <MantineIcon icon={IconExternalLink} />
                                     }
                                     component="a"

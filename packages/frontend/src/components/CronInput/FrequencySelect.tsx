@@ -18,6 +18,10 @@ const FrequencyItems: Array<FrequencyItem> = [
         label: 'Daily',
     },
     {
+        value: Frequency.WEEKDAYS,
+        label: 'Weekdays',
+    },
+    {
         value: Frequency.WEEKLY,
         label: 'Weekly',
     },
@@ -43,7 +47,7 @@ const FrequencySelect: FC<{
             value={value}
             disabled={disabled}
             onChange={onChange}
-            w={110}
+            w={120}
         />
     );
 };

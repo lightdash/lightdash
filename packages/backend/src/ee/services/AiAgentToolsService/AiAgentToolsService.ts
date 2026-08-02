@@ -6,18 +6,22 @@ import {
     CatalogFilter,
     CatalogType,
     ContentType,
-    convertFieldRefToFieldId,
+    DimensionType,
     Explore,
+    FeatureFlags,
     filterExploreByTags,
+    filterStaticFilterAutocompleteValues,
+    findFieldByIdInExplore,
     ForbiddenError,
     getContentAsCodePathFromLtreePath,
+    getErrorMessage,
     getItemMap,
     getLtreePathFromContentAsCodePath,
     getValidAiQueryLimit,
     isDashboardChartTileType,
+    isDimension,
     isExploreError,
     isGitProjectType,
-    isJoinModelRequiredFilter,
     JobStatusType,
     NotFoundError,
     ParameterError,
@@ -25,18 +29,21 @@ import {
     QueryHistoryStatus,
     RequestMethod,
     SessionUser,
+    shouldUseStaticFilterAutocomplete,
     TimeoutError,
     UserAttributeValueMap,
     WarehouseQueryError,
+    type AiAgentDocumentSummary,
     type ChartAsCode,
     type DashboardAsCode,
-    type ModelRequiredFilterRule,
+    type FieldValueSearchResult,
+    type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import Logger from '../../../logging/logger';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
-import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
+import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
@@ -55,19 +62,22 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
+import { matchShareUrlNanoid } from '../../../services/UnfurlService/UnfurlService';
 import {
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
     mergeUserAttributes,
 } from '../../../services/UserAttributesService/UserAttributeUtils';
+import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
+import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
-    AiAgentRequiredFilterMetadata,
     AnalyzeFieldImpactFn,
     CreateContentFn,
+    CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
     EditContentFn,
     FindContentFn,
@@ -76,10 +86,12 @@ import {
     FindContentSpaceMetadata,
     FindExploresFn,
     FindFieldFn,
+    FindFieldsFn,
     GetDashboardChartsFn,
     GetExploreFn,
     GetProjectInfoFn,
     GetSavedChartFn,
+    GetVerifiedFieldUsageFn,
     ListContentFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
@@ -87,6 +99,7 @@ import {
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     ReadContentFn,
+    ResolveUrlFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -94,6 +107,7 @@ import {
     SearchSemanticLayerFn,
     SetupPreviewDeployFn,
     SyncDbtProjectFn,
+    UpdateUserNameFn,
     ValidateContentFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -101,7 +115,9 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { getExploreRequiredFilters } from '../ai/utils/requiredFilters';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
+import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
@@ -127,13 +143,45 @@ export type AiAgentToolsRuntimeContext = {
     spaceAccess: string[] | null;
     userAttributeOverrides?: UserAttributeValueMap;
     agentUuid?: string;
+    threadUuid?: string;
+    onWarehouseQuery?: () => void | Promise<void>;
 };
+
+export type McpRuntimeSuccess<TData> = {
+    status: 'success';
+    data: TData;
+};
+
+export type McpRuntimeError = {
+    status: 'error';
+    error: unknown;
+};
+
+export type McpRuntimeResult<TData> =
+    | McpRuntimeSuccess<TData>
+    | McpRuntimeError;
+
+export const unwrapMcpRuntimeResult = <TData>(
+    result: McpRuntimeResult<TData>,
+): TData => {
+    if (result.status === 'error') {
+        throw result.error;
+    }
+    return result.data;
+};
+
+type FindExploresRuntimeResult = Awaited<ReturnType<FindExploresFn>>;
+
+type FindFieldsRuntimeResult = Awaited<ReturnType<FindFieldsFn>>;
+
+type GetExploreRuntimeResult = Awaited<ReturnType<GetExploreFn>>;
 
 export type AiAgentToolsRuntime = {
     listExplores: ListExploresFn;
     getExplore: GetExploreFn;
     findExplores: FindExploresFn;
-    findFields: FindFieldFn;
+    getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
+    findFields: FindFieldsFn;
     findContent: FindContentFn;
     searchFieldValues: SearchFieldValuesFn;
     searchSemanticLayer: SearchSemanticLayerFn;
@@ -147,8 +195,11 @@ export type AiAgentToolsRuntime = {
     listContent: ListContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     readContent: ReadContentFn;
+    resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
+    createScheduledDelivery: CreateScheduledDeliveryFn;
+    updateUserName: UpdateUserNameFn;
     validateContent: ValidateContentFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: (args: {
@@ -161,6 +212,21 @@ export type AiAgentToolsRuntime = {
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     loadSkill: LoadAgentSkillFn;
+};
+
+export type McpAiAgentToolsRuntime = Omit<
+    AiAgentToolsRuntime,
+    'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
+> & {
+    getExplore: (
+        args: Parameters<GetExploreFn>[0],
+    ) => Promise<McpRuntimeResult<GetExploreRuntimeResult>>;
+    findExplores: (
+        args: Parameters<FindExploresFn>[0],
+    ) => Promise<McpRuntimeResult<FindExploresRuntimeResult>>;
+    findFields: (
+        args: Parameters<FindFieldsFn>[0],
+    ) => Promise<McpRuntimeResult<FindFieldsRuntimeResult>>;
 };
 
 type BuiltInSkillsClient = Pick<
@@ -188,6 +254,7 @@ type AiAgentToolsServiceDependencies = {
     spaceService: SpaceService;
     spaceModel: SpaceModel;
     dashboardService: DashboardService;
+    dashboardModel: DashboardModel;
     savedChartService: SavedChartService;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
@@ -195,10 +262,14 @@ type AiAgentToolsServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
-    changesetModel: ChangesetModel;
+    aiDeepResearchRunModel: AiDeepResearchRunModel;
     featureFlagService: FeatureFlagService;
     previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
+    userService: UserService;
+    // Lazy to break the construction cycle: schedulerAiAugmentationService →
+    // aiAgentService → aiAgentToolsService.
+    getSchedulerAiAugmentationService: () => SchedulerAiAugmentationService;
     lightdashConfig: {
         siteUrl: string;
         ai: { copilot: { maxQueryLimit: number } };
@@ -230,6 +301,8 @@ export class AiAgentToolsService extends BaseService {
 
     private readonly dashboardService: DashboardService;
 
+    private readonly dashboardModel: DashboardModel;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly savedChartModel: SavedChartModel;
@@ -242,9 +315,17 @@ export class AiAgentToolsService extends BaseService {
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
+    private readonly aiDeepResearchRunModel: AiDeepResearchRunModel;
+
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly previewDeploySetupService: PreviewDeploySetupService;
+
+    private readonly shareService: ShareService;
+
+    private readonly userService: UserService;
+
+    private readonly getSchedulerAiAugmentationService: () => SchedulerAiAugmentationService;
 
     private readonly lightdashConfig: AiAgentToolsServiceDependencies['lightdashConfig'];
 
@@ -256,42 +337,6 @@ export class AiAgentToolsService extends BaseService {
 
     loadAgentSkill(name: string) {
         return this.builtInSkills.getAiAgentSkill(name);
-    }
-
-    private static getRequiredFilterMetadata(
-        filter: ModelRequiredFilterRule,
-        fallbackTableName: string,
-    ): AiAgentRequiredFilterMetadata {
-        const tableName = isJoinModelRequiredFilter(filter)
-            ? filter.target.tableName
-            : fallbackTableName;
-
-        return {
-            fieldId: convertFieldRefToFieldId(
-                filter.target.fieldRef,
-                tableName,
-            ),
-            fieldRef: filter.target.fieldRef,
-            tableName,
-            operator: filter.operator,
-            values: filter.values,
-            settings: filter.settings,
-            required: filter.required ?? true,
-        };
-    }
-
-    private static getExploreRequiredFilters(
-        explore: Explore | undefined,
-    ): AiAgentRequiredFilterMetadata[] {
-        if (!explore) return [];
-
-        return (explore.tables[explore.baseTable].requiredFilters ?? []).map(
-            (filter) =>
-                AiAgentToolsService.getRequiredFilterMetadata(
-                    filter,
-                    explore.baseTable,
-                ),
-        );
     }
 
     listMcpSkills() {
@@ -331,14 +376,19 @@ export class AiAgentToolsService extends BaseService {
         spaceService,
         spaceModel,
         dashboardService,
+        dashboardModel,
         savedChartService,
         savedChartModel,
         coderService,
         contentService,
         aiAgentContentValidation,
         aiAgentDocumentModel,
+        aiDeepResearchRunModel,
         featureFlagService,
         previewDeploySetupService,
+        shareService,
+        userService,
+        getSchedulerAiAugmentationService,
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
@@ -355,14 +405,20 @@ export class AiAgentToolsService extends BaseService {
         this.spaceService = spaceService;
         this.spaceModel = spaceModel;
         this.dashboardService = dashboardService;
+        this.dashboardModel = dashboardModel;
         this.savedChartService = savedChartService;
         this.savedChartModel = savedChartModel;
         this.coderService = coderService;
         this.contentService = contentService;
         this.aiAgentContentValidation = aiAgentContentValidation;
         this.aiAgentDocumentModel = aiAgentDocumentModel;
+        this.aiDeepResearchRunModel = aiDeepResearchRunModel;
         this.featureFlagService = featureFlagService;
         this.previewDeploySetupService = previewDeploySetupService;
+        this.shareService = shareService;
+        this.userService = userService;
+        this.getSchedulerAiAugmentationService =
+            getSchedulerAiAugmentationService;
         this.lightdashConfig = lightdashConfig;
     }
 
@@ -390,7 +446,10 @@ export class AiAgentToolsService extends BaseService {
 
                 const dbAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        { organizationUuid, userUuid: user.userUuid },
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
                     );
                 const userAttributes = mergeUserAttributes(
                     dbAttributes,
@@ -421,7 +480,7 @@ export class AiAgentToolsService extends BaseService {
                     .map((explore) =>
                         getFilteredExplore(explore, userAttributes),
                     )
-                    .filter((explore) =>
+                    .map((explore) =>
                         filterExploreByTags({
                             explore,
                             availableTags,
@@ -458,11 +517,20 @@ export class AiAgentToolsService extends BaseService {
         return explore;
     }
 
-    createRuntime(context: AiAgentToolsRuntimeContext): AiAgentToolsRuntime {
-        return {
+    createRuntime(
+        context: AiAgentToolsRuntimeContext & { source: 'mcp' },
+    ): McpAiAgentToolsRuntime;
+    createRuntime(
+        context: AiAgentToolsRuntimeContext & { source: 'ai_agent' },
+    ): AiAgentToolsRuntime;
+    createRuntime(
+        context: AiAgentToolsRuntimeContext,
+    ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
+        const runtime: Omit<AiAgentToolsRuntime, 'updateUserName'> = {
             listExplores: () => this.listExplores(context),
             getExplore: (args) => this.getExploreForRuntime(context, args),
             findExplores: (args) => this.findExplores(context, args),
+            getVerifiedFieldUsage: () => this.getVerifiedFieldUsage(context),
             findFields: (args) => this.findFields(context, args),
             findContent: (args) => this.findContent(context, args),
             searchFieldValues: (args) => this.searchFieldValues(context, args),
@@ -488,8 +556,11 @@ export class AiAgentToolsService extends BaseService {
             getDashboardCharts: (args) =>
                 this.getDashboardCharts(context, args),
             readContent: (args) => this.readContent(context, args),
+            resolveUrl: (args) => this.resolveUrl(context, args),
             editContent: (args) => this.editContent(context, args),
             createContent: (args) => this.createContent(context, args),
+            createScheduledDelivery: (args) =>
+                this.createScheduledDelivery(context, args),
             validateContent: (args) => this.validateContent(args),
             listKnowledgeDocuments: () => this.listKnowledgeDocuments(context),
             getKnowledgeDocumentContent: (args) =>
@@ -501,6 +572,57 @@ export class AiAgentToolsService extends BaseService {
             getProjectInfo: () => this.getProjectInfo(context),
             loadSkill: (name) => this.loadAgentSkill(name),
         };
+
+        return context.source === 'mcp'
+            ? this.withMcpRuntimeResults(runtime)
+            : {
+                  ...runtime,
+                  updateUserName: (args) => this.updateUserName(context, args),
+              };
+    }
+
+    private withMcpRuntimeResults(
+        runtime: Omit<AiAgentToolsRuntime, 'updateUserName'>,
+    ): McpAiAgentToolsRuntime {
+        return {
+            ...runtime,
+            getExplore: this.withMcpRuntimeResult(
+                'get_explore',
+                runtime.getExplore,
+            ),
+            findExplores: this.withMcpRuntimeResult(
+                'find_explores',
+                runtime.findExplores,
+            ),
+            findFields: this.withMcpRuntimeResult(
+                'find_fields',
+                runtime.findFields,
+            ),
+        };
+    }
+
+    private withMcpRuntimeResult<TArgs extends unknown[], TData>(
+        toolName: string,
+        run: (...args: TArgs) => Promise<TData>,
+    ) {
+        return (...args: TArgs) =>
+            this.runMcpRuntimeTool(toolName, () => run(...args));
+    }
+
+    private async runMcpRuntimeTool<TData>(
+        toolName: string,
+        getData: () => Promise<TData>,
+    ): Promise<McpRuntimeResult<TData>> {
+        try {
+            return { status: 'success', data: await getData() };
+        } catch (error) {
+            const message = getErrorMessage(error);
+            this.logger.error(
+                `[AiAgentToolsService] Error in MCP ${toolName}: ${message}`,
+                { error },
+            );
+            return { status: 'error', error };
+        }
     }
 
     private listExplores(
@@ -562,10 +684,9 @@ export class AiAgentToolsService extends BaseService {
                 const exploreSearchResults = tableSearchResults.data
                     .filter((item) => item.type === CatalogType.Table)
                     .map((table) => {
-                        const requiredFilters =
-                            AiAgentToolsService.getExploreRequiredFilters(
-                                filteredExploresByName.get(table.name),
-                            );
+                        const requiredFilters = getExploreRequiredFilters(
+                            filteredExploresByName.get(table.name),
+                        );
 
                         return {
                             name: table.name,
@@ -628,10 +749,45 @@ export class AiAgentToolsService extends BaseService {
 
     private findFields(
         context: AiAgentToolsRuntimeContext,
+        args: Parameters<FindFieldsFn>[0],
+    ): ReturnType<FindFieldsFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.findFields`,
+            args,
+            async () =>
+                Promise.all(
+                    args.fieldSearchQueries.map(async (fieldSearchQuery) => {
+                        try {
+                            const result = await this.findField(context, {
+                                table: args.table,
+                                fieldSearchQuery,
+                                page: args.page,
+                                pageSize: args.pageSize,
+                                explore: args.explore,
+                            });
+                            return {
+                                status: 'success',
+                                searchQuery: fieldSearchQuery.label,
+                                ...result,
+                            };
+                        } catch (error) {
+                            return {
+                                status: 'error',
+                                searchQuery: fieldSearchQuery.label,
+                                error: getErrorMessage(error),
+                            };
+                        }
+                    }),
+                ),
+        );
+    }
+
+    private findField(
+        context: AiAgentToolsRuntimeContext,
         args: Parameters<FindFieldFn>[0],
     ): ReturnType<FindFieldFn> {
         return wrapSentryTransaction(
-            `${AiAgentToolsService.transactionPrefix(context)}.findFields`,
+            `${AiAgentToolsService.transactionPrefix(context)}.findField`,
             args,
             async () => {
                 const { data: catalogItems, pagination } =
@@ -1025,6 +1181,7 @@ export class AiAgentToolsService extends BaseService {
 
                 if (spaceSlug === null) {
                     return this.getRootSpacesForAgent(
+                        context,
                         context.user,
                         context.projectUuid,
                         agentSpaceAccess,
@@ -1034,6 +1191,7 @@ export class AiAgentToolsService extends BaseService {
                 }
 
                 return this.getSpaceContentsForAgent(
+                    context,
                     context.user,
                     context.projectUuid,
                     spaceSlug,
@@ -1058,6 +1216,33 @@ export class AiAgentToolsService extends BaseService {
             default:
                 return assertUnreachable(type, 'Invalid content type');
         }
+    }
+
+    private static getSpaceUrl(
+        context: AiAgentToolsRuntimeContext,
+        uuid: string,
+    ) {
+        return `/projects/${context.projectUuid}/spaces/${uuid}`;
+    }
+
+    private static getScheduledDeliveryUrl(
+        context: AiAgentToolsRuntimeContext,
+        type: 'dashboard' | 'chart',
+        resourceUuid: string,
+        schedulerUuid: string,
+    ) {
+        const basePath =
+            type === 'dashboard'
+                ? `/projects/${context.projectUuid}/dashboards/${resourceUuid}/view`
+                : `/projects/${context.projectUuid}/saved/${resourceUuid}/view`;
+        return `${basePath}?scheduler_uuid=${schedulerUuid}`;
+    }
+
+    private static getDataAppUrl(
+        context: AiAgentToolsRuntimeContext,
+        uuid: string,
+    ) {
+        return `/projects/${context.projectUuid}/apps/${uuid}`;
     }
 
     private static getContentTypeLabel(type: ContentAsCodeType) {
@@ -1229,6 +1414,51 @@ export class AiAgentToolsService extends BaseService {
                     default:
                         return assertUnreachable(type, 'Invalid content type');
                 }
+            },
+        );
+    }
+
+    private resolveUrl(
+        context: AiAgentToolsRuntimeContext,
+        { url }: Parameters<ResolveUrlFn>[0],
+    ): ReturnType<ResolveUrlFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.resolveUrl`,
+            { url },
+            async () => {
+                const siteOrigin = new URL(this.lightdashConfig.siteUrl).origin;
+                if (/^https?:\/\//i.test(url)) {
+                    let origin: string;
+                    try {
+                        origin = new URL(url).origin;
+                    } catch {
+                        throw new ParameterError(`"${url}" is not a valid URL`);
+                    }
+                    if (origin !== siteOrigin) {
+                        throw new ParameterError(
+                            `"${url}" does not belong to this Lightdash instance (${siteOrigin}), so it cannot be resolved`,
+                        );
+                    }
+                }
+
+                const shareNanoid = matchShareUrlNanoid(url);
+                if (shareNanoid === null) {
+                    return { isShareLink: false };
+                }
+
+                // Resolving through ShareService enforces the caller's org
+                // membership before revealing the destination.
+                const share = await this.shareService.getShareUrl(
+                    context.account,
+                    shareNanoid,
+                );
+                return {
+                    isShareLink: true,
+                    url: new URL(
+                        `${share.path}${share.params}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                };
             },
         );
     }
@@ -1459,6 +1689,147 @@ export class AiAgentToolsService extends BaseService {
         return this.aiAgentContentValidation.validateContent(type, content);
     }
 
+    private createScheduledDelivery(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<CreateScheduledDeliveryFn>[0],
+    ): ReturnType<CreateScheduledDeliveryFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(
+                context,
+            )}.createScheduledDelivery`,
+            {
+                resourceType: args.resourceType,
+                resourceUuidOrSlug: args.resourceUuidOrSlug,
+            },
+            async () => {
+                const notFoundMessage = `${
+                    args.resourceType === 'chart' ? 'Chart' : 'Dashboard'
+                } "${args.resourceUuidOrSlug}" was not found`;
+                // Model-level lookups: the service getters record a view event
+                // per call. User authz is enforced by createScheduler.
+                let scheduler;
+                let resourceUuid;
+                switch (args.resourceType) {
+                    case 'chart': {
+                        const chart = await this.savedChartModel.get(
+                            args.resourceUuidOrSlug,
+                            undefined,
+                            { projectUuid: context.projectUuid },
+                        );
+                        if (
+                            !AiAgentToolsService.hasAgentSpaceAccess(
+                                context.spaceAccess,
+                                chart.spaceUuid,
+                            )
+                        ) {
+                            throw new NotFoundError(notFoundMessage);
+                        }
+                        resourceUuid = chart.uuid;
+                        scheduler =
+                            await this.savedChartService.createScheduler(
+                                context.user,
+                                chart.uuid,
+                                args.scheduler,
+                            );
+                        break;
+                    }
+                    case 'dashboard': {
+                        const dashboard =
+                            await this.dashboardModel.getByIdOrSlug(
+                                args.resourceUuidOrSlug,
+                                { projectUuid: context.projectUuid },
+                            );
+                        if (
+                            !AiAgentToolsService.hasAgentSpaceAccess(
+                                context.spaceAccess,
+                                dashboard.spaceUuid,
+                            )
+                        ) {
+                            throw new NotFoundError(notFoundMessage);
+                        }
+                        resourceUuid = dashboard.uuid;
+                        scheduler = await this.dashboardService.createScheduler(
+                            context.user,
+                            dashboard.uuid,
+                            args.scheduler,
+                        );
+                        break;
+                    }
+                    default:
+                        return assertUnreachable(
+                            args.resourceType,
+                            'Invalid resource type',
+                        );
+                }
+                const href = AiAgentToolsService.getScheduledDeliveryUrl(
+                    context,
+                    args.resourceType,
+                    resourceUuid,
+                    scheduler.schedulerUuid,
+                );
+
+                if (args.aiAugmentationPrompt === null) {
+                    return {
+                        scheduler,
+                        resourceUuid,
+                        href,
+                        aiAugmentationAttached: false,
+                        warnings: [],
+                    };
+                }
+
+                const augmentation: SchedulerAiAugmentation = context.agentUuid
+                    ? {
+                          type: 'agent',
+                          prompt: args.aiAugmentationPrompt,
+                          agentUuid: context.agentUuid,
+                          sourceThreadUuid: null,
+                      }
+                    : {
+                          type: 'fast_model',
+                          prompt: args.aiAugmentationPrompt,
+                      };
+
+                try {
+                    await this.getSchedulerAiAugmentationService().upsertAugmentation(
+                        context.user,
+                        scheduler.schedulerUuid,
+                        augmentation,
+                    );
+                    return {
+                        scheduler,
+                        resourceUuid,
+                        href,
+                        aiAugmentationAttached: true,
+                        warnings: [],
+                    };
+                } catch (error) {
+                    return {
+                        scheduler,
+                        resourceUuid,
+                        href,
+                        aiAugmentationAttached: false,
+                        warnings: [
+                            `AI augmentation could not be attached: ${getErrorMessage(
+                                error,
+                            )}. The delivery was created WITHOUT it — the user can add or fix the augmentation from the Scheduled deliveries UI, or remove the delivery there.`,
+                        ],
+                    };
+                }
+            },
+        );
+    }
+
+    private async updateUserName(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<UpdateUserNameFn>[0],
+    ): ReturnType<UpdateUserNameFn> {
+        await this.userService.updateUser(context.user, {
+            firstName: args.firstName.trim(),
+            lastName: args.lastName.trim(),
+        });
+    }
+
     private runAsyncQuery(
         context: AiAgentToolsRuntimeContext,
         metricQuery: Parameters<RunAsyncQueryFn>[0],
@@ -1484,6 +1855,7 @@ export class AiAgentToolsService extends BaseService {
                     >[1],
                 );
 
+                await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeMetricQueryAndGetResults({
                     account: context.account,
                     projectUuid: context.projectUuid,
@@ -1522,6 +1894,7 @@ export class AiAgentToolsService extends BaseService {
                         `Chart not found: ${args.chartUuid}`,
                     );
 
+                    await context.onWarehouseQuery?.();
                     return this.asyncQueryService.executeSavedChartQueryAndGetResults(
                         {
                             account: context.account,
@@ -1561,6 +1934,7 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
                     {
                         account: context.account,
@@ -1586,6 +1960,7 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlJob`,
             { sql: sql.slice(0, 500), limit },
             async () => {
+                await context.onWarehouseQuery?.();
                 const { queryUuid } =
                     await this.asyncQueryService.executeAsyncSqlQuery({
                         account: context.account,
@@ -1631,8 +2006,9 @@ export class AiAgentToolsService extends BaseService {
                             ),
                         );
                         return {
+                            queryUuid,
                             rows,
-                            columns: Object.keys(rows[0] ?? {}),
+                            columns: Object.keys(queryResults.columns),
                             rowCount: rows.length,
                         };
                     }
@@ -1759,11 +2135,70 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
+                const query = args.query ?? '';
+                const isEmptyQuery = query.trim() === '';
+
+                // Serve values known from field metadata before the warehouse guard.
+                const curatedResult = await this.getStaticFieldValues(
+                    context,
+                    args,
+                    query,
+                );
+                if (curatedResult) {
+                    Logger.info(
+                        `[ai-field-values] served ${curatedResult.results.length} ` +
+                            `static values source=${context.source} ` +
+                            `table=${args.table} fieldId=${args.fieldId}`,
+                    );
+                    return context.source === 'mcp'
+                        ? curatedResult
+                        : curatedResult.results;
+                }
+
+                // Live PostHog toggle; default off => byte-identical to today.
+                const { enabled: guardEnabled } =
+                    await this.featureFlagService.get({
+                        user: context.user,
+                        featureFlagId: FeatureFlags.AiFieldValueSearchGuard,
+                    });
+
+                // Observability. Deliberately does NOT log the query text or any
+                // returned values (they can contain user data) — only the field
+                // identifier, the request shape and timing.
+                Logger.info(
+                    `[ai-field-values] search source=${context.source} ` +
+                        `table=${args.table} fieldId=${args.fieldId} ` +
+                        `isEmptyQuery=${isEmptyQuery} queryLen=${query.length} ` +
+                        `guard=${guardEnabled}`,
+                );
+
+                // An empty query compiles to `LIKE '%%'` — "distinct the whole
+                // column" — the worst case on a high-cardinality field. With the
+                // guard on, refuse it up front (0s) with a message the agent can
+                // act on, instead of paying for a full-column scan first.
+                if (guardEnabled && isEmptyQuery) {
+                    Logger.warn(
+                        `[ai-field-values] guard blocked empty-query scan ` +
+                            `source=${context.source} table=${args.table} ` +
+                            `fieldId=${args.fieldId}`,
+                    );
+                    throw new Error(
+                        'Listing all values for this field is disabled because ' +
+                            'it requires a full-column scan that is too slow on ' +
+                            'large tables. Search for a specific value instead ' +
+                            '(e.g. part of a name, status or code), or filter by ' +
+                            'an exact value you already know.',
+                    );
+                }
+
+                await context.onWarehouseQuery?.();
                 const dimensionFilters = args.filters?.dimensions;
                 const andFilters =
                     dimensionFilters && 'and' in dimensionFilters
                         ? dimensionFilters
                         : undefined;
+
+                const startedAt = Date.now();
                 const results =
                     await this.projectService.searchFieldUniqueValues(
                         context.user,
@@ -1780,9 +2215,61 @@ export class AiAgentToolsService extends BaseService {
                             ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
                             : undefined,
                     );
-                return context.source === 'mcp' ? results : results.results;
+                const output =
+                    context.source === 'mcp' ? results : results.results;
+                Logger.info(
+                    `[ai-field-values] done source=${context.source} ` +
+                        `fieldId=${args.fieldId} elapsedMs=${
+                            Date.now() - startedAt
+                        } resultCount=${Array.isArray(output) ? output.length : 'n/a'}`,
+                );
+                return output;
             },
         );
+    }
+
+    /** Serve values known from field metadata without querying the warehouse. */
+    private async getStaticFieldValues(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<SearchFieldValuesFn>[0],
+        query: string,
+    ): Promise<FieldValueSearchResult<string | boolean> | undefined> {
+        let explore: Explore;
+        try {
+            explore = await this.getExploreForRuntime(context, {
+                table: args.table,
+            });
+        } catch (e) {
+            Logger.warn(
+                `[ai-field-values] could not resolve explore "${args.table}" for curated values: ${getErrorMessage(e)}`,
+            );
+            return undefined;
+        }
+        const field = findFieldByIdInExplore(explore, args.fieldId);
+        if (!field || !isDimension(field)) return undefined;
+        if (
+            shouldUseStaticFilterAutocomplete(field.filterAutocomplete, query)
+        ) {
+            const results = filterStaticFilterAutocompleteValues(
+                field.filterAutocomplete?.values ?? [],
+                query,
+            ).slice(0, 100);
+            return {
+                search: query,
+                results,
+                cached: false,
+                refreshedAt: new Date(),
+            };
+        }
+        if (field.type === DimensionType.BOOLEAN) {
+            return {
+                search: query,
+                results: [true, false],
+                cached: false,
+                refreshedAt: new Date(),
+            };
+        }
+        return undefined;
     }
 
     private listKnowledgeDocuments(
@@ -1791,15 +2278,55 @@ export class AiAgentToolsService extends BaseService {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.listKnowledgeDocuments`,
             {},
-            () => {
+            async () => {
                 if (!context.agentUuid) {
-                    return Promise.resolve([]);
+                    return [];
                 }
-                return this.aiAgentDocumentModel.findAllForAgent({
-                    organizationUuid: context.organizationUuid,
-                    agentUuid: context.agentUuid,
-                    projectUuid: context.projectUuid,
-                });
+                const [documents, deepResearchRuns] = await Promise.all([
+                    this.aiAgentDocumentModel.findAllForAgent({
+                        organizationUuid: context.organizationUuid,
+                        agentUuid: context.agentUuid,
+                        projectUuid: context.projectUuid,
+                    }),
+                    context.threadUuid
+                        ? this.aiDeepResearchRunModel.findReportSummariesByThreadScoped(
+                              {
+                                  aiThreadUuid: context.threadUuid,
+                                  organizationUuid: context.organizationUuid,
+                                  projectUuid: context.projectUuid,
+                                  createdByUserUuid: context.user.userUuid,
+                              },
+                          )
+                        : [],
+                ]);
+                const deepResearchDocuments: AiAgentDocumentSummary[] =
+                    deepResearchRuns.map((run) => ({
+                        uuid: run.ai_deep_research_run_uuid,
+                        organizationUuid: run.organization_uuid,
+                        projectUuid: run.project_uuid,
+                        name: run.prompt,
+                        originalFilename: `${run.ai_deep_research_run_uuid}.md`,
+                        mimeType: 'text/markdown',
+                        contentSizeBytes: run.content_size_bytes,
+                        alwaysIncludeInContext: false,
+                        summary: {
+                            description:
+                                'Deep Research report from this conversation.',
+                            definedTerms: [],
+                            relatedExploreNames: [],
+                            useWhen: `Answering follow-up questions about: ${run.prompt}`,
+                            relevance: 'high',
+                            warning:
+                                'Read-only and available only in this conversation.',
+                        },
+                        agentAccess: [],
+                        createdByUserUuid: run.created_by_user_uuid,
+                        updatedByUserUuid: null,
+                        createdAt: run.created_at,
+                        updatedAt: run.updated_at,
+                    }));
+
+                return [...documents, ...deepResearchDocuments];
             },
         );
     }
@@ -1823,14 +2350,35 @@ export class AiAgentToolsService extends BaseService {
                     await this.aiAgentDocumentModel.getContentForAgent({
                         organizationUuid: context.organizationUuid,
                         agentUuid: context.agentUuid,
+                        projectUuid: context.projectUuid,
                         documentUuid: args.documentUuid,
                     });
-                if (!content) {
-                    throw new NotFoundError(
-                        `Knowledge document ${args.documentUuid} is not accessible to this agent.`,
-                    );
+                if (content) {
+                    return content;
                 }
-                return content;
+                if (context.threadUuid) {
+                    const run =
+                        await this.aiDeepResearchRunModel.findReportByUuidThreadScoped(
+                            {
+                                aiDeepResearchRunUuid: args.documentUuid,
+                                aiThreadUuid: context.threadUuid,
+                                organizationUuid: context.organizationUuid,
+                                projectUuid: context.projectUuid,
+                                createdByUserUuid: context.user.userUuid,
+                            },
+                        );
+                    if (run?.result_markdown) {
+                        return {
+                            uuid: run.ai_deep_research_run_uuid,
+                            name: run.prompt,
+                            mimeType: 'text/markdown',
+                            content: run.result_markdown,
+                        };
+                    }
+                }
+                throw new NotFoundError(
+                    `Knowledge document ${args.documentUuid} is not accessible to this agent.`,
+                );
             },
         );
     }
@@ -2093,6 +2641,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     private async getRootSpacesForAgent(
+        context: AiAgentToolsRuntimeContext,
         user: SessionUser,
         projectUuid: string,
         agentSpaceAccess: Set<string> | null,
@@ -2119,6 +2668,7 @@ export class AiAgentToolsService extends BaseService {
                     contentType: ContentType.SPACE,
                     name: space.name,
                     slug: getContentAsCodePathFromLtreePath(space.path),
+                    href: AiAgentToolsService.getSpaceUrl(context, space.uuid),
                     chartCount: space.chartCount,
                     dashboardCount: space.dashboardCount,
                     childSpaceCount: space.childSpaceCount,
@@ -2131,6 +2681,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     private async getSpaceContentsForAgent(
+        context: AiAgentToolsRuntimeContext,
         user: SessionUser,
         projectUuid: string,
         spaceSlug: string,
@@ -2185,6 +2736,10 @@ export class AiAgentToolsService extends BaseService {
                             contentType: ContentType.SPACE,
                             name: item.name,
                             slug: getContentAsCodePathFromLtreePath(item.path),
+                            href: AiAgentToolsService.getSpaceUrl(
+                                context,
+                                item.uuid,
+                            ),
                             chartCount: item.chartCount,
                             dashboardCount: item.dashboardCount,
                             childSpaceCount: item.childSpaceCount,
@@ -2193,11 +2748,45 @@ export class AiAgentToolsService extends BaseService {
                         };
                     }
 
-                    return {
-                        contentType: item.contentType,
-                        name: item.name,
-                        slug: item.slug,
-                    };
+                    switch (item.contentType) {
+                        case ContentType.DASHBOARD:
+                            return {
+                                contentType: item.contentType,
+                                name: item.name,
+                                slug: item.slug,
+                                href: AiAgentToolsService.getContentUrl(
+                                    context,
+                                    'dashboard',
+                                    item.uuid,
+                                ),
+                            };
+                        case ContentType.CHART:
+                            return {
+                                contentType: item.contentType,
+                                name: item.name,
+                                slug: item.slug,
+                                href: AiAgentToolsService.getContentUrl(
+                                    context,
+                                    'chart',
+                                    item.uuid,
+                                ),
+                            };
+                        case ContentType.DATA_APP:
+                            return {
+                                contentType: item.contentType,
+                                name: item.name,
+                                slug: item.slug,
+                                href: AiAgentToolsService.getDataAppUrl(
+                                    context,
+                                    item.uuid,
+                                ),
+                            };
+                        default:
+                            return assertUnreachable(
+                                item,
+                                'Invalid content type',
+                            );
+                    }
                 }),
             pagination: results.pagination,
         };

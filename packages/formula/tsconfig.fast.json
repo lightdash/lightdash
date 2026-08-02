@@ -1,7 +1,0 @@
-{
-    "extends": "./tsconfig.json",
-    "compilerOptions": {
-        "moduleResolution": "bundler",
-        "tsBuildInfoFile": "dist/.tsgo.tsbuildinfo"
-    }
-}

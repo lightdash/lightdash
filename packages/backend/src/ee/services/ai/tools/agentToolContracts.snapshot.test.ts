@@ -1,12 +1,16 @@
 import { agentToolDefinitions } from '@lightdash/common';
 import { asSchema, type FlexibleSchema } from 'ai';
+import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
 import { getDiscoverFields } from '../agents/discoverFields/tool';
+import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
+import { getCreateScheduledDelivery } from './createScheduledDelivery';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
+import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
 import { getFindContent } from './findContent';
 import { getFindExplores } from './findExplores';
@@ -18,11 +22,13 @@ import { getGenerateVisualization } from './generateVisualization';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
+import { getGetPullRequestDiff } from './getPullRequestDiff';
 import { getImproveContext } from './improveContext';
 import { getListContent } from './listContent';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
+import { getListWorkstreams } from './listWorkstreams';
 import { getLoadSkill } from './loadSkill';
 import { getReadContent } from './readContent';
 import { getRunContentQuery } from './runContentQuery';
@@ -30,6 +36,7 @@ import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
 import { getSetupPreviewDeploy } from './setupPreviewDeploy';
+import { getUpdateUserName } from './updateUserName';
 
 const schemaToJson = (schema: FlexibleSchema | undefined): unknown => {
     if (!schema) {
@@ -59,8 +66,8 @@ const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
 );
 
 const makeAgentTools = () => {
-    const noop = jest.fn();
-    const noopAsync = jest.fn().mockResolvedValue(undefined);
+    const noop = vi.fn();
+    const noopAsync = vi.fn().mockResolvedValue(undefined);
 
     return {
         describeWarehouseTable: getDescribeWarehouseTable({
@@ -97,6 +104,10 @@ const makeAgentTools = () => {
             } as never,
         ),
         createContent: getCreateContent({ createContent: noop }),
+        createScheduledDelivery: getCreateScheduledDelivery({
+            createScheduledDelivery: noop,
+        }),
+        updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
         editContent: getEditContent({ editContent: noop }),
         findContent: getFindContent({
             findContent: noop,
@@ -148,11 +159,19 @@ const makeAgentTools = () => {
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
         }),
+        editRepo: getEditRepo({
+            editRepo: noop,
+        }),
         setupPreviewDeploy: getSetupPreviewDeploy({
             setupPreviewDeploy: noop,
         }),
         exploreRepo: getExploreRepo({ exploreRepo: noop }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
+        listWorkstreams: getListWorkstreams({ listWorkstreams: noop }),
+        closePullRequest: getClosePullRequest({ closePullRequest: noopAsync }),
+        getPullRequestDiff: getGetPullRequestDiff({
+            getPullRequestDiff: noop,
+        }),
         readContent: getReadContent({ readContent: noop }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,
@@ -180,8 +199,10 @@ const makeAgentTools = () => {
             updateProgress: noopAsync,
         }),
         runSql: getRunSql({
+            createOrUpdateArtifact: noop,
             getPrompt: noop,
             recordSqlApproval: noop,
+            isThreadSqlAutoApproved: noop,
             storeToolResults: noop,
             runSqlJob: noop,
             sendFile: noop,
@@ -210,5 +231,13 @@ describe('AI agent tool contracts', () => {
                 agentToolSnapshot(name, definition as SnapshotTool),
             ),
         ).toMatchSnapshot();
+    });
+
+    it('has an explicit memory distill policy for every shared agent tool', () => {
+        expect(
+            sharedAgentToolDefinitionNames.filter(
+                (name) => !(name in DISTILL_TOOL_POLICIES),
+            ),
+        ).toEqual([]);
     });
 });

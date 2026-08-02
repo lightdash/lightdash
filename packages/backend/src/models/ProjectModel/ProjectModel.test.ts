@@ -1,11 +1,12 @@
 import {
     AnyType,
     AthenaAuthenticationType,
-    Change,
     CompiledDimension,
     CompiledMetric,
     CreateAthenaCredentials,
+    CreateDatabricksCredentials,
     CreatePostgresCredentials,
+    DatabricksAuthenticationType,
     DimensionType,
     ExploreType,
     FieldType,
@@ -115,6 +116,106 @@ describe('ProjectModel', () => {
         expect(tracker.history.update).toHaveLength(1);
     });
 
+    test('checks project membership without requiring an email row', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes(ProjectMembershipsTableName))
+            .response([{ user_id: 1 }]);
+
+        await expect(
+            model.hasProjectMembership(projectUuid, 'service-account-user'),
+        ).resolves.toBe(true);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).not.toContain('emails');
+    });
+
+    test('returns false when a user has no project membership', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes(ProjectMembershipsTableName))
+            .response([]);
+
+        await expect(
+            model.hasProjectMembership(projectUuid, 'unassigned-user'),
+        ).resolves.toBe(false);
+    });
+
+    test('copies only eligible project access in one idempotent transaction', async () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const previewProjectUuid = 'preview-project-uuid';
+        const matchSql =
+            (table: string) =>
+            ({ sql }: RawQuery) =>
+                sql.includes(table);
+
+        tracker.on.select(matchSql(ProjectTableName)).response([
+            {
+                project_id: 1,
+                project_uuid: upstreamProjectUuid,
+                organization_id: 10,
+            },
+            {
+                project_id: 2,
+                project_uuid: previewProjectUuid,
+                organization_id: 10,
+            },
+        ]);
+        tracker.on.select(matchSql(ProjectMembershipsTableName)).response([
+            {
+                user_id: 1,
+                role: ProjectMemberRole.EDITOR,
+                role_uuid: null,
+                is_internal: false,
+                organization_id: 10,
+            },
+            {
+                user_id: 2,
+                role: ProjectMemberRole.VIEWER,
+                role_uuid: null,
+                is_internal: false,
+                organization_id: null,
+            },
+            {
+                user_id: 3,
+                role: ProjectMemberRole.VIEWER,
+                role_uuid: null,
+                is_internal: true,
+                organization_id: 10,
+            },
+        ]);
+        tracker.on.select(matchSql(ProjectGroupAccessTableName)).response([
+            {
+                group_uuid: 'group-uuid',
+                role: ProjectMemberRole.VIEWER,
+                role_uuid: null,
+            },
+        ]);
+        tracker.on.insert(matchSql(ProjectMembershipsTableName)).response([]);
+        tracker.on.insert(matchSql(ProjectGroupAccessTableName)).response([]);
+
+        const copyAccess = () =>
+            model.copyProjectAccess(upstreamProjectUuid, previewProjectUuid);
+        const expectedResult = {
+            userAccessCount: 1,
+            skippedUserAccessCount: 2,
+            groupAccessCount: 1,
+        };
+
+        await expect(copyAccess()).resolves.toEqual(expectedResult);
+        await expect(copyAccess()).resolves.toEqual(expectedResult);
+
+        expect(tracker.history.insert).toHaveLength(4);
+        expect(tracker.history.insert[0].bindings).toEqual(
+            expect.arrayContaining([1, 2, ProjectMemberRole.EDITOR]),
+        );
+        expect(tracker.history.insert[0].bindings).not.toContain(3);
+        expect(tracker.history.insert[0].sql).toContain('on conflict');
+        expect(tracker.history.insert[1].sql).toContain('on conflict');
+        const groupAccessQuery = tracker.history.select.find(({ sql }) =>
+            sql.includes(ProjectGroupAccessTableName),
+        );
+        expect(groupAccessQuery?.sql).toContain('groups');
+        expect(groupAccessQuery?.bindings).toContain(10);
+    });
+
     describe('should convert outdated metric filters in explores', () => {
         test('should add fieldRef property when metric filters have fieldId', () => {
             expect(
@@ -136,6 +237,7 @@ describe('ProjectModel', () => {
         // TODO: this test is skipped because there is an issue in our version of knex-mock-client
         // which makes it not handle batch inserts correctly. If we upgrade to a newer version,
         // we can remove the skip. There are a lot of breaking changes in the new version though.
+        // oxlint-disable-next-line vitest-js/no-disabled-tests -- blocked on knex-mock-client upgrade, see TODO above
         test.skip('should discard explores with duplicate name', async () => {
             // Mock for selecting custom explores/virtual views
             tracker.on
@@ -244,6 +346,60 @@ describe('ProjectModel', () => {
             expect(result.authenticationType).toEqual(
                 AthenaAuthenticationType.IAM_ROLE,
             );
+        });
+
+        test('should NOT merge Databricks secrets when serverHostName changes', async () => {
+            const completeDatabricksCredentials: CreateDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'default',
+                serverHostName: 'adb-123.azuredatabricks.net',
+                httpPath: '/sql/1.0/warehouses/abc',
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                oauthClientId: 'client-id',
+                oauthClientSecret: 'client-secret',
+            };
+            const incompleteDatabricksCredentials: CreateDatabricksCredentials =
+                {
+                    ...completeDatabricksCredentials,
+                    serverHostName: 'other-host.example.com',
+                    oauthClientId: undefined,
+                    oauthClientSecret: undefined,
+                };
+
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                incompleteDatabricksCredentials,
+                completeDatabricksCredentials,
+            );
+
+            expect(result.oauthClientId).toBeUndefined();
+            expect(result.oauthClientSecret).toBeUndefined();
+        });
+
+        test('should merge Databricks secrets when serverHostName is unchanged', async () => {
+            const completeDatabricksCredentials: CreateDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                database: 'default',
+                serverHostName: 'adb-123.azuredatabricks.net',
+                httpPath: '/sql/1.0/warehouses/abc',
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                oauthClientId: 'client-id',
+                oauthClientSecret: 'client-secret',
+            };
+            const incompleteDatabricksCredentials: CreateDatabricksCredentials =
+                {
+                    ...completeDatabricksCredentials,
+                    serverHostName: 'https://ADB-123.AZUREDATABRICKS.NET/',
+                    oauthClientId: undefined,
+                    oauthClientSecret: undefined,
+                };
+
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                incompleteDatabricksCredentials,
+                completeDatabricksCredentials,
+            );
+
+            expect(result.oauthClientId).toEqual('client-id');
+            expect(result.oauthClientSecret).toEqual('client-secret');
         });
     });
 
@@ -378,6 +534,10 @@ describe('ProjectModel', () => {
             (table: string) =>
             ({ sql }: RawQuery) =>
                 sql.includes(table);
+
+        beforeEach(() => {
+            tracker.on.select('pg_advisory_xact_lock').response({});
+        });
 
         test('should return early if user already has a default space', async () => {
             tracker.on

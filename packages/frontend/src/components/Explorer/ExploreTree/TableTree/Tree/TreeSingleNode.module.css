@@ -1,0 +1,11 @@
+.root[data-selected] {
+    background-color: var(--tree-node-bg);
+}
+
+.root:hover {
+    background-color: var(--tree-node-hover-bg);
+}
+
+.detailPreviewDropdown {
+    overflow: auto;
+}

@@ -5,24 +5,27 @@ import {
 } from '@lightdash/common';
 import execa from 'execa';
 import inquirer from 'inquirer';
+import type { Mock } from 'vitest';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 import { cliMocks } from './getDbtVersion.mocks';
 
-jest.mock('execa');
-const execaMock = execa as unknown as jest.Mock;
-jest.mock('inquirer', () => ({
-    prompt: jest.fn(),
+vi.mock('execa');
+const execaMock = execa as unknown as Mock;
+vi.mock('inquirer', () => ({
+    default: {
+        prompt: vi.fn(),
+    },
 }));
-const promptMock = inquirer.prompt as unknown as jest.Mock;
-const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+const promptMock = inquirer.prompt as unknown as Mock;
+const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 describe('Get dbt version', () => {
     const { env } = process;
 
     beforeEach(() => {
-        jest.resetAllMocks();
-        jest.resetModules();
+        vi.resetAllMocks();
+        vi.resetModules();
         process.env = { ...env };
         execaMock.mockImplementation(async () => cliMocks.dbt1_4);
         promptMock.mockImplementation(async () => ({ isConfirm: true }));
@@ -53,6 +56,11 @@ describe('Get dbt version', () => {
             const version3 = await getDbtVersion();
             expect(version3.verboseVersion).toEqual('1.11.0');
             expect(version3.versionOption).toEqual(SupportedDbtVersions.V1_11);
+            // Test for 1.12
+            execaMock.mockImplementation(async () => cliMocks.dbt1_12);
+            const version4 = await getDbtVersion();
+            expect(version4.verboseVersion).toEqual('1.12.0');
+            expect(version4.versionOption).toEqual(SupportedDbtVersions.V1_12);
         });
         test('should return latest for dbt cloud', async () => {
             execaMock.mockImplementation(async () => cliMocks.dbtCloud);
@@ -105,7 +113,9 @@ describe('Get dbt version', () => {
             expect(consoleError).toHaveBeenCalledTimes(0);
         });
         test('when CI=false, should return error if user declines fallback', async () => {
-            const exitSpy = jest.spyOn(process, 'exit').mockImplementation();
+            const exitSpy = vi
+                .spyOn(process, 'exit')
+                .mockImplementation((() => undefined) as never);
             process.env.CI = 'false';
             execaMock.mockImplementation(async () => cliMocks.dbt1_3);
             promptMock.mockImplementation(async () => ({ isConfirm: false }));

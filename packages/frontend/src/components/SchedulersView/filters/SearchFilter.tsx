@@ -11,7 +11,7 @@ type SearchFilterProps =
 
 export const SearchFilter = ({ search, setSearch }: SearchFilterProps) => {
     return (
-        <Tooltip withinPortal variant="xs" label="Search by scheduler name">
+        <Tooltip withinPortal label="Search by scheduler name">
             <TextInput
                 size="xs"
                 radius="md"

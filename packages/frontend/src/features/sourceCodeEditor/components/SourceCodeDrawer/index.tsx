@@ -1,6 +1,6 @@
 import { ProjectType } from '@lightdash/common';
 import { Drawer } from '@mantine-8/core';
-import { useHotkeys } from '@mantine/hooks';
+import { useHotkeys } from '@mantine-8/hooks';
 import { lazy, Suspense, type FC } from 'react';
 import {
     BANNER_HEIGHT,

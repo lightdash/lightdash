@@ -1,11 +1,13 @@
 import {
     getItemMap,
+    getDimensions,
+    getItemId,
     isField,
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine/tiptap';
+import { RichTextEditor } from '@mantine-8/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
@@ -41,6 +43,8 @@ type Props = {
     shouldClear?: boolean;
     onCleared?: () => void;
     disabled?: boolean;
+    fieldSuggestionScope?: 'selected' | 'allDimensions';
+    placeholder?: string;
 };
 
 export const AiPromptEditor: FC<Props> = ({
@@ -51,6 +55,8 @@ export const AiPromptEditor: FC<Props> = ({
     shouldClear,
     onCleared,
     disabled,
+    fieldSuggestionScope = 'selected',
+    placeholder = 'Describe your calculation (type @ to reference fields)...',
 }) => {
     // Refs so handleKeyDown (configured once at editor mount) always reaches the live values.
     const onSubmitRef = useRef(onSubmit);
@@ -60,6 +66,14 @@ export const AiPromptEditor: FC<Props> = ({
     // Build field suggestions from itemsMap
     const fieldSuggestions: FieldSuggestionItem[] = useMemo(() => {
         if (!explore) return [];
+
+        if (fieldSuggestionScope === 'allDimensions') {
+            return getDimensions(explore).map((field) => ({
+                id: getItemId(field),
+                label: field.label,
+                item: field,
+            }));
+        }
 
         const itemsMap = getItemMap(
             explore,
@@ -85,7 +99,7 @@ export const AiPromptEditor: FC<Props> = ({
                       : fieldItem.name,
                 item: fieldItem,
             }));
-    }, [explore, metricQuery]);
+    }, [explore, metricQuery, fieldSuggestionScope]);
 
     const editor = useEditor({
         extensions: [
@@ -111,8 +125,7 @@ export const AiPromptEditor: FC<Props> = ({
                 ],
             }),
             Placeholder.configure({
-                placeholder:
-                    'Describe your calculation (type @ to reference fields)...',
+                placeholder,
             }),
         ],
         editable: !disabled,

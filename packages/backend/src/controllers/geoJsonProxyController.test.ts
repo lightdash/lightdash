@@ -5,16 +5,18 @@ import {
 } from '../utils/secureFetch/secureFetch';
 import { GeoJsonProxyController } from './geoJsonProxyController';
 
-jest.mock('../utils/secureFetch/secureFetch', () => {
-    const actual = jest.requireActual('../utils/secureFetch/secureFetch');
+vi.mock('../utils/secureFetch/secureFetch', async () => {
+    const actual = await vi.importActual<
+        typeof import('../utils/secureFetch/secureFetch')
+    >('../utils/secureFetch/secureFetch');
     return {
         __esModule: true,
         SecureFetchError: actual.SecureFetchError,
-        secureFetch: jest.fn(),
+        secureFetch: vi.fn(),
     };
 });
 
-const mockedSecureFetch = secureFetch as jest.Mock;
+const mockedSecureFetch = secureFetch as import('vitest').Mock;
 
 const makeController = (): GeoJsonProxyController => {
     // GeoJsonProxyController does not use the ServiceRepository; pass a minimal stub.
@@ -22,12 +24,12 @@ const makeController = (): GeoJsonProxyController => {
     const controller = new GeoJsonProxyController({} as any);
     // setStatus is provided by TSOA's Controller base at runtime; stub it.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (controller as any).setStatus = jest.fn();
+    (controller as any).setStatus = vi.fn();
     return controller;
 };
 
 describe('GeoJsonProxyController parity', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => vi.clearAllMocks());
 
     it('rejects non-.json/.geojson/.topojson extensions before fetching', async () => {
         const controller = makeController();
@@ -63,6 +65,21 @@ describe('GeoJsonProxyController parity', () => {
         await expect(
             controller.get('https://example.com/data.json'),
         ).rejects.toBeInstanceOf(ParameterError);
+    });
+
+    it('rejects an upstream error status returned by secureFetch', async () => {
+        mockedSecureFetch.mockResolvedValue({
+            status: 404,
+            contentType: 'text/plain',
+            bodyText: 'not found',
+            truncated: false,
+        });
+        const controller = makeController();
+        await expect(
+            controller.get('https://example.com/data.json'),
+        ).rejects.toThrow(
+            'Failed to fetch GeoJSON: Request failed with status 404',
+        );
     });
 
     it('returns parsed GeoJSON object on the happy path', async () => {

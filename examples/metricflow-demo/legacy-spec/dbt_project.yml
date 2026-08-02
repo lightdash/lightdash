@@ -1,0 +1,17 @@
+name: metricflow_legacy_demo
+version: '1.0.0'
+profile: metricflow_demo_legacy
+
+model-paths: ['models']
+seed-paths: ['seeds']
+
+seeds:
+  metricflow_legacy_demo:
+    raw_orders:
+      +column_types:
+        order_id: integer
+        customer_id: integer
+        ordered_at: date
+        status: varchar(20)
+        amount: numeric(10,2)
+        is_food_order: boolean

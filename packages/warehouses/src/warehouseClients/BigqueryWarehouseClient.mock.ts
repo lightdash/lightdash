@@ -4,6 +4,7 @@ import {
     CreateBigqueryCredentials,
     WarehouseTypes,
 } from '@lightdash/common';
+import Big from 'big.js';
 import { Readable } from 'stream';
 import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
@@ -57,13 +58,14 @@ const metadata = {
 export const getTableResponse = {
     id: 'myTable',
     bigQuery: { projectId: 'myDatabase' },
-    getMetadata: jest.fn(() => [metadata]),
+    getMetadata: vi.fn(() => [metadata]),
 };
 
 export const rows: Record<string, AnyType>[] = [
     {
         myStringColumn: 'string value',
-        myNumberColumn: 100,
+        // The SDK returns NUMERIC/BIGNUMERIC columns as big.js instances
+        myNumberColumn: new Big('100'),
         myDateColumn: new BigQueryDate('2021-03-10'),
         myTimestampColumn: new BigQueryTimestamp('1990-03-02T08:30:00.010Z'),
         myBooleanColumn: false,
@@ -83,7 +85,7 @@ const mockStreamRow = () =>
 
 export const createJobResponse = [
     {
-        getQueryResults: jest.fn(() => [rows, undefined, metadata]),
-        getQueryResultsStream: jest.fn(mockStreamRow),
+        getQueryResults: vi.fn(() => [rows, undefined, metadata]),
+        getQueryResultsStream: vi.fn(mockStreamRow),
     },
 ];

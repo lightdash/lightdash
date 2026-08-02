@@ -1,9 +1,12 @@
 import {
     aiAgentJudgeProjectContextEntrySchema,
+    aiAgentReviewClassifierJudgeCallOutputSchema,
     aiAgentReviewClassifierJudgeOutputSchema,
+    aiAgentReviewClassifierJudgeProjectContextCallSchema,
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     getAiAgentReviewItemFingerprintScope,
+    persistedAiAgentJudgeProjectContextEntrySchema,
     shouldReopenReviewItem,
     type AiAgentConfigSnapshot,
     type AiAgentReviewItemFingerprintInput,
@@ -15,6 +18,7 @@ const baseJudgeOutput = {
     confidence: 'high' as const,
     promotedToFinding: true,
     promotionReason: 'Found a semantic-layer correction.',
+    matchedExistingItemKey: null,
     primaryRootCause: 'semantic_layer' as const,
     secondaryRootCauses: [],
     subcategories: [],
@@ -320,9 +324,28 @@ describe('aiAgentJudgeProjectContextEntrySchema', () => {
             kind: 'definition',
             content: 'updated definition',
             terms: ['HR'],
-            objects: ['patient_health_scores'],
+            objects: [
+                { type: 'explore', name: 'patient_health_scores' },
+                {
+                    type: 'field',
+                    explore: 'patient_health_scores',
+                    fieldId: 'patient_health_scores_diabetes_risk_category',
+                },
+            ],
         });
         expect(result.success).toBe(true);
+    });
+
+    test('rejects legacy string object refs from new judge output', () => {
+        const result = aiAgentJudgeProjectContextEntrySchema.safeParse({
+            op: 'create',
+            id: null,
+            kind: 'context',
+            content: 'Use the payments explore.',
+            terms: [],
+            objects: ['payments'],
+        });
+        expect(result.success).toBe(false);
     });
 
     test('rejects an update entry without an id', () => {
@@ -346,6 +369,124 @@ describe('aiAgentJudgeProjectContextEntrySchema', () => {
             terms: [],
             objects: [],
         });
+        expect(result.success).toBe(false);
+    });
+});
+
+describe('aiAgentReviewClassifierJudgeCallOutputSchema', () => {
+    test('strips projectContextEntry — it is emitted via a separate call', () => {
+        const { projectContextEntry, ...callOutput } = baseJudgeOutput;
+        const result = aiAgentReviewClassifierJudgeCallOutputSchema.safeParse({
+            ...callOutput,
+            projectContextEntry: { anything: true },
+        });
+        expect(result.success).toBe(true);
+        expect(result.success && 'projectContextEntry' in result.data).toBe(
+            false,
+        );
+    });
+
+    test('accepts a judge output without projectContextEntry', () => {
+        const { projectContextEntry, ...callOutput } = baseJudgeOutput;
+        expect(
+            aiAgentReviewClassifierJudgeCallOutputSchema.safeParse(callOutput)
+                .success,
+        ).toBe(true);
+    });
+
+    test('applies the promotion refinement', () => {
+        const { projectContextEntry, ...callOutput } = baseJudgeOutput;
+        expect(
+            aiAgentReviewClassifierJudgeCallOutputSchema.safeParse({
+                ...callOutput,
+                promotedToFinding: true,
+                primaryRootCause: 'not_a_failure',
+            }).success,
+        ).toBe(false);
+    });
+});
+
+describe('aiAgentReviewClassifierJudgeProjectContextCallSchema', () => {
+    test('accepts a typed entry and null', () => {
+        expect(
+            aiAgentReviewClassifierJudgeProjectContextCallSchema.safeParse({
+                projectContextEntry: {
+                    op: 'create',
+                    id: null,
+                    kind: 'definition',
+                    content: '"FC" = fulfillment center.',
+                    terms: ['FC'],
+                    objects: [{ type: 'explore', name: 'orders' }],
+                },
+            }).success,
+        ).toBe(true);
+        expect(
+            aiAgentReviewClassifierJudgeProjectContextCallSchema.safeParse({
+                projectContextEntry: null,
+            }).success,
+        ).toBe(true);
+    });
+});
+
+describe('persistedAiAgentJudgeProjectContextEntrySchema', () => {
+    test('drops legacy string object refs from persisted entries', () => {
+        const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
+            {
+                op: 'create',
+                id: null,
+                kind: 'context',
+                content: 'Use the payments explore.',
+                terms: [],
+                objects: ['payments'],
+            },
+        );
+        expect(result.success).toBe(true);
+        expect(result.success && result.data.objects).toEqual([]);
+    });
+
+    test('drops the whole objects array when refs are mixed', () => {
+        const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
+            {
+                op: 'create',
+                id: null,
+                kind: 'context',
+                content: 'Use the payments explore.',
+                terms: [],
+                objects: [{ type: 'explore', name: 'payments' }, 'orders'],
+            },
+        );
+        expect(result.success).toBe(true);
+        expect(result.success && result.data.objects).toEqual([]);
+    });
+
+    test('preserves valid typed object refs', () => {
+        const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
+            {
+                op: 'update',
+                id: 'payments-routing',
+                kind: 'context',
+                content: 'Use the payments explore.',
+                terms: [],
+                objects: [{ type: 'explore', name: 'payments' }],
+            },
+        );
+        expect(result.success).toBe(true);
+        expect(result.success && result.data.objects).toEqual([
+            { type: 'explore', name: 'payments' },
+        ]);
+    });
+
+    test('still rejects entries invalid beyond legacy objects', () => {
+        const result = persistedAiAgentJudgeProjectContextEntrySchema.safeParse(
+            {
+                op: 'update',
+                id: null,
+                kind: 'context',
+                content: 'x',
+                terms: [],
+                objects: ['payments'],
+            },
+        );
         expect(result.success).toBe(false);
     });
 });
@@ -376,6 +517,89 @@ describe('aiAgentReviewClassifierJudgeOutputSchema', () => {
             }).success,
         ).toBe(true);
     });
+
+    it.each([
+        'normal_refinement',
+        'output_shape_correction',
+        'new_question',
+        'acceptance_or_continuation',
+    ] as const)('rejects a promoted finding with signal %s', (signal) => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                signal,
+            }).success,
+        ).toBe(false);
+    });
+
+    it('accepts a non-failure signal when not promoted', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                signal: 'acceptance_or_continuation',
+                promotedToFinding: false,
+                primaryRootCause: 'not_a_failure',
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects a promoted finding whose recommendation is no_action', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                recommendation: {
+                    actionType: 'no_action',
+                    title: 'Nothing to do',
+                    rationale: 'n/a',
+                    targetRefs: [],
+                },
+            }).success,
+        ).toBe(false);
+    });
+
+    it('accepts a no_action recommendation when not promoted', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                promotedToFinding: false,
+                primaryRootCause: 'not_a_failure',
+                signal: 'new_question',
+                recommendation: {
+                    actionType: 'no_action',
+                    title: 'Nothing to do',
+                    rationale: 'n/a',
+                    targetRefs: [],
+                },
+            }).success,
+        ).toBe(true);
+    });
+
+    it('accepts a matchedExistingItemKey pointing at a candidate', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                matchedExistingItemKey: 'item_3',
+            }).success,
+        ).toBe(true);
+    });
+
+    it('accepts a null matchedExistingItemKey', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                matchedExistingItemKey: null,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects an output missing matchedExistingItemKey', () => {
+        const withoutKey: Record<string, unknown> = { ...baseJudgeOutput };
+        delete withoutKey.matchedExistingItemKey;
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse(withoutKey)
+                .success,
+        ).toBe(false);
+    });
 });
 
 describe('getAiAgentConfigSnapshotHash', () => {
@@ -399,6 +623,12 @@ describe('getAiAgentConfigSnapshotHash', () => {
                     relevance: 'high',
                     warning: null,
                 },
+            },
+        ],
+        mcpServers: [
+            {
+                name: 'Linear',
+                enabledToolNames: ['list_issues', 'create_issue'],
             },
         ],
     };

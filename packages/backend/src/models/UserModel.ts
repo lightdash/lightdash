@@ -10,8 +10,10 @@ import {
     CreateUserWithRole,
     ForbiddenError,
     getUserAbilityBuilder,
+    getUserAvatarUrl,
     InvalidUser,
     isOpenIdUser,
+    isUserAvatarColorValue,
     LightdashMode,
     LightdashUser,
     LightdashUserWithAbilityRules,
@@ -73,6 +75,14 @@ import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenMo
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import Transaction = Knex.Transaction;
 
+export type CreatePasswordlessUserArgs = {
+    firstName: string;
+    lastName: string;
+    email: CreateUserArgs['email'];
+};
+
+type CreateLocalUserArgs = CreateUserArgs | CreatePasswordlessUserArgs;
+
 export type DbUserDetails = {
     user_id: number;
     user_uuid: string;
@@ -92,6 +102,8 @@ export type DbUserDetails = {
     is_active: boolean;
     is_internal: boolean;
     timezone: string | null;
+    avatar_gradient: string | null;
+    avatar_content_hash: string | null;
     updated_at: Date;
 };
 
@@ -114,6 +126,13 @@ export const mapDbUserDetailsToLightdashUser = (
     roleUuid: user.role_uuid,
     isActive: user.is_active,
     timezone: user.timezone,
+    avatarUrl: user.avatar_content_hash
+        ? getUserAvatarUrl(user.user_uuid, user.avatar_content_hash)
+        : null,
+    avatarGradient:
+        user.avatar_gradient && isUserAvatarColorValue(user.avatar_gradient)
+            ? user.avatar_gradient
+            : null,
     isPending: !hasAuthentication,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
@@ -125,6 +144,17 @@ const userDetailsQueryBuilder = (
     db('users')
         .joinRaw(
             'LEFT JOIN emails ON users.user_id = emails.user_id AND emails.is_primary',
+        )
+        // Derived join projects only the hash — never the image bytea.
+        .leftJoin(
+            db('user_avatars')
+                .select(
+                    'user_uuid as avatar_user_uuid',
+                    'content_hash as avatar_content_hash',
+                )
+                .as('user_avatar_hashes'),
+            'users.user_uuid',
+            'user_avatar_hashes.avatar_user_uuid',
         )
         // TODO remove this org join, we should do this in the service
         .leftJoin(
@@ -173,6 +203,18 @@ export class UserModel {
         return this.lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
     }
 
+    // Per-pod eviction: other pods keep their entry until the 30s TTL expires
+    // eslint-disable-next-line class-methods-use-this
+    invalidateSessionUserCache(userUuid: string): void {
+        const cache = sessionUserCache;
+        if (!cache) return;
+        const prefix = `${userUuid}::`;
+        cache
+            .keys()
+            .filter((key) => key.startsWith(prefix))
+            .forEach((key) => cache.del(key));
+    }
+
     async getSessionUserFromCacheOrDB(
         userUuid: string,
         organizationUuid: string,
@@ -180,7 +222,7 @@ export class UserModel {
         const cacheKey = `${userUuid}::${organizationUuid}`;
         // Try to get from cache first
         const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
-        if (cachedUser) {
+        if (cachedUser?.isSetupComplete) {
             // Return cached user
             return { sessionUser: cachedUser, cacheHit: true };
         }
@@ -190,7 +232,9 @@ export class UserModel {
             organizationUuid,
         );
         // Store in cache
-        sessionUserCache?.set(cacheKey, sessionUser);
+        if (sessionUser.isSetupComplete) {
+            sessionUserCache?.set(cacheKey, sessionUser);
+        }
         return { sessionUser, cacheHit: false };
     }
 
@@ -221,19 +265,25 @@ export class UserModel {
                 `${UserTableName}.user_id`,
                 `${OpenIdIdentitiesTableName}.user_id`,
             )
+            .joinRaw(
+                `LEFT JOIN ${EmailTableName} AS verified_primary_emails ON ${UserTableName}.user_id = verified_primary_emails.user_id AND verified_primary_emails.is_primary AND verified_primary_emails.is_verified`,
+            )
             .select<{ user_uuid: string; has_authentication: false }[]>(
                 `${UserTableName}.user_uuid`,
                 trx.raw(
-                    `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
+                    `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, verified_primary_emails.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
                 ),
             )
             .distinctOn(`user_uuid`)
             .whereIn(`${UserTableName}.user_uuid`, filters.userUuids);
     }
 
-    private async hasAuthentication(userUuid: string): Promise<boolean> {
+    private async hasAuthentication(
+        userUuid: string,
+        trx: Knex = this.database,
+    ): Promise<boolean> {
         const [usersHaveAuthenticationRows] =
-            await UserModel.findIfUsersHaveAuthentication(this.database, {
+            await UserModel.findIfUsersHaveAuthentication(trx, {
                 userUuids: [userUuid],
             });
         if (usersHaveAuthenticationRows === undefined) {
@@ -246,17 +296,17 @@ export class UserModel {
         trx: Transaction,
         createUser: (Omit<CreateUserWithRole, 'role'> | OpenIdUser) & {
             isActive: boolean;
+            isSetupComplete: boolean;
             isVerified?: boolean;
         },
     ) {
-        const canSkipSetupForAnalytics = !this.lightdashConfig.rudder.writeKey;
         const userIn: DbUserIn = isOpenIdUser(createUser)
             ? {
                   first_name: createUser.openId.firstName || '',
                   last_name: createUser.openId.lastName || '',
                   is_marketing_opted_in: false,
                   is_tracking_anonymized: this.canTrackingBeAnonymized(),
-                  is_setup_complete: canSkipSetupForAnalytics,
+                  is_setup_complete: createUser.isSetupComplete,
                   is_active: createUser.isActive,
               }
             : {
@@ -264,7 +314,7 @@ export class UserModel {
                   last_name: createUser.lastName.trim(),
                   is_marketing_opted_in: false,
                   is_tracking_anonymized: this.canTrackingBeAnonymized(),
-                  is_setup_complete: canSkipSetupForAnalytics,
+                  is_setup_complete: createUser.isSetupComplete,
                   is_active: createUser.isActive,
               };
         const [newUser] = await trx<DbUser>('users')
@@ -291,7 +341,7 @@ export class UserModel {
                 email: createUser.email.toLowerCase(),
                 is_primary: true,
             });
-            if (createUser.password) {
+            if ('password' in createUser && createUser.password) {
                 if (!validatePassword(createUser.password)) {
                     throw new ParameterError(
                         "Password doesn't meet requirements",
@@ -347,6 +397,23 @@ export class UserModel {
         return results.length > 0;
     }
 
+    async getIsTrackingAnonymizedByUserUuids(
+        userUuids: string[],
+    ): Promise<Record<string, boolean>> {
+        if (userUuids.length === 0) {
+            return {};
+        }
+        const users = await this.database(UserTableName)
+            .whereIn('user_uuid', userUuids)
+            .select<Pick<DbUser, 'user_uuid' | 'is_tracking_anonymized'>[]>(
+                'user_uuid',
+                'is_tracking_anonymized',
+            );
+        return Object.fromEntries(
+            users.map((user) => [user.user_uuid, user.is_tracking_anonymized]),
+        );
+    }
+
     async getUserDetailsByUuid(userUuid: string): Promise<LightdashUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
@@ -399,7 +466,12 @@ export class UserModel {
                 `No user found with email ${email} and password`,
             );
         }
-        const match = await bcrypt.compare(password, user.password_hash || '');
+        if (!user.password_hash) {
+            throw new NotFoundError(
+                `No User found with email ${email} and password`,
+            );
+        }
+        const match = await bcrypt.compare(password, user.password_hash);
         if (!match) {
             throw new NotFoundError(
                 `No User found with email ${email} and password`,
@@ -416,6 +488,14 @@ export class UserModel {
             .leftJoin('users', 'users.user_id', 'password_logins.user_id')
             .where('users.user_uuid', userUuid);
         return user !== undefined;
+    }
+
+    async hasOpenIdIdentity(userUuid: string): Promise<boolean> {
+        const identity = await this.database('openid_identities')
+            .innerJoin('users', 'users.user_id', 'openid_identities.user_id')
+            .where('users.user_uuid', userUuid)
+            .first('openid_identities.user_id');
+        return identity !== undefined;
     }
 
     async hasPasswordByEmail(email: string): Promise<boolean> {
@@ -467,6 +547,8 @@ export class UserModel {
             isSetupComplete,
             isActive,
             timezone,
+            avatarGradient,
+            howDidYouHearAboutUs,
         }: Partial<UpdateUserArgs>,
         isEmailVerified: boolean = false,
     ): Promise<LightdashUser> {
@@ -483,6 +565,8 @@ export class UserModel {
                         ? isTrackingAnonymized
                         : false,
                     timezone,
+                    avatar_gradient: avatarGradient,
+                    how_did_you_hear_about_us: howDidYouHearAboutUs,
                     updated_at: new Date(),
                 })
                 .returning('*');
@@ -517,6 +601,7 @@ export class UserModel {
         if (isActive === false) {
             PatSessionCache.invalidate();
         }
+        this.invalidateSessionUserCache(userUuid);
         return this.getUserDetailsByUuid(userUuid);
     }
 
@@ -525,10 +610,12 @@ export class UserModel {
             .where('user_uuid', userUuid)
             .delete();
         PatSessionCache.invalidate();
+        this.invalidateSessionUserCache(userUuid);
     }
 
     async getUserProjectRoles(
         userUuid: string,
+        { trx = this.database }: { trx?: Knex } = {},
     ): Promise<ProjectAbilityProfile[]> {
         type Row = {
             project_uuid: string;
@@ -537,7 +624,7 @@ export class UserModel {
             project_type: ProjectType;
             created_by_user_uuid: string | null;
         };
-        const projectMemberships = await this.database('project_memberships')
+        const projectMemberships = await trx('project_memberships')
             .leftJoin(
                 ProjectTableName,
                 'project_memberships.project_id',
@@ -567,9 +654,10 @@ export class UserModel {
         userId: number,
         organizationId: number,
         userUuid: string,
+        trx: Knex = this.database,
     ): Promise<ProjectAbilityProfile[]> {
         // Remember: primary key for an organization is organization_id,user_id - not user_id alone
-        const query = this.database('group_memberships')
+        const query = trx('group_memberships')
             .innerJoin(
                 'project_group_access',
                 'project_group_access.group_uuid',
@@ -602,12 +690,13 @@ export class UserModel {
 
     private async customRoleScopes(
         roleUuids: string[],
+        trx: Knex = this.database,
     ): Promise<Record<Role['roleUuid'], RoleWithScopes['scopes']>> {
         if (roleUuids.length === 0) {
             return {};
         }
 
-        const scopeData = await this.database(ScopedRolesTableName)
+        const scopeData = await trx(ScopedRolesTableName)
             .select('role_uuid', 'scope_name')
             .whereIn('role_uuid', roleUuids);
 
@@ -626,18 +715,22 @@ export class UserModel {
         return scopesRecord;
     }
 
-    private async generateUserAbilityBuilder(user: DbUserDetails): Promise<{
+    private async generateUserAbilityBuilder(
+        user: DbUserDetails,
+        trx: Knex = this.database,
+    ): Promise<{
         abilityBuilder: AbilityBuilder<MemberAbility>;
         lightdashUser: LightdashUser;
     }> {
         const [hasAuthentication, projectRoles, groupProjectRoles] =
             await Promise.all([
-                this.hasAuthentication(user.user_uuid),
-                this.getUserProjectRoles(user.user_uuid),
+                this.hasAuthentication(user.user_uuid, trx),
+                this.getUserProjectRoles(user.user_uuid, { trx }),
                 this.getUserGroupProjectRoles(
                     user.user_id,
                     user.organization_id,
                     user.user_uuid,
+                    trx,
                 ),
             ]);
         const lightdashUser = mapDbUserDetailsToLightdashUser(
@@ -666,9 +759,10 @@ export class UserModel {
             // the flag off, every CI workflow on those tokens would 403
             // overnight.
             if (user.role_uuid) {
-                const customRoleScopes = await this.customRoleScopes([
-                    user.role_uuid,
-                ]);
+                const customRoleScopes = await this.customRoleScopes(
+                    [user.role_uuid],
+                    trx,
+                );
                 const scopes = customRoleScopes[user.role_uuid];
                 if (scopes) {
                     const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -700,6 +794,7 @@ export class UserModel {
                         user.user_id,
                         user.user_uuid,
                         builder,
+                        trx,
                     );
                     builder.rules = collapseAbilityRules(builder.rules);
                     return {
@@ -714,6 +809,7 @@ export class UserModel {
             // ability set.
             const serviceAccount = await this.findServiceAccountByUserUuid(
                 user.user_uuid,
+                { trx },
             );
             if (serviceAccount) {
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -727,6 +823,7 @@ export class UserModel {
                     user.user_id,
                     user.user_uuid,
                     builder,
+                    trx,
                 );
                 builder.rules = collapseAbilityRules(builder.rules);
                 return {
@@ -745,11 +842,14 @@ export class UserModel {
             ...groupProjectRoles.map((role) => role.roleUuid),
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
         const [customRoleScopes, customRolesFlag] = await Promise.all([
-            this.customRoleScopes(customRoleUuids),
-            this.featureFlagModel.get({
-                user: lightdashUser,
-                featureFlagId: CommercialFeatureFlags.CustomRoles,
-            }),
+            this.customRoleScopes(customRoleUuids, trx),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: CommercialFeatureFlags.CustomRoles,
+                },
+                { trx },
+            ),
         ]);
         const { builder: abilityBuilder, invalidScopes } =
             getUserAbilityBuilder({
@@ -798,6 +898,7 @@ export class UserModel {
         userId: number,
         userUuid: string,
         builder: AbilityBuilder<MemberAbility>,
+        trx: Knex = this.database,
     ): Promise<void> {
         type Row = {
             project_uuid: string;
@@ -806,7 +907,7 @@ export class UserModel {
             project_type: ProjectType;
             created_by_user_uuid: string | null;
         };
-        const rows = await this.database(ProjectMembershipsTableName)
+        const rows = await trx(ProjectMembershipsTableName)
             .leftJoin(
                 ProjectTableName,
                 `${ProjectMembershipsTableName}.project_id`,
@@ -830,7 +931,7 @@ export class UserModel {
             .filter((u): u is string => u !== null);
         const customRoleScopes =
             customRoleUuids.length > 0
-                ? await this.customRoleScopes(customRoleUuids)
+                ? await this.customRoleScopes(customRoleUuids, trx)
                 : {};
         const isEnterprise =
             this.lightdashConfig.license.licenseKey !== undefined;
@@ -876,7 +977,10 @@ export class UserModel {
         }
     }
 
-    async findServiceAccountByUserUuid(userUuid: string): Promise<
+    async findServiceAccountByUserUuid(
+        userUuid: string,
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<
         | {
               uuid: string;
               description: string;
@@ -885,7 +989,7 @@ export class UserModel {
           }
         | undefined
     > {
-        const row = await this.database('service_accounts')
+        const row = await trx('service_accounts')
             .where('service_account_user_uuid', userUuid)
             .select<
                 {
@@ -944,6 +1048,8 @@ export class UserModel {
     async createPendingUser(
         organizationUuid: string,
         createUser: CreateUserWithRole,
+        isActive: boolean = true,
+        isSetupComplete?: boolean,
     ): Promise<LightdashUser> {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
@@ -966,10 +1072,14 @@ export class UserModel {
             throw new ParameterError("Password doesn't meet requirements");
         }
 
+        // Default preserves the legacy analytics-consent skip.
+        const setupComplete =
+            isSetupComplete ?? !this.lightdashConfig.rudder.writeKey;
         const user = await this.database.transaction(async (trx) => {
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
-                isActive: true,
+                isActive,
+                isSetupComplete: setupComplete,
             });
             await trx(OrganizationMembershipsTableName).insert({
                 organization_id: org.organization_id,
@@ -991,6 +1101,25 @@ export class UserModel {
         ) {
             throw new ParameterError("Password doesn't meet requirements");
         }
+        return this.activateInvitedUser(userUuid, activateUser);
+    }
+
+    async activateUserWithoutPassword(
+        userUuid: string,
+    ): Promise<LightdashUser> {
+        return this.activateInvitedUser(userUuid, {
+            firstName: '',
+            lastName: '',
+        });
+    }
+
+    private async activateInvitedUser(
+        userUuid: string,
+        activateUser:
+            | ActivateUser
+            | OpenIdUser
+            | Pick<ActivateUser, 'firstName' | 'lastName'>,
+    ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
             const [user] = await trx(UserTableName)
                 .where('user_uuid', userUuid)
@@ -1005,7 +1134,7 @@ export class UserModel {
                 })
                 .returning('*');
 
-            if (!isOpenIdUser(activateUser)) {
+            if (!isOpenIdUser(activateUser) && 'password' in activateUser) {
                 await UserModel.createPasswordLogin(trx, {
                     user_id: user.user_id,
                     password_hash: await bcrypt.hash(
@@ -1013,7 +1142,7 @@ export class UserModel {
                         await bcrypt.genSalt(),
                     ),
                 });
-            } else {
+            } else if (isOpenIdUser(activateUser)) {
                 await trx(OpenIdIdentitiesTableName)
                     .insert({
                         issuer_type: activateUser.openId.issuerType,
@@ -1029,12 +1158,16 @@ export class UserModel {
     }
 
     async createUser(
-        createUser: CreateUserArgs | OpenIdUser,
+        createUser: CreateLocalUserArgs | OpenIdUser,
         isActive: boolean = true,
+        isSetupComplete?: boolean,
     ): Promise<LightdashUser> {
+        const setupComplete =
+            isSetupComplete ?? !this.lightdashConfig.rudder.writeKey;
         const user = await this.database.transaction(async (trx) => {
             if (
                 !isOpenIdUser(createUser) &&
+                'password' in createUser &&
                 createUser.password &&
                 !validatePassword(createUser.password)
             ) {
@@ -1055,6 +1188,7 @@ export class UserModel {
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
                 isActive,
+                isSetupComplete: setupComplete,
             });
             return newUser;
         });
@@ -1088,8 +1222,9 @@ export class UserModel {
     async findSessionUserAndOrgByUuid(
         userUuid: string,
         organizationUuid: string,
+        { trx = this.database }: { trx?: Knex } = {},
     ): Promise<SessionUser> {
-        const [user] = await userDetailsQueryBuilder(this.database)
+        const [user] = await userDetailsQueryBuilder(trx)
             .where('user_uuid', userUuid)
             .andWhere('organizations.organization_uuid', organizationUuid) // We filter organizationUuid here
             .select('*', 'organizations.created_at as organization_created_at');
@@ -1100,7 +1235,7 @@ export class UserModel {
             );
         }
         const { abilityBuilder, lightdashUser } =
-            await this.generateUserAbilityBuilder(user);
+            await this.generateUserAbilityBuilder(user, trx);
 
         return {
             ...lightdashUser,
@@ -1156,15 +1291,17 @@ export class UserModel {
         if (!validatePassword(password)) {
             throw new ParameterError("Password doesn't meet requirements");
         }
-        const user = await this.findSessionUserByUUID(userUuid);
+        const user = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .first('user_id');
 
-        if (!user?.userId) {
-            throw new NotFoundError('User is missing user_id');
+        if (!user) {
+            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
 
         await this.database(PasswordLoginTableName)
             .insert({
-                user_id: user.userId,
+                user_id: user.user_id,
                 password_hash: await bcrypt.hash(
                     password,
                     await bcrypt.genSalt(),

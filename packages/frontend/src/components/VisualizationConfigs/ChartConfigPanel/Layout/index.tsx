@@ -10,21 +10,21 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { NumberInput } from '@mantine-8/core';
 import {
+    TextInput,
     ActionIcon,
     CloseButton,
     Group,
     SegmentedControl,
     Stack,
-    TextInput,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
+import { NumberInput } from '../../../common/NumberInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../../common/AddButton';
@@ -216,9 +216,10 @@ export const Layout: FC<Props> = ({ items }) => {
                         <Config.Heading>{`${
                             validConfig?.layout.flipAxes ? 'Y' : 'X'
                         }-axis`}</Config.Heading>
-                        <Group spacing="two">
-                            <Tooltip variant="xs" label="Flip Axes">
+                        <Group gap="two">
+                            <Tooltip label="Flip Axes">
                                 <ActionIcon
+                                    variant="subtle"
                                     onClick={() =>
                                         setFlipAxis(!dirtyLayout?.flipAxes)
                                     }
@@ -261,6 +262,8 @@ export const Layout: FC<Props> = ({ items }) => {
                             onChange={handleOnChangeOfXAxisField}
                             rightSection={
                                 <CloseButton
+                                    aria-label="Clear x-axis field"
+                                    size="xs"
                                     onClick={() => {
                                         setXField(EMPTY_X_AXIS);
                                     }}
@@ -309,6 +312,8 @@ export const Layout: FC<Props> = ({ items }) => {
                                 rightSection={
                                     yFields?.length !== 1 && (
                                         <CloseButton
+                                            aria-label="Remove y-axis field"
+                                            size="xs"
                                             onClick={() => {
                                                 removeSingleSeries(index);
                                             }}
@@ -324,9 +329,9 @@ export const Layout: FC<Props> = ({ items }) => {
 
             <Config>
                 <Config.Section>
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         <Config.Group>
-                            <Group spacing="one">
+                            <Group gap="one">
                                 <Config.Heading>Group</Config.Heading>
                             </Group>
                             {canAddPivot && (
@@ -353,7 +358,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             )}
                     </Stack>
 
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         {pivotDimensions &&
                             pivotDimensions.map((pivotKey) => {
                                 // Group series logic
@@ -371,11 +376,18 @@ export const Layout: FC<Props> = ({ items }) => {
                                 if (!groupSelectedField) {
                                     return (
                                         <TextInput
+                                            size="xs"
                                             key={pivotKey}
                                             readOnly
                                             value={pivotKey}
+                                            rightSectionPointerEvents="all"
                                             rightSection={
                                                 <CloseButton
+                                                    onMouseDown={(event) =>
+                                                        event.preventDefault()
+                                                    }
+                                                    aria-label="Remove pivot dimension"
+                                                    size="xs"
                                                     onClick={() => {
                                                         setPivotDimensions(
                                                             pivotDimensions.filter(
@@ -392,7 +404,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                     );
                                 }
                                 return (
-                                    <Group spacing="xs" key={pivotKey}>
+                                    <Group gap="xs" key={pivotKey}>
                                         <FieldSelect
                                             disabled={
                                                 !chartHasMetricOrTableCalc
@@ -420,6 +432,8 @@ export const Layout: FC<Props> = ({ items }) => {
                                             rightSection={
                                                 groupSelectedField && (
                                                     <CloseButton
+                                                        aria-label="Remove pivot dimension"
+                                                        size="xs"
                                                         onClick={() => {
                                                             setPivotDimensions(
                                                                 pivotDimensions.filter(
@@ -440,15 +454,15 @@ export const Layout: FC<Props> = ({ items }) => {
                     </Stack>
                     {canBeStacked && (
                         <Tooltip
-                            variant="xs"
                             label="x-axis must be non-numeric to enable stacking"
                             withinPortal
                             position="top-start"
                             disabled={!isXAxisFieldNumeric}
                         >
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <Config.Label>Stacking</Config.Label>
                                 <SegmentedControl
+                                    size="xs"
                                     disabled={isXAxisFieldNumeric}
                                     value={
                                         isXAxisFieldNumeric

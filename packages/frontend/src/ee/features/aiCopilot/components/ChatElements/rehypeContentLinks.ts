@@ -6,7 +6,8 @@ type ContentType =
     | 'chart-link'
     | 'artifact-link'
     | 'sql-runner-link'
-    | 'settings-link';
+    | 'settings-link'
+    | 'scheduled-delivery-link';
 
 interface LinkProcessor {
     fragment: string;
@@ -72,6 +73,11 @@ const LINK_PROCESSORS: LinkProcessor[] = [
 const processLink = (node: Element, href: string): void => {
     const processor = LINK_PROCESSORS.find((p) => href.includes(p.fragment));
     if (!processor) {
+        // Checked before the dashboard/chart matches: a scheduled delivery
+        // deep link is a resource view URL plus ?scheduler_uuid, so it would
+        // otherwise be misclassified as a chart/dashboard link and open the
+        // chart preview instead of the delivery's edit modal.
+        const schedulerMatch = href.match(/[?&]scheduler_uuid=([^&#]+)/);
         const dashboardMatch = href.match(
             /\/projects\/[^/]+\/dashboards\/([^/]+)\/view/,
         );
@@ -86,7 +92,14 @@ const processLink = (node: Element, href: string): void => {
         // relative path so the click can route client-side instead of reloading.
         const settingsMatch = href.match(/\/generalSettings\/[^\s)]*/);
 
-        if (dashboardMatch) {
+        if (schedulerMatch && (dashboardMatch || chartMatch)) {
+            node.properties = {
+                ...node.properties,
+                'data-content-type': 'scheduled-delivery-link',
+                'data-scheduler-uuid': schedulerMatch[1],
+                href,
+            };
+        } else if (dashboardMatch) {
             node.properties = {
                 ...node.properties,
                 'data-content-type': 'dashboard-link',

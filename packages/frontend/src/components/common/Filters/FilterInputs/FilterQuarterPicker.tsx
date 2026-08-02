@@ -1,14 +1,8 @@
 import { formatDate, TimeFrames } from '@lightdash/common';
-import {
-    Popover,
-    Stack,
-    Text,
-    TextInput,
-    type MantineTheme,
-    type Sx,
-} from '@mantine/core';
+import { TextInput, Stack, Text, Popover } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
+import { type MantineTheme, type Sx } from '@mantine/core';
 import { MonthPicker, type MonthPickerProps } from '@mantine/dates';
-import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import quarterOfYear from 'dayjs/plugin/quarterOfYear';
 import { useCallback, useEffect, useState, type FC } from 'react';
@@ -171,7 +165,7 @@ const FilterQuarterPicker: FC<Props> = ({
                 />
             </Popover.Target>
             <Popover.Dropdown>
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     <MonthPicker
                         defaultDate={new Date(selectedYear, 0)}
                         value={null}
@@ -180,7 +174,7 @@ const FilterQuarterPicker: FC<Props> = ({
                         onMouseLeave={() => setHoveredMonth(null)}
                     />
                     {hoveredMonth !== null && (
-                        <Text size="xs" align="center">
+                        <Text size="xs" ta="center">
                             {selectedYear}-Q{getQuarterFromMonth(hoveredMonth)}
                         </Text>
                     )}

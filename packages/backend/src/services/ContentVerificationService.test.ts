@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartKind,
     ContentType,
     ForbiddenError,
     OrganizationMemberRole,
@@ -10,6 +11,7 @@ import {
 import { ContentVerificationModel } from '../models/ContentVerificationModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { ContentVerificationService } from './ContentVerificationService';
+import { SpacePermissionService } from './SpaceService/SpacePermissionService';
 
 const projectSummary = {
     organizationUuid: 'org-uuid',
@@ -26,6 +28,8 @@ const adminUser: SessionUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     timezone: null,
     isSetupComplete: true,
     userId: 1,
@@ -48,12 +52,26 @@ const editorUser: SessionUser = {
     ]),
 };
 
+const viewOnlyUser: SessionUser = {
+    ...adminUser,
+    userUuid: 'view-only-uuid',
+    role: OrganizationMemberRole.INTERACTIVE_VIEWER,
+    ability: new Ability<PossibleAbilities>([
+        { subject: 'ContentVerification', action: 'view' },
+    ]),
+};
+
 const mockVerifiedItems: VerifiedContentListItem[] = [
     {
         uuid: 'cv-uuid-1',
         contentType: ContentType.CHART,
         contentUuid: 'chart-uuid',
         name: 'Test Chart',
+        description: null,
+        chartKind: ChartKind.VERTICAL_BAR,
+        exploreName: 'orders',
+        views: 0,
+        lastUpdatedAt: null,
         spaceUuid: 'space-uuid',
         spaceName: 'Test Space',
         verifiedBy: {
@@ -66,11 +84,15 @@ const mockVerifiedItems: VerifiedContentListItem[] = [
 ];
 
 const projectModel = {
-    getSummary: jest.fn(async () => projectSummary),
+    getSummary: vi.fn(async () => projectSummary),
 };
 
 const contentVerificationModel = {
-    getAllForProject: jest.fn(async () => mockVerifiedItems),
+    getAllForProject: vi.fn(async () => mockVerifiedItems),
+};
+
+const spacePermissionService = {
+    getAccessibleSpaceUuids: vi.fn(async () => ['space-uuid']),
 };
 
 describe('ContentVerificationService', () => {
@@ -78,14 +100,16 @@ describe('ContentVerificationService', () => {
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         projectModel: projectModel as unknown as ProjectModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('listVerifiedContent', () => {
-        it('should throw ForbiddenError when user lacks manage:ContentVerification', async () => {
+        it('should throw ForbiddenError when user lacks view:ContentVerification', async () => {
             await expect(
                 service.listVerifiedContent(editorUser, 'project-uuid'),
             ).rejects.toThrow(ForbiddenError);
@@ -95,7 +119,19 @@ describe('ContentVerificationService', () => {
             ).not.toHaveBeenCalled();
         });
 
-        it('should return verified content when user is admin', async () => {
+        it('should return verified content when user has view:ContentVerification', async () => {
+            const result = await service.listVerifiedContent(
+                viewOnlyUser,
+                'project-uuid',
+            );
+
+            expect(result).toEqual(mockVerifiedItems);
+            expect(
+                contentVerificationModel.getAllForProject,
+            ).toHaveBeenCalledWith('project-uuid');
+        });
+
+        it('should return verified content the user can access', async () => {
             const result = await service.listVerifiedContent(
                 adminUser,
                 'project-uuid',
@@ -105,6 +141,22 @@ describe('ContentVerificationService', () => {
             expect(
                 contentVerificationModel.getAllForProject,
             ).toHaveBeenCalledWith('project-uuid');
+            expect(
+                spacePermissionService.getAccessibleSpaceUuids,
+            ).toHaveBeenCalledWith('view', adminUser, ['space-uuid']);
+        });
+
+        it('should filter out verified content in spaces the user cannot access', async () => {
+            spacePermissionService.getAccessibleSpaceUuids.mockResolvedValueOnce(
+                [],
+            );
+
+            const result = await service.listVerifiedContent(
+                adminUser,
+                'project-uuid',
+            );
+
+            expect(result).toEqual([]);
         });
     });
 });

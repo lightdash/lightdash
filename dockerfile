@@ -1,15 +1,22 @@
 # syntax=docker/dockerfile:1.7
 
+# Extensions are ABI-versioned. Keep this pinned image and the destination path
+# below aligned with @duckdb/node-api; the production stage fails if they drift.
+FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
+RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
+
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
-FROM node:20-bookworm-slim AS pnpm-base
+FROM node:24-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+# Fixed world-readable path so the pnpm cache resolves under any runtime UID (non-root securityContexts)
+ENV COREPACK_HOME="/usr/local/corepack"
 RUN npm i -g corepack@latest
 RUN corepack enable
-RUN corepack prepare pnpm@10.33.0 --activate
+RUN corepack prepare pnpm@11.17.0 --activate && chmod -R a+rX "$COREPACK_HOME"
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -45,6 +52,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
+# NOTE: keep the per-version adapter list in sync with
+# DBT_VERSION_SUPPORTED_WAREHOUSES in packages/common/src/types/projects.ts —
+# `latest` only advances to a version with full adapter coverage.
 # Use pip cache to speed up subsequent builds
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m venv /usr/local/dbt1.4 \
@@ -144,7 +154,21 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
-    && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11
+    && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
+    && python3 -m venv /usr/local/dbt1.12 \
+# dbt 1.12 has no stable PyPI release yet: pin latest pre-releases, and skip
+# dbt-databricks (no release compatible with dbt-core 1.12)
+    && /usr/local/dbt1.12/bin/pip install \
+    "dbt-core==1.12.0rc1" \
+    "dbt-postgres~=1.10.0" \
+    "dbt-redshift~=1.10.0" \
+    "dbt-snowflake==1.12.0b2" \
+    "dbt-bigquery==1.12.0b1" \
+    "dbt-trino~=1.10.0" \
+    "dbt-clickhouse~=1.9.0" \
+    "dbt-athena~=1.10.0" \
+    "dbt-duckdb~=1.10.0" \
+    && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
 # -----------------------------
 # Stage 1: stop here for dev environment
@@ -177,7 +201,7 @@ COPY pnpm-workspace.yaml .
 COPY pnpm-lock.yaml .
 COPY turbo.json .
 COPY tsconfig.json .
-COPY .eslintrc.js .
+COPY .oxlintrc.base.json .
 COPY .pnpmfile.cjs .
 COPY packages/common/package.json ./packages/common/
 COPY packages/formula/package.json ./packages/formula/
@@ -235,6 +259,7 @@ COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
 COPY packages/backend/tsconfig.json ./packages/backend/
 COPY packages/backend/tsconfig.sentry.json ./packages/backend/
+COPY packages/backend/tsoa.yml ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src/
 
 # Build MCP chart app (pnpm workspace member — deps already installed in prod-builder)
@@ -336,6 +361,10 @@ ENV NODE_ENV production
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --prod --frozen-lockfile --prefer-offline
 
+# Keep the versioned playground bundle in a late layer so bundle-only updates
+# do not invalidate production dependency installation or sourcemap processing.
+COPY packages/backend/assets/ ./packages/backend/assets/
+
 # -----------------------------
 # Stage 5: execution environment for backend
 # -----------------------------
@@ -343,6 +372,9 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 FROM pnpm-base as prod
 
 ENV NODE_ENV production
+ENV PLAYGROUND_DATA_DIR=/usr/app/packages/backend/assets/playground
+# Boot must work fully offline: pnpm is baked in, never fetch it from npmjs at runtime
+ENV COREPACK_ENABLE_NETWORK=0
 
 WORKDIR /usr/app
 
@@ -371,7 +403,21 @@ COPY --from=prod-builder  /usr/local/dbt1.8 /usr/local/dbt1.8
 COPY --from=prod-builder  /usr/local/dbt1.9 /usr/local/dbt1.9
 COPY --from=prod-builder  /usr/local/dbt1.10 /usr/local/dbt1.10
 COPY --from=prod-builder  /usr/local/dbt1.11 /usr/local/dbt1.11
+COPY --from=prod-builder  /usr/local/dbt1.12 /usr/local/dbt1.12
 COPY --from=build-final /usr/app /usr/app
+
+COPY --from=duckdb-extensions \
+    /root/.duckdb/extensions/v1.5.2/*/*.duckdb_extension \
+    /usr/app/packages/warehouses/dist/duckdbExtensions/v1.5.2/
+
+# Never silently restore production runtime downloads after a DuckDB upgrade.
+RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout.write(require('@duckdb/node-api').version())")" \
+    && extension_directory="/usr/app/packages/warehouses/dist/duckdbExtensions/${duckdb_version}" \
+    && if [ ! -r "${extension_directory}/httpfs.duckdb_extension" ] \
+        || [ ! -r "${extension_directory}/aws.duckdb_extension" ]; then \
+        echo >&2 "Bundled extensions do not match @duckdb/node-api ${duckdb_version}"; \
+        exit 1; \
+    fi
 
 RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5 \
@@ -380,7 +426,8 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8 \
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
-    && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11
+    && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
+    && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
 
 # Run backend

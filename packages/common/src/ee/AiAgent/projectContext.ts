@@ -1,11 +1,12 @@
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import Ajv from 'ajv';
 import AjvErrors from 'ajv-errors';
-import betterAjvErrors from 'better-ajv-errors';
 import * as yaml from 'js-yaml';
 import { isMap, isSeq, parseDocument } from 'yaml';
 import { z } from 'zod';
-import lightdashProjectContextSchema from '../../schemas/json/lightdash-project-context-1.0.json';
+import lightdashProjectContextSchema from '../../schemas/json/lightdash-project-context-2.0.json';
 import { ParseError } from '../../types/errors';
+import assertUnreachable from '../../utils/assertUnreachable';
 
 // Two kinds, by retrieval intent: `definition` is term-triggered (acronyms,
 // vocabulary, "X means Y"); `context` is the object-scoped catch-all
@@ -15,7 +16,131 @@ export const projectContextEntryKinds = ['definition', 'context'] as const;
 
 // Top-level file version. The file is `{ version, entries }`; bumping this is
 // the escape hatch for a future hard schema break, without per-entry churn.
-export const PROJECT_CONTEXT_FILE_VERSION = 1;
+export const PROJECT_CONTEXT_FILE_VERSION = 2;
+
+export type AiProjectContextTypedObjectRef =
+    | { type: 'explore'; name: string }
+    | { type: 'field'; explore: string; fieldId: string };
+
+export type AiProjectContextObjectRef = string | AiProjectContextTypedObjectRef;
+
+export const aiProjectContextTypedObjectRefSchema: z.ZodType<AiProjectContextTypedObjectRef> =
+    z.discriminatedUnion('type', [
+        z
+            .object({
+                type: z.literal('explore'),
+                name: z.string().min(1),
+            })
+            .strict(),
+        z
+            .object({
+                type: z.literal('field'),
+                explore: z.string().min(1),
+                fieldId: z.string().min(1),
+            })
+            .strict(),
+    ]);
+
+export const aiProjectContextObjectRefSchema: z.ZodType<AiProjectContextObjectRef> =
+    z.union([z.string().min(1), aiProjectContextTypedObjectRefSchema]);
+
+/** Identity of an object reference, for set membership and de-duplication. */
+export const getAiProjectContextObjectKey = (
+    object: AiProjectContextTypedObjectRef,
+): string => {
+    switch (object.type) {
+        case 'explore':
+            return `explore:${object.name}`;
+        case 'field':
+            return `field:${object.explore}:${object.fieldId}`;
+        default:
+            return assertUnreachable(
+                object,
+                'Unknown AI project context object ref type',
+            );
+    }
+};
+
+const typedProjectContextObjectRefsSchema = z.array(
+    aiProjectContextTypedObjectRefSchema,
+);
+
+const sanitizeLegacyProjectContextEntry = (entry: unknown): unknown => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+        return entry;
+    }
+
+    const sanitized = { ...entry } as Record<string, unknown>;
+    if (
+        !typedProjectContextObjectRefsSchema.safeParse(sanitized.objects)
+            .success
+    ) {
+        sanitized.objects = [];
+    }
+    return sanitized;
+};
+
+const normalizeLegacyProjectContext = (loaded: unknown): unknown => {
+    if (Array.isArray(loaded)) {
+        return loaded.map(sanitizeLegacyProjectContextEntry);
+    }
+    if (typeof loaded !== 'object' || loaded === null) {
+        return loaded;
+    }
+
+    const document = loaded as Record<string, unknown>;
+    if (document.version !== 1 && document.version !== '1') {
+        return loaded;
+    }
+
+    return {
+        ...document,
+        version: PROJECT_CONTEXT_FILE_VERSION,
+        entries: Array.isArray(document.entries)
+            ? document.entries.map(sanitizeLegacyProjectContextEntry)
+            : document.entries,
+    };
+};
+
+export const serializeAiProjectContextObjectRef = (
+    ref: AiProjectContextObjectRef,
+): string => {
+    if (typeof ref === 'string') {
+        return ref;
+    }
+
+    switch (ref.type) {
+        case 'explore':
+            return ref.name;
+        case 'field':
+            return `${ref.explore}\n${ref.fieldId}`;
+        default:
+            return assertUnreachable(
+                ref,
+                'Unknown AI project context object ref type',
+            );
+    }
+};
+
+export const formatAiProjectContextObjectRef = (
+    ref: AiProjectContextObjectRef,
+): string => {
+    if (typeof ref === 'string') {
+        return ref;
+    }
+
+    switch (ref.type) {
+        case 'explore':
+            return `explore "${ref.name}"`;
+        case 'field':
+            return `field "${ref.fieldId}" in explore "${ref.explore}"`;
+        default:
+            return assertUnreachable(
+                ref,
+                'Unknown AI project context object ref type',
+            );
+    }
+};
 
 // Canonical, post-ingest entry: `id` is always present (derived if the file
 // omitted it). This is what selection, the cache, and the API speak.
@@ -24,7 +149,7 @@ export const projectContextEntrySchema = z.object({
     kind: z.enum(projectContextEntryKinds),
     content: z.string().min(1),
     terms: z.array(z.string()).default([]),
-    objects: z.array(z.string()).default([]),
+    objects: z.array(aiProjectContextObjectRefSchema).default([]),
 });
 
 export type ProjectContextEntry = z.infer<typeof projectContextEntrySchema>;
@@ -39,7 +164,7 @@ type ProjectContextFileEntry = Omit<
 > & {
     id?: string;
     terms?: string[];
-    objects?: string[];
+    objects?: AiProjectContextObjectRef[];
     [key: string]: unknown;
 };
 
@@ -52,7 +177,7 @@ export type ProjectContextWritebackEntry = {
     kind: ProjectContextEntry['kind'];
     content: string;
     terms: string[];
-    objects: string[];
+    objects: AiProjectContextTypedObjectRef[];
 };
 
 const slugifyId = (value: string): string =>
@@ -175,6 +300,7 @@ export const loadProjectContextFile = (
         );
     }
 
+    const normalized = normalizeLegacyProjectContext(loaded);
     const ajv = new Ajv({
         coerceTypes: true,
         allErrors: true,
@@ -183,7 +309,7 @@ export const loadProjectContextFile = (
     AjvErrors(ajv);
     const validate = ajv.compile(lightdashProjectContextSchema);
 
-    if (!validate(loaded)) {
+    if (!validate(normalized)) {
         const errors = betterAjvErrors(
             lightdashProjectContextSchema,
             loaded,
@@ -196,9 +322,9 @@ export const loadProjectContextFile = (
     }
 
     const rawEntries = (
-        Array.isArray(loaded)
-            ? loaded
-            : (loaded as { entries: unknown[] }).entries
+        Array.isArray(normalized)
+            ? normalized
+            : (normalized as { entries: unknown[] }).entries
     ) as ProjectContextFileEntry[];
     const entries: ProjectContextEntry[] = [];
     const usedIds = new Set<string>();
@@ -232,7 +358,14 @@ export const loadProjectContextFile = (
 export const applyProjectContextWriteback = (
     existingContent: string,
     judgeEntry: ProjectContextWritebackEntry,
-): { content: string; entryId: string; op: 'create' | 'update' } => {
+): {
+    content: string;
+    entryId: string;
+    op: 'create' | 'update';
+    // True when a non-empty legacy (v1 / bare-array) file was rewritten as
+    // canonical v2, so callers can surface the migration to the user.
+    upgradesFileToV2: boolean;
+} => {
     const { entries, entryId, op } = mergeProjectContextEntry(
         loadProjectContextFile(existingContent),
         judgeEntry,
@@ -241,10 +374,11 @@ export const applyProjectContextWriteback = (
     if (existingContent.trim() !== '') {
         const doc = parseDocument(existingContent);
         const entriesNode = doc.get('entries');
-        if (doc.errors.length === 0 && isSeq(entriesNode)) {
-            if (doc.get('version') === undefined) {
-                doc.set('version', PROJECT_CONTEXT_FILE_VERSION);
-            }
+        if (
+            doc.errors.length === 0 &&
+            isSeq(entriesNode) &&
+            doc.get('version') === PROJECT_CONTEXT_FILE_VERSION
+        ) {
             const node = doc.createNode({
                 id: entryId,
                 kind: judgeEntry.kind,
@@ -270,9 +404,15 @@ export const applyProjectContextWriteback = (
                 }),
                 entryId,
                 op,
+                upgradesFileToV2: false,
             };
         }
     }
 
-    return { content: serializeProjectContextFile(entries), entryId, op };
+    return {
+        content: serializeProjectContextFile(entries),
+        entryId,
+        op,
+        upgradesFileToV2: existingContent.trim() !== '',
+    };
 };

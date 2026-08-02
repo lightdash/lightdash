@@ -146,6 +146,14 @@ const getValueAsString = (
     const firstValue = values?.[0];
     const secondValue = values?.[1];
 
+    // Null operators take no value; ignore any stale values on the rule
+    if (
+        operator === FilterOperator.NULL ||
+        operator === FilterOperator.NOT_NULL
+    ) {
+        return undefined;
+    }
+
     switch (filterType) {
         case FilterType.STRING:
         case FilterType.NUMBER:
@@ -203,8 +211,6 @@ const getValueAsString = (
                     if (!isFilterRule(rule)) throw new Error('Invalid rule');
 
                     return rule.settings?.unitOfTime?.slice(0, -1) ?? 'day';
-                case FilterOperator.NULL:
-                case FilterOperator.NOT_NULL:
                 case FilterOperator.EQUALS:
                 case FilterOperator.NOT_EQUALS:
                 case FilterOperator.STARTS_WITH:

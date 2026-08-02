@@ -57,6 +57,7 @@ const contextItems: AiPromptContextItem[] = [
         dashboardSlug: 'executive-overview',
         pinnedVersionUuid: null,
         displayName: 'Executive overview',
+        runtimeOverrides: null,
     },
     {
         type: 'thread',
@@ -326,6 +327,7 @@ const verifyContext: AiPromptContextItem[] = [
         dashboardSlug: 'preview-executive-overview',
         pinnedVersionUuid: null,
         displayName: 'Preview Executive overview',
+        runtimeOverrides: null,
     },
     {
         type: 'chart',
@@ -891,7 +893,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
         uuid: threadUuid,
         agentUuid: 'agent-story',
         createdAt,
-        createdFrom: 'storybook',
+        createdFrom: 'web_app',
         title: scenario.title,
         titleGeneratedAt: createdAt,
         firstMessage: {

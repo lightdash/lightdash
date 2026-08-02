@@ -5,9 +5,12 @@ import {
     FilterOperator,
     TableCalculationTemplateType,
     TableSelectionType,
+    ValidationErrorType,
+    ValidationSourceType,
     ValidationTarget,
     WindowFunctionType,
 } from '@lightdash/common';
+import { validateWarehouseColumnReferences } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -29,16 +32,28 @@ import {
     explore,
     exploreError,
     exploreWithJoin,
+    exploreWithMixedWarnings,
+    exploreWithNonWarehouseWarnings,
     exploreWithoutDimension,
     exploreWithoutMetric,
+    exploreWithWarehouseColumnError,
     project,
     tableConfiguration,
     user,
 } from './ValidationService.mock';
 
+vi.mock('@lightdash/warehouses', async (importOriginal) => {
+    const original =
+        await importOriginal<typeof import('@lightdash/warehouses')>();
+    return {
+        ...original,
+        validateWarehouseColumnReferences: vi.fn(),
+    };
+});
+
 const savedChartModel = {
-    findChartsForValidation: jest.fn(async () => [chartForValidation]),
-    get: jest.fn(async () => ({
+    findChartsForValidation: vi.fn(async () => [chartForValidation]),
+    get: vi.fn(async () => ({
         ...chartForValidation,
         spaceUuid: 'spaceUuid',
         organizationUuid: 'orgUuid',
@@ -46,27 +61,28 @@ const savedChartModel = {
     })),
 };
 const projectModel = {
-    findExploresFromCache: jest.fn(async () => ({
+    findExploresFromCache: vi.fn(async () => ({
         [explore.name]: explore,
     })),
-    getExploreFromCache: jest.fn(async () => explore),
-    getAllExploresFromCache: jest.fn(async () => ({
+    findVirtualViewsFromCache: vi.fn(async () => ({})),
+    getExploreFromCache: vi.fn(async () => explore),
+    getAllExploresFromCache: vi.fn(async () => ({
         [explore.name]: explore,
     })),
-    get: jest.fn(async () => project),
-    getSummary: jest.fn(async () => project),
-    getTablesConfiguration: jest.fn(async () => tableConfiguration),
+    get: vi.fn(async () => project),
+    getSummary: vi.fn(async () => project),
+    getTablesConfiguration: vi.fn(async () => tableConfiguration),
 };
 const validationModel = {
-    delete: jest.fn(async () => {}),
-    deleteChartValidations: jest.fn(async () => {}),
-    deleteDashboardValidations: jest.fn(async () => {}),
-    create: jest.fn(async () => {}),
-    get: jest.fn(async () => []),
+    delete: vi.fn(async () => {}),
+    deleteChartValidations: vi.fn(async () => {}),
+    deleteDashboardValidations: vi.fn(async () => {}),
+    create: vi.fn(async () => {}),
+    get: vi.fn(async () => []),
 };
 const dashboardModel = {
-    findDashboardsForValidation: jest.fn(async () => [dashboardForValidation]),
-    getByIdOrSlug: jest.fn(async () => ({
+    findDashboardsForValidation: vi.fn(async () => [dashboardForValidation]),
+    getByIdOrSlug: vi.fn(async () => ({
         ...dashboardForValidation,
         uuid: dashboardForValidation.dashboardUuid,
         spaceUuid: 'spaceUuid',
@@ -75,7 +91,7 @@ const dashboardModel = {
     })),
 };
 const spacePermissionService = {
-    getSpaceAccessContext: jest.fn(async () => ({
+    getSpaceAccessContext: vi.fn(async () => ({
         inheritsFromOrgOrProject: false,
         access: [],
     })),
@@ -104,7 +120,7 @@ describe('validation', () => {
     };
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('scopes single chart validation lookups and cleanup to the requested project', async () => {
@@ -149,7 +165,7 @@ describe('validation', () => {
     });
     it('Should validate project with dimension errors', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreWithoutDimension]);
 
         const errors =
@@ -180,7 +196,7 @@ describe('validation', () => {
 
     it('Should validate project with metric errors', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreWithoutMetric]);
 
         const errors =
@@ -206,9 +222,53 @@ describe('validation', () => {
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
     });
 
+    it('Should create table validation errors from CLI warehouse diagnostics without probing the warehouse', async () => {
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            [exploreWithWarehouseColumnError],
+        );
+
+        expect(errors).toHaveLength(1);
+        expect({ ...errors[0], createdAt: undefined }).toEqual({
+            createdAt: undefined,
+            name: 'valid_explore',
+            error: 'Warehouse rejected ${TABLE}.missing_column',
+            errorType: ValidationErrorType.Model,
+            modelName: 'valid_explore',
+            projectUuid: 'projectUuid',
+            source: ValidationSourceType.Table,
+        });
+        expect(validateWarehouseColumnReferences).not.toHaveBeenCalled();
+    });
+
+    it('Should ignore cached explore warnings unrelated to warehouse columns', async () => {
+        (
+            projectModel.findExploresFromCache as import('vitest').Mock
+        ).mockImplementationOnce(async () => [exploreWithNonWarehouseWarnings]);
+
+        const errors =
+            await validationService.generateValidation('projectUuid');
+
+        expect(errors).toEqual([]);
+    });
+
+    it('Should create only the warehouse table error from mixed CLI diagnostics', async () => {
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            [exploreWithMixedWarnings],
+        );
+
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toMatchObject({
+            error: 'Warehouse rejected ${TABLE}.missing_column',
+            errorType: ValidationErrorType.Model,
+            source: ValidationSourceType.Table,
+        });
+    });
+
     it('Should validate project with table errors', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreError]);
 
         const errors =
@@ -233,11 +293,11 @@ describe('validation', () => {
 
     it('Should not show unselected table errors', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreError]);
 
         (
-            projectModel.getTablesConfiguration as jest.Mock
+            projectModel.getTablesConfiguration as import('vitest').Mock
         ).mockImplementationOnce(async () => ({
             tableSelection: {
                 type: TableSelectionType.WITH_NAMES,
@@ -253,7 +313,7 @@ describe('validation', () => {
 
     it('Should show unselected table errors on joins', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => ({
             valid_explore: exploreError,
             joined_explore: {
@@ -264,7 +324,7 @@ describe('validation', () => {
         }));
 
         (
-            projectModel.getTablesConfiguration as jest.Mock
+            projectModel.getTablesConfiguration as import('vitest').Mock
         ).mockImplementationOnce(async () => ({
             tableSelection: {
                 type: TableSelectionType.WITH_NAMES,
@@ -294,7 +354,7 @@ describe('validation', () => {
 
     it('Should validate only tables in project', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => ({
             valid_explore: exploreError,
             explore_without_dimension: exploreWithoutDimension,
@@ -315,7 +375,7 @@ describe('validation', () => {
 
     it('Should validate only charts in project', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             exploreError,
             exploreWithoutDimension,
@@ -340,7 +400,7 @@ describe('validation', () => {
 
     it('Should validate only dashboards in project', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreWithoutDimension]);
 
         const errors = await validationService.generateValidation(
@@ -363,7 +423,7 @@ describe('validation', () => {
 
     it('Should validate dashboard filters with table name mismatch', async () => {
         (
-            dashboardModel.findDashboardsForValidation as jest.Mock
+            dashboardModel.findDashboardsForValidation as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             {
                 ...dashboardForValidation,
@@ -398,10 +458,10 @@ describe('validation', () => {
 
     it('Should flag dashboard filter referencing a deleted explore as TableDoesNotExist', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [explore]);
         (
-            dashboardModel.findDashboardsForValidation as jest.Mock
+            dashboardModel.findDashboardsForValidation as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             {
                 ...dashboardForValidation,
@@ -444,10 +504,10 @@ describe('validation', () => {
 
     it('Should flag dashboard tile target referencing a deleted explore as TableDoesNotExist', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [explore]);
         (
-            dashboardModel.findDashboardsForValidation as jest.Mock
+            dashboardModel.findDashboardsForValidation as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             {
                 ...dashboardForValidation,
@@ -491,10 +551,10 @@ describe('validation', () => {
         // .tables map — a filter on `table_dimension` via `tableName: 'table'`
         // must stay error-free even though `table` is not the baseTable.
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [exploreWithJoin]);
         (
-            dashboardModel.findDashboardsForValidation as jest.Mock
+            dashboardModel.findDashboardsForValidation as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             {
                 ...dashboardForValidation,
@@ -531,10 +591,10 @@ describe('validation', () => {
 
     it('Should still emit FieldDoesNotExist when the table is valid but the field is renamed', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [explore]);
         (
-            dashboardModel.findDashboardsForValidation as jest.Mock
+            dashboardModel.findDashboardsForValidation as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             {
                 ...dashboardForValidation,
@@ -572,7 +632,7 @@ describe('validation', () => {
 
     it('Should validate dashboard tile targets with table name mismatch', async () => {
         (
-            dashboardModel.findDashboardsForValidation as jest.Mock
+            dashboardModel.findDashboardsForValidation as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             {
                 ...dashboardForValidation,
@@ -613,7 +673,7 @@ describe('validation', () => {
 
     it('Should validate only tables and charts in project', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             exploreError,
             exploreWithoutDimension,
@@ -639,10 +699,10 @@ describe('validation', () => {
 
     it('Should validate fields from joined explores', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [explore, exploreWithJoin]);
         (
-            savedChartModel.findChartsForValidation as jest.Mock
+            savedChartModel.findChartsForValidation as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             chartForValidationWithJoinedField,
         ]);
@@ -655,11 +715,11 @@ describe('validation', () => {
 
     it('Should validate custom metric filters', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [explore, exploreWithJoin]);
 
         (
-            savedChartModel.findChartsForValidation as jest.Mock
+            savedChartModel.findChartsForValidation as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             chartForValidationWithCustomMetricFilters,
         ]);
@@ -675,11 +735,11 @@ describe('validation', () => {
 
     it('Should validate charts using additional explores', async () => {
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [explore, additionalExplore]);
 
         (
-            savedChartModel.findChartsForValidation as jest.Mock
+            savedChartModel.findChartsForValidation as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             chartForValidationWithAdditionalExplore,
         ]);
@@ -709,7 +769,7 @@ describe('validation', () => {
         };
 
         (
-            projectModel.findExploresFromCache as jest.Mock
+            projectModel.findExploresFromCache as import('vitest').Mock
         ).mockImplementationOnce(async () => [
             explore,
             preAggregateLikeExplore,

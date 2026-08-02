@@ -12,8 +12,9 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button, useMantineColorScheme } from '@mantine/core';
-import { useElementSize } from '@mantine/hooks';
+import { Button } from '@mantine-8/core';
+import { useElementSize } from '@mantine-8/hooks';
+import { useMantineColorScheme } from '@mantine/core';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
@@ -155,9 +156,18 @@ const VisualizationCard: FC<Props> = memo((props) => {
         [query.data, queryResults],
     );
 
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+
     const handleSetPivotFields = useCallback(
         (fields: FieldId[] = []) => {
-            dispatch(explorerActions.setPivotConfig({ columns: fields }));
+            dispatch(explorerActions.setPivotColumns(fields));
+        },
+        [dispatch],
+    );
+
+    const handleSetPivotRows = useCallback(
+        (rows: FieldId[] = []) => {
+            dispatch(explorerActions.setPivotRows(rows));
         },
         [dispatch],
     );
@@ -191,8 +201,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
         },
         [dispatch],
     );
-
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const tableCalculationsMetadata = useExplorerSelector(
         selectTableCalculationsMetadata,
@@ -329,6 +337,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 initialPivotDimensions={
                     unsavedChartVersion.pivotConfig?.columns
                 }
+                initialPivotRows={unsavedChartVersion.pivotConfig?.rows}
                 unsavedMetricQuery={unsavedChartVersion.metricQuery}
                 resultsData={resultsData}
                 apiErrorDetail={apiErrorDetail}
@@ -339,6 +348,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
                 onPivotDimensionsChange={handleSetPivotFields}
+                onPivotRowsChange={handleSetPivotRows}
                 colorPalette={colorPalette}
                 tableCalculationsMetadata={tableCalculationsMetadata}
                 parameters={query.data?.usedParametersValues}
@@ -397,7 +407,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                                 ? closeVisualizationConfig
                                                 : openVisualizationConfig
                                         }
-                                        rightIcon={
+                                        rightSection={
                                             <MantineIcon
                                                 icon={
                                                     isVisualizationConfigOpen

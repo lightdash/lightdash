@@ -84,6 +84,7 @@ export const CreateTokenModal: FC<{
         <MantineModal
             opened
             onClose={onBackClick}
+            role="alertdialog"
             title={isSuccess ? 'Your token has been generated' : 'New token'}
             icon={IconKey}
             size="lg"

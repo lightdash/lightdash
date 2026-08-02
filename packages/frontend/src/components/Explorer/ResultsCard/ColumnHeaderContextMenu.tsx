@@ -3,6 +3,7 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
     getItemMap,
+    isAggregateMetricType,
     isCustomDimension,
     isCustomSqlDimension,
     isDimension,
@@ -19,8 +20,10 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Text } from '@mantine-8/core';
 import {
-    IconChevronDown,
+    IconCopy,
+    IconDots,
     IconFilter,
+    IconMinus,
     IconPencil,
     IconTimelineEvent,
     IconTrash,
@@ -151,6 +154,29 @@ const ContextMenu: FC<ContextMenuProps> = ({
                             Add period comparison
                         </Menu.Item>
 
+                        {!isItemAdditionalMetric &&
+                        isAggregateMetricType(item.type) ? (
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconCopy} />}
+                                onClick={() => {
+                                    track({
+                                        name: EventName.ADD_CUSTOM_METRIC_CLICKED,
+                                    });
+                                    dispatch(
+                                        explorerActions.toggleAdditionalMetricModal(
+                                            {
+                                                type: item.type,
+                                                item,
+                                                isEditing: false,
+                                            },
+                                        ),
+                                    );
+                                }}
+                            >
+                                Create custom metric
+                            </Menu.Item>
+                        ) : null}
+
                         <Menu.Divider />
                     </>
                 ) : null}
@@ -229,15 +255,44 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </Menu.Item>
                 ) : null}
 
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    color="red"
-                    onClick={() => {
-                        dispatch(explorerActions.removeField(itemFieldId));
-                    }}
-                >
-                    Remove
-                </Menu.Item>
+                {isItemAdditionalMetric && !isPopAdditionalMetric ? (
+                    <>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconMinus} />}
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.toggleMetric(itemFieldId),
+                                );
+                            }}
+                        >
+                            Remove
+                        </Menu.Item>
+
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.removeAdditionalMetric(
+                                        itemFieldId,
+                                    ),
+                                );
+                            }}
+                        >
+                            Delete custom metric
+                        </Menu.Item>
+                    </>
+                ) : (
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        color="red"
+                        onClick={() => {
+                            dispatch(explorerActions.removeField(itemFieldId));
+                        }}
+                    >
+                        Remove
+                    </Menu.Item>
+                )}
             </>
         );
     } else if (meta?.isInvalidItem) {
@@ -309,17 +364,30 @@ const ContextMenu: FC<ContextMenuProps> = ({
                         <Menu.Divider />
 
                         <Menu.Item
-                            leftSection={<MantineIcon icon={IconTrash} />}
-                            color="red"
+                            leftSection={<MantineIcon icon={IconMinus} />}
                             onClick={() => {
                                 dispatch(
-                                    explorerActions.removeField(
+                                    explorerActions.toggleDimension(
                                         getItemId(item),
                                     ),
                                 );
                             }}
                         >
                             Remove
+                        </Menu.Item>
+
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.removeCustomDimension(
+                                        getItemId(item),
+                                    ),
+                                );
+                            }}
+                        >
+                            Delete custom dimension
                         </Menu.Item>
                     </>
                 )}
@@ -410,8 +478,9 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                                 variant="light"
                                 bg="transparent"
                                 color="ldGray.6"
+                                aria-label="Context menu"
                             >
-                                <MantineIcon icon={IconChevronDown} />
+                                <MantineIcon icon={IconDots} />
                             </ActionIcon>
                         </Menu.Target>
 

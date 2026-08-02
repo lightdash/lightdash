@@ -112,7 +112,7 @@ describe('ReviewItemActions', () => {
         );
 
         expect(
-            screen.getByText('No project is linked to this finding'),
+            screen.getByText('No project is linked to this issue'),
         ).toBeInTheDocument();
     });
 

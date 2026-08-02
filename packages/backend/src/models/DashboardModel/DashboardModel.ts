@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ConflictError,
     ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
@@ -82,10 +83,9 @@ import { DbValidationTable } from '../../database/entities/validation';
 import Logger from '../../logging/logger';
 import {
     acquireProjectSlugLock,
-    generateUniqueSlug,
+    generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
-import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 
 export type GetDashboardQuery = Pick<
@@ -718,8 +718,10 @@ export class DashboardModel {
         slug,
         slugs,
         projectUuid,
+        organizationUuid,
     }: {
         projectUuid?: string;
+        organizationUuid?: string;
         slug?: string;
         slugs?: string[];
     }): Promise<
@@ -738,7 +740,7 @@ export class DashboardModel {
             )
             .whereNull(`${DashboardsTableName}.deleted_at`);
 
-        if (projectUuid) {
+        if (projectUuid || organizationUuid) {
             void query
                 .innerJoin(SpaceTableName, function spaceJoin() {
                     this.on(
@@ -751,8 +753,24 @@ export class DashboardModel {
                     'projects',
                     `${SpaceTableName}.project_id`,
                     'projects.project_id',
+                );
+        }
+
+        if (projectUuid) {
+            void query.where('projects.project_uuid', projectUuid);
+        }
+
+        if (organizationUuid) {
+            void query
+                .leftJoin(
+                    OrganizationTableName,
+                    `${OrganizationTableName}.organization_id`,
+                    'projects.organization_id',
                 )
-                .where('projects.project_uuid', projectUuid);
+                .where(
+                    `${OrganizationTableName}.organization_uuid`,
+                    organizationUuid,
+                );
         }
 
         if (slug) {
@@ -898,7 +916,7 @@ export class DashboardModel {
 
         if (options?.projectUuid) {
             void query.where(
-                `${ProjectTableName}.project_uuid`,
+                `${DashboardsTableName}.project_uuid`,
                 options.projectUuid,
             );
         }
@@ -940,6 +958,7 @@ export class DashboardModel {
                     tab_uuid: string;
                     chart_slug: string;
                     app_uuid: string | null;
+                    app_slug: string | null;
                     data_app_deleted_at: Date | null;
                 }[]
             >(
@@ -991,6 +1010,7 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
+                this.database.raw(`${AppsTableName}.slug AS app_slug`),
                 this.database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
                 ),
@@ -1175,6 +1195,7 @@ export class DashboardModel {
                     tab_uuid,
                     chart_slug,
                     app_uuid,
+                    app_slug,
                     data_app_deleted_at,
                 }) => {
                     const base: Omit<
@@ -1254,6 +1275,7 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     appUuid: app_uuid ?? '',
+                                    appSlug: app_slug ?? null,
                                     appDeletedAt:
                                         data_app_deleted_at?.toISOString() ??
                                         null,
@@ -1326,20 +1348,10 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardViewsTableName}.dashboard_version_id`,
             )
-            .innerJoin(
-                SpaceTableName,
-                `${DashboardsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
-            )
-            .innerJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
             .select<{ parameters: DashboardParameters | null } | undefined>(
                 `${DashboardViewsTableName}.parameters`,
             )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(`${DashboardsTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc');
@@ -1377,8 +1389,17 @@ export class DashboardModel {
     /*
     This utility method wraps the slug generation functionality for testing purposes
     */
-    static async generateUniqueSlug(trx: Knex, slug: string): Promise<string> {
-        return generateUniqueSlug(trx, DashboardsTableName, slug);
+    static async generateUniqueSlug(
+        trx: Knex,
+        projectUuid: string,
+        slug: string,
+    ): Promise<string> {
+        return generateUniqueSlugScopedToProject(
+            trx,
+            projectUuid,
+            DashboardsTableName,
+            slug,
+        );
     }
 
     async create(
@@ -1388,36 +1409,36 @@ export class DashboardModel {
         projectUuid: string,
     ): Promise<DashboardDAO> {
         const dashboardId = await this.database.transaction(async (trx) => {
+            await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
+
             if (dashboard.forceSlug) {
-                // Forced slugs (content-as-code / promotion) skip unique-slug
-                // generation, and there is no DB unique constraint on the slug.
-                // Serialize concurrent creates of the same (project, slug) and
-                // dedupe against a row a racing upsert already created, so we
-                // never insert a duplicate slug (PROD-7883).
-                await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
-                const [existing] = await trx(DashboardsTableName)
-                    .innerJoin(
-                        SpaceTableName,
-                        `${SpaceTableName}.space_id`,
-                        `${DashboardsTableName}.space_id`,
-                    )
-                    .innerJoin(
-                        ProjectTableName,
-                        `${SpaceTableName}.project_id`,
-                        `${ProjectTableName}.project_id`,
-                    )
-                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                const existing = await trx(DashboardsTableName)
+                    .where(`${DashboardsTableName}.project_uuid`, projectUuid)
                     .where(`${DashboardsTableName}.slug`, dashboard.slug)
-                    .whereNull(`${DashboardsTableName}.deleted_at`)
-                    .select(`${DashboardsTableName}.dashboard_uuid`);
+                    .select(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        `${DashboardsTableName}.deleted_at`,
+                    )
+                    .first();
+                if (existing?.deleted_at) {
+                    throw new ConflictError(
+                        `Dashboard slug "${dashboard.slug}" is already used by a deleted dashboard`,
+                    );
+                }
                 if (existing) {
                     return existing.dashboard_uuid;
                 }
             }
 
             const [space] = await trx(SpaceTableName)
-                .where('space_uuid', spaceUuid)
-                .select(`${SpaceTableName}.*`)
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${SpaceTableName}.space_uuid`, spaceUuid)
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .select(`${SpaceTableName}.space_id`)
                 .limit(1);
             if (!space) {
                 throw new NotFoundError('Space not found');
@@ -1425,6 +1446,7 @@ export class DashboardModel {
 
             const [newDashboard] = await trx(DashboardsTableName)
                 .insert({
+                    project_uuid: projectUuid,
                     name: dashboard.name,
                     description: dashboard.description,
                     space_id: space.space_id,
@@ -1432,6 +1454,7 @@ export class DashboardModel {
                         ? dashboard.slug
                         : await DashboardModel.generateUniqueSlug(
                               trx,
+                              projectUuid,
                               dashboard.slug,
                           ),
                 })
@@ -1452,42 +1475,47 @@ export class DashboardModel {
         dashboardUuidOrSlug: string,
         dashboard: DashboardUnversionedFields,
     ): Promise<DashboardDAO> {
-        const withSpaceId = dashboard.spaceUuid
-            ? {
-                  space_id: (
-                      await SpaceModel.getSpaceIdAndName(
-                          this.database,
-                          dashboard.spaceUuid,
-                      )
-                  )?.spaceId,
-              }
-            : {};
+        const existingDashboard = await this.getByIdOrSlug(dashboardUuidOrSlug);
+        let withSpaceId: { space_id: number } | Record<string, never> = {};
+        if (dashboard.spaceUuid) {
+            const space = await this.database(SpaceTableName)
+                .innerJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .select(`${SpaceTableName}.space_id`)
+                .where(`${SpaceTableName}.space_uuid`, dashboard.spaceUuid)
+                .where(
+                    `${ProjectTableName}.project_uuid`,
+                    existingDashboard.projectUuid,
+                )
+                .first();
+            if (!space) {
+                throw new NotFoundError('Space not found');
+            }
+            withSpaceId = { space_id: space.space_id };
+        }
         const withColorPalette =
             dashboard.colorPaletteUuid !== undefined
                 ? { color_palette_uuid: dashboard.colorPaletteUuid }
                 : {};
         const query = this.database(DashboardsTableName)
             .update({
+                project_uuid: existingDashboard.projectUuid,
                 name: dashboard.name,
                 description: dashboard.description,
                 ...withSpaceId,
                 ...withColorPalette,
             })
+            .where('dashboard_uuid', existingDashboard.uuid)
             .whereNull('deleted_at');
-
-        if (isValidUuid(dashboardUuidOrSlug)) {
-            void query.where((builder) => {
-                void builder
-                    .where('dashboard_uuid', dashboardUuidOrSlug)
-                    .orWhere('slug', dashboardUuidOrSlug);
-            });
-        } else {
-            void query.where('slug', dashboardUuidOrSlug);
-        }
 
         await query;
 
-        return this.getByIdOrSlug(dashboardUuidOrSlug);
+        return this.getByIdOrSlug(existingDashboard.uuid, {
+            projectUuid: existingDashboard.projectUuid,
+        });
     }
 
     async updateMultiple(
@@ -1497,31 +1525,64 @@ export class DashboardModel {
         await this.database.transaction(async (trx) => {
             await Promise.all(
                 dashboards.map(async (dashboard) => {
-                    const withSpaceId = dashboard.spaceUuid
-                        ? {
-                              space_id: (
-                                  await SpaceModel.getSpaceIdAndName(
-                                      trx,
-                                      dashboard.spaceUuid,
-                                  )
-                              )?.spaceId,
-                          }
-                        : {};
-                    await trx(DashboardsTableName)
+                    let withSpaceId:
+                        | { space_id: number }
+                        | Record<string, never> = {};
+                    if (dashboard.spaceUuid) {
+                        const space = await trx(SpaceTableName)
+                            .innerJoin(
+                                ProjectTableName,
+                                `${ProjectTableName}.project_id`,
+                                `${SpaceTableName}.project_id`,
+                            )
+                            .select(`${SpaceTableName}.space_id`)
+                            .where(
+                                `${SpaceTableName}.space_uuid`,
+                                dashboard.spaceUuid,
+                            )
+                            .where(
+                                `${ProjectTableName}.project_uuid`,
+                                projectUuid,
+                            )
+                            .first();
+                        if (!space) {
+                            throw new NotFoundError('Space not found');
+                        }
+                        withSpaceId = { space_id: space.space_id };
+                    }
+                    const updateCount = await trx(DashboardsTableName)
                         .update({
+                            project_uuid: projectUuid,
                             name: dashboard.name,
                             description: dashboard.description,
                             ...withSpaceId,
                         })
                         .where('dashboard_uuid', dashboard.uuid)
+                        .whereIn(
+                            'space_id',
+                            trx(SpaceTableName)
+                                .select(`${SpaceTableName}.space_id`)
+                                .innerJoin(
+                                    ProjectTableName,
+                                    `${ProjectTableName}.project_id`,
+                                    `${SpaceTableName}.project_id`,
+                                )
+                                .where(
+                                    `${ProjectTableName}.project_uuid`,
+                                    projectUuid,
+                                ),
+                        )
                         .whereNull('deleted_at');
+                    if (updateCount !== 1) {
+                        throw new NotFoundError('Dashboard not found');
+                    }
                 }),
             );
         });
 
         return Promise.all(
             dashboards.map(async (dashboard) =>
-                this.getByIdOrSlug(dashboard.uuid),
+                this.getByIdOrSlug(dashboard.uuid, { projectUuid }),
             ),
         );
     }
@@ -2091,6 +2152,7 @@ export class DashboardModel {
                     tab_uuid: string;
                     chart_slug: string;
                     app_uuid: string | null;
+                    app_slug: string | null;
                     data_app_deleted_at: Date | null;
                 }[]
             >(
@@ -2142,6 +2204,7 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
+                this.database.raw(`${AppsTableName}.slug AS app_slug`),
                 this.database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
                 ),
@@ -2311,6 +2374,7 @@ export class DashboardModel {
                     tab_uuid,
                     chart_slug,
                     app_uuid,
+                    app_slug,
                     data_app_deleted_at,
                 }) => {
                     const base: Omit<
@@ -2390,6 +2454,7 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     appUuid: app_uuid ?? '',
+                                    appSlug: app_slug ?? null,
                                     appDeletedAt:
                                         data_app_deleted_at?.toISOString() ??
                                         null,
@@ -2447,8 +2512,8 @@ export class DashboardModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .where('space_uuid', targetSpaceUuid)
-            .where('project_uuid', projectUuid)
+            .where(`${SpaceTableName}.space_uuid`, targetSpaceUuid)
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .first();
 
         if (!space) {
@@ -2456,8 +2521,22 @@ export class DashboardModel {
         }
 
         const updateCount = await tx(DashboardsTableName)
-            .update({ space_id: space.space_id })
+            .update({
+                project_uuid: projectUuid,
+                space_id: space.space_id,
+            })
             .where('dashboard_uuid', dashboardUuid)
+            .whereIn(
+                'space_id',
+                tx(SpaceTableName)
+                    .select(`${SpaceTableName}.space_id`)
+                    .innerJoin(
+                        ProjectTableName,
+                        `${ProjectTableName}.project_id`,
+                        `${SpaceTableName}.project_id`,
+                    )
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid),
+            )
             .whereNull('deleted_at');
 
         if (updateCount !== 1) {

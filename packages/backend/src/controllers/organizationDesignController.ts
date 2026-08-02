@@ -264,6 +264,31 @@ export class OrganizationDesignController extends BaseController {
     }
 
     /**
+     * Delete every file in an organization design, keeping the design itself.
+     * Idempotent — succeeds when the design already has no files.
+     * @summary Delete all files from organization design
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{designUuid}/files')
+    @OperationId('DeleteAllOrganizationDesignFiles')
+    async deleteAllFiles(
+        @Request() req: express.Request,
+        @Path() designUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getOrganizationDesignService()
+            .clearFiles(req.account, designUuid);
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Delete a single file from an organization design.
      * @summary Delete file from organization design
      */

@@ -3,6 +3,10 @@ version: 2
 seeds:
   - name: raw_timezone_test
     config:
+      # Delta gates TIMESTAMP_NTZ behind a table feature; non-Databricks
+      # adapters ignore tblproperties.
+      tblproperties:
+        delta.feature.timestampNtz: supported
       column_types:
         event_timestamp: >-
           {%- if target.type == 'snowflake' -%}
@@ -18,6 +22,8 @@ seeds:
           {%- endif -%}
         event_timestamp_ntz: >-
           {%- if target.type == 'snowflake' -%}
+            timestamp_ntz
+          {%- elif target.type in ['databricks', 'spark'] -%}
             timestamp_ntz
           {%- elif target.type == 'clickhouse' -%}
             DateTime64(3)

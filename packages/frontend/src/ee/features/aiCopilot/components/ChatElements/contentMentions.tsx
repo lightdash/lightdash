@@ -11,7 +11,7 @@ import {
     type GitRepo,
     type SummaryContent,
 } from '@lightdash/common';
-import { Group, Text } from '@mantine-8/core';
+import { Badge, Group, Text } from '@mantine-8/core';
 import {
     IconBrandGithub,
     IconBrandGitlab,
@@ -108,6 +108,10 @@ export type RepositoryMentionSuggestionItem = SuggestionItem & {
     fullName: string;
     ownerLogin: string;
     provider?: 'github' | 'gitlab';
+    // Whether the coding agent can WRITE this repo (open a PR). When false the
+    // repo is still mentionable for read (exploreRepo), so we badge it
+    // "Read-only" rather than hide it — see the suggestion render.
+    writable?: boolean;
     group: typeof REPOSITORY_MENTION_GROUP;
 };
 
@@ -226,6 +230,7 @@ const getRepositorySuggestions = async (
         fullName: repo.fullName,
         ownerLogin: repo.ownerLogin,
         provider: repo.provider,
+        writable: repo.writable,
         group: REPOSITORY_MENTION_GROUP,
     }));
 };
@@ -318,13 +323,16 @@ export const mergeAiPromptContextInput = (
     ...contextGroups: Array<AiPromptContextInput | undefined>
 ): AiPromptContextInput | undefined => {
     const seen = new Set<string>();
-    const merged = contextGroups
+    const merged: AiPromptContextInput = [];
+    contextGroups
         .flatMap((context) => context ?? [])
-        .filter((item) => {
+        .forEach((item) => {
             const key = getContextKey(item);
-            if (seen.has(key)) return false;
+            if (seen.has(key)) {
+                return;
+            }
             seen.add(key);
-            return true;
+            merged.push(item);
         });
     return merged.length > 0 ? merged : undefined;
 };
@@ -333,13 +341,16 @@ export const mergeAiPromptContextItems = (
     ...contextGroups: Array<AiPromptContextItem[] | undefined>
 ): AiPromptContextItem[] | undefined => {
     const seen = new Set<string>();
-    const merged = contextGroups
+    const merged: AiPromptContextItem[] = [];
+    contextGroups
         .flatMap((context) => context ?? [])
-        .filter((item) => {
+        .forEach((item) => {
             const key = getPromptContextItemKey(item);
-            if (seen.has(key)) return false;
+            if (seen.has(key)) {
+                return;
+            }
             seen.add(key);
-            return true;
+            merged.push(item);
         });
     return merged.length > 0 ? merged : undefined;
 };
@@ -549,6 +560,19 @@ const renderRepositoryMentionItem = (
                         {item.ownerLogin}
                     </Text>
                 </div>
+                {item.writable === false && (
+                    // Still mentionable for read (exploreRepo); the badge signals
+                    // the coding agent can't open a PR against it.
+                    <Badge
+                        ml="auto"
+                        size="xs"
+                        variant="light"
+                        color="gray"
+                        title="The coding agent can't open a pull request on this repository"
+                    >
+                        Read-only
+                    </Badge>
+                )}
             </Group>
         </PolymorphicGroupButton>
     );
@@ -617,16 +641,28 @@ const generateContentMentionSuggestion = ({
     getProjectUuid,
     getPriorityItems,
     onPopupOpenChange,
+    includeFilesAndRepositories,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
     onPopupOpenChange?: (open: boolean) => void;
+    includeFilesAndRepositories: boolean;
 }): MentionOptions['suggestion'] => ({
     char: '@',
     allowSpaces: true,
     pluginKey: contentMentionPluginKey,
     items: async ({ query }) => {
         const projectUuid = getProjectUuid();
+        // Files / repositories are only mentionable in the AI-agent composer;
+        // other surfaces (e.g. homepage announcements) mention content only.
+        if (!includeFilesAndRepositories) {
+            return buildContentMentionSuggestionItems({
+                projectUuid,
+                query,
+                priorityItems: getPriorityItems(),
+            });
+        }
+        // Fetch all three in parallel so files/repos don't wait on content.
         const [contentItems, fileItems, repositoryItems] = await Promise.all([
             buildContentMentionSuggestionItems({
                 projectUuid,
@@ -762,10 +798,12 @@ export const createContentMentionExtension = ({
     getProjectUuid,
     getPriorityItems,
     onPopupOpenChange,
+    includeFilesAndRepositories = true,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
     onPopupOpenChange?: (open: boolean) => void;
+    includeFilesAndRepositories?: boolean;
 }) =>
     Mention.extend({
         name: CONTENT_MENTION_NAME,
@@ -813,6 +851,7 @@ export const createContentMentionExtension = ({
             getProjectUuid,
             getPriorityItems,
             onPopupOpenChange,
+            includeFilesAndRepositories,
         }),
         renderText: ({ node }) =>
             typeof node.attrs.label === 'string' ? node.attrs.label : '',
@@ -878,6 +917,7 @@ export const extractContentMentionContext = (
                 dashboardSlug: attrs.dashboardSlug ?? null,
                 displayName: attrs.dashboardName ?? null,
                 pinnedVersionUuid: null,
+                runtimeOverrides: null,
             });
         }
 
@@ -911,6 +951,7 @@ export const extractContentMentionContext = (
                 dashboardSlug: attrs.slug ?? null,
                 displayName: attrs.label ?? null,
                 pinnedVersionUuid: null,
+                runtimeOverrides: null,
             });
             return;
         }

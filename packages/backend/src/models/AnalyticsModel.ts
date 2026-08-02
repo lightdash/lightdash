@@ -84,11 +84,15 @@ export class AnalyticsModel {
     async addChartViewEvent(
         chartUuid: string,
         userUuid: string | null,
+        /** Set when the chart was rendered as a dashboard tile rather than
+         * opened on its own — recently-viewed excludes those. */
+        context?: { source: 'dashboard'; dashboardUuid: string },
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
             await trx(AnalyticsChartViewsTableName).insert({
                 chart_uuid: chartUuid,
                 user_uuid: userUuid,
+                context: context ?? null,
             });
             await trx(SavedChartsTableName)
                 .update({

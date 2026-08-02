@@ -2,6 +2,7 @@ import {
     ChartSourceType,
     ContentType,
     defineUserAbility,
+    ForbiddenError,
     KnexPaginatedData,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -45,6 +46,19 @@ const createUser = (): SessionUser =>
         ),
     }) as SessionUser;
 
+const createOrganizationAdminUser = (): SessionUser => ({
+    ...createUser(),
+    role: OrganizationMemberRole.ADMIN,
+    ability: defineUserAbility(
+        {
+            userUuid,
+            role: OrganizationMemberRole.ADMIN,
+            organizationUuid,
+        },
+        [],
+    ),
+});
+
 const createService = ({
     contentModel = {} as ContentModel,
     spaceModel = {} as SpaceModel,
@@ -55,33 +69,33 @@ const createService = ({
     spacePermissionService?: SpacePermissionService;
 } = {}) => {
     const projectModel = {
-        getAllByOrganizationUuid: jest.fn().mockResolvedValue([
+        getAllByOrganizationUuid: vi.fn().mockResolvedValue([
             {
                 projectUuid,
                 name: 'Test project',
                 organizationUuid,
             },
         ]),
-        getSummary: jest.fn().mockResolvedValue({
+        getSummary: vi.fn().mockResolvedValue({
             organizationUuid,
             name: 'Test project',
         }),
     };
     const savedChartService = {
-        restore: jest.fn().mockResolvedValue(undefined),
-        permanentDelete: jest.fn().mockResolvedValue(undefined),
+        restore: vi.fn().mockResolvedValue(undefined),
+        permanentDelete: vi.fn().mockResolvedValue(undefined),
     };
     const savedSqlService = {
-        restore: jest.fn().mockResolvedValue(undefined),
-        permanentDelete: jest.fn().mockResolvedValue(undefined),
+        restore: vi.fn().mockResolvedValue(undefined),
+        permanentDelete: vi.fn().mockResolvedValue(undefined),
     };
     const dashboardService = {
-        restore: jest.fn().mockResolvedValue(undefined),
-        permanentDelete: jest.fn().mockResolvedValue(undefined),
+        restore: vi.fn().mockResolvedValue(undefined),
+        permanentDelete: vi.fn().mockResolvedValue(undefined),
     };
     const spaceService = {
-        restore: jest.fn().mockResolvedValue(undefined),
-        permanentDelete: jest.fn().mockResolvedValue(undefined),
+        restore: vi.fn().mockResolvedValue(undefined),
+        permanentDelete: vi.fn().mockResolvedValue(undefined),
     };
 
     return {
@@ -109,7 +123,7 @@ const createService = ({
 
 describe('ContentService deleted content actions', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('restoreContent', () => {
@@ -237,13 +251,13 @@ describe('ContentService deleted content actions', () => {
 
 describe('ContentService.find', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('filters content to spaces the service account user can view', async () => {
         const accessibleSpaceUuid = 'accessible-space-uuid';
         const privateSpaceUuid = 'private-space-uuid';
-        const findSummaryContents = jest.fn(
+        const findSummaryContents = vi.fn(
             async (): Promise<KnexPaginatedData<SummaryContent[]>> => ({
                 pagination: {
                     page: 1,
@@ -254,7 +268,7 @@ describe('ContentService.find', () => {
                 data: [],
             }),
         );
-        const getAccessibleSpaceUuids = jest
+        const getAccessibleSpaceUuids = vi
             .fn()
             .mockResolvedValue([accessibleSpaceUuid]);
         const user = {
@@ -269,7 +283,7 @@ describe('ContentService.find', () => {
                 findSummaryContents,
             } as unknown as ContentModel,
             spaceModel: {
-                find: jest
+                find: vi
                     .fn()
                     .mockResolvedValue([
                         { uuid: accessibleSpaceUuid },
@@ -278,7 +292,7 @@ describe('ContentService.find', () => {
             } as unknown as SpaceModel,
             spacePermissionService: {
                 getAccessibleSpaceUuids,
-                getDirectAccessUserUuids: jest.fn(),
+                getDirectAccessUserUuids: vi.fn(),
             } as unknown as SpacePermissionService,
         });
 
@@ -305,5 +319,27 @@ describe('ContentService.find', () => {
             expect.any(Object),
             expect.objectContaining({ page: 1, pageSize: 50 }),
         );
+    });
+});
+
+describe('ContentService.findDeleted', () => {
+    it('rejects a project owned by another organization', async () => {
+        const findDeletedContents = vi.fn();
+        const deps = createService({
+            contentModel: {
+                findDeletedContents,
+            } as unknown as ContentModel,
+        });
+        deps.projectModel.getSummary.mockResolvedValue({
+            organizationUuid: 'another-organization-uuid',
+            name: 'Another project',
+        });
+
+        await expect(
+            deps.service.findDeleted(createOrganizationAdminUser(), {
+                projectUuids: [projectUuid],
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(findDeletedContents).not.toHaveBeenCalled();
     });
 });

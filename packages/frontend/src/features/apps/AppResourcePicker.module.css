@@ -37,6 +37,7 @@
 
 .attachPickerFooter {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     padding: var(--mantine-spacing-xs);
     border-top: 1px solid;
@@ -143,6 +144,13 @@
     @mixin dark {
         background-color: var(--mantine-color-ldDark-4);
     }
+}
+
+/* Composes with .selectedQueryItem — only adds the anchor for the
+   submit-time LoadingOverlay and a width cap for long filenames. */
+.fileItem {
+    position: relative;
+    max-width: 220px;
 }
 
 .selectedQueryList {

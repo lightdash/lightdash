@@ -1,19 +1,17 @@
 import {
     AlreadyExistsError,
-    assertUnreachable,
     CatalogCategoryFilterMode,
     CatalogFilter,
     CatalogItemIcon,
     CatalogItemsWithIcons,
     CatalogType,
-    ChangesetUtils,
-    ChangesetWithChanges,
     CompiledDimension,
     CompiledMetric,
     CompiledTable,
     convertToAiHints,
     Explore,
     FieldType,
+    friendlyName,
     isExploreError,
     NotFoundError,
     TableSelectionType,
@@ -44,7 +42,6 @@ import {
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { uniqBy } from 'lodash';
 import { validate as isValidUuid } from 'uuid';
 import type { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -122,6 +119,53 @@ const parseLockInfo = (
         acquiredAt: row.lock_acquired_at,
     };
 };
+
+type DbMetricsTreeEdgeWithMetricInfo = DbMetricsTreeEdge & {
+    source_metric_name: string;
+    source_metric_label: string | null;
+    source_metric_table_name: string;
+    target_metric_name: string;
+    target_metric_label: string | null;
+    target_metric_table_name: string;
+};
+
+const metricsTreeEdgeSelectColumns = {
+    source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+    target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+    project_uuid: `${MetricsTreeEdgesTableName}.project_uuid`,
+    created_at: `${MetricsTreeEdgesTableName}.created_at`,
+    created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
+    source: `${MetricsTreeEdgesTableName}.source`,
+    source_metric_name: `source_metric.name`,
+    source_metric_label: `source_metric.label`,
+    source_metric_table_name: `source_metric.table_name`,
+    target_metric_name: `target_metric.name`,
+    target_metric_label: `target_metric.label`,
+    target_metric_table_name: `target_metric.table_name`,
+};
+
+// Label can be NULL for catalog rows indexed before the label column existed;
+// fall back to the same friendly name the catalog indexer would generate.
+const parseMetricsTreeEdge = (
+    row: DbMetricsTreeEdgeWithMetricInfo,
+): CatalogMetricsTreeEdge => ({
+    source: {
+        catalogSearchUuid: row.source_metric_catalog_search_uuid,
+        name: row.source_metric_name,
+        label: row.source_metric_label ?? friendlyName(row.source_metric_name),
+        tableName: row.source_metric_table_name,
+    },
+    target: {
+        catalogSearchUuid: row.target_metric_catalog_search_uuid,
+        name: row.target_metric_name,
+        label: row.target_metric_label ?? friendlyName(row.target_metric_name),
+        tableName: row.target_metric_table_name,
+    },
+    createdAt: row.created_at,
+    createdByUserUuid: row.created_by_user_uuid,
+    projectUuid: row.project_uuid,
+    createdFrom: row.source,
+});
 
 export class CatalogModel {
     protected database: Knex;
@@ -360,360 +404,6 @@ export class CatalogModel {
         }
     }
 
-    async indexCatalogUpdates({
-        projectUuid,
-        cachedExploreMap,
-        changeset,
-    }: {
-        projectUuid: string;
-        cachedExploreMap: { [exploreUuid: string]: Explore | ExploreError };
-        changeset: ChangesetWithChanges;
-    }): Promise<{
-        catalogUpdates: DbCatalog[];
-    }> {
-        const catalogUpdates = await wrapSentryTransaction(
-            'indexCatalog.updateCatalogItems',
-            {
-                projectUuid,
-                changesetLength: changeset?.changes.length,
-            },
-            () =>
-                this.database.transaction(async (trx) => {
-                    const catalogUpdatesResult: DbCatalog[] = [];
-
-                    const changesetChangesMap = uniqBy(
-                        changeset?.changes,
-                        (change) =>
-                            `${change.entityTableName}:${change.entityType}:${change.entityName}`,
-                    );
-                    const updatePromises = changesetChangesMap.map(
-                        async (change) => {
-                            const cachedExploreTable =
-                                cachedExploreMap[change.entityTableName];
-
-                            if (
-                                !cachedExploreTable ||
-                                !cachedExploreTable.tables
-                            ) {
-                                return null;
-                            }
-
-                            if (change.type === 'create') {
-                                const isMetric = change.entityType === 'metric';
-
-                                if (isMetric) {
-                                    const metricData = change.payload.value;
-
-                                    const cachedExplore = await trx(
-                                        CatalogTableName,
-                                    )
-                                        .select('cached_explore_uuid')
-                                        .where(
-                                            'table_name',
-                                            change.entityTableName,
-                                        )
-                                        .where('project_uuid', projectUuid)
-                                        .first('cached_explore_uuid');
-
-                                    if (!cachedExplore) {
-                                        return null;
-                                    }
-
-                                    const [result] = await trx(CatalogTableName)
-                                        .insert({
-                                            name: metricData.name,
-                                            label: metricData.label,
-                                            description:
-                                                metricData.description ?? null,
-                                            cached_explore_uuid:
-                                                cachedExplore.cached_explore_uuid,
-                                            project_uuid: projectUuid,
-                                            type: CatalogType.Field,
-                                            field_type: FieldType.METRIC,
-                                            required_attributes: {},
-                                            any_attributes: {},
-                                            yaml_tags: [],
-                                            ai_hints: null,
-                                            chart_usage: 0,
-                                            table_name: change.entityTableName,
-                                            spotlight_show: true,
-                                            joined_tables: [],
-                                            owner_user_uuid: null,
-                                            // changeset-created metrics don't have the full compiled metric here, so we default has_time_dimension to false.
-                                            // This means we will skip these metrics if search looks for metrics with dimension
-                                            has_time_dimension: false,
-                                        })
-                                        .returning('*');
-
-                                    catalogUpdatesResult.push(result);
-                                    return result;
-                                }
-                            }
-
-                            let fieldToUpdate:
-                                | CompiledDimension
-                                | CompiledMetric
-                                | CompiledTable;
-                            const isTable = change.entityType === 'table';
-                            const table =
-                                cachedExploreTable.tables[
-                                    change.entityTableName
-                                ];
-                            if (!table) {
-                                return null;
-                            }
-
-                            switch (change.entityType) {
-                                case 'table': {
-                                    fieldToUpdate = table;
-                                    break;
-                                }
-                                case 'dimension': {
-                                    fieldToUpdate =
-                                        table.dimensions[change.entityName];
-                                    break;
-                                }
-                                case 'metric': {
-                                    fieldToUpdate =
-                                        table.metrics[change.entityName];
-                                    break;
-                                }
-                                default:
-                                    return assertUnreachable(
-                                        change.entityType,
-                                        `Unknown entity type ${change.entityType}`,
-                                    );
-                            }
-
-                            const [result] = await trx(CatalogTableName)
-                                .where('table_name', change.entityTableName)
-                                .andWhere('project_uuid', projectUuid)
-                                .andWhere('name', change.entityName)
-                                .andWhere(
-                                    'type',
-                                    isTable
-                                        ? CatalogType.Table
-                                        : CatalogType.Field,
-                                )
-                                .update({
-                                    label: fieldToUpdate.label ?? null,
-                                    description:
-                                        fieldToUpdate.description ?? null,
-                                    ai_hints:
-                                        convertToAiHints(
-                                            fieldToUpdate.aiHint,
-                                        ) ?? null,
-                                })
-                                .returning('*');
-
-                            catalogUpdatesResult.push(result);
-                            return result;
-                        },
-                    );
-
-                    await Promise.all(updatePromises);
-
-                    return catalogUpdatesResult;
-                }),
-        );
-
-        return {
-            catalogUpdates,
-        };
-    }
-
-    async indexCatalogReverts({
-        projectUuid,
-        revertedChanges,
-        originalChangeset,
-        originalExplores,
-    }: {
-        projectUuid: string;
-        revertedChanges: ChangesetWithChanges['changes'];
-        originalChangeset: ChangesetWithChanges;
-        originalExplores: Record<string, Explore | ExploreError>;
-    }): Promise<{
-        catalogUpdates: DbCatalog[];
-    }> {
-        return wrapSentryTransaction(
-            'indexCatalog.indexCatalogReverts',
-            {
-                projectUuid,
-                revertedChangesCount: revertedChanges.length,
-                originalChangesetLength: originalChangeset.changes.length,
-            },
-            async () => {
-                // map of changeUuid -> state BEFORE that change
-                const stateMap = new Map<
-                    string,
-                    Record<string, Explore | ExploreError>
-                >();
-                let currentState = originalExplores;
-
-                for (const change of originalChangeset.changes) {
-                    stateMap.set(change.changeUuid, currentState);
-
-                    currentState = ChangesetUtils.applyChangeset(
-                        {
-                            ...originalChangeset,
-                            changes: [change],
-                        },
-                        structuredClone(currentState),
-                    );
-                }
-
-                return this.database.transaction(async (trx) => {
-                    const catalogUpdatesResult: DbCatalog[] = [];
-
-                    // un-apply each reverted change in the reverse order, using previous state for values
-                    const sortedRevertedChanges = [...revertedChanges].sort(
-                        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-                    );
-
-                    for (const revertedChange of sortedRevertedChanges) {
-                        const preChangeState = stateMap.get(
-                            revertedChange.changeUuid,
-                        );
-
-                        if (!preChangeState) {
-                            Logger.warn(
-                                `Could not find pre-change state for ${revertedChange.changeUuid}`,
-                            );
-                            // eslint-disable-next-line no-continue
-                            continue;
-                        }
-                        const explore =
-                            preChangeState[revertedChange.entityTableName];
-
-                        if (!explore || isExploreError(explore)) {
-                            Logger.warn(
-                                `Explore ${revertedChange.entityTableName} not found in pre-change state`,
-                            );
-                            // eslint-disable-next-line no-continue
-                            continue;
-                        }
-
-                        const table =
-                            explore.tables[revertedChange.entityTableName];
-
-                        if (!table) {
-                            Logger.warn(
-                                `Table ${revertedChange.entityTableName} not found in pre-change state`,
-                            );
-                            // eslint-disable-next-line no-continue
-                            continue;
-                        }
-
-                        switch (revertedChange.type) {
-                            case 'create': {
-                                // eslint-disable-next-line no-await-in-loop
-                                await trx(CatalogTableName)
-                                    .where(
-                                        'table_name',
-                                        revertedChange.entityTableName,
-                                    )
-                                    .andWhere('project_uuid', projectUuid)
-                                    .andWhere('name', revertedChange.entityName)
-                                    .andWhere('type', CatalogType.Field)
-                                    .delete();
-                                break;
-                            }
-
-                            case 'update': {
-                                let fieldToRestore:
-                                    | CompiledDimension
-                                    | CompiledMetric
-                                    | CompiledTable;
-
-                                switch (revertedChange.entityType) {
-                                    case 'table':
-                                        fieldToRestore = table;
-                                        break;
-                                    case 'dimension':
-                                        fieldToRestore =
-                                            table.dimensions[
-                                                revertedChange.entityName
-                                            ];
-                                        break;
-                                    case 'metric':
-                                        fieldToRestore =
-                                            table.metrics[
-                                                revertedChange.entityName
-                                            ];
-                                        break;
-                                    default:
-                                        return assertUnreachable(
-                                            revertedChange.entityType,
-                                            `Unknown entity type`,
-                                        );
-                                }
-
-                                if (!fieldToRestore) {
-                                    Logger.warn(
-                                        `Field ${revertedChange.entityName} not found in pre-change state`,
-                                    );
-                                    break;
-                                }
-
-                                const isTable =
-                                    revertedChange.entityType === 'table';
-
-                                // eslint-disable-next-line no-await-in-loop
-                                const [result] = await trx(CatalogTableName)
-                                    .where(
-                                        'table_name',
-                                        revertedChange.entityTableName,
-                                    )
-                                    .andWhere('project_uuid', projectUuid)
-                                    .andWhere('name', revertedChange.entityName)
-                                    .andWhere(
-                                        'type',
-                                        isTable
-                                            ? CatalogType.Table
-                                            : CatalogType.Field,
-                                    )
-                                    .update({
-                                        label: fieldToRestore.label ?? null,
-                                        description:
-                                            fieldToRestore.description ?? null,
-                                        ai_hints:
-                                            convertToAiHints(
-                                                fieldToRestore.aiHint,
-                                            ) ?? null,
-                                    })
-                                    .returning('*');
-
-                                if (result) {
-                                    catalogUpdatesResult.push(result);
-                                }
-
-                                break;
-                            }
-
-                            case 'delete': {
-                                // TODO: Implement when delete operations are fully supported
-                                Logger.warn(
-                                    `Delete revert not yet implemented for ${revertedChange.changeUuid}`,
-                                );
-                                break;
-                            }
-
-                            default:
-                                assertUnreachable(
-                                    revertedChange,
-                                    'Invalid change type',
-                                );
-                        }
-                    }
-
-                    return {
-                        catalogUpdates: catalogUpdatesResult,
-                    };
-                });
-            },
-        );
-    }
-
     private async getTagsPerItem(catalogSearchUuids: string[]) {
         const itemTags = await this.database(CatalogTagsTableName)
             .select()
@@ -783,6 +473,19 @@ export class CatalogModel {
         hasTimeDimension?: boolean;
         tags?: string[];
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
+        // filteredExplores enforces visibility through the type-specific allow-list
+        // filter below, which only runs for Table/Field. Without an explicit type that
+        // filter is skipped and nothing constrains the results, so fail loud instead.
+        if (
+            filteredExplores &&
+            type !== CatalogType.Table &&
+            type !== CatalogType.Field
+        ) {
+            throw new UnexpectedServerError(
+                'filteredExplores requires an explicit Table or Field catalog type',
+            );
+        }
+
         // Use websearch_to_tsquery for AI Agent queries for better natural language support
         const useWebSearch =
             context === CatalogSearchContext.AI_AGENT ||
@@ -849,6 +552,12 @@ export class CatalogModel {
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             // tables configuration filtering
             .andWhere(function tablesConfigurationFiltering() {
+                // An explicit explore allow-list is the authoritative visibility set,
+                // so the project table-selection config must not further restrict it.
+                if (filteredExplores) {
+                    return;
+                }
+
                 const {
                     tableSelection: { type: tableSelectionType, value },
                 } = tablesConfiguration;
@@ -1506,6 +1215,26 @@ export class CatalogModel {
         }));
     }
 
+    /** Chart usage per table, summed across the table's fields. */
+    async getChartUsageByTable(
+        projectUuid: string,
+    ): Promise<Map<string, number>> {
+        const rows = await this.database(CatalogTableName)
+            .where(`${CatalogTableName}.project_uuid`, projectUuid)
+            .where(`${CatalogTableName}.type`, CatalogType.Field)
+            .groupBy(`${CatalogTableName}.table_name`)
+            .select<{ table_name: string; chart_usage: string }[]>(
+                `${CatalogTableName}.table_name`,
+                this.database.raw(
+                    `COALESCE(SUM(${CatalogTableName}.chart_usage), 0) as chart_usage`,
+                ),
+            );
+
+        return new Map(
+            rows.map((row) => [row.table_name, Number(row.chart_usage)]),
+        );
+    }
+
     async getCatalogItemsWithTags(
         projectUuid: string,
         opts?: {
@@ -1687,24 +1416,9 @@ export class CatalogModel {
         metricUuids: string[],
     ): Promise<{ edges: CatalogMetricsTreeEdge[] }> {
         const edges = await this.database(MetricsTreeEdgesTableName)
-            .select<
-                (DbMetricsTreeEdge & {
-                    source_metric_name: string;
-                    source_metric_table_name: string;
-                    target_metric_name: string;
-                    target_metric_table_name: string;
-                })[]
-            >({
-                source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                created_at: `${MetricsTreeEdgesTableName}.created_at`,
-                created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
-                source: `${MetricsTreeEdgesTableName}.source`,
-                source_metric_name: `source_metric.name`,
-                source_metric_table_name: `source_metric.table_name`,
-                target_metric_name: `target_metric.name`,
-                target_metric_table_name: `target_metric.table_name`,
-            })
+            .select<DbMetricsTreeEdgeWithMetricInfo[]>(
+                metricsTreeEdgeSelectColumns,
+            )
             .innerJoin(
                 { source_metric: CatalogTableName },
                 `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
@@ -1731,22 +1445,7 @@ export class CatalogModel {
             .andWhere('target_metric.project_uuid', projectUuid);
 
         return {
-            edges: edges.map((e) => ({
-                source: {
-                    catalogSearchUuid: e.source_metric_catalog_search_uuid,
-                    name: e.source_metric_name,
-                    tableName: e.source_metric_table_name,
-                },
-                target: {
-                    catalogSearchUuid: e.target_metric_catalog_search_uuid,
-                    name: e.target_metric_name,
-                    tableName: e.target_metric_table_name,
-                },
-                createdAt: e.created_at,
-                createdByUserUuid: e.created_by_user_uuid,
-                projectUuid,
-                createdFrom: e.source,
-            })),
+            edges: edges.map(parseMetricsTreeEdge),
         };
     }
 
@@ -1754,25 +1453,9 @@ export class CatalogModel {
         projectUuid: string,
     ): Promise<CatalogMetricsTreeEdge[]> {
         const edges = await this.database(MetricsTreeEdgesTableName)
-            .select<
-                (DbMetricsTreeEdge & {
-                    source_metric_name: string;
-                    source_metric_table_name: string;
-                    target_metric_name: string;
-                    target_metric_table_name: string;
-                })[]
-            >({
-                source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                project_uuid: `${MetricsTreeEdgesTableName}.project_uuid`,
-                created_at: `${MetricsTreeEdgesTableName}.created_at`,
-                created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
-                source: `${MetricsTreeEdgesTableName}.source`,
-                source_metric_name: `source_metric.name`,
-                source_metric_table_name: `source_metric.table_name`,
-                target_metric_name: `target_metric.name`,
-                target_metric_table_name: `target_metric.table_name`,
-            })
+            .select<DbMetricsTreeEdgeWithMetricInfo[]>(
+                metricsTreeEdgeSelectColumns,
+            )
             .where(`${MetricsTreeEdgesTableName}.project_uuid`, projectUuid)
             .innerJoin(
                 { source_metric: CatalogTableName },
@@ -1785,22 +1468,7 @@ export class CatalogModel {
                 `target_metric.catalog_search_uuid`,
             );
 
-        return edges.map((e) => ({
-            source: {
-                catalogSearchUuid: e.source_metric_catalog_search_uuid,
-                name: e.source_metric_name,
-                tableName: e.source_metric_table_name,
-            },
-            target: {
-                catalogSearchUuid: e.target_metric_catalog_search_uuid,
-                name: e.target_metric_name,
-                tableName: e.target_metric_table_name,
-            },
-            createdAt: e.created_at,
-            createdByUserUuid: e.created_by_user_uuid,
-            projectUuid: e.project_uuid,
-            createdFrom: e.source,
-        }));
+        return edges.map(parseMetricsTreeEdge);
     }
 
     // Omiting the project_uuid from the input so the model decides whether to include it or not
@@ -1841,6 +1509,7 @@ export class CatalogModel {
                     metrics_tree_uuid: string;
                     catalog_search_uuid: string;
                     name: string;
+                    label: string | null;
                     table_name: string;
                     x_position: number | null;
                     y_position: number | null;
@@ -1851,6 +1520,7 @@ export class CatalogModel {
                 metrics_tree_uuid: `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
                 catalog_search_uuid: `${MetricsTreeNodesTableName}.catalog_search_uuid`,
                 name: `${CatalogTableName}.name`,
+                label: `${CatalogTableName}.label`,
                 table_name: `${CatalogTableName}.table_name`,
                 x_position: `${MetricsTreeNodesTableName}.x_position`,
                 y_position: `${MetricsTreeNodesTableName}.y_position`,
@@ -2129,6 +1799,7 @@ export class CatalogModel {
             xPosition: row.x_position,
             yPosition: row.y_position,
             name: row.name,
+            label: row.label ?? friendlyName(row.name),
             tableName: row.table_name,
             source: row.source,
         }));
@@ -2171,12 +1842,14 @@ export class CatalogModel {
                         catalogSearchUuid:
                             row.source_metric_catalog_search_uuid,
                         name: sourceNode.name,
+                        label: sourceNode.label,
                         tableName: sourceNode.tableName,
                     },
                     target: {
                         catalogSearchUuid:
                             row.target_metric_catalog_search_uuid,
                         name: targetNode.name,
+                        label: targetNode.label,
                         tableName: targetNode.tableName,
                     },
                     createdAt: row.created_at,

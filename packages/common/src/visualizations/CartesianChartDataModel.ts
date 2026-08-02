@@ -20,7 +20,9 @@ import {
     applyCustomFormat,
     formatDateWithPattern,
     formatNumberValue,
+    getCustomFormatFromLegacy,
 } from '../utils/formatting';
+import { assignSeriesZByOrder } from './helpers/seriesZOrder';
 import {
     getAxisLabelStyle,
     getAxisLineStyle,
@@ -118,6 +120,10 @@ export class CartesianChartDataModel {
                     type: CustomFormatType.PERCENT,
                 });
         }
+        if (format === Format.SI) {
+            return (value: number) =>
+                applyCustomFormat(value, getCustomFormatFromLegacy({ format }));
+        }
         return undefined;
     }
 
@@ -151,6 +157,17 @@ export class CartesianChartDataModel {
                 return applyCustomFormat(value, {
                     type: CustomFormatType.PERCENT,
                 });
+            };
+        }
+        if (format === Format.SI) {
+            return (params: AnyType) => {
+                const value =
+                    params.value[params.dimensionNames[params.encode.y[0]]];
+
+                return applyCustomFormat(
+                    value,
+                    getCustomFormatFromLegacy({ format }),
+                );
             };
         }
         return undefined;
@@ -884,7 +901,13 @@ export class CartesianChartDataModel {
         // Show legend when there are multiple series
         const showLegend = transformedData.valuesColumns.length > 1;
 
+        // Series-list order controls paint order, same as explore charts
+        series = assignSeriesZByOrder(series);
+
         const spec = {
+            // Snap time-axis ticks in UTC to match the UTC label formatter;
+            // local snapping shifts labels back a day for UTC-positive viewers
+            useUTC: true,
             tooltip: {
                 ...getTooltipStyle(),
                 trigger: 'axis',

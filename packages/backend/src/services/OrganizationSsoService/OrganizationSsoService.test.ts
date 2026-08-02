@@ -24,26 +24,26 @@ import {
 
 const buildService = () => {
     const organizationSsoModel = {
-        findMethod: jest.fn(),
-        findEnabledMethodsForEmailDomain: jest.fn(),
-        findEnabledOktaMethodByStoredIssuer: jest.fn(),
-        findGoogleMethodsForEmailDomain: jest.fn(),
-        upsert: jest.fn(),
-        delete: jest.fn(),
+        findMethod: vi.fn(),
+        findEnabledMethodsForEmailDomain: vi.fn(),
+        findEnabledOktaMethodByStoredIssuer: vi.fn(),
+        findGoogleMethodsForEmailDomain: vi.fn(),
+        upsert: vi.fn(),
+        delete: vi.fn(),
     };
     const organizationDomainVerificationModel = {
-        findVerifiedDomains: jest.fn().mockResolvedValue([]),
+        findVerifiedDomains: vi.fn().mockResolvedValue([]),
     };
     const featureFlagModel = {
         // Enabled by default — individual tests override to exercise the guard.
-        get: jest.fn().mockResolvedValue({
+        get: vi.fn().mockResolvedValue({
             id: FeatureFlags.SsoOrganizationSettings,
             enabled: true,
         }),
     };
     const userModel = {
-        findUserByEmail: jest.fn(),
-        getOrganizationsForUser: jest.fn(),
+        findUserByEmail: vi.fn(),
+        getOrganizationsForUser: vi.fn(),
     };
 
     const service = new OrganizationSsoService({

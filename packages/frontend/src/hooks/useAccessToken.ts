@@ -27,6 +27,7 @@ const createAccessToken = async (data: CreatePersonalAccessToken) =>
         url: `/user/me/personal-access-tokens`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const deleteAccessToken = async (tokenUuid: string) =>
@@ -41,6 +42,7 @@ const rotateAccessToken = async (tokenUuid: string, expiresAt: string) =>
         url: `/user/me/personal-access-tokens/${tokenUuid}/rotate`,
         method: 'PATCH',
         body: JSON.stringify({ expiresAt }),
+        sensitive: true,
     });
 
 export const useAccessToken = (

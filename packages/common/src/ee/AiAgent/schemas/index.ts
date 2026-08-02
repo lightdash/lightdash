@@ -17,7 +17,6 @@ import {
     type ToolListKnowledgeDocumentsOutput,
     type ToolListWarehouseTablesOutput,
     type ToolLoadSkillOutput,
-    type ToolProposeChangeOutput,
     type ToolReadContentOutput,
     type ToolRunQueryOutput,
     type ToolRunSavedChartOutput,
@@ -57,7 +56,6 @@ export type AgentToolOutput =
     | ToolListKnowledgeDocumentsOutput
     | ToolListWarehouseTablesOutput
     | ToolLoadSkillOutput
-    | ToolProposeChangeOutput
     | ToolEditDbtProjectOutput
     | ToolSyncDbtProjectOutput
     | ToolReadContentOutput

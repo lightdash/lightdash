@@ -1,0 +1,605 @@
+import {
+    CompleteUserSchema,
+    FeatureFlags,
+    getEmailDomain,
+    LightdashMode,
+    validateOrganizationEmailDomains,
+    type HealthState,
+    type OrganizationBrandColor,
+    type OrganizationBrandLogo,
+} from '@lightdash/common';
+import {
+    Box,
+    Button,
+    Checkbox,
+    Divider,
+    Group,
+    Select,
+    Stack,
+    Text,
+    TextInput,
+    Title,
+} from '@mantine-8/core';
+import { useForm } from '@mantine/form';
+import { zodResolver } from 'mantine-form-zod-resolver';
+import { type FC, type FormEvent, useEffect, useRef, useState } from 'react';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import AboutFooter from '../components/AboutFooter';
+import { DocumentTitle } from '../components/common/DocumentTitle';
+import PageSpinner from '../components/PageSpinner';
+import { jobTitles } from '../components/UserCompletionModal/jobTitles';
+import { useOrganization } from '../hooks/organization/useOrganization';
+import {
+    useDetectOrganizationBrand,
+    useSaveOrganizationBrand,
+} from '../hooks/organization/useOrganizationBrand';
+import { type UserWithAbility } from '../hooks/user/useUser';
+import { useUserCompleteMutation } from '../hooks/user/useUserCompleteMutation';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import useApp from '../providers/App/useApp';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
+import classes from './OrganizationSetup.module.css';
+import { OrganizationSetupPreview } from './OrganizationSetupPreview';
+
+const PRESET_COLORS = ['#4c6ef5', '#7950f2', '#40c057', '#f59f00', '#fa5252'];
+const DEFAULT_COLOR = PRESET_COLORS[0];
+const MAX_SWATCHES = 7;
+
+const isValidHexColor = (hex: string): boolean =>
+    /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex);
+
+const dedupeColors = (colors: string[]): string[] => {
+    const seen = new Set<string>();
+    return colors.filter((color) => {
+        const key = color.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+};
+
+const brandColorsSorted = (colors: OrganizationBrandColor[]): string[] => {
+    const priority = (type: string) =>
+        type === 'accent' ? 0 : type === 'brand' ? 1 : 2;
+    return dedupeColors(
+        colors
+            .filter((color) => isValidHexColor(color.hex))
+            .slice()
+            .sort((a, b) => priority(a.type) - priority(b.type))
+            .map((color) => color.hex),
+    );
+};
+
+const buildSwatches = (brandColors: string[]): string[] =>
+    dedupeColors([...brandColors, ...PRESET_COLORS]).slice(0, MAX_SWATCHES);
+
+const pickTileLogo = (logos: OrganizationBrandLogo[]): string | null => {
+    const dark = logos.find((logo) => logo.theme === 'dark');
+    const neutral = logos.find((logo) => logo.theme === null);
+    return dark?.url ?? neutral?.url ?? logos[0]?.url ?? null;
+};
+
+const inferOrganizationName = (domain: string): string =>
+    (domain.split('.')[0] ?? '')
+        .split(/[-_]/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+const buildBrandColors = (
+    selectedColor: string,
+    brandColors: OrganizationBrandColor[],
+): OrganizationBrandColor[] => {
+    const matchesSelected = (hex: string) =>
+        hex.toLowerCase() === selectedColor.toLowerCase();
+    const existing = brandColors.find((color) => matchesSelected(color.hex));
+    const selectedEntry: OrganizationBrandColor = existing
+        ? { ...existing, type: 'accent' }
+        : { hex: selectedColor, type: 'accent', brightness: null };
+    return [
+        selectedEntry,
+        ...brandColors.filter((color) => !matchesSelected(color.hex)),
+    ];
+};
+
+type OrganizationSetupFormValues = {
+    organizationName: string;
+    jobTitle: string;
+    howDidYouHearAboutUs: string;
+    enableEmailDomainAccess: boolean;
+    isMarketingOptedIn: boolean;
+    isTrackingAnonymized: boolean;
+    selectedColor: string;
+};
+
+type OrganizationSetupContentProps = {
+    user: UserWithAbility;
+    health: HealthState;
+    organizationHasName: boolean;
+    completeMutation: ReturnType<typeof useUserCompleteMutation>;
+};
+
+const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
+    user,
+    health,
+    organizationHasName,
+    completeMutation,
+}) => {
+    const canEnterOrganizationName =
+        user.organizationName === '' && !organizationHasName;
+    const emailDomain = user.email ? getEmailDomain(user.email) : '';
+    const isCompanyDomain =
+        !!user.email && !validateOrganizationEmailDomains([emailDomain]);
+    const canEnableEmailDomainAccess =
+        canEnterOrganizationName && isCompanyDomain;
+
+    const form = useForm<OrganizationSetupFormValues>({
+        initialValues: {
+            organizationName:
+                canEnterOrganizationName && isCompanyDomain
+                    ? inferOrganizationName(emailDomain)
+                    : '',
+            jobTitle: '',
+            howDidYouHearAboutUs: '',
+            enableEmailDomainAccess: canEnableEmailDomainAccess,
+            isMarketingOptedIn: true,
+            isTrackingAnonymized: false,
+            selectedColor: DEFAULT_COLOR,
+        },
+        validate: zodResolver(
+            canEnterOrganizationName
+                ? CompleteUserSchema
+                : CompleteUserSchema.omit({ organizationName: true }),
+        ),
+    });
+
+    const { track } = useTracking();
+    const brandDetectionEnabled =
+        health.hasBrandfetch && canEnterOrganizationName && isCompanyDomain;
+    const brandDetection = useDetectOrganizationBrand(
+        emailDomain,
+        brandDetectionEnabled,
+    );
+    const saveBrand = useSaveOrganizationBrand({ showSuccessToast: false });
+
+    const { setValues, isDirty } = form;
+    const hasAppliedDetectedBrand = useRef(false);
+
+    useEffect(() => {
+        const brand = brandDetection.data;
+        if (!brand || hasAppliedDetectedBrand.current) return;
+        hasAppliedDetectedBrand.current = true;
+        const detected = brandColorsSorted(brand.colors);
+        setValues((current) => ({
+            ...(brand.name && !isDirty('organizationName')
+                ? { organizationName: brand.name }
+                : {}),
+            ...(current.selectedColor === DEFAULT_COLOR && detected[0]
+                ? { selectedColor: detected[0] }
+                : {}),
+        }));
+    }, [brandDetection.data, isDirty, setValues]);
+
+    const hasTrackedBrandDetection = useRef(false);
+    useEffect(() => {
+        if (!brandDetectionEnabled || hasTrackedBrandDetection.current) return;
+        if (!brandDetection.isFetched || brandDetection.isFetching) return;
+        hasTrackedBrandDetection.current = true;
+        const brand = brandDetection.data;
+        track({
+            name: EventName.ORGANIZATION_BRAND_DETECTED,
+            properties: {
+                found: !!brand,
+                autoApplied: !!(
+                    brand &&
+                    (brand.name || brandColorsSorted(brand.colors).length > 0)
+                ),
+            },
+        });
+    }, [
+        brandDetectionEnabled,
+        brandDetection.isFetched,
+        brandDetection.isFetching,
+        brandDetection.data,
+        track,
+    ]);
+
+    const detectedBrand = brandDetection.data ?? null;
+    const detectedColors = detectedBrand
+        ? brandColorsSorted(detectedBrand.colors)
+        : [];
+    const swatches = buildSwatches(detectedColors);
+    const detectedLogoUrl = detectedBrand
+        ? pickTileLogo(detectedBrand.logos)
+        : null;
+    const selectedColor = form.values.selectedColor;
+
+    const previewColors = buildBrandColors(
+        selectedColor,
+        detectedBrand?.colors ?? [],
+    );
+    const titleFont =
+        detectedBrand?.fonts.find((font) => font.type === 'title') ?? null;
+    const bodyFont =
+        detectedBrand?.fonts.find((font) => font.type === 'body') ?? null;
+
+    const showWorkspaceStep = canEnterOrganizationName;
+    const totalSteps = showWorkspaceStep ? 2 : 1;
+    const [step, setStep] = useState(1);
+
+    const isWorkspaceStep = showWorkspaceStep && step === 1;
+    const stepLabel = isWorkspaceStep ? 'Set up your workspace' : 'About you';
+    const displayStep = showWorkspaceStep ? step : 1;
+
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (isWorkspaceStep) {
+            if (!form.values.organizationName.trim()) return;
+
+            track({
+                name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
+                properties: { step: 'workspace' },
+            });
+            setStep(2);
+            return;
+        }
+
+        const result = form.validate();
+        if (result.hasErrors) return;
+
+        const values = form.values;
+
+        track({
+            name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
+            properties: { step: 'about_you' },
+        });
+
+        if (!canEnterOrganizationName) {
+            // Joining an existing org: no org name to set, and the brand
+            // belongs to the org (which a joiner — often a viewer — has no
+            // rights to change), so don't attempt to save it.
+            completeMutation.mutate({
+                jobTitle: values.jobTitle,
+                howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
+                enableEmailDomainAccess: values.enableEmailDomainAccess,
+                isMarketingOptedIn: values.isMarketingOptedIn,
+                isTrackingAnonymized: values.isTrackingAnonymized,
+            });
+            return;
+        }
+
+        completeMutation.mutate({
+            organizationName: values.organizationName,
+            jobTitle: values.jobTitle,
+            howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
+            enableEmailDomainAccess: values.enableEmailDomainAccess,
+            isMarketingOptedIn: values.isMarketingOptedIn,
+            isTrackingAnonymized: values.isTrackingAnonymized,
+        });
+
+        const brandDomain =
+            detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : null);
+        if (brandDomain) {
+            saveBrand.mutate({
+                domain: brandDomain,
+                name:
+                    values.organizationName.trim() ||
+                    detectedBrand?.name ||
+                    null,
+                description: detectedBrand?.description ?? null,
+                logos: detectedBrand?.logos ?? [],
+                colors: buildBrandColors(
+                    selectedColor,
+                    detectedBrand?.colors ?? [],
+                ),
+                fonts: detectedBrand?.fonts ?? [],
+            });
+        }
+    };
+
+    const logoTileInitial = (form.values.organizationName || '?')
+        .charAt(0)
+        .toUpperCase();
+
+    return (
+        <Box className={classes.page}>
+            <DocumentTitle title="Set up your organization" />
+
+            <Box className={classes.body}>
+                <Box className={classes.leftPane}>
+                    <form onSubmit={handleSubmit} noValidate>
+                        {isWorkspaceStep ? (
+                            <Stack gap="lg">
+                                <Stack gap="xs">
+                                    <Text size="sm" c="dimmed">
+                                        Step {displayStep} of {totalSteps} ·{' '}
+                                        {stepLabel}
+                                    </Text>
+                                    <Title
+                                        order={1}
+                                        fz={44}
+                                        className={classes.heading}
+                                    >
+                                        Name your organization
+                                    </Title>
+                                    <Text c="dimmed" size="lg">
+                                        This is how your team and your agent
+                                        will refer to your workspace.
+                                    </Text>
+                                </Stack>
+
+                                <TextInput
+                                    label="Organization name"
+                                    placeholder="Acme Analytics"
+                                    size="md"
+                                    required
+                                    {...form.getInputProps('organizationName')}
+                                />
+
+                                <Divider />
+
+                                <Stack gap="md">
+                                    <Group gap="sm">
+                                        <Text fw={600}>Brand</Text>
+                                        <Text
+                                            size="xs"
+                                            c="dimmed"
+                                            className={classes.optionalPill}
+                                        >
+                                            Optional · you can change this later
+                                        </Text>
+                                    </Group>
+
+                                    <Stack gap="xs">
+                                        <Text size="sm" fw={500}>
+                                            Theme color
+                                        </Text>
+                                        <Group gap="lg" align="center">
+                                            <Box
+                                                className={classes.logoTile}
+                                                bg={
+                                                    detectedLogoUrl
+                                                        ? 'var(--mantine-color-ldGray-0)'
+                                                        : selectedColor
+                                                }
+                                            >
+                                                {detectedLogoUrl ? (
+                                                    <img
+                                                        src={detectedLogoUrl}
+                                                        alt=""
+                                                        className={
+                                                            classes.logoTileImage
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <Text
+                                                        fw={700}
+                                                        fz={20}
+                                                        c="white"
+                                                    >
+                                                        {logoTileInitial}
+                                                    </Text>
+                                                )}
+                                            </Box>
+
+                                            <Box className={classes.swatchRow}>
+                                                {swatches.map((color) => (
+                                                    <Box
+                                                        key={color}
+                                                        component="button"
+                                                        type="button"
+                                                        aria-label={`Select theme color ${color}`}
+                                                        className={
+                                                            color.toLowerCase() ===
+                                                            selectedColor.toLowerCase()
+                                                                ? `${classes.swatch} ${classes.swatchSelected}`
+                                                                : classes.swatch
+                                                        }
+                                                        bg={color}
+                                                        onClick={() =>
+                                                            form.setFieldValue(
+                                                                'selectedColor',
+                                                                color,
+                                                            )
+                                                        }
+                                                    />
+                                                ))}
+                                            </Box>
+                                        </Group>
+                                    </Stack>
+                                </Stack>
+
+                                <Group>
+                                    <Button
+                                        type="submit"
+                                        color="dark"
+                                        size="md"
+                                        disabled={
+                                            !form.values.organizationName.trim()
+                                        }
+                                    >
+                                        Continue
+                                    </Button>
+                                </Group>
+                            </Stack>
+                        ) : (
+                            <Stack gap="lg">
+                                <Stack gap="xs">
+                                    <Text size="sm" c="dimmed">
+                                        Step {displayStep} of {totalSteps} ·{' '}
+                                        {stepLabel}
+                                    </Text>
+                                    <Title
+                                        order={1}
+                                        fz={44}
+                                        className={classes.heading}
+                                    >
+                                        Tell us about you
+                                    </Title>
+                                    <Text c="dimmed" size="lg">
+                                        This helps us tailor Lightdash for you.
+                                    </Text>
+                                </Stack>
+
+                                <Select
+                                    label="What's your role?"
+                                    data={jobTitles}
+                                    placeholder="Select your role"
+                                    size="md"
+                                    required
+                                    {...form.getInputProps('jobTitle')}
+                                />
+
+                                <TextInput
+                                    label="How did you hear about us?"
+                                    placeholder="Google, a colleague, a podcast..."
+                                    size="md"
+                                    required
+                                    {...form.getInputProps(
+                                        'howDidYouHearAboutUs',
+                                    )}
+                                />
+
+                                <Stack gap="xs">
+                                    {canEnableEmailDomainAccess && (
+                                        <Checkbox
+                                            label={`Allow users with @${emailDomain} to join the organization as a viewer`}
+                                            {...form.getInputProps(
+                                                'enableEmailDomainAccess',
+                                                { type: 'checkbox' },
+                                            )}
+                                        />
+                                    )}
+
+                                    <Checkbox
+                                        label="Keep me updated on new Lightdash features"
+                                        {...form.getInputProps(
+                                            'isMarketingOptedIn',
+                                            { type: 'checkbox' },
+                                        )}
+                                    />
+
+                                    {health.mode !==
+                                        LightdashMode.CLOUD_BETA && (
+                                        <Checkbox
+                                            label="Anonymize my usage data"
+                                            {...form.getInputProps(
+                                                'isTrackingAnonymized',
+                                                { type: 'checkbox' },
+                                            )}
+                                        />
+                                    )}
+                                </Stack>
+
+                                <Group>
+                                    {showWorkspaceStep && (
+                                        <Button
+                                            variant="subtle"
+                                            color="gray"
+                                            size="md"
+                                            onClick={() => setStep(1)}
+                                        >
+                                            Back
+                                        </Button>
+                                    )}
+                                    <Button
+                                        type="submit"
+                                        color="dark"
+                                        size="md"
+                                        loading={completeMutation.isLoading}
+                                        disabled={!form.values.jobTitle}
+                                    >
+                                        Finish
+                                    </Button>
+                                </Group>
+                            </Stack>
+                        )}
+                    </form>
+                </Box>
+
+                <Box className={classes.rightPane}>
+                    <OrganizationSetupPreview
+                        name={form.values.organizationName || null}
+                        logos={detectedBrand?.logos ?? []}
+                        colors={previewColors}
+                        titleFont={titleFont}
+                        bodyFont={bodyFont}
+                        detectedDomain={detectedBrand?.domain ?? null}
+                        detectedLogoUrl={detectedLogoUrl}
+                    />
+                </Box>
+            </Box>
+
+            <AboutFooter />
+        </Box>
+    );
+};
+
+const OrganizationSetup: FC = () => {
+    const { health, user } = useApp();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const redirectParam = searchParams.get('redirect');
+    const redirectTo =
+        redirectParam &&
+        redirectParam.startsWith('/') &&
+        !redirectParam.startsWith('//') &&
+        !redirectParam.startsWith('/organization-setup')
+            ? redirectParam
+            : '/';
+    const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const organization = useOrganization({
+        enabled: !!user.data?.organizationUuid,
+    });
+    const completeMutation = useUserCompleteMutation({
+        onSuccess: () => void navigate(redirectTo),
+    });
+    const isCompletingSetup =
+        completeMutation.isLoading || completeMutation.isSuccess;
+
+    if (health.isInitialLoading || health.error) {
+        return <PageSpinner />;
+    }
+
+    if (!health.data?.isAuthenticated) {
+        return <Navigate to="/login" />;
+    }
+
+    if (user.isInitialLoading || orgSetupPageFlag.isLoading) {
+        return <PageSpinner />;
+    }
+
+    if (!user.data) {
+        return <PageSpinner />;
+    }
+
+    if (!user.data.organizationUuid) {
+        return <Navigate to="/join-organization" />;
+    }
+
+    if (user.data.isSetupComplete && !isCompletingSetup) {
+        return <Navigate to={redirectTo} />;
+    }
+
+    if (!orgSetupPageFlag.data?.enabled) {
+        return <Navigate to="/" />;
+    }
+
+    if (organization.isInitialLoading) {
+        return <PageSpinner />;
+    }
+
+    return (
+        <OrganizationSetupContent
+            key={user.data.userUuid}
+            user={user.data}
+            health={health.data}
+            organizationHasName={!!organization.data?.name}
+            completeMutation={completeMutation}
+        />
+    );
+};
+
+export default OrganizationSetup;

@@ -3,6 +3,7 @@ import {
     AnyType,
     CreateInviteLink,
     InviteLink,
+    InviteLinkPurpose,
     LightdashUser,
     OpenIdIdentity,
     OpenIdIdentityIssuerType,
@@ -40,6 +41,8 @@ export const sessionUser: SessionUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     timezone: null,
     isSetupComplete: true,
     userId: 0,
@@ -74,6 +77,7 @@ export const inviteLink: InviteLink = {
     inviteUrl: 'inviteUrl',
     organizationUuid: 'organizationUuid',
     userUuid: 'userUuid',
+    purpose: InviteLinkPurpose.Member,
 };
 
 export const inviteUser: CreateInviteLink = {
@@ -92,6 +96,8 @@ export const newUser: SessionUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     timezone: null,
     isSetupComplete: false,
     userId: 0,
@@ -116,6 +122,8 @@ export const userWithoutOrg: LightdashUser = {
     lastName: 'lastName',
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     timezone: null,
     isSetupComplete: false,
     isActive: true,

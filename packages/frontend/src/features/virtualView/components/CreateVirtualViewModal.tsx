@@ -98,7 +98,6 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
             cancelDisabled={isLoadingVirtual}
             headerActions={
                 <Tooltip
-                    variant="xs"
                     withinPortal
                     multiline
                     maw={300}

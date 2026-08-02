@@ -220,6 +220,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
+            role="alertdialog"
             title={`Promoting ${type}`}
             icon={IconRocket}
             size="lg"

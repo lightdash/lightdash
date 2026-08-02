@@ -5,7 +5,7 @@ import {
     type DropResult,
 } from '@hello-pangea/dnd';
 import { getGranularityMapFromItems } from '@lightdash/common';
-import { Box, Stack } from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
 import { useCallback, type FC } from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -121,6 +121,16 @@ export const Series: FC = () => {
                                                                     .draggableProps
                                                                     .style,
                                                                 top: 'auto',
+                                                                ...(draggableSnapshot.isDragging
+                                                                    ? {
+                                                                          backgroundColor:
+                                                                              'white',
+                                                                          borderRadius:
+                                                                              'var(--mantine-radius-sm)',
+                                                                          boxShadow:
+                                                                              'var(--mantine-shadow-sm)',
+                                                                      }
+                                                                    : {}),
                                                             }}
                                                             dragHandleProps={
                                                                 draggableProvided.dragHandleProps
@@ -131,22 +141,6 @@ export const Series: FC = () => {
                                                             }
                                                             granularityFields={
                                                                 granularityFields
-                                                            }
-                                                            sx={(theme) =>
-                                                                draggableSnapshot.isDragging
-                                                                    ? {
-                                                                          backgroundColor:
-                                                                              'white',
-                                                                          borderRadius:
-                                                                              theme
-                                                                                  .radius
-                                                                                  .sm,
-                                                                          boxShadow:
-                                                                              theme
-                                                                                  .shadows
-                                                                                  .sm,
-                                                                      }
-                                                                    : {}
                                                             }
                                                             swatches={
                                                                 colorPalette

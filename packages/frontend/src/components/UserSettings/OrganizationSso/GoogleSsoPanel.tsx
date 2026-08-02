@@ -304,6 +304,7 @@ const GoogleSsoPanel: FC = () => {
                 <MantineModal
                     opened
                     onClose={() => setDeleteOpen(false)}
+                    role="alertdialog"
                     title="Remove Google configuration"
                     icon={IconShieldCheck}
                     cancelLabel="Cancel"

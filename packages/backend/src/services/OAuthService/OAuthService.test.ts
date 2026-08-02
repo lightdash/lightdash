@@ -15,18 +15,18 @@ class TestOAuthService extends OAuthService {
 
 describe('OAuthService edge cases', () => {
     let oauthService: TestOAuthService;
-    let mockUserModel: jest.Mocked<UserModel>;
-    let mockOAuthModel: jest.Mocked<OAuth2Model>;
-    let mockLightdashConfig: jest.Mocked<LightdashConfig>;
+    let mockUserModel: import('vitest').Mocked<UserModel>;
+    let mockOAuthModel: import('vitest').Mocked<OAuth2Model>;
+    let mockLightdashConfig: import('vitest').Mocked<LightdashConfig>;
 
     beforeEach(() => {
         mockUserModel = {
-            getSessionUserFromCacheOrDB: jest.fn(),
+            getSessionUserFromCacheOrDB: vi.fn(),
         } as AnyType;
         mockOAuthModel = {
-            getAccessToken: jest.fn(),
-            revokeToken: jest.fn(),
-            revokeRefreshToken: jest.fn(),
+            getAccessToken: vi.fn(),
+            revokeToken: vi.fn(),
+            revokeRefreshToken: vi.fn(),
         } as AnyType;
         mockLightdashConfig = {
             siteUrl: 'https://lightdash.com',
@@ -43,7 +43,7 @@ describe('OAuthService edge cases', () => {
         const request = {} as OAuth2Server.Request;
         const response = {} as OAuth2Server.Response;
         oauthService.setOAuthServer({
-            authorize: jest.fn().mockImplementation(() => {
+            authorize: vi.fn().mockImplementation(() => {
                 throw new Error('Missing user fields');
             }),
         } as AnyType);
@@ -56,7 +56,7 @@ describe('OAuthService edge cases', () => {
         const request = {} as OAuth2Server.Request;
         const response = {} as OAuth2Server.Response;
         oauthService.setOAuthServer({
-            token: jest.fn().mockImplementation(() => {
+            token: vi.fn().mockImplementation(() => {
                 throw new Error('Missing parameters');
             }),
         } as AnyType);
@@ -72,7 +72,7 @@ describe('OAuthService edge cases', () => {
         } as AnyType;
         const response = {} as OAuth2Server.Response;
         oauthService.setOAuthServer({
-            token: jest.fn().mockImplementation(() => {
+            token: vi.fn().mockImplementation(() => {
                 throw new Error('code_verifier is required for PKCE');
             }),
         } as AnyType);
@@ -92,7 +92,7 @@ describe('OAuthService edge cases', () => {
         } as AnyType;
         const response = {} as OAuth2Server.Response;
         oauthService.setOAuthServer({
-            token: jest.fn().mockImplementation(() => {
+            token: vi.fn().mockImplementation(() => {
                 throw new Error('Invalid code verifier');
             }),
         } as AnyType);
@@ -107,7 +107,7 @@ describe('OAuthService edge cases', () => {
         } as AnyType;
         const response = {} as OAuth2Server.Response;
         oauthService.setOAuthServer({
-            authorize: jest.fn().mockImplementation(() => {
+            authorize: vi.fn().mockImplementation(() => {
                 throw new Error('Invalid redirect_uri');
             }),
         } as AnyType);

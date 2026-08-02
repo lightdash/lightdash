@@ -126,7 +126,7 @@ export class SpaceService
                 user.userUuid,
                 space.uuid,
             );
-        // eslint-disable-next-line no-direct-ability-check -- test-only method exercises raw CASL abilities
+        // eslint-disable-next-line lightdash/no-direct-ability-check -- test-only method exercises raw CASL abilities
         return user.ability.can(action, subject(contentType, spaceCtx));
     }
 
@@ -190,6 +190,8 @@ export class SpaceService
             lastName: userInfoMap[a.userUuid]?.lastName ?? '',
             email: userInfoMap[a.userUuid]?.email ?? '',
             isInternal: userInfoMap[a.userUuid]?.isInternal ?? false,
+            avatarUrl: userInfoMap[a.userUuid]?.avatarUrl ?? null,
+            avatarGradient: userInfoMap[a.userUuid]?.avatarGradient ?? null,
         }));
 
         const [queries, dashboards, childSpaces] = await Promise.all([
@@ -215,6 +217,11 @@ export class SpaceService
         user: SessionUser,
         spaceUuid: string,
     ): Promise<Space> {
+        const space = await this.spaceModel.get(spaceUuid);
+        if (space.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Space with uuid ${spaceUuid} not found`);
+        }
+
         if (!(await this.spacePermissionService.can('view', user, spaceUuid))) {
             throw new ForbiddenError();
         }

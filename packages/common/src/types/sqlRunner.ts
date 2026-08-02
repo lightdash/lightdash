@@ -12,11 +12,7 @@ import {
     type AllVizChartConfig,
     type SortByDirection,
     type VizAggregationOptions,
-    type VizBaseConfig,
-    type VizCartesianChartConfig,
     type VizColumn,
-    type VizPieChartConfig,
-    type VizTableConfig,
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
 import {
@@ -240,8 +236,7 @@ export type SqlChart = {
     slug: string;
     sql: string;
     limit: number;
-    config: VizBaseConfig &
-        (VizCartesianChartConfig | VizPieChartConfig | VizTableConfig);
+    config: AllVizChartConfig;
     chartKind: ChartKind;
     createdAt: Date;
     createdBy: Pick<
@@ -324,6 +319,8 @@ export type ApiCreateVirtualView = {
 
 export type CreateVirtualViewPayload = {
     name: string;
+    /** Optional display label. Defaults to a friendly version of name. */
+    label?: string;
     sql: string;
     columns: VizColumn[];
     parameterValues?: ParametersValuesMap;

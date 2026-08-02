@@ -68,9 +68,10 @@ const BASE_ROLE_SCOPES = {
         'view:AiAgentDocument',
         'create:AiAgentThread',
         'view:DataApp', // Project-wide + space-access view (parity with manage:Explore)
-        'create:DataApp', // Personal apps (not yet in a space)
-        'view:DataApp@self', // Own personal apps
-        'manage:DataApp@self', // Own personal apps
+        'view:DataApp@self', // Own personal apps (created before demotion / under older rules)
+        'manage:DataApp@self', // Own personal apps (created before demotion / under older rules)
+        'view:ExternalConnection', // Select/link connections when editing space apps (manage stays admin-only)
+        'view:ContentVerification', // Read-only discovery of verified content (manage stays developer-level)
     ],
 
     [ProjectMemberRole.EDITOR]: [
@@ -95,7 +96,9 @@ const BASE_ROLE_SCOPES = {
         // Enterprise scopes
         'manage:MetricsTree',
         'manage:AiAgentThread@self', // User's own threads
-        'view:ContentAsCode', // Download (but not upload) content as code
+        'view:ContentAsCode',
+        'create:ContentAsCode',
+        'create:DataApp',
     ],
 
     [ProjectMemberRole.DEVELOPER]: [
@@ -109,6 +112,7 @@ const BASE_ROLE_SCOPES = {
         'delete:VirtualView',
         'manage:CustomSql',
         'manage:CustomFields',
+        'view:CompiledSql',
         'manage:CustomSqlTableCalculations',
         'manage:SqlRunner',
         'manage:Validation',
@@ -148,11 +152,14 @@ const BASE_ROLE_SCOPES = {
         'manage:OrganizationAiAgent',
         'manage:AiAgentDocument',
         'manage:AiAgentThread@self', // User's own threads
+        'manage:ContentVerification',
+        'create:AiDeepResearch',
     ],
 
     [ProjectMemberRole.ADMIN]: [
         // Admin-specific permissions
         'manage:DataApp',
+        'manage:DataAppDependency', // Add custom npm deps (supply-chain capability)
         'manage:ExternalConnection',
         'manage:OrganizationDesign',
         'delete:Project', // Any project
@@ -162,10 +169,10 @@ const BASE_ROLE_SCOPES = {
         'manage:Project', // Required for managing non-private spaces
         'manage:SavedChart', // All saved charts
         'manage:DeletedContent', // Soft-deleted content management
+        'manage:ProjectHomepage', // Curated project homepages (EE)
         'view:AiAgentThread', // All threads in project
         'manage:AiAgentThread', // All threads in project
         'manage:ScheduledDeliveries',
-        'manage:ContentVerification',
 
         // Organization-management scopes. These are no-ops at project
         // assignment (CASL conditions match `organizationUuid`-keyed
@@ -180,6 +187,8 @@ const BASE_ROLE_SCOPES = {
         'manage:GitIntegration',
         'manage:OrganizationWarehouseCredentials',
         'manage:Organization',
+        'manage:OrganizationColorPalette',
+        'view:Roadmap',
         'impersonate:User',
 
         // PAT management. Granted dynamically at runtime via
@@ -262,6 +271,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:AiAgentDocument',
         'manage:AiAgentThread',
         'view:ContentAsCode',
+        'create:ContentAsCode',
         'manage:ContentAsCode',
         'manage:ContentAsCode@self',
         'view:DataApp',
@@ -270,9 +280,11 @@ export const getNonEnterpriseScopesForRole = (
         'create:DataApp',
         'view:DataApp@self',
         'manage:DataApp@self',
+        'view:ExternalConnection',
         'manage:ExternalConnection',
         'view:OrganizationDesign',
         'manage:OrganizationDesign',
+        'view:Roadmap',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',
     ]);

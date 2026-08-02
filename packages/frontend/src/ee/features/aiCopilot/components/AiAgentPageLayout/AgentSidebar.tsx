@@ -229,7 +229,7 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
                     agentUuid={agent.uuid}
                 />
             )}
-            {isTrial && <TrialAlert />}
+            {isTrial && !isAgentSidebarCollapsed && <TrialAlert />}
         </Stack>
     );
 };
@@ -279,7 +279,7 @@ export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
                 />
             )}
 
-            {isTrial && <TrialAlert />}
+            {isTrial && !isAgentSidebarCollapsed && <TrialAlert />}
         </Stack>
     );
 };

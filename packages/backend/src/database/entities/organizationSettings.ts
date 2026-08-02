@@ -16,6 +16,9 @@ export type DbOrganizationSettings = {
     // Per-org consent for the Lightdash support team to impersonate users.
     // Opt-in only, no env default: NULL/absent is treated as false.
     support_impersonation_enabled: boolean | null;
+    // Per-org enablement of the semantic-layer Postgres wire integration.
+    // Opt-in only, no env default: NULL/absent is treated as false.
+    semantic_layer_pgwire_enabled: boolean | null;
     // Per-org base override (seconds) for scheduled-delivery download link
     // expiry. NULL/absent inherits PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS.
     scheduled_delivery_expiration_seconds: number | null;

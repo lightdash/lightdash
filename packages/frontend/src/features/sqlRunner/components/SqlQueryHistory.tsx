@@ -1,15 +1,15 @@
 import {
     ActionIcon,
     Group,
-    HoverCard,
-    Popover,
     Stack,
     Text,
-    Tooltip,
     UnstyledButton,
-    useMantineTheme,
-} from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+    HoverCard,
+    Popover,
+    Tooltip,
+} from '@mantine-8/core';
+import { useHover } from '@mantine-8/hooks';
+import { useMantineTheme } from '@mantine/core';
 import { Editor } from '@monaco-editor/react';
 import {
     IconClock,
@@ -22,6 +22,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
+import styles from './SqlQueryHistory.module.css';
 
 type Props = {
     sql: string;
@@ -48,17 +49,12 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                     <UnstyledButton
                         data-testid="sql-query-history-item"
                         ref={hoverRef}
-                        sx={(theme) => ({
-                            padding: theme.spacing.xs,
-                            '&:hover': {
-                                backgroundColor: theme.colors.ldGray[0],
-                            },
-                        })}
+                        className={styles.historyItem}
                         onClick={() => {
                             dispatch(setSql(sql));
                         }}
                     >
-                        <Group spacing="xs" lh={1} noWrap>
+                        <Group gap="xs" lh={1} wrap="nowrap">
                             <MantineIcon
                                 icon={hovered ? IconCornerDownLeft : IconClock}
                             />
@@ -66,7 +62,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                                 fz="xs"
                                 fw={500}
                                 w={150}
-                                color={
+                                c={
                                     hovered
                                         ? openInQueryEditorLinkColor
                                         : 'ldGray.8'
@@ -79,15 +75,19 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                         </Group>
                     </UnstyledButton>
                 </HoverCard.Target>
-                <HoverCard.Dropdown maw={600} sx={{ overflow: 'scroll' }}>
-                    <Group position="apart">
+                <HoverCard.Dropdown
+                    maw={600}
+                    className={styles.historyDropdown}
+                >
+                    <Group justify="space-between">
                         <Text
                             fz="xs"
                             fw={500}
                             mb="xs"
-                            sx={(theme) => ({
-                                borderBottom: `1px solid ${theme.colors.ldGray[3]}`,
-                            })}
+                            style={{
+                                borderBottom:
+                                    '1px solid var(--mantine-color-ldGray-3)',
+                            }}
                         >
                             {timeAgo}
                         </Text>
@@ -134,7 +134,7 @@ export const SqlQueryHistory: FC = () => {
     return (
         <Popover withinPortal>
             <Popover.Target>
-                <Tooltip variant="xs" label="SQL Query history">
+                <Tooltip label="SQL Query history">
                     <ActionIcon
                         variant="default"
                         size={32}
@@ -145,7 +145,7 @@ export const SqlQueryHistory: FC = () => {
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown p={0}>
-                <Stack spacing="one">
+                <Stack gap="one">
                     {sqlPastHistory.map((item) => (
                         <SqlQueryHistoryItem
                             key={item.value}

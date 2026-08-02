@@ -1,13 +1,15 @@
 import {
     AnyType,
     attachTypesToModels,
+    catalogHasTimestampDomains,
     convertExplores,
     DbtManifestVersion,
-    DbtMetric,
     DbtModelNode,
     DbtPackages,
     DbtRawModelNode,
+    DbtRpcGetManifestResults,
     DEFAULT_SPOTLIGHT_CONFIG,
+    ensureCatalogTimestampDomainsKey,
     Explore,
     ExploreError,
     friendlyName,
@@ -76,9 +78,9 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         this.analytics = analytics;
     }
 
-    // eslint-disable-next-line class-methods-use-this
     async destroy(): Promise<void> {
         Logger.debug(`Destroy base project adapter`);
+        await this.dbtClient.cleanup?.();
     }
 
     public async test(): Promise<void> {
@@ -94,6 +96,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             return this.dbtClient.getDbtPackages();
         }
         return undefined;
+    }
+
+    public async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+        // Install dependencies first (same as compileAllExplores) — a git source's
+        // `dbt ls` fails without its packages installed.
+        if (this.dbtClient.installDeps !== undefined) {
+            Logger.debug('Install dependencies');
+            await this.dbtClient.installDeps();
+        }
+        Logger.debug(`Get dbt manifest`);
+        return this.dbtClient.getDbtManifest();
     }
 
     public async getLightdashProjectConfig(
@@ -179,7 +192,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     public async compileAllExplores(
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
-        allowPartialCompilation: boolean = false,
+        allowPartialCompilation: boolean = true,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
@@ -245,18 +258,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 manifestVersion,
             );
 
-        // Validate metrics in the manifest - compile fails if any invalid
-        const metrics = DbtBaseProjectAdapter._validateDbtMetrics(
-            manifestVersion,
-            [
-                DbtManifestVersion.V10,
-                DbtManifestVersion.V11,
-                DbtManifestVersion.V12,
-            ].includes(manifestVersion)
-                ? []
-                : Object.values(manifest.metrics),
-        );
-
         const lightdashProjectConfig =
             await this.getLightdashProjectConfig(trackingParams);
 
@@ -265,6 +266,19 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             if (this.cachedWarehouse?.warehouseCatalog === undefined) {
                 throw new MissingCatalogEntryError(
                     `Warehouse catalog is undefined`,
+                    {},
+                );
+            }
+            // A cache written before timestamp domains existed would otherwise
+            // be reused forever (only missing entries trigger a refetch),
+            // leaving every column unclassified — refetch it once.
+            if (
+                !catalogHasTimestampDomains(
+                    this.cachedWarehouse.warehouseCatalog,
+                )
+            ) {
+                throw new MissingCatalogEntryError(
+                    `Cached warehouse catalog predates timestamp domains`,
                     {},
                 );
             }
@@ -285,7 +299,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 lazyTypedModels,
                 loadSources,
                 adapterType,
-                metrics,
                 this.warehouseClient,
                 lightdashProjectConfig,
                 {
@@ -309,6 +322,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
                 const warehouseCatalog =
                     await this.warehouseClient.getCatalog(modelCatalog);
+                // Clients only create the sidecar when they classify a column;
+                // stamp it (possibly empty) so the staleness check above can't
+                // refetch again on domain-less warehouses.
+                ensureCatalogTimestampDomainsKey(warehouseCatalog);
                 await this.cachedWarehouse?.onWarehouseCatalogChange(
                     warehouseCatalog,
                 );
@@ -333,7 +350,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     typedModels,
                     loadSources,
                     adapterType,
-                    metrics,
                     this.warehouseClient,
                     lightdashProjectConfig,
                     {
@@ -349,23 +365,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             }
             throw e;
         }
-    }
-
-    static _validateDbtMetrics(
-        version: DbtManifestVersion,
-        metrics: DbtMetric[],
-    ): DbtMetric[] {
-        const validator = new ManifestValidator(version);
-        metrics.forEach((metric) => {
-            const [isValid, errorMessage] = validator.isDbtMetricValid(metric);
-            if (!isValid) {
-                throw new ParseError(
-                    `Could not parse dbt metric with id ${metric.unique_id}: ${errorMessage}`,
-                    {},
-                );
-            }
-        });
-        return metrics;
     }
 
     static _validateDbtModel(

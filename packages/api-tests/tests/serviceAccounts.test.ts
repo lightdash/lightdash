@@ -1016,7 +1016,7 @@ describe('Service Account custom-role: CLI deploy/upload', () => {
         }
     });
 
-    it('system:editor cannot deploy or upload CAC, but can manage spaces', async () => {
+    it('system:editor cannot deploy, but can upload CAC and manage spaces', async () => {
         const { token } = await createServiceAccountToken(admin, [
             ServiceAccountScope.SYSTEM_EDITOR,
         ]);
@@ -1032,7 +1032,7 @@ describe('Service Account custom-role: CLI deploy/upload', () => {
                     chartAsCodeFixture,
                 )
             ).status,
-        ).toBe(403);
+        ).toBe(200);
         const space = await sa.post<Body<{ uuid: string }>>(
             `${apiUrl}/projects/${projectUuid}/spaces`,
             { name: `system-editor-${Date.now()}` },

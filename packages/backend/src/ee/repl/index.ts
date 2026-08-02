@@ -4,8 +4,8 @@ import App from '../../App';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import knexConfig from '../../knexfile';
 import { getEnterpriseAppArguments } from '../index';
-import { getFixDuplicateSlugsScripts } from './scripts/fixDuplicateSlugs';
 import { getListProjectsScripts } from './scripts/listProjects';
+import { getReviewClassifierScoreboardScripts } from './scripts/reviewClassifierScoreboard';
 
 (async () => {
     const app = new App({
@@ -34,8 +34,11 @@ import { getListProjectsScripts } from './scripts/listProjects';
         clients,
         database,
         scripts: {
-            ...getFixDuplicateSlugsScripts(database, clients),
             ...getListProjectsScripts(database),
+            ...getReviewClassifierScoreboardScripts(
+                database,
+                serviceRepository,
+            ),
         },
     });
 })();

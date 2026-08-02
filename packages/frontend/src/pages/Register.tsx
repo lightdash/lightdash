@@ -1,42 +1,42 @@
 import {
+    FeatureFlags,
     OpenIdIdentityIssuerType,
     type ApiError,
+    type CreateEmailOnlyUserArgs,
     type CreateUserArgs,
     type LightdashUser,
 } from '@lightdash/common';
-import {
-    Anchor,
-    Box,
-    Card,
-    Divider,
-    Stack,
-    Text,
-    Title,
-} from '@mantine-8/core';
+import { Anchor, Divider, Stack, Text } from '@mantine-8/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { lightdashApi } from '../api';
-import Page from '../components/common/Page/Page';
+import AuthLayout from '../components/common/AuthLayout';
+import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
-import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
+import CreateEmailOnlyUserForm from '../components/RegisterForms/CreateEmailOnlyUserForm';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';
 import { useFlashMessages } from '../hooks/useFlashMessages';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
+import { sanitizeRedirectUrl } from '../utils/redirectUrl';
 
-const registerQuery = async (data: CreateUserArgs) =>
+const registerQuery = async (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
     lightdashApi<LightdashUser>({
         url: `/user`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const Register: FC = () => {
     const location = useLocation();
     const { health } = useApp();
+    const { isNewLayout } = useAuthLayoutVariant();
     const { showToastError, showToastApiError } = useToaster();
     const flashMessages = useFlashMessages();
 
@@ -50,14 +50,20 @@ const Register: FC = () => {
     }, [flashMessages.data, showToastError]);
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
-    const { identify } = useTracking();
-    const redirectUrl = location.state?.from
-        ? `${location.state.from.pathname}${location.state.from.search}`
-        : '/';
+    const emailOnlySignupFlag = useServerFeatureFlag(
+        FeatureFlags.NewOnboarding,
+        { retry: 3 },
+    );
+    const { identify, track } = useTracking();
+    const redirectUrl = sanitizeRedirectUrl(
+        location.state?.from
+            ? `${location.state.from.pathname}${location.state.from.search}`
+            : undefined,
+    );
     const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
-        CreateUserArgs
+        CreateUserArgs | CreateEmailOnlyUserArgs
     >(registerQuery, {
         mutationKey: ['login'],
         onSuccess: (data) => {
@@ -72,9 +78,13 @@ const Register: FC = () => {
         },
     });
 
-    if (health.isInitialLoading) {
+    if (health.isInitialLoading || emailOnlySignupFlag.isInitialLoading) {
         return <PageSpinner />;
     }
+
+    const isEmailOnlySignup =
+        (emailOnlySignupFlag.data?.enabled ?? false) &&
+        !!health.data?.hasEmailClient;
 
     const ssoAvailable =
         health.data?.auth.google.enabled ||
@@ -94,14 +104,37 @@ const Register: FC = () => {
             ))}
         </Stack>
     );
-    const passwordLogin = allowPasswordAuthentication && (
-        <CreateUserForm
-            isLoading={isLoading || isSuccess}
-            onSubmit={(data: CreateUserArgs) => {
-                mutate(data);
-            }}
-        />
-    );
+    const passwordLogin =
+        allowPasswordAuthentication &&
+        (isEmailOnlySignup ? (
+            <CreateEmailOnlyUserForm
+                isLoading={isLoading || isSuccess}
+                onSubmit={(data: CreateEmailOnlyUserArgs) => {
+                    track({
+                        name: EventName.SIGNUP_FORM_SUBMITTED,
+                        properties: {
+                            variant: 'email_only',
+                            onboardingFlow: 'new',
+                        },
+                    });
+                    mutate(data);
+                }}
+            />
+        ) : (
+            <CreateUserForm
+                isLoading={isLoading || isSuccess}
+                onSubmit={(data: CreateUserArgs) => {
+                    track({
+                        name: EventName.SIGNUP_FORM_SUBMITTED,
+                        properties: {
+                            variant: 'password',
+                            onboardingFlow: 'legacy',
+                        },
+                    });
+                    mutate(data);
+                }}
+            />
+        ));
     const logins = (
         <>
             {ssoLogins}
@@ -111,7 +144,7 @@ const Register: FC = () => {
                     labelPosition="center"
                     label={
                         <Text color="ldGray.5" size="sm" fw={500}>
-                            OR
+                            {isNewLayout ? 'or' : 'OR'}
                         </Text>
                     }
                 />
@@ -120,17 +153,12 @@ const Register: FC = () => {
         </>
     );
     return (
-        <Page title="Register" withCenteredContent withNavbar={false}>
-            <Stack w={400} mt="4xl">
-                <Box mx="auto" my="lg">
-                    <LightdashLogo />
-                </Box>
-                <Card p="xl" radius="xs" withBorder shadow="xs">
-                    <Title order={3} ta="center" mb="md">
-                        Sign up
-                    </Title>
-                    {logins}
-                </Card>
+        <AuthLayout
+            pageTitle="Register"
+            title="Create an account"
+            subtitle="Start building analytics in minutes."
+            legacyTitle="Sign up"
+            footer={
                 <Text c="ldGray.6" ta="center" fz="sm" fw={500}>
                     By creating an account, you agree to
                     <br />
@@ -153,8 +181,10 @@ const Register: FC = () => {
                         Terms of Service.
                     </Anchor>
                 </Text>
-            </Stack>
-        </Page>
+            }
+        >
+            {logins}
+        </AuthLayout>
     );
 };
 

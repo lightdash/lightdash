@@ -1,6 +1,5 @@
-import { type SavedChart } from '@lightdash/common';
 import { createContext } from 'react';
-import { type EmbedContext } from './types';
+import { type EmbedContext, type EmbedExploreChart } from './types';
 
 const EmbedProviderContext = createContext<EmbedContext>({
     embedToken: undefined,
@@ -12,7 +11,7 @@ const EmbedProviderContext = createContext<EmbedContext>({
     paletteUuid: undefined,
     languageMap: undefined,
     t: (_input: string) => undefined,
-    onExplore: (_options: { chart: SavedChart }) => {},
+    onExplore: (_options: { chart: EmbedExploreChart }) => {},
     savedChart: undefined,
     onBackToDashboard: undefined,
     mode: 'direct',

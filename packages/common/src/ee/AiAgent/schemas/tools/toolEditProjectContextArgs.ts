@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { aiProjectContextTypedObjectRefSchema } from '../../projectContext';
 
 export const TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION = [
     "Open or update a pull request that changes this project's Lightdash project context — the lightdash.project_context.yml living document of business definitions and routing/context facts the AI agents read before answering.",
@@ -37,9 +38,9 @@ export const toolEditProjectContextArgsSchema = z.object({
             'The prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.',
         ),
     objects: z
-        .array(z.string())
+        .array(aiProjectContextTypedObjectRefSchema)
         .describe(
-            'The semantic objects this fact concerns — explore names and/or field ids in the table_field form (e.g. "payments_total_amount"); [] when purely prompt-driven.',
+            'The semantic objects this fact concerns. Use {type:"explore",name} for explores and {type:"field",explore,fieldId} for fields; [] when purely prompt-driven.',
         ),
 });
 

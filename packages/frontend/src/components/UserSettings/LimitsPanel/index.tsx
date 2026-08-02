@@ -2,7 +2,7 @@ import {
     type OrganizationSettings,
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
-import { Button, Group, Loader, NumberInput, Stack } from '@mantine-8/core';
+import { Button, Group, Loader, Stack } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
@@ -10,6 +10,7 @@ import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
+import { NumberInput } from '../../common/NumberInput';
 
 /**
  * Editable form for the org's export limits. Split out from the panel so the

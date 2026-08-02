@@ -35,7 +35,6 @@ import {
 import {
     IconAlertTriangle,
     IconArrowBackUp,
-    IconBolt,
     IconBrandSlack,
     IconChartBar,
     IconChevronRight,
@@ -49,7 +48,9 @@ import {
     IconHash,
     IconLayoutDashboard,
     IconPlayerPlay,
+    IconSelector,
     IconSettings,
+    IconTarget,
     IconTool,
     IconTrash,
     IconX,
@@ -182,7 +183,7 @@ const SetupSection: FC<{
                 <Stack gap={0}>
                     <Group gap="sm" align="center">
                         <Box className={classes.setupOrb}>
-                            <IconBolt size={16} />
+                            <IconTarget size={16} />
                         </Box>
                         <Title order={4} fw={700}>
                             Autopilot
@@ -519,7 +520,7 @@ const FixedBrokenDiff: FC<{
             <Stack gap="sm">
                 <MetadataLabel label="Changes applied" />
                 <Text fz="xs" c="dimmed" lh={1.6}>
-                    Diff unavailable for this fix — see chart history for
+                    Diff unavailable for this fix, see chart history for
                     details.
                 </Text>
                 {historyLink}
@@ -596,8 +597,8 @@ const FixedBrokenDiff: FC<{
                 </Stack>
             ) : (
                 <Text fz="xs" c="dimmed" lh={1.6}>
-                    This fix touched fields not surfaced in this view — see
-                    chart history for details.
+                    This fix touched fields not surfaced in this view, see chart
+                    history for details.
                 </Text>
             )}
             {historyLink}
@@ -774,7 +775,7 @@ const DetailSidebar: FC<{
                 showRestoreBanner && error?.statusCode === 404;
             showToastApiError({
                 title: isHardDeleted
-                    ? 'Could not restore — the original was permanently deleted'
+                    ? 'Could not restore. The original was permanently deleted'
                     : category === 'undo'
                       ? 'Could not undo action'
                       : 'Could not dismiss action',
@@ -1065,7 +1066,7 @@ const DetailSidebar: FC<{
                         </Button>
                     ) : (
                         <Tooltip
-                            label="This fix was recorded before revert support — restore manually via chart history."
+                            label="This fix was recorded before revert support. Restore manually via chart history."
                             withinPortal
                             multiline
                             w={240}
@@ -1340,8 +1341,8 @@ const SettingsSidebar: FC<{
                                         />
                                         <Text fz="xs" c="dimmed">
                                             Please invite Lightdash to this
-                                            channel — we can&apos;t post
-                                            messages until you do. (
+                                            channel, we can&apos;t post messages
+                                            until you do. (
                                             <Text
                                                 component="span"
                                                 inherit
@@ -1508,9 +1509,9 @@ const ActionRow: FC<{
 
 // --- Run row ---
 
-const BoltPulseLoader: FC<{ size?: number }> = ({ size = 12 }) => (
+const TargetPulseLoader: FC<{ size?: number }> = ({ size = 12 }) => (
     <Box className={classes.boltPulseLoader} aria-label="Running">
-        <IconBolt size={size} fill="currentColor" stroke={0} />
+        <IconTarget size={size} stroke={2.5} />
     </Box>
 );
 
@@ -1540,7 +1541,9 @@ const RunHeaderRow: FC<{
     onToggle: () => void;
 }> = ({ run, variant, isOpen, expandable, onToggle }) => (
     <Table.Tr
-        className={classes.runHeaderRow}
+        className={`${classes.runHeaderRow} ${
+            isOpen ? classes.runHeaderRowOpen : ''
+        }`}
         onClick={expandable ? onToggle : undefined}
         style={expandable ? undefined : { cursor: 'default' }}
     >
@@ -1560,7 +1563,7 @@ const RunHeaderRow: FC<{
                         <Box w={12} />
                     )}
                     {variant === 'live' ? (
-                        <BoltPulseLoader size={12} />
+                        <TargetPulseLoader size={12} />
                     ) : variant === 'errored' ? (
                         <IconAlertTriangle
                             size={12}
@@ -1582,7 +1585,7 @@ const RunHeaderRow: FC<{
                             </Box>
                         </Tooltip>
                     )}
-                    <Text fz={11} fw={600} tt="uppercase" c="dimmed" lts={0.4}>
+                    <Text fz={11} fw={700} tt="uppercase" c="bright" lts={0.4}>
                         Run
                     </Text>
                     {variant !== 'live' && (
@@ -1685,7 +1688,7 @@ const RunRow: FC<{
                 expandable={expandable}
                 onToggle={onToggle}
             />
-            {variant === 'errored' && run.error && (
+            {variant === 'errored' && isOpen && run.error && (
                 <Table.Tr>
                     <Table.Td colSpan={3}>
                         <Text fz="xs" c="red.6" px="md" py={6}>
@@ -1739,6 +1742,86 @@ const RunRow: FC<{
         </Table.Tbody>
     );
 };
+
+// --- Quiet runs group ---
+
+type DisplayRow =
+    | { type: 'run'; run: ManagedAgentRun }
+    | { type: 'quietGroup'; groupId: string; runs: ManagedAgentRun[] };
+
+const QuietRunsGroup: FC<{
+    runs: ManagedAgentRun[];
+    isOpen: boolean;
+    onToggle: () => void;
+}> = ({ runs, isOpen, onToggle }) => (
+    <Table.Tbody>
+        <Table.Tr
+            className={`${classes.quietGroupRow} ${
+                isOpen ? classes.quietGroupRowOpen : ''
+            }`}
+            onClick={onToggle}
+        >
+            <Table.Td colSpan={3}>
+                <Tooltip
+                    label={`${runs.length} quiet ${
+                        runs.length === 1 ? 'run' : 'runs'
+                    }`}
+                    withinPortal
+                >
+                    <Box style={{ display: 'flex', justifyContent: 'center' }}>
+                        <MantineIcon
+                            icon={IconSelector}
+                            size={10}
+                            color="dimmed"
+                        />
+                    </Box>
+                </Tooltip>
+            </Table.Td>
+        </Table.Tr>
+        {isOpen &&
+            runs.map((run) => (
+                <Table.Tr key={run.runUuid} className={classes.quietRunRow}>
+                    <Table.Td colSpan={3}>
+                        <Group justify="space-between" wrap="nowrap">
+                            <Group
+                                gap={8}
+                                wrap="nowrap"
+                                className={classes.quietRunMeta}
+                            >
+                                <MantineIcon
+                                    icon={
+                                        TRIGGERED_BY_ICON[run.triggeredBy].icon
+                                    }
+                                    size={11}
+                                    color="dimmed"
+                                />
+                                <Group gap={4} wrap="nowrap">
+                                    <Text
+                                        fz={10}
+                                        fw={600}
+                                        tt="uppercase"
+                                        c="dimmed"
+                                        lts={0.4}
+                                    >
+                                        Run
+                                    </Text>
+                                    <Text fz={10} c="dimmed">
+                                        ·{' '}
+                                        {formatTimestamp(
+                                            run.startedAt.toString(),
+                                        )}
+                                    </Text>
+                                </Group>
+                            </Group>
+                            <Text fz={10} c="dimmed">
+                                No actions
+                            </Text>
+                        </Group>
+                    </Table.Td>
+                </Table.Tr>
+            ))}
+    </Table.Tbody>
+);
 
 // --- Page ---
 
@@ -1817,6 +1900,47 @@ export const ManagedAgentActivityPage: FC = () => {
     ]);
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [openQuietGroups, setOpenQuietGroups] = useState<Set<string>>(
+        new Set(),
+    );
+
+    const toggleQuietGroup = useCallback((groupId: string) => {
+        setOpenQuietGroups((prev) => {
+            const next = new Set(prev);
+            if (next.has(groupId)) {
+                next.delete(groupId);
+            } else {
+                next.add(groupId);
+            }
+            return next;
+        });
+    }, []);
+
+    // Collapse consecutive completed runs without actions into a single
+    // expandable group. The newest run always stays visible.
+    const displayRows = useMemo<DisplayRow[]>(() => {
+        const rows: DisplayRow[] = [];
+        let quietRuns: ManagedAgentRun[] = [];
+        const flushQuietRuns = () => {
+            if (quietRuns.length === 0) return;
+            rows.push({
+                type: 'quietGroup',
+                groupId: quietRuns[0].runUuid,
+                runs: quietRuns,
+            });
+            quietRuns = [];
+        };
+        runs.forEach((run, index) => {
+            if (index > 0 && runVariant(run) === 'completed-empty') {
+                quietRuns.push(run);
+            } else {
+                flushQuietRuns();
+                rows.push({ type: 'run', run });
+            }
+        });
+        flushQuietRuns();
+        return rows;
+    }, [runs]);
     const [userOpenState, setUserOpenState] = useState<Map<string, boolean>>(
         new Map(),
     );
@@ -1943,8 +2067,8 @@ export const ManagedAgentActivityPage: FC = () => {
                                         No activity yet
                                     </Text>
                                     <Text fz="xs" c="dimmed">
-                                        The agent runs on a schedule — check
-                                        back soon.
+                                        The agent runs on a schedule, check back
+                                        soon.
                                     </Text>
                                 </Box>
                             ) : (
@@ -1961,7 +2085,24 @@ export const ManagedAgentActivityPage: FC = () => {
                                                 <Table.Th>Message</Table.Th>
                                             </Table.Tr>
                                         </Table.Thead>
-                                        {runs.map((run) => {
+                                        {displayRows.map((row) => {
+                                            if (row.type === 'quietGroup') {
+                                                return (
+                                                    <QuietRunsGroup
+                                                        key={`quiet-${row.groupId}`}
+                                                        runs={row.runs}
+                                                        isOpen={openQuietGroups.has(
+                                                            row.groupId,
+                                                        )}
+                                                        onToggle={() =>
+                                                            toggleQuietGroup(
+                                                                row.groupId,
+                                                            )
+                                                        }
+                                                    />
+                                                );
+                                            }
+                                            const { run } = row;
                                             const isLive =
                                                 run.status ===
                                                 ManagedAgentRunStatus.STARTED;

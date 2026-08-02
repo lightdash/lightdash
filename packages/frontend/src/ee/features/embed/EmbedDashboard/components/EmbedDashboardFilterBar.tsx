@@ -1,4 +1,5 @@
 import {
+    canAddDashboardFiltersInEmbed,
     isParameterInteractivityEnabled,
     type Dashboard,
     type InteractivityOptions,
@@ -42,6 +43,9 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const parametersEnabled = isParameterInteractivityEnabled(
         dashboard.parameterInteractivity,
     );
+    const canAddFilters =
+        shouldShowFilters &&
+        canAddDashboardFiltersInEmbed(dashboard.dashboardFiltersInteractivity);
 
     const totalFiltersCount = shouldShowFilters
         ? dashboardFilters.dimensions.length +
@@ -62,7 +66,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
 
     // Interactivity may be enabled with nothing to show (hidden filters, or
     // none defined) — render nothing rather than an empty padded row
-    if (!dashboard.canDateZoom && !isCollapsible) {
+    if (!dashboard.canDateZoom && !isCollapsible && !canAddFilters) {
         return null;
     }
 
@@ -97,7 +101,9 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 gap="sm"
                 style={{ flex: 1, minWidth: 0 }}
             >
-                {shouldShowFilters && <EmbedDashboardFilters />}
+                {shouldShowFilters && (
+                    <EmbedDashboardFilters canAddFilters={canAddFilters} />
+                )}
                 {parametersEnabled && <EmbedDashboardParameters />}
             </Group>
 

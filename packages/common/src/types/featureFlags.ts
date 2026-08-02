@@ -14,6 +14,16 @@ export enum FeatureFlags {
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
+     * Rebase RAW timestamp filter columns to instants when a data timezone is
+     * set, so sub-day filters return the rows the SELECT displays. Wrapping
+     * the filter column defeats partition pruning/index scans on BigQuery and
+     * Postgres-family warehouses, so this is off by default — enable per-org
+     * for data-timezone users who need filter correctness. Temporary: goes
+     * away once filters convert the literal into the column's domain instead.
+     */
+    NaiveTimestampFilterRebase = 'naive-timestamp-filter-rebase',
+
+    /**
      * Enable scheduler task that replaces custom metrics after project compile
      */
     ReplaceCustomMetricsOnCompile = 'replace-custom-metrics-on-compile',
@@ -98,6 +108,13 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
+     * Per-organization gate for declaring custom npm dependencies in data
+     * apps. Disabled by default; self-hosted instances can enable it globally
+     * via LIGHTDASH_ENABLE_FEATURE_FLAGS.
+     */
+    EnableDataAppCustomDependencies = 'enable-data-app-custom-dependencies',
+
+    /**
      * Enable AI Dashboard Summary feature (generates summaries of dashboard
      * contents using the AI Copilot).
      */
@@ -109,10 +126,15 @@ export enum FeatureFlags {
     AiAutopilot = 'ai-autopilot',
 
     /**
-     * Enable AI agent revamp features including built-in skills, the
-     * loadSkill tool, and content tools like readContent/editContent/createContent.
-     * When enabled, these replace older dashboard-specific content lookup
-     * tools in the agent tool surface.
+     * Enable long-running, read-only Deep Research investigations from AI chat.
+     */
+    AiDeepResearch = 'ai-deep-research',
+
+    /** Enable project-scoped AI agent memory runtime. */
+    AiAgentMemory = 'ai-agent-memory',
+
+    /**
+     * @deprecated Rolled out to all customers. Keep for persisted feature flag config only.
      */
     AiAgentRevamp = 'ai-agent-revamp',
 
@@ -159,36 +181,24 @@ export enum FeatureFlags {
     LockDashboardFilters = 'lock-dashboard-filters',
 
     /**
-     * Gate the "Schedule delivery" entry point for data apps. Disabled by
-     * default while the screenshot pipeline is producing blank pages in
-     * production. Enable per-org once the underlying rendering issue is
-     * fixed.
-     */
-    DataAppsScheduledDeliveries = 'data-apps-scheduled-deliveries',
-
-    /**
      * Show a persistent trial warning banner for an organization on shared
      * instances. This does not block product access.
      */
     OrganizationTrialWarning = 'organization-trial-warning',
 
     /**
-     * Enable the (in-progress) AI writeback feature. Spins up an e2b
-     * sandbox pre-loaded with dbt and the Claude Code CLI, then runs a
-     * user-supplied prompt against it synchronously. Off by default — gated
-     * while the sandbox runtime and write-back semantics are still being
-     * built out.
+     * Block an organization from running queries because its trial has
+     * expired. Stronger than OrganizationTrialWarning — this DOES block a
+     * product action (query execution). Off by default; enable per-org.
      */
-    AiWriteback = 'ai-writeback',
+    OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Enable the `searchSemanticLayer` agent tool, which lets the AI agent
-     * list/search metrics and dimensions across ALL explores at once (backed
-     * by the catalog search index) to answer project-wide questions like
-     * "find duplicate or confusingly similar metrics". Off by default while
-     * the tool and its prompt routing are validated.
+     * Enable the admin API endpoint that captures AI review judge replay
+     * inputs (candidate + evidence packet) for the offline eval scoreboard.
+     * Off by default — intended only for orgs running classifier evals.
      */
-    SearchSemanticLayer = 'search-semantic-layer',
+    AiReviewReplayCapture = 'ai-review-replay-capture',
 
     /**
      * Enable the AI writeback sandbox agent's preview-deploy secondary task:
@@ -209,39 +219,6 @@ export enum FeatureFlags {
     AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
 
     /**
-     * Enable one-click "Connect GitHub" setup for AI agent MCP servers. When
-     * enabled (and the org has a GitHub App installation the user can manage),
-     * the agent MCP settings offer a button that provisions the hosted GitHub
-     * MCP using the org's existing installation token — no manual URL/auth.
-     */
-    GithubMcpOneClick = 'github-mcp-one-click',
-
-    /**
-     * Let users link their personal GitHub account (user-to-server OAuth
-     * token) so write-back commits and pull requests are authored as them
-     * instead of the Lightdash GitHub App bot. Off by default while the
-     * link/unlink UX and token lifecycle are validated; when off, write-backs
-     * keep today's bot identity.
-     */
-    GithubUserCredentials = 'github-user-credentials',
-
-    /**
-     * Let the AI agent discover and read any repository the org's GitHub App
-     * installation can see, through a read-only shell (ls/cat/find/grep/head)
-     * backed by the GitHub API — no E2B sandbox/clone. `discoverRepos` lists
-     * accessible repos and `exploreRepo` reads them through a single virtual
-     * filesystem: the dbt project is mounted (subPath-scoped) at `/dbt` and every
-     * accessible repo whole at `/<owner>/<repo>`, with per-repo trees fetched
-     * lazily and a per-run materialization budget bounding recursive walks. Lets
-     * the agent inspect source before diagnosing, instead of guessing or spinning
-     * up a writeback sandbox.
-     *
-     * Value kept as `repo-fs` for backwards compatibility with existing flag
-     * configuration; the symbol was renamed from `RepoFs`.
-     */
-    RepoDiscovery = 'repo-fs',
-
-    /**
      * Gate the org-level export Limits settings panel (per-org query max rows
      * and CSV cells limit). Backend enforcement of any stored overrides is
      * always on; this flag only controls who can see/configure the panel.
@@ -249,11 +226,86 @@ export enum FeatureFlags {
     ProLimits = 'pro-limits',
 
     /**
-     * Show the AWS IAM authentication option on the Redshift connection form.
-     * When off, only username/password auth is offered. Lets IAM auth be
-     * rolled out / disabled per-org at runtime without a deploy.
+     * Show the organization roadmap and enable its read-only API proxy.
      */
-    RedshiftIamAuth = 'redshift-iam-auth',
+    OrganizationRoadmap = 'organization-roadmap',
+
+    /**
+     * Replace the discoverFields sub-agent with a deterministic grep over an
+     * in-memory, annotated view of the project's cached explores (explore =
+     * directory, field = file). Connection-agnostic (reads compiled explores,
+     * never the warehouse or git) — lets the main agent navigate fields itself
+     * instead of paying the discoverFields sub-agent round-trip. Experimental.
+     */
+    AiGrepFields = 'ai-grep-fields',
+
+    /**
+     * Guard the agent's `searchFieldValues` tool against pathological warehouse
+     * scans. When on, an empty/whitespace query — which compiles to
+     * `LIKE '%%'`, i.e. "distinct the entire column" — is rejected immediately
+     * with an actionable message instead of running a leading-wildcard full
+     * scan that can take minutes on high-cardinality fields. Default off, so
+     * behaviour is byte-identical to today when disabled; a live toggle lets the
+     * new behaviour be trialled per-org without a redeploy. Experimental.
+     */
+    AiFieldValueSearchGuard = 'ai-field-value-search-guard',
+
+    /**
+     * Allow a single Lightdash project to connect to multiple dbt sources
+     * (repos/CLI deploys). Each source stores its latest compiled manifest in
+     * S3; on every deploy or preview the backend merges all sources' manifests
+     * into one, compiles once, and writes a single combined explore set. Off by
+     * default; the N=0 short-circuit (a project with zero registered sources
+     * runs today's single-source code path byte-for-byte) is the regression
+     * firewall. Enable per-org for gradual rollout.
+     */
+    MultiDbtSources = 'multi-dbt-sources',
+
+    /**
+     * Enable the general-purpose coding agent: the WRITE counterpart to repo
+     * discovery (`repo-fs`). Lets the AI agent make a code change to any repo
+     * the org's GitHub/GitLab App installation can write (intersected with the
+     * triggering user's own access) and open a pull request — not just the
+     * project's dbt repo. Reuses the AI-writeback E2B → signed-commit → PR
+     * pipeline via a lean, no-Bash sandbox template and the `editRepo` tool.
+     * Off by default and EE/license-gated; the per-repo write authz lives in
+     * the service (`manage:SourceCode` + user∩installation), since this flag
+     * is presence-of-feature, not permission.
+     */
+    CodingAgent = 'ai-coding-agent',
+
+    /**
+     * Show the coding-agent project onboarding flow. This gates only the UI;
+     * the CLI, APIs, and installed skills remain available independently.
+     */
+    CodingAgentOnboarding = 'coding-agent-onboarding',
+
+    /**
+     * Let org admins set their own Anthropic/OpenAI API keys for AI agents.
+     */
+    OrgAiProviderApiKeys = 'org-ai-provider-api-keys',
+
+    /**
+     * Gate the whole new onboarding experience as one unit: email-only
+     * signup (register collects only an email; ownership proven via email
+     * OTP), the full-page organization setup experience shown after
+     * registration, and the dbt-less "connect to your warehouse" onboarding
+     * path including the Snowflake "connect via CLI (SSO)" auth method in
+     * project creation. Off by default. Note: the register page evaluates
+     * this flag anonymously, so per-org overrides do not apply there —
+     * enable instance-wide (or for everyone in posthog) to turn on signup.
+     */
+    NewOnboarding = 'new-onboarding',
+
+    /**
+     * Cloud-only: let an organization send report/notification emails from
+     * their own verified domain (email whitelabelling) instead of the
+     * Lightdash address. Gates both the setup UI and the admin API. Requires a
+     * Postmark account token to be configured on the instance — self-hosters
+     * without one can't self-serve, so the feature stays hidden. Off by
+     * default; enable per-org.
+     */
+    EmailWhitelabel = 'email-whitelabel',
 }
 
 export type FeatureFlag = {

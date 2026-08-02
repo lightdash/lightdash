@@ -1,6 +1,11 @@
 import { generateObject, ModelMessage } from 'ai';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
 const TITLE_MAX_LENGTH_CHARS = 60;
 const TitleSchema = z.object({
@@ -20,10 +25,16 @@ export async function generateThreadTitle(
     modelOptions: GeneratorModelOptions,
     messages: ModelMessage[],
 ): Promise<string> {
+    const telemetry = getGeneratorTelemetry(
+        modelOptions,
+        'generateThreadTitle',
+        'thread-title',
+    );
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
+        experimental_telemetry: telemetry,
         schema: TitleSchema,
         messages: [
             {
@@ -48,6 +59,8 @@ The title should be clear, specific, and helpful for someone browsing a list of 
             ...messages,
         ],
     });
+
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
     return result.object.title;
 }

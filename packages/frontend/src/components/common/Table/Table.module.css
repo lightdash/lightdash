@@ -1,0 +1,254 @@
+.tableScrollableWrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 100%;
+    overflow: auto;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 4px;
+}
+
+.tableScrollableWrapper.dashboard {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+}
+
+.tableScrollableWrapper:not(:has(thead tr)):not(:has(tbody tr)) {
+    border: 0;
+}
+
+.tableContainer {
+    display: flex;
+    flex-direction: column;
+    min-width: 100%;
+    max-height: 800px;
+    padding: var(--table-padding);
+    overflow: hidden;
+    font-family: var(--table-font);
+    font-feature-settings: 'tnum';
+}
+
+.tableContainer.expanded {
+    height: inherit;
+    max-height: none;
+}
+
+.table {
+    width: 100%;
+    font-size: 14px;
+    border-spacing: 0;
+    border-radius: 4px;
+}
+
+.table th,
+.table td {
+    padding: 6px 11px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.table th {
+    font-weight: 600;
+}
+
+.table tbody tr:first-child th,
+.table tbody tr:first-child td,
+.table tfoot tr:first-child th,
+.table tfoot tr:first-child td,
+.table tbody tr td,
+.table tfoot tr td {
+    box-shadow: inset 0 1px 0 0
+        color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
+}
+
+.table tbody tr td:not(:first-child),
+.table tfoot tr td:not(:first-child) {
+    box-shadow: inset 1px 1px 0 0
+        color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
+}
+
+.table th:not(:first-child) {
+    box-shadow: inset 1px 0 0 0
+        color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
+}
+
+.table thead {
+    position: sticky;
+    z-index: 2;
+    inset-block-start: 0;
+    top: 0;
+}
+
+.table thead th {
+    border-bottom: 0 !important;
+}
+
+.table tfoot {
+    position: sticky;
+    z-index: 3;
+    inset-block-end: 0;
+    bottom: 0;
+}
+
+.table tfoot th,
+.table tfoot th:first-child {
+    border-top: 0 !important;
+    border-bottom: 0 !important;
+    box-shadow: inset 0 1px 0 var(--mantine-color-ldGray-3) !important;
+}
+
+.table :global(.sticky-column) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    word-break: break-word;
+}
+
+.table :global(.sticky-column:hover) {
+    background-color: var(--frozen-column-background);
+    white-space: normal;
+}
+
+.table th:global(.sticky-column) {
+    background: var(--frozen-column-background) !important;
+}
+
+.table :global(.last-sticky-column) {
+    border-right: var(--frozen-column-border-width) solid
+        var(--frozen-column-border-color);
+}
+
+.tableFooter {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+
+.td,
+.footerCell {
+    padding: 8.5px !important;
+    font-size: 13px;
+    text-align: right !important;
+}
+
+.td[data-nan],
+.footerCell[data-nan] {
+    text-align: left !important;
+}
+
+.td {
+    box-sizing: border-box;
+    max-width: 300px;
+    height: var(--table-row-height);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: pre;
+    background-color: transparent;
+    filter: initial;
+    transition: filter 0.15s linear;
+}
+
+.td[data-large-text] {
+    min-width: 300px;
+}
+
+.td[data-large-text][data-selected],
+.td[data-large-text][data-minimal],
+.td[data-large-text]:hover {
+    white-space: pre-wrap;
+}
+
+.td[data-has-urls] {
+    text-decoration: underline dotted;
+}
+
+.td[data-interactive][data-has-data] {
+    cursor: pointer;
+}
+
+.td[data-selected] {
+    pointer-events: none;
+}
+
+.td[data-background] {
+    background-color: var(--cell-background-color) !important;
+}
+
+.td[data-font-color] {
+    color: var(--cell-font-color) !important;
+}
+
+.td[data-bold] {
+    font-weight: 700;
+}
+
+.td[data-italic] {
+    font-style: italic;
+}
+
+.td[data-underline] {
+    text-decoration: underline;
+}
+
+.td[data-interactive][data-selected][data-has-data] {
+    box-shadow: inset 0 0 0 1px var(--table-selected-border) !important;
+}
+
+.td[data-interactive][data-selected][data-has-data]:not([data-background]) {
+    background-color: var(--table-selected-bg) !important;
+}
+
+.td[data-interactive][data-selected][data-has-data][data-background] {
+    filter: saturate(1) brightness(0.8) !important;
+}
+
+.td[data-copying] {
+    filter: saturate(2) brightness(1) !important;
+}
+
+.footerCell {
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.th {
+    position: relative;
+}
+
+.thContainer {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.thActionsContainer {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    margin-left: 5px;
+}
+
+.thActionsContainer > *:not(:last-child) {
+    margin-right: 10px;
+}
+
+.tableHeaderLabelContainer {
+    color: var(
+        --table-header-label-color,
+        var(--table-header-color, var(--mantine-color-text))
+    );
+    font-size: 13px;
+}
+
+.tableHeaderRegularLabel {
+    font-weight: 400;
+    opacity: 0.7;
+}
+
+.tableHeaderBoldLabel {
+    font-weight: 600;
+}

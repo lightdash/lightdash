@@ -2,10 +2,45 @@
   "permissions": {
     "deny": [
       "Read(packages/formula-tests/**)",
-      "Edit(packages/formula-tests/**)",
-      "Write(packages/formula-tests/**)",
-      "Glob(packages/formula-tests/**)",
-      "Grep(packages/formula-tests/**)"
+      "Edit(packages/formula-tests/**)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-start",
+            "timeout": 1800,
+            "statusMessage": "Preparing the Lightdash Okteto development environment"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-prompt",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/agent-okteto-dev.sh\" hook-stop",
+            "timeout": 1800,
+            "statusMessage": "Verifying the Lightdash Okteto development environment"
+          }
+        ]
+      }
     ]
   }
 }

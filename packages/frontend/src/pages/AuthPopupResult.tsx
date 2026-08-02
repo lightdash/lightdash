@@ -1,4 +1,4 @@
-import { Box, Stack } from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router';

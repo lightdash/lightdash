@@ -25,7 +25,7 @@ describe('WorkbookExportHelper', () => {
 
     afterEach(() => {
         global.fetch = originalFetch;
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     it('creates one workbook with safe sheets and counts failed files', async () => {
@@ -37,7 +37,7 @@ describe('WorkbookExportHelper', () => {
         const secondBuffer = await createWorkbookBuffer(67.89);
         const fileErrors: Array<{ filename: string; error: string }> = [];
 
-        global.fetch = jest.fn(async (url) => {
+        global.fetch = vi.fn(async (url) => {
             if (url === 'first') {
                 return {
                     ok: true,

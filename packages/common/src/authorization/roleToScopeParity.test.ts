@@ -78,15 +78,18 @@ const ENTERPRISE_SUBJECTS = new Set([
     'OrganizationAiAgent',
     'AiAgentDocument',
     'AiAgentThread',
+    'AiDeepResearch',
     'ContentAsCode',
     'PreAggregation',
     'ExternalConnection',
+    'ProjectHomepage',
     // The matching scopes (`view:` + `manage:OrganizationWarehouseCredentials`)
     // are `isEnterprise: true` in scopes.ts, so the scope-build path
     // strips them in non-enterprise mode. Mirror that filter on the
     // role-based side so non-enterprise parity stays clean — at runtime
     // the feature is gated by license anyway.
     'OrganizationWarehouseCredentials',
+    'Roadmap',
 ]);
 
 /**
@@ -132,7 +135,9 @@ const PROJECT_PARITY_IGNORE = new Set([
     // Case 1: org-only subjects.
     '*:OrganizationMemberProfile',
     '*:Organization',
+    '*:OrganizationColorPalette',
     '*:OrganizationDesign',
+    '*:Roadmap',
     '*:Group',
     '*:InviteLink',
     '*:GitIntegration',
@@ -361,6 +366,7 @@ describe('Role to Scope Parity', () => {
     });
 
     // This is helpful for debugging, but it's not a test
+    // oxlint-disable-next-line vitest-js/no-disabled-tests -- debugging helper, intentionally not run
     describe.skip('Rule Count Analysis', () => {
         it('should report rule counts for documentation', () => {
             console.log('\n=== ROLE PERMISSION RULE COUNTS ===');

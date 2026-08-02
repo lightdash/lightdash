@@ -1,5 +1,5 @@
 import { Group, Loader, Select, Stack, Text } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { LightdashUserAvatar } from '../../Avatar';
@@ -91,6 +91,8 @@ export const UserSelect: FC<UserSelectProps> = ({
                         user.email,
                     ),
                     email: user.email,
+                    avatarUrl: user.avatarUrl,
+                    avatarGradient: user.avatarGradient,
                 },
             ]),
         );
@@ -159,7 +161,13 @@ export const UserSelect: FC<UserSelectProps> = ({
 
                 return (
                     <Group gap="sm" wrap="nowrap">
-                        <LightdashUserAvatar name={userData.name} size="sm" />
+                        <LightdashUserAvatar
+                            name={userData.name}
+                            size="sm"
+                            userUuid={option.value}
+                            avatarUrl={userData.avatarUrl}
+                            avatarGradient={userData.avatarGradient}
+                        />
                         <Stack gap={2}>
                             <Text size="sm" fw={500}>
                                 {userData.name}

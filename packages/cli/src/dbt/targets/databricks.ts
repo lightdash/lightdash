@@ -4,8 +4,8 @@ import {
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import { JSONSchemaType } from 'ajv';
-import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../ajv';
 import { Target } from '../types';
 import { DATABRICKS_DEFAULT_OAUTH_CLIENT_ID } from './Databricks/oauth';
@@ -36,7 +36,7 @@ export type DatabricksTarget = {
     compute?: DatabricksComputeConfig;
 };
 
-export const databricksSchema: JSONSchemaType<DatabricksTarget> = {
+const databricksSchema: JSONSchemaType<DatabricksTarget> = {
     type: 'object',
     properties: {
         type: {

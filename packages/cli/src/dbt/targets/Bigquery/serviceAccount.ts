@@ -18,7 +18,7 @@ export type BigqueryServiceAccountTarget = {
     timeout_seconds?: number;
     execution_project?: string;
 };
-export const bigqueryServiceAccountSchema: JSONSchemaType<BigqueryServiceAccountTarget> =
+const bigqueryServiceAccountSchema: JSONSchemaType<BigqueryServiceAccountTarget> =
     {
         type: 'object',
         properties: {
@@ -115,7 +115,7 @@ export type BigqueryServiceAccountJsonTarget = {
     timeout_seconds?: number;
     execution_project?: string;
 };
-export const bigqueryServiceAccountJsonSchema: JSONSchemaType<BigqueryServiceAccountJsonTarget> =
+const bigqueryServiceAccountJsonSchema: JSONSchemaType<BigqueryServiceAccountJsonTarget> =
     {
         type: 'object',
         properties: {

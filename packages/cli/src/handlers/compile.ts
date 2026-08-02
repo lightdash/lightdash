@@ -3,7 +3,6 @@ import {
     convertExplores,
     convertLightdashModelsToDbtModels,
     DbtManifest,
-    DbtManifestVersion,
     DbtModelNode,
     Explore,
     ExploreError,
@@ -12,14 +11,21 @@ import {
     getErrorMessage,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
+    InlineErrorType,
     isExploreError,
     isSupportedDbtAdapter,
     LightdashProjectConfig,
     ParseError,
     preAggregatePostProcessor,
+    QueryExecutionContext,
+    translateMetricFlowMetrics,
     WarehouseCatalog,
+    type WarehouseClient,
 } from '@lightdash/common';
-import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import {
+    validateWarehouseColumnReferences,
+    warehouseSqlBuilderFromType,
+} from '@lightdash/warehouses';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -49,14 +55,70 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     startOfWeek?: number;
     warehouseCredentials?: boolean;
     disableTimestampConversion?: boolean;
+    validateWarehouseColumns?: boolean;
+    partialCompilation?: boolean;
 };
 
-const getExploresFromLightdashYmlProject = async (
-    projectDir: string,
-    lightdashProjectConfig: LightdashProjectConfig,
-    startOfWeek?: number,
-    disableTimestampConversion?: boolean,
-): Promise<(Explore | ExploreError)[] | null> => {
+export const hasBlockingCompileError = (
+    explore: Explore | ExploreError,
+): boolean =>
+    isExploreError(explore) ||
+    explore.warnings?.some(
+        (warning) => warning.type === InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+    ) === true;
+
+export const stripWarehouseColumnErrors = (
+    explore: Explore | ExploreError,
+): Explore | ExploreError => {
+    if (isExploreError(explore) || explore.warnings === undefined) {
+        return explore;
+    }
+
+    const { warnings: currentWarnings, ...exploreWithoutWarnings } = explore;
+    const warnings = currentWarnings.filter(
+        (warning) => warning.type !== InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+    );
+
+    if (warnings.length === currentWarnings.length) {
+        return explore;
+    }
+
+    return warnings.length > 0
+        ? { ...exploreWithoutWarnings, warnings }
+        : exploreWithoutWarnings;
+};
+
+const getDisplayableDiagnostics = (
+    explore: Explore,
+    allowPartialCompilation: boolean,
+) => {
+    const diagnostics = explore.warnings ?? [];
+    const errors = diagnostics.filter(
+        (diagnostic) =>
+            diagnostic.type === InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+    );
+    const warnings = allowPartialCompilation
+        ? diagnostics.filter(
+              (diagnostic) =>
+                  diagnostic.type !== InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+          )
+        : [];
+    return { errors, warnings };
+};
+
+const getExploresFromLightdashYmlProject = async ({
+    projectDir,
+    lightdashProjectConfig,
+    startOfWeek,
+    disableTimestampConversion,
+    allowPartialCompilation,
+}: {
+    projectDir: string;
+    lightdashProjectConfig: LightdashProjectConfig;
+    startOfWeek: number | undefined;
+    disableTimestampConversion: boolean | undefined;
+    allowPartialCompilation: boolean;
+}): Promise<(Explore | ExploreError)[] | null> => {
     // Try to load Lightdash YAML models
     const lightdashModels = await loadLightdashModels(projectDir);
 
@@ -99,18 +161,96 @@ const getExploresFromLightdashYmlProject = async (
         validModels,
         false,
         warehouseSqlBuilder.getAdapterType(),
-        [],
         warehouseSqlBuilder,
         lightdashProjectConfig,
         {
             disableTimestampConversion,
-            allowPartialCompilation:
-                process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+            allowPartialCompilation,
             postProcessors: [preAggregatePostProcessor],
         },
     );
 
     return validExplores;
+};
+
+/**
+ * Translate dbt MetricFlow definitions (`semantic_models` + `metrics`) from the
+ * manifest into Lightdash metrics and merge them into each model's meta so they
+ * compile through the normal explore pipeline. YAML-defined metrics take
+ * priority over translated ones on name collision. No-op when the manifest has
+ * no semantic models.
+ */
+const applyMetricFlowMetrics = (
+    models: DbtModelNode[],
+    manifest: DbtManifest,
+): DbtModelNode[] => {
+    const semanticModels = manifest.semantic_models;
+    if (!semanticModels || Object.keys(semanticModels).length === 0) {
+        return models;
+    }
+
+    const modelNamesByUniqueId = Object.fromEntries(
+        models.map((model) => [model.unique_id, model.name]),
+    );
+
+    // MetricFlow translation is best-effort: a malformed manifest must never
+    // abort the compile/deploy, so degrade to "no translated metrics".
+    let translation: ReturnType<typeof translateMetricFlowMetrics>;
+    try {
+        translation = translateMetricFlowMetrics({
+            semanticModels,
+            metrics: manifest.metrics ?? {},
+            modelNamesByUniqueId,
+        });
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `> Failed to translate MetricFlow metrics, continuing without them: ${getErrorMessage(
+                    e,
+                )}`,
+            ),
+        );
+        return models;
+    }
+    const { metricsByModel, warnings, translatedCount, skippedCount } =
+        translation;
+
+    warnings.forEach((warning) => GlobalState.debug(`> ${warning}`));
+
+    if (translatedCount === 0) {
+        if (skippedCount > 0) {
+            console.error(
+                styles.warning(
+                    `> Skipped ${skippedCount} unsupported MetricFlow metric(s). Run with --verbose for details.`,
+                ),
+            );
+        }
+        return models;
+    }
+
+    const skippedSuffix =
+        skippedCount > 0
+            ? ` (skipped ${skippedCount} unsupported, run with --verbose for details)`
+            : '';
+    console.error(
+        styles.info(
+            `> Translated ${translatedCount} MetricFlow metric(s) into Lightdash metrics${skippedSuffix}`,
+        ),
+    );
+
+    return models.map((model) => {
+        const modelMetrics = metricsByModel[model.name];
+        if (!modelMetrics) {
+            return model;
+        }
+        return {
+            ...model,
+            meta: {
+                ...model.meta,
+                metrics: { ...modelMetrics, ...model.meta.metrics },
+            },
+        };
+    });
 };
 
 /**
@@ -173,6 +313,7 @@ export const compile = async (options: CompileHandlerOptions) => {
     const dbtVersionResult = await tryGetDbtVersion();
     const executionId = uuidv4();
     const startTime = Date.now();
+    const allowPartialCompilation = options.partialCompilation !== false;
 
     await LightdashAnalytics.track({
         event: 'compile.started',
@@ -199,12 +340,21 @@ export const compile = async (options: CompileHandlerOptions) => {
     let explores: (Explore | ExploreError)[] | null = null;
     let dbtMetrics: DbtManifest['metrics'] | null = null;
 
-    explores = await getExploresFromLightdashYmlProject(
-        absoluteProjectPath,
+    explores = await getExploresFromLightdashYmlProject({
+        projectDir: absoluteProjectPath,
         lightdashProjectConfig,
-        options.startOfWeek,
-        options.disableTimestampConversion,
-    );
+        startOfWeek: options.startOfWeek,
+        disableTimestampConversion: options.disableTimestampConversion,
+        allowPartialCompilation,
+    });
+
+    if (explores !== null && options.validateWarehouseColumns === true) {
+        console.error(
+            styles.warning(
+                '> Skipping warehouse column validation because it is not supported for Lightdash YAML projects',
+            ),
+        );
+    }
 
     // Load dbt Project
     if (explores === null) {
@@ -299,28 +449,54 @@ export const compile = async (options: CompileHandlerOptions) => {
 
         // Skipping assumes yml has the field types.
         let catalog: WarehouseCatalog = {};
+        let validationWarehouseClient: WarehouseClient | null = null;
         if (!options.skipWarehouseCatalog) {
+            const isDbtCloudCLI =
+                dbtVersionResult.success &&
+                dbtVersionResult.version.isDbtCloudCLI;
             const { warehouseClient } = await getWarehouseClient({
-                isDbtCloudCLI: dbtVersionResult.success
-                    ? dbtVersionResult.version.isDbtCloudCLI
-                    : false,
+                isDbtCloudCLI,
                 profilesDir: options.profilesDir,
                 profile: options.profile || context.profileName,
                 target: options.target,
                 startOfWeek: options.startOfWeek,
             });
+            // dbt Cloud CLI clients stub runQuery, so column probing would
+            // silently pass instead of validating anything
+            if (!isDbtCloudCLI) {
+                validationWarehouseClient = warehouseClient;
+            } else if (options.validateWarehouseColumns === true) {
+                console.error(
+                    styles.warning(
+                        '> Skipping warehouse column validation because dbt Cloud CLI cannot run warehouse queries',
+                    ),
+                );
+            }
             GlobalState.debug('> Fetching warehouse catalog');
             catalog = await warehouseClient.getCatalog(
                 getSchemaStructureFromDbtModels(validModels),
             );
         } else {
             GlobalState.debug('> Skipping warehouse catalog');
+            if (options.validateWarehouseColumns === true) {
+                console.error(
+                    styles.warning(
+                        '> Skipping warehouse column validation because the warehouse catalog is skipped',
+                    ),
+                );
+            }
         }
 
-        const validModelsWithTypes = attachTypesToModels(
-            validModels,
-            catalog,
-            false,
+        const validModelsWithTypes = applyMetricFlowMetrics(
+            attachTypesToModels(
+                validModels,
+                catalog,
+                false,
+                // Snowflake catalogs report uppercase identifiers; match the
+                // server-side adapter rule (dbtBaseProjectAdapter).
+                adapterType !== 'snowflake',
+            ),
+            manifest,
         );
 
         if (!isSupportedDbtAdapter(manifest.metadata)) {
@@ -356,25 +532,28 @@ export const compile = async (options: CompileHandlerOptions) => {
             validModelsWithTypes,
             false,
             manifest.metadata.adapter_type,
-            [
-                DbtManifestVersion.V10,
-                DbtManifestVersion.V11,
-                DbtManifestVersion.V12,
-            ].includes(manifestVersion)
-                ? []
-                : Object.values(manifest.metrics || {}),
             warehouseSqlBuilder,
             lightdashProjectConfig,
             {
                 disableTimestampConversion: options.disableTimestampConversion,
-                allowPartialCompilation:
-                    process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+                allowPartialCompilation,
                 postProcessors: [preAggregatePostProcessor],
             },
         );
+        const validatedExplores =
+            options.validateWarehouseColumns === true &&
+            validationWarehouseClient
+                ? await validateWarehouseColumnReferences({
+                      explores: validExplores,
+                      client: validationWarehouseClient,
+                      tags: {
+                          query_context: QueryExecutionContext.CLI,
+                      },
+                  })
+                : validExplores;
         console.error('');
 
-        explores = [...validExplores, ...failedExplores];
+        explores = [...validatedExplores, ...failedExplores];
         dbtMetrics = manifest.metrics;
     }
 
@@ -390,33 +569,43 @@ export const compile = async (options: CompileHandlerOptions) => {
             status = styles.error('ERROR');
             messages = `: ${styles.error(e.errors.map((err) => err.message).join(', '))}`;
             errors += 1;
-        } else if (
-            process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
-            'warnings' in e &&
-            e.warnings &&
-            e.warnings.length > 0
-        ) {
-            status = styles.warning('PARTIAL_SUCCESS');
-            messages = `\n${e.warnings
-                .map(
-                    (warning) =>
-                        `    ${styles.warning(`⚠ ${warning.message}`)}`,
-                )
-                .join('\n')}`;
-            partialSuccess += 1;
         } else {
-            status = styles.success('SUCCESS');
-            success += 1;
+            const { errors: warehouseErrors, warnings } =
+                getDisplayableDiagnostics(e, allowPartialCompilation);
+            if (warehouseErrors.length > 0) {
+                status = styles.error('ERROR');
+                messages = `: ${styles.error(
+                    warehouseErrors.map((error) => error.message).join(', '),
+                )}`;
+                if (warnings.length > 0) {
+                    messages += `\n${warnings
+                        .map(
+                            (warning) =>
+                                `    ${styles.warning(`⚠ ${warning.message}`)}`,
+                        )
+                        .join('\n')}`;
+                }
+                errors += 1;
+            } else if (warnings.length > 0) {
+                status = styles.warning('PARTIAL_SUCCESS');
+                messages = `\n${warnings
+                    .map(
+                        (warning) =>
+                            `    ${styles.warning(`⚠ ${warning.message}`)}`,
+                    )
+                    .join('\n')}`;
+                partialSuccess += 1;
+            } else {
+                status = styles.success('SUCCESS');
+                success += 1;
+            }
         }
 
         console.error(`- ${status}> ${e.name} ${messages}`);
     });
     console.error('');
 
-    if (
-        process.env.PARTIAL_COMPILATION_ENABLED !== 'false' &&
-        partialSuccess > 0
-    ) {
+    if (partialSuccess > 0) {
         console.error(
             `Compiled ${explores.length} explores, SUCCESS=${success} PARTIAL_SUCCESS=${partialSuccess} ERRORS=${errors}`,
         );
@@ -426,8 +615,7 @@ export const compile = async (options: CompileHandlerOptions) => {
         );
     }
 
-    const metricsCount =
-        dbtMetrics === null ? 0 : Object.values(dbtMetrics).length;
+    const metricsCount = dbtMetrics ? Object.values(dbtMetrics).length : 0;
     await LightdashAnalytics.track({
         event: 'compile.completed',
         properties: {
@@ -466,7 +654,7 @@ export const compileHandler = async (
 
     GlobalState.setVerbose(options.verbose);
     const explores = await compile(options);
-    const errorsCount = explores.filter((e) => isExploreError(e)).length;
+    const errorsCount = explores.filter(hasBlockingCompileError).length;
     console.error('');
     if (errorsCount > 0) {
         console.error(

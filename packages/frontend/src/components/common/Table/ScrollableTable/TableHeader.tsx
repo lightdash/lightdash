@@ -1,6 +1,7 @@
 import { Draggable } from '@hello-pangea/dnd';
 import { isField } from '@lightdash/common';
-import { Tooltip, useMantineTheme } from '@mantine/core';
+import { Tooltip } from '@mantine-8/core';
+import { useMantineTheme } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
 import React, { useEffect, type FC } from 'react';
@@ -132,7 +133,6 @@ const TableHeader: FC<TableHeaderProps> = ({
                                                 >
                                                     <Tooltip
                                                         withinPortal
-                                                        variant="xs"
                                                         openDelay={500}
                                                         maw={400}
                                                         multiline

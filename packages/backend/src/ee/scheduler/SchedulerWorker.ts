@@ -6,9 +6,11 @@ import {
     SCHEDULER_TASKS,
     SchedulerJobStatus,
 } from '@lightdash/common';
+import type { AddJobFunction } from 'graphile-worker';
 import Logger from '../../logging/logger';
 import { type OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
 import {
@@ -18,24 +20,88 @@ import {
 import { TypedEETaskList } from '../../scheduler/types';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
+import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
+import { AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
+import { type AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
+import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
+import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
 
+const MCP_TOOL_CALL_RETENTION_DAYS = 90;
+export const AI_DEEP_RESEARCH_REPORT_CLEANUP_BATCH_SIZE = 100;
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const AI_AGENT_MEMORY_LLM_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
+const AI_AGENT_MEMORY_DISTILL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const AI_AGENT_MEMORY_SWEEP_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+// Two curator attempts at the per-call ceiling, plus reads and the apply.
+const AI_AGENT_MEMORY_CONSOLIDATE_LLM_TIMEOUT_MS = 25 * 60 * 1000; // 25 minutes
+const AI_AGENT_MEMORY_CONSOLIDATE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
+const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
+const AGENT_ONBOARDING_TIMEOUT_MS = 60 * 60 * 1000;
+
+export const cleanAiDeepResearchReports = async ({
+    aiDeepResearchService,
+    cleanupMetrics,
+    addJob,
+}: {
+    aiDeepResearchService: Pick<AiDeepResearchService, 'cleanExpiredReports'>;
+    cleanupMetrics: Pick<
+        PrometheusMetrics,
+        'incrementAiDeepResearchReportCleanup'
+    > | null;
+    addJob: AddJobFunction;
+}): Promise<void> => {
+    Logger.info('Starting Deep Research report cleanup job');
+    const result = await aiDeepResearchService.cleanExpiredReports(
+        AI_DEEP_RESEARCH_REPORT_CLEANUP_BATCH_SIZE,
+    );
+    cleanupMetrics?.incrementAiDeepResearchReportCleanup(
+        'scanned',
+        result.scanned,
+    );
+    cleanupMetrics?.incrementAiDeepResearchReportCleanup(
+        'expired',
+        result.expired,
+    );
+    cleanupMetrics?.incrementAiDeepResearchReportCleanup(
+        'failed',
+        result.failed,
+    );
+    Logger.info(
+        `Deep Research report cleanup completed. Scanned: ${result.scanned}; expired: ${result.expired}; failed: ${result.failed}`,
+    );
+    if (result.failed > 0) {
+        throw new Error(
+            `Failed to clean ${result.failed} Deep Research reports`,
+        );
+    }
+    if (result.scanned === AI_DEEP_RESEARCH_REPORT_CLEANUP_BATCH_SIZE) {
+        await addJob(
+            EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS,
+            {},
+            { maxAttempts: 3 },
+        );
+    }
+};
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
+    aiAgentMemoryService: AiAgentMemoryService;
+    aiWritebackService: AiWritebackService;
+    aiDeepResearchService: AiDeepResearchService;
+    onboardingAgentService: OnboardingAgentService;
     aiAgentReviewClassifierService: AiAgentReviewClassifierService;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
@@ -47,10 +113,19 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     projectContextService: ProjectContextService;
     projectModel: ProjectModel;
     openIdIdentityModel: OpenIdIdentityModel;
+    mcpToolCallModel: McpToolCallModel;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
+
+    protected readonly aiAgentMemoryService: AiAgentMemoryService;
+
+    protected readonly aiWritebackService: AiWritebackService;
+
+    protected readonly aiDeepResearchService: AiDeepResearchService;
+
+    protected readonly onboardingAgentService: OnboardingAgentService;
 
     protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
 
@@ -74,9 +149,17 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly openIdIdentityModel: OpenIdIdentityModel;
 
+    protected readonly mcpToolCallModel: McpToolCallModel;
+
+    private readonly cleanupMetrics: PrometheusMetrics | null;
+
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
+        this.aiAgentMemoryService = args.aiAgentMemoryService;
+        this.aiWritebackService = args.aiWritebackService;
+        this.aiDeepResearchService = args.aiDeepResearchService;
+        this.onboardingAgentService = args.onboardingAgentService;
         this.aiAgentReviewClassifierService =
             args.aiAgentReviewClassifierService;
         this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
@@ -91,6 +174,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectContextService = args.projectContextService;
         this.projectModel = args.projectModel;
         this.openIdIdentityModel = args.openIdIdentityModel;
+        this.mcpToolCallModel = args.mcpToolCallModel;
+        this.cleanupMetrics = args.prometheusMetrics ?? null;
     }
 
     protected getCronItems() {
@@ -102,6 +187,54 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 options: {
                     backfillPeriod: 5 * 60 * 1000, // 5 min
                     maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS,
+                pattern: '*/2 * * * *', // Every 2 minutes
+                options: {
+                    backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS,
+                pattern: '*/2 * * * *',
+                options: {
+                    backfillPeriod: 5 * 60 * 1000,
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS,
+                pattern: '0 */3 * * *',
+                options: {
+                    backfillPeriod: 6 * 60 * 60 * 1000,
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES,
+                pattern: '30 1 * * *', // 01:30 UTC daily
+                options: {
+                    backfillPeriod: 24 * 60 * 60 * 1000, // 24 hours
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS,
+                pattern: '45 0 * * *', // 00:45 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS,
+                pattern: '41 * * * *',
+                options: {
+                    backfillPeriod: 2 * 60 * 60 * 1000,
+                    maxAttempts: 3,
                 },
             },
         ];
@@ -125,6 +258,25 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     payload.slackPromptUuid,
                 );
             },
+            [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: async () => {
+                Logger.info('Starting MCP tool call cleanup job');
+                const deleted =
+                    await this.mcpToolCallModel.deleteToolCallsOlderThan(
+                        MCP_TOOL_CALL_RETENTION_DAYS,
+                    );
+                Logger.info(
+                    `MCP tool call cleanup completed. Records deleted: ${deleted}`,
+                );
+            },
+            [EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: async (
+                _payload,
+                helpers,
+            ) =>
+                cleanAiDeepResearchReports({
+                    aiDeepResearchService: this.aiDeepResearchService,
+                    cleanupMetrics: this.cleanupMetrics,
+                    addJob: helpers.addJob,
+                }),
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: async (
                 payload,
                 _helpers,
@@ -384,6 +536,10 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 payload,
                 helpers,
             ) => {
+                const schedulerWaitMs = Math.max(
+                    Date.now() - helpers.job.run_at.getTime(),
+                    0,
+                );
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE,
@@ -391,7 +547,10 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         helpers.job.run_at,
                         payload,
                         async () => {
-                            await this.appGenerateService.runPipeline(payload);
+                            await this.appGenerateService.runPipeline(
+                                payload,
+                                schedulerWaitMs,
+                            );
                         },
                     ),
                     helpers.job,
@@ -404,9 +563,134 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                             'Build timed out. Please try again.',
                         );
                         if (marked) {
-                            this.appGenerateService.trackTimeoutFailure(
+                            await this.appGenerateService.trackTimeoutFailure(
                                 payload,
                                 e,
+                                schedulerWaitMs,
+                            );
+                        }
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.appGenerateService.runBuildFromSourcePipeline(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    APP_GENERATE_TIMEOUT_MS,
+                    async (_job, e) => {
+                        // trackTimeoutFailure is typed to AppGeneratePipelineJobPayload and
+                        // cannot accept AppBuildFromSourceJobPayload, so omitted here.
+                        await this.appGenerateService.markError(
+                            payload.appUuid,
+                            payload.version,
+                            e,
+                            'Build timed out. Please try again.',
+                        );
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiWritebackService.runPipeline(payload);
+                        },
+                    ),
+                    helpers.job,
+                    AI_WRITEBACK_TIMEOUT_MS,
+                    async (_job, e) => {
+                        await this.aiWritebackService.markRunError(
+                            payload.aiWritebackRunUuid,
+                            getErrorMessage(e),
+                        );
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AGENT_ONBOARDING_RUN,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.onboardingAgentService.executeRun(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AGENT_ONBOARDING_TIMEOUT_MS,
+                    async () => {
+                        await this.onboardingAgentService.markRunTimedOut(
+                            payload.agentOnboardingRunUuid,
+                        );
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: async (payload, helpers) => {
+                await SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.aiDeepResearchService.executeRun(payload);
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentService.runEditDbtProjectPipeline(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AI_WRITEBACK_TIMEOUT_MS,
+                    async (_job, e) => {
+                        const runMarkedError =
+                            await this.aiWritebackService.markRunError(
+                                payload.aiWritebackRunUuid,
+                                getErrorMessage(e),
+                            );
+                        if (runMarkedError) {
+                            await this.aiAgentService.markEditDbtProjectToolResultError(
+                                payload.promptUuid,
+                                payload.toolCallId,
+                                `Error running AI writeback: ${getErrorMessage(e)}`,
                             );
                         }
                     },
@@ -414,6 +698,136 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: async () => {
+                const swept = await this.aiWritebackService.sweepStaleRuns();
+                // A chat run's card reflects the tool-result row, not the run
+                // row, so marking the run errored alone would leave it stuck on
+                // "Working on the change". Fail the card too — mirrors the
+                // dual-recovery the pipeline's timeout callback already does.
+                const chatRuns = swept.filter(
+                    (run) => run.promptUuid && run.toolCallId,
+                );
+                for (const run of chatRuns) {
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        await this.aiAgentService.markEditDbtProjectToolResultError(
+                            run.promptUuid!,
+                            run.toolCallId!,
+                            'Error running AI writeback: the run stopped unexpectedly before it finished.',
+                        );
+                    } catch (error) {
+                        Logger.warn(
+                            `Failed to fail stale writeback tool-result card for run ${run.aiWritebackRunUuid}: ${getErrorMessage(
+                                error,
+                            )}`,
+                        );
+                    }
+                }
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]:
+                async () => {
+                    await this.aiDeepResearchService.sweepStaleRuns();
+                },
+            [EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentMemoryService.sweep();
+                        },
+                    ),
+                    helpers.job,
+                    AI_AGENT_MEMORY_SWEEP_TIMEOUT_MS,
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: async (
+                payload,
+                helpers,
+            ) => {
+                const controller = new AbortController();
+                const abortSignal = AbortSignal.any([
+                    controller.signal,
+                    AbortSignal.timeout(AI_AGENT_MEMORY_LLM_TIMEOUT_MS),
+                ]);
+                const distillPromise = SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.aiAgentMemoryService.distillThread(
+                            payload,
+                            abortSignal,
+                        );
+                    },
+                );
+                await tryJobOrTimeout(
+                    distillPromise,
+                    helpers.job,
+                    AI_AGENT_MEMORY_DISTILL_TIMEOUT_MS,
+                    async (_job, error) => {
+                        controller.abort(error);
+                        await distillPromise;
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentMemoryService.sweepConsolidationPartitions();
+                        },
+                    ),
+                    helpers.job,
+                    AI_AGENT_MEMORY_SWEEP_TIMEOUT_MS,
+                );
+            },
+            [EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION]: async (
+                payload,
+                helpers,
+            ) => {
+                const controller = new AbortController();
+                const abortSignal = AbortSignal.any([
+                    controller.signal,
+                    AbortSignal.timeout(
+                        AI_AGENT_MEMORY_CONSOLIDATE_LLM_TIMEOUT_MS,
+                    ),
+                ]);
+                const consolidatePromise = SchedulerClient.processJob(
+                    EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.aiAgentMemoryService.consolidateScheduledPartition(
+                            payload,
+                            abortSignal,
+                        );
+                    },
+                );
+                await tryJobOrTimeout(
+                    consolidatePromise,
+                    helpers.job,
+                    AI_AGENT_MEMORY_CONSOLIDATE_TIMEOUT_MS,
+                    async (_job, error) => {
+                        controller.abort(error);
+                        await consolidatePromise;
+                    },
+                );
             },
             [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: async (payload) => {
                 await sendReviewNotification({

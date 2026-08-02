@@ -174,36 +174,9 @@ Packages overview:
 -   `e2e` - End-to-end and integration tests
 -   `warehouses` - Classes for connecting to different databases
 
-#### using Github Codespaces / VS Code Remote Containers
-
-The fastest way to setup a development environment is to use Github Codespaces or VS Code Remote Containers.
-This provides:
-
--   All dependencies
--   A postgres database for development
--   A sample dbt project
--   A pre-configured code editor
-
-To get started:
-
--   in Github [create a codespace](https://docs.github.com/en/codespaces/developing-in-codespaces/creating-a-codespace)
--   in VS
-    Code [install the remote containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-
-Once connected run the following commands in the VS Code terminal:
-
-```shell
-# Setup the database
-pnpm -F backend migrate
-pnpm -F backend seed
-
-# Run Lightdash frontend and backend in dev mode
-pnpm dev
-```
-
 #### using Docker compose
 
-Alternatively you can create a developer environment using docker compose:
+You can create a developer environment using docker compose:
 
 ```shell
 # Clone the Lightdash repo
@@ -433,8 +406,8 @@ the `/etc/hosts` configuration in your computer otherwise it will fail with a `D
 
 To setup Development Environment without Docker you need following pre-requisites before running Lightdash:
 
--   node >= v18.x (20 is preferred)
--   python >= 3.3
+-   node >= v24 (see `.nvmrc` for the exact version)
+-   python >= 3.8
 -   pnpm
 -   postgres >= 12
 -   dbt 1.7.x aliased to `dbt1.7`
@@ -451,8 +424,8 @@ brew install nvm
 
 # 3 Install specified node version using NVM (https://github.com/nvm-sh/nvm)
 
-nvm install v20.19.0
-nvm alias default v20.19.0
+nvm install v24.18.0
+nvm alias default v24.18.0
 
 # 4 Install postgres (https://wiki.postgresql.org/wiki/Homebrew) and pgvector
 brew install postgresql@14

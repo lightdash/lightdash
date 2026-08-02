@@ -1,5 +1,7 @@
 ---
 name: deprecate-endpoint
+metadata:
+  internal: true
 description: Use when deprecating, sunsetting, or removing a backend HTTP API endpoint in Lightdash — wiring deprecation logging, deadline/sunset dates, response headers, and Sentry alerting onto a TSOA controller route. Also covers making the deprecation visible on docs.lightdash.com and llms.txt (description lead line, x-mint migration banner). Covers the first-party-caller precondition and the shared deprecation middleware.
 allowed-tools: Read, Grep, Glob, Edit, Bash
 ---

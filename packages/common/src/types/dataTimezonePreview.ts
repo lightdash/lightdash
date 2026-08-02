@@ -80,10 +80,10 @@ const sessionUtcStringSql: Record<
         `format_datetime(CAST(TIMESTAMP '${w}' AS timestamp with time zone) AT TIME ZONE 'UTC', 'yyyy-MM-dd HH:mm:ss')`,
     [SupportedDbtAdapter.CLICKHOUSE]: (w) =>
         `toString(toTimeZone(toDateTime('${w}'), 'UTC'))`,
-    // BigQuery has no session-timezone plumbing (its data tz UI is hidden), so
-    // the bare value is effectively UTC.
+    // BigQuery has no session timezone; the client sets the job's `time_zone`
+    // connection property instead, which TIMESTAMP() reads the bare literal in.
     [SupportedDbtAdapter.BIGQUERY]: (w) =>
-        `FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', TIMESTAMP('${w}', 'UTC'), 'UTC')`,
+        `FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', TIMESTAMP('${w}'), 'UTC')`,
 };
 
 const NAIVE_WALL_CLOCK_FORMAT = 'YYYY-MM-DD HH:mm:ss';

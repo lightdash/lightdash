@@ -4,7 +4,7 @@ import {
     DbtProjectTypeLabels,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor, Select, Stack, TextInput } from '@mantine/core';
+import { TextInput, Stack, Anchor, Select } from '@mantine-8/core';
 import { useMemo, useState, type FC } from 'react';
 import useApp from '../../providers/App/useApp';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
@@ -20,15 +20,8 @@ import FormCollapseButton from './FormCollapseButton';
 import { useFormContext } from './formContext';
 import FormSection from './Inputs/FormSection';
 import { MultiKeyValuePairsInput } from './Inputs/MultiKeyValuePairsInput';
-import { AthenaSchemaInput } from './WarehouseForms/AthenaForm';
-import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
-import { ClickhouseSchemaInput } from './WarehouseForms/ClickhouseForm';
-import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
-import { DuckdbSchemaInput } from './WarehouseForms/DuckdbForm';
-import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
-import { RedshiftSchemaInput } from './WarehouseForms/RedshiftForm';
-import { SnowflakeSchemaInput } from './WarehouseForms/SnowflakeForm';
-import { TrinoSchemaInput } from './WarehouseForms/TrinoForm';
+import { useProjectFormContext } from './useProjectFormContext';
+import WarehouseSchemaInput from './WarehouseSchemaInput';
 
 interface DbtSettingsFormProps {
     disabled: boolean;
@@ -40,6 +33,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     defaultType,
 }) => {
     const form = useFormContext();
+    const { isDbtSource } = useProjectFormContext();
     const selectedWarehouse = form.values.warehouse?.type;
 
     const type: DbtProjectType =
@@ -56,6 +50,17 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         setIsAdvancedSettingsOpen((open) => !open);
     const { health } = useApp();
     const options = useMemo(() => {
+        // Additional dbt sources are restricted to GitHub for now (the merge is
+        // git-only, and the other providers aren't validated end-to-end yet).
+        if (isDbtSource) {
+            return [
+                {
+                    value: DbtProjectType.GITHUB,
+                    label: DbtProjectTypeLabels[DbtProjectType.GITHUB],
+                },
+            ];
+        }
+
         const enabledTypes = [
             DbtProjectType.GITHUB,
             DbtProjectType.GITLAB,
@@ -73,7 +78,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
             value,
             label: DbtProjectTypeLabels[value],
         }));
-    }, [health]);
+    }, [health, isDbtSource]);
 
     const DbtForm = useMemo(() => {
         switch (type) {
@@ -131,50 +136,22 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         },
     };
 
-    const WarehouseSchemaInput = useMemo(() => {
-        switch (warehouseType) {
-            case WarehouseTypes.BIGQUERY:
-                return BigQuerySchemaInput;
-            case WarehouseTypes.POSTGRES:
-                return PostgresSchemaInput;
-            case WarehouseTypes.TRINO:
-                return TrinoSchemaInput;
-            case WarehouseTypes.REDSHIFT:
-                return RedshiftSchemaInput;
-            case WarehouseTypes.SNOWFLAKE:
-                return SnowflakeSchemaInput;
-            case WarehouseTypes.DATABRICKS:
-                return DatabricksSchemaInput;
-            case WarehouseTypes.CLICKHOUSE:
-                return ClickhouseSchemaInput;
-            case WarehouseTypes.ATHENA:
-                return AthenaSchemaInput;
-            case WarehouseTypes.DUCKDB:
-                return DuckdbSchemaInput;
-            default: {
-                return assertUnreachable(
-                    warehouseType,
-                    `Unknown warehouse type ${warehouseType}`,
-                );
-            }
-        }
-    }, [warehouseType]);
-
     return (
         <div
             style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
             <Stack style={{ marginTop: '8px' }}>
                 <Select
+                    allowDeselect={false}
                     name="dbt.type"
                     {...form.getInputProps('dbt.type')}
-                    onChange={(value: DbtProjectType) => {
-                        form.getInputProps('dbt.type').onChange(value);
-                        if (value) {
-                            form.setValues({
-                                dbt: dbtDefaults.formValues[value],
-                            });
-                        }
+                    onChange={(value) => {
+                        if (!value) return;
+                        const dbtType = value as DbtProjectType;
+                        form.getInputProps('dbt.type').onChange(dbtType);
+                        form.setValues({
+                            dbt: dbtDefaults.formValues[dbtType],
+                        });
                     }}
                     defaultValue={DbtProjectType.GITHUB}
                     label="Type"
@@ -206,10 +183,18 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                     disabled={disabled}
                                     placeholder="prod"
                                 />
-                                {/* This WarehouseSchemaInput extra options will be provided in the organization warehouse credentials form */}
-                                {form.values
+                                {/* The schema is a warehouse-credential field; an
+                                additional dbt source shares the project's
+                                warehouse, so it's inherited rather than set per
+                                source. Also hidden when org warehouse credentials
+                                provide it. */}
+                                {isDbtSource ||
+                                form.values
                                     .organizationWarehouseCredentialsUuid ? null : (
-                                    <WarehouseSchemaInput disabled={disabled} />
+                                    <WarehouseSchemaInput
+                                        warehouseType={warehouseType}
+                                        disabled={disabled}
+                                    />
                                 )}
                             </Stack>
                         </FormSection>
@@ -229,6 +214,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                                 models from your dbt project.
                                                 You can see more details in{' '}
                                                 <Anchor
+                                                    inherit
                                                     href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#dbt-selector"
                                                     target="_blank"
                                                     rel="noreferrer"

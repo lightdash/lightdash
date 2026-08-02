@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: prospects
+    description: >
+      Synthetic admissions-pipeline-style dataset: monthly prospect volumes
+      across academic-year seasons (April through March, labeled by starting
+      year) from AY2019 to a partial AY2026, with volume growing season over
+      season. Dense month coverage on purpose — used to reproduce and test
+      pivot sorting with companion sort fields (e.g. a fiscal month-order
+      table calculation sorting a month-name x-axis on a chart grouped by
+      season).
+    meta:
+      group_label: pivot sorting
+    columns:
+      - name: request_month
+        description: Month the prospects requested information (month start date).
+        meta:
+          dimension:
+            type: date
+            time_intervals: [MONTH_NAME, MONTH, MONTH_NUM, YEAR]
+      - name: ay_season_year
+        description: >
+          Academic-year season the month falls into (April through March),
+          labeled by the starting calendar year.
+        meta:
+          dimension:
+            type: string
+      - name: prospect_count
+        description: Number of prospects in the month.
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            count_prospects:
+              type: sum
+              label: Number of prospects

@@ -5,7 +5,6 @@ import {
     type Project,
 } from '@lightdash/common';
 import {
-    Anchor,
     Button,
     Flex,
     LoadingOverlay,
@@ -145,7 +144,7 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
             <LoadingOverlay visible={isLoadingProject} />
             <SettingsGridCard>
                 <Stack gap="xs">
-                    <Title order={4}>Project time zone</Title>
+                    <Title order={5}>Time zone behavior</Title>
                     <Text c="ldGray.6" fz="sm">
                         {timezoneSupportEnabled ? (
                             <>
@@ -165,17 +164,6 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                                 session time zone.
                             </>
                         )}
-                    </Text>
-                    <Text c="ldGray.6" fz="xs">
-                        Learn more in our{' '}
-                        <Anchor
-                            href="https://docs.lightdash.com/guides/developer/timezones"
-                            target="_blank"
-                            fz="xs"
-                        >
-                            docs guide
-                        </Anchor>
-                        .
                     </Text>
                 </Stack>
                 <div>

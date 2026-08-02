@@ -158,6 +158,13 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                         );
                     }
 
+                    if (filters.uuids) {
+                        void builder.whereIn(
+                            `${AppsTableName}.app_id`,
+                            filters.uuids,
+                        );
+                    }
+
                     const personal = filters.dataApps;
                     if (personal) {
                         // Surface space apps the caller can access OR personal

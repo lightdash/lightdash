@@ -10,6 +10,7 @@ import {
     IconCalendarStats,
     IconChecklist,
     IconClock,
+    IconBook2,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
@@ -17,21 +18,24 @@ import {
     IconFolders,
     IconGauge,
     IconGitPullRequest,
-    IconHistory,
     IconIdBadge2,
     IconKey,
     IconListCheck,
     IconLock,
+    IconMailForward,
     IconMessageCircle,
+    IconNotebook,
     IconPalette,
     IconPlug,
     IconPlugConnected,
     IconRefresh,
     IconReportAnalytics,
+    IconRoad,
     IconRobotFace,
     IconSettings,
     IconShieldCheck,
     IconTableOptions,
+    IconTelescope,
     IconTrash,
     IconUserCircle,
     IconUserCode,
@@ -45,6 +49,7 @@ import {
 import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
 import {
     type SettingsContext,
     type SettingsNavigationItem,
@@ -70,13 +75,17 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
+        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         embeddingEnabled,
@@ -168,6 +177,28 @@ export const useSettingsNavigation = (
                     'default project',
                     'danger zone',
                 ],
+                pageSections: [
+                    {
+                        title: 'Allowed email domains',
+                        keywords: ['email', 'domain', 'auto join'],
+                    },
+                    {
+                        title: 'Default project',
+                        keywords: ['landing project', 'home project'],
+                    },
+                    {
+                        title: 'User impersonation',
+                        keywords: ['impersonate', 'impersonation'],
+                    },
+                    {
+                        title: 'Lightdash support access',
+                        keywords: ['support', 'impersonate', 'impersonation'],
+                    },
+                    {
+                        title: 'Danger zone',
+                        keywords: ['delete organization', 'leave organization'],
+                    },
+                ],
                 children: [],
                 exact: true,
             });
@@ -239,26 +270,66 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (ability?.can('update', 'Organization')) {
+        if (
+            ability?.can('update', 'Organization') ||
+            ability?.can(
+                'manage',
+                subject('OrganizationColorPalette', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
             organizationItems.push({
                 label: 'Appearance',
                 to: '/generalSettings/appearance',
                 icon: IconPalette,
-                keywords: ['theme', 'color', 'branding', 'logo'],
+                keywords: ['theme', 'color', 'branding', 'logo', 'palette'],
                 children: [],
                 exact: true,
             });
         }
 
-        if (isDataAppsEnabled && ability?.can('view', 'OrganizationDesign')) {
-            organizationItems.push({
-                label: 'Themes',
-                to: '/generalSettings/themes',
-                icon: IconBrush,
-                keywords: ['design', 'colors', 'charts'],
-                children: [],
-                exact: true,
-            });
+        if (isDataAppsEnabled) {
+            const dataAppChildren: SettingsNavigationItem[] = [];
+
+            if (ability?.can('view', 'OrganizationDesign')) {
+                dataAppChildren.push({
+                    label: 'Themes',
+                    to: '/generalSettings/dataApps/themes',
+                    icon: IconBrush,
+                    keywords: ['design', 'colors', 'charts'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (ability?.can('manage', 'Organization')) {
+                dataAppChildren.push({
+                    label: 'Activity',
+                    to: '/generalSettings/dataApps/activity',
+                    icon: IconReportAnalytics,
+                    keywords: [
+                        'usage',
+                        'audit',
+                        'log',
+                        'generations',
+                        'who built',
+                        'tokens',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (dataAppChildren.length > 0) {
+                organizationItems.push({
+                    label: 'Data apps',
+                    to: '/generalSettings/dataApps',
+                    icon: IconAppWindow,
+                    keywords: ['apps', 'data apps'],
+                    children: dataAppChildren,
+                });
+            }
         }
 
         if (ability?.can('manage', 'Organization')) {
@@ -292,6 +363,27 @@ export const useSettingsNavigation = (
                 to: '/generalSettings/verifiedDomains',
                 icon: IconWorldCheck,
                 keywords: ['email', 'domains', 'sso'],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (
+            ability?.can('manage', 'Organization') &&
+            isEmailWhitelabelEnabled
+        ) {
+            organizationItems.push({
+                label: 'Email domain',
+                to: '/generalSettings/emailWhitelabel',
+                icon: IconMailForward,
+                keywords: [
+                    'email',
+                    'whitelabel',
+                    'sending',
+                    'domain',
+                    'dkim',
+                    'reports',
+                ],
                 children: [],
                 exact: true,
             });
@@ -409,14 +501,59 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
+                {
+                    label: 'Evals',
+                    to: '/generalSettings/ai/evals',
+                    icon: IconBook2,
+                    keywords: ['evaluations', 'evals', 'runs', 'testing'],
+                    children: [],
+                    exact: true,
+                },
+                {
+                    label: 'MCP',
+                    to: '/generalSettings/ai/mcp',
+                    icon: IconPlugConnected,
+                    keywords: ['mcp', 'tools', 'activity', 'claude', 'cursor'],
+                    children: [],
+                    exact: true,
+                },
             );
 
             if (shouldShowAiAgentReviews) {
                 aiChildren.push({
-                    label: 'Reviews',
-                    to: '/generalSettings/ai/reviews',
+                    label: 'Issues',
+                    to: '/generalSettings/ai/issues',
                     icon: IconListCheck,
-                    keywords: ['classifier'],
+                    keywords: ['classifier', 'reviews'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (shouldShowAiAgentMemories) {
+                aiChildren.push({
+                    label: 'Memories',
+                    to: '/generalSettings/ai/memories',
+                    icon: IconNotebook,
+                    keywords: ['memory', 'memories', 'learned', 'knowledge'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
+                canAccessDeepResearchSettings({
+                    isAiCopilotEnabledOrTrial,
+                    isDeepResearchEnabled,
+                    canManageOrgAiAgent,
+                    hasAnyAiAgentAccess,
+                })
+            ) {
+                aiChildren.push({
+                    label: 'Deep research',
+                    to: '/generalSettings/ai/deep-research',
+                    icon: IconTelescope,
+                    keywords: ['research', 'limits', 'tools', 'queries'],
                     children: [],
                     exact: true,
                 });
@@ -429,6 +566,30 @@ export const useSettingsNavigation = (
                 aiAgentIcon: true,
                 keywords: ['copilot', 'agents', 'ai'],
                 children: aiChildren,
+            });
+        }
+
+        if (
+            isOrganizationRoadmapEnabled &&
+            ability?.can(
+                'view',
+                subject('Roadmap', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            organizationItems.push({
+                label: 'Roadmap',
+                to: '/generalSettings/roadmap',
+                icon: IconRoad,
+                keywords: [
+                    'feature requests',
+                    'planned',
+                    'building',
+                    'shipped',
+                ],
+                children: [],
+                exact: true,
             });
         }
 
@@ -476,14 +637,6 @@ export const useSettingsNavigation = (
                     to: `${base}/tablesConfiguration`,
                     icon: IconTableOptions,
                     keywords: ['models', 'explores'],
-                    children: [],
-                    exact: true,
-                },
-                {
-                    label: 'Changesets',
-                    to: `${base}/changesets`,
-                    icon: IconHistory,
-                    keywords: ['changes', 'history'],
                     children: [],
                     exact: true,
                 },
@@ -640,6 +793,25 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (organization?.pgWire?.enabled) {
+                projectItems.push({
+                    label: 'Metric SQL API',
+                    to: `${base}/semanticLayer`,
+                    icon: IconPlug,
+                    keywords: [
+                        'postgres',
+                        'pgwire',
+                        'connection',
+                        'sql',
+                        'bi',
+                        'metric',
+                        'semantic layer',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             if (
                 ability?.can(
                     'update',
@@ -787,13 +959,17 @@ export const useSettingsNavigation = (
         hasSocialLogin,
         isGroupManagementEnabled,
         isProLimitsEnabled,
+        isOrganizationRoadmapEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
+        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isEmbeddingEnabled,

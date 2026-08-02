@@ -5,6 +5,8 @@ import {
     BigQueryTime,
     BigQueryTimestamp,
     Dataset,
+    DatasetsResponse,
+    GetDatasetsOptions,
     Job,
     QueryResultsOptions,
     QueryRowsResponse,
@@ -15,6 +17,7 @@ import {
     BigqueryAuthenticationType,
     BigqueryDataset,
     BigqueryProject,
+    BigqueryProjectRecommendation,
     CreateBigqueryCredentials,
     DimensionType,
     getErrorMessage,
@@ -22,13 +25,18 @@ import {
     MetricType,
     PartitionColumn,
     PartitionType,
+    sanitizeQueryTagKey,
+    sanitizeQueryTagValue,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
 } from '@lightdash/common';
+import Big from 'big.js';
 import { pipeline, Transform } from 'stream';
 import {
     WarehouseCatalog,
@@ -36,6 +44,7 @@ import {
     WarehouseExecuteAsyncQueryArgs,
     WarehouseTableSchema,
 } from '../types';
+import { coerceTagToString } from '../utils/coerceTagToString';
 import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
@@ -43,6 +52,9 @@ import {
 import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
+
+const MAX_RECOMMENDATION_PROJECTS = 8;
+const MAX_RECOMMENDATION_REGIONS_PER_PROJECT = 3;
 
 export enum BigqueryFieldType {
     STRING = 'STRING',
@@ -84,7 +96,26 @@ const parseCell = (cell: AnyType) => {
         return new Date(cell.value);
     }
 
+    // The SDK wraps NUMERIC/BIGNUMERIC in big.js instances; convert to number
+    // (accepting float precision, like the Postgres client's NUMERIC parser)
+    if (cell instanceof Big) {
+        return Number(cell);
+    }
+
     return `${cell}`;
+};
+
+export const getBigqueryTimestampDomain = (
+    type: string | undefined,
+): TimestampDomain | undefined => {
+    switch (type) {
+        case BigqueryFieldType.DATETIME:
+            return 'naive';
+        case BigqueryFieldType.TIMESTAMP:
+            return 'aware';
+        default:
+            return undefined;
+    }
 };
 
 const mapFieldType = (type: string | undefined): DimensionType => {
@@ -220,6 +251,8 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
 }
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
+    private static readonly MAX_LABELS = 64;
+
     client: BigQuery;
 
     constructor(credentials: CreateBigqueryCredentials) {
@@ -268,38 +301,29 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         labels?: Record<string, string>,
     ): Record<string, string> | undefined {
         if (!labels) return undefined;
+        const entries = Object.entries(labels);
+        const orderedEntries = [
+            ...entries.filter(([key]) => !key.startsWith('user_attribute_')),
+            ...entries.filter(([key]) => key.startsWith('user_attribute_')),
+        ];
         return Object.fromEntries(
-            Object.entries(labels).map(([key, value]) => {
-                const safeKey = typeof key === 'string' ? key : String(key);
-                let safeValue: string;
-                if (typeof value === 'string') {
-                    safeValue = value;
-                } else if (value === null || value === undefined) {
-                    safeValue = '';
-                } else {
-                    console.warn(
-                        'BigqueryWarehouseClient.sanitizeLabelsWithValues: coerced non-string label value',
-                        { key: safeKey, valueType: typeof value },
-                    );
-                    safeValue = String(value);
-                }
-                return [
-                    safeKey
-                        .toLowerCase()
-                        .replace(/[^a-z0-9_-]/g, '_')
-                        .substring(0, 60) || 'empty_key',
-                    safeValue
-                        .toLowerCase()
-                        .replace(/[^a-z0-9_-]/g, '_')
-                        .substring(0, 60) || 'empty_value',
-                ];
-            }),
+            orderedEntries
+                .slice(0, BigqueryWarehouseClient.MAX_LABELS)
+                .map(([key, value]) => [
+                    sanitizeQueryTagKey(key),
+                    sanitizeQueryTagValue(
+                        coerceTagToString(value, {
+                            caller: 'BigqueryWarehouseClient.sanitizeLabelsWithValues',
+                            key,
+                        }),
+                    ),
+                ]),
         );
     }
 
     static getFieldsFromResponse(response: QueryRowsResponse[2] | undefined) {
         return (response?.schema?.fields || []).reduce<
-            Record<string, { type: DimensionType }>
+            WarehouseResults['fields']
         >((acc, field) => {
             if (field.name) {
                 return {
@@ -316,12 +340,19 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         options: {
             values?: AnyType[];
             tags?: Record<string, string>;
+            timezone?: string;
         },
     ) {
         return this.client.createQueryJob({
             query,
             params: options?.values,
             useLegacySql: false,
+            // BigQuery has no session timezone; the `time_zone` connection
+            // property is the per-job equivalent — naive DATETIME coercions
+            // and offset-less literals are read in this zone.
+            connectionProperties: options?.timezone
+                ? [{ key: 'time_zone', value: options.timezone }]
+                : undefined,
             maximumBytesBilled: this.credentials.maximumBytesBilled
                 ? `${this.credentials.maximumBytesBilled}`
                 : undefined,
@@ -474,14 +505,19 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 const [database, schema, table, tableSchema] = result;
                 acc[database] = acc[database] || {};
                 acc[database][schema] = acc[database][schema] || {};
-                acc[database][schema][table] =
-                    tableSchema.fields.reduce<WarehouseTableSchema>(
-                        (sum, { name, type }) => ({
-                            ...sum,
-                            [name]: mapFieldType(type),
-                        }),
-                        {},
+                acc[database][schema][table] = {};
+                tableSchema.fields.forEach(({ name, type }) => {
+                    if (name === undefined) return;
+                    acc[database][schema][table][name] = mapFieldType(type);
+                    setCatalogTimestampDomain(
+                        acc,
+                        database,
+                        schema,
+                        table,
+                        name,
+                        getBigqueryTimestampDomain(type),
                     );
+                });
             }
 
             return acc;
@@ -572,6 +608,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 data_type: column.type,
             })),
             mapFieldType,
+            getBigqueryTimestampDomain,
         );
     }
 
@@ -673,15 +710,17 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     async executeAsyncQuery(
-        { sql, tags }: WarehouseExecuteAsyncQueryArgs,
+        { sql, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
         ) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
         try {
+            const queryPhaseStart = performance.now();
             const [job] = await this.createJob(sql, {
                 tags,
+                timezone,
             });
 
             if (!job.id) {
@@ -699,6 +738,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             await this.awaitJobCompletion(job);
 
             const resultsMetadata = await this.getJobResultsMetadata(job);
+            const queryMs = performance.now() - queryPhaseStart;
             const startTime = job.metadata?.statistics?.startTime;
             const endTime = job.metadata?.statistics?.endTime;
             const totalRows: number = resultsMetadata?.totalRows
@@ -708,10 +748,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 BigqueryWarehouseClient.getFieldsFromResponse(resultsMetadata);
 
             // If a callback is provided, stream the results to the callback
+            let fetchMs = 0;
             if (resultsStreamCallback) {
+                const fetchPhaseStart = performance.now();
                 await this.streamResults(job, (row) =>
                     resultsStreamCallback([row], fields),
                 );
+                fetchMs = performance.now() - fetchPhaseStart;
             }
 
             return {
@@ -722,6 +765,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 },
                 totalRows,
                 durationMs: startTime && endTime ? endTime - startTime : 0,
+                phaseTimings: { query: queryMs, fetch: fetchMs },
             };
         } catch (e: unknown) {
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
@@ -749,8 +793,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     static async getDatabases(
         projectId: string,
         refresh_token: string,
-    ): Promise<BigqueryDataset[]> {
-        const bigqueryClient = new BigQuery({
+        bigqueryClient: {
+            getDatasets: () => Promise<DatasetsResponse>;
+            query: (query: string) => Promise<QueryRowsResponse>;
+        } = new BigQuery({
             projectId,
             credentials: {
                 type: 'authorized_user',
@@ -758,15 +804,149 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 client_secret: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_SECRET,
                 refresh_token,
             },
-        });
-
+        }),
+    ): Promise<BigqueryDataset[]> {
         const datasets = await bigqueryClient.getDatasets();
-        const databases = datasets[0].map((d) => ({
-            projectId: d.projectId,
-            location: d.location,
-            datasetId: d.id!,
-        }));
+        const databases = await Promise.all(
+            datasets[0].map(async (dataset, index) => {
+                let sizeBytes: number | null = null;
+                if (index < 25) {
+                    try {
+                        const [rows] = await bigqueryClient.query(
+                            `SELECT SUM(size_bytes) AS sizeBytes FROM \`${dataset.projectId}.${dataset.id}.__TABLES__\``,
+                        );
+                        const size = Number(rows[0]?.sizeBytes);
+                        sizeBytes = Number.isFinite(size) ? size : null;
+                    } catch {
+                        sizeBytes = null;
+                    }
+                }
+
+                return {
+                    projectId: dataset.projectId,
+                    location: dataset.location,
+                    datasetId: dataset.id!,
+                    sizeBytes,
+                };
+            }),
+        );
         return databases;
+    }
+
+    static async getProjectRecommendation(
+        projects: BigqueryProject[],
+        refreshToken: string,
+        bigqueryClientFactory: (projectId: string) => {
+            getDatasets: (
+                options: GetDatasetsOptions,
+            ) => Promise<DatasetsResponse>;
+            query: (options: {
+                query: string;
+                location: string;
+            }) => Promise<QueryRowsResponse>;
+        } = (projectId) => {
+            const client = new BigQuery({
+                projectId,
+                credentials: {
+                    type: 'authorized_user',
+                    client_id: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_ID,
+                    client_secret: process.env.AUTH_GOOGLE_OAUTH2_CLIENT_SECRET,
+                    refresh_token: refreshToken,
+                },
+            });
+            return {
+                getDatasets: (options) => client.getDatasets(options),
+                query: (options) =>
+                    client.query(options.query, { location: options.location }),
+            };
+        },
+    ): Promise<BigqueryProjectRecommendation> {
+        const projectScores = await Promise.all(
+            projects
+                .slice(0, MAX_RECOMMENDATION_PROJECTS)
+                .map(async ({ projectId }) => {
+                    try {
+                        const client = bigqueryClientFactory(projectId);
+                        const [datasets] = await client.getDatasets({
+                            autoPaginate: false,
+                            maxResults: 1000,
+                        });
+                        const locationsByQualifier = new Map<string, string>();
+                        datasets.forEach((dataset) => {
+                            if (dataset.location) {
+                                locationsByQualifier.set(
+                                    dataset.location.toLowerCase(),
+                                    dataset.location,
+                                );
+                            }
+                        });
+                        const locations = Array.from(
+                            locationsByQualifier.entries(),
+                        ).slice(0, MAX_RECOMMENDATION_REGIONS_PER_PROJECT);
+
+                        const regionScores = await Promise.all(
+                            locations.map(async ([qualifier, location]) => {
+                                try {
+                                    const [rows] = await client.query({
+                                        query: `SELECT table_schema, SUM(total_logical_bytes) AS total_bytes FROM \`${projectId}\`.\`region-${qualifier}\`.INFORMATION_SCHEMA.TABLE_STORAGE GROUP BY table_schema`,
+                                        location,
+                                    });
+                                    let largestDatasetSize: number | null =
+                                        null;
+                                    rows.forEach((row) => {
+                                        const size = Number(row.total_bytes);
+                                        if (
+                                            Number.isFinite(size) &&
+                                            (largestDatasetSize === null ||
+                                                size > largestDatasetSize)
+                                        ) {
+                                            largestDatasetSize = size;
+                                        }
+                                    });
+                                    return {
+                                        error: false,
+                                        sizeBytes: largestDatasetSize,
+                                    };
+                                } catch {
+                                    return { error: true, sizeBytes: null };
+                                }
+                            }),
+                        );
+
+                        if (regionScores.some(({ error }) => error)) {
+                            return { projectId, sizeBytes: null };
+                        }
+
+                        const sizeBytes = regionScores.reduce<number | null>(
+                            (largestSize, regionScore) =>
+                                regionScore.sizeBytes !== null &&
+                                (largestSize === null ||
+                                    regionScore.sizeBytes > largestSize)
+                                    ? regionScore.sizeBytes
+                                    : largestSize,
+                            null,
+                        );
+                        return { projectId, sizeBytes };
+                    } catch {
+                        return { projectId, sizeBytes: null };
+                    }
+                }),
+        );
+
+        const recommendation = projectScores.reduce<{
+            projectId: string | null;
+            sizeBytes: number | null;
+        }>(
+            (largestProject, projectScore) =>
+                projectScore.sizeBytes !== null &&
+                (largestProject.sizeBytes === null ||
+                    projectScore.sizeBytes > largestProject.sizeBytes)
+                    ? projectScore
+                    : largestProject,
+            { projectId: null, sizeBytes: null },
+        );
+
+        return { projectId: recommendation.projectId };
     }
 
     static async getProjects(accessToken: string): Promise<BigqueryProject[]> {

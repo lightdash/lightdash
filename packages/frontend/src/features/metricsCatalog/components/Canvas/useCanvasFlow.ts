@@ -24,6 +24,7 @@ import {
     buildAllNodes,
     buildInitialEdges,
     buildInitialNodes,
+    buildNodeMetricData,
     getNodeLayout,
     getPersistedPositionIds,
     type CanvasMetric,
@@ -347,10 +348,10 @@ export const useCanvasFlow = ({
         (event: React.DragEvent) => {
             event.preventDefault();
 
-            const data = event.dataTransfer.getData('application/reactflow');
-            if (!data) return;
-
-            const { catalogSearchUuid } = JSON.parse(data);
+            const catalogSearchUuid = event.dataTransfer.getData(
+                'application/reactflow',
+            );
+            if (!catalogSearchUuid) return;
 
             const nodeData = allNodes.find((n) => n.id === catalogSearchUuid);
             if (!nodeData) return;
@@ -411,9 +412,7 @@ export const useCanvasFlow = ({
                             (n) => n.id === driver.catalogSearchUuid,
                         );
                         const baseData = fromAllNodes?.data ?? {
-                            label: driver.name,
-                            tableName: driver.tableName,
-                            metricName: driver.name,
+                            ...buildNodeMetricData(driver),
                             isEdgeTarget: false,
                             isEdgeSource: false,
                         };

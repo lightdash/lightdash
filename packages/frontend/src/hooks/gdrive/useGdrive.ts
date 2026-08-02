@@ -16,6 +16,7 @@ export const getGdriveAccessToken = async () =>
         url: `/gdrive/get-access-token`,
         method: 'GET',
         body: undefined,
+        sensitive: true,
     });
 
 export const triggerGdriveLogin = async (

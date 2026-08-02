@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for a fanout-protected period-over-period query 1`] = `
+exports[`MetricQueryBuilder snapshot: period-over-period queries > matches snapshot for a fanout-protected period-over-period query 1`] = `
 "WITH
   cte_keys_table2 AS (
     SELECT DISTINCT
@@ -95,7 +95,7 @@ LIMIT
   100"
 `;
 
-exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for a one-to-many fanout-protected period-over-period query 1`] = `
+exports[`MetricQueryBuilder snapshot: period-over-period queries > matches snapshot for a one-to-many fanout-protected period-over-period query 1`] = `
 "WITH
   cte_keys_country_orders AS (
     SELECT DISTINCT
@@ -223,7 +223,7 @@ LIMIT
   100"
 `;
 
-exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for a period-over-period query 1`] = `
+exports[`MetricQueryBuilder snapshot: period-over-period queries > matches snapshot for a period-over-period query 1`] = `
 "WITH
   base_metrics AS (
     SELECT
@@ -282,7 +282,7 @@ LIMIT
   500"
 `;
 
-exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for a period-over-period query with only a date filter 1`] = `
+exports[`MetricQueryBuilder snapshot: period-over-period queries > matches snapshot for a period-over-period query with only a date filter 1`] = `
 "WITH
   base_metrics AS (
     SELECT
@@ -339,7 +339,7 @@ LIMIT
   500"
 `;
 
-exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for a period-over-period query without filters 1`] = `
+exports[`MetricQueryBuilder snapshot: period-over-period queries > matches snapshot for a period-over-period query without filters 1`] = `
 "WITH
   base_metrics AS (
     SELECT
@@ -390,7 +390,7 @@ LIMIT
   500"
 `;
 
-exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for filter-only period-over-period metric with fanout CTEs 1`] = `
+exports[`MetricQueryBuilder snapshot: period-over-period queries > matches snapshot for filter-only period-over-period metric with fanout CTEs 1`] = `
 "WITH
   cte_keys_country_orders AS (
     SELECT DISTINCT
@@ -491,7 +491,7 @@ LIMIT
   100"
 `;
 
-exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for period-over-period fanout query without selecting the base metric 1`] = `
+exports[`MetricQueryBuilder snapshot: period-over-period queries > matches snapshot for period-over-period fanout query without selecting the base metric 1`] = `
 "WITH
   cte_keys_country_orders AS (
     SELECT DISTINCT
@@ -575,7 +575,7 @@ LIMIT
   100"
 `;
 
-exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapshot for period-over-period query combined with fanout metric CTEs 1`] = `
+exports[`MetricQueryBuilder snapshot: period-over-period queries > matches snapshot for period-over-period query combined with fanout metric CTEs 1`] = `
 "WITH
   cte_keys_country_orders AS (
     SELECT DISTINCT

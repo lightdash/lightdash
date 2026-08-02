@@ -68,6 +68,8 @@ export class ContentModel {
             void query.unionAll(config.getSummaryQuery(this.database, filters));
         });
 
+        // Trailing uuid keeps the order stable when the sort column has ties
+        // (e.g. equal view counts), so paginated results don't skip/repeat rows.
         if (queryArgs.sortBy) {
             void query.orderBy([
                 {
@@ -77,6 +79,10 @@ export class ContentModel {
                 {
                     column: queryArgs.sortBy,
                     order: queryArgs.sortDirection ?? 'DESC',
+                },
+                {
+                    column: 'uuid',
+                    order: 'ASC',
                 },
             ]);
         } else {
@@ -88,6 +94,10 @@ export class ContentModel {
                 {
                     column: 'last_updated_at',
                     order: 'DESC',
+                },
+                {
+                    column: 'uuid',
+                    order: 'ASC',
                 },
             ]);
         }

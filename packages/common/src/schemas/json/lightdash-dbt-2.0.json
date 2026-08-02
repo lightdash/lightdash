@@ -189,6 +189,7 @@
                             "compact": {
                                 "type": "string",
                                 "enum": [
+                                    "auto",
                                     "thousands",
                                     "millions",
                                     "billions",
@@ -430,6 +431,19 @@
                 "apostrophePeriod"
             ]
         },
+        "aiHint": {
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            ]
+        },
         "filterItem": {
             "type": "object",
             "additionalProperties": {
@@ -525,11 +539,19 @@
                                 },
                                 "description": {
                                     "type": "string"
+                                },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints inherited by fields in this group for AI-powered query generation"
                                 }
                             },
                             "required": ["label"]
                         }
                     }
+                },
+                "ai_hint": {
+                    "$ref": "#/$defs/aiHint",
+                    "description": "Hints for AI-powered query generation"
                 },
                 "metrics": {
                     "type": "object",
@@ -566,6 +588,10 @@
                                 "description": {
                                     "type": "string",
                                     "minLength": 1
+                                },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints for AI-powered query generation"
                                 },
                                 "sql": {
                                     "type": "string",
@@ -604,6 +630,7 @@
                                 "compact": {
                                     "type": "string",
                                     "enum": [
+                                        "auto",
                                         "thousands",
                                         "millions",
                                         "billions",
@@ -1112,6 +1139,20 @@
                                     "description": "Alias for default_filters (deprecated, use default_filters instead)",
                                     "items": { "$ref": "#/$defs/filterItem" }
                                 },
+                                "tags": {
+                                    "oneOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    ],
+                                    "description": "Tags for organizing and filtering this explore. Overrides model tags when set."
+                                },
                                 "sql_filter": {
                                     "type": "string",
                                     "description": "SQL filter applied to the WHERE clause of all queries using this explore"
@@ -1179,6 +1220,10 @@
                                     "type": "string",
                                     "minLength": 1
                                 },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints for AI-powered query generation"
+                                },
                                 "sql": {
                                     "type": "string",
                                     "minLength": 1
@@ -1215,6 +1260,7 @@
                                 "compact": {
                                     "type": "string",
                                     "enum": [
+                                        "auto",
                                         "thousands",
                                         "millions",
                                         "billions",
@@ -1429,6 +1475,10 @@
                             "type": "string",
                             "minLength": 1
                         },
+                        "ai_hint": {
+                            "$ref": "#/$defs/aiHint",
+                            "description": "Hints for AI-powered query generation"
+                        },
                         "sql": {
                             "type": "string",
                             "minLength": 1
@@ -1436,6 +1486,11 @@
                         "convert_timezone": {
                             "type": "boolean",
                             "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
+                        },
+                        "timestamp_domain": {
+                            "type": "string",
+                            "enum": ["aware", "naive"],
+                            "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
                         },
                         "hidden": {
                             "type": "boolean"
@@ -1507,6 +1562,7 @@
                         "compact": {
                             "type": "string",
                             "enum": [
+                                "auto",
                                 "thousands",
                                 "millions",
                                 "billions",
@@ -1637,6 +1693,35 @@
                                     "description": "Whether this dimension can be used for segmenting in the Metrics Explorer. Defaults to true."
                                 }
                             }
+                        },
+                        "filter_autocomplete": {
+                            "type": "object",
+                            "description": "Configure static filter autocomplete suggestions and warehouse fetching for this dimension.",
+                            "properties": {
+                                "values": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "value": {
+                                                "type": "string"
+                                            },
+                                            "label": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": ["value"]
+                                    }
+                                },
+                                "fetch_from_warehouse": {
+                                    "type": "boolean",
+                                    "description": "When false, filter autocomplete will not fetch values from the warehouse for this dimension. Defaults to true."
+                                },
+                                "label_dimension": {
+                                    "type": "string",
+                                    "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                                }
+                            }
                         }
                     }
                 },
@@ -1663,6 +1748,10 @@
                                 "description": {
                                     "type": "string",
                                     "minLength": 1
+                                },
+                                "ai_hint": {
+                                    "$ref": "#/$defs/aiHint",
+                                    "description": "Hints for AI-powered query generation"
                                 },
                                 "sql": {
                                     "type": "string",
@@ -1717,6 +1806,11 @@
                                     "type": "boolean",
                                     "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
                                 },
+                                "timestamp_domain": {
+                                    "type": "string",
+                                    "enum": ["aware", "naive"],
+                                    "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
+                                },
                                 "hidden": {
                                     "type": "boolean"
                                 },
@@ -1733,6 +1827,7 @@
                                 "compact": {
                                     "type": "string",
                                     "enum": [
+                                        "auto",
                                         "thousands",
                                         "millions",
                                         "billions",
@@ -1853,6 +1948,35 @@
                                                 "type": "string"
                                             }
                                         ]
+                                    }
+                                },
+                                "filter_autocomplete": {
+                                    "type": "object",
+                                    "description": "Configure static filter autocomplete suggestions and warehouse fetching for this dimension.",
+                                    "properties": {
+                                        "values": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "value": {
+                                                        "type": "string"
+                                                    },
+                                                    "label": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": ["value"]
+                                            }
+                                        },
+                                        "fetch_from_warehouse": {
+                                            "type": "boolean",
+                                            "description": "When false, filter autocomplete will not fetch values from the warehouse for this dimension. Defaults to true."
+                                        },
+                                        "label_dimension": {
+                                            "type": "string",
+                                            "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                                        }
                                     }
                                 }
                             }

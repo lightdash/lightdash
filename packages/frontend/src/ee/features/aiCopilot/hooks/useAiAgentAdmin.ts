@@ -1,9 +1,15 @@
 import {
+    type AiAgentAdminEvalFilters,
     type AiAgentAdminFilters,
+    type AiAgentAdminMemoryFilters,
+    type AiAgentAdminMemorySort,
     type AiAgentAdminSort,
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentAdminEvalPromptsResponse,
+    type ApiAiAgentAdminEvalsResponse,
+    type ApiAiAgentAdminMemoriesResponse,
     type ApiAiAgentAdminPromptActivityResponse,
     type ApiAiAgentReviewItemActivityResponse,
     type ApiAiAgentReviewItemPrDiffResponse,
@@ -15,8 +21,11 @@ import {
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
     type ApiUpstreamDiffResponse,
+    type CreateAiAgentReviewItemComment,
+    type CreateAiAgentReviewItem,
     type ReorderAiAgentReviewItems,
     type UpdateAiAgentReviewItemAssignee,
+    type UpdateAiAgentReviewItemPriority,
     type UpdateAiAgentReviewItemStatus,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -107,6 +116,132 @@ export const useInfiniteAiAgentAdminThreads = (
     });
 };
 
+export type AiAgentAdminEvalsArgs = {
+    filters: AiAgentAdminEvalFilters;
+    sort: AiAgentAdminSort;
+    pagination: {
+        pageSize?: number;
+        page?: number;
+    };
+};
+
+const getAiAgentAdminEvals = async (
+    args: AiAgentAdminEvalFilters & {
+        sortField: AiAgentAdminSort['field'];
+        sortDirection: AiAgentAdminSort['direction'];
+    } & {
+        pageSize?: number;
+        page?: number;
+    },
+) => {
+    const params = createQueryString(args);
+    return lightdashApi<ApiAiAgentAdminEvalsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/evals?${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useInfiniteAiAgentAdminEvals = (
+    args: AiAgentAdminEvalsArgs,
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiAiAgentAdminEvalsResponse['results'],
+        ApiError
+    > = {},
+) =>
+    useInfiniteQuery<ApiAiAgentAdminEvalsResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-evals', args],
+        queryFn: ({ pageParam }) =>
+            getAiAgentAdminEvals({
+                ...args.filters,
+                sortField: args.sort.field,
+                sortDirection: args.sort.direction,
+                ...args.pagination,
+                page: (pageParam as number) ?? 1,
+            }),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.pagination) {
+                return lastPage.pagination.page <
+                    lastPage.pagination.totalPageCount
+                    ? lastPage.pagination.page + 1
+                    : undefined;
+            }
+        },
+        ...infinityQueryOpts,
+    });
+
+const getAiAgentAdminEvalPrompts = async (evalUuid: string) =>
+    lightdashApi<ApiAiAgentAdminEvalPromptsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/evals/${encodeURIComponent(evalUuid)}/prompts`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiAgentAdminEvalPrompts = (evalUuid: string | undefined) =>
+    useQuery<ApiAiAgentAdminEvalPromptsResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-eval-prompts', evalUuid],
+        queryFn: () => getAiAgentAdminEvalPrompts(evalUuid!),
+        enabled: !!evalUuid,
+        staleTime: 30 * 1000,
+    });
+
+export type AiAgentAdminMemoriesArgs = {
+    filters: AiAgentAdminMemoryFilters;
+    sort: AiAgentAdminMemorySort;
+    pagination: {
+        pageSize?: number;
+        page?: number;
+    };
+};
+
+const getAiAgentAdminMemories = async (
+    args: AiAgentAdminMemoryFilters & {
+        sortField: AiAgentAdminMemorySort['field'];
+        sortDirection: AiAgentAdminMemorySort['direction'];
+    } & {
+        pageSize?: number;
+        page?: number;
+    },
+) => {
+    const params = createQueryString(args);
+    return lightdashApi<ApiAiAgentAdminMemoriesResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/memories?${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useInfiniteAiAgentAdminMemories = (
+    args: AiAgentAdminMemoriesArgs,
+    infinityQueryOpts: UseInfiniteQueryOptions<
+        ApiAiAgentAdminMemoriesResponse['results'],
+        ApiError
+    > = {},
+) =>
+    useInfiniteQuery<ApiAiAgentAdminMemoriesResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-memories', args],
+        queryFn: ({ pageParam }) =>
+            getAiAgentAdminMemories({
+                ...args.filters,
+                sortField: args.sort.field,
+                sortDirection: args.sort.direction,
+                ...args.pagination,
+                page: (pageParam as number) ?? 1,
+            }),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.pagination) {
+                return lastPage.pagination.page <
+                    lastPage.pagination.totalPageCount
+                    ? lastPage.pagination.page + 1
+                    : undefined;
+            }
+        },
+        ...infinityQueryOpts,
+    });
+
 const getAiAgentAdminProjectPromptActivity = async ({
     projectUuid,
     days,
@@ -174,6 +309,44 @@ const getAiAgentAdminReviewItems = async (args: {
 };
 
 const AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY = 'ai-agent-admin-review-items';
+
+const createAiAgentReviewItem = async (body: CreateAiAgentReviewItem) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+};
+
+export const useCreateAiAgentReviewItem = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemResponse['results'],
+        ApiError,
+        CreateAiAgentReviewItem
+    >({
+        mutationFn: createAiAgentReviewItem,
+        onSuccess: (createdItem) => {
+            showToastSuccess({ title: 'Issue created' });
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item', createdItem.fingerprint],
+                createdItem,
+            );
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to create issue',
+                apiError: error,
+            });
+        },
+    });
+};
 
 export const updateCachedReviewItemLists = (
     queryClient: QueryClient,
@@ -319,6 +492,47 @@ export const useRetestAiAgentReviewRemediation = () => {
         },
         onError: ({ error }) => {
             showToastApiError({ title: 'Failed to retest', apiError: error });
+        },
+    });
+};
+
+const addAiAgentReviewItemComment = async (args: {
+    fingerprint: string;
+    body: string;
+}) => {
+    return lightdashApi<ApiAiAgentReviewItemActivityResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            args.fingerprint,
+        )}/comments`,
+        method: 'POST',
+        body: JSON.stringify({
+            body: args.body,
+        } satisfies CreateAiAgentReviewItemComment),
+    });
+};
+
+export const useAddAiAgentReviewItemComment = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemActivityResponse['results'],
+        ApiError,
+        { fingerprint: string; body: string }
+    >({
+        mutationFn: addAiAgentReviewItemComment,
+        onSuccess: (activity, { fingerprint }) => {
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item-activity', fingerprint],
+                activity,
+            );
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to add comment',
+                apiError: error,
+            });
         },
     });
 };
@@ -516,6 +730,53 @@ export const useUpdateAiAgentReviewItemAssignee = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to update assignee',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const updateAiAgentReviewItemPriority = async (args: {
+    fingerprint: string;
+    priority: UpdateAiAgentReviewItemPriority['priority'];
+}) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(args.fingerprint)}/priority`,
+        method: 'PATCH',
+        body: JSON.stringify({
+            priority: args.priority,
+        } satisfies UpdateAiAgentReviewItemPriority),
+    });
+};
+
+export const useUpdateAiAgentReviewItemPriority = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentReviewItemResponse['results'],
+        ApiError,
+        {
+            fingerprint: string;
+            priority: UpdateAiAgentReviewItemPriority['priority'];
+        }
+    >({
+        mutationFn: updateAiAgentReviewItemPriority,
+        onSuccess: (updatedItem, { fingerprint }) => {
+            showToastSuccess({ title: 'Priority updated' });
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item', fingerprint],
+                updatedItem,
+            );
+            updateCachedReviewItemLists(queryClient, updatedItem);
+            void queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update priority',
                 apiError: error,
             });
         },

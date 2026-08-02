@@ -70,12 +70,19 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
                 innerType = innerType.optional();
             }
 
-            return innerType
-                .describe(
-                    [
-                        v.description ?? '',
-                        v._def.innerType.description ?? '',
-                    ].join(', '),
+            // Accept an explicit null too: descriptions advertise nullable
+            // fields as "or null", so MCP clients send null as often as they
+            // omit the key. Coerce it to undefined before validation and let
+            // the transform below restore null on output.
+            return z
+                .preprocess(
+                    (val) => (val === null ? undefined : val),
+                    innerType.describe(
+                        [
+                            v.description ?? '',
+                            v._def.innerType.description ?? '',
+                        ].join(', '),
+                    ),
                 )
                 .transform((val: AnyType) => (val === undefined ? null : val));
         }

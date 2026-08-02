@@ -1,0 +1,8 @@
+.groupLabel {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    color: var(--mantine-color-ldGray-6);
+    font-weight: 500;
+    background-color: var(--mantine-color-background-0);
+}

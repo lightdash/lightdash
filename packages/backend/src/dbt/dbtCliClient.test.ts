@@ -3,10 +3,8 @@ import execa from 'execa';
 import * as fs from 'fs/promises';
 import { DbtCliClient } from './dbtCliClient';
 import {
-    catalogMock,
     cliArgs as cliArgsWithoutVersion,
     cliMockImplementation,
-    dbtProjectYml,
     expectedCommandOptions,
     expectedDbtOptions,
     expectedPackages,
@@ -14,13 +12,15 @@ import {
     packagesYml,
 } from './dbtCliClient.mock';
 
-const execaMock = execa as unknown as jest.Mock;
+const execaMock = execa as unknown as import('vitest').Mock;
 
-jest.mock('fs/promises', () => ({
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
+vi.mock('fs/promises', () => ({
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    mkdtemp: vi.fn(),
+    rm: vi.fn(),
 }));
-jest.mock('execa');
+vi.mock('execa');
 
 Object.values(SupportedDbtVersions).map((dbtVersion) => {
     const cliArgs = {
@@ -29,7 +29,10 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
     };
     return describe(`DbtCliClient ${dbtVersion}`, () => {
         beforeEach(() => {
-            jest.resetAllMocks();
+            vi.resetAllMocks();
+            vi.mocked(fs.mkdtemp).mockResolvedValue(
+                '/tmp/dbt_target_test' as never,
+            );
         });
         it('should install dependencies with success', async () => {
             execaMock.mockImplementationOnce(cliMockImplementation.success);
@@ -54,10 +57,7 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
         });
         it('should get manifest with success', async () => {
             execaMock.mockImplementationOnce(cliMockImplementation.success);
-            jest.spyOn(fs, 'readFile').mockImplementationOnce(
-                async () => dbtProjectYml,
-            );
-            jest.spyOn(fs, 'readFile').mockImplementationOnce(async () =>
+            vi.spyOn(fs, 'readFile').mockImplementationOnce(async () =>
                 JSON.stringify(manifestMock),
             );
 
@@ -83,7 +83,7 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             );
         });
         it('should get packages with success', async () => {
-            jest.spyOn(fs, 'readFile').mockImplementationOnce(
+            vi.spyOn(fs, 'readFile').mockImplementationOnce(
                 async () => packagesYml,
             );
 
@@ -94,7 +94,7 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             );
         });
         it('should ignore error when packages.yml doesnt exist', async () => {
-            jest.spyOn(fs, 'readFile').mockImplementationOnce(() => {
+            vi.spyOn(fs, 'readFile').mockImplementationOnce(() => {
                 throw new Error('file not found');
             });
 

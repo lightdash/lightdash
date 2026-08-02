@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     createLightdashApiClient,
+    type LightdashAiAgentThreadResults,
     type LightdashApiClientConfig,
     type LightdashContentResults,
+    type ListAiAgentThreadsOptions,
     type ListContentOptions,
 } from './api';
-import type { ApiError } from '@lightdash/common';
 
 type UseLightdashApiState<T> = {
     data: T | null;
@@ -76,7 +77,7 @@ const useLightdashApiQuery = <T,>(
                 if (abortController.signal.aborted) return;
                 setState({ data, error: null, isLoading: false });
             })
-            .catch((error: ApiError | Error | unknown) => {
+            .catch((error: unknown) => {
                 if (abortController.signal.aborted) return;
                 setState({
                     data: null,
@@ -126,5 +127,30 @@ export const useLightdashContent = (
         key,
         enabled,
         useCallback(() => client.listContent(args), [args, client]),
+    );
+};
+
+export const useLightdashAiAgentThreads = (
+    config: LightdashApiClientConfig,
+    args: ListAiAgentThreadsOptions,
+    options: UseLightdashApiOptions = {},
+): UseLightdashApiResult<LightdashAiAgentThreadResults> => {
+    const client = useLightdashApiClient(config);
+    const key = JSON.stringify([
+        'ai-agent-threads',
+        config.instanceUrl,
+        config.projectUuid ?? null,
+        config.auth ?? null,
+        args,
+    ]);
+    const enabled =
+        options.enabled !== false &&
+        args.agentUuid.length > 0 &&
+        !!(args.projectUuid ?? config.projectUuid);
+
+    return useLightdashApiQuery(
+        key,
+        enabled,
+        useCallback(() => client.listAiAgentThreads(args), [args, client]),
     );
 };

@@ -53,7 +53,6 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
             value: ContentType.CHART,
             label: (
                 <Tooltip
-                    variant="xs"
                     label="Show only deleted charts"
                     withinPortal
                     maw={200}

@@ -34,9 +34,51 @@
                 ]
             }
         },
+        "FilterAutocomplete": {
+            "type": "object",
+            "properties": {
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "value": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["value"]
+                    }
+                },
+                "fetch_from_warehouse": {
+                    "type": "boolean"
+                },
+                "label_dimension": {
+                    "type": "string",
+                    "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
+                }
+            }
+        },
+        "DefaultTimeDimension": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "interval": {
+                    "type": "string",
+                    "enum": ["DAY", "WEEK", "MONTH", "YEAR"]
+                }
+            },
+            "required": ["field", "interval"]
+        },
         "Compact": {
             "type": "string",
             "enum": [
+                "auto",
                 "thousands",
                 "millions",
                 "billions",
@@ -187,6 +229,11 @@
                     "type": "boolean",
                     "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
                 },
+                "timestamp_domain": {
+                    "type": "string",
+                    "enum": ["aware", "naive"],
+                    "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
+                },
                 "hidden": {
                     "type": "boolean"
                 },
@@ -221,6 +268,9 @@
                 },
                 "any_attributes": {
                     "$ref": "#/definitions/AnyAttributes"
+                },
+                "filter_autocomplete": {
+                    "$ref": "#/definitions/FilterAutocomplete"
                 }
             }
         },
@@ -245,6 +295,11 @@
                     "type": "boolean",
                     "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
                 },
+                "timestamp_domain": {
+                    "type": "string",
+                    "enum": ["aware", "naive"],
+                    "description": "Declares whether this timestamp column stores an instant ('aware') or a bare wall clock ('naive'); overrides the warehouse catalog."
+                },
                 "hidden": {
                     "type": "boolean"
                 },
@@ -279,6 +334,9 @@
                 },
                 "any_attributes": {
                     "$ref": "#/definitions/AnyAttributes"
+                },
+                "filter_autocomplete": {
+                    "$ref": "#/definitions/FilterAutocomplete"
                 }
             }
         },
@@ -370,6 +428,9 @@
                 },
                 "tags": {
                     "$ref": "#/definitions/Tags"
+                },
+                "default_time_dimension": {
+                    "$ref": "#/definitions/DefaultTimeDimension"
                 }
             }
         },
@@ -393,6 +454,21 @@
                         "$ref": "#/definitions/LightdashMetric"
                     },
                     "default": {}
+                }
+            }
+        },
+        "LightdashColumnConfig": {
+            "type": "object",
+            "properties": {
+                "meta": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/LightdashColumnMetadata"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
                 }
             }
         },
@@ -486,11 +562,21 @@
                     },
                     "maxItems": 5
                 },
+                "metrics": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/LightdashMetric"
+                    },
+                    "default": {}
+                },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
                 },
                 "any_attributes": {
                     "$ref": "#/definitions/AnyAttributes"
+                },
+                "default_time_dimension": {
+                    "$ref": "#/definitions/DefaultTimeDimension"
                 }
             },
             "default": {}

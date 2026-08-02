@@ -1,5 +1,5 @@
 import { ValueLabelPositionOptions } from '@lightdash/common';
-import { Box, Group, Select, Text } from '@mantine/core';
+import { Box, Group, Text, Select } from '@mantine-8/core';
 import {
     IconArrowDown,
     IconArrowLeft,
@@ -12,6 +12,7 @@ import {
 import capitalize from 'lodash/capitalize';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import classes from './SelectConfig.module.css';
 
 const ValueLabelIcon: FC<{
     position: ValueLabelPositionOptions | undefined;
@@ -56,9 +57,9 @@ const ValueLabelItem = forwardRef<
         value: ValueLabelPositionOptions;
         selected: boolean;
     }
->(({ value, ...others }, ref) => (
+>(({ value, selected: _selected, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Group noWrap spacing="xs">
+        <Group wrap="nowrap" gap="xs">
             <ValueLabelIcon position={value} />
             <Text>{capitalize(value)}</Text>
         </Group>
@@ -71,40 +72,25 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
 }) => {
     return (
         <Select
+            allowDeselect={false}
             radius="md"
             data={Object.values(ValueLabelPositionOptions).map((option) => ({
                 value: option,
                 label: capitalize(option),
             }))}
-            itemComponent={ValueLabelItem}
-            icon={<ValueLabelIcon position={valueLabelPosition} />}
+            renderOption={({ option, checked }) => (
+                <ValueLabelItem
+                    value={option.value as ValueLabelPositionOptions}
+                    selected={checked ?? false}
+                />
+            )}
+            leftSection={<ValueLabelIcon position={valueLabelPosition} />}
             value={valueLabelPosition}
             onChange={(value) =>
                 value &&
                 onChangeValueLabelPosition(value as ValueLabelPositionOptions)
             }
-            styles={(theme) => ({
-                root: {
-                    flex: 1,
-                },
-                input: {
-                    fontWeight: 500,
-                    borderColor: theme.colors.ldGray[2],
-                },
-                item: {
-                    '&[data-selected="true"]': {
-                        color: theme.colors.ldGray[7],
-                        fontWeight: 500,
-                        backgroundColor: theme.colors.ldGray[2],
-                    },
-                    '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.ldGray[3],
-                    },
-                    '&:hover': {
-                        backgroundColor: theme.colors.ldGray[1],
-                    },
-                },
-            })}
+            classNames={classes}
         />
     );
 };

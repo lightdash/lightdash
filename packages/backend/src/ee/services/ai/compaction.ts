@@ -189,8 +189,12 @@ export class Compaction {
         switch (item.type) {
             case 'chart':
                 return `chart ${item.displayName ?? item.chartUuid} (${item.chartUuid})`;
-            case 'dashboard':
-                return `dashboard ${item.displayName ?? item.dashboardUuid} (${item.dashboardUuid})`;
+            case 'dashboard': {
+                const activeTab = item.runtimeOverrides?.activeTab;
+                return `dashboard ${item.displayName ?? item.dashboardUuid} (${item.dashboardUuid})${
+                    activeTab ? `; active tab "${activeTab.name}"` : ''
+                }`;
+            }
             case 'thread':
                 return `conversation ${item.displayName ?? item.threadUuid} (${item.threadUuid})`;
             // Spell out the repo-filesystem mount path so the agent reads the

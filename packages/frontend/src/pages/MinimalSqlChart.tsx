@@ -1,14 +1,17 @@
 import {
     assertUnreachable,
+    isVizBigNumberConfig,
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     isVizTableConfig,
 } from '@lightdash/common';
-import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
+import { Box } from '@mantine-8/core';
+import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { memo, type FC, type JSX } from 'react';
 import { useParams } from 'react-router';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
+import BigNumberView from '../components/DataViz/visualizations/BigNumberView';
 import ChartView from '../components/DataViz/visualizations/ChartView';
 import { Table } from '../components/DataViz/visualizations/Table';
 import { useSavedSqlChartResults } from '../features/sqlRunner/hooks/useSavedSqlChartResults';
@@ -93,6 +96,16 @@ const MinimalSqlChartContent = memo(
                         flexProps={{ mah: '100%' }}
                     />
                 </Box>
+            );
+        } else if (isVizBigNumberConfig(chartData.config)) {
+            const { fieldConfig } = chartData.config;
+            visualization = (
+                <BigNumberView
+                    spec={chartResultsData.chartSpec}
+                    isLoading={isChartResultsFetching}
+                    error={undefined}
+                    hasValueField={!!fieldConfig?.y?.length}
+                />
             );
         } else if (
             isVizCartesianChartConfig(chartData.config) ||

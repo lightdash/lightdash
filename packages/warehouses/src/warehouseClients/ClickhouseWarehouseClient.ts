@@ -11,12 +11,14 @@ import {
     getErrorMessage,
     Metric,
     MetricType,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
 import {
@@ -68,9 +70,7 @@ interface TableInfo {
     table: string;
 }
 
-export const convertDataTypeToDimensionType = (
-    type: ClickhouseTypes | string,
-): DimensionType => {
+const cleanClickhouseType = (type: ClickhouseTypes | string): string => {
     // Iteratively unwrap Nullable/LowCardinality wrappers in any nesting order
     // e.g. LowCardinality(Nullable(Int32)) -> Nullable(Int32) -> Int32
     let cleanType = type;
@@ -82,7 +82,27 @@ export const convertDataTypeToDimensionType = (
             .replace(/^LowCardinality\((.+)\)$/, '$1');
     }
     // Strip all parenthesized arguments (handles Decimal(18,2), DateTime64(3,'UTC'), FixedString(N), etc.)
-    cleanType = cleanType.replace(/\(.*\)$/, '');
+    return cleanType.replace(/\(.*\)$/, '');
+};
+
+// ClickHouse has no naive timestamp type: DateTime/DateTime64 store epoch
+// instants and their zone is display metadata, so they are always aware.
+export const getClickhouseTimestampDomain = (
+    type: ClickhouseTypes | string,
+): TimestampDomain | undefined => {
+    switch (cleanClickhouseType(type)) {
+        case ClickhouseTypes.DATETIME:
+        case ClickhouseTypes.DATETIME64:
+            return 'aware';
+        default:
+            return undefined;
+    }
+};
+
+export const convertDataTypeToDimensionType = (
+    type: ClickhouseTypes | string,
+): DimensionType => {
+    const cleanType = cleanClickhouseType(type);
 
     switch (cleanType) {
         case ClickhouseTypes.BOOL:
@@ -140,6 +160,14 @@ const catalogToSchema = (
             warehouseCatalog[database][tableSchema || 'default'][tableName][
                 columnName
             ] = convertDataTypeToDimensionType(dataType);
+            setCatalogTimestampDomain(
+                warehouseCatalog,
+                database,
+                tableSchema || 'default',
+                tableName,
+                columnName,
+                getClickhouseTimestampDomain(dataType),
+            );
         });
     });
     return warehouseCatalog;
@@ -418,7 +446,11 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 databaseName,
             },
         );
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getClickhouseTimestampDomain,
+        );
     }
 
     async getFields(
@@ -450,7 +482,11 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 tableName,
             },
         );
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getClickhouseTimestampDomain,
+        );
     }
 
     async getAllTables() {

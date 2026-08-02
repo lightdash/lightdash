@@ -3,13 +3,13 @@ import {
     Button,
     Group,
     Loader,
-    NumberInput,
     Select,
     Stack,
     Text,
 } from '@mantine-8/core';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { NumberInput } from '../../../components/common/NumberInput';
 import { useAppDispatch, useAppSelector } from '../store';
 import {
     addStep,

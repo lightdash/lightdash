@@ -5,7 +5,7 @@ import {
     wrapResourceView,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { ActionIcon, Group, Stack, TextInput } from '@mantine/core';
+import { TextInput, Group, Stack, ActionIcon } from '@mantine-8/core';
 import { IconFolders, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
@@ -68,8 +68,8 @@ const MobileSpaces: FC = () => {
 
     return (
         <>
-            <Stack spacing="md" m="lg">
-                <Group position="apart">
+            <Stack gap="md" m="lg">
+                <Group justify="space-between">
                     <PageBreadcrumbs
                         items={[
                             { to: '/home', title: 'Home' },
@@ -78,10 +78,17 @@ const MobileSpaces: FC = () => {
                     />
                 </Group>
                 <TextInput
-                    icon={<MantineIcon icon={IconSearch} />}
+                    leftSection={<MantineIcon icon={IconSearch} />}
+                    rightSectionPointerEvents="all"
                     rightSection={
                         search ? (
-                            <ActionIcon onClick={() => setSearch('')}>
+                            <ActionIcon
+                                aria-label="Clear search"
+                                onMouseDown={(event) => event.preventDefault()}
+                                variant="subtle"
+                                color="gray"
+                                onClick={() => setSearch('')}
+                            >
                                 <MantineIcon icon={IconX} />
                             </ActionIcon>
                         ) : null

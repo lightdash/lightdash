@@ -1,60 +1,44 @@
 import {
+    EXTERNAL_CONNECTION_METHODS,
     type ExternalConnection,
+    type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
     type ExternalFetchResponse,
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
-    Code,
     Divider,
     Group,
-    ScrollArea,
-    SegmentedControl,
+    Select,
     Stack,
     Text,
     Textarea,
     TextInput,
 } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconTrash } from '@tabler/icons-react';
-import { type FC, useState } from 'react';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { type ClipboardEvent, type FC, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import { ConnectionTestResult } from '../../../features/externalConnections/components/ConnectionTestResult';
 import { useConnectionSamples } from '../../../features/externalConnections/hooks/useConnectionSamples';
 import { useDeleteConnectionSample } from '../../../features/externalConnections/hooks/useDeleteConnectionSample';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import { useTestConnection } from '../../../features/externalConnections/hooks/useTestConnection';
 import MantineIcon from '../../common/MantineIcon';
 
-const MAX_BODY_RENDER_CHARS = 4000;
 const MAX_SAMPLE_PREVIEW_CHARS = 200;
+
+type QueryParam = { uuid: string; key: string; value: string };
 
 const parseJson = (value: string): unknown => {
     if (!value.trim()) {
         return undefined;
     }
     return JSON.parse(value);
-};
-
-const parseQueryParams = (
-    value: string,
-): Record<string, string> | undefined => {
-    const parsed = parseJson(value);
-    if (parsed === undefined) {
-        return undefined;
-    }
-    if (
-        parsed === null ||
-        typeof parsed !== 'object' ||
-        Array.isArray(parsed) ||
-        !Object.values(parsed).every((v) => typeof v === 'string')
-    ) {
-        throw new Error('Query params must be a JSON object of strings');
-    }
-    return parsed as Record<string, string>;
 };
 
 const isValidJson = (value: string): boolean => {
@@ -66,21 +50,56 @@ const isValidJson = (value: string): boolean => {
     }
 };
 
-const isValidQueryParams = (value: string): boolean => {
-    try {
-        parseQueryParams(value);
-        return true;
-    } catch {
-        return false;
+/** Collapse the key/value rows into the `Record<string, string>` the API
+ *  expects, dropping rows with a blank key. Returns undefined when empty. */
+const buildQuery = (
+    params: QueryParam[],
+): Record<string, string> | undefined => {
+    const entries = params
+        .map((p) => [p.key.trim(), p.value] as const)
+        .filter(([key]) => key.length > 0);
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+};
+
+/** Split a pasted path or full URL into its path and any query params, so the
+ *  user doesn't have to hand-enter query params they already have in a URL. */
+const parsePathInput = (
+    raw: string,
+): { path: string; query: { key: string; value: string }[] } => {
+    let pathPart = raw;
+    let search = '';
+    const queryIndex = raw.indexOf('?');
+    if (queryIndex >= 0) {
+        pathPart = raw.slice(0, queryIndex);
+        search = raw.slice(queryIndex + 1);
     }
+    // A full URL was pasted — reduce it to pathname + search.
+    try {
+        const url = new URL(raw);
+        pathPart = url.pathname;
+        search = url.search.replace(/^\?/, '');
+    } catch {
+        // Not an absolute URL; keep the parts from the '?' split above.
+    }
+    const query: { key: string; value: string }[] = [];
+    if (search) {
+        new URLSearchParams(search).forEach((value, key) => {
+            query.push({ key, value });
+        });
+    }
+    return { path: pathPart, query };
 };
 
 const exampleFormSchema = z.object({
-    method: z.enum(['GET', 'POST']),
+    method: z.enum(EXTERNAL_CONNECTION_METHODS),
     path: z.string().min(1, 'Path is required'),
-    queryParams: z.string().refine(isValidQueryParams, {
-        message: 'Query params must be a JSON object with string values',
-    }),
+    queryParams: z.array(
+        z.object({
+            uuid: z.string(),
+            key: z.string(),
+            value: z.string(),
+        }),
+    ),
     requestBody: z.string().refine(isValidJson, {
         message: 'Request body must be valid JSON',
     }),
@@ -184,7 +203,7 @@ export const ConnectionExamplesPanel: FC<Props> = ({
         initialValues: {
             method: 'GET',
             path: '/',
-            queryParams: '',
+            queryParams: [],
             requestBody: '',
             sampleLabel: '',
         },
@@ -204,14 +223,30 @@ export const ConnectionExamplesPanel: FC<Props> = ({
         connection.externalConnectionUuid,
     );
 
+    // Pasting a URL (or path) with a query string splits the query out into the
+    // key/value rows instead of leaving it stuck in the path. The pasted URL is
+    // treated as the whole request, so it replaces any existing query params.
+    // Only intercept when there's a query to extract; otherwise paste normally.
+    const handlePathPaste = (event: ClipboardEvent<HTMLInputElement>) => {
+        const pasted = event.clipboardData.getData('text');
+        if (!pasted.includes('?')) return;
+        event.preventDefault();
+        const { path, query } = parsePathInput(pasted);
+        form.setFieldValue('path', path);
+        form.setFieldValue(
+            'queryParams',
+            query.map((q) => ({ uuid: uuidv4(), ...q })),
+        );
+    };
+
     const handleTest = () => {
         form.onSubmit((values) => {
             const request: ExternalConnectionSampleRequest = {
                 method: values.method,
                 path: values.path,
-                query: parseQueryParams(values.queryParams),
+                query: buildQuery(values.queryParams),
                 body:
-                    values.method === 'POST'
+                    values.method !== 'GET'
                         ? parseJson(values.requestBody)
                         : undefined,
             };
@@ -252,34 +287,83 @@ export const ConnectionExamplesPanel: FC<Props> = ({
             </Stack>
 
             <Group align="flex-end" gap="xs">
-                <SegmentedControl
+                <Select
+                    label="Method"
+                    w={110}
+                    allowDeselect={false}
                     value={form.values.method}
                     onChange={(v) => {
-                        form.setFieldValue('method', v as 'GET' | 'POST');
+                        if (!v) return;
+                        form.setFieldValue(
+                            'method',
+                            v as ExternalConnectionMethod,
+                        );
                         testMutation.reset();
                     }}
-                    data={['GET', 'POST']}
-                    size="xs"
-                    mb="xxs"
+                    data={[...EXTERNAL_CONNECTION_METHODS]}
                 />
                 <TextInput
                     label="Path"
                     placeholder="/v1/endpoint"
                     style={{ flexGrow: 1 }}
+                    onPaste={handlePathPaste}
                     {...form.getInputProps('path')}
                 />
             </Group>
 
-            <Textarea
-                label="Query params (JSON)"
-                description="Sent as URL query params. Values must be strings."
-                placeholder='{"latitude": "52.52", "longitude": "13.41"}'
-                rows={3}
-                ff="monospace"
-                {...form.getInputProps('queryParams')}
-            />
+            <Stack gap={4}>
+                <Text fz="sm" fw={500}>
+                    Query params
+                </Text>
+                <Text c="ldGray.6" fz="xs">
+                    Sent as URL query params. Tip: paste a URL with a query
+                    string into the path field to fill these in automatically.
+                </Text>
+                {form.values.queryParams.map((param, index) => (
+                    <Group key={param.uuid} gap="xs" wrap="nowrap">
+                        <TextInput
+                            size="xs"
+                            placeholder="key"
+                            style={{ flex: 1 }}
+                            {...form.getInputProps(`queryParams.${index}.key`)}
+                        />
+                        <TextInput
+                            size="xs"
+                            placeholder="value"
+                            style={{ flex: 1 }}
+                            {...form.getInputProps(
+                                `queryParams.${index}.value`,
+                            )}
+                        />
+                        <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            onClick={() =>
+                                form.removeListItem('queryParams', index)
+                            }
+                        >
+                            <MantineIcon icon={IconTrash} />
+                        </ActionIcon>
+                    </Group>
+                ))}
+                <Button
+                    variant="subtle"
+                    size="compact-sm"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    style={{ alignSelf: 'flex-start' }}
+                    onClick={() =>
+                        form.insertListItem('queryParams', {
+                            uuid: uuidv4(),
+                            key: '',
+                            value: '',
+                        })
+                    }
+                >
+                    Add query param
+                </Button>
+            </Stack>
 
-            {form.values.method === 'POST' && (
+            {form.values.method !== 'GET' && (
                 <Textarea
                     label="Request body (JSON)"
                     placeholder='{"key": "value"}'
@@ -302,58 +386,36 @@ export const ConnectionExamplesPanel: FC<Props> = ({
 
             {testMutation.data && (
                 <Stack gap="xs">
-                    <Group gap="xs">
-                        <Badge
-                            color={
-                                testMutation.data.status < 300
-                                    ? 'green'
-                                    : testMutation.data.status < 500
-                                      ? 'yellow'
-                                      : 'red'
-                            }
-                        >
-                            {testMutation.data.status}
-                        </Badge>
-                        <Text fz="xs" c="ldGray.6">
-                            {testMutation.data.contentType}
-                        </Text>
-                        {testMutation.data.truncated && (
-                            <Badge color="yellow">truncated</Badge>
-                        )}
-                    </Group>
+                    <ConnectionTestResult response={testMutation.data} />
 
-                    <ScrollArea.Autosize mah={260} offsetScrollbars>
-                        <Code block fz="xs">
-                            {JSON.stringify(
-                                testMutation.data.body,
-                                null,
-                                2,
-                            ).slice(0, MAX_BODY_RENDER_CHARS)}
-                        </Code>
-                    </ScrollArea.Autosize>
+                    {testMutation.data.status < 300 && (
+                        <>
+                            <TextInput
+                                label="Sample label (optional)"
+                                placeholder="e.g. Current weather Berlin"
+                                size="xs"
+                                {...form.getInputProps('sampleLabel')}
+                            />
 
-                    <TextInput
-                        label="Sample label (optional)"
-                        placeholder="e.g. Current weather Berlin"
-                        size="xs"
-                        {...form.getInputProps('sampleLabel')}
-                    />
-
-                    <Group>
-                        <Button
-                            type="button"
-                            size="xs"
-                            variant="outline"
-                            onClick={() => handleSaveSample(testMutation.data!)}
-                            loading={saveSampleMutation.isLoading}
-                        >
-                            Save as sample
-                        </Button>
-                        <Text fz="xs" c="ldGray.6">
-                            Saved samples ground Claude in the API&apos;s
-                            response shape.
-                        </Text>
-                    </Group>
+                            <Group>
+                                <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="outline"
+                                    onClick={() =>
+                                        handleSaveSample(testMutation.data!)
+                                    }
+                                    loading={saveSampleMutation.isLoading}
+                                >
+                                    Save as sample
+                                </Button>
+                                <Text fz="xs" c="ldGray.6">
+                                    Saved samples ground Claude in the
+                                    API&apos;s response shape.
+                                </Text>
+                            </Group>
+                        </>
+                    )}
                 </Stack>
             )}
 

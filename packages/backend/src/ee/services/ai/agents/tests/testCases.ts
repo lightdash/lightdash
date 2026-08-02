@@ -239,6 +239,25 @@ export const testCases: TestCase[] = [
             `The status filter must be combined with the date selection under AND, so completed status applies to both March and May (not OR'd across the whole group, which would make status optional)`,
         ].join('\n'),
     },
+    {
+        // IMPORTANT: guards against "false absence" claims — the worst failure
+        // mode of field discovery. When a discovery tool (grep/FTS) returns
+        // noisy or empty results, the agent may confidently tell the user the
+        // data isn't modeled when it is. The prompt plants a false premise
+        // ("I don't think we track...") about a field that DOES exist
+        // (payments.payment_method); the agent must find it, not agree.
+        name: 'should not claim a modeled field is missing (false absence)',
+        prompt: "I don't think we track how customers pay us, but just in case: can you break our revenue down by the way the payment was made?",
+        expectedAnswer: [
+            `The response does NOT claim the data is missing, unavailable, or not tracked`,
+            `It does NOT agree with the false premise in the question`,
+            `It provides (or starts building) revenue broken down by payment method (e.g. credit_card, coupon, bank_transfer, gift_card)`,
+        ].join('\n'),
+        expectedToolOutcome: [
+            `It should have used field discovery (grepFields, findFields or findExplores) and found the payment method dimension on the payments explore`,
+            `It must NOT conclude from a noisy or empty discovery result that the field does not exist`,
+        ].join('\n'),
+    },
 ];
 
 type Context = {

@@ -143,7 +143,7 @@ const MetricDimensionItem: FC<{
                     style={{ backgroundColor: itemColors.bg }}
                     styles={{
                         inner: {
-                            color: 'black',
+                            color: 'var(--mantine-color-ldDark-9)',
                         },
                         label: {
                             maxWidth: '100%',

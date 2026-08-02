@@ -1,4 +1,8 @@
-import { ChartType, type SavedChart } from '@lightdash/common';
+import {
+    ChartType,
+    type CreateSavedChartVersion,
+    type SavedChart,
+} from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Provider } from 'react-redux';
@@ -35,7 +39,7 @@ const EmbedExploreView: FC<{ exploreId: string }> = ({ exploreId }) => {
 
 const EmbedExploreContent: FC<{
     exploreId: string;
-    savedChart: SavedChart;
+    savedChart: SavedChart | CreateSavedChartVersion;
 }> = ({ exploreId, savedChart }) => {
     // Create store with embed-specific state
     // Using useState - store is created once when component mounts
@@ -98,7 +102,7 @@ const EmbedExploreContent: FC<{
 type Props = {
     containerStyles?: React.CSSProperties;
     exploreId: string;
-    savedChart: SavedChart;
+    savedChart: SavedChart | CreateSavedChartVersion;
 };
 
 const EmbedExplore: FC<Props> = ({

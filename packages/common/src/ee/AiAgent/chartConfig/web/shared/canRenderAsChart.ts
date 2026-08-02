@@ -1,4 +1,5 @@
 import { type MetricQuery } from '../../../../../types/metricQuery';
+import { isMetricsOnlyFunnel } from '../../shared/isMetricsOnlyFunnel';
 import { type AiAgentChartTypeOption } from '../types';
 
 /**
@@ -21,11 +22,18 @@ export const canRenderAsChart = (
                 metricQuery.metrics.length > 0
             );
         case 'pie':
-        case 'funnel':
-            // Pie and funnel charts require at least one dimension and one metric
+            // Pie charts require at least one dimension and one metric
             return (
                 metricQuery.dimensions.length > 0 &&
                 metricQuery.metrics.length > 0
+            );
+        case 'funnel':
+            // Funnel stages come either from rows (dimension + metric) or
+            // from the metric columns of a single-row result (no dimension)
+            return (
+                (metricQuery.dimensions.length > 0 &&
+                    metricQuery.metrics.length > 0) ||
+                isMetricsOnlyFunnel(metricQuery)
             );
         default:
             return false;

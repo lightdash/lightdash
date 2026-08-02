@@ -4,6 +4,7 @@ import { useToggle } from 'react-use';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { Config } from '../../common/Config';
+import compactStyles from '../../mantineTheme.module.css';
 
 type Props = {
     label: string;
@@ -28,6 +29,10 @@ export const AxisMinMax: FC<Props> = ({ label, min, max, setMin, setMax }) => {
     return (
         <Group wrap="nowrap" gap="xs">
             <Switch
+                size="xs"
+                classNames={{
+                    label: compactStyles.compactCheckboxLabel,
+                }}
                 label={isAuto && label}
                 checked={isAuto}
                 onChange={() => {
@@ -46,12 +51,14 @@ export const AxisMinMax: FC<Props> = ({ label, min, max, setMin, setMax }) => {
                 <Group wrap="nowrap" gap="xs">
                     <Config.Label>Min</Config.Label>
                     <TextInput
+                        size="xs"
                         placeholder="Min"
                         defaultValue={min || undefined}
                         onBlur={(e) => setMin(e.currentTarget.value)}
                     />
                     <Config.Label>Max</Config.Label>
                     <TextInput
+                        size="xs"
                         placeholder="Max"
                         defaultValue={max || undefined}
                         onBlur={(e) => setMax(e.currentTarget.value)}

@@ -29,6 +29,7 @@ export type SchedulerCsvOptions = {
 
 export type SchedulerImageOptions = {
     withPdf?: boolean;
+    pagePerTab?: boolean;
 };
 
 export type SchedulerGsheetsOptions = {
@@ -38,7 +39,9 @@ export type SchedulerGsheetsOptions = {
     url: string;
     tabName?: string;
 };
-export type SchedulerPdfOptions = Record<string, never>;
+export type SchedulerPdfOptions = {
+    pagePerTab?: boolean;
+};
 export type SchedulerOptions =
     | SchedulerCsvOptions
     | SchedulerImageOptions
@@ -110,6 +113,7 @@ export type ThresholdOptions = {
 
 export type SchedulerBase = {
     schedulerUuid: string;
+    slug: string;
     name: string;
     message?: string;
     createdAt: Date;
@@ -173,11 +177,30 @@ export type SqlChartScheduler = SchedulerBase & {
     appUuid: null;
 };
 
+/**
+ * A data app's shareable URL state (the page's `?state=` param, parsed),
+ * snapshotted onto the scheduler so the delivery renders that view.
+ * Keep the size cap in sync with MAX_URL_STATE_CHARS in
+ * packages/query-sdk/src/urlState.ts and useAppUrlStateSync.
+ */
+export type SchedulerAppState = Record<string, unknown>;
+
+export const MAX_SCHEDULER_APP_STATE_CHARS = 4096;
+
+export const isValidSchedulerAppState = (
+    value: unknown,
+): value is SchedulerAppState =>
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    JSON.stringify(value).length <= MAX_SCHEDULER_APP_STATE_CHARS;
+
 export type AppScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: null;
     savedSqlUuid: null;
     appUuid: string;
+    appState?: SchedulerAppState;
 };
 
 export const isAppScheduler = (
@@ -204,6 +227,26 @@ export type SchedulerAndTargets = Scheduler & {
     )[];
     latestRun?: SchedulerRun | null;
 };
+
+export type SchedulerAiAugmentationType = 'agent' | 'fast_model';
+
+/**
+ * Enterprise-only AI augmentation attached to a scheduled delivery. On each
+ * fire the agent (or ambient fast model) writes the delivery message from the
+ * delivery's content and the prompt. Persisted in the EE `scheduler_ai_augmentation`
+ * satellite table, not on the scheduler itself, so OSS carries none of it.
+ */
+export type SchedulerAiAugmentation =
+    | {
+          type: 'agent';
+          prompt: string;
+          agentUuid: string;
+          sourceThreadUuid: string | null;
+      }
+    | {
+          type: 'fast_model';
+          prompt: string;
+      };
 
 export type SchedulerSlackTarget = {
     schedulerSlackTargetUuid: string;
@@ -286,6 +329,7 @@ export type UpdateSchedulerEmailTarget = Pick<
 export type CreateSchedulerAndTargets = Omit<
     Scheduler,
     | 'schedulerUuid'
+    | 'slug'
     | 'createdAt'
     | 'updatedAt'
     | 'createdByName'
@@ -293,7 +337,17 @@ export type CreateSchedulerAndTargets = Omit<
     | 'dashboardName'
     | 'savedSqlName'
 > & {
+    slug?: string;
     targets: CreateSchedulerTarget[];
+    // Transient: carries the AI augmentation for an unsaved "send now" so the
+    // worker can run it without a persisted row. Never written to the scheduler
+    // table (persisted separately via the ai-augmentation sub-resource).
+    aiAugmentation?: SchedulerAiAugmentation | null;
+    // Transient: "send now" from the edit modal of a saved scheduler carries
+    // that scheduler's uuid so delivery links can open the delivery. Only used
+    // for link building — must not reclassify the payload as a saved scheduler
+    // (send-now filter/batch semantics key off schedulerUuid being absent).
+    sourceSchedulerUuid?: string;
 };
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
@@ -317,6 +371,8 @@ export type UpdateSchedulerAndTargets = Pick<
     filters?: SchedulerFilters;
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
+    selectedTabs?: string[] | null;
+    appState?: SchedulerAppState | null;
     targets: Array<
         | CreateSchedulerTarget
         | UpdateSchedulerSlackTarget
@@ -487,6 +543,11 @@ export type ApiSchedulerAndTargetsResponse = {
     results: SchedulerAndTargets;
 };
 
+export type ApiSchedulerAiAugmentationResponse = {
+    status: 'ok';
+    results: SchedulerAiAugmentation | null;
+};
+
 export type ApiAppSchedulersResponse = {
     status: 'ok';
     results: SchedulerAndTargets[];
@@ -581,6 +642,11 @@ export const getSchedulerUuid = (
 ): string | undefined =>
     'schedulerUuid' in data ? data.schedulerUuid : undefined;
 
+export const getSourceSchedulerUuid = (
+    data: CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>,
+): string | undefined =>
+    'sourceSchedulerUuid' in data ? data.sourceSchedulerUuid : undefined;
+
 export enum LightdashPage {
     DASHBOARD = 'dashboard',
     CHART = 'chart',
@@ -588,6 +654,13 @@ export enum LightdashPage {
     SQL_CHART = 'sql_chart',
     APP = 'app',
 }
+
+// Info-only delivery notice — never a failure, must not affect run status.
+export type DeliveryNotice = {
+    type: 'limit_reached';
+    label: string;
+    rowCount: number;
+};
 
 export type NotificationPayloadBase = {
     schedulerUuid?: string;
@@ -620,7 +693,9 @@ export type NotificationPayloadBase = {
             source: string;
             fileName: string;
         };
+        pdfPageCount?: number;
         failures?: PartialFailure[];
+        notices?: DeliveryNotice[];
     };
     scheduler: CreateSchedulerAndTargets;
 };
@@ -789,6 +864,7 @@ export type ExportContentPayload = TraceTaskBase & {
     dateZoomGranularity?: DateGranularity | string;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    parameters?: ParametersValuesMap;
 };
 
 export type ExportContentRequest = {
@@ -798,6 +874,7 @@ export type ExportContentRequest = {
     dateZoomGranularity?: DateGranularity | string;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    parameters?: ParametersValuesMap;
 };
 
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
@@ -812,6 +889,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
     encodedJwt?: string;
 };
 

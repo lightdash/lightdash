@@ -1,4 +1,4 @@
-import { Skeleton } from '@mantine/core';
+import { Skeleton } from '@mantine-8/core';
 import { lazy, Suspense, type FC } from 'react';
 import { type SuggestionsItem } from '../../types';
 
@@ -7,7 +7,7 @@ import { type SuggestionsItem } from '../../types';
 type LazyEditor = import('@tiptap/react').Editor;
 
 // Lazy load the CommentWithMentions component to reduce initial bundle size
-// This component includes heavy prosemirror dependencies via @tiptap and @mantine/tiptap
+// This component includes heavy prosemirror dependencies via @tiptap and @mantine-8/tiptap
 const CommentWithMentionsComponent = lazy(() =>
     import('./index').then((module) => ({
         default: module.CommentWithMentions,

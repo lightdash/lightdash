@@ -7,7 +7,7 @@ import {
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Stack, Tooltip } from '@mantine/core';
+import { Box, Group, Stack, ActionIcon, Tooltip } from '@mantine-8/core';
 import { IconMinus, IconPlus, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -41,16 +41,16 @@ const YFieldsAxisConfig: FC<{
     return (
         <>
             <Box
-                sx={(theme) => ({
-                    paddingLeft: !isSingle ? theme.spacing.xs : 0,
+                style={{
+                    paddingLeft: !isSingle ? 'var(--mantine-spacing-xs)' : 0,
                     borderLeft: !isSingle
-                        ? `1px solid ${theme.colors.ldGray[3]}`
+                        ? '1px solid var(--mantine-color-ldGray-3)'
                         : 0,
-                })}
+                }}
             >
                 <Config>
                     <Config.Section>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <FieldReferenceSelect
                                 flex={1}
                                 data={yLayoutOptions.map((y) => ({
@@ -103,7 +103,7 @@ const YFieldsAxisConfig: FC<{
                                     )
                                 }
                             />
-                            <Tooltip variant="xs" label="Remove Y axis">
+                            <Tooltip label="Remove Y axis">
                                 <ActionIcon
                                     color="ldGray.6"
                                     variant="subtle"
@@ -140,7 +140,7 @@ const XFieldAxisConfig = ({
     const dispatch = useVizDispatch();
 
     return (
-        <Group spacing="xs">
+        <Group gap="xs">
             <FieldReferenceSelect
                 flex={1}
                 data={xLayoutOptions.map((x) => ({
@@ -179,7 +179,7 @@ const XFieldAxisConfig = ({
                     )
                 }
             />
-            <Tooltip variant="xs" label="Remove X axis">
+            <Tooltip label="Remove X axis">
                 <ActionIcon
                     color="ldGray.6"
                     variant="subtle"
@@ -216,6 +216,8 @@ const GroupByFieldAxisConfig = ({
                 // When the field is deleted, the error state prevents the clear button from showing
                 groupByError && (
                     <ActionIcon
+                        variant="subtle"
+                        color="gray"
                         onClick={() =>
                             dispatch(actions.unsetGroupByReference())
                         }
@@ -296,7 +298,7 @@ export const CartesianChartFieldConfiguration = ({
     );
 
     return (
-        <Stack spacing="xl" mt="sm">
+        <Stack gap="xl" mt="sm">
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>
@@ -315,7 +317,7 @@ export const CartesianChartFieldConfiguration = ({
                 <Config.Section>
                     <Config.Group>
                         <Config.Heading>{`Y-axis`}</Config.Heading>
-                        <Tooltip variant="xs" label="Add Y axis">
+                        <Tooltip label="Add Y axis">
                             <ActionIcon
                                 color="ldGray.6"
                                 variant="subtle"

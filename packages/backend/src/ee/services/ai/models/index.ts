@@ -1,5 +1,13 @@
-import { assertUnreachable, ParameterError } from '@lightdash/common';
+import {
+    assertUnreachable,
+    isByoAiProvider,
+    ParameterError,
+    type AiModelOption,
+    type AiOrgModelVisibility,
+    type ByoAiProvider,
+} from '@lightdash/common';
 import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
+import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
 import { getAnthropicModel } from './anthropic-claude';
@@ -8,6 +16,7 @@ import { getBedrockModel } from './bedrock';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
 import {
+    keyGrantsModel,
     matchesPreset,
     MODEL_PRESETS,
     ModelPreset,
@@ -17,12 +26,66 @@ import { AiModel, AiProvider } from './types';
 
 export { MODEL_PRESETS };
 
+/**
+ * Copilot config as consumed by the model builders. `byoProviders` is stamped
+ * by the resolver (OrgAiCopilotConfigResolver) listing the providers whose
+ * apiKey came from the org's own self-managed key; absent/empty for the
+ * instance (Lightdash-managed) config. Optional so the raw instance config is
+ * still a valid input (it resolves to Lightdash-managed). Instance-level
+ * customer-owned keys are declared separately via
+ * `selfManagedProviders` (AI_COPILOT_SELF_MANAGED_PROVIDERS) on the config
+ * itself.
+ */
+export type CopilotConfigForModel = LightdashConfig['ai']['copilot'] & {
+    byoProviders?: ByoAiProvider[];
+};
+
+export const resolveKeyManagement = (
+    config: CopilotConfigForModel,
+    provider: AiProvider,
+): AiKeyManagement =>
+    (isByoAiProvider(provider) &&
+        (config.byoProviders ?? []).includes(provider)) ||
+    (config.selfManagedProviders ?? []).includes(provider)
+        ? 'self-managed'
+        : 'lightdash-managed';
+
+const withKeyManagement = <P extends AiProvider>(
+    modelProperties: AiModel<P>,
+    keyManagement: AiKeyManagement,
+): AiModel<P> & { keyManagement: AiKeyManagement } => ({
+    ...modelProperties,
+    keyManagement,
+});
+
 // Fast models for lightweight tasks (text generation, summaries, etc.)
 // These are cheaper and faster than default models
 const FAST_MODELS: Record<ModelPresetProvider, string> = {
     openai: 'gpt-5-mini',
     anthropic: 'claude-haiku-4-5',
     bedrock: 'claude-haiku-4-5',
+};
+
+// Picks the model an ambient/fast task should use on a BYO Anthropic key:
+// the fast model when the key can serve it, otherwise the first shipped preset
+// the key can access (e.g. an org whose key only unlocks claude-opus-4-8).
+// A null accessible list means the models probe failed — fall back to the fast
+// model optimistically and let the request itself surface any access error.
+// Returns null only when the key can access no shipped Anthropic preset.
+export const pickAmbientAnthropicPreset = (
+    accessibleModelIds: string[] | null,
+): ModelPreset<'anthropic'> | null => {
+    const fast =
+        MODEL_PRESETS.anthropic.find((preset) =>
+            matchesPreset(preset, FAST_MODELS.anthropic),
+        ) ?? null;
+    if (accessibleModelIds === null) return fast;
+    if (fast && keyGrantsModel(accessibleModelIds, fast.modelId)) return fast;
+    return (
+        MODEL_PRESETS.anthropic.find((preset) =>
+            keyGrantsModel(accessibleModelIds, preset.modelId),
+        ) ?? null
+    );
 };
 
 // Returns null when the configured default provider isn't set up (e.g. the
@@ -102,6 +165,65 @@ export const getAvailableModels = (
     });
 };
 
+export const presetToModelOption = (
+    preset: ModelPreset<'openai' | 'anthropic' | 'bedrock'>,
+    defaultModel: { name: string; provider: string } | null,
+): AiModelOption => ({
+    name: preset.name,
+    displayName: preset.displayName,
+    description: preset.description,
+    provider: preset.provider,
+    default:
+        defaultModel !== null &&
+        preset.provider === defaultModel.provider &&
+        matchesPreset(preset, defaultModel.name),
+    supportsReasoning: preset.supportsReasoning,
+});
+
+export type OrgModelOverrides = {
+    modelVisibility: AiOrgModelVisibility | null;
+    // Model ids each org BYO key can access; missing/null = unknown → fail closed
+    keyAccessibleModelIds: Partial<
+        Record<ByoAiProvider, string[] | null>
+    > | null;
+};
+
+/**
+ * Org-level filter for model LISTINGS only — never applied in getModelPreset
+ * resolution, so agents already configured with a hidden or disallowed model
+ * keep working (grandfathered); they just can't be selected again.
+ */
+export const filterModelsForOrg = (
+    presets: ModelPreset<'openai' | 'anthropic' | 'bedrock'>[],
+    overrides: OrgModelOverrides,
+): ModelPreset<'openai' | 'anthropic' | 'bedrock'>[] =>
+    presets.filter((preset) => {
+        // Only BYO-able providers can unlock hidden models or be restricted
+        const byoProvider = isByoAiProvider(preset.provider)
+            ? preset.provider
+            : null;
+        if (preset.hiddenUnlessKeyAccess) {
+            const accessibleIds = byoProvider
+                ? overrides.keyAccessibleModelIds?.[byoProvider]
+                : null;
+            if (
+                !accessibleIds ||
+                !keyGrantsModel(accessibleIds, preset.modelId)
+            )
+                return false;
+        }
+        if (!byoProvider) return true;
+        const visibility = overrides.modelVisibility?.[byoProvider];
+        if (!visibility) return true;
+        if (!visibility.enabled) return false;
+        if (visibility.allowedModels && visibility.allowedModels.length > 0) {
+            return visibility.allowedModels.some((model) =>
+                matchesPreset(preset, model),
+            );
+        }
+        return true;
+    });
+
 export const getModelPreset = <T extends 'openai' | 'anthropic' | 'bedrock'>(
     provider: T,
     config: LightdashConfig['ai']['copilot'],
@@ -179,7 +301,7 @@ export const applyStreamingCapability = <P extends AiProvider>(
 };
 
 export const getModel = (
-    config: LightdashConfig['ai']['copilot'],
+    config: CopilotConfigForModel,
     options?: {
         enableReasoning?: boolean;
         modelName?: string;
@@ -192,6 +314,7 @@ export const getModel = (
     },
 ) => {
     const provider = options?.provider ?? config.defaultProvider;
+    const keyManagement = resolveKeyManagement(config, provider);
 
     // Resolve model name: explicit > fast > default
     const resolveModelName = (
@@ -207,11 +330,14 @@ export const getModel = (
                 config,
                 resolveModelName('openai'),
             );
-            return applyStreamingCapability(
-                getOpenaiGptmodel(openaiConfig, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                openaiConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getOpenaiGptmodel(openaiConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    openaiConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'azure': {
@@ -220,9 +346,12 @@ export const getModel = (
                 throw new ParameterError('Azure configuration is required');
             }
             // Azure doesn't use presets - uses deployment name directly
-            return applyStreamingCapability(
-                getAzureGpt41Model(azureConfig),
-                azureConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getAzureGpt41Model(azureConfig),
+                    azureConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'anthropic': {
@@ -231,11 +360,14 @@ export const getModel = (
                 config,
                 resolveModelName('anthropic'),
             );
-            return applyStreamingCapability(
-                getAnthropicModel(anthropicConfig, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                anthropicConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getAnthropicModel(anthropicConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    anthropicConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'openrouter': {
@@ -246,9 +378,12 @@ export const getModel = (
                 );
             }
             // OpenRouter doesn't use presets - uses model name directly
-            return applyStreamingCapability(
-                getOpenRouterModel(openrouterConfig),
-                openrouterConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getOpenRouterModel(openrouterConfig),
+                    openrouterConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         case 'bedrock': {
@@ -257,16 +392,50 @@ export const getModel = (
                 config,
                 resolveModelName('bedrock'),
             );
-            return applyStreamingCapability(
-                getBedrockModel(bedrockConfig, preset, {
-                    enableReasoning: options?.enableReasoning,
-                }),
-                bedrockConfig.supportsStreaming,
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getBedrockModel(bedrockConfig, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    bedrockConfig.supportsStreaming,
+                ),
+                keyManagement,
             );
         }
         default:
             return assertUnreachable(provider, `Invalid provider: ${provider}`);
     }
+};
+
+// Fast/lightweight-task model resolution that is BYO-key-aware. When the config
+// resolves to a BYO Anthropic key, pick a fast model the key can serve (falling
+// back to any accessible preset like opus 4.8 instead of erroring on haiku).
+// Otherwise fall back to the standard fast-model selection. Never resolves to a
+// provider the org didn't supply (defaultProvider is already switched upstream).
+export const getFastModelForAccessibleKey = (
+    config: CopilotConfigForModel,
+    accessibleModelIds: string[] | null,
+    options?: { enableReasoning?: boolean },
+) => {
+    const { anthropic } = config.providers;
+    if (anthropic?.apiKey) {
+        const preset = pickAmbientAnthropicPreset(accessibleModelIds);
+        if (preset) {
+            return withKeyManagement(
+                applyStreamingCapability(
+                    getAnthropicModel(anthropic, preset, {
+                        enableReasoning: options?.enableReasoning,
+                    }),
+                    anthropic.supportsStreaming,
+                ),
+                resolveKeyManagement(config, 'anthropic'),
+            );
+        }
+    }
+    return getModel(config, {
+        useFastModel: true,
+        enableReasoning: options?.enableReasoning,
+    });
 };
 
 export const getCompactionModelMetadata = (

@@ -33,16 +33,19 @@ const UserMenu: FC = () => {
             <Menu.Dropdown>
                 <ThemeSwitcherMenuItem />
 
-                <Menu.Item
-                    role="menuitem"
-                    component={Link}
-                    to="/generalSettings"
-                    leftSection={<MantineIcon icon={IconUserCircle} />}
-                >
-                    User settings
-                </Menu.Item>
+                {user.data?.isSetupComplete ? (
+                    <Menu.Item
+                        role="menuitem"
+                        component={Link}
+                        to="/generalSettings"
+                        leftSection={<MantineIcon icon={IconUserCircle} />}
+                    >
+                        User settings
+                    </Menu.Item>
+                ) : null}
 
-                {user.data?.ability?.can('create', 'InviteLink') ? (
+                {user.data?.isSetupComplete &&
+                user.data?.ability?.can('create', 'InviteLink') ? (
                     <Menu.Item
                         role="menuitem"
                         component={Link}

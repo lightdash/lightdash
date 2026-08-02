@@ -41,7 +41,10 @@ export const LauncherDockProvider: FC<PropsWithChildren> = ({ children }) => {
                 );
                 return {
                     ...(prev ?? {}),
-                    [projectUuid]: trim([...without, item]),
+                    [projectUuid]: trim([
+                        ...without,
+                        { ...item, createdAt: item.createdAt ?? Date.now() },
+                    ]),
                 };
             });
         },

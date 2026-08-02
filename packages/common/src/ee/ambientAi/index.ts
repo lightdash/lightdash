@@ -1,5 +1,9 @@
 import { type DashboardSummary } from '../../types/dashboard';
-import { type Field, type TableCalculation } from '../../types/field';
+import {
+    type CustomSqlDimension,
+    type Field,
+    type TableCalculation,
+} from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
 
 export type ApiAiDashboardSummaryResponse = {
@@ -64,6 +68,31 @@ export type GeneratedTableCalculation = {
 export type ApiAiGenerateTableCalculationResponse = {
     status: 'ok';
     results: GeneratedTableCalculation;
+};
+
+export type CustomDimensionFieldContext = Pick<
+    Field,
+    'name' | 'label' | 'description' | 'type' | 'table'
+> & {
+    id: string;
+};
+
+export type GenerateCustomDimensionRequest = {
+    prompt: string;
+    tableName: string;
+    fieldsContext: CustomDimensionFieldContext[];
+    currentSql?: string;
+};
+
+export type GeneratedCustomDimension = {
+    sql: string;
+    displayName: CustomSqlDimension['name'];
+    dimensionType: CustomSqlDimension['dimensionType'];
+};
+
+export type ApiAiGenerateCustomDimensionResponse = {
+    status: 'ok';
+    results: GeneratedCustomDimension;
 };
 
 export type FormulaAiContext = {

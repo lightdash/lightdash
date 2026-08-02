@@ -145,6 +145,7 @@ export const spaceEntry: SpaceTable['base'] = {
 export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_id: 0,
     saved_query_uuid: '123',
+    project_uuid: 'project_uuid',
     space_id: 0,
     name: 'chart name',
     slug: 'chart-name',
@@ -166,6 +167,7 @@ export const savedChartEntry: SavedChartTable['base'] = {
 export const dashboardEntry: DashboardTable['base'] = {
     dashboard_id: 0,
     dashboard_uuid: 'my_dashboard_uuid',
+    project_uuid: projectEntry.project_uuid,
     name: 'name',
     slug: 'name',
 
@@ -373,6 +375,8 @@ export const user: SessionUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     timezone: null,
     isSetupComplete: true,
     userId: 0,

@@ -1,13 +1,19 @@
-import { FeatureFlags } from '@lightdash/common';
+import {
+    DELIVERY_CAPTURE_GLOBAL,
+    FeatureFlags,
+    QueryExecutionContext,
+    type DeliveryCaptureManifest,
+} from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconAppsOff } from '@tabler/icons-react';
-import { useCallback, useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Navigate, useParams, useSearchParams } from 'react-router';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
+import { createDeliveryCaptureAccumulator } from '../features/apps/deliveryCapture/deliveryCaptureAccumulator';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { type QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -46,13 +52,28 @@ export default function MinimalApp() {
         projectUuid: string;
         appUuid: string;
     }>();
+    const [searchParams] = useSearchParams();
+    const captureModeParam = searchParams.get('captureMode');
+    const captureMode: 'delivery' | 'preview' | null =
+        captureModeParam === 'delivery' || captureModeParam === 'preview'
+            ? captureModeParam
+            : null;
+    const deliveryCapture = useMemo(
+        () => (captureMode ? createDeliveryCaptureAccumulator() : undefined),
+        [captureMode],
+    );
+    // The published manifest doubles as the "already published" flag.
+    const [manifest, setManifest] = useState<DeliveryCaptureManifest | null>(
+        null,
+    );
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
     const appQuery = useGetApp(projectUuid, appUuid);
-    const latestReadyVersion = appQuery.data?.pages[0]?.versions.find(
-        (v) => v.status === 'ready',
-    )?.version;
+    // Authoritative across ALL versions — the ready version may be older than
+    // the fetched page of versions, so never scan `versions` for it.
+    const latestReadyVersion =
+        appQuery.data?.pages[0]?.latestReadyVersion ?? undefined;
 
     const {
         data: token,
@@ -68,10 +89,18 @@ export default function MinimalApp() {
     const [activeQueryIds, setActiveQueryIds] = useState<Set<string>>(
         () => new Set(),
     );
+    const [pendingCaptureCount, setPendingCaptureCount] = useState(0);
 
     const handleIframeLoad = useCallback(() => {
         setIframeLoaded(true);
-    }, []);
+        if (deliveryCapture) {
+            deliveryCapture.reset();
+            setManifest(null);
+            delete (window as unknown as Record<string, unknown>)[
+                DELIVERY_CAPTURE_GLOBAL
+            ];
+        }
+    }, [deliveryCapture]);
 
     const handleScreenshotAvailable = useCallback((available: boolean) => {
         setSdkAlive(available);
@@ -104,6 +133,14 @@ export default function MinimalApp() {
         return () => clearTimeout(timer);
     }, [iframeLoaded]);
 
+    // In capture modes the accumulator — not the QueryEvent projection — is
+    // the delivery contract: a `/query/chart` POST is in-flight there before
+    // any QueryEvent exists for it, so readiness must consume it too.
+    useEffect(() => {
+        if (!deliveryCapture) return;
+        return deliveryCapture.subscribe(setPendingCaptureCount);
+    }, [deliveryCapture]);
+
     // Debounced ready signal: only true once the SDK has announced (or the
     // fallback timer has elapsed) AND in-flight query count has been zero
     // for APP_QUIET_DEBOUNCE_MS. Gating on the SDK announce — not the
@@ -111,9 +148,38 @@ export default function MinimalApp() {
     // between iframe HTML load and the SDK bundle bootstrapping, which
     // was the root cause of blank/mid-animation screenshots.
     const [isReady] = useDebouncedValue(
-        (sdkAlive || sdkAliveFallback) && activeQueryIds.size === 0,
+        (sdkAlive || sdkAliveFallback) &&
+            activeQueryIds.size === 0 &&
+            // Always 0 outside capture modes (no accumulator, no subscription).
+            pendingCaptureCount === 0,
         APP_QUIET_DEBOUNCE_MS,
     );
+
+    // Publishes the captured manifest to the window global exactly once per
+    // settle, before the indicator (which UnfurlService waits on) can mount.
+    useEffect(() => {
+        if (!isReady || !captureMode || !deliveryCapture || manifest !== null)
+            return;
+        let cancelled = false;
+        void deliveryCapture
+            .getManifest()
+            .then((captured) => {
+                if (cancelled) return;
+                (window as unknown as Record<string, unknown>)[
+                    DELIVERY_CAPTURE_GLOBAL
+                ] = captured;
+                setManifest(captured);
+            })
+            // A rejection here would otherwise leave the indicator unmounted
+            // until the render times out, with nothing in the logs.
+            .catch((e) =>
+                console.error('[delivery-capture] manifest publish failed', e),
+            );
+        return () => {
+            cancelled = true;
+        };
+    }, [isReady, captureMode, deliveryCapture, manifest]);
+    const indicatorReady = captureMode ? isReady && manifest !== null : isReady;
 
     if (dataAppsFlag.isLoading) return null;
     if (!dataAppsFlag.data?.enabled) {
@@ -147,11 +213,13 @@ export default function MinimalApp() {
 
     if (!appQuery.isLoading && !appQuery.error && !latestReadyVersion) {
         return (
-            <Stack align="center" justify="center" h="100vh">
-                <Text c="red" size="sm">
-                    No ready version found for this app
-                </Text>
-            </Stack>
+            <Box h="100vh">
+                <SuboptimalState
+                    icon={IconAppsOff}
+                    title="No ready version"
+                    description="This data app hasn't finished building yet."
+                />
+            </Box>
         );
     }
 
@@ -194,8 +262,18 @@ export default function MinimalApp() {
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
+                deliveryCapture={deliveryCapture}
+                invalidateCache={captureMode === 'delivery' ? true : undefined}
+                queryContextOverride={
+                    captureMode === 'delivery'
+                        ? QueryExecutionContext.SCHEDULED_DELIVERY
+                        : undefined
+                }
+                // Seeds the app from ?state= so scheduled deliveries with a
+                // saved app state screenshot that view, not the default one.
+                urlStateSync
             />
-            {isReady && (
+            {indicatorReady && (
                 <ScreenshotReadyIndicator
                     tilesTotal={1}
                     tilesReady={1}

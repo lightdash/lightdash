@@ -1,0 +1,197 @@
+import {
+    AI_WRITEBACK_RUN_FINALIZING_STATUSES,
+    AI_WRITEBACK_RUN_TERMINAL_STATUSES,
+    type AiWritebackRunStatus,
+    type AiWritebackSource,
+} from '@lightdash/common';
+import { Knex } from 'knex';
+import {
+    AiWritebackRunTable,
+    AiWritebackRunTableName,
+    DbAiWritebackRun,
+} from '../database/entities/ai';
+
+type Dependencies = {
+    database: Knex;
+};
+
+export class AiWritebackRunModel {
+    private database: Knex;
+
+    constructor(dependencies: Dependencies) {
+        this.database = dependencies.database;
+    }
+
+    async findByUuid(
+        aiWritebackRunUuid: string,
+    ): Promise<DbAiWritebackRun | undefined> {
+        return this.database<AiWritebackRunTable>(AiWritebackRunTableName)
+            .where('ai_writeback_run_uuid', aiWritebackRunUuid)
+            .first();
+    }
+
+    async findLatestByProjectUuidAndPrUrl(
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<DbAiWritebackRun | undefined> {
+        return this.database<AiWritebackRunTable>(AiWritebackRunTableName)
+            .where('project_uuid', projectUuid)
+            .where('pr_url', prUrl)
+            .orderBy('created_at', 'desc')
+            .first();
+    }
+
+    async create(data: {
+        organizationUuid: string;
+        projectUuid: string;
+        aiThreadUuid: string | null;
+        createdByUserUuid: string;
+        source: AiWritebackSource;
+        promptUuid: string | null;
+        toolCallId: string | null;
+    }): Promise<DbAiWritebackRun> {
+        const [row] = await this.database<AiWritebackRunTable>(
+            AiWritebackRunTableName,
+        )
+            .insert({
+                organization_uuid: data.organizationUuid,
+                project_uuid: data.projectUuid,
+                ai_thread_uuid: data.aiThreadUuid,
+                created_by_user_uuid: data.createdByUserUuid,
+                source: data.source,
+                prompt_uuid: data.promptUuid,
+                tool_call_id: data.toolCallId,
+            })
+            .returning('*');
+        return row;
+    }
+
+    async updateStageIfInProgress(
+        aiWritebackRunUuid: string,
+        status: AiWritebackRunStatus,
+    ): Promise<void> {
+        await this.database<AiWritebackRunTable>(AiWritebackRunTableName)
+            .where('ai_writeback_run_uuid', aiWritebackRunUuid)
+            .whereNotIn('status', [...AI_WRITEBACK_RUN_TERMINAL_STATUSES])
+            .update({
+                status,
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+    }
+
+    async markReady(
+        aiWritebackRunUuid: string,
+        data: { branchName: string | null; prUrl: string | null },
+    ): Promise<boolean> {
+        const updatedRows = await this.database<AiWritebackRunTable>(
+            AiWritebackRunTableName,
+        )
+            .where('ai_writeback_run_uuid', aiWritebackRunUuid)
+            .whereNotIn('status', [...AI_WRITEBACK_RUN_TERMINAL_STATUSES])
+            .update({
+                status: 'ready',
+                branch_name: data.branchName,
+                pr_url: data.prUrl,
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updatedRows > 0;
+    }
+
+    /**
+     * Cooperative cancellation: only flips a run that is still non-terminal
+     * AND has not begun its git side effects — once claimForFinalize moved
+     * the row into a finalizing stage, cancellation loses the race so an
+     * in-flight push can never end up on a row that reads cancelled. Returns
+     * whether the run was cancelled by this call.
+     */
+    async markCancelled(aiWritebackRunUuid: string): Promise<boolean> {
+        const updatedRows = await this.database<AiWritebackRunTable>(
+            AiWritebackRunTableName,
+        )
+            .where('ai_writeback_run_uuid', aiWritebackRunUuid)
+            .whereNotIn('status', [
+                ...AI_WRITEBACK_RUN_TERMINAL_STATUSES,
+                ...AI_WRITEBACK_RUN_FINALIZING_STATUSES,
+            ])
+            .update({
+                status: 'cancelled',
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updatedRows > 0;
+    }
+
+    /**
+     * Atomic arbitration between cancellation and git side effects: moves a
+     * still-running row into the 'commit' finalizing stage in one guarded
+     * UPDATE. If this returns false the run went terminal (cancelled or
+     * swept) first and the pipeline must abort before committing, pushing,
+     * or opening a pull request; if it returns true, markCancelled can no
+     * longer flip the row.
+     */
+    async claimForFinalize(aiWritebackRunUuid: string): Promise<boolean> {
+        const updatedRows = await this.database<AiWritebackRunTable>(
+            AiWritebackRunTableName,
+        )
+            .where('ai_writeback_run_uuid', aiWritebackRunUuid)
+            .whereNotIn('status', [...AI_WRITEBACK_RUN_TERMINAL_STATUSES])
+            .update({
+                status: 'commit',
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updatedRows > 0;
+    }
+
+    async markError(
+        aiWritebackRunUuid: string,
+        errorMessage: string,
+    ): Promise<boolean> {
+        const updatedRows = await this.database<AiWritebackRunTable>(
+            AiWritebackRunTableName,
+        )
+            .where('ai_writeback_run_uuid', aiWritebackRunUuid)
+            .whereNotIn('status', [...AI_WRITEBACK_RUN_TERMINAL_STATUSES])
+            .update({
+                status: 'error',
+                error_message: errorMessage,
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updatedRows > 0;
+    }
+
+    /**
+     * Atomically mark every actively-running run whose last update predates the
+     * threshold as errored, returning the rows it changed. A run only lingers in
+     * a stage past the job's own timeout when the worker died (pod
+     * crash/redeploy) before either the in-process catch or the timeout callback
+     * could finalize it — this is the out-of-band recovery for that case. The
+     * returned prompt/tool-call linkage lets the caller also un-stick the chat
+     * card, not just the run row.
+     *
+     * 'pending' runs are deliberately excluded: a worker moves a run off
+     * 'pending' the moment it picks it up, so a still-'pending' run has not been
+     * started by any worker and is not a died-mid-run case to reclaim.
+     */
+    async markStaleRunsAsError(
+        thresholdMinutes: number,
+        errorMessage: string,
+    ): Promise<DbAiWritebackRun[]> {
+        return this.database<AiWritebackRunTable>(AiWritebackRunTableName)
+            .whereNotIn('status', [
+                ...AI_WRITEBACK_RUN_TERMINAL_STATUSES,
+                'pending',
+            ])
+            .andWhere(
+                'updated_at',
+                '<',
+                this.database.raw("now() - (? * interval '1 minute')", [
+                    thresholdMinutes,
+                ]),
+            )
+            .update({
+                status: 'error',
+                error_message: errorMessage,
+                updated_at: this.database.fn.now() as unknown as Date,
+            })
+            .returning('*');
+    }
+}

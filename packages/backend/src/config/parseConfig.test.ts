@@ -7,6 +7,7 @@ import {
     ParseError,
     SentryConfig,
     WarehouseTypes,
+    WeekDay,
 } from '@lightdash/common';
 import { VERSION } from '../version';
 import {
@@ -24,9 +25,9 @@ import {
     parseOrganizationMemberRoleArray,
 } from './parseConfig';
 
-jest.mock('fs/promises', () => ({
-    readFile: jest.fn(),
-    writeFile: jest.fn(),
+vi.mock('fs/promises', () => ({
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -235,6 +236,19 @@ test('Should throw error when secret missing', () => {
 test('Should include secret in output', () => {
     process.env.LIGHTDASH_SECRET = 'so very secret';
     expect(parseConfig().lightdashSecret).toEqual('so very secret');
+});
+
+test('Should use the Lightdash secret as the Slack state secret fallback', () => {
+    process.env.LIGHTDASH_SECRET = 'instance-specific-secret';
+    expect(parseConfig().slack?.stateSecret).toEqual(
+        'instance-specific-secret',
+    );
+});
+
+test('Should prefer an explicit Slack state secret', () => {
+    process.env.LIGHTDASH_SECRET = 'instance-specific-secret';
+    process.env.SLACK_STATE_SECRET = 'slack-specific-secret';
+    expect(parseConfig().slack?.stateSecret).toEqual('slack-specific-secret');
 });
 
 test('Should parse bedrock inference profile prefix from env', () => {
@@ -648,12 +662,23 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
                 config.headlessBrowser.internalLightdashHostIgnoreHttpsErrors,
             ).toBe(false);
         });
+
+        test('screenshotTimeoutMs defaults to 180000', () => {
+            const config = parseConfig();
+            expect(config.headlessBrowser.screenshotTimeoutMs).toBe(180000);
+        });
+
+        test('screenshotTimeoutMs is overridden by HEADLESS_BROWSER_SCREENSHOT_TIMEOUT_MS', () => {
+            process.env.HEADLESS_BROWSER_SCREENSHOT_TIMEOUT_MS = '360000';
+            const config = parseConfig();
+            expect(config.headlessBrowser.screenshotTimeoutMs).toBe(360000);
+        });
     });
 
     describe('environment variables for API tokens', () => {
         beforeEach(() => {
-            jest.useFakeTimers();
-            jest.setSystemTime(new Date('2025-06-19'));
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date('2025-06-19'));
 
             process.env.LD_SETUP_ADMIN_EMAIL = 'admin@example.com';
             process.env.LD_SETUP_SERVICE_ACCOUNT_EXPIRATION = '0';
@@ -661,7 +686,7 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
         });
 
         afterEach(() => {
-            jest.useRealTimers();
+            vi.useRealTimers();
         });
 
         test('should parse service account token', () => {
@@ -1005,11 +1030,11 @@ describe('parseAndSanitizeSchedulerTasks', () => {
         delete process.env.SCHEDULER_INCLUDE_TASKS;
         delete process.env.SCHEDULER_EXCLUDE_TASKS;
         // Mock console.warn to capture warning messages
-        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
     });
 
     afterEach(() => {
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     describe('Default behavior', () => {
@@ -1149,6 +1174,52 @@ test('should set groups.enabled only when the environment variable is set', () =
     expect(falseConfig.groups.enabled).toBe(false);
 });
 
+describe('LD_SETUP_START_OF_WEEK', () => {
+    beforeEach(() => {
+        process.env.LD_SETUP_ADMIN_EMAIL = 'admin@example.com';
+        process.env.LD_SETUP_PROJECT_PAT = 'project_personal_access_token';
+    });
+
+    test('should convert day name to its numeric WeekDay value', () => {
+        process.env.LD_SETUP_START_OF_WEEK = 'THURSDAY';
+        const config = parseConfig();
+        expect(
+            config.initialSetup?.projects[0]?.warehouseConnection.startOfWeek,
+        ).toBe(WeekDay.THURSDAY);
+    });
+
+    test('should accept the numeric WeekDay value', () => {
+        process.env.LD_SETUP_START_OF_WEEK = '3';
+        const config = parseConfig();
+        expect(
+            config.initialSetup?.projects[0]?.warehouseConnection.startOfWeek,
+        ).toBe(WeekDay.THURSDAY);
+    });
+
+    test('should be undefined when unset', () => {
+        const config = parseConfig();
+        expect(
+            config.initialSetup?.projects[0]?.warehouseConnection.startOfWeek,
+        ).toBeUndefined();
+    });
+
+    test('should skip initial setup for an invalid value', () => {
+        process.env.LD_SETUP_START_OF_WEEK = 'FUNDAY';
+        const consoleError = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => {});
+        const config = parseConfig();
+        expect(config.initialSetup).toBeUndefined();
+        expect(consoleError).toHaveBeenCalledWith(
+            'Error parsing initial setup config',
+            expect.objectContaining({
+                message: expect.stringContaining('FUNDAY'),
+            }),
+        );
+        consoleError.mockRestore();
+    });
+});
+
 describe('getMultiProjectSetupConfig', () => {
     beforeEach(() => {
         delete process.env.LD_SETUP_PROJECTS;
@@ -1187,6 +1258,72 @@ describe('getMultiProjectSetupConfig', () => {
         process.env.LD_SETUP_PROJECTS = JSON.stringify(projects);
         const result = getMultiProjectSetupConfig();
         expect(result).toEqual(projects);
+    });
+
+    test('should convert day-name startOfWeek to its numeric WeekDay value', () => {
+        process.env.LD_SETUP_PROJECTS = JSON.stringify([
+            {
+                name: 'Test',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    startOfWeek: 'THURSDAY',
+                },
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+        ]);
+        const result = getMultiProjectSetupConfig();
+        expect(result?.[0]?.warehouseConnection.startOfWeek).toBe(
+            WeekDay.THURSDAY,
+        );
+    });
+
+    test('should keep numeric startOfWeek values', () => {
+        process.env.LD_SETUP_PROJECTS = JSON.stringify([
+            {
+                name: 'Test',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    startOfWeek: 3,
+                },
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+        ]);
+        const result = getMultiProjectSetupConfig();
+        expect(result?.[0]?.warehouseConnection.startOfWeek).toBe(
+            WeekDay.THURSDAY,
+        );
+    });
+
+    test('should keep null startOfWeek', () => {
+        process.env.LD_SETUP_PROJECTS = JSON.stringify([
+            {
+                name: 'Test',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    startOfWeek: null,
+                },
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+        ]);
+        const result = getMultiProjectSetupConfig();
+        expect(result?.[0]?.warehouseConnection.startOfWeek).toBeNull();
+    });
+
+    test('should throw ParseError for invalid startOfWeek', () => {
+        process.env.LD_SETUP_PROJECTS = JSON.stringify([
+            {
+                name: 'Test',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    startOfWeek: 'FUNDAY',
+                },
+                dbtConnection: { type: DbtProjectType.NONE },
+            },
+        ]);
+        expect(() => getMultiProjectSetupConfig()).toThrow(ParseError);
+        expect(() => getMultiProjectSetupConfig()).toThrow(
+            'Invalid LD_SETUP_PROJECTS',
+        );
     });
 
     test('should throw ParseError for non-array JSON', () => {
@@ -1335,6 +1472,20 @@ describe('feature flag env-var allowlists', () => {
         expect(config.disabledFeatureFlags.has('killed-flag')).toBe(true);
     });
 
+    test('previewFeatureFlags is off by default and on in PR mode', () => {
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(false);
+        process.env.LIGHTDASH_MODE = LightdashMode.PR;
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(true);
+    });
+
+    test('LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED overrides the mode default', () => {
+        process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = 'true';
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(true);
+        process.env.LIGHTDASH_MODE = LightdashMode.PR;
+        process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = 'false';
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(false);
+    });
+
     test('dashboardComments.enabled defaults to true when DISABLE_DASHBOARD_COMMENTS is unset', () => {
         delete process.env.DISABLE_DASHBOARD_COMMENTS;
         const config = parseConfig();
@@ -1364,5 +1515,51 @@ describe('persistentDownloadUrls.enabled', () => {
         process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED = 'false';
         const config = parseConfig();
         expect(config.persistentDownloadUrls.enabled).toBe(false);
+    });
+});
+
+describe('pgWire TLS configuration', () => {
+    test('defaults to require mode with no cert paths', () => {
+        const config = parseConfig();
+        expect(config.pgWire).toEqual({
+            port: undefined,
+            host: undefined,
+            ssl: { mode: 'require', certPath: undefined, keyPath: undefined },
+        });
+    });
+
+    test('throws when PGWIRE_PORT is set without TLS certs', () => {
+        process.env.PGWIRE_PORT = '5432';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+
+    test('throws when PGWIRE_PORT is set with only a cert (no key)', () => {
+        process.env.PGWIRE_PORT = '5432';
+        process.env.PGWIRE_SSL_CERT_PATH = '/certs/tls.crt';
+        expect(() => parseConfig()).toThrowError(ParseError);
+    });
+
+    test('accepts PGWIRE_PORT with cert and key paths', () => {
+        process.env.PGWIRE_PORT = '5432';
+        process.env.PGWIRE_SSL_CERT_PATH = '/certs/tls.crt';
+        process.env.PGWIRE_SSL_KEY_PATH = '/certs/tls.key';
+        const config = parseConfig();
+        expect(config.pgWire.ssl).toEqual({
+            mode: 'require',
+            certPath: '/certs/tls.crt',
+            keyPath: '/certs/tls.key',
+        });
+    });
+
+    test('accepts PGWIRE_PORT without certs when TLS is explicitly disabled', () => {
+        process.env.PGWIRE_PORT = '5432';
+        process.env.PGWIRE_SSL_MODE = 'disabled';
+        const config = parseConfig();
+        expect(config.pgWire.ssl.mode).toBe('disabled');
+    });
+
+    test('throws on an invalid PGWIRE_SSL_MODE', () => {
+        process.env.PGWIRE_SSL_MODE = 'prefer';
+        expect(() => parseConfig()).toThrowError(ParseError);
     });
 });

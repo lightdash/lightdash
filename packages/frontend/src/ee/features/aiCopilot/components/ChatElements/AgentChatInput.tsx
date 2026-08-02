@@ -5,24 +5,30 @@ import {
     type AiModelOption,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Paper, Text, Tooltip } from '@mantine-8/core';
-import { RichTextEditor } from '@mantine/tiptap';
 import {
     IconArrowUp,
     IconPlayerStop,
     IconTerminal2,
 } from '@tabler/icons-react';
 import Mention from '@tiptap/extension-mention';
-import Placeholder from '@tiptap/extension-placeholder';
-import { useEditor, type Editor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
+import { type AnyExtension, type Editor } from '@tiptap/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
+import {
+    ComposerSubmitButton,
+    PromptComposer,
+} from '../../../../../components/common/PromptComposer';
 import useUser from '../../../../../hooks/user/useUser';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
+import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
+import { type StartDeepResearchArgs } from '../../deepResearch/types';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
+import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
 import {
     useCreateAiAgentThreadMessageSteerMutation,
     useInterruptAiAgentThreadMessageMutation,
@@ -30,6 +36,10 @@ import {
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
+import {
+    DeepResearchModeControl,
+    type AgentComposerMode,
+} from '../DeepResearch/DeepResearchModeControl';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import {
@@ -41,6 +51,8 @@ import {
 import { getAgentSuggestionModes } from './suggestionModes';
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
+const ACTIVE_DEEP_RESEARCH_DISABLED_REASON =
+    'Only one deep research run can be active in a thread at a time.';
 
 const SuggestionChipMention = Mention.extend({
     name: SUGGESTION_CHIP_MENTION_NAME,
@@ -71,6 +83,7 @@ type SubmitArgs = {
 
 interface AgentChatInputProps {
     onSubmit: (args: SubmitArgs) => void;
+    onStartDeepResearch?: (args: StartDeepResearchArgs) => Promise<void>;
     loading?: boolean;
     disabled?: boolean;
     disabledReason?: string;
@@ -95,6 +108,11 @@ interface AgentChatInputProps {
     clearOnSubmit?: boolean;
     showSuggestions?: boolean;
     contentMentionPriorityItems?: ContentMentionSuggestionItem[];
+    // Reveals the deep research and agent controls on first focus instead of
+    // showing them always.
+    revealControlsOnFocus?: boolean;
+    // Shrinks padding/min-heights for a more compact composer.
+    dense?: boolean;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -113,6 +131,7 @@ const extractToolHints = (editor: Editor | null): string[] => {
 
 export const AgentChatInput = ({
     onSubmit,
+    onStartDeepResearch,
     loading = false,
     disabled = false,
     disabledReason,
@@ -137,9 +156,18 @@ export const AgentChatInput = ({
     clearOnSubmit = true,
     showSuggestions = true,
     contentMentionPriorityItems = [],
+    revealControlsOnFocus = false,
+    dense = false,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
+    const [hasClickedInput, setHasClickedInput] = useState(
+        !revealControlsOnFocus,
+    );
+    const handleInputCardMouseDown = useCallback(() => {
+        if (revealControlsOnFocus) setHasClickedInput(true);
+    }, [revealControlsOnFocus]);
+    const [composerMode, setComposerMode] = useState<AgentComposerMode>('ask');
     const navigate = useNavigate();
     const onSubmitRef = useRef(onSubmit);
     onSubmitRef.current = onSubmit;
@@ -153,8 +181,6 @@ export const AgentChatInput = ({
     disabledRef.current = disabled;
     const clearOnSubmitRef = useRef(clearOnSubmit);
     clearOnSubmitRef.current = clearOnSubmit;
-    const canSteerRef = useRef(false);
-    const handleSubmitRef = useRef<() => void>(() => undefined);
     const projectUuidRef = useRef(projectUuid);
     projectUuidRef.current = projectUuid;
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
@@ -248,17 +274,11 @@ export const AgentChatInput = ({
         enabled: emptyStateMode || postResponseMode,
     });
 
-    const editor = useEditor({
-        extensions: [
-            StarterKit.configure({
-                heading: false,
-                bulletList: false,
-                orderedList: false,
-                blockquote: false,
-                codeBlock: false,
-                horizontalRule: false,
-            }),
-            Placeholder.configure({ placeholder }),
+    const [editor, setEditor] = useState<Editor | null>(null);
+    editorRef.current = editor;
+
+    const composerExtensions = useMemo<AnyExtension[]>(
+        () => [
             SuggestionChipMention.configure({
                 renderText: ({ node }) =>
                     typeof node.attrs.label === 'string'
@@ -280,51 +300,30 @@ export const AgentChatInput = ({
                 },
             }),
         ],
-        editable: !disabled,
-        autofocus: true,
-        content: defaultValue ?? '',
-        onUpdate: ({ editor: ed }) => {
-            const text = ed.getText();
-            setValueState(text);
-            onValueChangeRef.current?.(text);
-        },
-        editorProps: {
-            handleKeyDown: (_, event) => {
-                if (
-                    event.key === 'Enter' &&
-                    !event.shiftKey &&
-                    !event.isComposing
-                ) {
-                    const ed = editorRef.current;
-                    if (
-                        isContentMentionSuggestionActive(ed) ||
-                        contentMentionPopupOpenRef.current
-                    ) {
-                        return false;
-                    }
-                    if (
-                        disabledRef.current ||
-                        (loadingRef.current && !canSteerRef.current)
-                    ) {
-                        return true;
-                    }
-                    if (!ed) return false;
-                    const text = ed.getText().trim();
-                    if (!text) return true;
-                    event.preventDefault();
-                    handleSubmitRef.current();
-                    return true;
-                }
-                return false;
-            },
-        },
-    });
-    editorRef.current = editor;
+        [],
+    );
+
+    // An open @-mention dropdown owns Enter — it selects rather than submits.
+    const shouldBlockSubmit = useCallback(
+        (ed: Editor | null) =>
+            isContentMentionSuggestionActive(ed) ||
+            contentMentionPopupOpenRef.current,
+        [],
+    );
+
+    const handleComposerValueChange = useCallback((text: string) => {
+        setValueState(text);
+        onValueChangeRef.current?.(text);
+    }, []);
 
     useEffect(() => {
-        if (!editor) return;
-        editor.setEditable(!disabled);
-    }, [editor, disabled]);
+        if (!editor || !threadUuid) return undefined;
+        return subscribeToDeepResearchComposerPrompt((detail) => {
+            if (detail.threadUuid !== threadUuid) return;
+            editor.commands.setContent(detail.prompt);
+            editor.commands.focus('end');
+        });
+    }, [editor, threadUuid]);
 
     useEffect(() => {
         if (hasRequestedInterrupt && !threadStream?.isStreaming) {
@@ -351,6 +350,7 @@ export const AgentChatInput = ({
                             chip.kind === 'prompt' ? chip.tool : undefined,
                         chipIndex: index,
                         mode: emptyStateMode ? 'empty-state' : 'post-response',
+                        placement: 'agent_chat',
                     },
                 });
             };
@@ -413,6 +413,7 @@ export const AgentChatInput = ({
                     projectId: projectUuid,
                     agentId: agentUuid,
                     chipCount,
+                    placement: 'agent_chat',
                 },
             });
         },
@@ -420,9 +421,24 @@ export const AgentChatInput = ({
     );
 
     const hasValue = value.trim().length > 0;
-    const showMinimalPlaceholder = isMinimalMode && !hasValue;
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
+    const canStartDeepResearch = Boolean(
+        onStartDeepResearch && !isEmbedAiAgentRoute(),
+    );
+    const hasActiveDeepResearchRun = useHasActiveDeepResearchRun({
+        projectUuid,
+        threadUuid,
+    });
+    const { isStarting: isStartingDeepResearch, startDeepResearch } =
+        useDeepResearchComposer({
+            canStart:
+                canStartDeepResearch &&
+                !disabled &&
+                !loading &&
+                !hasActiveDeepResearchRun,
+            onStart: onStartDeepResearch,
+        });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
     const activeMessageUuid = threadStream?.isStreaming
         ? threadStream.messageUuid
@@ -435,13 +451,36 @@ export const AgentChatInput = ({
         activeMessageUuid,
     );
     const canSteer = canInterrupt && !disabled && !hasRequestedInterrupt;
-    canSteerRef.current = canSteer;
+
+    const handleStartDeepResearch = async () => {
+        const ed = editorRef.current;
+        const question = ed?.getText().trim() ?? '';
+        if (!question) {
+            return;
+        }
+        if (disabled || loading) {
+            return;
+        }
+
+        const started = await startDeepResearch({ question });
+        if (started && clearOnSubmitRef.current) {
+            ed?.commands.clearContent();
+            setValueState('');
+        }
+        if (started) {
+            setComposerMode('ask');
+        }
+    };
 
     const handleSubmit = () => {
         const ed = editorRef.current;
         if (!ed) return;
         const text = ed.getText().trim();
         if (!text || disabled) return;
+        if (composerMode === 'deep_research' && canStartDeepResearch) {
+            void handleStartDeepResearch();
+            return;
+        }
         if (canSteer) {
             if (steerMutation.isLoading) return;
             void handleSteer(text);
@@ -458,7 +497,6 @@ export const AgentChatInput = ({
             setValueState('');
         }
     };
-    handleSubmitRef.current = handleSubmit;
 
     const handleSteer = async (message: string) => {
         if (!projectUuid || !agentUuid || !threadUuid || !activeMessageUuid) {
@@ -490,6 +528,31 @@ export const AgentChatInput = ({
         setHasRequestedInterrupt(true);
     };
 
+    useEffect(() => {
+        if (!canStartDeepResearch || hasActiveDeepResearchRun) {
+            setComposerMode('ask');
+        }
+    }, [canStartDeepResearch, hasActiveDeepResearchRun]);
+
+    const deepResearchControl = canStartDeepResearch ? (
+        <DeepResearchModeControl
+            mode={composerMode}
+            onModeChange={setComposerMode}
+            disabled={hasActiveDeepResearchRun}
+            disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
+        />
+    ) : null;
+    const compactDeepResearchControl = canStartDeepResearch ? (
+        <DeepResearchModeControl
+            mode={composerMode}
+            onModeChange={setComposerMode}
+            disabled={hasActiveDeepResearchRun}
+            disabledReason={ACTIVE_DEEP_RESEARCH_DISABLED_REASON}
+            iconOnly
+            actionSize="sm"
+            iconSize={14}
+        />
+    ) : null;
     const chipRow = useMemo(() => {
         if (!emptyStateMode && !postResponseMode) return null;
         if (suggestionsQuery.isError) return null;
@@ -535,18 +598,11 @@ export const AgentChatInput = ({
     const renderSqlModeControl = ({
         actionSize,
         iconSize,
-        labelPosition = 'after',
     }: {
         actionSize: number | 'sm' | 'md';
         iconSize: number;
-        labelPosition?: 'before' | 'after';
     }) => {
         if (!onSqlModeChange || disabled) return null;
-        const label = sqlMode ? (
-            <Text size="xs" fw={600} className={styles.sqlModeLabel}>
-                SQL mode on
-            </Text>
-        ) : null;
 
         return (
             <Tooltip
@@ -557,14 +613,13 @@ export const AgentChatInput = ({
                 label="Let the agent reach for raw SQL when the question can't be answered from the semantic layer alone. Each query still asks for your approval before running."
             >
                 <Group gap={6} wrap="nowrap" className={styles.sqlModeControl}>
-                    {labelPosition === 'before' && label}
                     <ActionIcon
                         variant={sqlMode ? 'light' : 'subtle'}
                         color={sqlMode ? 'indigo' : 'gray'}
                         size={actionSize}
                         className={styles.sqlModeButton}
                         onClick={() => onSqlModeChange(!sqlMode)}
-                        aria-label="Toggle SQL mode"
+                        aria-label="Toggle SQL Runner"
                         aria-pressed={sqlMode}
                     >
                         <MantineIcon
@@ -573,10 +628,92 @@ export const AgentChatInput = ({
                             color={sqlMode ? 'indigo.5' : 'ldGray.6'}
                         />
                     </ActionIcon>
-                    {labelPosition === 'after' && label}
                 </Group>
             </Tooltip>
         );
+    };
+
+    const renderExternalModeControls = ({
+        actionSize,
+        iconSize,
+    }: {
+        actionSize: number | 'sm' | 'md';
+        iconSize: number;
+    }) => {
+        if (
+            !isThreadInput ||
+            (!compactDeepResearchControl && !showSqlModeControl)
+        ) {
+            return null;
+        }
+
+        return (
+            <Box className={styles.belowComposerControls}>
+                <Group gap="xs" align="center" wrap="nowrap">
+                    {compactDeepResearchControl}
+                    {renderSqlModeControl({ actionSize, iconSize })}
+                </Group>
+            </Box>
+        );
+    };
+
+    const renderComposerAction = (size: 'sm' | 'lg') => {
+        if (canSteer && hasValue) {
+            return (
+                <ComposerSubmitButton
+                    icon={IconArrowUp}
+                    label="Send guidance"
+                    size={size}
+                    disabled={steerMutation.isLoading}
+                    loading={steerMutation.isLoading}
+                    onClick={handleSubmit}
+                />
+            );
+        }
+        if (canInterrupt) {
+            return (
+                <ComposerSubmitButton
+                    icon={IconPlayerStop}
+                    label="Stop agent"
+                    destructive
+                    size={size}
+                    disabled={hasRequestedInterrupt}
+                    loading={
+                        interruptMutation.isLoading || hasRequestedInterrupt
+                    }
+                    onClick={() => void handleInterrupt()}
+                />
+            );
+        }
+        const isDeepResearch = composerMode === 'deep_research';
+        return (
+            <ComposerSubmitButton
+                icon={IconArrowUp}
+                label={isDeepResearch ? 'Start research' : 'Send message'}
+                size={size}
+                disabled={
+                    disabled ||
+                    !hasValue ||
+                    loading ||
+                    (isDeepResearch && isStartingDeepResearch)
+                }
+                loading={isDeepResearch ? isStartingDeepResearch : loading}
+                onClick={handleSubmit}
+            />
+        );
+    };
+
+    const composerCommonProps = {
+        placeholder,
+        defaultValue,
+        autoFocus: true,
+        disabled,
+        submitDisabled: disabled || (loading && !canSteer),
+        extensions: composerExtensions,
+        onEditorReady: setEditor,
+        onValueChange: handleComposerValueChange,
+        shouldBlockSubmit,
+        onSubmit: handleSubmit,
     };
 
     if (isMinimalMode) {
@@ -590,101 +727,31 @@ export const AgentChatInput = ({
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
-                    <Box
-                        className={`${styles.minimalInputWrapper} ${
-                            sqlMode ? styles.sqlModeActive : ''
-                        }`}
-                        pos="relative"
-                    >
-                        <RichTextEditor
-                            editor={editor}
-                            classNames={{
-                                root: styles.editorRoot,
-                                content: styles.minimalEditorContent,
-                            }}
-                        >
-                            <RichTextEditor.Content />
-                        </RichTextEditor>
-
-                        {showMinimalPlaceholder && (
-                            <Text
-                                aria-hidden
-                                className={styles.minimalPlaceholder}
-                            >
-                                {placeholder}
-                            </Text>
-                        )}
-
-                        {canSteer && hasValue ? (
-                            <ActionIcon
-                                variant="filled"
-                                size="md"
-                                className={`${styles.minimalSubmitButton} ${styles.minimalStreamActionButton}`}
-                                disabled={steerMutation.isLoading}
-                                loading={steerMutation.isLoading}
-                                onClick={handleSubmit}
-                                aria-label="Send guidance"
-                            >
-                                <MantineIcon
-                                    icon={IconArrowUp}
-                                    color="ldGray.0"
-                                    size={18}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        ) : canInterrupt ? (
-                            <ActionIcon
-                                variant="filled"
-                                color="red"
-                                size="md"
-                                className={`${styles.minimalSubmitButton} ${styles.minimalStreamActionButton}`}
-                                disabled={hasRequestedInterrupt}
-                                loading={
-                                    interruptMutation.isLoading ||
-                                    hasRequestedInterrupt
-                                }
-                                onClick={() => void handleInterrupt()}
-                                aria-label="Stop agent"
-                            >
-                                <MantineIcon
-                                    icon={IconPlayerStop}
-                                    color="ldGray.0"
-                                    size={18}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        ) : (
-                            <ActionIcon
-                                right={12}
-                                bottom={10}
-                                variant="filled"
-                                size="md"
-                                className={styles.minimalSubmitButton}
-                                disabled={disabled || !hasValue}
-                                loading={loading}
-                                onClick={handleSubmit}
-                                aria-label="Send message"
-                            >
-                                <MantineIcon
-                                    icon={IconArrowUp}
-                                    color="ldGray.0"
-                                    size={18}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        )}
-                    </Box>
+                    <PromptComposer
+                        {...composerCommonProps}
+                        variant="inline"
+                        toolbarRight={
+                            <Group gap={4} align="center" wrap="nowrap">
+                                {!isThreadInput && deepResearchControl}
+                                {renderComposerAction('sm')}
+                            </Group>
+                        }
+                    />
                 </Box>
 
-                {showSqlModeControl && (
-                    <Box className={styles.threadBelowControls}>
-                        {renderSqlModeControl({
-                            actionSize: 'sm',
-                            iconSize: 14,
-                            labelPosition: 'before',
-                        })}
-                    </Box>
-                )}
+                {isThreadInput
+                    ? renderExternalModeControls({
+                          actionSize: 'sm',
+                          iconSize: 14,
+                      })
+                    : showSqlModeControl && (
+                          <Box className={styles.belowComposerControls}>
+                              {renderSqlModeControl({
+                                  actionSize: 'sm',
+                                  iconSize: 14,
+                              })}
+                          </Box>
+                      )}
 
                 {!isThreadInput &&
                     renderChipRow(
@@ -707,41 +774,44 @@ export const AgentChatInput = ({
             className={`${styles.container} ${
                 showDisabledBanner ? styles.disabledBannerVisible : ''
             }`}
+            data-dense={dense}
         >
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-            <Box
-                className={`${styles.inputCard} ${
-                    sqlMode ? styles.sqlModeActive : ''
-                }`}
-            >
-                <RichTextEditor
-                    editor={editor}
-                    classNames={{
-                        root: styles.editorRoot,
-                        content: styles.editorContent,
-                    }}
-                >
-                    <RichTextEditor.Content />
-                </RichTextEditor>
-
-                <Box className={styles.toolbar}>
-                    <Box className={styles.toolbarActions}>
-                        {!isThreadInput &&
-                            renderSqlModeControl({
-                                actionSize: 30,
-                                iconSize: 15,
-                            })}
-                    </Box>
-
+            <PromptComposer
+                {...composerCommonProps}
+                variant="card"
+                size={dense ? 'sm' : 'lg'}
+                className={styles.agentComposer}
+                onMouseDown={handleInputCardMouseDown}
+                toolbarLeft={
+                    !isThreadInput &&
+                    renderSqlModeControl({
+                        actionSize: 30,
+                        iconSize: 15,
+                    })
+                }
+                toolbarRight={
                     <Group gap="xs" align="center" wrap="nowrap">
-                        {showAgentSelector && (
-                            <AgentSelector
-                                projectUuid={projectUuid!}
-                                agents={agents!}
-                                selectedAgent={selectedAgent!}
-                                compact
-                            />
+                        {((!isThreadInput && deepResearchControl) ||
+                            showAgentSelector) && (
+                            <Box
+                                className={styles.controlsReveal}
+                                data-visible={hasClickedInput}
+                            >
+                                <Group gap="xs" align="center" wrap="nowrap">
+                                    {!isThreadInput && deepResearchControl}
+
+                                    {showAgentSelector && (
+                                        <AgentSelector
+                                            projectUuid={projectUuid!}
+                                            agents={agents!}
+                                            selectedAgent={selectedAgent!}
+                                            compact
+                                        />
+                                    )}
+                                </Group>
+                            </Box>
                         )}
 
                         {(showModelSelector || onExtendedThinkingChange) &&
@@ -763,80 +833,21 @@ export const AgentChatInput = ({
                                 </Box>
                             )}
 
-                        {canSteer && hasValue ? (
-                            <ActionIcon
-                                variant="filled"
-                                size="lg"
-                                className={styles.submitButton}
-                                disabled={steerMutation.isLoading}
-                                loading={steerMutation.isLoading}
-                                onClick={handleSubmit}
-                                aria-label="Send guidance"
-                            >
-                                <MantineIcon
-                                    icon={IconArrowUp}
-                                    color="ldGray.0"
-                                    size={20}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        ) : canInterrupt ? (
-                            <ActionIcon
-                                variant="filled"
-                                color="red"
-                                size="lg"
-                                className={styles.submitButton}
-                                disabled={hasRequestedInterrupt}
-                                loading={
-                                    interruptMutation.isLoading ||
-                                    hasRequestedInterrupt
-                                }
-                                onClick={() => void handleInterrupt()}
-                                aria-label="Stop agent"
-                            >
-                                <MantineIcon
-                                    icon={IconPlayerStop}
-                                    color="ldGray.0"
-                                    size={20}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        ) : (
-                            <ActionIcon
-                                variant="filled"
-                                size="lg"
-                                className={styles.submitButton}
-                                disabled={disabled || !hasValue}
-                                loading={loading}
-                                onClick={handleSubmit}
-                                aria-label="Send message"
-                            >
-                                <MantineIcon
-                                    icon={IconArrowUp}
-                                    color="ldGray.0"
-                                    size={20}
-                                    stroke={2}
-                                />
-                            </ActionIcon>
-                        )}
+                        {renderComposerAction('lg')}
                     </Group>
-                </Box>
-            </Box>
+                }
+            />
 
-            {isThreadInput
-                ? showSqlModeControl && (
-                      <Box className={styles.threadBelowControls}>
-                          {renderSqlModeControl({
-                              actionSize: 'sm',
-                              iconSize: 14,
-                              labelPosition: 'before',
-                          })}
-                      </Box>
-                  )
-                : renderChipRow(
-                      styles.chipTray,
-                      shouldReserveEmptyStateSuggestions,
-                  )}
+            {renderExternalModeControls({
+                actionSize: 'sm',
+                iconSize: 14,
+            })}
+
+            {!isThreadInput &&
+                renderChipRow(
+                    styles.chipTray,
+                    shouldReserveEmptyStateSuggestions,
+                )}
 
             {showDisabledBanner && (
                 <Paper className={styles.disabledBanner} px="md" py="xs">

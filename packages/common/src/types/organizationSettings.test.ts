@@ -20,6 +20,7 @@ describe('resolveEffectiveOrganizationSettings', () => {
             oidcLinkingEnabled: false,
             oidcToEmailLinkingEnabled: true,
             supportImpersonationEnabled: false,
+            semanticLayerPgwireEnabled: false,
             scheduledDeliveryExpirationSeconds: 259200,
             scheduledDeliveryExpirationSecondsEmail: null,
             scheduledDeliveryExpirationSecondsSlack: null,

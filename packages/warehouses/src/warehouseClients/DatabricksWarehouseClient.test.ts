@@ -1,3 +1,4 @@
+/* eslint-disable prefer-arrow-callback, func-names */
 import {
     DatabricksSqlBuilder,
     DatabricksWarehouseClient,
@@ -5,22 +6,32 @@ import {
 import { credentials, rows, schema } from './DatabricksWarehouseClient.mock';
 import { expectedFields } from './WarehouseClient.mock';
 
-jest.mock('@databricks/sql', () => ({
-    ...jest.requireActual('@databricks/sql'),
-    DBSQLClient: jest.fn(() => ({
-        connect: jest.fn(() => ({
-            openSession: jest.fn(() => ({
-                executeStatement: jest.fn(() => ({
-                    getSchema: jest.fn(async () => schema),
-                    fetchChunk: jest.fn(async () => rows),
-                    hasMoreRows: jest.fn(async () => false),
-                    close: jest.fn(async () => undefined),
+const mocks = vi.hoisted(() => ({
+    fetchChunk: vi.fn(),
+}));
+
+vi.mock('@databricks/sql', async () => ({
+    ...(await vi.importActual<typeof import('@databricks/sql')>(
+        '@databricks/sql',
+    )),
+    DBSQLClient: vi.fn(function () {
+        return {
+            connect: vi.fn(() => ({
+                openSession: vi.fn(() => ({
+                    executeStatement: vi.fn(() => ({
+                        getSchema: vi.fn(async () => schema),
+                        fetchChunk: mocks.fetchChunk.mockImplementation(
+                            async () => rows,
+                        ),
+                        hasMoreRows: vi.fn(async () => false),
+                        close: vi.fn(async () => undefined),
+                    })),
+                    close: vi.fn(async () => undefined),
                 })),
-                close: jest.fn(async () => undefined),
+                close: vi.fn(async () => undefined),
             })),
-            close: jest.fn(async () => undefined),
-        })),
-    })),
+        };
+    }),
 }));
 
 describe('DatabricksWarehouseClient', () => {
@@ -31,6 +42,14 @@ describe('DatabricksWarehouseClient', () => {
 
         expect(results.fields).toEqual(expectedFields);
         expect(results.rows[0]).toEqual(rows[0]);
+    });
+
+    it('caps fetchChunk size to avoid materializing whole results', async () => {
+        const warehouse = new DatabricksWarehouseClient(credentials);
+
+        await warehouse.runQuery('fake sql');
+
+        expect(mocks.fetchChunk).toHaveBeenCalledWith({ maxRows: 5000 });
     });
 });
 

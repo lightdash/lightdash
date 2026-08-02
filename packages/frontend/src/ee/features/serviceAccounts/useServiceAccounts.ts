@@ -36,6 +36,7 @@ export const useServiceAccounts = () => {
                 method: 'POST',
                 url: '/service-accounts',
                 body: JSON.stringify(newAccount),
+                sensitive: true,
             });
         },
         onSuccess: async () => {
@@ -114,6 +115,7 @@ export const useServiceAccounts = () => {
                 method: 'PATCH',
                 url: `/service-accounts/${uuid}/rotate`,
                 body: JSON.stringify({ expiresAt }),
+                sensitive: true,
             }),
         onSuccess: async () => {
             await queryClient.invalidateQueries([CACHE_KEY]);

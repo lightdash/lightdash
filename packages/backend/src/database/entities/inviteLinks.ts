@@ -1,3 +1,4 @@
+import { InviteLinkPurpose } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export type DbInviteLink = {
@@ -6,11 +7,16 @@ export type DbInviteLink = {
     user_uuid: string;
     created_at: Date;
     expires_at: Date;
+    purpose: InviteLinkPurpose;
 };
 
 type DbInviteLinkInsert = Pick<
     DbInviteLink,
-    'organization_id' | 'invite_code_hash' | 'expires_at' | 'user_uuid'
+    | 'organization_id'
+    | 'invite_code_hash'
+    | 'expires_at'
+    | 'user_uuid'
+    | 'purpose'
 >;
 type DbInviteLinkUpdate = {};
 

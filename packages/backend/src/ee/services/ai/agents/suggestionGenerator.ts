@@ -5,7 +5,15 @@ import {
     type AgentSuggestionsModelObject,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../utils/aiCallTelemetry';
 
 const EMPTY_STATE_PROMPT = `You write 3-6 starter "chips" that appear above an empty AI agent chat input in a business-intelligence tool.
 
@@ -29,6 +37,7 @@ How to use the context (PROMPT chips):
 - verifiedContent: TOPIC SIGNAL. If there's a "Revenue Summary" verified chart, propose a fresh angle on revenue ("Break down revenue by month").
 - verifiedQuestions: these ARE complete prompts. Use them verbatim as prompt chips when they fit — they're the highest-quality chip you can produce.
 - explores: catalog-driven question chips when no curated signal applies.
+- warehouseTables: RAW SCHEMA SIGNAL for projects with no semantic layer yet. Each entry is a fully-qualified \`database.schema.table\` name. When <explores> is empty but <warehouseTables> is present, write prompt chips grounded in these real table names using the \`runSql\` tool (e.g. "Count orders per month in analytics.public.orders"). Only reference table names that appear verbatim in <warehouseTables>; never invent columns — keep chips about whole tables, row counts, recency, and simple groupings the agent can express in SQL. In this mode NEVER write chips that ask for charts, visualizations, dashboards, or dashboard tiles — visualization tools require semantic-layer explores, which this project does not have yet, so the agent would fail and apologise. Every chip must be a plain data question answerable with a SQL result.
 
 Tool guide (PROMPT chips):
 - \`generateVisualization\`: factual data questions answerable from the semantic layer.
@@ -36,7 +45,7 @@ Tool guide (PROMPT chips):
 - \`generateDashboard\`: multi-chart overview ("Build me an executive summary").
 - \`findContent\`: "Is there already a chart for monthly revenue?" — locates existing saved content.
 
-If the project has zero explores AND no verified questions AND no recent conversations, return three generic prompt chips that nudge the user to set up data.`;
+If the project has zero explores, no warehouseTables, no verified questions AND no recent conversations, return three generic prompt chips that nudge the user to set up data.`;
 
 const POST_RESPONSE_PROMPT = `You write 2-5 chips that appear above the chat input AFTER the agent has just replied. Each chip is what the user is most likely to click NEXT in this conversation.
 
@@ -163,6 +172,9 @@ export type SuggestionPromptContext = {
     verifiedQuestions: string[];
     verifiedContentTags: string[];
     verifiedContent: VerifiedContentItem[];
+    // Fully-qualified `database.schema.table` names — only set for
+    // semantic-layer-less projects with no explores, to ground chips via runSql.
+    warehouseTables?: string[];
     // Only set when generating empty-state chips. Lets the LLM pick up where
     // the user left off.
     recentUserConversations?: RecentUserConversation[];
@@ -209,6 +221,7 @@ export async function generateAgentSuggestions(
             },
             enabledTools: context.enabledTools,
             explores: context.explores,
+            warehouseTables: context.warehouseTables ?? null,
             verifiedQuestions: context.verifiedQuestions,
             verifiedContentTags: context.verifiedContentTags,
             verifiedContent: context.verifiedContent,
@@ -224,6 +237,16 @@ export async function generateAgentSuggestions(
         canManageContent: context.canManageContent,
     });
 
+    const telemetry = getAiCallTelemetry({
+        functionId: 'generateAgentSuggestions',
+        feature: 'agent-suggestions',
+        ...getLanguageModelAttribution(modelOptions.model),
+        keyManagement: modelOptions.keyManagement,
+        extra: {
+            ...metadata,
+            mode: isPostResponse ? 'post-response' : 'empty-state',
+        },
+    });
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
@@ -241,17 +264,10 @@ export async function generateAgentSuggestions(
                     : `Generate empty-state suggestion chips for this agent.\n\nContext:\n${userContent}`,
             },
         ],
-        experimental_telemetry: {
-            functionId: 'generateAgentSuggestions',
-            isEnabled: true,
-            recordInputs: false,
-            recordOutputs: false,
-            metadata: {
-                ...metadata,
-                mode: isPostResponse ? 'post-response' : 'empty-state',
-            },
-        },
+        experimental_telemetry: telemetry,
     });
+
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
     return result.object;
 }

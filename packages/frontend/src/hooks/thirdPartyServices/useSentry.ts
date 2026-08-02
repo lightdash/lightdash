@@ -19,6 +19,7 @@ import {
 import {
     hasRecentChunkReload,
     isChunkLoadErrorObject,
+    RouteChunkLoadError,
 } from '../../features/chunkErrorHandler';
 
 const sentrySpotlightEnabled =
@@ -86,6 +87,14 @@ const useSentry = (
                 replaysOnErrorSampleRate: 1.0,
                 beforeSend(event, hint) {
                     const error = hint.originalException;
+                    if (error instanceof RouteChunkLoadError) {
+                        event.tags = {
+                            ...event.tags,
+                            'route.module': error.routeModule,
+                        };
+                        event.fingerprint = ['route-chunk-load-error'];
+                    }
+
                     // For chunk load errors, only send to Sentry if auto-reload already failed
                     if (
                         isChunkLoadErrorObject(error) &&

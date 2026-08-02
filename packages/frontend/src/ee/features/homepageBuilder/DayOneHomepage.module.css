@@ -1,0 +1,11 @@
+.welcome {
+    width: 100%;
+    max-width: 1040px;
+    margin: 0 auto;
+}
+
+.secondary {
+    width: 100%;
+    max-width: 1040px;
+    margin: 24px auto 0;
+}

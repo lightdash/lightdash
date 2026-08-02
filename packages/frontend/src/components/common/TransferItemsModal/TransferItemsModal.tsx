@@ -4,7 +4,7 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Button, LoadingOverlay, Text } from '@mantine-8/core';
+import { Button, Group, LoadingOverlay, Text } from '@mantine-8/core';
 import { IconFolderShare, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo, type ReactNode } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
@@ -24,6 +24,11 @@ type Props<T> = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     description?: ReactNode;
     confirmLabel?: string;
     createSpaceConfirmLabel?: string;
+    /** Extra content rendered in the modal's fixed footer bar, next to the
+     *  "New Space" button — e.g. per-content-type move options. Lives outside
+     *  the scrollable space list so it stays visible however many spaces there
+     *  are. Hidden while the create-space form is open. */
+    footer?: ReactNode;
 };
 
 const ItemName = ({ name }: { name: string }) => {
@@ -59,6 +64,7 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
     description,
     confirmLabel = 'Confirm',
     createSpaceConfirmLabel = 'Create space & move',
+    footer,
 }: Props<T>) => {
     // Fetch spaces only when the modal is opened
     const { data: spaces = [], isLoading: isLoadingSpaces } = useSpaceSummaries(
@@ -148,14 +154,17 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
             size="xl"
             leftActions={
                 !isCreatingNewSpace ? (
-                    <Button
-                        variant="subtle"
-                        size="xs"
-                        onClick={openCreateSpaceForm}
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                    >
-                        New Space
-                    </Button>
+                    <Group gap="lg" wrap="nowrap">
+                        <Button
+                            variant="subtle"
+                            size="xs"
+                            onClick={openCreateSpaceForm}
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                        >
+                            New Space
+                        </Button>
+                        {footer}
+                    </Group>
                 ) : null
             }
             actions={

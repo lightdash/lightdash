@@ -3,16 +3,22 @@ import {
     Account,
     AiAgentWithContext,
     AiResultType,
+    AiWritebackRunStatus,
+    aiWritebackRunStatusToMcpTaskStatus,
+    AiWritebackSource,
+    AnyType,
     ApiKeyAccount,
     assertUnreachable,
     buildRunSqlDescription,
     ChartType,
     clearAgentToolDefinition,
+    clientSupportsMcpTasks,
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
     createContentToolDefinition,
     createMcpCompatibleInputShape,
+    createScheduledDeliveryToolDefinition,
     createToolRunSqlArgsSchema,
     editContentToolDefinition,
     Explore,
@@ -21,23 +27,34 @@ import {
     findExploresToolDefinition,
     findFieldsToolDefinition,
     ForbiddenError,
+    getAiWritebackStatusToolDefinition,
+    getAiWritebackTaskStatusMessage,
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
+    getErrorMessage,
     getItemLabelWithoutTableName,
     getItemMap,
     getLightdashVersionToolDefinition,
+    getMetadataToolDefinition,
     getQueryResultToolDefinition,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
+    grepFieldsToolDefinition,
     ItemsMap,
     listAgentsToolDefinition,
     listContentToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
+    MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
+    MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
     MCP_QUERY_POLL_INTERVAL_MS,
     MCP_QUERY_SYNC_WAIT_MS,
+    MCP_TASKS_EXTENSION_NAME,
+    McpCancelTaskResult,
+    McpCreateTaskResult,
+    McpGetTaskResult,
     mcpListProjectsToolDefinition,
     MetricQuery,
     MissingConfigError,
@@ -50,6 +67,7 @@ import {
     readSkillResourceToolDefinition,
     readSkillToolDefinition,
     renderChartToolDefinition,
+    resolveUrlToolDefinition,
     routeAgentToolDefinition,
     runAiWritebackToolDefinition,
     runQueryToolDefinition,
@@ -73,6 +91,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 // eslint-disable-next-line import/extensions
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import {
+    CallToolResult,
+    CancelTaskRequestSchema,
+    ErrorCode,
+    GetTaskRequestSchema,
+    McpError,
     ServerNotification,
     ServerRequest,
     // eslint-disable-next-line import/extensions
@@ -81,6 +104,7 @@ import * as Sentry from '@sentry/node';
 import { stringify } from 'csv-stringify/sync';
 import fs from 'fs/promises';
 import path from 'path';
+import { validate as isValidUuid } from 'uuid';
 import { z } from 'zod';
 import {
     LightdashAnalytics,
@@ -107,20 +131,30 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
+import { DbMcpClientInfo } from '../../database/entities/mcpToolCall';
+import { McpToolCallModel } from '../../models/McpToolCallModel';
 import {
+    getMcpAnalystPrompt,
     getMcpAnalystPromptWithContext,
-    MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
 import { getCreateContent } from '../ai/tools/createContent';
+import { getCreateScheduledDelivery } from '../ai/tools/createScheduledDelivery';
 import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
-import { getFindExplores } from '../ai/tools/findExplores';
-import { getFindFields } from '../ai/tools/findFields';
+import { buildFindExploresStructuredContent } from '../ai/tools/findExplores';
+import { buildFindFieldsStructuredContent } from '../ai/tools/findFields';
+import { executeGetMetadata } from '../ai/tools/getMetadata';
+import {
+    executeGrepFields,
+    grepPatternsToSearchQuery,
+} from '../ai/tools/grepFields';
 import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
+import { getResolveUrl } from '../ai/tools/resolveUrl';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
+import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -128,8 +162,9 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import {
-    AiAgentToolsRuntime,
     AiAgentToolsService,
+    McpAiAgentToolsRuntime,
+    unwrapMcpRuntimeResult,
 } from '../AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiRouterService } from '../AiRouterService/AiRouterService';
@@ -146,11 +181,15 @@ export enum McpToolName {
     LIST_EXPLORES = 'list_explores',
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
+    GREP_FIELDS = 'grep_fields',
+    GET_METADATA = 'get_metadata',
     FIND_CONTENT = 'find_content',
     LIST_CONTENT = 'list_content',
     READ_CONTENT = 'read_content',
+    RESOLVE_URL = 'resolve_url',
     CREATE_CONTENT = 'create_content',
     EDIT_CONTENT = 'edit_content',
+    CREATE_SCHEDULED_DELIVERY = 'create_scheduled_delivery',
     LIST_PROJECTS = 'list_projects',
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
@@ -166,6 +205,7 @@ export enum McpToolName {
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
+    GET_AI_WRITEBACK_STATUS = 'get_ai_writeback_status',
     LIST_SKILLS = 'list_skills',
     READ_SKILL = 'read_skill',
     READ_SKILL_RESOURCE = 'read_skill_resource',
@@ -175,15 +215,22 @@ export enum McpToolName {
 const MCP_SKILLS_EXTENSION_NAME = 'io.modelcontextprotocol/skills';
 
 const mcpRunAiWritebackTool = runAiWritebackToolDefinition.for('mcp');
+const mcpGetAiWritebackStatusTool =
+    getAiWritebackStatusToolDefinition.for('mcp');
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
 const mcpFindFieldsTool = findFieldsToolDefinition.for('mcp');
+const mcpGrepFieldsTool = grepFieldsToolDefinition.for('mcp');
+const mcpGetMetadataTool = getMetadataToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
 const mcpListContentTool = listContentToolDefinition.for('mcp');
 const mcpReadContentTool = readContentToolDefinition.for('mcp');
+const mcpResolveUrlTool = resolveUrlToolDefinition.for('mcp');
 const mcpCreateContentTool = createContentToolDefinition.for('mcp');
 const mcpEditContentTool = editContentToolDefinition.for('mcp');
+const mcpCreateScheduledDeliveryTool =
+    createScheduledDeliveryToolDefinition.for('mcp');
 const mcpListProjectsTool = mcpListProjectsToolDefinition.for('mcp');
 const mcpSetProjectTool = setProjectToolDefinition.for('mcp');
 const mcpGetCurrentProjectTool = getCurrentProjectToolDefinition.for('mcp');
@@ -215,6 +262,7 @@ type McpServiceArguments = {
     searchModel: SearchModel;
     spaceService: SpaceService;
     mcpContextModel: McpContextModel;
+    mcpToolCallModel: McpToolCallModel;
     featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     aiAgentService: AiAgentService;
@@ -230,6 +278,12 @@ export type ExtraContext = {
     headerUserAttributes?: UserAttributeValueMap;
     /** Project UUID passed via X-Lightdash-Project header; overrides stored context */
     headerProjectUuid?: string;
+    /** User-Agent of the MCP client request, used to attach client identity to tool calls */
+    userAgent?: string;
+    /** Negotiated protocol version from the MCP-Protocol-Version header */
+    protocolVersion?: string;
+    /** Correlation id minted on initialize and echoed via the Mcp-Session-Id header; groups tool calls from one client connection */
+    sessionId?: string;
 };
 
 type McpEffectiveScope = {
@@ -250,6 +304,9 @@ const extraContextSchema = z.object({
     account: z.custom<OauthAccount | ApiKeyAccount | ServiceAcctAccount>(),
     headerUserAttributes: z.custom<UserAttributeValueMap>().optional(),
     headerProjectUuid: z.string().optional(),
+    userAgent: z.string().optional(),
+    protocolVersion: z.string().optional(),
+    sessionId: z.string().optional(),
 });
 
 const mcpProtocolContextSchema = z.object({
@@ -290,6 +347,8 @@ export class McpService extends BaseService {
 
     private mcpContextModel: McpContextModel;
 
+    private mcpToolCallModel: McpToolCallModel;
+
     private shareService: ShareService;
 
     private featureFlagService: FeatureFlagService;
@@ -319,6 +378,7 @@ export class McpService extends BaseService {
         spaceService,
         projectModel,
         mcpContextModel,
+        mcpToolCallModel,
         featureFlagService,
         aiOrganizationSettingsService,
         aiAgentService,
@@ -339,6 +399,7 @@ export class McpService extends BaseService {
         this.projectModel = projectModel;
         this.spaceService = spaceService;
         this.mcpContextModel = mcpContextModel;
+        this.mcpToolCallModel = mcpToolCallModel;
         this.featureFlagService = featureFlagService;
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
         this.aiAgentService = aiAgentService;
@@ -553,9 +614,11 @@ export class McpService extends BaseService {
         userAttributeOverrides: UserAttributeValueMap | undefined;
     }> {
         const toolsRuntime = await this.getToolsRuntime(ctx, projectUuid);
-        const explore = await toolsRuntime.getExplore({
-            table: queryTool.queryConfig.exploreName,
-        });
+        const explore = unwrapMcpRuntimeResult(
+            await toolsRuntime.getExplore({
+                table: queryTool.queryConfig.exploreName,
+            }),
+        );
 
         // Full validation including groupBy, axis, and tableCalcs
         validateRunQueryTool(queryTool, explore);
@@ -597,7 +660,7 @@ export class McpService extends BaseService {
     private async getToolsRuntime(
         context: McpProtocolContext,
         projectUuid: string,
-    ): Promise<AiAgentToolsRuntime> {
+    ): Promise<McpAiAgentToolsRuntime> {
         const { user, account, organizationUuid } =
             McpService.getAccount(context);
 
@@ -652,9 +715,11 @@ export class McpService extends BaseService {
         metricQuery: MetricQuery;
     }) {
         const toolsRuntime = await this.getToolsRuntime(ctx, projectUuid);
-        const explore = await toolsRuntime.getExplore({
-            table: metricQuery.exploreName,
-        });
+        const explore = unwrapMcpRuntimeResult(
+            await toolsRuntime.getExplore({
+                table: metricQuery.exploreName,
+            }),
+        );
         McpService.assertMetricQueryFieldsInExplore(metricQuery, explore);
     }
 
@@ -1080,7 +1145,7 @@ export class McpService extends BaseService {
      * AiWriteback gate in setupHandlers).
      */
     private registerRunAiWritebackTool(): void {
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpRunAiWritebackTool.name,
             {
                 title: mcpRunAiWritebackTool.title,
@@ -1095,32 +1160,34 @@ export class McpService extends BaseService {
                 const { user } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
-                this.trackToolCall(
-                    ctx,
-                    McpToolName.RUN_AI_WRITEBACK,
-                    projectUuid,
-                );
-
                 try {
-                    const result = await this.aiWritebackService.run({
-                        user,
-                        projectUuid,
-                        prompt: args.prompt,
-                        source: 'mcp',
-                    });
+                    const { aiWritebackRunUuid, createdAt, updatedAt } =
+                        await this.aiWritebackService.enqueueWriteback({
+                            user,
+                            projectUuid,
+                            prompt: args.prompt,
+                            source: 'mcp',
+                        });
 
-                    const summary = result.prUrl
-                        ? `AI writeback complete. Pull request opened: ${result.prUrl}`
-                        : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                    // Server-directed task augmentation (MCP Tasks extension):
+                    // only clients that declared the extension in this
+                    // request's _meta get a task handle instead of the legacy
+                    // uuid + poll-tool response.
+                    if (clientSupportsMcpTasks(extra._meta)) {
+                        return McpService.buildAiWritebackCreateTaskResult(
+                            aiWritebackRunUuid,
+                            createdAt,
+                            updatedAt,
+                            // The SDK types tool results as CallToolResult; the
+                            // tasks extension replaces it with a CreateTaskResult,
+                            // which the SDK passes through unvalidated.
+                        ) as unknown as CallToolResult;
+                    }
 
                     return await this.buildScopedResponse(
                         ctx,
-                        `${summary}\n\n${result.output}`,
-                        {
-                            output: result.output,
-                            exitCode: result.exitCode,
-                            prUrl: result.prUrl,
-                        },
+                        `Started AI writeback (run ${aiWritebackRunUuid}). This can take several minutes — call get_ai_writeback_status with this id to check progress and get the pull request URL once it's ready.`,
+                        { aiWritebackRunUuid },
                         projectUuid,
                     );
                 } catch (e) {
@@ -1133,7 +1200,7 @@ export class McpService extends BaseService {
                         content: [
                             {
                                 type: 'text' as const,
-                                text: `Error running AI writeback: ${errorMessage}`,
+                                text: `Error starting AI writeback: ${errorMessage}`,
                             },
                         ],
                         isError: true,
@@ -1143,8 +1210,308 @@ export class McpService extends BaseService {
         );
     }
 
+    private registerGetAiWritebackStatusTool(): void {
+        this.registerTrackedTool(
+            mcpGetAiWritebackStatusTool.name,
+            {
+                title: mcpGetAiWritebackStatusTool.title,
+                description: mcpGetAiWritebackStatusTool.description,
+                inputSchema: mcpGetAiWritebackStatusTool.inputSchema.shape,
+                outputSchema: mcpGetAiWritebackStatusTool.outputSchema.shape,
+                annotations: mcpGetAiWritebackStatusTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+
+                const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
+                try {
+                    const { status, prUrl, errorMessage } =
+                        await this.aiWritebackService.getRunStatus(
+                            user,
+                            args.aiWritebackRunUuid,
+                        );
+
+                    let summary: string;
+                    if (status === 'ready') {
+                        summary = prUrl
+                            ? `AI writeback complete. Pull request opened: ${prUrl}`
+                            : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                    } else if (status === 'error') {
+                        summary = `AI writeback failed: ${errorMessage ?? 'unknown error'}`;
+                    } else if (status === 'cancelled') {
+                        summary = 'AI writeback cancelled.';
+                    } else {
+                        summary = `AI writeback still running (stage: ${status}). Check back in 10-15 seconds.`;
+                    }
+
+                    return await this.buildScopedResponse(
+                        ctx,
+                        summary,
+                        { status, prUrl, errorMessage },
+                        projectUuid,
+                    );
+                } catch (e) {
+                    const errorMessage =
+                        e instanceof Error ? e.message : String(e);
+                    this.logger.error(
+                        `[McpService] Error in get_ai_writeback_status tool: ${errorMessage}`,
+                    );
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Error getting AI writeback status: ${errorMessage}`,
+                            },
+                        ],
+                        isError: true,
+                    };
+                }
+            },
+        );
+    }
+
+    /**
+     * MCP Tasks extension (io.modelcontextprotocol/tasks) surface for AI
+     * writeback runs: tasks/get and tasks/cancel handlers backed by the
+     * ai_writeback_run rows, with the run uuid doubling as the taskId. The
+     * installed SDK predates the 2026-07-28 extension, so the handlers are
+     * registered as raw JSON-RPC request handlers and the responses are
+     * shaped by hand.
+     */
+    private registerAiWritebackTaskHandlers(): void {
+        // The SDK refuses tasks/* request handlers unless a core `tasks`
+        // capability is registered, so it unavoidably appears on the wire
+        // even though this server speaks the 2026-07-28 extension shapes,
+        // not the SDK's draft-era task protocol. Draft-era clients are not
+        // drawn in by it in practice: the draft gates task-augmented calls
+        // on per-tool execution.taskSupport, which no tool here declares.
+        // Also advertise the extension itself (under `extensions` per the
+        // final SEP, and `experimental` for draft-era clients, mirroring
+        // the skills extension above).
+        this.mcpServer.server.registerCapabilities({
+            tasks: {},
+            experimental: {
+                [MCP_TASKS_EXTENSION_NAME]: {},
+            },
+            extensions: {
+                [MCP_TASKS_EXTENSION_NAME]: {},
+            },
+        });
+
+        this.mcpServer.server.setRequestHandler(
+            GetTaskRequestSchema,
+            async (request, extra) =>
+                this.handleGetAiWritebackTask(request.params.taskId, extra),
+        );
+
+        this.mcpServer.server.setRequestHandler(
+            CancelTaskRequestSchema,
+            async (request, extra) =>
+                this.handleCancelAiWritebackTask(request.params.taskId, extra),
+        );
+    }
+
+    private async handleGetAiWritebackTask(
+        taskId: string,
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): Promise<McpGetTaskResult> {
+        McpService.requireTasksCapability(extra);
+        const ctx = getMcpContext(extra);
+        const { user } = McpService.getAccount(ctx);
+
+        const snapshot = await this.getAiWritebackTaskSnapshot(user, taskId);
+        // The task namespace covers exactly the runs handles were issued for
+        // ('mcp'-sourced); other surfaces' runs read as not found here even
+        // though the legacy get_ai_writeback_status tool still serves them
+        if (snapshot.source !== 'mcp') {
+            throw McpService.taskNotFoundError(taskId);
+        }
+
+        const base: McpGetTaskResult = {
+            resultType: 'complete',
+            taskId,
+            status: aiWritebackRunStatusToMcpTaskStatus(snapshot.status),
+            statusMessage: getAiWritebackTaskStatusMessage(snapshot.status),
+            createdAt: snapshot.createdAt.toISOString(),
+            lastUpdatedAt: snapshot.updatedAt.toISOString(),
+            // Run rows are retained indefinitely, so the handle never expires
+            ttlMs: null,
+            pollIntervalMs: MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
+        };
+
+        switch (base.status) {
+            case 'working':
+            case 'cancelled':
+            case 'input_required':
+                return base;
+            case 'completed': {
+                // A run error is a tool-level failure: per the extension it
+                // is a completed task whose result carries isError: true —
+                // 'failed' is reserved for JSON-RPC protocol faults
+                const runFailed = snapshot.status === 'error';
+                let text: string;
+                if (runFailed) {
+                    text = `AI writeback failed: ${snapshot.errorMessage ?? 'unknown error'}`;
+                } else if (snapshot.prUrl) {
+                    text = `AI writeback complete. Pull request opened: ${snapshot.prUrl}`;
+                } else {
+                    text =
+                        'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                }
+                return {
+                    ...base,
+                    result: {
+                        content: [{ type: 'text', text }],
+                        structuredContent: {
+                            aiWritebackRunUuid: taskId,
+                            status: snapshot.status,
+                            prUrl: runFailed ? null : snapshot.prUrl,
+                            errorMessage: runFailed
+                                ? (snapshot.errorMessage ??
+                                  'AI writeback failed')
+                                : null,
+                        },
+                        isError: runFailed,
+                    },
+                };
+            }
+            case 'failed':
+                // Unreachable: run statuses never map to 'failed' (reserved
+                // for protocol faults), but the task vocabulary includes it
+                return base;
+            default:
+                return assertUnreachable(
+                    base.status,
+                    `Unknown MCP task status: ${base.status}`,
+                );
+        }
+    }
+
+    private async handleCancelAiWritebackTask(
+        taskId: string,
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): Promise<McpCancelTaskResult> {
+        McpService.requireTasksCapability(extra);
+        const ctx = getMcpContext(extra);
+        const { user } = McpService.getAccount(ctx);
+
+        let outcome: {
+            cancelled: boolean;
+            status: AiWritebackRunStatus;
+        };
+        if (!isValidUuid(taskId)) {
+            throw McpService.taskNotFoundError(taskId);
+        }
+        try {
+            outcome = await this.aiWritebackService.cancelRun(user, taskId);
+        } catch (error) {
+            throw McpService.toTaskProtocolError(error, taskId);
+        }
+
+        if (!outcome.cancelled) {
+            const taskStatus = aiWritebackRunStatusToMcpTaskStatus(
+                outcome.status,
+            );
+            // Cancellation lost the finalize claim: the run is still working
+            // but its git side effects are underway and can't be recalled
+            if (taskStatus === 'working') {
+                throw new McpError(
+                    ErrorCode.InvalidParams,
+                    `Task ${taskId} can no longer be cancelled: its pull request is being finalized`,
+                );
+            }
+            throw new McpError(
+                ErrorCode.InvalidParams,
+                `Task ${taskId} is already in terminal status '${taskStatus}' and cannot be cancelled`,
+            );
+        }
+
+        return { resultType: 'complete' };
+    }
+
+    /**
+     * The extension mandates -32003 for tasks/* requests from clients that
+     * did not declare the tasks capability in this request's _meta.
+     */
+    private static requireTasksCapability(
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): void {
+        if (!clientSupportsMcpTasks(extra._meta)) {
+            throw new McpError(
+                MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
+                `This request requires the ${MCP_TASKS_EXTENSION_NAME} capability to be declared in the request's _meta`,
+                {
+                    requiredCapabilities: {
+                        extensions: { [MCP_TASKS_EXTENSION_NAME]: {} },
+                    },
+                },
+            );
+        }
+    }
+
+    /**
+     * Resolves a taskId to its writeback run snapshot, normalizing every
+     * lookup/authorization failure to the same task-not-found protocol error
+     * so foreign task ids don't leak run existence.
+     */
+    private async getAiWritebackTaskSnapshot(
+        user: SessionUser,
+        taskId: string,
+    ): Promise<{
+        status: AiWritebackRunStatus;
+        prUrl: string | null;
+        errorMessage: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        source: AiWritebackSource;
+    }> {
+        if (!isValidUuid(taskId)) {
+            throw McpService.taskNotFoundError(taskId);
+        }
+        try {
+            return await this.aiWritebackService.getRunSnapshot(user, taskId);
+        } catch (error) {
+            throw McpService.toTaskProtocolError(error, taskId);
+        }
+    }
+
+    private static taskNotFoundError(taskId: string): McpError {
+        return new McpError(
+            ErrorCode.InvalidParams,
+            `Task ${taskId} not found`,
+        );
+    }
+
+    private static toTaskProtocolError(error: unknown, taskId: string): Error {
+        if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+            return McpService.taskNotFoundError(taskId);
+        }
+        return error instanceof Error ? error : new Error(String(error));
+    }
+
+    private static buildAiWritebackCreateTaskResult(
+        aiWritebackRunUuid: string,
+        createdAt: Date,
+        updatedAt: Date,
+    ): McpCreateTaskResult {
+        return {
+            resultType: 'task',
+            taskId: aiWritebackRunUuid,
+            status: 'working',
+            statusMessage: getAiWritebackTaskStatusMessage('pending'),
+            // Row timestamps, so the handle matches what tasks/get reports
+            createdAt: createdAt.toISOString(),
+            lastUpdatedAt: updatedAt.toISOString(),
+            // Run rows are retained indefinitely, so the handle never expires
+            ttlMs: null,
+            pollIntervalMs: MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
+        };
+    }
+
     private registerContentWriteTools(): void {
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpCreateContentTool.name,
             {
                 title: mcpCreateContentTool.title,
@@ -1156,12 +1523,6 @@ export class McpService extends BaseService {
                 const ctx = getMcpContext(extra);
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
-
-                this.trackToolCall(
-                    ctx,
-                    McpToolName.CREATE_CONTENT,
-                    projectUuid,
-                );
 
                 const toolsRuntime = await this.getToolsRuntime(
                     ctx,
@@ -1188,7 +1549,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpEditContentTool.name,
             {
                 title: mcpEditContentTool.title,
@@ -1200,8 +1561,6 @@ export class McpService extends BaseService {
                 const ctx = getMcpContext(extra);
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
-
-                this.trackToolCall(ctx, McpToolName.EDIT_CONTENT, projectUuid);
 
                 const toolsRuntime = await this.getToolsRuntime(
                     ctx,
@@ -1226,18 +1585,64 @@ export class McpService extends BaseService {
         );
     }
 
+    private registerCreateScheduledDeliveryTool(): void {
+        this.registerTrackedTool(
+            mcpCreateScheduledDeliveryTool.name,
+            {
+                title: mcpCreateScheduledDeliveryTool.title,
+                description: mcpCreateScheduledDeliveryTool.description,
+                inputSchema: mcpCreateScheduledDeliveryTool.inputSchema.shape,
+                annotations: mcpCreateScheduledDeliveryTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const createScheduledDeliveryTool = getCreateScheduledDelivery({
+                    createScheduledDelivery:
+                        toolsRuntime.createScheduledDelivery,
+                });
+                const result = await createScheduledDeliveryTool.execute!(
+                    args,
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+    }
+
     setupHandlers(
         options: {
             projectPinned: boolean;
             aiWritebackEnabled: boolean;
+            grepFieldsEnabled: boolean;
             mcpContentWritesEnabled: boolean;
+            scheduledDeliveryEnabled: boolean;
+            runSqlEnabled: boolean;
         } = {
             projectPinned: false,
             aiWritebackEnabled: false,
+            grepFieldsEnabled: false,
             mcpContentWritesEnabled: true,
+            scheduledDeliveryEnabled: true,
+            runSqlEnabled: false,
         },
     ): void {
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpGetLightdashVersionTool.name,
             {
                 title: mcpGetLightdashVersionTool.title,
@@ -1248,7 +1653,6 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                this.trackToolCall(ctx, McpToolName.GET_LIGHTDASH_VERSION);
                 return {
                     content: [
                         {
@@ -1260,7 +1664,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpListExploresTool.name,
             {
                 title: mcpListExploresTool.title,
@@ -1273,12 +1677,6 @@ export class McpService extends BaseService {
                     const ctx = getMcpContext(extra);
 
                     const projectUuid = await this.resolveProjectUuid(ctx);
-
-                    this.trackToolCall(
-                        ctx,
-                        McpToolName.LIST_EXPLORES,
-                        projectUuid,
-                    );
 
                     const toolsRuntime = await this.getToolsRuntime(
                         ctx,
@@ -1313,123 +1711,267 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
-            mcpFindExploresTool.name,
-            {
-                title: mcpFindExploresTool.title,
-                description: mcpFindExploresTool.description,
-                inputSchema: mcpFindExploresTool.inputSchema.shape,
-                annotations: mcpFindExploresTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                const { user } = McpService.getAccount(ctx);
+        if (options.grepFieldsEnabled) {
+            this.registerTrackedTool(
+                mcpGrepFieldsTool.name,
+                {
+                    title: mcpGrepFieldsTool.title,
+                    description: mcpGrepFieldsTool.description,
+                    inputSchema: mcpGrepFieldsTool.inputSchema.shape,
+                    outputSchema: mcpGrepFieldsTool.outputSchema.shape,
+                    annotations: mcpGrepFieldsTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const { user } = McpService.getAccount(ctx);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
 
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
+                    try {
+                        const toolsRuntime = await this.getToolsRuntime(
+                            ctx,
+                            projectUuid,
+                        );
+                        // Independent reads — fetch the explore list, the
+                        // verified-usage map, and the active agent context
+                        // together instead of serially.
+                        const [
+                            availableExplores,
+                            verifiedFieldUsage,
+                            metadata,
+                        ] = await Promise.all([
+                            toolsRuntime.listExplores(),
+                            toolsRuntime
+                                .getVerifiedFieldUsage()
+                                .catch(() => new Map<string, number>()),
+                            this.getActiveContextMetadata(ctx),
+                        ]);
+                        const [result, verifiedAnswerContext] =
+                            await Promise.all([
+                                executeGrepFields(args, {
+                                    availableExplores,
+                                    verifiedFieldUsage,
+                                    findExplores: async (findExploresArgs) =>
+                                        unwrapMcpRuntimeResult(
+                                            await toolsRuntime.findExplores(
+                                                findExploresArgs,
+                                            ),
+                                        ),
+                                }),
+                                metadata.agentUuid
+                                    ? this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
+                                          user,
+                                          {
+                                              projectUuid,
+                                              agentUuid: metadata.agentUuid,
+                                              searchQuery:
+                                                  grepPatternsToSearchQuery(
+                                                      args.patterns,
+                                                  ),
+                                          },
+                                      )
+                                    : { relevantVerifiedAnswers: [] },
+                            ]);
 
-                this.trackToolCall(ctx, McpToolName.FIND_EXPLORES, projectUuid);
+                        const structuredContent = {
+                            ...result.structuredContent,
+                            ...(verifiedAnswerContext.relevantVerifiedAnswers
+                                .length > 0
+                                ? {
+                                      relevantVerifiedAnswers:
+                                          verifiedAnswerContext.relevantVerifiedAnswers,
+                                  }
+                                : {}),
+                        };
 
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
-                const availableExplores = await toolsRuntime.listExplores();
+                        return await this.buildScopedResponse(
+                            ctx,
+                            formatToolJsonOutput(structuredContent),
+                            structuredContent,
+                            projectUuid,
+                        );
+                    } catch (error) {
+                        return mcpGrepFieldsTool.result.error(
+                            `Error grepping fields: ${getErrorMessage(error)}`,
+                        );
+                    }
+                },
+            );
 
-                const findExploresTool = getFindExplores({
-                    findExplores: toolsRuntime.findExplores,
-                    updateProgress: async () => {}, // No-op for MCP context
-                    fieldSearchSize: 200,
-                    toolDescriptionMaxChars:
-                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
-                });
-                const result = await findExploresTool.execute!(
-                    {
-                        ...argsWithProject,
+            this.registerTrackedTool(
+                mcpGetMetadataTool.name,
+                {
+                    title: mcpGetMetadataTool.title,
+                    description: mcpGetMetadataTool.description,
+                    inputSchema: mcpGetMetadataTool.inputSchema.shape,
+                    outputSchema: mcpGetMetadataTool.outputSchema.shape,
+                    annotations: mcpGetMetadataTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+
+                    try {
+                        const toolsRuntime = await this.getToolsRuntime(
+                            ctx,
+                            projectUuid,
+                        );
+                        const availableExplores =
+                            await toolsRuntime.listExplores();
+                        const result = executeGetMetadata(args, {
+                            availableExplores,
+                        });
+
+                        return await this.buildScopedResponse(
+                            ctx,
+                            formatToolJsonOutput(result.structuredContent),
+                            result.structuredContent,
+                            projectUuid,
+                        );
+                    } catch (error) {
+                        return mcpGetMetadataTool.result.error(
+                            `Error getting metadata: ${getErrorMessage(error)}`,
+                        );
+                    }
+                },
+            );
+        } else {
+            this.registerTrackedTool(
+                mcpFindExploresTool.name,
+                {
+                    title: mcpFindExploresTool.title,
+                    description: mcpFindExploresTool.description,
+                    inputSchema: mcpFindExploresTool.inputSchema.shape,
+                    outputSchema: mcpFindExploresTool.outputSchema.shape,
+                    annotations: mcpFindExploresTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const { user } = McpService.getAccount(ctx);
+
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                    );
+                    const runtimeResult = await toolsRuntime.findExplores({
+                        fieldSearchSize: 200,
                         searchQuery: args.searchQuery,
-                    },
-                    {
-                        toolCallId: '',
-                        messages: [],
-                        experimental_context: { availableExplores },
-                    },
-                );
-                const resultText = await McpService.streamToolResult(result);
-                const metadata = await this.getActiveContextMetadata(ctx);
+                    });
+                    if (runtimeResult.status === 'error') {
+                        return mcpFindExploresTool.result.error(
+                            `Error finding explores: ${getErrorMessage(runtimeResult.error)}`,
+                        );
+                    }
 
-                const verifiedAnswerContext = metadata.agentUuid
-                    ? await this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
-                          user,
-                          {
-                              projectUuid,
-                              agentUuid: metadata.agentUuid,
-                              searchQuery: args.searchQuery,
-                          },
-                      )
-                    : { relevantVerifiedAnswers: [] };
+                    const { exploreSearchResults, topMatchingFields } =
+                        runtimeResult.data;
+                    const structuredContent =
+                        buildFindExploresStructuredContent({
+                            searchQuery: args.searchQuery,
+                            exploreSearchResults,
+                            topMatchingFields,
+                            toolDescriptionMaxChars:
+                                this.lightdashConfig.ai.copilot
+                                    .toolDescriptionMaxChars,
+                        });
+                    const resultText = formatToolJsonOutput(structuredContent);
+                    const metadata = await this.getActiveContextMetadata(ctx);
 
-                const verifiedAnswersText =
-                    verifiedAnswerContext.relevantVerifiedAnswers.length > 0
-                        ? `\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
-                              verifiedAnswerContext.relevantVerifiedAnswers,
-                              null,
-                              2,
-                          )}\n</verifiedAnswers>`
-                        : '';
+                    const verifiedAnswerContext = metadata.agentUuid
+                        ? await this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
+                              user,
+                              {
+                                  projectUuid,
+                                  agentUuid: metadata.agentUuid,
+                                  searchQuery: args.searchQuery,
+                              },
+                          )
+                        : { relevantVerifiedAnswers: [] };
 
-                return this.buildScopedResponse(
-                    ctx,
-                    `${resultText}${verifiedAnswersText}`,
-                    verifiedAnswerContext,
-                    projectUuid,
-                );
-            },
-        );
+                    const verifiedAnswersText =
+                        verifiedAnswerContext.relevantVerifiedAnswers.length > 0
+                            ? `\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
+                                  verifiedAnswerContext.relevantVerifiedAnswers,
+                                  null,
+                                  2,
+                              )}\n</verifiedAnswers>`
+                            : '';
 
-        this.mcpServer.registerTool(
-            mcpFindFieldsTool.name,
-            {
-                title: mcpFindFieldsTool.title,
-                description: mcpFindFieldsTool.description,
-                inputSchema: mcpFindFieldsTool.inputSchema.shape,
-                annotations: mcpFindFieldsTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
+                    return this.buildScopedResponse(
+                        ctx,
+                        `${resultText}${verifiedAnswersText}`,
+                        {
+                            ...structuredContent,
+                            relevantVerifiedAnswers:
+                                verifiedAnswerContext.relevantVerifiedAnswers,
+                        },
+                        projectUuid,
+                    );
+                },
+            );
 
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
+            this.registerTrackedTool(
+                mcpFindFieldsTool.name,
+                {
+                    title: mcpFindFieldsTool.title,
+                    description: mcpFindFieldsTool.description,
+                    inputSchema: mcpFindFieldsTool.inputSchema.shape,
+                    outputSchema: mcpFindFieldsTool.outputSchema.shape,
+                    annotations: mcpFindFieldsTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
 
-                this.trackToolCall(ctx, McpToolName.FIND_FIELDS, projectUuid);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
 
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                    );
+                    const exploreResult = await toolsRuntime.getExplore({
+                        table: args.table,
+                    });
+                    if (exploreResult.status === 'error') {
+                        return mcpFindFieldsTool.result.error(
+                            `Error finding fields: ${getErrorMessage(exploreResult.error)}`,
+                        );
+                    }
 
-                const findFieldsTool = getFindFields({
-                    getExplore: toolsRuntime.getExplore,
-                    findFields: toolsRuntime.findFields,
-                    updateProgress: async () => {}, // No-op for MCP context
-                    pageSize: 15,
-                    toolDescriptionMaxChars:
-                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
-                });
-                const result = await findFieldsTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                    const runtimeResult = await toolsRuntime.findFields({
+                        table: args.table,
+                        fieldSearchQueries: args.fieldSearchQueries,
+                        page: args.page ?? 1,
+                        pageSize: 15,
+                        explore: exploreResult.data,
+                    });
+                    if (runtimeResult.status === 'error') {
+                        return mcpFindFieldsTool.result.error(
+                            `Error finding fields: ${getErrorMessage(runtimeResult.error)}`,
+                        );
+                    }
 
-                return this.buildScopedResponse(
-                    ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
-                    projectUuid,
-                );
-            },
-        );
+                    const fieldSearchQueryResults = runtimeResult.data;
 
-        this.mcpServer.registerTool(
+                    const structuredContent = buildFindFieldsStructuredContent({
+                        fieldSearchQueryResults,
+                        toolDescriptionMaxChars:
+                            this.lightdashConfig.ai.copilot
+                                .toolDescriptionMaxChars,
+                        explore: exploreResult.data,
+                    });
+
+                    return this.buildScopedResponse(
+                        ctx,
+                        formatToolJsonOutput(structuredContent),
+                        structuredContent,
+                        projectUuid,
+                    );
+                },
+            );
+        }
+
+        this.registerTrackedTool(
             mcpFindContentTool.name,
             {
                 title: mcpFindContentTool.title,
@@ -1442,8 +1984,6 @@ export class McpService extends BaseService {
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
-
-                this.trackToolCall(ctx, McpToolName.FIND_CONTENT, projectUuid);
 
                 const toolsRuntime = await this.getToolsRuntime(
                     ctx,
@@ -1471,7 +2011,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpListContentTool.name,
             {
                 title: mcpListContentTool.title,
@@ -1484,8 +2024,6 @@ export class McpService extends BaseService {
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
-
-                this.trackToolCall(ctx, McpToolName.LIST_CONTENT, projectUuid);
 
                 const toolsRuntime = await this.getToolsRuntime(
                     ctx,
@@ -1509,7 +2047,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpReadContentTool.name,
             {
                 title: mcpReadContentTool.title,
@@ -1521,8 +2059,6 @@ export class McpService extends BaseService {
                 const ctx = getMcpContext(extra);
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
-
-                this.trackToolCall(ctx, McpToolName.READ_CONTENT, projectUuid);
 
                 const toolsRuntime = await this.getToolsRuntime(
                     ctx,
@@ -1546,16 +2082,54 @@ export class McpService extends BaseService {
             },
         );
 
+        this.registerTrackedTool(
+            mcpResolveUrlTool.name,
+            {
+                title: mcpResolveUrlTool.title,
+                description: mcpResolveUrlTool.description,
+                inputSchema: mcpResolveUrlTool.inputSchema.shape,
+                annotations: mcpResolveUrlTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const resolveUrlTool = getResolveUrl({
+                    resolveUrl: toolsRuntime.resolveUrl,
+                });
+                const result = await resolveUrlTool.execute!(args, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
         // Content writes (create/edit) are gated by an org-level setting so
         // admins can prevent MCP clients from modifying managed content.
         if (options.mcpContentWritesEnabled) {
             this.registerContentWriteTools();
         }
 
+        if (options.scheduledDeliveryEnabled) {
+            this.registerCreateScheduledDeliveryTool();
+        }
+
         // When the project is pinned via header, hide the project-selection
         // tools so clients can't change context for a request-scoped pin.
         if (!options.projectPinned) {
-            this.mcpServer.registerTool(
+            this.registerTrackedTool(
                 mcpListProjectsTool.name,
                 {
                     title: mcpListProjectsTool.title,
@@ -1573,8 +2147,6 @@ export class McpService extends BaseService {
                     const ctx = getMcpContext(extra);
                     const { user, organizationUuid } =
                         McpService.getAccount(ctx);
-
-                    this.trackToolCall(ctx, McpToolName.LIST_PROJECTS);
 
                     const allProjects = await wrapSentryTransaction(
                         'McpService.listProjects.getAllByOrganizationUuid',
@@ -1599,6 +2171,8 @@ export class McpService extends BaseService {
                         .map((project) => ({
                             name: project.name,
                             projectUuid: project.projectUuid,
+                            type: project.type,
+                            expiresAt: project.expiresAt,
                         }));
 
                     return {
@@ -1612,7 +2186,7 @@ export class McpService extends BaseService {
                 },
             );
 
-            this.mcpServer.registerTool(
+            this.registerTrackedTool(
                 mcpSetProjectTool.name,
                 {
                     title: mcpSetProjectTool.title,
@@ -1630,12 +2204,6 @@ export class McpService extends BaseService {
                     const ctx = getMcpContext(extra);
                     const { user, organizationUuid, account } =
                         McpService.getAccount(ctx);
-
-                    this.trackToolCall(
-                        ctx,
-                        McpToolName.SET_PROJECT,
-                        args.projectUuid,
-                    );
 
                     if (!args.projectUuid) {
                         throw new ParameterError('Project UUID is required');
@@ -1699,7 +2267,7 @@ export class McpService extends BaseService {
             );
         }
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpGetCurrentProjectTool.name,
             {
                 title: mcpGetCurrentProjectTool.title,
@@ -1711,8 +2279,6 @@ export class McpService extends BaseService {
                 const ctx = getMcpContext(extra);
 
                 const { user, organizationUuid } = McpService.getAccount(ctx);
-
-                this.trackToolCall(ctx, McpToolName.GET_CURRENT_PROJECT);
 
                 const contextRow = await this.mcpContextModel.getContext(
                     user.userUuid,
@@ -1757,7 +2323,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpListAgentsTool.name,
             {
                 title: mcpListAgentsTool.title,
@@ -1771,8 +2337,6 @@ export class McpService extends BaseService {
                 const { user } = McpService.getAccount(ctx);
 
                 await this.checkAiAgentsVisible(user);
-
-                this.trackToolCall(ctx, McpToolName.LIST_AGENTS);
 
                 const projectUuid =
                     args.projectUuid ??
@@ -1802,7 +2366,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpRouteAgentTool.name,
             {
                 title: mcpRouteAgentTool.title,
@@ -1820,8 +2384,6 @@ export class McpService extends BaseService {
 
                 const projectUuid =
                     args.projectUuid ?? (await this.resolveProjectUuid(ctx));
-
-                this.trackToolCall(ctx, McpToolName.ROUTE_AGENT, projectUuid);
 
                 let selection;
                 try {
@@ -1879,7 +2441,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpSetAgentTool.name,
             {
                 title: mcpSetAgentTool.title,
@@ -1894,8 +2456,6 @@ export class McpService extends BaseService {
                     McpService.getAccount(ctx);
 
                 await this.checkAiAgentsVisible(user);
-
-                this.trackToolCall(ctx, McpToolName.SET_AGENT, args.agentUuid);
 
                 if (!args.agentUuid) {
                     throw new ParameterError('Agent UUID is required');
@@ -1937,7 +2497,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpClearAgentTool.name,
             {
                 title: mcpClearAgentTool.title,
@@ -1949,8 +2509,6 @@ export class McpService extends BaseService {
                 const ctx = getMcpContext(extra);
 
                 const { user, organizationUuid } = McpService.getAccount(ctx);
-
-                this.trackToolCall(ctx, McpToolName.CLEAR_AGENT);
 
                 const existingContext = await this.mcpContextModel.getContext(
                     user.userUuid,
@@ -1987,7 +2545,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpGetCurrentAgentTool.name,
             {
                 title: mcpGetCurrentAgentTool.title,
@@ -2001,8 +2559,6 @@ export class McpService extends BaseService {
                 const { user, organizationUuid } = McpService.getAccount(ctx);
 
                 await this.checkAiAgentsVisible(user);
-
-                this.trackToolCall(ctx, McpToolName.GET_CURRENT_AGENT);
 
                 const contextRow = await this.mcpContextModel.getContext(
                     user.userUuid,
@@ -2075,7 +2631,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpRunMetricQueryTool.name,
             {
                 title: mcpRunMetricQueryTool.title,
@@ -2089,12 +2645,6 @@ export class McpService extends BaseService {
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ..._args, projectUuid };
-
-                this.trackToolCall(
-                    ctx,
-                    McpToolName.RUN_METRIC_QUERY,
-                    projectUuid,
-                );
 
                 try {
                     const deadlineMs =
@@ -2196,92 +2746,95 @@ export class McpService extends BaseService {
                 annotations: mcpRenderChartTool.annotations,
                 _meta: { ui: { resourceUri: chartResourceUri } },
             },
-            async (_args, extra) => {
-                const ctx = getMcpContext(extra);
+            this.wrapToolCallback(
+                mcpRenderChartTool.name,
+                async (_args, extra) => {
+                    const ctx = getMcpContext(extra);
 
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ..._args, projectUuid };
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+                    const argsWithProject = { ..._args, projectUuid };
 
-                this.trackToolCall(ctx, McpToolName.RENDER_CHART, projectUuid);
+                    try {
+                        const { user, account } = McpService.getAccount(ctx);
+                        const renderTool =
+                            toolRenderChartArgsSchemaTransformed.parse(
+                                argsWithProject,
+                            );
 
-                try {
-                    const { user, account } = McpService.getAccount(ctx);
-                    const renderTool =
-                        toolRenderChartArgsSchemaTransformed.parse(
-                            argsWithProject,
-                        );
+                        const queryHistory =
+                            await this.asyncQueryService.getAsyncQueryHistory({
+                                account,
+                                projectUuid,
+                                queryUuid: renderTool.queryUuid,
+                            });
 
-                    const queryHistory =
-                        await this.asyncQueryService.getAsyncQueryHistory({
-                            account,
+                        if (
+                            queryHistory.context !==
+                            QueryExecutionContext.MCP_RUN_METRIC_QUERY
+                        ) {
+                            throw new ParameterError(
+                                'render_chart currently supports queries started by run_metric_query',
+                            );
+                        }
+
+                        if (queryHistory.status !== QueryHistoryStatus.READY) {
+                            throw new UnexpectedServerError(
+                                queryHistory.error ??
+                                    `Query is not ready to render; current status is ${queryHistory.status}`,
+                            );
+                        }
+
+                        await this.assertMetricQueryInEffectiveScope({
+                            ctx,
+                            user,
                             projectUuid,
-                            queryUuid: renderTool.queryUuid,
+                            metricQuery: queryHistory.metricQuery,
                         });
 
-                    if (
-                        queryHistory.context !==
-                        QueryExecutionContext.MCP_RUN_METRIC_QUERY
-                    ) {
-                        throw new ParameterError(
-                            'render_chart currently supports queries started by run_metric_query',
-                        );
-                    }
-
-                    if (queryHistory.status !== QueryHistoryStatus.READY) {
-                        throw new UnexpectedServerError(
-                            queryHistory.error ??
-                                `Query is not ready to render; current status is ${queryHistory.status}`,
-                        );
-                    }
-
-                    await this.assertMetricQueryInEffectiveScope({
-                        ctx,
-                        user,
-                        projectUuid,
-                        metricQuery: queryHistory.metricQuery,
-                    });
-
-                    const queryTool = McpService.buildRenderChartQueryTool({
-                        renderTool,
-                        metricQuery: queryHistory.metricQuery,
-                    });
-
-                    const results =
-                        await this.asyncQueryService.getRawAsyncQueryResults({
-                            account,
-                            projectUuid,
-                            queryUuid: renderTool.queryUuid,
+                        const queryTool = McpService.buildRenderChartQueryTool({
+                            renderTool,
+                            metricQuery: queryHistory.metricQuery,
                         });
 
-                    return await this.buildRenderChartResponse({
-                        ctx,
-                        queryUuid: renderTool.queryUuid,
-                        projectUuid,
-                        queryTool,
-                        query: queryHistory.metricQuery,
-                        rows: results.rows,
-                        fields: results.fields,
-                    });
-                } catch (e) {
-                    const errorMessage =
-                        e instanceof Error ? e.message : String(e);
-                    this.logger.error(
-                        `[McpService] Error in render_chart tool: ${errorMessage}`,
-                    );
-                    return {
-                        content: [
-                            {
-                                type: 'text' as const,
-                                text: `Error rendering chart: ${errorMessage}`,
-                            },
-                        ],
-                        isError: true,
-                    };
-                }
-            },
+                        const results =
+                            await this.asyncQueryService.getRawAsyncQueryResults(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid: renderTool.queryUuid,
+                                },
+                            );
+
+                        return await this.buildRenderChartResponse({
+                            ctx,
+                            queryUuid: renderTool.queryUuid,
+                            projectUuid,
+                            queryTool,
+                            query: queryHistory.metricQuery,
+                            rows: results.rows,
+                            fields: results.fields,
+                        });
+                    } catch (e) {
+                        const errorMessage =
+                            e instanceof Error ? e.message : String(e);
+                        this.logger.error(
+                            `[McpService] Error in render_chart tool: ${errorMessage}`,
+                        );
+                        return {
+                            content: [
+                                {
+                                    type: 'text' as const,
+                                    text: `Error rendering chart: ${errorMessage}`,
+                                },
+                            ],
+                            isError: true,
+                        };
+                    }
+                },
+            ),
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpSearchFieldValuesTool.name,
             {
                 title: mcpSearchFieldValuesTool.title,
@@ -2294,12 +2847,6 @@ export class McpService extends BaseService {
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
-
-                this.trackToolCall(
-                    ctx,
-                    McpToolName.SEARCH_FIELD_VALUES,
-                    projectUuid,
-                );
 
                 const toolsRuntime = await this.getToolsRuntime(
                     ctx,
@@ -2326,102 +2873,112 @@ export class McpService extends BaseService {
             },
         );
 
-        // TODO: move config-dependent tool contracts into defineTool so
-        // description and inputSchema can be resolved from one runtime-aware
-        // definition instead of being rebuilt here.
-        const runSqlArgsSchema = createToolRunSqlArgsSchema({
-            maxLimit: this.lightdashConfig.mcp.runSqlMaxLimit,
-        });
-        this.mcpServer.registerTool(
-            mcpRunSqlTool.name,
-            {
-                title: mcpRunSqlTool.title,
-                description: buildRunSqlDescription(
-                    500,
-                    this.lightdashConfig.mcp.runSqlMaxLimit,
-                ),
-                inputSchema: createMcpCompatibleInputShape(runSqlArgsSchema),
-                outputSchema: mcpRunSqlTool.outputSchema,
-                annotations: mcpRunSqlTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
+        // run_sql is only registered (and thus only listed/invocable) when the
+        // caller has manage:SqlRunner. executeAsyncSqlQuery still enforces the
+        // permission per-project at invocation time; gating registration keeps
+        // the tool out of tools/list for users who can never run SQL, so the
+        // LLM doesn't loop on a tool it isn't allowed to call.
+        if (options.runSqlEnabled) {
+            // TODO: move config-dependent tool contracts into defineTool so
+            // description and inputSchema can be resolved from one runtime-aware
+            // definition instead of being rebuilt here.
+            const runSqlArgsSchema = createToolRunSqlArgsSchema({
+                maxLimit: this.lightdashConfig.mcp.runSqlMaxLimit,
+            });
+            this.registerTrackedTool(
+                mcpRunSqlTool.name,
+                {
+                    title: mcpRunSqlTool.title,
+                    description: buildRunSqlDescription(
+                        500,
+                        this.lightdashConfig.mcp.runSqlMaxLimit,
+                    ),
+                    inputSchema:
+                        createMcpCompatibleInputShape(runSqlArgsSchema),
+                    outputSchema: mcpRunSqlTool.outputSchema,
+                    annotations: mcpRunSqlTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
 
-                const { account } = McpService.getAccount(ctx);
-                const projectUuid = await this.resolveProjectUuid(ctx);
+                    const { account } = McpService.getAccount(ctx);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
 
-                this.trackToolCall(ctx, McpToolName.RUN_SQL, projectUuid);
+                    try {
+                        const deadlineMs =
+                            Date.now() + McpService.getMcpQueryWaitMs(extra);
+                        const { queryUuid } =
+                            await this.asyncQueryService.executeAsyncSqlQuery({
+                                account,
+                                projectUuid,
+                                sql: args.sql,
+                                limit: args.limit ?? 500,
+                                context: QueryExecutionContext.MCP_RUN_SQL,
+                            });
 
-                try {
-                    const deadlineMs =
-                        Date.now() + McpService.getMcpQueryWaitMs(extra);
-                    const { queryUuid } =
-                        await this.asyncQueryService.executeAsyncSqlQuery({
-                            account,
+                        const queryHistory =
+                            await this.asyncQueryService.pollQueryHistoryUntilDeadline(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid,
+                                    deadlineMs,
+                                    pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                                    signal: extra.signal,
+                                },
+                            );
+
+                        if (
+                            McpService.isQueryRunningStatus(queryHistory.status)
+                        ) {
+                            return McpService.getRunningQueryResponse(
+                                queryUuid,
+                            );
+                        }
+
+                        if (queryHistory.status !== QueryHistoryStatus.READY) {
+                            throw new UnexpectedServerError(
+                                queryHistory.error ??
+                                    `SQL query finished with status ${queryHistory.status}`,
+                            );
+                        }
+
+                        const sqlRunnerUrl = await this.buildSqlRunnerUrl({
+                            ctx,
                             projectUuid,
                             sql: args.sql,
                             limit: args.limit ?? 500,
-                            context: QueryExecutionContext.MCP_RUN_SQL,
                         });
 
-                    const queryHistory =
-                        await this.asyncQueryService.pollQueryHistoryUntilDeadline(
-                            {
-                                account,
-                                projectUuid,
-                                queryUuid,
-                                deadlineMs,
-                                pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
-                                signal: extra.signal,
-                            },
+                        return await this.buildSqlQueryResultResponse({
+                            ctx,
+                            queryUuid,
+                            projectUuid,
+                            pageSize: args.limit ?? 500,
+                            includeStatus: false,
+                            sqlRunnerUrl,
+                        });
+                    } catch (e) {
+                        const errorMessage =
+                            e instanceof Error ? e.message : String(e);
+                        this.logger.error(
+                            `[McpService] Error in run_sql tool: ${errorMessage}`,
                         );
-
-                    if (McpService.isQueryRunningStatus(queryHistory.status)) {
-                        return McpService.getRunningQueryResponse(queryUuid);
+                        return {
+                            content: [
+                                {
+                                    type: 'text' as const,
+                                    text: `Error running SQL query: ${errorMessage}`,
+                                },
+                            ],
+                            isError: true,
+                        };
                     }
+                },
+            );
+        }
 
-                    if (queryHistory.status !== QueryHistoryStatus.READY) {
-                        throw new UnexpectedServerError(
-                            queryHistory.error ??
-                                `SQL query finished with status ${queryHistory.status}`,
-                        );
-                    }
-
-                    const sqlRunnerUrl = await this.buildSqlRunnerUrl({
-                        ctx,
-                        projectUuid,
-                        sql: args.sql,
-                        limit: args.limit ?? 500,
-                    });
-
-                    return await this.buildSqlQueryResultResponse({
-                        ctx,
-                        queryUuid,
-                        projectUuid,
-                        pageSize: args.limit ?? 500,
-                        includeStatus: false,
-                        sqlRunnerUrl,
-                    });
-                } catch (e) {
-                    const errorMessage =
-                        e instanceof Error ? e.message : String(e);
-                    this.logger.error(
-                        `[McpService] Error in run_sql tool: ${errorMessage}`,
-                    );
-                    return {
-                        content: [
-                            {
-                                type: 'text' as const,
-                                text: `Error running SQL query: ${errorMessage}`,
-                            },
-                        ],
-                        isError: true,
-                    };
-                }
-            },
-        );
-
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpGetQueryResultTool.name,
             {
                 title: mcpGetQueryResultTool.title,
@@ -2435,12 +2992,6 @@ export class McpService extends BaseService {
 
                 const { user, account } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveProjectUuid(ctx);
-
-                this.trackToolCall(
-                    ctx,
-                    McpToolName.GET_QUERY_RESULT,
-                    projectUuid,
-                );
 
                 try {
                     let queryHistory =
@@ -2585,7 +3136,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpListVerifiedContentTool.name,
             {
                 title: mcpListVerifiedContentTool.title,
@@ -2599,12 +3150,6 @@ export class McpService extends BaseService {
                 const { user } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
-                this.trackToolCall(
-                    ctx,
-                    McpToolName.LIST_VERIFIED_CONTENT,
-                    projectUuid,
-                );
-
                 const effectiveScope = await this.getEffectiveScopeFromContext(
                     ctx,
                     projectUuid,
@@ -2614,7 +3159,27 @@ export class McpService extends BaseService {
                         user,
                         projectUuid,
                     );
-                const scopedVerifiedContent = verifiedContent.filter(
+                // Pre-bridge AI-verified artifacts only exist in ai_artifact_versions
+                const artifactVerifiedContent =
+                    await this.aiAgentService.getVerifiedSavedArtifactContent(
+                        user,
+                        projectUuid,
+                    );
+                const verifiedContentKeys = new Set(
+                    verifiedContent.map(
+                        (item) => `${item.contentType}:${item.contentUuid}`,
+                    ),
+                );
+                const mergedVerifiedContent = [
+                    ...verifiedContent,
+                    ...artifactVerifiedContent.filter(
+                        (item) =>
+                            !verifiedContentKeys.has(
+                                `${item.contentType}:${item.contentUuid}`,
+                            ),
+                    ),
+                ];
+                const scopedVerifiedContent = mergedVerifiedContent.filter(
                     ({ spaceUuid }) =>
                         McpService.hasAgentSpaceAccess(
                             effectiveScope.spaceAccess,
@@ -2640,6 +3205,8 @@ export class McpService extends BaseService {
         // (mcpRouter.ts) and passed through createServer.
         if (options.aiWritebackEnabled) {
             this.registerRunAiWritebackTool();
+            this.registerGetAiWritebackStatusTool();
+            this.registerAiWritebackTaskHandlers();
         }
 
         this.mcpServer.registerPrompt(
@@ -2672,12 +3239,17 @@ export class McpService extends BaseService {
                             instruction: agent.context.instruction,
                             explores: agent.context.explores,
                             verifiedQuestions: agent.context.verifiedQuestions,
+                            enableGrepFields: options.grepFieldsEnabled,
                         });
                     } catch {
-                        promptText = MCP_ANALYST_PROMPT;
+                        promptText = getMcpAnalystPrompt({
+                            enableGrepFields: options.grepFieldsEnabled,
+                        });
                     }
                 } else {
-                    promptText = MCP_ANALYST_PROMPT;
+                    promptText = getMcpAnalystPrompt({
+                        enableGrepFields: options.grepFieldsEnabled,
+                    });
                 }
 
                 return {
@@ -2968,7 +3540,10 @@ export class McpService extends BaseService {
     public async createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
+        grepFieldsEnabled?: boolean;
         mcpContentWritesEnabled?: boolean;
+        scheduledDeliveryEnabled?: boolean;
+        runSqlEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
@@ -3002,7 +3577,10 @@ export class McpService extends BaseService {
         this.setupHandlers({
             projectPinned: options?.projectPinned ?? false,
             aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
+            grepFieldsEnabled: options?.grepFieldsEnabled ?? false,
             mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
+            scheduledDeliveryEnabled: options?.scheduledDeliveryEnabled ?? true,
+            runSqlEnabled: options?.runSqlEnabled ?? false,
         });
         this.mcpServer = originalServer;
 
@@ -3014,7 +3592,7 @@ export class McpService extends BaseService {
     }
 
     private registerSkillToolHandlers(): void {
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpListSkillsTool.name,
             {
                 title: mcpListSkillsTool.title,
@@ -3023,10 +3601,7 @@ export class McpService extends BaseService {
                 outputSchema: mcpListSkillsTool.outputSchema.shape,
                 annotations: mcpListSkillsTool.annotations,
             },
-            async (_args, extra) => {
-                const ctx = getMcpContext(extra);
-                this.trackToolCall(ctx, McpToolName.LIST_SKILLS);
-
+            async () => {
                 const skills = await this.aiAgentToolsService.listMcpSkills();
                 return mcpListSkillsTool.result.structured(
                     JSON.stringify({ skills }, null, 2),
@@ -3035,7 +3610,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpReadSkillTool.name,
             {
                 title: mcpReadSkillTool.title,
@@ -3044,10 +3619,7 @@ export class McpService extends BaseService {
                 outputSchema: mcpReadSkillTool.outputSchema.shape,
                 annotations: mcpReadSkillTool.annotations,
             },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                this.trackToolCall(ctx, McpToolName.READ_SKILL);
-
+            async (args) => {
                 const result = await this.aiAgentToolsService.loadMcpSkill(
                     args.name,
                 );
@@ -3065,7 +3637,7 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        this.registerTrackedTool(
             mcpReadSkillResourceTool.name,
             {
                 title: mcpReadSkillResourceTool.title,
@@ -3074,10 +3646,7 @@ export class McpService extends BaseService {
                 outputSchema: mcpReadSkillResourceTool.outputSchema.shape,
                 annotations: mcpReadSkillResourceTool.annotations,
             },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                this.trackToolCall(ctx, McpToolName.READ_SKILL_RESOURCE);
-
+            async (args) => {
                 const result =
                     await this.aiAgentToolsService.loadMcpSkillResource(args);
                 if (!result) {
@@ -3229,17 +3798,16 @@ export class McpService extends BaseService {
     }
 
     /**
-     * Whether the run_ai_writeback tool should be exposed to this caller.
-     * Gated behind the AiWriteback feature flag (off by default) so the tool
-     * can be dark launched — clients without the flag never see it in
-     * tools/list. Resolved per-request and passed into createServer.
+     * Whether MCP should expose the grep_fields/get_metadata discovery pair
+     * instead of the legacy find_explores/find_fields pair. Resolved per
+     * request so the MCP surface can dark-launch behind AiGrepFields.
      */
-    public async isAiWritebackEnabled(
+    public async isAiGrepFieldsEnabled(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ): Promise<boolean> {
         const flag = await this.featureFlagService.get({
             user,
-            featureFlagId: FeatureFlags.AiWriteback,
+            featureFlagId: FeatureFlags.AiGrepFields,
         });
         return flag.enabled;
     }
@@ -3250,6 +3818,69 @@ export class McpService extends BaseService {
         return this.aiOrganizationSettingsService.isMcpContentWritesEnabled(
             user,
         );
+    }
+
+    public async isContentToolsEnabled(user: SessionUser): Promise<boolean> {
+        const settingEnabled = await this.isMcpContentWritesEnabled(user);
+        return (
+            settingEnabled &&
+            this.createAuditedAbility(user).can('create', 'ContentAsCode')
+        );
+    }
+
+    public async isCreateScheduledDeliveryEnabled(
+        user: SessionUser,
+    ): Promise<boolean> {
+        const settingEnabled = await this.isMcpContentWritesEnabled(user);
+        return (
+            settingEnabled &&
+            this.createAuditedAbility(user).can('create', 'ScheduledDeliveries')
+        );
+    }
+
+    /**
+     * Whether the run_sql tool should be registered for this caller.
+     *
+     * run_sql is gated on manage:SqlRunner. When the session already targets a
+     * known project (pinned via the X-Lightdash-Project header or a prior
+     * set_project), the permission is checked against that concrete project so
+     * the tool stays out of tools/list for a caller who is only a viewer there
+     * — even if they happen to have SqlRunner in some other project. A bare
+     * capability check on a subject *type* returns true whenever any matching
+     * conditional rule exists, which is why the project-scoped check matters.
+     *
+     * Without a resolved project we fall back to the coarse capability check;
+     * executeAsyncSqlQuery still enforces the permission per-project at
+     * invocation time.
+     */
+    public async isRunSqlEnabled(
+        user: SessionUser,
+        headerProjectUuid?: string,
+    ): Promise<boolean> {
+        const ability = this.createAuditedAbility(user);
+
+        const projectUuid =
+            headerProjectUuid ??
+            (user.organizationUuid
+                ? (
+                      await this.mcpContextModel.getContext(
+                          user.userUuid,
+                          user.organizationUuid,
+                      )
+                  )?.context.projectUuid
+                : undefined);
+
+        if (projectUuid && user.organizationUuid) {
+            return ability.can(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            );
+        }
+
+        return ability.can('manage', 'SqlRunner');
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {
@@ -3270,24 +3901,213 @@ export class McpService extends BaseService {
         }
     }
 
-    private trackToolCall(
-        context: McpProtocolContext,
-        toolName: string,
-        projectUuid?: string,
-    ): void {
-        try {
-            const { user, organizationUuid } = McpService.getAccount(context);
-            this.analytics.track<McpToolCallEvent>({
-                event: 'mcp_tool_call',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
+    /**
+     * Registers a tool with its handler wrapped in activity tracking
+     * (mcp_tool_call row + analytics per invocation). New tools must go
+     * through this — a direct mcpServer.registerTool call still works but
+     * silently skips recording.
+     */
+    private registerTrackedTool: McpServer['registerTool'] = (
+        name,
+        config,
+        handler,
+    ) =>
+        this.mcpServer.registerTool(
+            name,
+            config,
+            this.wrapToolCallback(name, handler),
+        );
+
+    private wrapToolCallback<
+        Callback extends (...cbArgs: AnyType[]) => AnyType,
+    >(toolName: string, handler: Callback): Callback {
+        const wrapped = async (...cbArgs: AnyType[]) => {
+            // ToolCallback is (extra) for tools without an input schema and
+            // (args, extra) otherwise
+            const [toolArgs, extra] =
+                cbArgs.length > 1 ? [cbArgs[0], cbArgs[1]] : [{}, cbArgs[0]];
+            const startedAt = Date.now();
+            try {
+                const result = await handler(...cbArgs);
+                this.recordToolCall({
                     toolName,
-                },
+                    toolArgs,
+                    extra,
+                    durationMs: Date.now() - startedAt,
+                    status: result?.isError === true ? 'error' : 'success',
+                    errorMessage:
+                        result?.isError === true
+                            ? McpService.getResultErrorText(result)
+                            : null,
+                });
+                return result;
+            } catch (error) {
+                this.recordToolCall({
+                    toolName,
+                    toolArgs,
+                    extra,
+                    durationMs: Date.now() - startedAt,
+                    status: 'error',
+                    errorMessage: getErrorMessage(error),
+                });
+                throw error;
+            }
+        };
+        return wrapped as Callback;
+    }
+
+    private static getResultErrorText(result: AnyType): string | null {
+        const text = Array.isArray(result?.content)
+            ? result.content.find((item: AnyType) => item?.type === 'text')
+                  ?.text
+            : undefined;
+        return typeof text === 'string' ? text.slice(0, 500) : null;
+    }
+
+    // Fire-and-forget: observability must never fail or slow down a tool call
+    private recordToolCall(params: {
+        toolName: string;
+        toolArgs: object;
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>;
+        durationMs: number;
+        status: 'success' | 'error';
+        errorMessage: string | null;
+    }): void {
+        void this.persistToolCall(params).catch((error) => {
+            this.logger.warn(
+                `Failed to record MCP tool call: ${getErrorMessage(error)}`,
+            );
+        });
+    }
+
+    private async persistToolCall({
+        toolName,
+        toolArgs,
+        extra,
+        durationMs,
+        status,
+        errorMessage,
+    }: {
+        toolName: string;
+        toolArgs: object;
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>;
+        durationMs: number;
+        status: 'success' | 'error';
+        errorMessage: string | null;
+    }): Promise<void> {
+        const context = getMcpContext(extra);
+        const { user, account, organizationUuid } =
+            McpService.getAccount(context);
+        const { userAgent, protocolVersion, headerProjectUuid, sessionId } =
+            context.authInfo?.extra ?? {};
+
+        // Project/agent scope and client identity come from DB lookups, but
+        // they are enrichment only — a lookup failure must not cost the
+        // analytics event or the activity row
+        let projectUuid: string | null = headerProjectUuid ?? null;
+        let agentUuid: string | null = null;
+        let clientInfo: DbMcpClientInfo | undefined;
+        try {
+            const contextRow = await this.mcpContextModel.getContext(
+                user.userUuid,
+                organizationUuid,
+            );
+            const contextProjectUuid = contextRow?.context.projectUuid;
+            projectUuid = headerProjectUuid ?? contextProjectUuid ?? null;
+            // Mirrors getEffectiveScopeFromContext: the stored agent only
+            // applies when the effective project is the one it was selected in
+            agentUuid =
+                headerProjectUuid && contextProjectUuid !== headerProjectUuid
+                    ? null
+                    : (contextRow?.context.agentUuid ?? null);
+
+            clientInfo = userAgent
+                ? await this.mcpToolCallModel.findClientInfo(
+                      user.userUuid,
+                      organizationUuid,
+                      userAgent,
+                  )
+                : undefined;
+        } catch (error) {
+            this.logger.warn(
+                `Failed to enrich MCP tool call record: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+
+        const authType = account.authentication.type;
+
+        this.analytics.track<McpToolCallEvent>({
+            event: 'mcp_tool_call',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid ?? undefined,
+                agentId: agentUuid ?? undefined,
+                toolName,
+                status,
+                durationMs,
+                authType,
+                clientName: clientInfo?.client_name,
+                clientVersion: clientInfo?.client_version ?? undefined,
+                userAgent,
+                protocolVersion,
+                sessionId,
+            },
+        });
+
+        await this.mcpToolCallModel.createToolCall({
+            organization_uuid: organizationUuid,
+            user_uuid: user.userUuid,
+            project_uuid: projectUuid,
+            agent_uuid: agentUuid,
+            tool_name: toolName,
+            tool_args: toolArgs,
+            status,
+            error_message: errorMessage,
+            duration_ms: durationMs,
+            result_metadata: null,
+            client_name: clientInfo?.client_name ?? null,
+            client_version: clientInfo?.client_version ?? null,
+            user_agent: userAgent ?? null,
+            auth_type: authType,
+            protocol_version: protocolVersion ?? null,
+            mcp_session_id: sessionId ?? null,
+        });
+    }
+
+    /**
+     * Stores the client identity from an MCP initialize handshake. The
+     * transport is stateless, so this is the only request that carries
+     * clientInfo — tool calls attach it later by matching user agent.
+     */
+    public async captureClientInfo({
+        user,
+        clientName,
+        clientVersion,
+        userAgent,
+    }: {
+        user: SessionUser;
+        clientName: string;
+        clientVersion: string | null;
+        userAgent: string;
+    }): Promise<void> {
+        try {
+            if (!user.organizationUuid) {
+                return;
+            }
+            await this.mcpToolCallModel.upsertClientInfo({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                userAgent,
+                clientName,
+                clientVersion,
             });
         } catch (error) {
-            this.logger.debug('Failed to track MCP tool call', error);
+            this.logger.warn(
+                `Failed to capture MCP client info: ${getErrorMessage(error)}`,
+            );
         }
     }
 }

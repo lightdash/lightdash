@@ -14,7 +14,7 @@ import {
     type ModalHeaderProps,
     type ModalRootProps,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import { IconTrash, type Icon as IconType } from '@tabler/icons-react';
 import React, { useCallback, useEffect } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -26,6 +26,15 @@ import classes from './MantineModal.module.css';
  * - `delete`: Destructive action modal with red styling and trash icon
  */
 export type MantineModalVariant = 'default' | 'delete';
+
+/**
+ * Semantic role of the modal, driving both its ARIA role and dismissal behavior.
+ * - `dialog`: standard modal, dismissible by clicking outside / pressing Escape
+ * - `alertdialog`: interrupts and requires an explicit decision; not dismissible
+ *   by click-outside or Escape, guarding against accidental dismissal. Use for
+ *   destructive confirmations and other choices that must be answered.
+ */
+export type MantineModalRole = 'dialog' | 'alertdialog';
 
 const VARIANT_CONFIG: Record<
     MantineModalVariant,
@@ -69,6 +78,17 @@ export type MantineModalProps = {
      */
     variant?: MantineModalVariant;
     /**
+     * Semantic role of the modal.
+     * - `alertdialog`: sets `role="alertdialog"` and disables click-outside /
+     *   Escape dismissal so a confirmation can't be lost by a stray click.
+     *   Override the dismissal defaults per-case via `modalRootProps`.
+     * Defaults to `alertdialog` for `variant="delete"` (destructive actions
+     * shouldn't be dismissed by accident), otherwise `dialog`. Set explicitly
+     * to opt a delete modal back into `dialog`, or to mark a non-delete modal
+     * (e.g. a revoke/regenerate confirmation) as an alert.
+     */
+    role?: MantineModalRole;
+    /**
      * The type of resource being acted upon (e.g., "chart", "dashboard", "space").
      * Used with `variant="delete"` to auto-generate description.
      */
@@ -79,6 +99,12 @@ export type MantineModalProps = {
      * "Are you sure you want to delete the {resourceType} "{resourceLabel}"?"
      */
     resourceLabel?: string;
+    /**
+     * Secondary line rendered under the title, in the header.
+     * Use for context about the modal itself; `description` instead puts copy
+     * in the body, where it reads as content.
+     */
+    subtitle?: React.ReactNode;
     icon?: IconType;
     /**
      * Modal size. Accepts Mantine's built-in sizes ('xs', 'sm', 'md', 'lg', 'xl') or a custom number/string.
@@ -144,6 +170,12 @@ export type MantineModalProps = {
      */
     headerActions?: React.ReactNode;
     /**
+     * Custom footer content, rendered full-width in place of the default
+     * cancel/confirm button bar. `onConfirm`, `actions`, `leftActions` and
+     * `cancelLabel` are ignored when set.
+     */
+    footer?: React.ReactNode;
+    /**
      * Label for the cancel button. Set to `false` to hide the cancel button.
      * @default "Cancel"
      */
@@ -183,7 +215,9 @@ const MantineModal: React.FC<MantineModalProps> = ({
     opened,
     onClose,
     title,
+    subtitle,
     variant = 'default',
+    role = variant === 'delete' ? 'alertdialog' : 'dialog',
     resourceType,
     resourceLabel,
     icon,
@@ -199,11 +233,13 @@ const MantineModal: React.FC<MantineModalProps> = ({
     actions,
     leftActions,
     headerActions,
+    footer,
     cancelLabel = 'Cancel',
     cancelDisabled = false,
     onCancel,
     confirmBeforeClose = false,
     modalRootProps,
+    modalContentProps,
     modalHeaderProps,
     modalBodyProps,
     modalActionsProps,
@@ -229,6 +265,8 @@ const MantineModal: React.FC<MantineModalProps> = ({
     }, [confirmBeforeClose, onClose, openConfirmClose]);
 
     const config = VARIANT_CONFIG[variant];
+
+    const isAlertDialog = role === 'alertdialog';
 
     const effectiveIcon = icon ?? config.icon;
 
@@ -290,12 +328,18 @@ const MantineModal: React.FC<MantineModalProps> = ({
                 onClose={handleClose}
                 size={fullScreen ? 'auto' : size}
                 centered
+                closeOnClickOutside={isAlertDialog ? false : undefined}
+                closeOnEscape={isAlertDialog ? false : undefined}
                 {...modalRootProps}
             >
                 <Modal.Overlay />
                 <Modal.Content
+                    {...modalContentProps}
+                    role={isAlertDialog ? 'alertdialog' : undefined}
                     className={
-                        fullScreen ? classes.fullScreenContent : undefined
+                        fullScreen
+                            ? classes.fullScreenContent
+                            : modalContentProps?.className
                     }
                 >
                     <Modal.Header
@@ -308,7 +352,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             gap="sm"
                             flex={1}
                             wrap="nowrap"
-                            align="flex-start"
+                            align={subtitle ? 'center' : 'flex-start'}
                         >
                             {effectiveIcon ? (
                                 <Paper p="6px" withBorder radius="md">
@@ -318,9 +362,16 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                     />
                                 </Paper>
                             ) : null}
-                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
-                                {title}
-                            </Text>
+                            <Stack gap={2} miw={0}>
+                                <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                                    {title}
+                                </Text>
+                                {subtitle ? (
+                                    <Text c="ldGray.6" fz="sm" lh="20px">
+                                        {subtitle}
+                                    </Text>
+                                ) : null}
+                            </Stack>
                         </Group>
                         {headerActions ? (
                             <Group gap="sm" mr="md">
@@ -332,7 +383,11 @@ const MantineModal: React.FC<MantineModalProps> = ({
 
                     {renderBody()}
 
-                    {(onConfirm || actions || leftActions) && !fullScreen ? (
+                    {footer && !fullScreen ? (
+                        <Box className={classes.actions} px="xl" py="md">
+                            {footer}
+                        </Box>
+                    ) : (onConfirm || actions || leftActions) && !fullScreen ? (
                         <Flex
                             className={classes.actions}
                             px="xl"
@@ -377,7 +432,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                     centered
                 >
                     <Modal.Overlay />
-                    <Modal.Content>
+                    <Modal.Content role="alertdialog">
                         <Modal.Header
                             className={classes.header}
                             px="xl"

@@ -17,6 +17,8 @@ const SEARCH_TOOLS = new Set([
     'findExplores',
     'findFields',
     'discoverFields',
+    'grepFields',
+    'getMetadata',
     'searchSemanticLayer',
     'searchFieldValues',
     'findContent',
@@ -28,6 +30,7 @@ const SEARCH_TOOLS = new Set([
     'describeWarehouseTable',
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
+    'resolveUrl',
 ]);
 
 const VIZ_TOOLS = new Set([

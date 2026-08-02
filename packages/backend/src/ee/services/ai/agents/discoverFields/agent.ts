@@ -4,19 +4,23 @@ import {
     smoothStream,
     stepCountIs,
     streamText,
-    tool,
     type CallSettings,
     type LanguageModel,
     type ModelMessage,
     type StreamTextResult,
 } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../../analytics/aiUsage';
 import Logger from '../../../../../logging/logger';
 import { getFindExplores } from '../../tools/findExplores';
 import { getFindFields } from '../../tools/findFields';
+import { getSubmitDiscoverFieldsResult } from '../../tools/submitDiscoverFieldsResult';
 import type { AiAgentArgs, AiAgentDependencies } from '../../types/aiAgent';
 import { AgentContext } from '../../utils/AgentContext';
 import { getAgentTelemetryConfig } from '../telemetry';
-import { DiscoverFieldsInput, discoverFieldsResultSchema } from './schema';
+import type { DiscoverFieldsInput } from './schema';
 import { getDiscoverFieldsSystemPrompt } from './systemPrompt';
 
 const SUBAGENT_STEP_CAP = 50;
@@ -55,30 +59,18 @@ export type DiscoverFieldsAgentArgs = {
         | 'agentSettings'
         | 'threadUuid'
         | 'promptUuid'
+        | 'organizationId'
+        | 'userId'
         | 'telemetryEnabled'
         | 'model'
+        | 'keyManagement'
     >;
 };
-
-/**
- * Internal tool the subagent must call as its FINAL step. Its inputSchema
- * IS `discoverFieldsResultSchema`, so AI SDK validates the handoff payload
- * at the tool-call boundary — there's no free-form JSON to parse and no
- * fence stripping. If validation fails, the model gets a tool-call error
- * and retries (or hits the step cap). The handoff is then extracted from
- * the tool call's `input` field after the stream completes.
- */
-const submitResult = tool({
-    description:
-        'Submit the final discovery handoff. Call this as your LAST step after deciding the explore + fields (or that the query is ambiguous / has no match). The arguments are returned to the parent agent verbatim.',
-    inputSchema: discoverFieldsResultSchema,
-    execute: async (input) => input,
-});
 
 export type DiscoverFieldsSubagentTools = {
     findExplores: ReturnType<typeof getFindExplores>;
     findFields: ReturnType<typeof getFindFields>;
-    submitResult: typeof submitResult;
+    submitResult: ReturnType<typeof getSubmitDiscoverFieldsResult>;
 };
 
 export type DiscoverFieldsAgentHandle = {
@@ -111,6 +103,8 @@ export const runDiscoverFieldsAgent = (
         toolDescriptionMaxChars: args.toolDescriptionMaxChars,
     });
 
+    const submitResult = getSubmitDiscoverFieldsResult();
+
     const messages: ModelMessage[] = [
         getDiscoverFieldsSystemPrompt({
             availableExplores: args.availableExplores,
@@ -124,6 +118,11 @@ export const runDiscoverFieldsAgent = (
 
     const inflightWrites: Array<Promise<void>> = [];
 
+    const telemetry = getAgentTelemetryConfig(
+        'discoverFieldsSubagent',
+        args.telemetry,
+        'agent-subtask',
+    );
     const stream = streamText({
         model: args.model,
         ...args.callOptions,
@@ -138,10 +137,10 @@ export const runDiscoverFieldsAgent = (
             delayInMs: 40,
             chunking: 'line',
         }),
-        experimental_telemetry: getAgentTelemetryConfig(
-            'discoverFieldsSubagent',
-            args.telemetry,
-        ),
+        experimental_telemetry: telemetry,
+        onFinish: ({ totalUsage }) => {
+            emitAiUsage(telemetry, languageModelUsageToTokens(totalUsage));
+        },
         onChunk: ({ chunk }) => {
             if (chunk.type === 'tool-call') {
                 if (!isSubagentPersistedToolName(chunk.toolName)) return;

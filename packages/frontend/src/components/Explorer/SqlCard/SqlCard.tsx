@@ -5,15 +5,15 @@ import {
     isSqlTableCalculation,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     CopyButton,
     Group,
-    SegmentedControl,
     Skeleton,
+    ActionIcon,
+    SegmentedControl,
     Tooltip,
-} from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+} from '@mantine-8/core';
+import { useHover } from '@mantine-8/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
 import {
     lazy,
@@ -34,7 +34,7 @@ import {
 } from '../../../features/explorer/store';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { useProject } from '../../../hooks/useProject';
-import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
+import { useCannotViewCompiledSql } from '../../../hooks/user/useCannotViewCompiledSql';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -64,7 +64,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
 
     const unsavedChartVersionTableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
+    const cannotViewCompiledSql = useCannotViewCompiledSql(projectUuid);
 
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
@@ -79,7 +79,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
         !!metricQuery.customDimensions?.some(isCustomSqlDimension) ||
         !!metricQuery.tableCalculations?.some(isSqlTableCalculation);
     const cannotViewSqlAuthoredFields =
-        hasSqlAuthoredFields && cannotAuthorCustomSql;
+        hasSqlAuthoredFields && cannotViewCompiledSql;
 
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
         enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,
@@ -113,7 +113,6 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                     <CopyButton value={formattedSql} timeout={2000}>
                         {({ copied, copy }) => (
                             <Tooltip
-                                variant="xs"
                                 label={
                                     copied ? 'Copied to clipboard' : 'Copy SQL'
                                 }
@@ -123,6 +122,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                                 fw={500}
                             >
                                 <ActionIcon
+                                    variant="subtle"
                                     color={copied ? 'teal' : 'gray'}
                                     onClick={copy}
                                 >
@@ -144,7 +144,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             rightHeaderElement={
                 sqlIsOpen &&
                 !cannotViewSqlAuthoredFields && (
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {hasPivotQuery && (
                             <SegmentedControl
                                 size="xs"

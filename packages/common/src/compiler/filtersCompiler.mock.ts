@@ -417,6 +417,37 @@ export const TrinoInBetweenPastTwoYearsFilterSQL = `((customers.created) >= CAST
 export const InBetweenPastTwoYearsTimestampFilterSQL = `((customers.created) >= ('2021-04-04 00:00:00+00:00') AND (customers.created) <= ('2023-04-04 00:00:00+00:00'))`;
 export const TrinoInBetweenPastTwoYearsTimestampFilterSQL = `((customers.created) >= CAST('2021-04-04 00:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2023-04-04 00:00:00+00:00' AS timestamp))`;
 
+export const SingleValueEqualsDateFilter = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.EQUALS,
+    values: [new Date('15 Mar 2023 00:00:00 GMT')],
+};
+
+export const SingleValueEqualsDateFilterSQL = `(customers.created) = ('2023-03-15')`;
+
+export const MultiValueEqualsDateFilter = {
+    ...SingleValueEqualsDateFilter,
+    values: [
+        new Date('15 Mar 2023 00:00:00 GMT'),
+        new Date('22 May 2023 00:00:00 GMT'),
+    ],
+};
+
+export const MultiValueEqualsDateFilterSQL = `(customers.created) IN (('2023-03-15'),('2023-05-22'))`;
+export const TrinoMultiValueEqualsDateFilterSQL = `(customers.created) IN (CAST('2023-03-15' AS timestamp),CAST('2023-05-22' AS timestamp))`;
+export const MultiValueEqualsTimestampFilterSQL = `(customers.created) IN (('2023-03-15 00:00:00+00:00'),('2023-05-22 00:00:00+00:00'))`;
+
+export const MultiValueNotEqualsDateFilter = {
+    ...MultiValueEqualsDateFilter,
+    operator: FilterOperator.NOT_EQUALS,
+};
+
+export const MultiValueNotEqualsDateFilterSQL = `((customers.created) NOT IN (('2023-03-15'),('2023-05-22')) OR (customers.created) IS NULL)`;
+export const MultiValueNotEqualsTimestampFilterSQL = `((customers.created) NOT IN (('2023-03-15 00:00:00+00:00'),('2023-05-22 00:00:00+00:00')) OR (customers.created) IS NULL)`;
+
 const stringSingleValueFilter = {
     id: '701b6520-1b19-4051-a553-7615aee0b03d',
     target: { fieldId: 'customers_first_name' },

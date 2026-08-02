@@ -37,6 +37,10 @@ export class AiAgentDocumentController extends BaseController {
         return this.services.getAiAgentDocumentService<AiAgentDocumentService>();
     }
 
+    /**
+     * List every knowledge document in the organization.
+     * @summary List AI agent documents
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
@@ -49,13 +53,19 @@ export class AiAgentDocumentController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getService().listDocuments(
+            results: await this.getService().listOrganizationDocuments(
                 toSessionUser(req.account),
                 { projectUuid: projectUuid ?? undefined },
             ),
         };
     }
 
+    /**
+     * Create a knowledge document. The projectUuid and agentAccess body fields
+     * are deprecated: scope the document by creating it on the agent route
+     * instead. Without them the document is available to every agent.
+     * @summary Create AI agent document
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -72,13 +82,17 @@ export class AiAgentDocumentController extends BaseController {
         this.setStatus(201);
         return {
             status: 'ok',
-            results: await this.getService().createDocument(
+            results: await this.getService().createOrganizationDocument(
                 toSessionUser(req.account),
                 body,
             ),
         };
     }
 
+    /**
+     * Delete a knowledge document anywhere in the organization.
+     * @summary Delete AI agent document
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -92,7 +106,7 @@ export class AiAgentDocumentController extends BaseController {
         @Path() documentUuid: string,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
-        await this.getService().deleteDocument(
+        await this.getService().deleteOrganizationDocument(
             toSessionUser(req.account),
             documentUuid,
         );

@@ -1,0 +1,1408 @@
+import {
+    assertUnreachable,
+    getAiAgentMemoryConsolidationOperationSlugs,
+    getAiProjectContextObjectKey,
+    ProjectType,
+    type AiAgentAdminMemoriesSummary,
+    type AiAgentAdminMemoryFilters,
+    type AiAgentAdminMemoryItem,
+    type AiAgentAdminMemorySort,
+    type AiAgentMemoryConsolidationMergeOperation,
+    type AiAgentMemoryConsolidationOperation,
+    type AiAgentMemoryConsolidationRejection,
+    type AiAgentMemoryConsolidationRunStatus,
+    type AiAgentMemoryScope,
+    type AiAgentUserMemoriesSummary,
+    type AiAgentUserMemoryItem,
+    type AiProjectContextTypedObjectRef,
+    type AiThreadCreatedFrom,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
+    type UUID,
+} from '@lightdash/common';
+import { randomBytes } from 'crypto';
+import { Knex } from 'knex';
+import { EmailTableName } from '../../database/entities/emails';
+import { ProjectTableName } from '../../database/entities/projects';
+import { UserTableName } from '../../database/entities/users';
+import KnexPaginate from '../../database/pagination';
+import {
+    AiAgentToolCallTableName,
+    AiAgentToolResultTableName,
+    AiPromptInterruptTableName,
+    AiPromptSteerTableName,
+    AiPromptTableName,
+    AiThreadTableName,
+} from '../database/entities/ai';
+import { AiAgentTableName } from '../database/entities/aiAgent';
+import {
+    AiAgentMemoryConsolidationRunTableName,
+    AiAgentMemoryTableName,
+    AiAgentThreadDistillTableName,
+    type AiAgentMemoryConsolidationRunTable,
+    type AiAgentMemoryTable,
+    type AiAgentThreadDistillTable,
+    type DbAiAgentMemory,
+    type DbAiAgentMemoryConsolidationRun,
+    type DbAiAgentThreadDistill,
+} from '../database/entities/aiAgentMemory';
+
+// Keeps list payloads bounded; the memory page shows the full body
+const MEMORY_LIST_SUMMARY_MAX_LENGTH = 280;
+
+export const AI_AGENT_MEMORY_THREAD_SOURCES = [
+    'web_app',
+    'slack',
+] as const satisfies readonly AiThreadCreatedFrom[];
+
+type SourceThreadMemory = {
+    organizationUuid: UUID;
+    projectUuid: UUID;
+    agentUuid: UUID | null;
+    userUuid: UUID | null;
+    sourceThreadUuid: UUID;
+    slug: string;
+    title: string;
+    rawMemory: string;
+    threadSummary: string;
+    terms: string[];
+    objects: AiProjectContextTypedObjectRef[];
+    unresolvedObjects: AiProjectContextTypedObjectRef[];
+    scope: AiAgentMemoryScope;
+    generatedAt: Date;
+};
+
+type ThreadDistillResult = {
+    aiThreadUuid: UUID;
+    distillPromptHash: string | null;
+    distilledUpTo: Date;
+} & (
+    | {
+          outcome: 'memory';
+          noOpReason?: never;
+          errorMessage?: never;
+      }
+    | {
+          outcome: 'no_op';
+          noOpReason: string;
+          errorMessage?: never;
+      }
+    | {
+          outcome: 'skipped';
+          noOpReason?: never;
+          errorMessage?: never;
+      }
+    | {
+          outcome: 'failed';
+          noOpReason?: never;
+          errorMessage: string;
+      }
+);
+
+export type AiAgentMemoryThreadCandidate = {
+    threadUuid: UUID;
+    organizationUuid: UUID;
+    projectUuid: UUID;
+    latestActivity: Date;
+};
+
+export type AiAgentMemoryThread = AiAgentMemoryThreadCandidate & {
+    distilledUpTo: Date | null;
+    agentUuid: UUID | null;
+    title: string | null;
+    createdFrom: AiThreadCreatedFrom;
+    projectType: ProjectType;
+    turns: Array<{
+        promptUuid: UUID;
+        createdAt: Date;
+        userText: string;
+        assistantText: string | null;
+        errorMessage: string | null;
+        respondedAt: Date | null;
+        interrupted: boolean;
+        feedback: { score: number; comment: string | null } | null;
+        steers: string[];
+        tools: Array<{
+            toolCallId: string;
+            name: string;
+            args: unknown;
+            result: string | null;
+            resultIsError: boolean;
+            source: 'lightdash' | 'mcp';
+        }>;
+    }>;
+};
+
+export type AiAgentMemoryLineageSource = Pick<
+    DbAiAgentMemory,
+    'slug' | 'agent_uuid' | 'source_thread_uuid' | 'thread_summary'
+> & {
+    thread_title: string | null;
+};
+
+export type AiAgentMemorySourceThreadState = 'none' | 'active' | 'inactive';
+
+export type AiAgentMemoryWithLineage = {
+    memory: DbAiAgentMemory;
+    sources: AiAgentMemoryLineageSource[];
+    replacement: Pick<DbAiAgentMemory, 'slug'> | null;
+};
+
+/** A `(project, owner)` partition with enough active rows to be worth curating. */
+export type AiAgentMemoryConsolidationCandidate = {
+    organizationUuid: UUID;
+    projectUuid: UUID;
+    ownerUserUuid: UUID;
+    activeCount: number;
+};
+
+export type AiAgentMemoryConsolidationRunInput = {
+    organizationUuid: UUID;
+    projectUuid: UUID;
+    ownerUserUuid: UUID;
+    status: AiAgentMemoryConsolidationRunStatus;
+    promptHash: string;
+    inputHash: string;
+    inputCount: number;
+    appliedOperations: AiAgentMemoryConsolidationOperation[];
+    rejectedOperations: AiAgentMemoryConsolidationRejection[];
+    errorMessage: string | null;
+    consolidatedUpTo: Date | null;
+};
+
+/** The rows named by an operation, as they were when the input was selected. */
+export type AiAgentMemoryConsolidationSelectedRow = {
+    memoryUuid: UUID;
+    slug: string;
+    generatedAt: Date;
+};
+
+export type AiAgentMemoryConsolidationApplyResult = {
+    run: DbAiAgentMemoryConsolidationRun;
+    applied: AiAgentMemoryConsolidationOperation[];
+    rejected: AiAgentMemoryConsolidationRejection[];
+};
+
+/** A source row as the apply transaction re-reads it, inside the lock. */
+type ConsolidationSourceRow = Pick<
+    DbAiAgentMemory,
+    | 'ai_agent_memory_uuid'
+    | 'slug'
+    | 'status'
+    | 'generated_at'
+    | 'agent_uuid'
+    | 'scope'
+    | 'cited_count'
+    | 'last_cited_at'
+    | 'pulled_count'
+    | 'last_pulled_at'
+>;
+
+const CONSOLIDATION_LOCK_CLASS = 4;
+
+/** One row of the projection shared by every memory list query. */
+type MemoryListRow = {
+    ai_agent_memory_uuid: string;
+    slug: string;
+    title: string;
+    summary: string;
+    status: DbAiAgentMemory['status'];
+    scope: DbAiAgentMemory['scope'];
+    project_uuid: string;
+    project_name: string;
+    agent_uuid: string | null;
+    agent_name: string | null;
+    agent_image_url: string | null;
+    user_uuid: string | null;
+    user_name: string | null;
+    user_email: string | null;
+    source_thread_uuid: string | null;
+    cited_count: number;
+    last_cited_at: Date | null;
+    pulled_count: number;
+    last_pulled_at: Date | null;
+    generated_at: Date;
+};
+
+type MemoryListSort = {
+    field: 'generatedAt' | 'citedCount';
+    direction: 'asc' | 'desc';
+};
+
+const toUserMemoryItem = (row: MemoryListRow): AiAgentUserMemoryItem => ({
+    uuid: row.ai_agent_memory_uuid,
+    slug: row.slug,
+    title: row.title,
+    summary: row.summary,
+    status: row.status,
+    scope: row.scope,
+    agent: row.agent_uuid
+        ? {
+              uuid: row.agent_uuid,
+              name: row.agent_name ?? 'Unknown agent',
+              imageUrl: row.agent_image_url,
+          }
+        : null,
+    sourceThreadUuid: row.source_thread_uuid,
+    citedCount: row.cited_count,
+    lastCitedAt: row.last_cited_at?.toISOString() ?? null,
+    pulledCount: row.pulled_count,
+    lastPulledAt: row.last_pulled_at?.toISOString() ?? null,
+    generatedAt: row.generated_at.toISOString(),
+});
+
+const toAdminMemoryItem = (row: MemoryListRow): AiAgentAdminMemoryItem => ({
+    ...toUserMemoryItem(row),
+    project: {
+        uuid: row.project_uuid,
+        name: row.project_name,
+    },
+    user: row.user_uuid
+        ? {
+              uuid: row.user_uuid,
+              name: row.user_name ?? row.user_email ?? 'Unknown user',
+              email: row.user_email,
+          }
+        : null,
+});
+
+export class AiAgentMemoryModel {
+    private readonly database: Knex;
+
+    constructor({ database }: { database: Knex }) {
+        this.database = database;
+    }
+
+    async findThreadsDueForDistill(args: {
+        idleBefore: Date;
+        activityFloor: Date;
+    }): Promise<AiAgentMemoryThreadCandidate[]> {
+        const rows = await this.database(`${AiThreadTableName} as thread`)
+            .join(
+                `${ProjectTableName} as project`,
+                'project.project_uuid',
+                'thread.project_uuid',
+            )
+            .leftJoin(
+                `${AiAgentThreadDistillTableName} as distill`,
+                'distill.ai_thread_uuid',
+                'thread.ai_thread_uuid',
+            )
+            .whereIn('thread.created_from', AI_AGENT_MEMORY_THREAD_SOURCES)
+            .whereNot('project.project_type', ProjectType.PREVIEW)
+            .whereBetween('thread.updated_at', [
+                args.activityFloor,
+                args.idleBefore,
+            ])
+            .where((query) => {
+                void query
+                    .whereNull('distill.ai_thread_uuid')
+                    .orWhereRaw('distill.distilled_up_to < thread.updated_at');
+            })
+            .select<AiAgentMemoryThreadCandidate[]>({
+                threadUuid: 'thread.ai_thread_uuid',
+                organizationUuid: 'thread.organization_uuid',
+                projectUuid: 'thread.project_uuid',
+                latestActivity: 'thread.updated_at',
+            });
+
+        return rows;
+    }
+
+    async findThreadForDistill(
+        threadUuid: UUID,
+    ): Promise<AiAgentMemoryThread | undefined> {
+        const promptRows = await this.database(`${AiThreadTableName} as thread`)
+            .join(
+                `${ProjectTableName} as project`,
+                'project.project_uuid',
+                'thread.project_uuid',
+            )
+            .leftJoin(
+                `${AiAgentThreadDistillTableName} as distill`,
+                'distill.ai_thread_uuid',
+                'thread.ai_thread_uuid',
+            )
+            .join(
+                `${AiPromptTableName} as prompt`,
+                'prompt.ai_thread_uuid',
+                'thread.ai_thread_uuid',
+            )
+            .leftJoin(
+                `${AiPromptInterruptTableName} as prompt_interrupt`,
+                'prompt_interrupt.ai_prompt_uuid',
+                'prompt.ai_prompt_uuid',
+            )
+            .where('thread.ai_thread_uuid', threadUuid)
+            .whereIn('thread.created_from', AI_AGENT_MEMORY_THREAD_SOURCES)
+            .whereNot('project.project_type', ProjectType.PREVIEW)
+            .whereNotNull('thread.updated_at')
+            .orderBy('prompt.created_at', 'asc')
+            .select<
+                Array<{
+                    threadUuid: UUID;
+                    organizationUuid: UUID;
+                    projectUuid: UUID;
+                    agentUuid: UUID | null;
+                    title: string | null;
+                    createdFrom: AiThreadCreatedFrom;
+                    projectType: ProjectType;
+                    latestActivity: Date;
+                    distilledUpTo: Date | null;
+                    promptUuid: UUID;
+                    createdAt: Date;
+                    userText: string;
+                    assistantText: string | null;
+                    errorMessage: string | null;
+                    respondedAt: Date | null;
+                    humanScore: number | null;
+                    humanFeedback: string | null;
+                    interruptUuid: UUID | null;
+                    hidden: boolean;
+                }>
+            >({
+                threadUuid: 'thread.ai_thread_uuid',
+                organizationUuid: 'thread.organization_uuid',
+                projectUuid: 'thread.project_uuid',
+                agentUuid: 'thread.agent_uuid',
+                title: 'thread.title',
+                createdFrom: 'thread.created_from',
+                projectType: 'project.project_type',
+                latestActivity: 'thread.updated_at',
+                distilledUpTo: 'distill.distilled_up_to',
+                promptUuid: 'prompt.ai_prompt_uuid',
+                createdAt: 'prompt.created_at',
+                userText: 'prompt.prompt',
+                assistantText: 'prompt.response',
+                errorMessage: 'prompt.error_message',
+                respondedAt: 'prompt.responded_at',
+                humanScore: 'prompt.human_score',
+                humanFeedback: 'prompt.human_feedback',
+                interruptUuid: 'prompt_interrupt.ai_prompt_uuid',
+                hidden: 'prompt.hidden',
+            });
+
+        const first = promptRows[0];
+        if (!first) return undefined;
+        const visiblePromptRows = promptRows.filter((row) => !row.hidden);
+        const visiblePromptUuids = visiblePromptRows.map(
+            (row) => row.promptUuid,
+        );
+
+        type SteerRow = {
+            promptUuid: string;
+            message: string;
+        };
+        const steerRows =
+            visiblePromptUuids.length > 0
+                ? await this.database(AiPromptSteerTableName)
+                      .whereIn('ai_prompt_uuid', visiblePromptUuids)
+                      .orderBy('created_at', 'asc')
+                      .orderBy('ai_prompt_steer_uuid', 'asc')
+                      .select<SteerRow[]>({
+                          promptUuid: 'ai_prompt_uuid',
+                          message: 'message',
+                      })
+                : [];
+        const steersByPrompt = steerRows.reduce((map, row) => {
+            const steers = map.get(row.promptUuid) ?? [];
+            steers.push(row.message);
+            map.set(row.promptUuid, steers);
+            return map;
+        }, new Map<string, string[]>());
+
+        type ToolRow = {
+            promptUuid: string;
+            toolCallId: string;
+            name: string;
+            args: unknown;
+            result: string | null;
+            resultIsError: boolean;
+            mcpServerUuid: string | null;
+        };
+        const toolRows: ToolRow[] = await this.database(
+            `${AiAgentToolCallTableName} as tool_call`,
+        )
+            .join(
+                `${AiPromptTableName} as prompt`,
+                'prompt.ai_prompt_uuid',
+                'tool_call.ai_prompt_uuid',
+            )
+            .leftJoin(
+                `${AiAgentToolResultTableName} as tool_result`,
+                function joinToolResult() {
+                    this.on(
+                        'tool_result.tool_call_id',
+                        '=',
+                        'tool_call.tool_call_id',
+                    ).andOn(
+                        'tool_result.ai_prompt_uuid',
+                        '=',
+                        'tool_call.ai_prompt_uuid',
+                    );
+                },
+            )
+            .where('prompt.ai_thread_uuid', threadUuid)
+            .whereNull('tool_call.parent_tool_call_id')
+            .orderBy('tool_call.created_at', 'asc')
+            .select({
+                promptUuid: 'tool_call.ai_prompt_uuid',
+                toolCallId: 'tool_call.tool_call_id',
+                name: 'tool_call.tool_name',
+                args: 'tool_call.tool_args',
+                result: 'tool_result.result',
+                resultIsError: this.database.raw(
+                    "COALESCE(tool_result.metadata->>'status' = 'error', false)",
+                ),
+                mcpServerUuid: 'tool_call.ai_mcp_server_uuid',
+            });
+        const toolsByPrompt = toolRows.reduce((map, row) => {
+            const tools = map.get(row.promptUuid) ?? [];
+            tools.push(row);
+            map.set(row.promptUuid, tools);
+            return map;
+        }, new Map<string, ToolRow[]>());
+
+        return {
+            threadUuid: first.threadUuid,
+            organizationUuid: first.organizationUuid,
+            projectUuid: first.projectUuid,
+            agentUuid: first.agentUuid,
+            title: first.title,
+            createdFrom: first.createdFrom,
+            projectType: first.projectType,
+            latestActivity: first.latestActivity,
+            distilledUpTo: first.distilledUpTo,
+            turns: visiblePromptRows.map((row) => ({
+                promptUuid: row.promptUuid,
+                createdAt: row.createdAt,
+                userText: row.userText,
+                assistantText: row.assistantText,
+                errorMessage: row.errorMessage,
+                respondedAt: row.respondedAt,
+                interrupted: row.interruptUuid !== null,
+                feedback:
+                    row.humanScore !== null && row.humanScore !== 0
+                        ? {
+                              score: row.humanScore,
+                              comment: row.humanFeedback,
+                          }
+                        : null,
+                steers: steersByPrompt.get(row.promptUuid) ?? [],
+                tools: (toolsByPrompt.get(row.promptUuid) ?? []).map(
+                    (tool: ToolRow) => ({
+                        toolCallId: tool.toolCallId,
+                        name: tool.name,
+                        args: tool.args,
+                        result: tool.result,
+                        resultIsError: tool.resultIsError,
+                        source: tool.mcpServerUuid ? 'mcp' : 'lightdash',
+                    }),
+                ),
+            })),
+        };
+    }
+
+    async upsertSourceThreadMemory(
+        memory: SourceThreadMemory,
+    ): Promise<DbAiAgentMemory> {
+        // scope is distilled content, so a re-distill that reclassifies the
+        // thread updates the label; ownership stays fixed at insert.
+        const content = {
+            title: memory.title,
+            raw_memory: memory.rawMemory,
+            thread_summary: memory.threadSummary,
+            terms: JSON.stringify(memory.terms),
+            objects: JSON.stringify(memory.objects),
+            unresolved_objects: JSON.stringify(memory.unresolvedObjects),
+            scope: memory.scope,
+            generated_at: memory.generatedAt,
+        };
+        const [row] = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .insert({
+                organization_uuid: memory.organizationUuid,
+                project_uuid: memory.projectUuid,
+                agent_uuid: memory.agentUuid,
+                user_uuid: memory.userUuid,
+                source_thread_uuid: memory.sourceThreadUuid,
+                slug: memory.slug,
+                ...content,
+            })
+            .onConflict(
+                this.database.raw(
+                    "(source_thread_uuid) WHERE status = 'active' AND source_thread_uuid IS NOT NULL",
+                ),
+            )
+            .merge({
+                ...content,
+                updated_at: this.database.fn.now(),
+            })
+            .returning([
+                'ai_agent_memory_uuid',
+                'organization_uuid',
+                'project_uuid',
+                'agent_uuid',
+                'user_uuid',
+                'source_thread_uuid',
+                'slug',
+                'title',
+                'raw_memory',
+                'thread_summary',
+                'terms',
+                'objects',
+                'unresolved_objects',
+                'status',
+                'scope',
+                'superseded_by_uuid',
+                'generated_at',
+                'cited_count',
+                'last_cited_at',
+                'pulled_count',
+                'last_pulled_at',
+                'created_at',
+                'updated_at',
+            ]);
+
+        return row;
+    }
+
+    async upsertThreadDistill(
+        result: ThreadDistillResult,
+    ): Promise<DbAiAgentThreadDistill> {
+        const noOpReason =
+            result.outcome === 'no_op' ? result.noOpReason : null;
+        const errorMessage =
+            result.outcome === 'failed' ? result.errorMessage : null;
+        const content = {
+            outcome: result.outcome,
+            no_op_reason: noOpReason,
+            error_message: errorMessage,
+            distill_prompt_hash: result.distillPromptHash,
+            distilled_up_to: result.distilledUpTo,
+        };
+        const [row] = await this.database<AiAgentThreadDistillTable>(
+            AiAgentThreadDistillTableName,
+        )
+            .insert({
+                ai_thread_uuid: result.aiThreadUuid,
+                ...content,
+            })
+            .onConflict('ai_thread_uuid')
+            .merge({
+                ...content,
+                updated_at: this.database.fn.now(),
+            })
+            .returning([
+                'ai_agent_thread_distill_uuid',
+                'ai_thread_uuid',
+                'outcome',
+                'no_op_reason',
+                'error_message',
+                'distill_prompt_hash',
+                'distilled_up_to',
+                'created_at',
+                'updated_at',
+            ]);
+
+        return row;
+    }
+
+    // Memories are owned by a single user; a null-owner row is nobody's, so
+    // callers must resolve a real owner before asking for a set.
+    async findActiveForProject(args: {
+        projectUuid: string;
+        userUuid: string;
+        limit?: number;
+    }): Promise<DbAiAgentMemory[]> {
+        const query = this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('project_uuid', args.projectUuid)
+            .where('user_uuid', args.userUuid)
+            .where('status', 'active')
+            .orderBy('last_cited_at', 'desc', 'last')
+            .orderBy('generated_at', 'desc');
+
+        if (args.limit !== undefined) {
+            void query.limit(args.limit);
+        }
+
+        return query;
+    }
+
+    private buildAdminMemoriesQuery(
+        organizationUuid: string,
+        filters: AiAgentAdminMemoryFilters | undefined,
+    ) {
+        const query = this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        ).where(
+            `${AiAgentMemoryTableName}.organization_uuid`,
+            organizationUuid,
+        );
+
+        if (filters?.projectUuids && filters.projectUuids.length > 0) {
+            void query.whereIn(
+                `${AiAgentMemoryTableName}.project_uuid`,
+                filters.projectUuids,
+            );
+        }
+        if (filters?.userUuids && filters.userUuids.length > 0) {
+            void query.whereIn(
+                `${AiAgentMemoryTableName}.user_uuid`,
+                filters.userUuids,
+            );
+        }
+        if (filters?.statuses && filters.statuses.length > 0) {
+            void query.whereIn(
+                `${AiAgentMemoryTableName}.status`,
+                filters.statuses,
+            );
+        }
+        if (filters?.scopes && filters.scopes.length > 0) {
+            void query.whereIn(
+                `${AiAgentMemoryTableName}.scope`,
+                filters.scopes,
+            );
+        }
+        if (filters?.search) {
+            const pattern = `%${filters.search}%`;
+            void query.where((builder) => {
+                void builder
+                    .whereILike(`${AiAgentMemoryTableName}.title`, pattern)
+                    .orWhereILike(`${AiAgentMemoryTableName}.slug`, pattern)
+                    .orWhereILike(
+                        `${AiAgentMemoryTableName}.raw_memory`,
+                        pattern,
+                    );
+            });
+        }
+
+        return query;
+    }
+
+    /**
+     * Display joins, truncated summary and ordering shared by every memory list.
+     * Counting off the un-joined base query is safe: the project join never drops a row.
+     */
+    private async paginateMemoryList<T>(args: {
+        buildBaseQuery: () => Knex.QueryBuilder<AiAgentMemoryTable>;
+        mapRow: (row: MemoryListRow) => T;
+        paginateArgs?: KnexPaginateArgs;
+        sort?: MemoryListSort;
+    }): Promise<KnexPaginatedData<{ memories: T[] }>> {
+        const sortColumn = {
+            generatedAt: 'generated_at',
+            citedCount: 'cited_count',
+        }[args.sort?.field ?? 'generatedAt'];
+        const direction = args.sort?.direction ?? 'desc';
+
+        const query = args
+            .buildBaseQuery()
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AiAgentMemoryTableName}.project_uuid`,
+            )
+            .leftJoin(
+                AiAgentTableName,
+                `${AiAgentTableName}.ai_agent_uuid`,
+                `${AiAgentMemoryTableName}.agent_uuid`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AiAgentMemoryTableName}.user_uuid`,
+            )
+            .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                void this.on(
+                    `${EmailTableName}.user_id`,
+                    '=',
+                    `${UserTableName}.user_id`,
+                ).andOnVal(`${EmailTableName}.is_primary`, true);
+            })
+            .select<MemoryListRow[]>([
+                `${AiAgentMemoryTableName}.ai_agent_memory_uuid`,
+                `${AiAgentMemoryTableName}.slug`,
+                `${AiAgentMemoryTableName}.title`,
+                this.database.raw('LEFT(??, ?) as summary', [
+                    `${AiAgentMemoryTableName}.raw_memory`,
+                    MEMORY_LIST_SUMMARY_MAX_LENGTH,
+                ]),
+                `${AiAgentMemoryTableName}.status`,
+                `${AiAgentMemoryTableName}.scope`,
+                `${AiAgentMemoryTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${AiAgentMemoryTableName}.agent_uuid`,
+                `${AiAgentTableName}.name as agent_name`,
+                `${AiAgentTableName}.image_url as agent_image_url`,
+                `${AiAgentMemoryTableName}.user_uuid`,
+                this.database.raw(
+                    `NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), '') as user_name`,
+                ),
+                `${EmailTableName}.email as user_email`,
+                `${AiAgentMemoryTableName}.source_thread_uuid`,
+                `${AiAgentMemoryTableName}.cited_count`,
+                `${AiAgentMemoryTableName}.last_cited_at`,
+                `${AiAgentMemoryTableName}.pulled_count`,
+                `${AiAgentMemoryTableName}.last_pulled_at`,
+                `${AiAgentMemoryTableName}.generated_at`,
+            ])
+            // generated_at breaks sort-value ties (newest first); uuid keeps
+            // pagination stable when both collide
+            .orderBy([
+                {
+                    column: `${AiAgentMemoryTableName}.${sortColumn}`,
+                    order: direction,
+                    nulls: 'last',
+                },
+                ...(sortColumn !== 'generated_at'
+                    ? [
+                          {
+                              column: `${AiAgentMemoryTableName}.generated_at`,
+                              order: 'desc' as const,
+                          },
+                      ]
+                    : []),
+                {
+                    column: `${AiAgentMemoryTableName}.ai_agent_memory_uuid`,
+                    order: 'asc',
+                },
+            ]);
+
+        const { data, pagination } = await KnexPaginate.paginate(
+            query,
+            args.paginateArgs,
+            args.buildBaseQuery(),
+        );
+
+        return {
+            data: { memories: data.map(args.mapRow) },
+            pagination,
+        };
+    }
+
+    async findAdminMemoriesPaginated(args: {
+        organizationUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        filters?: AiAgentAdminMemoryFilters;
+        sort?: AiAgentAdminMemorySort;
+    }): Promise<KnexPaginatedData<AiAgentAdminMemoriesSummary>> {
+        return this.paginateMemoryList({
+            buildBaseQuery: () =>
+                this.buildAdminMemoriesQuery(
+                    args.organizationUuid,
+                    args.filters,
+                ),
+            mapRow: toAdminMemoryItem,
+            paginateArgs: args.paginateArgs,
+            sort: args.sort,
+        });
+    }
+
+    /**
+     * Owner-scoped list: project, owner and active status are predicates, never
+     * filters — owners only see the memories the agents are still using.
+     * Most-cited first, so the list mirrors what the agent leans on.
+     */
+    async findUserMemoriesPaginated(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        userUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+    }): Promise<KnexPaginatedData<AiAgentUserMemoriesSummary>> {
+        return this.paginateMemoryList({
+            buildBaseQuery: () =>
+                this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+                    .where(
+                        `${AiAgentMemoryTableName}.organization_uuid`,
+                        args.organizationUuid,
+                    )
+                    .where(
+                        `${AiAgentMemoryTableName}.project_uuid`,
+                        args.projectUuid,
+                    )
+                    .where(`${AiAgentMemoryTableName}.user_uuid`, args.userUuid)
+                    .where(`${AiAgentMemoryTableName}.status`, 'active'),
+            mapRow: toUserMemoryItem,
+            paginateArgs: args.paginateArgs,
+            sort: { field: 'citedCount', direction: 'desc' },
+        });
+    }
+
+    async findByProjectAndSlug(args: {
+        projectUuid: string;
+        slug: string;
+    }): Promise<AiAgentMemoryWithLineage | undefined> {
+        const memory = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('project_uuid', args.projectUuid)
+            .where('slug', args.slug)
+            .first();
+        if (!memory) return undefined;
+
+        const lineageRows =
+            memory.source_thread_uuid && memory.thread_summary
+                ? [memory]
+                : (
+                      await this.database.raw<{
+                          rows: DbAiAgentMemory[];
+                      }>(
+                          `
+                            WITH RECURSIVE lineage AS (
+                                SELECT child.*, ARRAY[?::uuid, child.ai_agent_memory_uuid] AS lineage_path
+                                FROM ${AiAgentMemoryTableName} AS child
+                                WHERE child.project_uuid = ?
+                                  AND child.superseded_by_uuid = ?
+
+                                UNION ALL
+
+                                SELECT child.*, lineage.lineage_path || child.ai_agent_memory_uuid
+                                FROM ${AiAgentMemoryTableName} AS child
+                                INNER JOIN lineage
+                                    ON child.superseded_by_uuid = lineage.ai_agent_memory_uuid
+                                WHERE child.project_uuid = ?
+                                  AND NOT child.ai_agent_memory_uuid = ANY(lineage.lineage_path)
+                            )
+                            SELECT * FROM lineage
+                            WHERE source_thread_uuid IS NOT NULL
+                              AND thread_summary IS NOT NULL
+                          `,
+                          [
+                              memory.ai_agent_memory_uuid,
+                              args.projectUuid,
+                              memory.ai_agent_memory_uuid,
+                              args.projectUuid,
+                          ],
+                      )
+                  ).rows;
+
+        const threadUuids = lineageRows.flatMap((row) =>
+            row.source_thread_uuid ? [row.source_thread_uuid] : [],
+        );
+        const threadTitles = new Map(
+            threadUuids.length === 0
+                ? []
+                : (
+                      await this.database(AiThreadTableName)
+                          .whereIn(
+                              `${AiThreadTableName}.ai_thread_uuid`,
+                              threadUuids,
+                          )
+                          .select<
+                              Array<{
+                                  ai_thread_uuid: string;
+                                  title: string | null;
+                              }>
+                          >(
+                              `${AiThreadTableName}.ai_thread_uuid`,
+                              `${AiThreadTableName}.title`,
+                          )
+                  ).map(
+                      (thread) =>
+                          [thread.ai_thread_uuid, thread.title] as const,
+                  ),
+        );
+        const sources = lineageRows.map((row) => ({
+            slug: row.slug,
+            agent_uuid: row.agent_uuid,
+            source_thread_uuid: row.source_thread_uuid,
+            thread_summary: row.thread_summary,
+            thread_title: row.source_thread_uuid
+                ? (threadTitles.get(row.source_thread_uuid) ?? null)
+                : null,
+        }));
+
+        const replacement = memory.superseded_by_uuid
+            ? ((
+                  await this.database.raw<{
+                      rows: Array<Pick<DbAiAgentMemory, 'slug'>>;
+                  }>(
+                      `
+                        WITH RECURSIVE replacements AS (
+                            SELECT next.ai_agent_memory_uuid, next.slug, next.superseded_by_uuid,
+                                   ARRAY[?::uuid, next.ai_agent_memory_uuid] AS replacement_path,
+                                   1 AS depth
+                            FROM ${AiAgentMemoryTableName} AS next
+                            WHERE next.project_uuid = ?
+                              AND next.ai_agent_memory_uuid = ?
+
+                            UNION ALL
+
+                            SELECT next.ai_agent_memory_uuid, next.slug, next.superseded_by_uuid,
+                                   replacements.replacement_path || next.ai_agent_memory_uuid,
+                                   replacements.depth + 1
+                            FROM ${AiAgentMemoryTableName} AS next
+                            INNER JOIN replacements
+                                ON next.ai_agent_memory_uuid = replacements.superseded_by_uuid
+                            WHERE next.project_uuid = ?
+                              AND NOT next.ai_agent_memory_uuid = ANY(replacements.replacement_path)
+                        )
+                        SELECT slug FROM replacements
+                        ORDER BY depth DESC
+                        LIMIT 1
+                      `,
+                      [
+                          memory.ai_agent_memory_uuid,
+                          args.projectUuid,
+                          memory.superseded_by_uuid,
+                          args.projectUuid,
+                      ],
+                  )
+              ).rows[0] ?? null)
+            : null;
+
+        return { memory, sources, replacement };
+    }
+
+    async findByProjectAndUuid(args: {
+        projectUuid: string;
+        memoryUuid: string;
+    }): Promise<DbAiAgentMemory | undefined> {
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('project_uuid', args.projectUuid)
+            .where('ai_agent_memory_uuid', args.memoryUuid)
+            .first();
+    }
+
+    async findActiveBySlugs(args: {
+        projectUuid: string;
+        userUuid: string;
+        slugs: string[];
+    }): Promise<Array<{ slug: string; title: string }>> {
+        const slugs = [...new Set(args.slugs)];
+        if (slugs.length === 0) return [];
+
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('project_uuid', args.projectUuid)
+            .where('user_uuid', args.userUuid)
+            .where('status', 'active')
+            .whereIn('slug', slugs)
+            .select(['slug', 'title']);
+    }
+
+    async findActiveBySourceThread(
+        sourceThreadUuid: string,
+    ): Promise<Pick<DbAiAgentMemory, 'ai_agent_memory_uuid'> | undefined> {
+        return this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('source_thread_uuid', sourceThreadUuid)
+            .where('status', 'active')
+            .first('ai_agent_memory_uuid');
+    }
+
+    /**
+     * `inactive` means the thread produced memory that is no longer live —
+     * consolidated away or retired. An active row wins over stale siblings,
+     * because the one-active-row index leaves older rows behind.
+     */
+    async resolveSourceThreadMemoryState(
+        sourceThreadUuid: string,
+    ): Promise<AiAgentMemorySourceThreadState> {
+        const rows = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('source_thread_uuid', sourceThreadUuid)
+            .distinct('status');
+
+        if (rows.length === 0) return 'none';
+        return rows.some((row) => row.status === 'active')
+            ? 'active'
+            : 'inactive';
+    }
+
+    async updateStatus(args: {
+        memoryUuid: string;
+        status: 'active' | 'retired';
+    }): Promise<boolean> {
+        const updated = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('ai_agent_memory_uuid', args.memoryUuid)
+            .whereIn('status', ['active', 'retired'])
+            .update({
+                status: args.status,
+                updated_at: this.database.fn.now(),
+            });
+
+        return updated > 0;
+    }
+
+    async incrementPulledForActiveMemories(args: {
+        projectUuid: string;
+        userUuid: string;
+        slugs: string[];
+    }): Promise<void> {
+        const slugs = [...new Set(args.slugs)];
+        if (slugs.length === 0) return;
+
+        await this.database<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .where('project_uuid', args.projectUuid)
+            .where('user_uuid', args.userUuid)
+            .where('status', 'active')
+            .whereIn('slug', slugs)
+            .update({
+                pulled_count: this.database.raw('pulled_count + 1'),
+                last_pulled_at: this.database.fn.now(),
+            } as never);
+    }
+
+    async incrementCitedForActiveMemories(args: {
+        projectUuid: string;
+        userUuid: string;
+        slugs: string[];
+    }): Promise<Array<{ memoryId: string; slug: string }>> {
+        const slugs = [...new Set(args.slugs)];
+        if (slugs.length === 0) return [];
+
+        const rows = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where('project_uuid', args.projectUuid)
+            .where('user_uuid', args.userUuid)
+            .where('status', 'active')
+            .whereIn('slug', slugs)
+            .update({
+                cited_count: this.database.raw('cited_count + 1'),
+                last_cited_at: this.database.fn.now(),
+            } as never)
+            .returning(['ai_agent_memory_uuid', 'slug']);
+
+        return rows.map(({ ai_agent_memory_uuid: memoryId, slug }) => ({
+            memoryId,
+            slug,
+        }));
+    }
+
+    // Owner-null rows belong to nobody, so they are never a partition and never
+    // part of one.
+    async findConsolidationCandidates(
+        minActiveRows: number,
+    ): Promise<AiAgentMemoryConsolidationCandidate[]> {
+        const { rows } = await this.database.raw<{
+            rows: Array<{
+                organization_uuid: UUID;
+                project_uuid: UUID;
+                user_uuid: UUID;
+                active_count: string;
+            }>;
+        }>(
+            `
+                SELECT organization_uuid, project_uuid, user_uuid, COUNT(*) AS active_count
+                FROM ${AiAgentMemoryTableName}
+                WHERE status = 'active' AND user_uuid IS NOT NULL
+                GROUP BY organization_uuid, project_uuid, user_uuid
+                HAVING COUNT(*) >= ?
+            `,
+            [minActiveRows],
+        );
+
+        return rows.map((row) => ({
+            organizationUuid: row.organization_uuid,
+            projectUuid: row.project_uuid,
+            ownerUserUuid: row.user_uuid,
+            activeCount: Number(row.active_count),
+        }));
+    }
+
+    async findLatestConsolidationRun(args: {
+        projectUuid: string;
+        ownerUserUuid: string;
+    }): Promise<DbAiAgentMemoryConsolidationRun | undefined> {
+        return this.database<AiAgentMemoryConsolidationRunTable>(
+            AiAgentMemoryConsolidationRunTableName,
+        )
+            .where('project_uuid', args.projectUuid)
+            .where('user_uuid', args.ownerUserUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+    }
+
+    private static async insertConsolidationRun(
+        trx: Knex,
+        run: AiAgentMemoryConsolidationRunInput,
+    ): Promise<DbAiAgentMemoryConsolidationRun> {
+        const [row] = await trx<AiAgentMemoryConsolidationRunTable>(
+            AiAgentMemoryConsolidationRunTableName,
+        )
+            .insert({
+                organization_uuid: run.organizationUuid,
+                project_uuid: run.projectUuid,
+                user_uuid: run.ownerUserUuid,
+                status: run.status,
+                prompt_hash: run.promptHash,
+                input_hash: run.inputHash,
+                input_count: run.inputCount,
+                applied_count: run.appliedOperations.length,
+                rejected_count: run.rejectedOperations.length,
+                applied_operations: JSON.stringify(run.appliedOperations),
+                rejected_operations: JSON.stringify(run.rejectedOperations),
+                error_message: run.errorMessage,
+                consolidated_up_to: run.consolidatedUpTo,
+            })
+            .returning('*');
+
+        return row;
+    }
+
+    /** Records an attempt that never reached the apply transaction. */
+    async recordConsolidationRun(
+        run: AiAgentMemoryConsolidationRunInput,
+    ): Promise<DbAiAgentMemoryConsolidationRun> {
+        return AiAgentMemoryModel.insertConsolidationRun(this.database, run);
+    }
+
+    /**
+     * A merged row is a new row that inherits what its sources earned: summed
+     * counts, the newest telemetry stamps, and the newest `generated_at` — never
+     * the merge time, which would reset the injection fence's staleness read.
+     * It carries no source thread and no thread summary, which is what routes
+     * the memory page to its consolidated-provenance lineage walk.
+     */
+    private static async applyMerge(
+        trx: Knex,
+        args: {
+            operation: AiAgentMemoryConsolidationMergeOperation;
+            organizationUuid: UUID;
+            projectUuid: UUID;
+            ownerUserUuid: UUID;
+            sources: ConsolidationSourceRow[];
+            unresolvedObjectKeys: Set<string>;
+        },
+    ): Promise<AiAgentMemoryConsolidationMergeOperation> {
+        const { sources } = args;
+        const maxTime = (dates: Array<Date | null>): Date | null => {
+            const times = dates.flatMap((date) =>
+                date ? [date.getTime()] : [],
+            );
+            return times.length === 0 ? null : new Date(Math.max(...times));
+        };
+        // Newest source first, slug as the tie-break so the inherited agent is
+        // deterministic; a row with no agent is unreadable on the memory page.
+        const newestFirst = [...sources].sort(
+            (a, b) =>
+                b.generated_at.getTime() - a.generated_at.getTime() ||
+                a.slug.localeCompare(b.slug),
+        );
+        // The curator's handle is not unique across a project; the suffix keeps
+        // a second merge from failing the whole run on the slug constraint.
+        const slug = `${args.operation.slug}-${randomBytes(4).toString('hex')}`;
+
+        const [merged] = await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .insert({
+                organization_uuid: args.organizationUuid,
+                project_uuid: args.projectUuid,
+                agent_uuid:
+                    newestFirst.find((source) => source.agent_uuid !== null)
+                        ?.agent_uuid ?? null,
+                user_uuid: args.ownerUserUuid,
+                source_thread_uuid: null,
+                slug,
+                title: args.operation.title,
+                raw_memory: args.operation.memory,
+                thread_summary: null,
+                terms: JSON.stringify(args.operation.terms),
+                objects: JSON.stringify(args.operation.objects),
+                // This run re-resolved every object against the live catalog, so
+                // the merged row records present fact, not a source's snapshot.
+                unresolved_objects: JSON.stringify(
+                    args.operation.objects.filter((object) =>
+                        args.unresolvedObjectKeys.has(
+                            getAiProjectContextObjectKey(object),
+                        ),
+                    ),
+                ),
+                // Scope never widens: a single `user` source narrows the result.
+                scope: sources.every((source) => source.scope === 'project')
+                    ? 'project'
+                    : 'user',
+                generated_at: new Date(
+                    Math.max(
+                        ...sources.map((source) =>
+                            source.generated_at.getTime(),
+                        ),
+                    ),
+                ),
+                cited_count: sources.reduce(
+                    (total, source) => total + source.cited_count,
+                    0,
+                ),
+                last_cited_at: maxTime(
+                    sources.map((source) => source.last_cited_at),
+                ),
+                pulled_count: sources.reduce(
+                    (total, source) => total + source.pulled_count,
+                    0,
+                ),
+                last_pulled_at: maxTime(
+                    sources.map((source) => source.last_pulled_at),
+                ),
+            })
+            .returning('ai_agent_memory_uuid');
+
+        await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+            .whereIn(
+                'ai_agent_memory_uuid',
+                sources.map((source) => source.ai_agent_memory_uuid),
+            )
+            .update({
+                status: 'superseded',
+                superseded_by_uuid: merged.ai_agent_memory_uuid,
+                updated_at: trx.fn.now(),
+            });
+
+        // The audit carries the slug the row actually got, not the handle asked for.
+        return { ...args.operation, slug };
+    }
+
+    /**
+     * Applies operations and writes the run row in one transaction, under a
+     * per-partition advisory lock. The slug-to-uuid resolution inside the lock
+     * doubles as the movement check: a row that is no longer active, or whose
+     * body was rewritten since selection, is rejected instead of applied.
+     */
+    async applyConsolidation(args: {
+        run: Omit<
+            AiAgentMemoryConsolidationRunInput,
+            'appliedOperations' | 'rejectedOperations' | 'status'
+        >;
+        selection: AiAgentMemoryConsolidationSelectedRow[];
+        operations: AiAgentMemoryConsolidationOperation[];
+        rejected: AiAgentMemoryConsolidationRejection[];
+        /** Object keys this run resolved against the live catalog and did not find. */
+        unresolvedObjectKeys: Set<string>;
+    }): Promise<AiAgentMemoryConsolidationApplyResult> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+                CONSOLIDATION_LOCK_CLASS,
+                `${args.run.projectUuid}:${args.run.ownerUserUuid}`,
+            ]);
+
+            const namedSlugs = [
+                ...new Set(
+                    args.operations.flatMap(
+                        getAiAgentMemoryConsolidationOperationSlugs,
+                    ),
+                ),
+            ];
+            const currentRows =
+                namedSlugs.length === 0
+                    ? []
+                    : await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+                          .where('project_uuid', args.run.projectUuid)
+                          .where('user_uuid', args.run.ownerUserUuid)
+                          .whereIn('slug', namedSlugs)
+                          .forUpdate()
+                          .select(
+                              'ai_agent_memory_uuid',
+                              'slug',
+                              'status',
+                              'generated_at',
+                              'agent_uuid',
+                              'scope',
+                              'cited_count',
+                              'last_cited_at',
+                              'pulled_count',
+                              'last_pulled_at',
+                          );
+            const currentBySlug = new Map(
+                currentRows.map((row) => [row.slug, row]),
+            );
+            const selectedBySlug = new Map(
+                args.selection.map((row) => [row.slug, row]),
+            );
+            const isUnmoved = (slug: string): boolean => {
+                const current = currentBySlug.get(slug);
+                const selected = selectedBySlug.get(slug);
+                return (
+                    current !== undefined &&
+                    selected !== undefined &&
+                    current.ai_agent_memory_uuid === selected.memoryUuid &&
+                    current.status === 'active' &&
+                    current.generated_at.getTime() ===
+                        selected.generatedAt.getTime()
+                );
+            };
+
+            const accepted: AiAgentMemoryConsolidationOperation[] = [];
+            const rejected = [...args.rejected];
+            for (const operation of args.operations) {
+                if (
+                    getAiAgentMemoryConsolidationOperationSlugs(
+                        operation,
+                    ).every(isUnmoved)
+                ) {
+                    accepted.push(operation);
+                } else {
+                    rejected.push({ operation, reason: 'row_moved' });
+                }
+            }
+
+            const applied: AiAgentMemoryConsolidationOperation[] = [];
+            for (const operation of accepted) {
+                switch (operation.type) {
+                    case 'merge':
+                        applied.push(
+                            // eslint-disable-next-line no-await-in-loop
+                            await AiAgentMemoryModel.applyMerge(trx, {
+                                operation,
+                                organizationUuid: args.run.organizationUuid,
+                                projectUuid: args.run.projectUuid,
+                                ownerUserUuid: args.run.ownerUserUuid,
+                                sources: operation.source_slugs.map(
+                                    (slug) => currentBySlug.get(slug)!,
+                                ),
+                                unresolvedObjectKeys: args.unresolvedObjectKeys,
+                            }),
+                        );
+                        break;
+                    case 'supersede':
+                        // eslint-disable-next-line no-await-in-loop
+                        await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+                            .where(
+                                'ai_agent_memory_uuid',
+                                currentBySlug.get(operation.loser_slug)!
+                                    .ai_agent_memory_uuid,
+                            )
+                            .update({
+                                status: 'superseded',
+                                superseded_by_uuid: currentBySlug.get(
+                                    operation.winner_slug,
+                                )!.ai_agent_memory_uuid,
+                                updated_at: this.database.fn.now(),
+                            });
+                        applied.push(operation);
+                        break;
+                    case 'retire':
+                        // eslint-disable-next-line no-await-in-loop
+                        await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)
+                            .where(
+                                'ai_agent_memory_uuid',
+                                currentBySlug.get(operation.slug)!
+                                    .ai_agent_memory_uuid,
+                            )
+                            .update({
+                                status: 'retired',
+                                updated_at: this.database.fn.now(),
+                            });
+                        applied.push(operation);
+                        break;
+                    default:
+                        assertUnreachable(
+                            operation,
+                            'Unknown consolidation operation',
+                        );
+                }
+            }
+
+            const run = await AiAgentMemoryModel.insertConsolidationRun(trx, {
+                ...args.run,
+                status: 'succeeded',
+                appliedOperations: applied,
+                rejectedOperations: rejected,
+            });
+
+            return { run, applied, rejected };
+        });
+    }
+}

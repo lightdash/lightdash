@@ -1,6 +1,7 @@
 import { ParameterError } from '@lightdash/common';
 import {
     validateExternalConnectionConfig,
+    validateServiceAccountKeyfile,
     type ValidatableExternalConnectionConfig,
 } from './externalConnectionConfigValidation';
 
@@ -57,6 +58,32 @@ describe('validateExternalConnectionConfig', () => {
         });
     });
 
+    describe('instructions', () => {
+        it('accepts absent, null, or reasonably-sized instructions', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...base, instructions: null },
+                    false,
+                ),
+            ).not.toThrow();
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...base, instructions: 'Paginate with ?page=.' },
+                    false,
+                ),
+            ).not.toThrow();
+        });
+
+        it('rejects instructions over the character cap', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    { ...base, instructions: 'x'.repeat(10_001) },
+                    false,
+                ),
+            ).toThrow(ParameterError);
+        });
+    });
+
     describe('auth invariants', () => {
         it('rejects a none connection that carries a secret', () => {
             expect(() => validateExternalConnectionConfig(base, true)).toThrow(
@@ -104,6 +131,141 @@ describe('validateExternalConnectionConfig', () => {
                 ),
             ).not.toThrow();
         });
+
+        const googleScopes = ['https://www.googleapis.com/auth/bigquery'];
+
+        it('rejects google_service_account without a secret', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: googleScopes,
+                    },
+                    false,
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('rejects google_service_account with no scopes', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: [],
+                    },
+                    true,
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('rejects google_service_account with an invalid scope', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: ['not-a-url'],
+                    },
+                    true,
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('accepts google_service_account with a secret + scopes', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: googleScopes,
+                    },
+                    true,
+                ),
+            ).not.toThrow();
+        });
+
+        it('accepts the bare OIDC scopes openid/email/profile', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'google_service_account',
+                        oauthScopes: ['openid', 'email', 'profile'],
+                    },
+                    true,
+                ),
+            ).not.toThrow();
+        });
+
+        it('rejects oauthScopes on a non-google type', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        type: 'bearer_token',
+                        oauthScopes: googleScopes,
+                    },
+                    true,
+                ),
+            ).toThrow(ParameterError);
+        });
+    });
+
+    describe('validateServiceAccountKeyfile', () => {
+        const validKeyfile = JSON.stringify({
+            type: 'service_account',
+            client_email: 'sa@proj.iam.gserviceaccount.com',
+            private_key:
+                '-----BEGIN PRIVATE KEY-----\nk\n-----END PRIVATE KEY-----\n',
+        });
+
+        it('accepts a valid keyfile', () => {
+            expect(() =>
+                validateServiceAccountKeyfile(validKeyfile),
+            ).not.toThrow();
+        });
+
+        it('rejects non-JSON', () => {
+            expect(() => validateServiceAccountKeyfile('not json')).toThrow(
+                ParameterError,
+            );
+        });
+
+        it('rejects a keyfile with the wrong type', () => {
+            expect(() =>
+                validateServiceAccountKeyfile(
+                    JSON.stringify({
+                        type: 'authorized_user',
+                        client_email: 'x@y.z',
+                        private_key: 'k',
+                    }),
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('rejects a keyfile missing client_email', () => {
+            expect(() =>
+                validateServiceAccountKeyfile(
+                    JSON.stringify({
+                        type: 'service_account',
+                        private_key: 'k',
+                    }),
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('rejects a keyfile missing private_key', () => {
+            expect(() =>
+                validateServiceAccountKeyfile(
+                    JSON.stringify({
+                        type: 'service_account',
+                        client_email: 'x@y.z',
+                    }),
+                ),
+            ).toThrow(ParameterError);
+        });
     });
 
     describe('allowlists and limits', () => {
@@ -119,10 +281,28 @@ describe('validateExternalConnectionConfig', () => {
         it('rejects an unsupported method', () => {
             expect(() =>
                 validateExternalConnectionConfig(
-                    { ...base, allowedMethods: ['DELETE'] },
+                    { ...base, allowedMethods: ['TRACE'] },
                     false,
                 ),
             ).toThrow(ParameterError);
+        });
+
+        it('accepts the extended write methods', () => {
+            expect(() =>
+                validateExternalConnectionConfig(
+                    {
+                        ...base,
+                        allowedMethods: [
+                            'GET',
+                            'POST',
+                            'PUT',
+                            'PATCH',
+                            'DELETE',
+                        ],
+                    },
+                    false,
+                ),
+            ).not.toThrow();
         });
 
         it('rejects empty content types', () => {
@@ -167,5 +347,49 @@ describe('validateExternalConnectionConfig', () => {
                 ),
             ).toThrow(ParameterError);
         });
+    });
+});
+
+describe('validateExternalConnectionConfig customHeaders', () => {
+    it('accepts a config with valid custom headers', () => {
+        expect(() =>
+            validateExternalConnectionConfig(
+                {
+                    ...base,
+                    customHeaders: { 'anthropic-version': '2023-06-01' },
+                },
+                false,
+            ),
+        ).not.toThrow();
+    });
+
+    it('rejects a custom header colliding with the api key header', () => {
+        expect(() =>
+            validateExternalConnectionConfig(
+                {
+                    ...base,
+                    type: 'api_key',
+                    apiKeyName: 'X-Service-Key',
+                    apiKeyLocation: 'header',
+                    customHeaders: { 'x-service-key': 'clobber' },
+                },
+                true,
+            ),
+        ).toThrow(ParameterError);
+    });
+
+    it('allows the same name when the api key is sent as a query param', () => {
+        expect(() =>
+            validateExternalConnectionConfig(
+                {
+                    ...base,
+                    type: 'api_key',
+                    apiKeyName: 'X-Service-Key',
+                    apiKeyLocation: 'query',
+                    customHeaders: { 'x-service-key': 'header-plane-value' },
+                },
+                true,
+            ),
+        ).not.toThrow();
     });
 });

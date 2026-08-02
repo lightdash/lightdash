@@ -1,28 +1,45 @@
 import {
+    AiAgentAdminEvalFilters,
     AiAgentAdminFilters,
+    AiAgentAdminMemoryFilters,
+    AiAgentAdminMemorySort,
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
+    AiAgentReviewReplayCaptureRequest,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminEvalPromptsResponse,
+    ApiAiAgentAdminEvalsResponse,
+    ApiAiAgentAdminMemoriesResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemResponse,
     ApiAiAgentReviewItemsResponse,
+    ApiAiAgentReviewReplayCaptureResponse,
     ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiErrorPayload,
+    ApiMcpActivityResponse,
+    ApiMcpActivityStatsResponse,
     ApiSuccessEmpty,
     ApiUpdateAiOrganizationSettingsResponse,
     assertRegisteredAccount,
+    CreateAiAgentReviewItem,
+    CreateAiAgentReviewItemComment,
     KnexPaginateArgs,
+    McpActivityFilters,
+    McpActivitySort,
+    McpActivityStatsFilters,
     ReorderAiAgentReviewItems,
     UpdateAiAgentReviewItemAssignee,
+    UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
     UpdateAiReviewNotificationSettings,
     type ApiAiAgentReviewItemWritebackPreviewResponse,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -50,6 +67,10 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type AiAgentAdminService } from '../services/AiAgentAdminService';
 import { type AiOrganizationSettingsService } from '../services/AiOrganizationSettingsService';
+import { validateDateFilter, validateUuidFilter } from './filterValidation';
+
+const MCP_ACTIVITY_MAX_PAGE_SIZE = 100;
+const AI_AGENT_MEMORIES_MAX_PAGE_SIZE = 100;
 
 @Route('/api/v1/aiAgents/admin')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -125,6 +146,201 @@ export class AiAgentAdminController extends BaseController {
     }
 
     /**
+     * Get all AI agent evaluations for admin
+     * @summary List AI agent evaluations
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/evals')
+    @OperationId('getAllEvals')
+    async getAllEvals(
+        @Request() req: express.Request,
+        @Query() page?: KnexPaginateArgs['page'],
+        @Query() pageSize?: KnexPaginateArgs['pageSize'],
+        @Query() projectUuids?: AiAgentAdminEvalFilters['projectUuids'],
+        @Query() agentUuids?: AiAgentAdminEvalFilters['agentUuids'],
+        @Query() search?: AiAgentAdminEvalFilters['search'],
+        @Query() sortField?: AiAgentAdminSort['field'],
+        @Query() sortDirection?: AiAgentAdminSort['direction'],
+    ): Promise<ApiAiAgentAdminEvalsResponse> {
+        assertRegisteredAccount(req.account);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('agentUuids', agentUuids);
+        const paginateArgs: KnexPaginateArgs = {
+            page: page ?? 1,
+            pageSize: pageSize ?? 50,
+        };
+
+        const filters: AiAgentAdminEvalFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(agentUuids && { agentUuids }),
+            ...(search && { search }),
+        };
+
+        const sort: AiAgentAdminSort | undefined = sortField
+            ? {
+                  field: sortField,
+                  direction: sortDirection ?? 'desc',
+              }
+            : undefined;
+
+        const results = await this.getAiAgentAdminService().getAllEvals(
+            toSessionUser(req.account),
+            paginateArgs,
+            filters,
+            sort,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get the prompts of an AI agent evaluation for admin
+     * @summary List AI agent evaluation prompts
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/evals/{evalUuid}/prompts')
+    @OperationId('getAdminEvalPrompts')
+    async getAdminEvalPrompts(
+        @Request() req: express.Request,
+        @Path() evalUuid: UUID,
+    ): Promise<ApiAiAgentAdminEvalPromptsResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getAiAgentAdminService().getEvalPrompts(
+            toSessionUser(req.account),
+            evalUuid,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get MCP tool call activity for admin
+     * @summary List MCP activity
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/mcp-activity')
+    @OperationId('getMcpActivity')
+    async getMcpActivity(
+        @Request() req: express.Request,
+        // Pagination
+        @Query() page?: KnexPaginateArgs['page'],
+        @Query() pageSize?: KnexPaginateArgs['pageSize'],
+        // Filtering
+        @Query() projectUuids?: McpActivityFilters['projectUuids'],
+        @Query() userUuids?: McpActivityFilters['userUuids'],
+        @Query() agentUuids?: McpActivityFilters['agentUuids'],
+        @Query() toolNames?: McpActivityFilters['toolNames'],
+        @Query() clientNames?: McpActivityFilters['clientNames'],
+        @Query() status?: McpActivityFilters['status'],
+        @Query() dateFrom?: McpActivityFilters['dateFrom'],
+        @Query() dateTo?: McpActivityFilters['dateTo'],
+        // Sorting
+        @Query() sortField?: McpActivitySort['field'],
+        @Query() sortDirection?: McpActivitySort['direction'],
+    ): Promise<ApiMcpActivityResponse> {
+        assertRegisteredAccount(req.account);
+        validateDateFilter('dateFrom', dateFrom);
+        validateDateFilter('dateTo', dateTo);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('userUuids', userUuids);
+        validateUuidFilter('agentUuids', agentUuids);
+        // Rows can carry up to 64KB of tool_args each, so cap the page size
+        const paginateArgs: KnexPaginateArgs = {
+            page: page ?? 1,
+            pageSize: Math.min(pageSize ?? 50, MCP_ACTIVITY_MAX_PAGE_SIZE),
+        };
+
+        const filters: McpActivityFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(userUuids && { userUuids }),
+            ...(agentUuids && { agentUuids }),
+            ...(toolNames && { toolNames }),
+            ...(clientNames && { clientNames }),
+            ...(status && { status }),
+            ...(dateFrom && { dateFrom }),
+            ...(dateTo && { dateTo }),
+        };
+
+        const sort: McpActivitySort | undefined = sortField
+            ? {
+                  field: sortField,
+                  direction: sortDirection ?? 'desc',
+              }
+            : undefined;
+
+        const results = await this.getAiAgentAdminService().getMcpActivity(
+            toSessionUser(req.account),
+            paginateArgs,
+            filters,
+            sort,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get aggregated MCP tool call stats for admin
+     * @summary Get MCP activity stats
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/mcp-activity/stats')
+    @OperationId('getMcpActivityStats')
+    async getMcpActivityStats(
+        @Request() req: express.Request,
+        @Query() projectUuids?: McpActivityFilters['projectUuids'],
+        @Query() userUuids?: McpActivityFilters['userUuids'],
+        @Query() agentUuids?: McpActivityFilters['agentUuids'],
+        @Query() toolNames?: McpActivityFilters['toolNames'],
+        @Query() clientNames?: McpActivityFilters['clientNames'],
+        @Query() dateFrom?: McpActivityFilters['dateFrom'],
+        @Query() dateTo?: McpActivityFilters['dateTo'],
+    ): Promise<ApiMcpActivityStatsResponse> {
+        assertRegisteredAccount(req.account);
+        validateDateFilter('dateFrom', dateFrom);
+        validateDateFilter('dateTo', dateTo);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('userUuids', userUuids);
+        validateUuidFilter('agentUuids', agentUuids);
+
+        const filters: McpActivityStatsFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(userUuids && { userUuids }),
+            ...(agentUuids && { agentUuids }),
+            ...(toolNames && { toolNames }),
+            ...(clientNames && { clientNames }),
+            ...(dateFrom && { dateFrom }),
+            ...(dateTo && { dateTo }),
+        };
+
+        const results = await this.getAiAgentAdminService().getMcpActivityStats(
+            toSessionUser(req.account),
+            filters,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
      * Get prompt activity for one project
      * @summary Get project AI agent prompt activity
      */
@@ -171,6 +387,63 @@ export class AiAgentAdminController extends BaseController {
     }
 
     /**
+     * Get all AI agent memories for admin
+     * @summary List AI agent memories
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/memories')
+    @OperationId('getAllAiAgentMemories')
+    async getAllAiAgentMemories(
+        @Request() req: express.Request,
+        // Pagination
+        @Query() page?: KnexPaginateArgs['page'],
+        @Query() pageSize?: KnexPaginateArgs['pageSize'],
+        // Filtering
+        @Query() projectUuids?: AiAgentAdminMemoryFilters['projectUuids'],
+        @Query() userUuids?: AiAgentAdminMemoryFilters['userUuids'],
+        @Query() statuses?: AiAgentAdminMemoryFilters['statuses'],
+        @Query() scopes?: AiAgentAdminMemoryFilters['scopes'],
+        @Query() search?: AiAgentAdminMemoryFilters['search'],
+        // Sorting
+        @Query() sortField?: AiAgentAdminMemorySort['field'],
+        @Query() sortDirection?: AiAgentAdminMemorySort['direction'],
+    ): Promise<ApiAiAgentAdminMemoriesResponse> {
+        assertRegisteredAccount(req.account);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('userUuids', userUuids);
+
+        const filters: AiAgentAdminMemoryFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(userUuids && { userUuids }),
+            ...(statuses && { statuses }),
+            ...(scopes && { scopes }),
+            ...(search && { search }),
+        };
+
+        const memories = await this.getAiAgentAdminService().getAllMemories(
+            toSessionUser(req.account),
+            {
+                page: page ?? 1,
+                pageSize: Math.min(
+                    pageSize ?? 50,
+                    AI_AGENT_MEMORIES_MAX_PAGE_SIZE,
+                ),
+            },
+            filters,
+            sortField
+                ? { field: sortField, direction: sortDirection ?? 'desc' }
+                : undefined,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: memories,
+        };
+    }
+
+    /**
      * Get AI agent classifier review items for admin
      * @summary List AI agent review items
      */
@@ -189,6 +462,33 @@ export class AiAgentAdminController extends BaseController {
             results: await this.getAiAgentAdminService().listReviewItems(
                 toSessionUser(req.account),
                 status,
+            ),
+        };
+    }
+
+    /**
+     * Create a manual AI agent issue
+     * @summary Create AI agent review item
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/review-items')
+    @OperationId('createAiAgentReviewItem')
+    async createReviewItem(
+        @Request() req: express.Request,
+        @Body() body: CreateAiAgentReviewItem,
+    ): Promise<ApiAiAgentReviewItemResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().createReviewItem(
+                toSessionUser(req.account),
+                body,
             ),
         };
     }
@@ -217,6 +517,31 @@ export class AiAgentAdminController extends BaseController {
                 toSessionUser(req.account),
                 fingerprint,
             ),
+        };
+    }
+
+    /**
+     * Rebuild judge replay inputs for historical review signals so the eval
+     * scoreboard can replay the judge offline. Read-only; feature-flag gated.
+     * @summary Capture AI review judge replay inputs
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/review-replay-capture')
+    @OperationId('captureAiAgentReviewReplayInputs')
+    async captureReviewReplayInputs(
+        @Request() req: express.Request,
+        @Body() body: AiAgentReviewReplayCaptureRequest,
+    ): Promise<ApiAiAgentReviewReplayCaptureResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().captureReviewReplayInputs(
+                    toSessionUser(req.account),
+                    body,
+                ),
         };
     }
 
@@ -369,6 +694,62 @@ export class AiAgentAdminController extends BaseController {
                 toSessionUser(req.account),
                 fingerprint,
                 body.assignedToUserUuid,
+            );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Set the priority on an AI agent review item
+     * @summary Update AI agent review item priority
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/review-items/{fingerprint}/priority')
+    @OperationId('updateAiAgentReviewItemPriority')
+    async updateReviewItemPriority(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+        @Body() body: UpdateAiAgentReviewItemPriority,
+    ): Promise<ApiAiAgentReviewItemResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAiAgentAdminService().updateReviewItemPriority(
+                toSessionUser(req.account),
+                fingerprint,
+                body,
+            );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Add a comment to an AI agent review item
+     * @summary Add AI agent review item comment
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/review-items/{fingerprint}/comments')
+    @OperationId('addAiAgentReviewItemComment')
+    async addReviewItemComment(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+        @Body() body: CreateAiAgentReviewItemComment,
+    ): Promise<ApiAiAgentReviewItemActivityResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAiAgentAdminService().addReviewItemComment(
+                toSessionUser(req.account),
+                fingerprint,
+                body.body,
             );
         return { status: 'ok', results };
     }

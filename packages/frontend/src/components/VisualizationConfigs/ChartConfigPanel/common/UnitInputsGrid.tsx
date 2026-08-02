@@ -1,7 +1,8 @@
 import type { EchartsGrid, EchartsLegend } from '@lightdash/common';
-import { Badge, Center, Flex, SimpleGrid } from '@mantine/core';
+import { Center, Flex, Badge, SimpleGrid } from '@mantine-8/core';
 import { type FC } from 'react';
 import UnitInput from '../../../common/UnitInput';
+import styles from './UnitInputsGrid.module.css';
 
 enum Positions {
     Top = 'top',
@@ -53,16 +54,7 @@ export const UnitInputsGrid: FC<Props> = ({
     };
 
     return (
-        <SimpleGrid
-            cols={3}
-            spacing="xs"
-            py="xs"
-            sx={(theme) => ({
-                border: `1px solid ${theme.colors.ldGray['1']}`,
-                borderRadius: '4px',
-                backgroundColor: theme.colors.ldGray['0'],
-            })}
-        >
+        <SimpleGrid cols={3} spacing="xs" py="xs" className={styles.grid}>
             {/* Row 1 */}
             <EmptySpace />
             <Flex justify="center" align="end">
@@ -93,7 +85,13 @@ export const UnitInputsGrid: FC<Props> = ({
             </Flex>
 
             <Center px="xs" py="one">
-                <Badge color="blue" radius={'xs'} fullWidth h="100%">
+                <Badge
+                    variant="light"
+                    color="blue"
+                    radius={'xs'}
+                    fullWidth
+                    h="100%"
+                >
                     {centerLabel}
                 </Badge>
             </Center>

@@ -1,0 +1,32 @@
+import { describeContentAsCodeSchemaContract } from './schemaContractTestUtils';
+
+describeContentAsCodeSchemaContract({
+    resource: 'alert',
+    modelSchema: 'SchedulerAndTargets',
+    documentSchema: 'AlertAsCode',
+    skippedModelFields: [
+        'appName',
+        'appState',
+        'appUuid',
+        'createdAt',
+        'createdBy',
+        'createdByName',
+        'customViewportWidth',
+        'dashboardName',
+        'dashboardUuid',
+        'format',
+        'latestRun',
+        'options',
+        'projectName',
+        'projectSchedulerTimezone',
+        'projectUuid',
+        'savedChartName',
+        'savedChartUuid',
+        'savedSqlName',
+        'savedSqlUuid',
+        'schedulerUuid',
+        'selectedTabs',
+        'updatedAt',
+    ],
+    documentOnlyFields: ['contentType', 'downloadedAt', 'resource', 'version'],
+});

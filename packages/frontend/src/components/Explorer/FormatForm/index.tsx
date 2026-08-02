@@ -1,4 +1,5 @@
 import {
+    Compact,
     CompactConfigMap,
     convertCustomFormatToFormatExpression,
     currencies,
@@ -25,7 +26,6 @@ import {
     Text,
     TextInput,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
     IconCalendar,
@@ -34,7 +34,9 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
+import { optionalNumber } from '../../../utils/numberInputUtils';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
 import { getFormatTypeLabel } from './getFormatSummary';
 
@@ -136,6 +138,11 @@ export const FormatForm: FC<Props> = ({
     compact = false,
 }) => {
     const formatType = format.type;
+    const formatExpression = convertCustomFormatToFormatExpression(format);
+    const usesRuntimeOnlyFormatExpression =
+        format.compact === Compact.AUTO &&
+        (format.type === CustomFormatType.NUMBER ||
+            format.type === CustomFormatType.CURRENCY);
 
     const isDateField = useMemo(() => {
         return (
@@ -434,7 +441,6 @@ export const FormatForm: FC<Props> = ({
                     )}
                     <Grid.Col span={compact ? 12 : 4}>
                         <NumberInput
-                            type="number"
                             min={0}
                             label="Decimal places"
                             placeholder="Auto"
@@ -444,7 +450,7 @@ export const FormatForm: FC<Props> = ({
                                 onChange: (value) => {
                                     setFormatFieldValue(
                                         'round',
-                                        value === '' ? undefined : value,
+                                        optionalNumber(value),
                                     );
                                 },
                             }}
@@ -533,8 +539,9 @@ export const FormatForm: FC<Props> = ({
                     <Text size="xs" c="ldGray.5">
                         Format expression:{' '}
                         <Text span fw={500} c="ldGray.7">
-                            {convertCustomFormatToFormatExpression(format) ||
-                                'default'}
+                            {usesRuntimeOnlyFormatExpression
+                                ? 'runtime only'
+                                : formatExpression || 'default'}
                         </Text>
                     </Text>
                 </Grid.Col>

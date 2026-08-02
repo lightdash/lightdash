@@ -26,6 +26,7 @@ import {
     calculateExploreWarningReport,
     ChartSourceType,
     ChartSummary,
+    combineManifestSources,
     CompilationSource,
     CompiledDimension,
     ContentType,
@@ -33,7 +34,6 @@ import {
     convertExplores,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
@@ -58,22 +58,23 @@ import {
     DbtProjectEnvironmentVariable,
     DbtProjectType,
     DbtRawModelNode,
+    DbtVersionOption,
     deepEqual,
     DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
-    DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
+    EnsurePlaygroundProjectResults,
     Explore,
     ExploreError,
     ExploreType,
     FeatureFlags,
     FilterableDimension,
+    FilterAutocompleteValue,
     findReplaceableCustomMetrics,
     ForbiddenError,
     formatRows,
     getAccountUserTimezone,
-    getAllDimensionsMap,
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
@@ -81,6 +82,7 @@ import {
     getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
+    getFieldFormatOverrideProps,
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
@@ -88,21 +90,18 @@ import {
     getMetrics,
     getParameterReferences,
     getPreAggregateExploreName,
-    getTimeDimensionsMap,
     getTimezoneLabel,
     GroupType,
     hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
-    IntrinsicUserAttributes,
     isCartesianChartConfig,
     isDateItem,
     isExploreError,
     isFilterableDimension,
     isJwtUser,
     isNotNull,
-    isStandardDateGranularity,
-    isSubDayGranularity,
+    isReservedParameterName,
     isUserWithOrg,
     isValidTimezone,
     ItemsMap,
@@ -114,11 +113,11 @@ import {
     LightdashError,
     LightdashProjectConfig,
     LightdashUser,
+    ManifestCollision,
+    ManifestSource,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
-    mergeReservedDefinitions,
-    mergeReservedValues,
     mergeWarehouseCredentials,
     MetricQuery,
     MissingWarehouseCredentialsError,
@@ -130,29 +129,31 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    PlaygroundProjectTrigger,
     PreAggregateCheckResult,
     PreAggregateMatchMiss,
     PreAggregateMissReason,
     preAggregateUtils,
+    PreviewExpiresAt,
     Project,
     ProjectCatalog,
     ProjectContextEntry,
+    ProjectDbtSource,
     ProjectDefaults,
     ProjectGroupAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectSummary,
     ProjectType,
     QueryExecutionContext,
+    RedshiftAuthenticationType,
     RegisteredAccount,
     ReplaceableCustomFields,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
-    replaceDimensionInExplore,
     RequestMethod,
     ResolvedProjectColorPalette,
     resolveQueryTimezone,
-    resolveReservedParameterValues,
-    resolveToBaseTimeDimension,
     ResultRow,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -172,6 +173,7 @@ import {
     UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProject,
+    UpdateProjectDetails,
     UpdateProjectMember,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
@@ -190,11 +192,11 @@ import {
     type CreateDatabricksCredentials,
     type DataTimezonePreviewRequest,
     type Metric,
+    type OrganizationProject,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RunQueryTags,
     type Tag,
-    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
     BigqueryWarehouseClient,
@@ -218,6 +220,7 @@ import {
     LightdashAnalytics,
     MetricQueryExecutionProperties,
     ProjectEvent,
+    type OnboardingFlow,
 } from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -231,6 +234,7 @@ import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preA
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
+import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
@@ -252,6 +256,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
+import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -260,6 +265,7 @@ import { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
+import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
@@ -267,20 +273,13 @@ import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
-import { ProjectAdapter } from '../../types';
-import {
-    runWorkerThread,
-    wrapSentryTransaction,
-    wrapSentryTransactionSync,
-} from '../../utils';
+import { CachedWarehouse, ProjectAdapter } from '../../types';
+import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import {
-    CompiledQuery,
-    MetricQueryBuilder,
-} from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
+import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
@@ -309,6 +308,7 @@ export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
+    projectDbtSourcesModel: ProjectDbtSourcesModel;
     preAggregateModel: PreAggregateModel;
     onboardingModel: OnboardingModel;
     savedChartModel: SavedChartModel;
@@ -332,6 +332,7 @@ export type ProjectServiceArguments = {
     contentModel: ContentModel;
     encryptionUtil: EncryptionUtil;
     userModel: UserModel;
+    userOAuthGrantsModel: UserOAuthGrantsModel;
     featureFlagModel: FeatureFlagModel;
     projectParametersModel: ProjectParametersModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
@@ -359,6 +360,19 @@ export type ProjectServiceArguments = {
     // AppGenerateService depends on ProjectService, so eager injection would
     // create a construction cycle. Resolves undefined in core (non-EE) builds.
     getAppGenerateService?: () => AppGenerateService | undefined;
+    getAiAgentService?: () => AiAgentService | undefined;
+    onProjectCreated?: (args: {
+        user: SessionUser;
+        projectUuid: string;
+        projectType: ProjectType;
+        provisioningSource?: 'playground';
+    }) => Promise<void>;
+    provisionPlaygroundProject?: (args: {
+        user: SessionUser;
+        projectService: ProjectService;
+        canViewProject: (project: OrganizationProject) => boolean;
+        trigger: PlaygroundProjectTrigger;
+    }) => Promise<EnsurePlaygroundProjectResults>;
 };
 
 const isValidDbtCloudWebhookSignature = (
@@ -381,6 +395,8 @@ export class ProjectService extends BaseService {
     analytics: LightdashAnalytics;
 
     projectModel: ProjectModel;
+
+    projectDbtSourcesModel: ProjectDbtSourcesModel;
 
     preAggregateModel: PreAggregateModel;
 
@@ -430,6 +446,8 @@ export class ProjectService extends BaseService {
 
     userModel: UserModel;
 
+    userOAuthGrantsModel: UserOAuthGrantsModel;
+
     featureFlagModel: FeatureFlagModel;
 
     projectParametersModel: ProjectParametersModel;
@@ -465,10 +483,17 @@ export class ProjectService extends BaseService {
 
     getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
 
+    getAiAgentService: (() => AiAgentService | undefined) | undefined;
+
+    onProjectCreated: ProjectServiceArguments['onProjectCreated'];
+
+    provisionPlaygroundProject: ProjectServiceArguments['provisionPlaygroundProject'];
+
     constructor({
         lightdashConfig,
         analytics,
         projectModel,
+        projectDbtSourcesModel,
         preAggregateModel,
         onboardingModel,
         savedChartModel,
@@ -492,6 +517,7 @@ export class ProjectService extends BaseService {
         contentModel,
         encryptionUtil,
         userModel,
+        userOAuthGrantsModel,
         featureFlagModel,
         projectParametersModel,
         projectCompileLogModel,
@@ -505,11 +531,15 @@ export class ProjectService extends BaseService {
         projectContextModel,
         isProjectContextEnabled,
         getAppGenerateService,
+        getAiAgentService,
+        onProjectCreated,
+        provisionPlaygroundProject,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
+        this.projectDbtSourcesModel = projectDbtSourcesModel;
         this.preAggregateModel = preAggregateModel;
         this.onboardingModel = onboardingModel;
         this.warehouseClients = {};
@@ -534,6 +564,7 @@ export class ProjectService extends BaseService {
         this.contentModel = contentModel;
         this.encryptionUtil = encryptionUtil;
         this.userModel = userModel;
+        this.userOAuthGrantsModel = userOAuthGrantsModel;
         this.featureFlagModel = featureFlagModel;
         this.projectParametersModel = projectParametersModel;
         this.projectCompileLogModel = projectCompileLogModel;
@@ -548,6 +579,145 @@ export class ProjectService extends BaseService {
         this.projectContextModel = projectContextModel;
         this.isProjectContextEnabled = isProjectContextEnabled;
         this.getAppGenerateService = getAppGenerateService;
+        this.getAiAgentService = getAiAgentService;
+        this.onProjectCreated = onProjectCreated;
+        this.provisionPlaygroundProject = provisionPlaygroundProject;
+    }
+
+    async ensurePlaygroundProject(
+        user: SessionUser,
+        trigger: PlaygroundProjectTrigger = 'invite_expert',
+    ): Promise<EnsurePlaygroundProjectResults> {
+        if (!this.provisionPlaygroundProject) {
+            throw new NotFoundError('Playground projects are not available');
+        }
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('InviteLink', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User does not have permission to create invite links',
+            );
+        }
+        return this.provisionPlaygroundProject({
+            user,
+            projectService: this,
+            canViewProject: (project) =>
+                auditedAbility.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid: project.projectUuid,
+                        type: project.type,
+                        upstreamProjectUuid:
+                            project.upstreamProjectUuid ?? undefined,
+                        createdByUserUuid: project.createdByUserUuid,
+                    }),
+                ),
+            trigger,
+        });
+    }
+
+    protected async getOnboardingFlow(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<OnboardingFlow> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NewOnboarding,
+        });
+        return enabled ? 'new' : 'legacy';
+    }
+
+    private async provisionDefaultAiAgent(
+        user: SessionUser,
+        projectUuid: string,
+        projectType: ProjectType,
+        provisioningSource?: 'playground',
+    ): Promise<void> {
+        if (projectType === ProjectType.PREVIEW) {
+            return;
+        }
+
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            return;
+        }
+
+        try {
+            // Playgrounds are provisioned alongside a user's own project, so
+            // they never pass the first-project check but still need an agent
+            if (provisioningSource !== 'playground') {
+                const projects =
+                    await this.projectModel.getAllByOrganizationUuid(
+                        organizationUuid,
+                    );
+                const nonPreviewProjects = projects.filter(
+                    (project) => project.type !== ProjectType.PREVIEW,
+                );
+                if (
+                    nonPreviewProjects.length !== 1 ||
+                    nonPreviewProjects[0].projectUuid !== projectUuid
+                ) {
+                    return;
+                }
+            }
+
+            await this.getAiAgentService?.()?.provisionDefaultAgent(
+                user,
+                projectUuid,
+            );
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error);
+            this.analytics.track({
+                event: 'ai_agent.provisioning_failed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    error: errorMessage,
+                },
+            });
+            this.logger.warn(
+                `Failed to provision default AI agent for project ${projectUuid}: ${errorMessage}`,
+            );
+        }
+    }
+
+    private async runPostProjectCreationProvisioning(
+        user: SessionUser,
+        projectUuid: string,
+        projectType: ProjectType,
+        provisioningSource?: 'playground',
+    ): Promise<void> {
+        await this.provisionDefaultAiAgent(
+            user,
+            projectUuid,
+            projectType,
+            provisioningSource,
+        );
+
+        try {
+            await this.onProjectCreated?.({
+                user,
+                projectUuid,
+                projectType,
+                provisioningSource,
+            });
+        } catch (error) {
+            // Provisioning failures must not fail project creation
+            Sentry.captureException(error);
+            this.logger.error(
+                `Failed to run post-creation provisioning for project ${projectUuid}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
     }
 
     static getMetricQueryExecutionProperties({
@@ -561,11 +731,13 @@ export class ProjectService extends BaseService {
         metricQuery: MetricQuery;
         dateZoom: DateZoom | undefined;
         chartUuid: string | undefined;
-        queryTags: Record<string, unknown>;
+        queryTags: Omit<RunQueryTags, 'query_context'>;
         explore: Explore;
         parameters: ParametersValuesMap | undefined;
     }): MetricQueryExecutionProperties {
         return {
+            exploreName: explore.name,
+            dashboardId: queryTags.dashboard_uuid ?? null,
             dimensionsCount: metricQuery.dimensions.length,
             metricsCount: metricQuery.metrics.length,
             filtersCount: countTotalFilterRules(metricQuery.filters),
@@ -643,9 +815,6 @@ export class ProjectService extends BaseService {
             ...countCustomDimensionsInMetricQuery(metricQuery),
             dateZoomGranularity: dateZoom?.granularity || null,
             timezone: metricQuery.timezone,
-            ...(queryTags?.dashboard_uuid
-                ? { dashboardId: queryTags.dashboard_uuid }
-                : {}),
             chartId: chartUuid,
             ...(explore.type === ExploreType.VIRTUAL
                 ? { virtualViewId: explore.name }
@@ -1260,10 +1429,11 @@ export class ProjectService extends BaseService {
                 BigqueryAuthenticationType.SSO &&
             args.warehouseConnection.keyfileContents.type !== 'authorized_user'
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(
-                userUuid,
-                OpenIdIdentityIssuerType.GOOGLE,
-            );
+            const refreshToken =
+                await this.userOAuthGrantsModel.getRefreshToken(
+                    userUuid,
+                    OpenIdIdentityIssuerType.GOOGLE,
+                );
 
             // Validate refresh token has the right bigquery scopes
             await UserService.generateGoogleAccessToken(
@@ -1291,10 +1461,11 @@ export class ProjectService extends BaseService {
             args.warehouseConnection.authenticationType === 'sso' &&
             !organizationWarehouseCredentialsUuid
         ) {
-            const refreshToken = await this.userModel.getRefreshToken(
-                userUuid,
-                OpenIdIdentityIssuerType.SNOWFLAKE,
-            );
+            const refreshToken =
+                await this.userOAuthGrantsModel.getRefreshToken(
+                    userUuid,
+                    OpenIdIdentityIssuerType.SNOWFLAKE,
+                );
             // Validate refresh token and generate new access token
             this.logger.debug(
                 `Refreshing snowflake warehouse credentials from user uuid: ${userUuid}`,
@@ -1442,11 +1613,22 @@ export class ProjectService extends BaseService {
             }
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
-            case WarehouseTypes.CLICKHOUSE:
-            case WarehouseTypes.REDSHIFT: {
+            case WarehouseTypes.CLICKHOUSE: {
                 return {
                     ...credentials,
                     password: '',
+                };
+            }
+            case WarehouseTypes.REDSHIFT: {
+                return {
+                    ...credentials,
+                    user: '',
+                    password: '',
+                    accessKeyId: '',
+                    secretAccessKey: '',
+                    sessionToken: '',
+                    assumeRoleArn: '',
+                    assumeRoleExternalId: '',
                 };
             }
             case WarehouseTypes.ATHENA: {
@@ -1465,6 +1647,15 @@ export class ProjectService extends BaseService {
                         ...credentials,
                         token: '',
                     };
+                }
+                if (
+                    credentials.connectionType === DuckdbConnectionType.EMBEDDED
+                ) {
+                    const clearedCredentials = {
+                        ...credentials,
+                    } as typeof credentials & { dataDirectory?: string };
+                    delete clearedCredentials.dataDirectory;
+                    return clearedCredentials;
                 }
                 const { catalog, dataPath } = credentials;
                 const clearedCatalog =
@@ -1624,6 +1815,9 @@ export class ProjectService extends BaseService {
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
+                this.logger.warn(
+                    `No ${credentials.type} user warehouse credentials found for user ${userId} on project ${projectUuid} (requireUserCredentials enabled, host mismatch: ${!!hostMismatch})`,
+                );
                 if (credentials.type === WarehouseTypes.DATABRICKS) {
                     throw new DatabricksTokenError(
                         'Please authenticate to access Databricks',
@@ -1697,11 +1891,18 @@ export class ProjectService extends BaseService {
     ): Promise<{
         warehouseClient: WarehouseClient;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        tunnelConnectMs: number | null;
     }> {
         Sentry.setTag('warehouse.type', credentials.type);
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
+        const usedSshTunnel =
+            'useSshTunnel' in credentials && !!credentials.useSshTunnel;
+        const tunnelStart = performance.now();
         const warehouseSshCredentials = await sshTunnel.connect();
+        const tunnelConnectMs = usedSshTunnel
+            ? performance.now() - tunnelStart
+            : null;
 
         const { snowflakeVirtualWarehouse, databricksCompute } =
             overrides || {};
@@ -1718,7 +1919,11 @@ export class ProjectService extends BaseService {
             deepEqual(existingClient.credentials, warehouseSshCredentials)
         ) {
             // if existing client uses identical credentials, use it
-            return { warehouseClient: existingClient, sshTunnel };
+            return {
+                warehouseClient: existingClient,
+                sshTunnel,
+                tunnelConnectMs,
+            };
         }
         // otherwise create a new client and cache for future use
         const getSnowflakeWarehouse = (
@@ -1782,7 +1987,7 @@ export class ProjectService extends BaseService {
             credentialsWithOverrides,
         );
         this.warehouseClients[cacheKey] = client;
-        return { warehouseClient: client, sshTunnel };
+        return { warehouseClient: client, sshTunnel, tunnelConnectMs };
     }
 
     private async syncPreAggregateDefinitionsRegistry(
@@ -2212,10 +2417,19 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         data: CreateProjectOptionalCredentials,
         method: RequestMethod,
+        internalProvisioning?: { source: 'playground' },
     ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+            internalProvisioning,
+        );
+        ProjectService.assertPersistableSnowflakeAuthentication(
+            data.warehouseConnection,
+        );
 
         await this.validateProjectCreationPermissions(user, data);
 
@@ -2264,6 +2478,14 @@ export class ProjectService extends BaseService {
             }
         }
 
+        // Re-check after the copy/merge above: the guard at the top only saw
+        // the credentials the caller sent, and a preview can inherit embedded
+        // ones from its upstream project without ever naming them.
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            newProjectData.warehouseConnection,
+            internalProvisioning,
+        );
+
         const createProject: CreateProjectOptionalCredentials =
             hasWarehouseCredentials(newProjectData)
                 ? await this._resolveWarehouseClientCredentials(
@@ -2283,8 +2505,10 @@ export class ProjectService extends BaseService {
                     createProject.upstreamProjectUuid,
                     createProject.expiresInHours,
                 ),
+                internalProvisioning?.source,
             );
 
+        const onboardingFlow = await this.getOnboardingFlow(user);
         // Do not give this user admin permissions on this new project,
         // as it could be an interactive viewer creating a preview
         // and we don't want to allow users to acces sql runner or leak admin data
@@ -2296,8 +2520,16 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 user,
                 method,
+                onboardingFlow,
             ),
         });
+
+        await this.runPostProjectCreationProvisioning(
+            user,
+            projectUuid,
+            createProject.type,
+            internalProvisioning?.source,
+        );
 
         // For preview projects: if the upstream requires user warehouse credentials
         // and the request includes CLI-obtained tokens, create user warehouse
@@ -2362,6 +2594,7 @@ export class ProjectService extends BaseService {
         }
 
         let hasContentCopy = false;
+        let accessCopyError: string | undefined;
         let contentCopyError: string | undefined;
 
         if (data.type === ProjectType.PREVIEW && data.upstreamProjectUuid) {
@@ -2370,8 +2603,22 @@ export class ProjectService extends BaseService {
                     data.upstreamProjectUuid,
                     projectUuid,
                 );
+            } catch (e) {
+                Sentry.captureException(e);
+                accessCopyError = getErrorMessage(e);
+                this.logger.error(
+                    `Unable to copy access on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
+                    {
+                        error: accessCopyError,
+                        stack: e instanceof Error ? e.stack : undefined,
+                        errorData:
+                            e instanceof LightdashError ? e.data : undefined,
+                    },
+                );
+            }
 
-                if (data.copyContent ?? true) {
+            if (data.copyContent ?? true) {
+                try {
                     await this.copyContentOnPreview(
                         data.upstreamProjectUuid,
                         projectUuid,
@@ -2379,19 +2626,21 @@ export class ProjectService extends BaseService {
                     );
 
                     hasContentCopy = true;
+                } catch (e) {
+                    Sentry.captureException(e);
+                    contentCopyError = getErrorMessage(e);
+                    this.logger.error(
+                        `Unable to copy content on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
+                        {
+                            error: contentCopyError,
+                            stack: e instanceof Error ? e.stack : undefined,
+                            errorData:
+                                e instanceof LightdashError
+                                    ? e.data
+                                    : undefined,
+                        },
+                    );
                 }
-            } catch (e) {
-                Sentry.captureException(e);
-                contentCopyError = e instanceof Error ? e.message : String(e);
-                this.logger.error(
-                    `Unable to copy content on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
-                    {
-                        error: contentCopyError,
-                        stack: e instanceof Error ? e.stack : undefined,
-                        errorData:
-                            e instanceof LightdashError ? e.data : undefined,
-                    },
-                );
             }
         }
 
@@ -2432,6 +2681,7 @@ export class ProjectService extends BaseService {
         return {
             hasContentCopy,
             project,
+            accessCopyError,
             contentCopyError,
         };
     }
@@ -2444,6 +2694,13 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
+        ProjectService.assertPersistableSnowflakeAuthentication(
+            data.warehouseConnection,
+        );
 
         await this.validateProjectCreationPermissions(user, data);
         ProjectService.validateDbtEnvironmentVariables(data.dbtConnection);
@@ -2465,7 +2722,9 @@ export class ProjectService extends BaseService {
             userUuid: user.userUuid,
             steps: [
                 { stepType: JobStepType.TESTING_ADAPTOR },
-                { stepType: JobStepType.COMPILING },
+                ...(data.dbtConnection.type === DbtProjectType.NONE
+                    ? []
+                    : [{ stepType: JobStepType.COMPILING }]),
                 { stepType: JobStepType.CREATING_PROJECT },
             ],
         };
@@ -2524,12 +2783,17 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         user: SessionUser,
         method: RequestMethod,
+        onboardingFlow: OnboardingFlow,
     ): ProjectEvent['properties'] {
         const warehouseType = createProject.warehouseConnection?.type;
         const authenticationType =
             warehouseType === WarehouseTypes.BIGQUERY ||
-            warehouseType === WarehouseTypes.SNOWFLAKE
-                ? createProject.warehouseConnection?.authenticationType
+            warehouseType === WarehouseTypes.SNOWFLAKE ||
+            warehouseType === WarehouseTypes.REDSHIFT
+                ? (createProject.warehouseConnection?.authenticationType ??
+                  (warehouseType === WarehouseTypes.REDSHIFT
+                      ? RedshiftAuthenticationType.PASSWORD
+                      : undefined))
                 : undefined;
         return {
             projectName: createProject.name,
@@ -2543,6 +2807,7 @@ export class ProjectService extends BaseService {
             authenticationType,
             requireUserCredentials:
                 createProject.warehouseConnection?.requireUserCredentials,
+            onboardingFlow,
         };
     }
 
@@ -2568,47 +2833,70 @@ export class ProjectService extends BaseService {
             const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
                 jobUuid,
                 JobStepType.TESTING_ADAPTOR,
-                async () => this.testProjectAdapter(createProject, user),
+                async () =>
+                    this.testProjectAdapter(
+                        createProject,
+                        user,
+                        'project_create',
+                        method,
+                    ),
             );
 
             const { explores, lightdashProjectConfig, projectContext } =
-                await this.jobModel.tryJobStep(
-                    jobUuid,
-                    JobStepType.COMPILING,
-                    async () => {
-                        try {
-                            // There's no project yet, so we don't track
-                            const trackingParams = undefined;
+                createProject.dbtConnection.type === DbtProjectType.NONE
+                    ? await (async () => {
+                          try {
+                              return {
+                                  explores: [],
+                                  lightdashProjectConfig:
+                                      await adapter.getLightdashProjectConfig(
+                                          undefined,
+                                      ),
+                                  projectContext: [],
+                              };
+                          } finally {
+                              await adapter.destroy();
+                              await sshTunnel.disconnect();
+                          }
+                      })()
+                    : await this.jobModel.tryJobStep(
+                          jobUuid,
+                          JobStepType.COMPILING,
+                          async () => {
+                              try {
+                                  // There's no project yet, so we don't track
+                                  const trackingParams = undefined;
 
-                            const compiledExplores =
-                                await adapter.compileAllExplores(
-                                    trackingParams,
-                                    false, // loadSources
-                                    this.lightdashConfig.partialCompilation
-                                        .enabled,
-                                );
-                            const compiledProjectConfig =
-                                await adapter.getLightdashProjectConfig(
-                                    trackingParams,
-                                );
-                            const compiledProjectContext =
-                                await this.getProjectContextFromAdapter({
-                                    adapter,
-                                    user,
-                                    organizationUuid: user.organizationUuid,
-                                });
+                                  const compiledExplores =
+                                      await adapter.compileAllExplores(
+                                          trackingParams,
+                                          false, // loadSources
+                                          true, // allowPartialCompilation
+                                      );
+                                  const compiledProjectConfig =
+                                      await adapter.getLightdashProjectConfig(
+                                          trackingParams,
+                                      );
+                                  const compiledProjectContext =
+                                      await this.getProjectContextFromAdapter({
+                                          adapter,
+                                          user,
+                                          organizationUuid:
+                                              user.organizationUuid,
+                                      });
 
-                            return {
-                                explores: compiledExplores,
-                                lightdashProjectConfig: compiledProjectConfig,
-                                projectContext: compiledProjectContext,
-                            };
-                        } finally {
-                            await adapter.destroy();
-                            await sshTunnel.disconnect();
-                        }
-                    },
-                );
+                                  return {
+                                      explores: compiledExplores,
+                                      lightdashProjectConfig:
+                                          compiledProjectConfig,
+                                      projectContext: compiledProjectContext,
+                                  };
+                              } finally {
+                                  await adapter.destroy();
+                                  await sshTunnel.disconnect();
+                              }
+                          },
+                      );
 
             const projectUuid = await this.jobModel.tryJobStep(
                 jobUuid,
@@ -2667,15 +2955,18 @@ export class ProjectService extends BaseService {
                         newProjectUuid,
                         projectContext,
                     );
-                    await this.saveExploresToCacheAndIndexCatalog({
-                        userUuid: user.userUuid,
-                        projectUuid: newProjectUuid,
-                        explores,
-                        compilationSource: 'create_project',
-                        jobUuid,
-                        requestMethod: method,
-                        projectConfigDefaults: lightdashProjectConfig.defaults,
-                    });
+                    if (explores.length > 0) {
+                        await this.saveExploresToCacheAndIndexCatalog({
+                            userUuid: user.userUuid,
+                            projectUuid: newProjectUuid,
+                            explores,
+                            compilationSource: 'create_project',
+                            jobUuid,
+                            requestMethod: method,
+                            projectConfigDefaults:
+                                lightdashProjectConfig.defaults,
+                        });
+                    }
                     return newProjectUuid;
                 },
             );
@@ -2686,6 +2977,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                 },
             });
+            const onboardingFlow = await this.getOnboardingFlow(user);
             this.analytics.track({
                 event: 'project.created',
                 userId: user.userUuid,
@@ -2694,8 +2986,15 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     user,
                     method,
+                    onboardingFlow,
                 ),
             });
+
+            await this.runPostProjectCreationProvisioning(
+                user,
+                projectUuid,
+                createProject.type,
+            );
 
             return { projectUuid };
         } catch (error) {
@@ -2808,8 +3107,60 @@ export class ProjectService extends BaseService {
         });
     }
 
+    private static assertEmbeddedCredentialsAreInternal(
+        credentials: CreateWarehouseCredentials | undefined,
+        internalProvisioning?: { source: 'playground' },
+    ): void {
+        if (
+            credentials?.type === WarehouseTypes.DUCKDB &&
+            credentials.connectionType === DuckdbConnectionType.EMBEDDED &&
+            internalProvisioning?.source !== 'playground'
+        ) {
+            throw new ParameterError(
+                'Embedded DuckDB connections can only be provisioned internally',
+            );
+        }
+    }
+
+    /*
+    Interactive Snowflake authentication types need a browser on every
+    connect, so they cannot be used from headless backend/scheduler runs.
+    External browser is still allowed when `requireUserCredentials` is set,
+    since each user then connects with their own credentials and the
+    project-level authentication type is never used to connect.
+    */
+    private static assertPersistableSnowflakeAuthentication(
+        credentials: CreateWarehouseCredentials | undefined,
+    ): void {
+        if (credentials?.type !== WarehouseTypes.SNOWFLAKE) {
+            return;
+        }
+        if (
+            credentials.authenticationType ===
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE
+        ) {
+            throw new ParameterError(
+                'Snowflake OAuth authorization code authentication is only supported in the CLI and cannot be saved on a project',
+            );
+        }
+        if (
+            credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER &&
+            !credentials.requireUserCredentials
+        ) {
+            throw new ParameterError(
+                'Snowflake external browser authentication is only supported in the CLI and cannot be saved on a project',
+            );
+        }
+    }
+
     validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
+            case WarehouseTypes.SNOWFLAKE:
+                ProjectService.assertPersistableSnowflakeAuthentication(
+                    project.warehouseConnection,
+                );
+                break;
             case WarehouseTypes.BIGQUERY:
                 const keyFileContents =
                     project.warehouseConnection?.keyfileContents;
@@ -2878,6 +3229,9 @@ export class ProjectService extends BaseService {
         method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
         assertIsAccountWithOrg(account);
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
@@ -2984,6 +3338,35 @@ export class ProjectService extends BaseService {
         };
     }
 
+    async updateProjectDetails(
+        projectUuid: string,
+        account: Account,
+        details: UpdateProjectDetails,
+    ): Promise<ProjectSummary> {
+        assertIsAccountWithOrg(account);
+        const updatedDetails = { ...details };
+        if (details.name !== undefined) {
+            const trimmedName = details.name.trim();
+            if (trimmedName.length === 0) {
+                throw new ParameterError('Project name cannot be empty');
+            }
+            updatedDetails.name = trimmedName;
+        }
+        if (Object.keys(updatedDetails).length === 0) {
+            throw new ParameterError('No project details to update');
+        }
+
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (auditedAbility.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectModel.updateDetails(projectUuid, updatedDetails);
+
+        return { ...project, ...updatedDetails };
+    }
+
     /*
     Similar code to updateAndScheduleAsyncWork, but only for warehouse credentials
     This will not trigger any job
@@ -2995,6 +3378,9 @@ export class ProjectService extends BaseService {
         data: { warehouseConnection: CreateWarehouseCredentials },
     ): Promise<void> {
         assertIsAccountWithOrg(account);
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            data.warehouseConnection,
+        );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         const auditedAbility = this.createAuditedAbility(account);
@@ -3140,42 +3526,69 @@ export class ProjectService extends BaseService {
                 jobStatus: JobStatusType.RUNNING,
             });
             timings.testAdapter.start = performance.now();
-            const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
+            const {
+                adapter: primaryAdapter,
+                sshTunnel,
+                warehouseCredentials,
+                cachedWarehouse,
+                dbtVersionOption,
+            } = await this.jobModel.tryJobStep(
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
                 async () =>
                     this.testProjectAdapter(
                         updatedProject as UpdateProject,
                         user,
+                        'project_update',
+                        method,
                     ),
             );
             timings.testAdapter.end = performance.now();
+            // Source git clones built only to read manifests for the merge.
+            const manifestFetchAdapters: ProjectAdapter[] = [];
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
                 await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
+                        // Merge additional dbt sources (flag-gated, N=0
+                        // short-circuit) so "Test & deploy" yields the same
+                        // combined explore set as "Refresh dbt".
+                        let compileAdapter = primaryAdapter;
                         try {
+                            compileAdapter = await this.resolveCompileAdapter({
+                                projectUuid,
+                                organizationUuid: user.organizationUuid,
+                                userUuid: user.userUuid,
+                                primary: {
+                                    adapter: primaryAdapter,
+                                    warehouseCredentials,
+                                    cachedWarehouse,
+                                    dbtVersionOption,
+                                },
+                                manifestFetchAdapters,
+                            });
                             const trackingParams = {
                                 projectUuid,
                                 organizationUuid: user.organizationUuid,
                                 userUuid: user.userUuid,
                             };
                             timings.compileExplores.start = performance.now();
-                            const explores = await adapter.compileAllExplores(
-                                trackingParams,
-                                false, // loadSources
-                                this.lightdashConfig.partialCompilation.enabled,
-                            );
+                            const explores =
+                                await compileAdapter.compileAllExplores(
+                                    trackingParams,
+                                    false, // loadSources
+                                    true, // allowPartialCompilation
+                                );
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
                             const lightdashProjectConfig =
-                                await adapter.getLightdashProjectConfig(
+                                await compileAdapter.getLightdashProjectConfig(
                                     trackingParams,
                                 );
                             const projectContext =
                                 await this.getProjectContextFromAdapter({
-                                    adapter,
+                                    adapter: compileAdapter,
                                     user,
                                     organizationUuid: user.organizationUuid,
                                 });
@@ -3233,8 +3646,22 @@ export class ProjectService extends BaseService {
                             });
                             timings.cacheExplores.end = performance.now();
                         } finally {
-                            await adapter.destroy();
+                            await compileAdapter.destroy();
                             await sshTunnel.disconnect();
+                            // Clean up the per-source git clones used only to
+                            // read manifests for the merge.
+                            await Promise.all(
+                                manifestFetchAdapters.map((manifestAdapter) =>
+                                    manifestAdapter
+                                        .destroy()
+                                        .catch((destroyError) => {
+                                            this.logger.warn(
+                                                'Failed to destroy a dbt source adapter after manifest merge',
+                                                { error: destroyError },
+                                            );
+                                        }),
+                                ),
+                            );
                         }
                     },
                 );
@@ -3250,6 +3677,7 @@ export class ProjectService extends BaseService {
                 ...updatedProject,
                 warehouseConnection: updatedProject.warehouseConnection,
             };
+            const onboardingFlow = await this.getOnboardingFlow(user);
             this.analytics.track({
                 event: 'project.updated',
                 userId: user.userUuid,
@@ -3258,6 +3686,7 @@ export class ProjectService extends BaseService {
                     projectUuid,
                     user,
                     method,
+                    onboardingFlow,
                 ),
             });
             const totalTime = performance.now() - totalStartTime;
@@ -3332,36 +3761,92 @@ export class ProjectService extends BaseService {
 
     private async testProjectAdapter(
         data: UpdateProject,
-        _user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        context: 'project_create' | 'project_update',
+        method: RequestMethod,
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
+        warehouseCredentials: CreateWarehouseCredentials;
+        cachedWarehouse: CachedWarehouse;
+        dbtVersionOption: DbtVersionOption;
     }> {
+        const onboardingFlow = await this.getOnboardingFlow(user);
         const sshTunnel = new SshTunnel(data.warehouseConnection);
-        await sshTunnel.connect();
-        const dbtConnection = await this.resolveDbtConnectionInstallationId(
-            data.dbtConnection,
-            _user.organizationUuid,
-        );
-        const adapter = await projectAdapterFromConfig(
-            dbtConnection,
-            sshTunnel.overrideCredentials,
-            {
+        let adapter: ProjectAdapter | undefined;
+        try {
+            await sshTunnel.connect();
+            const dbtConnection = await this.resolveDbtConnectionInstallationId(
+                data.dbtConnection,
+                user.organizationUuid,
+            );
+            const warehouseCredentials = sshTunnel.overrideCredentials;
+            const cachedWarehouse: CachedWarehouse = {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
-            },
-            data.dbtVersion || DefaultSupportedDbtVersion,
-            this.analytics,
-        );
-        try {
+            };
+            const dbtVersionOption =
+                data.dbtVersion || DefaultSupportedDbtVersion;
+            adapter = await projectAdapterFromConfig(
+                dbtConnection,
+                warehouseCredentials,
+                cachedWarehouse,
+                dbtVersionOption,
+                this.analytics,
+            );
             await adapter.test();
-        } catch (e) {
-            Logger.error(`Error testing project adapter: ${e}`);
-            await adapter.destroy();
+            this.analytics.track({
+                event: 'warehouse_connection.tested',
+                userId: user.userUuid,
+                properties: {
+                    warehouseType: data.warehouseConnection.type,
+                    result: 'success',
+                    context,
+                    method,
+                    onboardingFlow,
+                },
+            });
+            if (context === 'project_create') {
+                this.analytics.track({
+                    event: 'onboarding.step_completed',
+                    userId: user.userUuid,
+                    properties: {
+                        step: 'warehouse_connected',
+                        stepIndex: 4,
+                        onboardingFlow,
+                        organizationId: user.organizationUuid,
+                    },
+                });
+            }
+            return {
+                adapter,
+                sshTunnel,
+                warehouseCredentials,
+                cachedWarehouse,
+                dbtVersionOption,
+            };
+        } catch (error) {
+            const errorType =
+                error instanceof Error && error.constructor.name
+                    ? error.constructor.name
+                    : 'UnknownError';
+            this.analytics.track({
+                event: 'warehouse_connection.tested',
+                userId: user.userUuid,
+                properties: {
+                    warehouseType: data.warehouseConnection.type,
+                    result: 'failure',
+                    errorType,
+                    context,
+                    method,
+                    onboardingFlow,
+                },
+            });
+            Logger.error(`Error testing project adapter: ${error}`);
+            await adapter?.destroy();
             await sshTunnel.disconnect();
-            throw e;
+            throw error;
         }
-        return { adapter, sshTunnel };
     }
 
     async previewDataTimezone(
@@ -3421,6 +3906,9 @@ export class ProjectService extends BaseService {
             ) {
                 throw new ForbiddenError();
             }
+            ProjectService.assertEmbeddedCredentialsAreInternal(
+                body.credentials,
+            );
             effectiveCredentials = body.credentials;
         }
 
@@ -3495,7 +3983,25 @@ export class ProjectService extends BaseService {
             );
         }
 
-        await this.projectModel.delete(projectUuid);
+        if (project.provisioningSource === 'playground') {
+            await this.onboardingModel.runInPlaygroundProvisioningLock(
+                project.organizationUuid,
+                async (trx) => {
+                    await this.onboardingModel.getByOrganizationUuid(
+                        project.organizationUuid,
+                        trx,
+                    );
+                    await this.onboardingModel.update(
+                        project.organizationUuid,
+                        { playgroundProjectDeletedAt: new Date() },
+                        trx,
+                    );
+                    await this.projectModel.delete(projectUuid, trx);
+                },
+            );
+        } else {
+            await this.projectModel.delete(projectUuid);
+        }
 
         this.analytics.track({
             event: 'project.deleted',
@@ -3539,6 +4045,11 @@ export class ProjectService extends BaseService {
     ): Promise<{
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         adapter: ProjectAdapter;
+        // Shared warehouse setup so additional dbt sources can be compiled against
+        // the same warehouse without re-resolving (and re-rotating) credentials.
+        warehouseCredentials: CreateWarehouseCredentials;
+        cachedWarehouse: CachedWarehouse;
+        dbtVersionOption: DbtVersionOption;
     }> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -3701,219 +4212,291 @@ export class ProjectService extends BaseService {
             user.organizationUuid,
         );
 
+        const cachedWarehouse: CachedWarehouse = {
+            warehouseCatalog: cachedWarehouseCatalog,
+            onWarehouseCatalogChange: async (warehouseCatalog) => {
+                await this.projectModel.saveWarehouseToCache(
+                    projectUuid,
+                    warehouseCatalog,
+                );
+            },
+        };
+        const dbtVersionOption =
+            project.dbtVersion || DefaultSupportedDbtVersion;
         const adapter = await projectAdapterFromConfig(
             dbtConnection,
             sshTunnel.overrideCredentials,
-            {
-                warehouseCatalog: cachedWarehouseCatalog,
-                onWarehouseCatalogChange: async (warehouseCatalog) => {
-                    await this.projectModel.saveWarehouseToCache(
-                        projectUuid,
-                        warehouseCatalog,
-                    );
-                },
-            },
-            project.dbtVersion || DefaultSupportedDbtVersion,
+            cachedWarehouse,
+            dbtVersionOption,
             this.analytics,
         );
-        return { adapter, sshTunnel };
+        return {
+            adapter,
+            sshTunnel,
+            warehouseCredentials: sshTunnel.overrideCredentials,
+            cachedWarehouse,
+            dbtVersionOption,
+        };
     }
 
-    static updateExploreWithDateZoom(
-        explore: Explore,
-        metricQuery: MetricQuery,
-        warehouseSqlBuilder: WarehouseSqlBuilder,
-        availableParameters: string[],
-        dateZoom?: DateZoom,
-    ): {
-        explore: Explore;
-        dateZoomApplied: boolean;
-        dateZoomTargetFieldId?: string;
-    } {
-        if (dateZoom?.granularity) {
-            const allDimensionsMap = getAllDimensionsMap(explore);
-            const timeDimensionsMap = getTimeDimensionsMap(explore);
-
-            let timeOrDateDimension = dateZoom?.xAxisFieldId;
-
-            if (!timeOrDateDimension) {
-                timeOrDateDimension = metricQuery.dimensions.find(
-                    (dimension) =>
-                        !!resolveToBaseTimeDimension(
-                            dimension,
-                            allDimensionsMap,
-                            timeDimensionsMap,
-                        ),
-                );
-            }
-
-            if (timeOrDateDimension) {
-                const dimToOverride = allDimensionsMap[timeOrDateDimension];
-                const baseTimeDimension = resolveToBaseTimeDimension(
-                    timeOrDateDimension,
-                    allDimensionsMap,
-                    timeDimensionsMap,
-                );
-
-                if (!baseTimeDimension) {
-                    return { explore, dateZoomApplied: false };
-                }
-
-                // Skip sub-day zoom for DATE-only dimensions (no time component)
-                if (
-                    baseTimeDimension.type === DimensionType.DATE &&
-                    isStandardDateGranularity(dateZoom.granularity) &&
-                    isSubDayGranularity(dateZoom.granularity)
-                ) {
-                    return { explore, dateZoomApplied: false };
-                }
-
-                if (!isStandardDateGranularity(dateZoom.granularity)) {
-                    // Custom granularity: find the pre-compiled dimension
-                    const customDimName = `${baseTimeDimension.name}_${dateZoom.granularity}`;
-                    const customDim = Object.values(explore.tables).reduce<
-                        CompiledDimension | undefined
-                    >(
-                        (found, t) => found ?? t.dimensions[customDimName],
-                        undefined,
-                    );
-
-                    if (customDim) {
-                        const dimWithCustomOverride: CompiledDimension = {
-                            ...customDim,
-                            name: dimToOverride.name,
-                        };
-                        return {
-                            explore: replaceDimensionInExplore(
-                                explore,
-                                dimWithCustomOverride,
-                            ),
-                            dateZoomApplied: true,
-                            dateZoomTargetFieldId: timeOrDateDimension,
-                        };
-                    }
-                    // Custom granularity not found — return unchanged explore
-                } else {
-                    // Standard granularity: existing logic
-                    const dimWithGranularityOverride =
-                        createDimensionWithGranularity(
-                            dimToOverride.name,
-                            baseTimeDimension,
-                            explore,
-                            warehouseSqlBuilder,
-                            dateZoom.granularity,
-                            availableParameters,
-                        );
-                    return {
-                        explore: replaceDimensionInExplore(
-                            explore,
-                            dimWithGranularityOverride,
-                        ),
-                        dateZoomApplied: true,
-                        dateZoomTargetFieldId: timeOrDateDimension,
-                    };
-                }
-            }
-        }
-        return { explore, dateZoomApplied: false };
+    /**
+     * Build an adapter for an additional dbt source, reusing the project's already
+     * resolved warehouse setup (so we don't re-resolve and re-rotate credentials per
+     * source). Used only to read the source's manifest, not to compile.
+     */
+    private async buildSourceAdapter(
+        dbtConnection: DbtProjectConfig,
+        organizationUuid: string | undefined,
+        shared: {
+            warehouseCredentials: CreateWarehouseCredentials;
+            cachedWarehouse: CachedWarehouse;
+            dbtVersionOption: DbtVersionOption;
+        },
+    ): Promise<ProjectAdapter> {
+        const resolvedConnection =
+            await this.resolveDbtConnectionInstallationId(
+                dbtConnection,
+                organizationUuid,
+            );
+        return projectAdapterFromConfig(
+            resolvedConnection,
+            shared.warehouseCredentials,
+            shared.cachedWarehouse,
+            shared.dbtVersionOption,
+            this.analytics,
+        );
     }
 
-    static async _compileQuery({
-        metricQuery,
-        explore,
-        warehouseSqlBuilder,
-        intrinsicUserAttributes,
-        userAttributes,
-        timezone,
-        dateZoom,
-        parameters,
-        availableParameterDefinitions,
-        pivotConfiguration,
-        pivotDimensions,
-        continueOnError,
-        useTimezoneAwareDateTrunc,
-        columnTimezone,
-        applyDateZoomToFilters,
+    /**
+     * Formats a `ParameterError` message naming every colliding key so the user
+     * can tell exactly what to rename or remove — capped so a near-duplicate
+     * source pair (which can produce thousands of collisions) doesn't blow up
+     * the error message.
+     */
+    private static formatManifestCollisionsError(
+        collisions: ManifestCollision[],
+    ): string {
+        const MAX_COLLISIONS_IN_ERROR = 10;
+        const shown = collisions.slice(0, MAX_COLLISIONS_IN_ERROR);
+        const remainder = collisions.length - shown.length;
+        const details = shown
+            .map(
+                (c) =>
+                    `${c.section} "${c.key}" is defined in both "${c.winningSource}" and "${c.supersededSource}"`,
+            )
+            .join('; ');
+        return (
+            `Merging dbt sources found ${collisions.length} naming collision${
+                collisions.length === 1 ? '' : 's'
+            }: ${details}${remainder > 0 ? `; and ${remainder} more` : ''}. ` +
+            `Rename or remove the duplicate(s) before deploying.`
+        );
+    }
+
+    /**
+     * Merge the primary source's manifest with every additional source's manifest
+     * into one combined manifest, then return a MANIFEST adapter over it so a single
+     * compile produces the union of all sources' explores with cross-source refs
+     * resolved. Source adapters (git clones) are pushed onto `manifestFetchAdapters`
+     * for the caller to destroy. A name collision fails the whole deploy by name,
+     * matching every other per-source failure above (broken clone, broken
+     * manifest, broken credentials) — silently letting one source's definition
+     * win would otherwise produce a green deploy that is quietly missing a
+     * sibling's model.
+     */
+    private async buildMergedManifestAdapter({
+        projectUuid,
+        organizationUuid,
+        primary,
+        sources,
+        manifestFetchAdapters,
     }: {
-        metricQuery: MetricQuery;
-        explore: Explore;
-        warehouseSqlBuilder: WarehouseSqlBuilder;
-        intrinsicUserAttributes: IntrinsicUserAttributes;
-        userAttributes: UserAttributeValueMap;
-        timezone: string;
-        dateZoom?: DateZoom;
-        parameters?: ParametersValuesMap;
-        availableParameterDefinitions: ParameterDefinitions;
-        pivotConfiguration?: PivotConfiguration;
-        pivotDimensions?: string[];
-        continueOnError?: boolean;
-        useTimezoneAwareDateTrunc?: boolean;
-        columnTimezone?: string;
-        /**
-         * When true, WHERE filter rules targeting the date-zoom dimension are
-         * compiled against the zoom-rewritten SQL (e.g. DATE_TRUNC('MONTH', ...)).
-         * Only safe on the underlying-data path where filters are solely click-filters.
-         */
-        applyDateZoomToFilters?: boolean;
-    }): Promise<CompiledQuery> {
-        // Fold reserved definitions in so custom SQL referencing them compiles; a
-        // same-named user parameter wins (shadows the reserved one).
-        const parameterDefinitionsWithReserved: ParameterDefinitions =
-            mergeReservedDefinitions(availableParameterDefinitions);
-        const availableParameters = Object.keys(
-            parameterDefinitionsWithReserved,
+        projectUuid: string;
+        organizationUuid: string | undefined;
+        primary: {
+            adapter: ProjectAdapter;
+            warehouseCredentials: CreateWarehouseCredentials;
+            cachedWarehouse: CachedWarehouse;
+            dbtVersionOption: DbtVersionOption;
+        };
+        sources: ProjectDbtSource[];
+        manifestFetchAdapters: ProjectAdapter[];
+    }): Promise<ProjectAdapter> {
+        const shared = {
+            warehouseCredentials: primary.warehouseCredentials,
+            cachedWarehouse: primary.cachedWarehouse,
+            dbtVersionOption: primary.dbtVersionOption,
+        };
+
+        // The primary git adapter is only read for its manifest here; the merged
+        // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
+        manifestFetchAdapters.push(primary.adapter);
+        const { manifest: primaryManifest } =
+            await primary.adapter.getDbtManifest();
+
+        // A credential error fails the whole deploy by name, matching every
+        // other per-source failure below (broken clone, broken manifest) — a
+        // silently-skipped source would otherwise produce a green deploy that
+        // is quietly missing one sibling's models, the exact failure mode the
+        // recompile-all-sources design exists to prevent.
+        const brokenCredentialSource = sources.find(
+            (source) => source.hasCredentialError,
+        );
+        if (brokenCredentialSource) {
+            throw new ParameterError(
+                `Failed to load dbt source "${brokenCredentialSource.name}": its connection credentials could not be decrypted. Remove it and add it again with a fresh connection.`,
+            );
+        }
+
+        const compilableSources = sources.filter(
+            (
+                source,
+            ): source is ProjectDbtSource & {
+                dbtConnection: DbtProjectConfig;
+            } => source.dbtConnection !== null,
+        );
+        sources
+            .filter((source) => source.dbtConnection === null)
+            .forEach((source) => {
+                this.logger.warn(
+                    `Skipping dbt source "${source.name}" (${source.projectDbtSourceUuid}) — it has no dbt connection configured`,
+                );
+            });
+
+        const built = await Promise.all(
+            compilableSources.map(async (source) => {
+                // Name the source (and repo) in any failure so the user can tell
+                // which one to fix — the raw git error only mentions a temp dir.
+                const repoSuffix =
+                    'repository' in source.dbtConnection &&
+                    source.dbtConnection.repository
+                        ? ` (${source.dbtConnection.repository})`
+                        : '';
+                let sourceAdapter: ProjectAdapter;
+                try {
+                    sourceAdapter = await this.buildSourceAdapter(
+                        source.dbtConnection,
+                        organizationUuid,
+                        shared,
+                    );
+                } catch (e) {
+                    throw new ParameterError(
+                        `Failed to connect dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                }
+                // Push before fetching the manifest so the caller's cleanup
+                // destroys this clone even if the fetch below throws.
+                manifestFetchAdapters.push(sourceAdapter);
+                try {
+                    const { manifest } = await sourceAdapter.getDbtManifest();
+                    return {
+                        name: source.name,
+                        precedence: source.precedence,
+                        manifest,
+                    };
+                } catch (e) {
+                    throw new ParameterError(
+                        `Failed to load dbt source "${source.name}"${repoSuffix}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                }
+            }),
         );
 
-        const {
-            explore: exploreWithOverride,
-            dateZoomApplied,
-            dateZoomTargetFieldId,
-        } = ProjectService.updateExploreWithDateZoom(
-            explore,
-            metricQuery,
-            warehouseSqlBuilder,
-            availableParameters,
-            dateZoom,
-        );
+        const manifestSources: ManifestSource[] = [
+            { name: 'primary', precedence: 0, manifest: primaryManifest },
+            ...built.map((b) => ({
+                name: b.name,
+                precedence: b.precedence,
+                manifest: b.manifest,
+            })),
+        ];
 
-        // Resolve reserved values from the query context (date zoom reflects the selected
-        // grain whenever a zoom reaches the query); a same-named user value wins.
-        const parametersWithReserved: ParametersValuesMap = mergeReservedValues(
-            parameters,
-            resolveReservedParameterValues({ dateZoom }),
-        );
+        const { manifest: mergedManifest, collisions } =
+            combineManifestSources(manifestSources);
+        if (collisions.length > 0) {
+            this.logger.warn(
+                `Merged ${manifestSources.length} dbt sources for project ${projectUuid} with ${collisions.length} name collision(s)`,
+                { projectUuid, collisions },
+            );
+            throw new ParameterError(
+                ProjectService.formatManifestCollisionsError(collisions),
+            );
+        }
 
-        const compiledMetricQuery = compileMetricQuery({
-            explore: exploreWithOverride,
-            metricQuery,
-            warehouseSqlBuilder,
-            availableParameters,
+        return projectAdapterFromConfig(
+            {
+                type: DbtProjectType.MANIFEST,
+                manifest: JSON.stringify(mergedManifest),
+                hideRefreshButton: true,
+            },
+            shared.warehouseCredentials,
+            shared.cachedWarehouse,
+            shared.dbtVersionOption,
+            this.analytics,
+            // Keep the primary source's lightdash.config.yml / project_context.yml
+            // (spotlight categories, table_groups, parameters, AI context). The
+            // primary clone is alive until the caller destroys manifestFetchAdapters
+            // after compile, so the merged adapter can read these during compile.
+            primary.adapter.dbtProjectDir,
+        );
+    }
+
+    /**
+     * Resolve the adapter to compile a project with. When the MultiDbtSources
+     * flag is on and the project has additional sources, returns a merged
+     * manifest adapter (the union of every source); otherwise returns the
+     * primary adapter unchanged (N=0 short-circuit / regression firewall).
+     * Source git clones are pushed onto `manifestFetchAdapters` for the caller
+     * to destroy. Shared by both compile entry points (compileProject /
+     * testAndCompileProject) so "Refresh dbt" and "Test & deploy" merge alike.
+     */
+    private async resolveCompileAdapter({
+        projectUuid,
+        organizationUuid,
+        userUuid,
+        primary,
+        manifestFetchAdapters,
+        onDbtSourceCount,
+    }: {
+        projectUuid: string;
+        organizationUuid: string | undefined;
+        userUuid: string;
+        primary: {
+            adapter: ProjectAdapter;
+            warehouseCredentials: CreateWarehouseCredentials;
+            cachedWarehouse: CachedWarehouse;
+            dbtVersionOption: DbtVersionOption;
+        };
+        manifestFetchAdapters: ProjectAdapter[];
+        onDbtSourceCount?: (dbtSourceCount: number) => void;
+    }): Promise<ProjectAdapter> {
+        const { enabled: multiDbtSourcesEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.MultiDbtSources,
+                user: { userUuid, organizationUuid },
+            });
+        if (!multiDbtSourcesEnabled) {
+            onDbtSourceCount?.(1);
+            return primary.adapter;
+        }
+        const sources =
+            await this.projectDbtSourcesModel.getSources(projectUuid);
+        if (sources.length === 0) {
+            onDbtSourceCount?.(1);
+            return primary.adapter;
+        }
+        onDbtSourceCount?.(sources.length + 1);
+        return this.buildMergedManifestAdapter({
+            projectUuid,
+            organizationUuid,
+            primary,
+            sources,
+            manifestFetchAdapters,
         });
-
-        const queryBuilder = new MetricQueryBuilder({
-            explore: exploreWithOverride,
-            compiledMetricQuery,
-            warehouseSqlBuilder,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-            parameters: parametersWithReserved,
-            parameterDefinitions: parameterDefinitionsWithReserved,
-            pivotConfiguration,
-            pivotDimensions,
-            continueOnError,
-            originalExplore: dateZoom ? explore : undefined,
-            dateZoomFilterTargetFieldId:
-                applyDateZoomToFilters && dateZoomApplied
-                    ? dateZoomTargetFieldId
-                    : undefined,
-            useTimezoneAwareDateTrunc,
-            columnTimezone,
-        });
-
-        return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
-            queryBuilder.compileQuery(),
-        );
     }
 
     /**
@@ -4041,36 +4624,35 @@ export class ProjectService extends BaseService {
             organizationUuid: account.organization.organizationUuid,
         });
 
-        const compiledQuery = await ProjectService._compileQuery({
-            metricQuery,
-            explore,
-            warehouseSqlBuilder,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-            parameters: combinedParameters,
-            availableParameterDefinitions,
-            pivotConfiguration,
-            pivotDimensions,
-            continueOnError: true, // Return SQL even with compilation errors for debugging
-            useTimezoneAwareDateTrunc,
-            columnTimezone: getColumnTimezone(warehouseCredentials),
-        });
-
-        // Generate pivot query if pivot configuration is provided
-        let pivotQuery: string | undefined;
-        if (pivotConfiguration) {
-            const pivotQueryBuilder = new PivotQueryBuilder(
-                compiledQuery.query,
-                pivotConfiguration,
+        const queryComposer = new QueryComposer(
+            { metricQuery, pivotConfiguration },
+            {
+                explore,
                 warehouseSqlBuilder,
-                metricQuery.limit,
-                compiledQuery.fields,
-            );
-            pivotQuery = pivotQueryBuilder.toSql({
-                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-            });
-        }
+                intrinsicUserAttributes,
+                userAttributes,
+                timezone,
+                availableParameterDefinitions,
+                parameters: combinedParameters,
+                dateZoom: undefined,
+                pivotDimensions,
+                pivotItemsMap: undefined,
+                continueOnError: true, // Return SQL even with compilation errors for debugging
+                useTimezoneAwareDateTrunc,
+                columnTimezone: getColumnTimezone(warehouseCredentials),
+                dataTimezone: warehouseCredentials.dataTimezone,
+                applyDateZoomToFilters: undefined,
+            },
+        );
+
+        const compiledQuery = queryComposer.compile();
+
+        // Include pivot query only when a pivot configuration was provided
+        const pivotQuery = pivotConfiguration
+            ? queryComposer.getSql({
+                  columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+              })
+            : undefined;
 
         return {
             ...compiledQuery,
@@ -4282,6 +4864,7 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /** @deprecated Only used by the deprecated runUnderlyingDataQuery endpoint; use AsyncQueryService.executeAsyncUnderlyingDataQuery instead. */
     async runUnderlyingDataQuery(
         account: Account,
         metricQuery: MetricQuery,
@@ -4422,6 +5005,7 @@ export class ProjectService extends BaseService {
         };
     }
 
+    /** @deprecated Only used by the deprecated chart-and-results endpoint; use AsyncQueryService.executeAsyncDashboardChartQuery instead. */
     async getChartAndResults({
         account,
         chartUuid,
@@ -4492,6 +5076,7 @@ export class ProjectService extends BaseService {
         await this.analyticsModel.addChartViewEvent(
             savedChart.uuid,
             account.user.id,
+            dashboardUuid ? { source: 'dashboard', dashboardUuid } : undefined,
         );
 
         const availableFieldIds = getAvailableFilterFieldIds(explore);
@@ -5066,22 +5651,27 @@ export class ProjectService extends BaseService {
                                 account.organization.organizationUuid,
                         });
 
-                    const fullQuery = await ProjectService._compileQuery({
-                        metricQuery: metricQueryWithLimit,
-                        explore,
-                        warehouseSqlBuilder: warehouseClient,
-                        intrinsicUserAttributes,
-                        userAttributes: mergedUserAttributes,
-                        timezone,
-                        dateZoom,
-                        parameters,
-                        availableParameterDefinitions,
-                        pivotDimensions: metricQueryWithLimit.pivotDimensions,
-                        useTimezoneAwareDateTrunc,
-                        columnTimezone: getColumnTimezone(
-                            warehouseClient.credentials,
-                        ),
-                    });
+                    const fullQuery = new QueryComposer(
+                        { metricQuery: metricQueryWithLimit },
+                        {
+                            explore,
+                            warehouseSqlBuilder: warehouseClient,
+                            intrinsicUserAttributes,
+                            userAttributes: mergedUserAttributes,
+                            timezone,
+                            dateZoom,
+                            parameters,
+                            availableParameterDefinitions,
+                            pivotDimensions:
+                                metricQueryWithLimit.pivotDimensions,
+                            useTimezoneAwareDateTrunc,
+                            columnTimezone: getColumnTimezone(
+                                warehouseClient.credentials,
+                            ),
+                            dataTimezone:
+                                warehouseClient.credentials.dataTimezone,
+                        },
+                    ).compile();
 
                     const { query } = fullQuery;
 
@@ -5096,12 +5686,15 @@ export class ProjectService extends BaseService {
                             const override =
                                 resolvedMetricOverrides[key] ||
                                 metricQuery.dimensionOverrides?.[key];
-                            if (override) {
+                            const formatOptions = override?.formatOptions;
+                            if (formatOptions) {
                                 return [
                                     key,
                                     {
                                         ...value,
-                                        ...override,
+                                        ...getFieldFormatOverrideProps(
+                                            formatOptions,
+                                        ),
                                     },
                                 ];
                             }
@@ -5109,6 +5702,10 @@ export class ProjectService extends BaseService {
                         }),
                     );
 
+                    const onboardingFlow = await this.getOnboardingFlow({
+                        userUuid: account.user.id,
+                        organizationUuid: account.organization.organizationUuid,
+                    });
                     const onboardingRecord =
                         await this.onboardingModel.getByOrganizationUuid(
                             account.organization.organizationUuid,
@@ -5120,6 +5717,16 @@ export class ProjectService extends BaseService {
                                 ranQueryAt: new Date(),
                             },
                         );
+                        this.analytics.trackAccount(account, {
+                            event: 'onboarding.step_completed',
+                            properties: {
+                                step: 'first_query',
+                                stepIndex: 5,
+                                onboardingFlow,
+                                organizationId:
+                                    account.organization.organizationUuid,
+                            },
+                        });
                     }
 
                     this.analytics.trackAccount(account, {
@@ -5128,6 +5735,7 @@ export class ProjectService extends BaseService {
                             organizationId: organizationUuid,
                             projectId: projectUuid,
                             context,
+                            onboardingFlow,
                             ...ProjectService.getMetricQueryExecutionProperties(
                                 {
                                     metricQuery: metricQueryWithLimit,
@@ -5221,6 +5829,7 @@ export class ProjectService extends BaseService {
                 projectId: projectUuid,
                 context: QueryExecutionContext.SQL_RUNNER,
                 usingStreaming: false,
+                onboardingFlow: await this.getOnboardingFlow(user),
             },
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -5282,6 +5891,10 @@ export class ProjectService extends BaseService {
                 context: context as QueryExecutionContext,
                 sqlChartId: sqlChartUuid,
                 usingStreaming: true,
+                onboardingFlow: await this.getOnboardingFlow({
+                    userUuid,
+                    organizationUuid,
+                }),
             },
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -5303,6 +5916,7 @@ export class ProjectService extends BaseService {
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.fileStorageClient,
+            projectUuid,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -5326,7 +5940,6 @@ export class ProjectService extends BaseService {
                     },
                 );
             },
-            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -5370,6 +5983,10 @@ export class ProjectService extends BaseService {
                 context: context as QueryExecutionContext,
                 sqlChartId: sqlChartUuid,
                 usingStreaming: true,
+                onboardingFlow: await this.getOnboardingFlow({
+                    userUuid,
+                    organizationUuid,
+                }),
             },
         });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -5410,6 +6027,7 @@ export class ProjectService extends BaseService {
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.fileStorageClient,
+            projectUuid,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -5503,7 +6121,6 @@ export class ProjectService extends BaseService {
                     writer(currentTransformedRow);
                 }
             },
-            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -5527,6 +6144,7 @@ export class ProjectService extends BaseService {
         };
     }
 
+    /** @deprecated Only used by the deprecated SQL runner results endpoint; use AsyncQueryService.getAsyncQueryResults instead. */
     async getFileStream(
         user: SessionUser,
         projectUuid: string,
@@ -5550,6 +6168,9 @@ export class ProjectService extends BaseService {
 
         const downloadFile =
             await this.downloadFileModel.getDownloadFile(fileId);
+        if (downloadFile.projectUuid !== projectUuid) {
+            throw new NotFoundError('Cannot find file');
+        }
         switch (downloadFile.type) {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
@@ -5624,7 +6245,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, explore, field } =
+        const { metricQuery, explore, field, labelFieldId } =
             await this._getFieldValuesMetricQuery({
                 projectUuid,
                 table,
@@ -5678,18 +6299,20 @@ export class ProjectService extends BaseService {
             userTimezone: user.timezone,
         });
 
-        const { query } = await ProjectService._compileQuery({
-            metricQuery,
-            explore,
-            warehouseSqlBuilder: warehouseClient,
-            intrinsicUserAttributes,
-            userAttributes: mergedUserAttributes,
-            timezone,
-            parameters: combinedParameters,
-            availableParameterDefinitions,
-            useTimezoneAwareDateTrunc,
-            columnTimezone: getColumnTimezone(warehouseClient.credentials),
-        });
+        const { query } = new QueryComposer(
+            { metricQuery },
+            {
+                explore,
+                warehouseSqlBuilder: warehouseClient,
+                intrinsicUserAttributes,
+                userAttributes: mergedUserAttributes,
+                timezone,
+                parameters: combinedParameters,
+                availableParameterDefinitions,
+                useTimezoneAwareDateTrunc,
+                columnTimezone: getColumnTimezone(warehouseClient.credentials),
+            },
+        ).compile();
 
         const isUserCacheEnabled =
             this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
@@ -5734,18 +6357,38 @@ export class ProjectService extends BaseService {
         };
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
+        const valueFieldId = getItemId(field);
         const allResults: Set<string | number | boolean> = new Set();
+        const resultsWithLabels: FilterAutocompleteValue[] = [];
+        const seenLabeledValues = new Set<string>();
         for (const row of rows) {
-            const value = row[getItemId(field)];
+            const value = row[valueFieldId];
             if (value !== null && value !== undefined) {
                 allResults.add(value);
+                if (labelFieldId) {
+                    const valueKey = String(value);
+                    if (!seenLabeledValues.has(valueKey)) {
+                        seenLabeledValues.add(valueKey);
+                        const rawLabel = row[labelFieldId];
+                        resultsWithLabels.push({
+                            value: valueKey,
+                            label:
+                                rawLabel !== null && rawLabel !== undefined
+                                    ? String(rawLabel)
+                                    : valueKey,
+                        });
+                    }
+                }
             }
         }
+
+        const resultsArray = Array.from(allResults);
 
         if (isUserCacheEnabled) {
             const searchResults = {
                 search,
-                results: Array.from(allResults),
+                results: resultsArray,
+                ...(labelFieldId ? { resultsWithLabels } : {}),
                 refreshedAt: new Date(),
                 cached: true,
             };
@@ -5757,14 +6400,12 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        const resultsArray = Array.from(allResults);
-
         this.analytics.track({
             event: 'field_value.search',
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
-                fieldId: getItemId(field),
+                fieldId: valueFieldId,
                 searchCharCount: search.length,
                 resultsCount: resultsArray.length,
                 searchLimit: metricQuery.limit,
@@ -5774,6 +6415,7 @@ export class ProjectService extends BaseService {
         return {
             search,
             results: resultsArray,
+            ...(labelFieldId ? { resultsWithLabels } : {}),
             refreshedAt: new Date(),
             cached: false,
         };
@@ -5865,12 +6507,28 @@ export class ProjectService extends BaseService {
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const { adapter, sshTunnel } = await this.buildAdapter(
-            projectUuid,
-            user,
-        );
-        const packages = await adapter.getDbtPackages();
+        const buildResult = await this.buildAdapter(projectUuid, user);
+        const { sshTunnel } = buildResult;
+        let { adapter } = buildResult;
+        // Adapters built only to read a source's manifest (git clones); destroyed in finally.
+        const manifestFetchAdapters: ProjectAdapter[] = [];
         try {
+            // Multiple dbt sources: merge every source's manifest into one before
+            // compiling, so cross-source ref()/joins resolve and the explore set is
+            // the union of all sources. A project with zero registered sources runs
+            // the unchanged single-source path (N=0 short-circuit / regression firewall).
+            let dbtSourceCount = 1;
+            adapter = await this.resolveCompileAdapter({
+                projectUuid,
+                organizationUuid: project.organizationUuid,
+                userUuid: user.userUuid,
+                primary: buildResult,
+                manifestFetchAdapters,
+                onDbtSourceCount: (count) => {
+                    dbtSourceCount = count;
+                },
+            });
+            const packages = await adapter.getDbtPackages();
             const trackingParams = {
                 projectUuid,
                 organizationUuid: project.organizationUuid,
@@ -5879,7 +6537,7 @@ export class ProjectService extends BaseService {
             const explores = await adapter.compileAllExplores(
                 trackingParams,
                 false, // loadSources
-                this.lightdashConfig.partialCompilation.enabled,
+                true, // allowPartialCompilation
             );
             this.analytics.track({
                 event: 'project.compiled',
@@ -6006,6 +6664,7 @@ export class ProjectService extends BaseService {
                         },
                         0,
                     ),
+                    dbtSourceCount,
                 },
             });
 
@@ -6023,9 +6682,7 @@ export class ProjectService extends BaseService {
                 Sentry.captureException(e);
             }
             this.logger.error(
-                `Failed to compile all explores:${
-                    e instanceof Error ? e.stack : e
-                }`,
+                `Failed to compile all explores:${e instanceof Error ? e.stack : e}`,
             );
             const errorResponse =
                 e instanceof Error
@@ -6049,6 +6706,17 @@ export class ProjectService extends BaseService {
         } finally {
             await adapter.destroy();
             await sshTunnel.disconnect();
+            // Clean up the per-source git clones used only to read manifests.
+            await Promise.all(
+                manifestFetchAdapters.map((manifestAdapter) =>
+                    manifestAdapter.destroy().catch((destroyError) => {
+                        this.logger.warn(
+                            'Failed to destroy a dbt source adapter after manifest merge',
+                            { error: destroyError },
+                        );
+                    }),
+                ),
+            );
         }
     }
 
@@ -6833,10 +7501,17 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.ATHENA:
                 return credentials.database; // Athena uses database as catalog name
             case WarehouseTypes.DUCKDB:
-                return credentials.connectionType ===
-                    DuckdbConnectionType.DUCKLAKE
-                    ? (credentials.catalogAlias ?? 'ducklake')
-                    : credentials.database;
+                if (
+                    credentials.connectionType === DuckdbConnectionType.DUCKLAKE
+                ) {
+                    return credentials.catalogAlias ?? 'ducklake';
+                }
+                if (
+                    credentials.connectionType === DuckdbConnectionType.EMBEDDED
+                ) {
+                    return credentials.dataset;
+                }
+                return credentials.database;
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }
@@ -7022,6 +7697,9 @@ export class ProjectService extends BaseService {
             return warehouseCatalog[database][schemaName][tableName];
         } catch (error) {
             this.logger.error('Error fetching warehouse fields', { error });
+            if (error instanceof WarehouseConnectionError) {
+                throw error;
+            }
             throw new NotFoundError(
                 `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
             );
@@ -7157,6 +7835,51 @@ export class ProjectService extends BaseService {
         const persisted =
             await this.projectModel.getPreviewExpirationSettings(projectUuid);
         return { projectUuid, ...persisted };
+    }
+
+    async updatePreviewExpiresAt(
+        user: SessionUser,
+        projectUuid: string,
+        expiresInHours?: number,
+    ): Promise<PreviewExpiresAt> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (project.type !== ProjectType.PREVIEW) {
+            throw new ParameterError(
+                'Expiration can only be updated on preview projects',
+            );
+        }
+        if (
+            expiresInHours !== undefined &&
+            (!Number.isInteger(expiresInHours) || expiresInHours < 1)
+        ) {
+            throw new ParameterError(
+                'expiresInHours must be a whole number of at least 1',
+            );
+        }
+        const expiresAt = await this.getPreviewExpiresAt(
+            ProjectType.PREVIEW,
+            project.upstreamProjectUuid,
+            expiresInHours,
+        );
+        if (expiresAt === null) {
+            throw new UnexpectedServerError(
+                'Failed to compute preview expiration',
+            );
+        }
+        await this.projectModel.updateExpiresAt(projectUuid, expiresAt);
+        return { projectUuid, expiresAt };
     }
 
     async getAvailableFiltersForSavedQuery(
@@ -7419,6 +8142,7 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /** @deprecated Only used by the deprecated project access endpoint; use RolesService.getProjectRoleAssignments instead. */
     async getProjectMemberAccess(
         user: SessionUser,
         projectUuid: string,
@@ -7515,6 +8239,7 @@ export class ProjectService extends BaseService {
             );
     }
 
+    /** @deprecated Only used by the deprecated project access endpoint; use RolesService.upsertProjectUserRoleAssignment instead. */
     async updateProjectAccess(
         user: SessionUser,
         projectUuid: string,
@@ -7669,6 +8394,7 @@ export class ProjectService extends BaseService {
         });
     }
 
+    /** @deprecated Only used by the deprecated project access endpoint; use RolesService.deleteProjectRoleAssignment instead. */
     async deleteProjectAccess(
         user: SessionUser,
         projectUuid: string,
@@ -7747,6 +8473,7 @@ export class ProjectService extends BaseService {
         return [...savedQueries, ...savedSqlCharts];
     }
 
+    /** @deprecated Only used by the deprecated chart summaries endpoint. */
     async getChartSummaries(
         user: SessionUser,
         projectUuid: string,
@@ -8033,6 +8760,32 @@ export class ProjectService extends BaseService {
             });
     }
 
+    private async throwIfPreviewCopyFailed(
+        previewProject: ApiCreateProjectResults,
+    ): Promise<void> {
+        if (
+            !previewProject.accessCopyError &&
+            !previewProject.contentCopyError
+        ) {
+            return;
+        }
+
+        try {
+            await this.projectModel.delete(previewProject.project.projectUuid);
+        } catch (e) {
+            Sentry.captureException(e);
+            this.logger.error(
+                `Failed to clean up preview project ${previewProject.project.projectUuid} after copy failure`,
+                {
+                    error: getErrorMessage(e),
+                    stack: e instanceof Error ? e.stack : undefined,
+                },
+            );
+        }
+
+        throw new UnexpectedServerError('Failed to copy preview project');
+    }
+
     async createPreview(
         user: SessionUser,
         projectUuid: string,
@@ -8081,6 +8834,7 @@ export class ProjectService extends BaseService {
             previewData,
             context,
         );
+        await this.throwIfPreviewCopyFailed(previewProject);
 
         // Since the project is new, and we have copied some permissions,
         // it is possible that the user `abilities` are not uptodate
@@ -8119,43 +8873,21 @@ export class ProjectService extends BaseService {
                 upstreamProjectUuid,
             },
             async () => {
-                const projectAccesses =
-                    await this.projectModel.getProjectAccess(
-                        upstreamProjectUuid,
-                    );
-                const groupAccesses =
-                    await this.projectModel.getProjectGroupAccesses(
-                        upstreamProjectUuid,
-                    );
-
-                this.logger.info(
-                    `Copying ${projectAccesses.length} user access on ${previewProjectUuid}`,
-                );
-                this.logger.info(
-                    `Copying ${groupAccesses.length} group access on ${previewProjectUuid}`,
-                );
-                const insertProjectAccessPromises = projectAccesses.map(
-                    (projectAccess) =>
-                        this.projectModel.createProjectAccess(
-                            previewProjectUuid,
-                            projectAccess.email,
-                            projectAccess.role,
-                            projectAccess.roleUuid,
-                        ),
-                );
-                const insertGroupAccessPromises = groupAccesses.map(
-                    (groupAccess) =>
-                        this.groupsModel.addProjectAccess({
-                            groupUuid: groupAccess.groupUuid,
-                            projectUuid: previewProjectUuid,
-                            role: groupAccess.role,
-                        }),
+                const {
+                    userAccessCount,
+                    skippedUserAccessCount,
+                    groupAccessCount,
+                } = await this.projectModel.copyProjectAccess(
+                    upstreamProjectUuid,
+                    previewProjectUuid,
                 );
 
-                await Promise.all([
-                    ...insertGroupAccessPromises,
-                    ...insertProjectAccessPromises,
-                ]);
+                this.logger.info(
+                    `Copied ${userAccessCount} user access grants on ${previewProjectUuid}; skipped ${skippedUserAccessCount} ineligible grants`,
+                );
+                this.logger.info(
+                    `Copied ${groupAccessCount} group access grants on ${previewProjectUuid}`,
+                );
             },
         );
     }
@@ -8420,6 +9152,7 @@ export class ProjectService extends BaseService {
         );
     }
 
+    /** @deprecated Only used by the deprecated custom metrics endpoint, which will be removed without replacement. */
     async getCustomMetrics(
         user: SessionUser,
         projectUuid: string,
@@ -8433,7 +9166,19 @@ export class ProjectService extends BaseService {
             chartUrl: string;
         }[]
     > {
-        // TODO implement permissions
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
         });
@@ -8469,6 +9214,7 @@ export class ProjectService extends BaseService {
         account: Account,
         projectUuid: string,
         payload: CreateVirtualViewPayload,
+        resolveParameterValues = true,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -8502,15 +9248,17 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: account.user.id,
-                isRegisteredUser: true,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
         );
-        const effectiveParameterValues =
-            await this.resolveVirtualViewParameters(
-                projectUuid,
-                payload.sql,
-                payload.parameterValues,
-            );
+        const effectiveParameterValues = resolveParameterValues
+            ? await this.resolveVirtualViewParameters(
+                  projectUuid,
+                  payload.sql,
+                  payload.parameterValues,
+              )
+            : payload.parameterValues;
 
         const virtualView = await this.projectModel.createVirtualView(
             projectUuid,
@@ -8540,14 +9288,21 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         payload: UpdateVirtualViewPayload,
+        resolveParameterValues = true,
+        expectedExplore?: Explore,
     ) {
-        const virtualView = await this.findExplores({
+        const explores = await this.findExplores({
             account,
             projectUuid,
             exploreNames: [exploreName],
         });
+        const virtualView = explores[exploreName];
 
-        if (!virtualView) {
+        if (
+            !virtualView ||
+            isExploreError(virtualView) ||
+            virtualView.type !== ExploreType.VIRTUAL
+        ) {
             throw new NotFoundError('Virtual view not found');
         }
 
@@ -8578,12 +9333,13 @@ export class ProjectService extends BaseService {
             }),
         );
 
-        const effectiveParameterValues =
-            await this.resolveVirtualViewParameters(
-                projectUuid,
-                payload.sql,
-                payload.parameterValues,
-            );
+        const effectiveParameterValues = resolveParameterValues
+            ? await this.resolveVirtualViewParameters(
+                  projectUuid,
+                  payload.sql,
+                  payload.parameterValues,
+              )
+            : payload.parameterValues;
 
         const updatedExplore = await this.projectModel.updateVirtualView(
             projectUuid,
@@ -8593,6 +9349,7 @@ export class ProjectService extends BaseService {
                 parameterValues: effectiveParameterValues,
             },
             warehouseClient,
+            expectedExplore,
         );
 
         this.analytics.trackAccount(account, {
@@ -8878,7 +9635,7 @@ export class ProjectService extends BaseService {
         await this.tagsModel.update(tagUuid, tagUpdate);
     }
 
-    async getTags(user: SessionUser, projectUuid: string) {
+    async getTags(user: Account, projectUuid: string) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -9285,7 +10042,6 @@ export class ProjectService extends BaseService {
             dbtModelNode,
             false,
             warehouseClient.getAdapterType(),
-            [],
             warehouseClient,
             {
                 spotlight: {
@@ -9334,6 +10090,7 @@ export class ProjectService extends BaseService {
                 previewData,
                 RequestMethod.WEB_APP, // TODO: fix context
             );
+            await this.throwIfPreviewCopyFailed(newPreview);
             projectToSetExplores = newPreview.project.projectUuid;
         }
 
@@ -9367,7 +10124,7 @@ export class ProjectService extends BaseService {
         // At this point, there might not be any projects
         // so we can't check any permissions here.
         // Bigquery will handle the permissions
-        const refreshToken = await this.userModel.getRefreshToken(
+        const refreshToken = await this.userOAuthGrantsModel.getRefreshToken(
             user.userUuid,
             OpenIdIdentityIssuerType.GOOGLE,
         );
@@ -9409,7 +10166,7 @@ export class ProjectService extends BaseService {
         // At this point, there might not be any projects
         // so we can't check any permissions here.
         // Bigquery will handle the permissions
-        const refreshToken = await this.userModel.getRefreshToken(
+        const refreshToken = await this.userOAuthGrantsModel.getRefreshToken(
             user.userUuid,
             OpenIdIdentityIssuerType.GOOGLE,
         );
@@ -9435,6 +10192,42 @@ export class ProjectService extends BaseService {
                 );
             }
             throw new UnexpectedServerError('Failed to get projects');
+        }
+    }
+
+    async getBigqueryProjectRecommendation(user: SessionUser) {
+        // At this point, there might not be any projects
+        // so we can't check any permissions here.
+        // Bigquery will handle the permissions
+        const refreshToken = await this.userOAuthGrantsModel.getRefreshToken(
+            user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
+        );
+        const accessToken = await UserService.generateGoogleAccessToken(
+            refreshToken,
+            'bigquery',
+        );
+
+        try {
+            const projects =
+                await BigqueryWarehouseClient.getProjects(accessToken);
+            return await BigqueryWarehouseClient.getProjectRecommendation(
+                projects,
+                refreshToken,
+            );
+        } catch (error) {
+            this.logger.error(
+                `getBigqueryProjectRecommendation error: ${JSON.stringify(error)}`,
+            );
+
+            if (BigqueryWarehouseClient.isBigqueryError(error)) {
+                throw new WarehouseConnectionError(
+                    'Failed to get a project recommendation from BigQuery',
+                );
+            }
+            throw new UnexpectedServerError(
+                'Failed to get a project recommendation',
+            );
         }
     }
 
@@ -9524,6 +10317,40 @@ export class ProjectService extends BaseService {
             ),
         );
         return Object.keys(filtered).length > 0 ? filtered : undefined;
+    }
+
+    async validateVirtualViewParameterReferences(
+        projectUuid: string,
+        sql: string,
+        parameterValues?: ParametersValuesMap,
+    ): Promise<void> {
+        const references = getParameterReferences(sql);
+        const definitions = await this.projectParametersModel.find(projectUuid);
+        const definitionsByName = new Map(
+            definitions.map((definition) => [definition.name, definition]),
+        );
+        const unknown = references.filter(
+            (name) =>
+                !definitionsByName.has(name) && !isReservedParameterName(name),
+        );
+        if (unknown.length > 0) {
+            throw new ParameterError(
+                `Virtual view references unknown parameters: ${unknown.join(', ')}`,
+            );
+        }
+        const missing = references.filter((name) => {
+            const definition = definitionsByName.get(name);
+            if (!definition && isReservedParameterName(name)) return false;
+            return (
+                !(name in (parameterValues ?? {})) &&
+                definition?.config.default === undefined
+            );
+        });
+        if (missing.length > 0) {
+            throw new ParameterError(
+                `Virtual view is missing values for required parameters: ${missing.join(', ')}`,
+            );
+        }
     }
 
     static isChartEmbed(account: Account) {

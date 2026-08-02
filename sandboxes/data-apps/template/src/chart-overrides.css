@@ -1,6 +1,6 @@
 /* Lightdash chart palette + template-managed floating-surface chrome.
 
-   Two responsibilities:
+   Three responsibilities:
      1. Replaces shadcn's monochrome chart tokens with the categorical palette used by
         every native Lightdash chart. Source of truth: ECHARTS_DEFAULT_COLORS in
         packages/common/src/types/savedCharts.ts.
@@ -9,6 +9,7 @@
         class used by custom Recharts tooltips. Self-adapts to whatever theme the generated
         app picks by mixing --background toward --foreground (which is always the opposite
         end of the lightness scale in a well-formed theme).
+     3. Makes `max-h-*` on shadcn's ScrollArea actually scroll (see below).
 
    Imported after index.css in main.jsx — CSS cascade gives these declarations the win
    without needing @layer wrapping (which would also break Tailwind's per-file processing). */
@@ -35,6 +36,20 @@
     --chart-7: #3ba272;
     --chart-8: #9a60b4;
     --chart-9: #ea7ccc;
+}
+
+/* ── ScrollArea max-height fix ─────────────────────────────────────────────
+   shadcn's ScrollArea puts the caller's className on the Radix Root
+   (overflow-hidden) while the Viewport inside it is h-full. A max-h-* on the
+   Root therefore never constrains the Viewport: height:100% resolves against
+   the Root's auto height, the Viewport grows to the full content height, and
+   the Root clips it — so `<ScrollArea className="max-h-[600px]">` (the
+   pattern skill.md prescribes for tables) renders clipped and unscrollable.
+   Inheriting the Root's max-height makes the Viewport the element that
+   actually scrolls. Roots without a max-height inherit `none` — no change. */
+
+[data-radix-scroll-area-viewport] {
+    max-height: inherit;
 }
 
 /* ── Floating-surface chrome ───────────────────────────────────────────────

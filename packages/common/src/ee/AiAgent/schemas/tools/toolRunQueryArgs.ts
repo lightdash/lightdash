@@ -43,7 +43,7 @@ const queryConfigBaseSchema = z.object({
         .number()
         .nullable()
         .describe(
-            'The total number of data points / rows allowed on the chart.',
+            'The total number of data points / rows allowed on the chart. null means this tool\'s maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.',
         ),
 });
 
@@ -117,14 +117,6 @@ const chartConfigSchema = z
             .nullable()
             .describe(
                 'default line. The type of line to display. If area then the area under the line will be filled in.',
-            ),
-
-        // Funnel chart specific
-        funnelDataInput: z
-            .enum(['row', 'column'])
-            .nullable()
-            .describe(
-                'How to interpret funnel data. Use "row" when each row represents a funnel stage (most common). Use "column" when comparing multiple funnels side-by-side.',
             ),
 
         // Common display properties

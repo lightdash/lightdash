@@ -46,6 +46,7 @@ import {
 import Logger from '../../../../logging/logger';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 import { serializeData } from './serializeData';
+import { suggestClosestFieldIds } from './suggestClosestFieldIds';
 /**
  * Validate that all selected fields exist in the explore, custom metrics or table calculations
  * @param explore
@@ -123,8 +124,28 @@ export function validateCustomMetricsDefinition(
         );
 
         if (!field) {
+            // The transform strips the "<table>_" prefix from baseDimensionName,
+            // so show the field id we actually looked for and list the real
+            // dimensions — the agent can then correct in one step instead of
+            // guessing an id/primary-key column the explore may not expose.
+            const expectedFieldId = getItemId({
+                name: metric.baseDimensionName,
+                table: metric.table,
+            });
+            const availableDimensions = exploreFields
+                .filter(isDimension)
+                .map(getItemId);
+            const shown = availableDimensions.slice(0, 50);
+            const more =
+                availableDimensions.length > shown.length
+                    ? ` (and ${
+                          availableDimensions.length - shown.length
+                      } more — use findFields to search them)`
+                    : '';
             errors.push(
-                `Error: the base dimension name "${metric.baseDimensionName}" does not exist in the explore.`,
+                `Error: base dimension "${expectedFieldId}" does not exist in the explore "${metric.table}". ` +
+                    `baseDimensionName must be an existing dimension (do not invent an id/primary-key column). ` +
+                    `Available dimensions: ${shown.join(', ')}${more}`,
             );
             return;
         }
@@ -376,10 +397,20 @@ export function validateFilterRules(
         const field = allFields[fieldIndex];
 
         if (!field) {
+            const suggestions = suggestClosestFieldIds(
+                rule.target.fieldId,
+                allFieldIds,
+            );
+            const suggestionText =
+                suggestions.length > 0
+                    ? `\nDid you mean one of these existing fields? ${suggestions.join(
+                          ', ',
+                      )}`
+                    : '';
             filterRuleErrors.push(
                 `Error: the field with id "${
                     rule.target.fieldId
-                }" does not exist.
+                }" does not exist.${suggestionText}
 FilterRule:
 ${serializeData(rule, 'json')}`,
             );
@@ -717,58 +748,6 @@ ${customMetricFields
 
         throw new AiAgentValidatorError(errorMessage);
     }
-}
-
-/**
- * Validate that table names exist in the explore
- * @param explore - The explore containing table definitions
- * @param tableNames - Array of table names to validate
- */
-export function validateTableNames(explore: Explore, tableNames: string[]) {
-    const availableTableNames = Object.keys(explore.tables);
-    const errors: string[] = [];
-
-    tableNames.forEach((tableName) => {
-        if (!availableTableNames.includes(tableName)) {
-            errors.push(
-                `Error: Table "${tableName}" does not exist in the explore.`,
-            );
-        }
-    });
-
-    if (errors.length > 0) {
-        const errorMessage = `Invalid table names:
-
-${errors.join('\n\n')}
-
-Available tables:
-${availableTableNames.map((t) => `- ${t}`).join('\n')}`;
-
-        Logger.error(`[AiAgent][Validate Table Names] ${errorMessage}`);
-
-        throw new AiAgentValidatorError(errorMessage);
-    }
-}
-
-/**
- * Validate that an explore name exists in the list of available explores
- * @param availableExploreNames - Array of available explore names
- * @param exploreName - The explore name to validate
- */
-export function validateExploreNameExists(
-    availableExplores: Explore[],
-    exploreName: string,
-) {
-    if (availableExplores.some((e) => e.name === exploreName)) return;
-
-    const errorMessage = `Invalid explore name: "${exploreName}"
-
-Available explores:
-${availableExplores.map((e) => `- ${e.name}`).join('\n')}`;
-
-    Logger.error(`[AiAgent][Validate Explore Name Exists] ${errorMessage}`);
-
-    throw new AiAgentValidatorError(errorMessage);
 }
 
 // Numeric metric types that support most table calculations
@@ -1180,10 +1159,19 @@ export function validateAxisFields(
     selectedDimensions: string[],
     selectedMetrics: string[],
     tableCalculations?: TableCalcsSchema | TableCalculation[],
+    customMetrics?: CustomMetricBaseTransformed[] | null,
 ) {
     if (!chartConfig) {
         return;
     }
+
+    // Aggregation custom metrics are selected metrics too — they compile to
+    // "<table>_<name>" field ids and are valid on the axes. Fold them in like
+    // the sort / table-calculation / field-existence validators already do,
+    // otherwise a custom metric referenced in yAxisMetrics fails validation
+    // even though it is part of the query.
+    const customMetricIds = customMetrics?.map(getItemId) ?? [];
+    const selectableMetrics = [...selectedMetrics, ...customMetricIds];
 
     // Validate both axis fields
     const xAxisErrors = validateXAxisField(
@@ -1192,14 +1180,14 @@ export function validateAxisFields(
     );
     const yAxisErrors = validateYAxisMetrics(
         chartConfig.yAxisMetrics,
-        selectedMetrics,
+        selectableMetrics,
         tableCalculations,
     );
     if (chartConfig.secondaryYAxisMetric) {
         yAxisErrors.push(
             ...validateYAxisMetrics(
                 [chartConfig.secondaryYAxisMetric],
-                selectedMetrics,
+                selectableMetrics,
                 tableCalculations,
             ),
         );

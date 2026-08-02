@@ -1,12 +1,16 @@
 import { subject } from '@casl/ability';
 import {
+    EXTERNAL_CONNECTION_DEFAULTS,
     ForbiddenError,
+    getErrorMessage,
+    MissingConfigError,
     NotFoundError,
     ParameterError,
     TooManyRequestsError,
     type ApiSaveExternalConnectionSampleRequest,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionConfigProposal,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
@@ -26,14 +30,23 @@ import {
     SecureFetchError,
 } from '../../../utils/secureFetch/secureFetch';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
+import { generateExternalConnectionConfigProposal } from '../ai/agents/externalConnectionConfigGenerator';
+import { getModel } from '../ai/models';
+import { type GeneratorModelOptions } from '../ai/models/types';
+import { type OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { assertCanViewApp } from '../AppGenerateService/appAuthz';
-import { validateExternalConnectionConfig } from './externalConnectionConfigValidation';
+import {
+    validateExternalConnectionConfig,
+    validateServiceAccountKeyfile,
+} from './externalConnectionConfigValidation';
+import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
 import {
     assertSafeApiKeyHeaderName,
     buildOutboundUrl,
     computeMinuteWindow,
     normalizeAndValidatePath,
     serializeRequestBody,
+    validateCustomHeaders,
 } from './proxyValidation';
 
 type ExternalConnectionServiceArguments = {
@@ -41,6 +54,8 @@ type ExternalConnectionServiceArguments = {
     externalConnectionModel: ExternalConnectionModel;
     appModel: AppModel;
     spacePermissionService: SpacePermissionService;
+    googleTokenProvider: GoogleServiceAccountTokenProvider;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 export class ExternalConnectionService extends BaseService {
@@ -52,7 +67,13 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly googleTokenProvider: GoogleServiceAccountTokenProvider;
+
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
+
+    private static readonly MAX_PROPOSAL_DESCRIPTION_CHARS = 2_000;
 
     constructor(args: ExternalConnectionServiceArguments) {
         super();
@@ -60,6 +81,8 @@ export class ExternalConnectionService extends BaseService {
         this.externalConnectionModel = args.externalConnectionModel;
         this.appModel = args.appModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.googleTokenProvider = args.googleTokenProvider;
+        this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
     }
 
     private assertCanManage(
@@ -79,6 +102,27 @@ export class ExternalConnectionService extends BaseService {
         ) {
             throw new ForbiddenError(
                 'You do not have permission to manage external connections',
+            );
+        }
+    }
+
+    private assertCanView(
+        account: RegisteredAccount,
+        projectUuid: string,
+        organizationUuid: string,
+    ): void {
+        const ability = this.createAuditedAbility(account);
+        if (
+            ability.cannot(
+                'view',
+                subject('ExternalConnection', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view external connections',
             );
         }
     }
@@ -133,6 +177,9 @@ export class ExternalConnectionService extends BaseService {
         account: RegisteredAccount,
         projectUuid: string,
         data: CreateExternalConnection,
+        // Forced slug is only used by content-as-code upserts; the public
+        // CRUD API always generates one from the name.
+        options?: { slug?: string },
     ): Promise<ExternalConnection> {
         // Derive the org from the project — never trust the caller's org — so an
         // org admin cannot create a connection against another org's project.
@@ -145,11 +192,15 @@ export class ExternalConnectionService extends BaseService {
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
         validateExternalConnectionConfig(data, Boolean(data.secret));
+        if (data.type === 'google_service_account' && data.secret) {
+            validateServiceAccountKeyfile(data.secret);
+        }
         const connection = await this.externalConnectionModel.create(
             projectUuid,
             organizationUuid,
             account.user.id,
             data,
+            options,
         );
         this.analytics.track({
             event: 'external_connection.created',
@@ -177,12 +228,11 @@ export class ExternalConnectionService extends BaseService {
         if (!organizationUuid) {
             throw new NotFoundError('Project not found');
         }
-        this.assertCanManage(account, projectUuid, organizationUuid);
+        this.assertCanView(account, projectUuid, organizationUuid);
         return this.externalConnectionModel.list(projectUuid, organizationUuid);
     }
 
-    private async getOwnedConnection(
-        account: RegisteredAccount,
+    private async loadConnection(
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ExternalConnection> {
@@ -191,7 +241,36 @@ export class ExternalConnectionService extends BaseService {
         if (!connection || connection.projectUuid !== projectUuid) {
             throw new NotFoundError('External connection not found');
         }
+        return connection;
+    }
+
+    private async getOwnedConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnection> {
+        const connection = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+        );
         this.assertCanManage(
+            account,
+            connection.projectUuid,
+            connection.organizationUuid,
+        );
+        return connection;
+    }
+
+    private async getViewableConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnection> {
+        const connection = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+        );
+        this.assertCanView(
             account,
             connection.projectUuid,
             connection.organizationUuid,
@@ -204,7 +283,7 @@ export class ExternalConnectionService extends BaseService {
         projectUuid: string,
         connectionUuid: string,
     ): Promise<ExternalConnection> {
-        return this.getOwnedConnection(account, projectUuid, connectionUuid);
+        return this.getViewableConnection(account, projectUuid, connectionUuid);
     }
 
     async update(
@@ -218,16 +297,63 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        const resultingType = data.type ?? existing.type;
+        const typeChanged =
+            data.type !== undefined && data.type !== existing.type;
+
+        // A blank secret keeps the stored one ONLY when the type is unchanged.
+        // On a type change the stored secret belongs to the old auth method, so
+        // it is dropped and the caller must supply a new one (validation then
+        // requires it). This prevents e.g. a stored service-account keyfile from
+        // being reused — and leaked — as a bearer token when switching types.
+        let hasSecretAfter: boolean;
+        if (data.secret === null) {
+            hasSecretAfter = false;
+        } else if (data.secret) {
+            hasSecretAfter = true;
+        } else {
+            hasSecretAfter = !typeChanged && existing.hasSecret;
+        }
+
+        // Resolve a field that belongs only to the resulting auth type: use the
+        // patch value if provided, else keep the existing value — but a type
+        // change never carries the previous type's values forward, and fields
+        // foreign to the resulting type are always cleared.
+        const resolveTypeField = <T>(
+            belongsToResultingType: boolean,
+            patchValue: T | undefined,
+            existingValue: T,
+        ): T | null => {
+            if (!belongsToResultingType) return null;
+            if (patchValue !== undefined) return patchValue;
+            return typeChanged ? null : existingValue;
+        };
+        const resolvedApiKeyName = resolveTypeField(
+            resultingType === 'api_key',
+            data.apiKeyName,
+            existing.apiKeyName,
+        );
+        const resolvedApiKeyLocation = resolveTypeField(
+            resultingType === 'api_key',
+            data.apiKeyLocation,
+            existing.apiKeyLocation,
+        );
+        const resolvedOauthScopes = resolveTypeField(
+            resultingType === 'google_service_account',
+            data.oauthScopes,
+            existing.oauthScopes,
+        );
+
         // Validate the resulting (merged) config so a partial update can't
         // leave the connection in an invalid or unsafe state.
-        const hasSecretAfter =
-            data.secret === null
-                ? false
-                : Boolean(data.secret) || existing.hasSecret;
         validateExternalConnectionConfig(
             {
-                type: data.type ?? existing.type,
+                type: resultingType,
                 origin: data.origin ?? existing.origin,
+                instructions:
+                    data.instructions !== undefined
+                        ? data.instructions
+                        : existing.instructions,
                 allowedPathPrefixes:
                     data.allowedPathPrefixes ?? existing.allowedPathPrefixes,
                 allowedMethods: data.allowedMethods ?? existing.allowedMethods,
@@ -242,21 +368,32 @@ export class ExternalConnectionService extends BaseService {
                     data.rateLimitPerMinute !== undefined
                         ? data.rateLimitPerMinute
                         : existing.rateLimitPerMinute,
-                apiKeyName:
-                    data.apiKeyName !== undefined
-                        ? data.apiKeyName
-                        : existing.apiKeyName,
-                apiKeyLocation:
-                    data.apiKeyLocation !== undefined
-                        ? data.apiKeyLocation
-                        : existing.apiKeyLocation,
+                apiKeyName: resolvedApiKeyName,
+                apiKeyLocation: resolvedApiKeyLocation,
+                oauthScopes: resolvedOauthScopes,
+                customHeaders:
+                    data.customHeaders !== undefined
+                        ? data.customHeaders
+                        : existing.customHeaders,
             },
             hasSecretAfter,
         );
+        // Validate the keyfile only when a new secret is supplied — a secret-less
+        // (same-type) update keeps the already-validated stored keyfile.
+        if (resultingType === 'google_service_account' && data.secret) {
+            validateServiceAccountKeyfile(data.secret);
+        }
+        // Persist the resolved type-specific fields so foreign fields (and the
+        // stale scopes/api-key config) are cleared when the type changes.
         const updated = await this.externalConnectionModel.update(
             connectionUuid,
             account.user.id,
-            data,
+            {
+                ...data,
+                apiKeyName: resolvedApiKeyName,
+                apiKeyLocation: resolvedApiKeyLocation,
+                oauthScopes: resolvedOauthScopes,
+            },
         );
         this.analytics.track({
             event: 'external_connection.updated',
@@ -512,6 +649,12 @@ export class ExternalConnectionService extends BaseService {
                 requestBytes: 0,
                 responseBytes: 0,
             });
+            if (error instanceof SecureFetchError) {
+                // Reason only — no raw internal detail reaches apps.
+                throw new ParameterError(
+                    `Upstream request was blocked (${error.reason})`,
+                );
+            }
             if (error instanceof ParameterError) {
                 throw error;
             }
@@ -521,7 +664,7 @@ export class ExternalConnectionService extends BaseService {
             throw new ParameterError('Proxy request failed');
         }
 
-        // 7. Audit success — never bodies, never the secret.
+        // 7. Audit the result — never bodies, never the secret.
         this.trackFetch({
             user,
             projectUuid,
@@ -531,7 +674,7 @@ export class ExternalConnectionService extends BaseService {
             method,
             path: req.path,
             status: result.response.status,
-            outcome: 'ok',
+            outcome: result.response.status >= 400 ? 'upstream_error' : 'ok',
             start,
             requestBytes: result.requestBytes,
             responseBytes: result.responseBytes,
@@ -545,7 +688,6 @@ export class ExternalConnectionService extends BaseService {
      * alias resolution — those live in the caller so M5's testConnection can
      * reuse this exact path with an admin-supplied connection.
      */
-    // eslint-disable-next-line class-methods-use-this
     private async executeExternalFetch(
         connection: ExternalConnection,
         secret: string | null,
@@ -569,6 +711,19 @@ export class ExternalConnectionService extends BaseService {
         // Start from the app's query; add api_key-in-query if configured.
         const query: Record<string, string> = { ...(req.query ?? {}) };
         const headers: Record<string, string> = {};
+
+        // Admin-configured static headers (e.g. anthropic-version), applied
+        // BEFORE auth and Content-Type so proxy-set headers always win.
+        // Re-validated at send time so a bad stored row fails closed.
+        if (connection.customHeaders) {
+            validateCustomHeaders(
+                connection.customHeaders,
+                connection.apiKeyLocation === 'header'
+                    ? connection.apiKeyName
+                    : null,
+            );
+            Object.assign(headers, connection.customHeaders);
+        }
 
         if (connection.type === 'bearer_token') {
             // Fail closed: an authenticated connection must never fall through
@@ -598,6 +753,33 @@ export class ExternalConnectionService extends BaseService {
                     'Connection has an invalid api key location',
                 );
             }
+        } else if (connection.type === 'google_service_account') {
+            // Fail closed: mint a short-lived Google access token from the stored
+            // service account keyfile + scopes and inject it as a bearer token.
+            if (!secret) {
+                throw new ParameterError(
+                    'Connection is missing its service account key',
+                );
+            }
+            const scopes = connection.oauthScopes ?? [];
+            if (scopes.length === 0) {
+                throw new ParameterError(
+                    'Connection is missing its OAuth scopes',
+                );
+            }
+            let accessToken: string;
+            try {
+                accessToken = await this.googleTokenProvider.getAccessToken(
+                    secret,
+                    scopes,
+                );
+            } catch {
+                // No library/upstream detail reaches the client.
+                throw new ParameterError(
+                    'Failed to obtain Google access token',
+                );
+            }
+            headers.Authorization = `Bearer ${accessToken}`;
         }
         // type === 'none' → no auth injected.
 
@@ -650,11 +832,10 @@ export class ExternalConnectionService extends BaseService {
                 allowedContentTypes: connection.allowedContentTypes,
             });
         } catch (error) {
-            // Map SecureFetchError → ParameterError with NO raw upstream detail.
+            // SecureFetchError propagates: the caller decides how much detail
+            // to expose (runtime proxy: reason only; admin test tool: message).
             if (error instanceof SecureFetchError) {
-                throw new ParameterError(
-                    `Upstream request was blocked (${error.reason})`,
-                );
+                throw error;
             }
             throw new ParameterError('Upstream request failed');
         }
@@ -688,6 +869,38 @@ export class ExternalConnectionService extends BaseService {
             requestBytes,
             responseBytes: Buffer.byteLength(fetched.bodyText, 'utf8'),
         };
+    }
+
+    /**
+     * Runs the shared fetch core for the admin-only test endpoints, forwarding
+     * the blocked reason's detail the runtime proxy withholds — the caller
+     * manages the connection, so the detail helps them fix it.
+     */
+    private async executeTestFetch(
+        connection: ExternalConnection,
+        secret: string | null,
+        req: {
+            method: ExternalConnectionMethod;
+            path: string;
+            query?: Record<string, string>;
+            body?: unknown;
+        },
+    ): Promise<ExternalFetchResponse> {
+        try {
+            const result = await this.executeExternalFetch(
+                connection,
+                secret,
+                req,
+            );
+            return result.response;
+        } catch (error) {
+            if (error instanceof SecureFetchError) {
+                throw new ParameterError(
+                    `Upstream request was blocked (${error.reason}): ${error.message}`,
+                );
+            }
+            throw error;
+        }
     }
 
     private trackFetch(args: {
@@ -751,6 +964,7 @@ export class ExternalConnectionService extends BaseService {
         'secret',
         'password',
         'x-api-key',
+        'private_key',
     ]);
 
     /**
@@ -934,13 +1148,168 @@ export class ExternalConnectionService extends BaseService {
                       connectionUuid,
                   );
 
-        const result = await this.executeExternalFetch(conn, secret, {
+        return this.executeTestFetch(conn, secret, {
             method,
             path: req.path,
             query: req.query,
             body: req.body,
         });
-        return result.response;
+    }
+
+    /**
+     * Admin-only "Test connection config". Runs a single request through the
+     * SAME validation + SSRF-guarded fetch core the runtime proxy uses, but
+     * against an UNSAVED config (including the caller-supplied plaintext
+     * secret) — persisting nothing. Lets the onboarding wizard verify a
+     * connection before it is created.
+     */
+    async testConfig(
+        account: RegisteredAccount,
+        projectUuid: string,
+        data: CreateExternalConnection,
+        req: {
+            method?: ExternalConnectionMethod;
+            path: string;
+            query?: Record<string, string>;
+            body?: unknown;
+        },
+    ): Promise<ExternalFetchResponse> {
+        // Derive the org from the project — never trust the caller — so an org
+        // admin cannot test against another org's project.
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+
+        // Same validation create runs, so a test can never exercise a config we
+        // would refuse to store (SSRF guard, auth invariants, bounded limits).
+        validateExternalConnectionConfig(data, Boolean(data.secret));
+        if (data.type === 'google_service_account' && data.secret) {
+            validateServiceAccountKeyfile(data.secret);
+        }
+
+        const method: ExternalConnectionMethod = req.method ?? 'GET';
+        if (!data.allowedMethods.includes(method)) {
+            throw new ParameterError(
+                `Method ${method} is not allowed by this connection`,
+            );
+        }
+
+        // In-memory connection — never persisted. Numeric limits fall back to
+        // the same defaults create applies, since the proxy core reads them.
+        const connection: ExternalConnection = {
+            externalConnectionUuid: 'unsaved',
+            projectUuid,
+            organizationUuid,
+            name: data.name,
+            slug: 'unsaved',
+            type: data.type,
+            origin: data.origin,
+            instructions: data.instructions ?? null,
+            allowedPathPrefixes: data.allowedPathPrefixes,
+            allowedMethods: data.allowedMethods,
+            allowedContentTypes: data.allowedContentTypes,
+            responseMaxBytes:
+                data.responseMaxBytes ??
+                EXTERNAL_CONNECTION_DEFAULTS.responseMaxBytes,
+            requestMaxBytes:
+                data.requestMaxBytes ??
+                EXTERNAL_CONNECTION_DEFAULTS.requestMaxBytes,
+            timeoutMs: data.timeoutMs ?? EXTERNAL_CONNECTION_DEFAULTS.timeoutMs,
+            rateLimitPerMinute: data.rateLimitPerMinute ?? null,
+            apiKeyName: data.apiKeyName ?? null,
+            apiKeyLocation: data.apiKeyLocation ?? null,
+            oauthScopes: data.oauthScopes ?? null,
+            customHeaders: data.customHeaders ?? null,
+            hasSecret: Boolean(data.secret),
+            createdByUserUuid: null,
+            updatedByUserUuid: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        const secret = data.type === 'none' ? null : (data.secret ?? null);
+
+        return this.executeTestFetch(connection, secret, {
+            method,
+            path: req.path,
+            query: req.query,
+            body: req.body,
+        });
+    }
+
+    /**
+     * Admin-only. Ask an LLM to propose a connection config (plus a credential
+     * how-to guide) from a prose description. Persists nothing and never
+     * touches secrets — the proposal prefills the create wizard, where the
+     * user reviews every field and pastes the credential themselves.
+     */
+    async proposeConfig(
+        account: RegisteredAccount,
+        projectUuid: string,
+        description: string,
+    ): Promise<ExternalConnectionConfigProposal> {
+        // Derive the org from the project — never trust the caller — so an org
+        // admin cannot propose against another org's project.
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        this.assertCanManage(account, projectUuid, organizationUuid);
+
+        const trimmed = description.trim();
+        if (!trimmed) {
+            throw new ParameterError('Description is required');
+        }
+        if (
+            trimmed.length >
+            ExternalConnectionService.MAX_PROPOSAL_DESCRIPTION_CHARS
+        ) {
+            throw new ParameterError(
+                `Description must be at most ${ExternalConnectionService.MAX_PROPOSAL_DESCRIPTION_CHARS} characters`,
+            );
+        }
+
+        const copilot =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        const provider: 'anthropic' | 'bedrock' =
+            copilot.defaultProvider === 'bedrock' ? 'bedrock' : 'anthropic';
+
+        let modelOptions: GeneratorModelOptions;
+        try {
+            modelOptions = {
+                ...getModel(copilot, {
+                    provider,
+                    modelName: 'claude-sonnet-4-5',
+                    enableReasoning: false,
+                }),
+                telemetry: {
+                    organizationUuid,
+                    projectUuid,
+                    userUuid: account.user.id,
+                },
+            };
+        } catch (error) {
+            this.logger.info(
+                `Cannot propose connection config: ${provider} not configured (${getErrorMessage(
+                    error,
+                )})`,
+            );
+            throw new MissingConfigError(
+                'AI is not configured for this organization',
+            );
+        }
+
+        return generateExternalConnectionConfigProposal(modelOptions, trimmed);
     }
 
     /**

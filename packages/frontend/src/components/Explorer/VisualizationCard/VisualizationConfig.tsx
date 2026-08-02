@@ -7,12 +7,14 @@ import {
     ScrollArea,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconX } from '@tabler/icons-react';
 import { lazy, Suspense, useMemo, type FC } from 'react';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import MantineIcon from '../../common/MantineIcon';
 import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
+import { ConfigTabs as DataAppVizConfigTabs } from '../../VisualizationConfigs/DataAppVizConfig/DataAppVizConfigTabs';
 import { ConfigTabs as FunnelChartConfigTabs } from '../../VisualizationConfigs/FunnelChartConfig/FunnelChartConfigTabs';
 import { ConfigTabs as GaugeConfigTabs } from '../../VisualizationConfigs/GaugeConfig/GaugeConfigTabs';
 import { ConfigTabs as MapConfigTabs } from '../../VisualizationConfigs/MapConfig';
@@ -21,6 +23,7 @@ import { ConfigTabs as SankeyConfigTabs } from '../../VisualizationConfigs/Sanke
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import { ConfigTabs as TreemapConfigTabs } from '../../VisualizationConfigs/TreemapConfig/TreemapConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
+import classes from './VisualizationConfig.module.css';
 
 // Lazy load CustomVisConfig as it includes the heavy Monaco editor
 const CustomVisConfigTabsLazy = lazy(() =>
@@ -62,6 +65,8 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                 );
             case ChartType.SANKEY:
                 return SankeyConfigTabs;
+            case ChartType.DATA_APP_VIZ:
+                return DataAppVizConfigTabs;
             default:
                 return assertUnreachable(
                     chartType,
@@ -72,13 +77,18 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
 
     return (
         <>
-            <Group position="apart">
+            <Group justify="space-between">
                 <Text fz={16} fw={600}>
                     Configure chart
                 </Text>
 
                 <Tooltip label="Close visualization config" position="right">
-                    <ActionIcon size="sm" onClick={onClose}>
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        onClick={onClose}
+                    >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
                 </Tooltip>
@@ -94,9 +104,14 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
 
             <ScrollArea
                 offsetScrollbars
-                variant="primary"
-                className="only-vertical"
-                sx={{ flex: 1 }}
+                scrollbars="y"
+                classNames={{
+                    content:
+                        chartType === ChartType.DATA_APP_VIZ
+                            ? `${scrollAreaClasses.verticalContent} ${classes.fillHeight}`
+                            : scrollAreaClasses.verticalContent,
+                }}
+                style={{ flex: 1 }}
                 type="hover"
                 scrollbarSize={8}
             >

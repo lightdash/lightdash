@@ -1,0 +1,14 @@
+.iconButton {
+    flex-shrink: 0;
+    border: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.iconButton[data-placeholder] {
+    box-shadow:
+        0 -2px 0 0 rgb(10 13 18 / 7%) inset,
+        0 1px 2px 0 rgb(16 24 40 / 5%);
+}
+
+.iconButton:disabled {
+    background-color: initial;
+}

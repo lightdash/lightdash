@@ -255,9 +255,22 @@ const AddTileButton: FC<Props> = ({
                     </Menu.Dropdown>
                 </Menu>
             ) : canAddTab ? (
-                <Tooltip
-                    label={`Maximum ${maxTilesPerTab} tiles per tab. Create a new tab (${currentTabsCount}/${maxTabsPerDashboard}).`}
-                >
+                <Group gap="xs" wrap="nowrap">
+                    <Tooltip
+                        label={`This tab has reached the ${maxTilesPerTab}-tile limit. Add a new tab to continue adding tiles.`}
+                    >
+                        <span>
+                            <Button
+                                size="xs"
+                                variant="default"
+                                radius={radius}
+                                disabled
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                            >
+                                Add tile
+                            </Button>
+                        </span>
+                    </Tooltip>
                     <Button
                         size="xs"
                         variant="default"
@@ -268,20 +281,22 @@ const AddTileButton: FC<Props> = ({
                     >
                         Add tab
                     </Button>
-                </Tooltip>
+                </Group>
             ) : (
                 <Tooltip
                     label={`Maximum limits reached: ${maxTilesPerTab} tiles per tab, ${maxTabsPerDashboard} tabs per dashboard.`}
                 >
-                    <Button
-                        size="xs"
-                        variant="default"
-                        radius={radius}
-                        disabled
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                    >
-                        Add tile
-                    </Button>
+                    <span>
+                        <Button
+                            size="xs"
+                            variant="default"
+                            radius={radius}
+                            disabled
+                            leftSection={<MantineIcon icon={IconPlus} />}
+                        >
+                            Add tile
+                        </Button>
+                    </span>
                 </Tooltip>
             )}
 

@@ -6,7 +6,9 @@ import {
     FeatureFlags,
     ForbiddenError,
     GenerateChartMetadataRequest,
+    GenerateCustomDimensionRequest,
     GeneratedChartMetadata,
+    GeneratedCustomDimension,
     GeneratedFormulaTableCalculation,
     GeneratedTableCalculation,
     GeneratedTooltip,
@@ -23,6 +25,7 @@ import {
     TableCalculationType,
     UnexpectedServerError,
 } from '@lightdash/common';
+import { generateText } from 'ai';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -37,6 +40,7 @@ import {
     DashboardSummaryCreated,
     DashboardSummaryViewed,
     GenerateChartMetadataGenerated,
+    GenerateCustomDimensionGenerated,
     GenerateFormulaTableCalculationGenerated,
     GenerateTableCalculationGenerated,
     GenerateTooltipGenerated,
@@ -44,6 +48,7 @@ import {
 import OpenAi from '../../clients/OpenAi';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { generateChartMetadata as generateChartMetadataFromContext } from '../ai/agents/chartMetadataGenerator';
+import { generateCustomDimension as generateCustomDimensionFromContext } from '../ai/agents/customDimensionGenerator';
 import {
     generateFormulaTableCalculation as generateFormulaTableCalculationFromContext,
     sanitizeCustomFormat as sanitizeFormulaCustomFormat,
@@ -53,9 +58,10 @@ import {
     sanitizeCustomFormat,
 } from '../ai/agents/tableCalculationGenerator';
 import { generateTooltip as generateTooltipFromContext } from '../ai/agents/tooltipGenerator';
-import { getModel } from '../ai/models';
+import { getModel, pickAmbientAnthropicPreset } from '../ai/models';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
-import { getModelPreset } from '../ai/models/presets';
+import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
+import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { fieldDesc, formatSummaryArray } from './utils/prepareData';
 import {
@@ -83,6 +89,7 @@ type Dependencies = {
     openAi: OpenAi;
     lightdashConfig: LightdashConfig;
     featureFlagService: FeatureFlagService;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 export class AiService {
@@ -104,6 +111,8 @@ export class AiService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     constructor(dependencies: Dependencies) {
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
@@ -114,6 +123,8 @@ export class AiService {
         this.openAi = dependencies.openAi;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.featureFlagService = dependencies.featureFlagService;
+        this.orgAiCopilotConfigResolver =
+            dependencies.orgAiCopilotConfigResolver;
     }
 
     /**
@@ -124,20 +135,44 @@ export class AiService {
      *
      * @returns The full AiModel with model, callOptions, and providerOptions
      */
-    private async getAmbientAiModel(user: SessionUser) {
-        const anthropicConfig =
-            this.lightdashConfig.ai.copilot.providers.anthropic;
+    private async getAmbientAiModel(
+        user: SessionUser,
+        telemetry?: { projectUuid?: string | null },
+    ) {
+        const attribution: AiCallAttribution = {
+            organizationUuid: user.organizationUuid ?? null,
+            userUuid: user.userUuid,
+            projectUuid: telemetry?.projectUuid ?? null,
+        };
+
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                user.organizationUuid ?? null,
+            );
+
+        const anthropicConfig = copilotConfig.providers.anthropic;
 
         if (anthropicConfig?.apiKey) {
-            const preset = getModelPreset('anthropic', 'claude-haiku-4-5');
+            // Prefer the fast model, but a BYO key may not have access to it
+            // (e.g. a key that only unlocks claude-opus-4-8). Fall back to a
+            // model the key can actually serve rather than failing at runtime.
+            const accessibleModelIds =
+                await this.orgAiCopilotConfigResolver.getAccessibleModelIds(
+                    'anthropic',
+                    anthropicConfig.apiKey,
+                );
+            const preset = pickAmbientAnthropicPreset(accessibleModelIds);
             if (!preset) {
-                throw new UnexpectedServerError(
-                    'claude-haiku-4-5 preset not found',
+                throw new ForbiddenError(
+                    "Ambient AI is unavailable: your Anthropic API key can't access a supported model.",
                 );
             }
-            return getAnthropicModel(anthropicConfig, preset, {
-                enableReasoning: false,
-            });
+            return {
+                ...getAnthropicModel(anthropicConfig, preset, {
+                    enableReasoning: false,
+                }),
+                telemetry: attribution,
+            };
         }
 
         const aiCopilotFlag = await this.featureFlagService.get({
@@ -149,10 +184,13 @@ export class AiService {
             throw new ForbiddenError('Ambient AI is not available');
         }
 
-        return getModel(this.lightdashConfig.ai.copilot, {
-            enableReasoning: false,
-            useFastModel: true,
-        });
+        return {
+            ...getModel(copilotConfig, {
+                enableReasoning: false,
+                useFastModel: true,
+            }),
+            telemetry: attribution,
+        };
     }
 
     private async throwOnFeatureDisabled(user: SessionUser) {
@@ -465,7 +503,9 @@ export class AiService {
         projectUuid: string,
         payload: GenerateChartMetadataRequest,
     ): Promise<GeneratedChartMetadata> {
-        const modelOptions = await this.getAmbientAiModel(user);
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
 
         const result = await generateChartMetadataFromContext(modelOptions, {
             tableName: payload.tableName,
@@ -495,7 +535,9 @@ export class AiService {
         projectUuid: string,
         payload: GenerateTableCalculationRequest,
     ): Promise<GeneratedTableCalculation> {
-        const modelOptions = await this.getAmbientAiModel(user);
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
         const project = await this.projectService.getProject(
             projectUuid,
             fromSession(user),
@@ -533,12 +575,50 @@ export class AiService {
         };
     }
 
+    async generateCustomDimension(
+        user: SessionUser,
+        projectUuid: string,
+        payload: GenerateCustomDimensionRequest,
+    ): Promise<GeneratedCustomDimension> {
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        const warehouseType = project.warehouseConnection?.type;
+
+        if (!warehouseType) {
+            throw new ForbiddenError('Warehouse type is not available');
+        }
+
+        const result = await generateCustomDimensionFromContext(modelOptions, {
+            ...payload,
+            warehouseType,
+        });
+
+        this.analytics.track<GenerateCustomDimensionGenerated>({
+            userId: user.userUuid,
+            event: 'ai.custom_dimension.generated',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        });
+
+        return result;
+    }
+
     async generateFormulaTableCalculation(
         user: SessionUser,
         projectUuid: string,
         payload: GenerateFormulaTableCalculationRequest,
     ): Promise<GeneratedFormulaTableCalculation> {
-        const modelOptions = await this.getAmbientAiModel(user);
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
 
         const result = await generateFormulaTableCalculationFromContext(
             modelOptions,
@@ -580,7 +660,9 @@ export class AiService {
         projectUuid: string,
         payload: GenerateTooltipRequest,
     ): Promise<GeneratedTooltip> {
-        const modelOptions = await this.getAmbientAiModel(user);
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
 
         const result = await generateTooltipFromContext(modelOptions, {
             prompt: payload.prompt,
@@ -601,5 +683,52 @@ export class AiService {
         return {
             html: result.html,
         };
+    }
+
+    /**
+     * Single-shot summary of a scheduled delivery's already-rendered content
+     * using the ambient fast model. The content is the data the delivery sends
+     * (filters and parameters already applied upstream), so the model never
+     * re-queries the warehouse.
+     */
+    async generateDeliverySummary(
+        user: SessionUser,
+        {
+            prompt,
+            content,
+            projectUuid,
+        }: {
+            prompt: string;
+            content: string;
+            projectUuid: string;
+        },
+    ): Promise<string> {
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+
+        const result = await generateText({
+            model: modelOptions.model,
+            ...modelOptions.callOptions,
+            providerOptions: modelOptions.providerOptions,
+            messages: [
+                {
+                    role: 'system',
+                    content: `You write concise summaries of scheduled analytics deliveries.
+Given the delivery's data and the user's instructions, return a short plain-text
+report suitable for an email or Slack message. Only use the data provided —
+never invent figures. Do not repeat the raw table.`,
+                },
+                {
+                    role: 'user',
+                    content: [
+                        `Instructions:\n${prompt}`,
+                        `Delivery data:\n${content}`,
+                    ].join('\n\n'),
+                },
+            ],
+        });
+
+        return result.text.trim();
     }
 }

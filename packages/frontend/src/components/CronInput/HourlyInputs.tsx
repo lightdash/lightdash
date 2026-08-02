@@ -1,5 +1,6 @@
-import { Group, Input, NumberInput } from '@mantine-8/core';
+import { Group, Input } from '@mantine-8/core';
 import { type FC } from 'react';
+import { NumberInput } from '../common/NumberInput';
 import { getHourlyCronExpression, parseCronExpression } from './cronInputUtils';
 
 const MIN_MINUTES = 0;

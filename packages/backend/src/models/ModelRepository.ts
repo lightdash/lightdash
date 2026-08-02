@@ -6,7 +6,6 @@ import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
-import { ChangesetModel } from './ChangesetModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
@@ -32,6 +31,7 @@ import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationDesignModel } from './OrganizationDesignModel';
 import { OrganizationDomainVerificationModel } from './OrganizationDomainVerificationModel';
+import { OrganizationEmailDomainModel } from './OrganizationEmailDomainModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { OrganizationSettingsModel } from './OrganizationSettingsModel';
@@ -41,6 +41,7 @@ import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
+import { ProjectDbtSourcesModel } from './ProjectDbtSourcesModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
 import { PullRequestsModel } from './PullRequestsModel';
@@ -62,11 +63,14 @@ import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
 import { UserAttributesModel } from './UserAttributesModel';
+import { UserAvatarModel } from './UserAvatarModel';
 import { UserFavoritesModel } from './UserFavoritesModel';
 import { UserModel } from './UserModel';
+import { UserOAuthGrantsModel } from './UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
 import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 /**
  * Interface outlining all models. Add new models to
  * this list (in alphabetical order, please!).
@@ -97,8 +101,10 @@ export type ModelManifest = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     organizationDesignModel: OrganizationDesignModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
+    userAvatarModel: UserAvatarModel;
     organizationModel: OrganizationModel;
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
+    organizationEmailDomainModel: OrganizationEmailDomainModel;
     organizationSettingsModel: OrganizationSettingsModel;
     organizationSsoModel: OrganizationSsoModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
@@ -106,6 +112,7 @@ export type ModelManifest = {
     personalAccessTokenModel: PersonalAccessTokenModel;
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
+    projectDbtSourcesModel: ProjectDbtSourcesModel;
     projectCompileLogModel: ProjectCompileLogModel;
     pullRequestsModel: PullRequestsModel;
     resourceViewItemModel: ResourceViewItemModel;
@@ -124,8 +131,10 @@ export type ModelManifest = {
     userAttributesModel: UserAttributesModel;
     userFavoritesModel: UserFavoritesModel;
     userModel: UserModel;
+    userOAuthGrantsModel: UserOAuthGrantsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    warehouseConnectCodeModel: WarehouseConnectCodeModel;
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
@@ -138,22 +147,30 @@ export type ModelManifest = {
     preAggregateModel: PreAggregateModel;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
-    changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
+    aiAgentMemoryModel: unknown;
     aiAgentModel: unknown;
+    homepageRecommendedActionSkipsModel: unknown;
+    projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
     aiWritebackThreadModel: unknown;
+    aiWritebackRunModel: unknown;
+    aiDeepResearchRunModel: unknown;
+    agentOnboardingRunModel: unknown;
+    sandboxRegistryModel: unknown;
     projectCiStatusModel: unknown;
     aiAgentReviewClassifierModel: unknown;
     aiAgentReviewNotificationModel: unknown;
     projectContextModel: unknown;
     aiRouterModel: unknown;
+    mcpToolCallModel: unknown;
     managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
     serviceAccountModel: unknown;
     externalConnectionModel: unknown;
+    schedulerAiAugmentationModel: unknown;
 };
 
 /**
@@ -448,6 +465,13 @@ export class ModelRepository
         );
     }
 
+    public getUserAvatarModel(): UserAvatarModel {
+        return this.getModel(
+            'userAvatarModel',
+            () => new UserAvatarModel({ database: this.database }),
+        );
+    }
+
     public getOrganizationModel(): OrganizationModel {
         return this.getModel(
             'organizationModel',
@@ -460,6 +484,16 @@ export class ModelRepository
             'organizationDomainVerificationModel',
             () =>
                 new OrganizationDomainVerificationModel({
+                    database: this.database,
+                }),
+        );
+    }
+
+    public getOrganizationEmailDomainModel(): OrganizationEmailDomainModel {
+        return this.getModel(
+            'organizationEmailDomainModel',
+            () =>
+                new OrganizationEmailDomainModel({
                     database: this.database,
                 }),
         );
@@ -533,6 +567,17 @@ export class ModelRepository
                 new ProjectModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
+    public getProjectDbtSourcesModel(): ProjectDbtSourcesModel {
+        return this.getModel(
+            'projectDbtSourcesModel',
+            () =>
+                new ProjectDbtSourcesModel({
+                    database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
         );
@@ -674,6 +719,18 @@ export class ModelRepository
         );
     }
 
+    public getUserOAuthGrantsModel(): UserOAuthGrantsModel {
+        return this.getModel(
+            'userOAuthGrantsModel',
+            () =>
+                new UserOAuthGrantsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                    userModel: this.getUserModel(),
+                }),
+        );
+    }
+
     public getUserWarehouseCredentialsModel(): UserWarehouseCredentialsModel {
         return this.getModel(
             'userWarehouseCredentialsModel',
@@ -692,6 +749,13 @@ export class ModelRepository
         );
     }
 
+    public getWarehouseConnectCodeModel(): WarehouseConnectCodeModel {
+        return this.getModel(
+            'warehouseConnectCodeModel',
+            () => new WarehouseConnectCodeModel({ database: this.database }),
+        );
+    }
+
     public getValidationModel(): ValidationModel {
         return this.getModel(
             'validationModel',
@@ -707,13 +771,6 @@ export class ModelRepository
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
                 }),
-        );
-    }
-
-    public getChangesetModel(): ChangesetModel {
-        return this.getModel(
-            'changesetModel',
-            () => new ChangesetModel({ database: this.database }),
         );
     }
 
@@ -757,6 +814,22 @@ export class ModelRepository
         return this.getModel('aiAgentModel');
     }
 
+    public getAiAgentMemoryModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiAgentMemoryModel');
+    }
+
+    public getProjectHomepageModel<ModelImplT>(): ModelImplT {
+        return this.getModel('projectHomepageModel');
+    }
+
+    public getHomepageRecommendedActionSkipsModel<ModelImplT>(): ModelImplT {
+        return this.getModel('homepageRecommendedActionSkipsModel');
+    }
+
+    public getMcpToolCallModel<ModelImplT>(): ModelImplT {
+        return this.getModel('mcpToolCallModel');
+    }
+
     public getAiAgentDocumentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentDocumentModel');
     }
@@ -765,12 +838,32 @@ export class ModelRepository
         return this.getModel('aiWritebackThreadModel');
     }
 
+    public getAiWritebackRunModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiWritebackRunModel');
+    }
+
+    public getAiDeepResearchRunModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiDeepResearchRunModel');
+    }
+
+    public getAgentOnboardingRunModel<ModelImplT>(): ModelImplT {
+        return this.getModel('agentOnboardingRunModel');
+    }
+
+    public getSandboxRegistryModel<ModelImplT>(): ModelImplT {
+        return this.getModel('sandboxRegistryModel');
+    }
+
     public getProjectCiStatusModel<ModelImplT>(): ModelImplT {
         return this.getModel('projectCiStatusModel');
     }
 
     public getProjectContextModel<ModelImplT>(): ModelImplT {
         return this.getModel('projectContextModel');
+    }
+
+    public getSchedulerAiAugmentationModel<ModelImplT>(): ModelImplT {
+        return this.getModel('schedulerAiAugmentationModel');
     }
 
     public getAiAgentReviewClassifierModel<ModelImplT>(): ModelImplT {

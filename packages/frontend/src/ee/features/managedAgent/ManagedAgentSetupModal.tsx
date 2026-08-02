@@ -1,9 +1,9 @@
 import { ManagedAgentScheduleOption } from '@lightdash/common';
 import { Box, Group, Select, Stack, Text } from '@mantine-8/core';
 import {
-    IconBolt,
     IconChartBar,
     IconClock,
+    IconTarget,
     IconTool,
     IconTrendingUp,
 } from '@tabler/icons-react';
@@ -89,16 +89,18 @@ export const ManagedAgentSetupModal: FC<{
             opened={opened}
             onClose={onClose}
             title="Enable Autopilot"
-            icon={IconBolt}
+            icon={IconTarget}
             size="lg"
             onConfirm={() => mutation.mutate()}
             confirmLabel="Enable"
+            confirmLoading={mutation.isLoading}
+            cancelDisabled={mutation.isLoading}
         >
             <Stack gap="xl">
                 {/* Description */}
                 <Text fz="sm" c="dimmed">
                     An AI agent that monitors your project&apos;s health
-                    automatically — cleaning up stale content, fixing broken
+                    automatically, cleaning up stale content, fixing broken
                     charts, and surfacing insights. All actions are logged and
                     reversible.
                 </Text>

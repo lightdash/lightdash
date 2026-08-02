@@ -1,22 +1,13 @@
-import {
-    type DbtMetric,
-    type DbtModelColumn,
-    type DbtModelNode,
-    type V9MetricRef,
-} from '../types/dbt';
+import { type DbtModelColumn, type DbtModelNode } from '../types/dbt';
 import { type Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType } from '../types/field';
 import type { LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy } from '../types/table';
 import { TimeFrames } from '../types/timeFrames';
-
-type WarehouseCatalog = {
-    [database: string]: {
-        [schema: string]: {
-            [table: string]: { [column: string]: DimensionType };
-        };
-    };
-};
+import {
+    setCatalogTimestampDomain,
+    type WarehouseCatalog,
+} from '../types/warehouse';
 
 export const VALID_ID_COLUMN_NAMES = [
     { input: 'userid', output: 'user' },
@@ -40,69 +31,6 @@ export const INVALID_ID_COLUMN_NAMES = [
     'my_fave_column',
     '12345_id',
 ];
-
-export const DBT_METRIC: DbtMetric = {
-    fqn: [],
-    expression: '',
-    unique_id: 'dbt_metric_1',
-    package_name: '',
-    path: '',
-    original_file_path: '',
-    model: "ref('myTable')",
-    name: 'dbt_metric_1',
-    description: 'Description',
-    label: 'Label',
-    calculation_method: MetricType.SUM,
-    timestamp: '',
-    filters: [],
-    time_grains: [],
-    dimensions: [],
-    refs: [['myTable']],
-};
-
-export const DBT_METRIC_WITH_FILTER: DbtMetric = {
-    ...DBT_METRIC,
-    name: 'dbt_metric_4',
-    filters: [
-        {
-            field: 'column_filter',
-            operator: '>=',
-            value: '123',
-        },
-        {
-            field: 'column_filter',
-            operator: '<=',
-            value: '456',
-        },
-    ],
-};
-
-export const DBT_METRIC_WITH_SQL_FIELD: DbtMetric = {
-    ...DBT_METRIC,
-    name: 'dbt_metric_2',
-    expression: 'dim1',
-};
-
-export const DBT_METRIC_WITH_CUSTOM_SQL: DbtMetric = {
-    ...DBT_METRIC,
-    name: 'dbt_metric_3',
-    calculation_method: MetricType.NUMBER,
-    expression: 'dim1 + dim2',
-};
-
-export const DBT_METRIC_DERIVED: DbtMetric = {
-    ...DBT_METRIC,
-    name: 'dbt_metric_5',
-    calculation_method: 'derived',
-    expression: 'dbt_metric_11 / dbt_metric_1',
-    refs: [],
-    metrics: [['dbt_metric_11'], ['dbt_metric_1']], // one per each reference
-};
-
-export const DBT_V9_METRIC: DbtMetric & { refs: V9MetricRef[] } = {
-    ...DBT_METRIC,
-    refs: [{ name: 'myTable' }],
-};
 
 const ID_COLUMN_WITHOUT_METRICS: DbtModelColumn = {
     name: 'user_id',
@@ -418,6 +346,10 @@ export const MODEL_WITH_GROUPS_BLOCK: DbtModelNode & { relation_name: string } =
                 revenue: {
                     label: 'Revenue',
                     description: 'Revenue description',
+                    ai_hint: [
+                        'Use revenue fields for billing questions.',
+                        'Prefer revenue metrics over raw dimensions.',
+                    ],
                 },
             },
         },
@@ -505,6 +437,10 @@ export const LIGHTDASH_TABLE_WITH_GROUP_BLOCK: Omit<Table, 'lineageGraph'> = {
         revenue: {
             label: 'Revenue',
             description: 'Revenue description',
+            aiHint: [
+                'Use revenue fields for billing questions.',
+                'Prefer revenue metrics over raw dimensions.',
+            ],
         },
     },
 };
@@ -582,169 +518,6 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
                 colors: undefined,
                 index: 0,
                 isIntervalBase: false,
-            },
-        },
-    };
-
-export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
-    ...LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
-    metrics: {
-        dbt_metric_1: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_1',
-            sql: '${TABLE}.dbt_metric_1',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.SUM,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 0,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-        dbt_metric_2: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_2',
-            sql: '${TABLE}.dim1',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.SUM,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 1,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-        dbt_metric_3: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_3',
-            sql: 'dim1 + dim2',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.NUMBER,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 2,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-        dbt_metric_4: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_4',
-            sql: 'CASE WHEN (${TABLE}.column_filter >= 123) AND (${TABLE}.column_filter <= 456) THEN ${TABLE}.dbt_metric_4 ELSE NULL END',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.SUM,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 3,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-        dbt_metric_5: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_5',
-            sql: '${dbt_metric_11} / ${dbt_metric_1}',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.NUMBER,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 4,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-    },
-};
-
-export const LIGHTDASH_TABLE_WITH_DBT_V9_METRICS: Omit<Table, 'lineageGraph'> =
-    {
-        ...LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
-        metrics: {
-            dbt_metric_1: {
-                description: 'Description',
-                fieldType: FieldType.METRIC,
-                hidden: false,
-                label: 'Label',
-                name: 'dbt_metric_1',
-                sql: '${TABLE}.dbt_metric_1',
-                table: 'myTable',
-                tableLabel: 'My table',
-                type: MetricType.SUM,
-                format: undefined,
-                round: undefined,
-                percentile: undefined,
-                compact: undefined,
-                separator: undefined,
-                showUnderlyingValues: undefined,
-                source: undefined,
-                groups: [],
-                filters: [],
-                index: 0,
-                spotlight: {
-                    visibility: 'show',
-                    categories: [],
-                },
             },
         },
     };
@@ -1424,6 +1197,16 @@ export const warehouseSchema: WarehouseCatalog = {
     },
 };
 
+export const warehouseSchemaWithEmptyStringDatabase: WarehouseCatalog = {
+    '': {
+        [model.schema]: {
+            [model.name]: {
+                [column.name]: DimensionType.STRING,
+            },
+        },
+    },
+};
+
 export const warehouseSchemaWithMissingTable: WarehouseCatalog = {
     [model.database]: {
         [model.schema]: {},
@@ -1433,6 +1216,16 @@ export const warehouseSchemaWithMissingColumn: WarehouseCatalog = {
     [model.database]: {
         [model.schema]: {
             [model.name]: {},
+        },
+    },
+};
+
+export const warehouseSchemaWithAllUpperCaseKeys: WarehouseCatalog = {
+    [model.database.toUpperCase()]: {
+        [model.schema.toUpperCase()]: {
+            [model.name.toUpperCase()]: {
+                [column.name.toUpperCase()]: DimensionType.STRING,
+            },
         },
     },
 };
@@ -1451,6 +1244,209 @@ export const expectedModelWithType: DbtModelNode = {
     ...model,
     columns: {
         myColumnName: { ...column, data_type: DimensionType.STRING },
+    },
+};
+
+export const warehouseSchemaWithTimestampDomain: WarehouseCatalog = (() => {
+    const catalog: WarehouseCatalog = {
+        [model.database]: {
+            [model.schema]: {
+                [model.name]: {
+                    [column.name]: DimensionType.TIMESTAMP,
+                },
+            },
+        },
+    };
+    setCatalogTimestampDomain(
+        catalog,
+        model.database,
+        model.schema,
+        model.name,
+        column.name,
+        'naive',
+    );
+    return catalog;
+})();
+
+export const expectedModelWithTimestampDomain: DbtModelNode = {
+    ...model,
+    columns: {
+        myColumnName: {
+            ...column,
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW', 'DAY', 'slt_week'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_YAML_OVERRIDE: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    timestamp_domain: 'aware',
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_UNKNOWN_TIMESTAMP_DOMAIN: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    sql: "${TABLE}.user_created AT TIME ZONE 'UTC'",
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_CUSTOM_SQL_ANNOTATED: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    sql: 'COALESCE(${TABLE}.user_created, ${TABLE}.fallback_at)',
+                    timestamp_domain: 'naive',
+                    time_intervals: ['RAW', 'DAY'],
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_TIMESTAMP_DOMAIN_ADDITIONAL_DIMENSION: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW'],
+                },
+                additional_dimensions: {
+                    user_created_shifted: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: "${TABLE}.user_created + INTERVAL '1 day'",
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_SQLLESS_ADDITIONAL_DIMENSION: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            timestamp_domain: 'naive',
+            meta: {
+                dimension: {
+                    time_intervals: ['RAW'],
+                },
+                additional_dimensions: {
+                    user_created_copy: {
+                        type: DimensionType.TIMESTAMP,
+                    },
+                },
+            },
+        },
+    },
+};
+
+export const MODEL_WITH_ANNOTATED_ADDITIONAL_DIMENSIONS: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        user_created: {
+            name: 'user_created',
+            data_type: DimensionType.TIMESTAMP,
+            meta: {
+                dimension: {
+                    timestamp_domain: 'naive',
+                    time_intervals: ['RAW', 'DAY'],
+                },
+                additional_dimensions: {
+                    user_created_aware: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: '${TABLE}.user_created_utc',
+                        timestamp_domain: 'aware',
+                        time_intervals: ['RAW', 'DAY'],
+                    },
+                    user_created_plain: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: '${TABLE}.user_created_other',
+                        time_intervals: ['RAW', 'DAY'],
+                    },
+                },
+            },
+        },
     },
 };
 
@@ -1750,30 +1746,17 @@ export const MODEL_WITH_NO_CATEGORIES: DbtModelNode = {
 
 export const LIGHTDASH_TABLE_WITH_NO_CATEGORIES: Omit<Table, 'lineageGraph'> = {
     ...LIGHTDASH_TABLE_WITH_METRICS,
-    metrics: {
-        ...{
-            dbt_metric_1: {
-                ...LIGHTDASH_TABLE_WITH_DBT_METRICS.metrics.dbt_metric_1,
-                spotlight: {
-                    ...LIGHTDASH_TABLE_WITH_DBT_METRICS.metrics.dbt_metric_1
-                        .spotlight,
-                    visibility: 'hide',
+    metrics: Object.fromEntries(
+        Object.entries(LIGHTDASH_TABLE_WITH_METRICS.metrics).map(
+            ([key, metric]) => [
+                key,
+                {
+                    ...metric,
+                    spotlight: { ...metric.spotlight, visibility: 'hide' },
                 },
-            },
-        },
-        ...Object.fromEntries(
-            Object.entries(LIGHTDASH_TABLE_WITH_METRICS.metrics).map(
-                ([key, metric]) => [
-                    key,
-                    {
-                        ...metric,
-                        spotlight: { ...metric.spotlight, visibility: 'hide' },
-                        index: (metric.index ?? 0) + 1,
-                    },
-                ],
-            ),
+            ],
         ),
-    },
+    ),
     dimensions: LIGHTDASH_TABLE_WITH_METRICS.dimensions,
 };
 

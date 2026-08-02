@@ -1,3 +1,4 @@
+/* eslint-disable prefer-arrow-callback, func-names */
 import {
     AthenaAuthenticationType,
     CreateAthenaCredentials,
@@ -7,15 +8,21 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 
-const mockAthenaClient = jest.fn();
-jest.mock('@aws-sdk/client-athena', () => ({
-    ...jest.requireActual('@aws-sdk/client-athena'),
+const { mockAthenaClient } = vi.hoisted(() => ({
+    mockAthenaClient: vi.fn(),
+}));
+vi.mock('@aws-sdk/client-athena', async () => ({
+    ...(await vi.importActual<typeof import('@aws-sdk/client-athena')>(
+        '@aws-sdk/client-athena',
+    )),
     AthenaClient: mockAthenaClient,
 }));
 
-const mockFromTemporaryCredentials = jest.fn(() => 'sts-credentials');
+const { mockFromTemporaryCredentials } = vi.hoisted(() => ({
+    mockFromTemporaryCredentials: vi.fn(() => 'sts-credentials'),
+}));
 
-jest.mock('@aws-sdk/credential-providers', () => ({
+vi.mock('@aws-sdk/credential-providers', () => ({
     fromTemporaryCredentials: mockFromTemporaryCredentials,
 }));
 
@@ -51,8 +58,10 @@ describe('convertDataTypeToDimensionType', () => {
 
 describe('AthenaWarehouseClient', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
-        mockAthenaClient.mockImplementation(() => ({}));
+        vi.clearAllMocks();
+        mockAthenaClient.mockImplementation(function () {
+            return {};
+        });
     });
 
     describe('authentication', () => {
@@ -206,9 +215,9 @@ describe('AthenaWarehouseClient', () => {
         };
 
         const setMockSendToReject = (error: Error) => {
-            mockAthenaClient.mockImplementation(() => ({
-                send: jest.fn().mockRejectedValue(error),
-            }));
+            mockAthenaClient.mockImplementation(function () {
+                return { send: vi.fn().mockRejectedValue(error) };
+            });
         };
 
         test('translates UnrecognizedClientException into WarehouseConnectionError with hint', async () => {

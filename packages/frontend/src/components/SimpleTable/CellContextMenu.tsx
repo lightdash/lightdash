@@ -7,7 +7,7 @@ import {
     type ResultValue,
 } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard } from '@mantine-8/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
@@ -76,7 +76,10 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     return (
         <>
-            {item && value.raw && isField(item) ? (
+            {item &&
+            value.raw !== undefined &&
+            value.raw !== null &&
+            isField(item) ? (
                 <UrlMenuItems urls={item.urls} cell={cell} />
             ) : null}
 

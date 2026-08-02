@@ -1,13 +1,13 @@
 import { type QueryWarning } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Divider,
-    Popover,
     Stack,
     Title,
+    ActionIcon,
+    Popover,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC } from 'react';
@@ -53,7 +53,7 @@ const QueryWarnings: FC<QueryWarningsProps> = ({ queryWarnings }) => {
                 <Title order={6} fw={600}>
                     Query warnings
                 </Title>
-                <Stack spacing="xs" mt={'md'}>
+                <Stack gap="xs" mt={'md'}>
                     {queryWarnings
                         .slice(
                             (warningsPage - 1) * WARNINGS_PER_PAGE,

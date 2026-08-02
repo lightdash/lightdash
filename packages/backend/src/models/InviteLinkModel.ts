@@ -1,4 +1,10 @@
-import { InviteLink, NotFoundError } from '@lightdash/common';
+import {
+    ExpiredError,
+    InviteLink,
+    InviteLinkPurpose,
+    NotFoundError,
+    ParameterError,
+} from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';
@@ -40,7 +46,18 @@ export class InviteLinkModel {
             organizationUuid: data.organization_uuid,
             userUuid: data.user_uuid,
             email: data.email,
+            purpose: InviteLinkModel.parsePurpose(data.purpose),
         };
+    }
+
+    private static parsePurpose(purpose: string): InviteLinkPurpose {
+        if (purpose === InviteLinkPurpose.Member) {
+            return InviteLinkPurpose.Member;
+        }
+        if (purpose === InviteLinkPurpose.Setup) {
+            return InviteLinkPurpose.Setup;
+        }
+        throw new ParameterError(`Invalid invite link purpose: ${purpose}`);
     }
 
     private transformInviteCodeToUrl(code: string): string {
@@ -81,7 +98,15 @@ export class InviteLinkModel {
         if (inviteLinks.length === 0) {
             throw new NotFoundError('No invite link found');
         }
-        return this.mapDbObjectToInviteLink(inviteCode, inviteLinks[0]);
+        const inviteLink = this.mapDbObjectToInviteLink(
+            inviteCode,
+            inviteLinks[0],
+        );
+        if (inviteLink.expiresAt <= new Date()) {
+            await this.deleteByCode(inviteCode);
+            throw new ExpiredError('Invite link expired');
+        }
+        return inviteLink;
     }
 
     async upsert(
@@ -89,6 +114,7 @@ export class InviteLinkModel {
         expiresAt: Date,
         organizationUuid: string,
         userUuid: string,
+        purpose: InviteLinkPurpose,
     ): Promise<InviteLink> {
         const inviteCodeHash = InviteLinkModel._hash(inviteCode);
         const orgs = await this.database('organizations')
@@ -104,10 +130,23 @@ export class InviteLinkModel {
                 invite_code_hash: inviteCodeHash,
                 expires_at: expiresAt,
                 user_uuid: userUuid,
+                purpose,
             })
             .onConflict('user_uuid')
             .merge();
         return this.getByCode(inviteCode);
+    }
+
+    async hasValidInviteLink(
+        userUuid: string,
+        now: Date = new Date(),
+    ): Promise<boolean> {
+        const inviteLink = await this.database(InviteLinkTableName)
+            .where('user_uuid', userUuid)
+            .andWhere('expires_at', '>', now)
+            .first('user_uuid');
+
+        return inviteLink !== undefined;
     }
 
     async deleteByOrganization(organizationUuid: string) {

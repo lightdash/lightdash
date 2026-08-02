@@ -22,6 +22,13 @@ export default abstract class WarehouseBaseSqlBuilder implements WarehouseSqlBui
 
     abstract getAdapterType(): SupportedDbtAdapter;
 
+    // Default: the engine evaluates a multiply-referenced CTE once (materialized
+    // or its result reused). Trino and Athena override this to false, since they
+    // re-run the whole CTE lineage on every reference.
+    supportsCteMaterialization(): boolean {
+        return true;
+    }
+
     getFieldQuoteChar(): string {
         return '"';
     }

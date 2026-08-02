@@ -19,7 +19,6 @@ import {
     type ImperativePanelHandle,
 } from 'react-resizable-panels';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { clearPreview } from '../../store/aiArtifactSlice';
 import {
@@ -36,6 +35,7 @@ interface Props extends PropsWithChildren {
     Header?: React.ReactNode;
     isAgentSidebarCollapsed?: boolean;
     setIsAgentSidebarCollapsed?: (isAgentSidebarCollapsed: boolean) => void;
+    isEmbed?: boolean;
 }
 
 export const AiAgentPageLayout: React.FC<Props> = ({
@@ -44,6 +44,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     children,
     setIsAgentSidebarCollapsed,
     isAgentSidebarCollapsed,
+    isEmbed = false,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
@@ -81,8 +82,9 @@ export const AiAgentPageLayout: React.FC<Props> = ({
 
     return (
         <div
-            className={styles.workspace}
-            style={{ height: `calc(100vh - ${NAVBAR_HEIGHT}px)` }}
+            className={`${styles.workspace} ${
+                isEmbed ? styles.workspaceEmbed : ''
+            }`}
         >
             <PanelGroup
                 direction="horizontal"

@@ -4,14 +4,15 @@ import {
     type ResourceViewItemType,
     type SpaceSummary,
 } from '@lightdash/common';
-import { Paper, Stack, TextInput } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { Paper, Stack, TextInput } from '@mantine-8/core';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { useMemo, useState } from 'react';
 import useApp from '../../../providers/App/useApp';
 import AdminContentViewFilter from '../ResourceView/AdminContentViewFilter';
 import Tree from '../Tree/Tree';
 import { type NestableItem } from '../Tree/types';
 import useFuzzyTreeSearch from '../Tree/useFuzzyTreeSearch';
+import styles from './SpaceSelector.module.css';
 
 type SpaceSelectorProps = {
     projectUuid: string | undefined;
@@ -105,7 +106,7 @@ const SpaceSelector = ({
                 placeholder="Search spaces"
             />
 
-            <Paper w="100%" h={400} style={{ overflow: 'auto' }} withBorder>
+            <Paper w="100%" h={400} className={styles.treeContainer} withBorder>
                 <Tree
                     withRootSelectable={isRootSelectionEnabled}
                     data={fuzzyFilteredSpaces ?? filteredSpaces}

@@ -10,6 +10,7 @@ import { useProject } from '../../hooks/useProject';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import Mantine8Provider from '../../providers/Mantine8Provider';
+import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
@@ -70,6 +71,13 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const { data: project } = useProject(activeProjectUuid);
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
+    const isCurrentProjectPlayground = isPlaygroundProvisioningSource(
+        project?.provisioningSource,
+    );
+    const upstreamProjectUuid = isCurrentProjectPreview
+        ? project?.upstreamProjectUuid
+        : undefined;
+    const { data: upstreamProject } = useProject(upstreamProjectUuid);
     const { isImpersonating } = useImpersonation();
     const { data: organizationAccess } = useOrganizationAccess();
 
@@ -78,7 +86,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const showTrialWarning =
         !isImpersonating &&
         !isCurrentProjectPreview &&
-        organizationAccess?.status === OrganizationAccessStatus.TRIAL_WARNING;
+        !isCurrentProjectPlayground &&
+        (organizationAccess?.status ===
+            OrganizationAccessStatus.TRIAL_WARNING ||
+            organizationAccess?.status ===
+                OrganizationAccessStatus.TRIAL_EXPIRED);
 
     const hasBanner =
         isImpersonating || isCurrentProjectPreview || showTrialWarning;
@@ -101,7 +113,17 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 {isImpersonating ? (
                     <ImpersonationBanner />
                 ) : isCurrentProjectPreview ? (
-                    <PreviewBanner expiresAt={project?.expiresAt ?? null} />
+                    <PreviewBanner
+                        expiresAt={project?.expiresAt ?? null}
+                        upstreamProject={
+                            upstreamProject
+                                ? {
+                                      projectUuid: upstreamProject.projectUuid,
+                                      name: upstreamProject.name,
+                                  }
+                                : null
+                        }
+                    />
                 ) : (
                     organizationAccess && (
                         <TrialWarningBanner access={organizationAccess} />

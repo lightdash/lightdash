@@ -14,6 +14,8 @@ export const ORGANIZATION_MEMBER: OrganizationMemberProfile = {
     isActive: true,
     userCreatedAt: new Date(),
     userUpdatedAt: new Date(),
+    avatarUrl: null,
+    avatarGradient: null,
 };
 
 export const ORGANIZATION_VIEWER: OrganizationMemberProfile = {

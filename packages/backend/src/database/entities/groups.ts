@@ -15,9 +15,8 @@ type DbGroupCreate = Pick<
     'organization_id' | 'name' | 'created_by_user_uuid' | 'updated_by_user_uuid'
 > &
     Partial<Pick<DbGroup, 'group_uuid'>>;
-type DbGroupUpdate = Pick<
-    DbGroup,
-    'name' | 'updated_at' | 'updated_by_user_uuid'
+type DbGroupUpdate = Partial<
+    Pick<DbGroup, 'name' | 'updated_at' | 'updated_by_user_uuid'>
 >;
 
 export const GroupTableName = 'groups';

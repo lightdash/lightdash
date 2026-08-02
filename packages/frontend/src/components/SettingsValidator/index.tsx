@@ -7,7 +7,7 @@ import {
     type ValidationSourceType,
 } from '@lightdash/common';
 import { Button, Group, Loader, Paper, Text } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconCheck } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -19,6 +19,7 @@ import {
 } from '../../hooks/validation/useValidation';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
+import { SettingsPage } from '../common/Settings/SettingsPage';
 import { ValidatorTable } from './ValidatorTable';
 import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfigurationErrorModal';
 import { FixDashboardFilterModal } from './ValidatorTable/FixDashboardFilterModal';
@@ -99,7 +100,7 @@ export const SettingsValidator: FC<{
     const hasActiveFilters =
         searchQuery !== '' || sourceTypeFilter.length > 0 || showConfigWarnings;
 
-    return (
+    const content = (
         <>
             <FixValidationErrorModal
                 validationError={selectedValidationError}
@@ -121,25 +122,6 @@ export const SettingsValidator: FC<{
                     setSelectedConfigError(undefined);
                 }}
             />
-            {!flush && (
-                <Group gap="md" justify="space-between" mb="md">
-                    <Text c="dimmed">
-                        Use the project validator to check what content is
-                        broken in your project.
-                    </Text>
-                    <Button
-                        size="xs"
-                        onClick={() => {
-                            setIsValidating(true);
-                            validateProject();
-                        }}
-                        loading={isValidating}
-                    >
-                        Run validation
-                    </Button>
-                </Group>
-            )}
-
             {isLoading ? (
                 <Paper withBorder shadow="sm">
                     <Group justify="center" gap="xs" p="md">
@@ -193,5 +175,30 @@ export const SettingsValidator: FC<{
                 </Paper>
             )}
         </>
+    );
+
+    if (flush) {
+        return content;
+    }
+
+    return (
+        <SettingsPage
+            title="Validator"
+            description="Find content errors and issues across this project."
+            actions={
+                <Button
+                    size="xs"
+                    onClick={() => {
+                        setIsValidating(true);
+                        validateProject();
+                    }}
+                    loading={isValidating}
+                >
+                    Run validation
+                </Button>
+            }
+        >
+            {content}
+        </SettingsPage>
     );
 };

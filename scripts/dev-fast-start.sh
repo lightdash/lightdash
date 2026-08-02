@@ -13,7 +13,7 @@
 #   - Exits 0 only after the backend /api/v1/health endpoint returns 200.
 #   - Idempotent: safe to re-run at any time.
 #
-# Usage: scripts/dev-fast-start.sh [--ee]
+# Usage: scripts/dev-fast-start.sh [--ee] [--sdk-test]
 #
 # When this script fails, /docker-dev reads the FAIL line, fixes the root cause
 # using the documented agentic steps, then patches this script so it won't recur.
@@ -22,9 +22,11 @@ set -uo pipefail
 
 SCHEMA_VERSION=1
 EE_MODE=false
+SDK_TEST_MODE=false
 for arg in "$@"; do
     case "$arg" in
         --ee|ee) EE_MODE=true ;;
+        --sdk-test|sdk-test) SDK_TEST_MODE=true ;;
         *) echo "FAIL: args -- unknown argument '$arg'" >&2; exit 2 ;;
     esac
 done
@@ -46,6 +48,14 @@ step() { echo "STEP: $1"; }
 instance_pm2_names() {
     for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
         echo "${LD_INSTANCE_ID}-${suffix}"
+    done
+}
+
+# One name per call: `pm2 delete a b c` aborts at the first name it cannot
+# find, silently leaving every later one running.
+delete_instance_pm2() {
+    for name in $(instance_pm2_names); do
+        pm2 delete "$name" >/dev/null 2>&1 || true
     done
 }
 
@@ -180,8 +190,23 @@ if test -f .env.development.local; then
     reconcile_env HEADLESS_BROWSER_PORT 3001
     reconcile_env EMAIL_SMTP_HOST localhost
     reconcile_env EMAIL_SMTP_PORT 1025
+    # EMAIL_SMTP_SECURE=false is load-bearing: unset defaults `secure` to true in
+    # parseConfig, which sets nodemailer requireTLS -> forces STARTTLS against Mailpit
+    # (port 1025, no STARTTLS) -> transporter.verify() throws uncaughtException and the
+    # API crash-loops. A pre-existing minimal env file (HOST+PORT only) hits exactly this.
+    reconcile_env EMAIL_SMTP_SECURE false
+    reconcile_env EMAIL_SMTP_USE_AUTH false
+    reconcile_env EMAIL_SMTP_ALLOW_INVALID_CERT true
+    reconcile_env EMAIL_SMTP_SENDER_NAME Lightdash
+    reconcile_env EMAIL_SMTP_SENDER_EMAIL noreply@lightdash.local
     reconcile_env LDPAT ldpat_deadbeefdeadbeefdeadbeefdeadbeef
     reconcile_env DBT_DEMO_DIR "$(pwd)/examples/full-jaffle-shop-demo"
+    # Default-on (append only, never overwrite): fresh-user signup testing needs
+    # multi-org registration, else POST /api/v1/user 403s once the seed org exists.
+    if ! grep -q "^ALLOW_MULTIPLE_ORGS=" .env.development.local; then
+        echo "ALLOW_MULTIPLE_ORGS=true" >> .env.development.local
+        ENV_PORTS_CHANGED=1
+    fi
     if [ "$ENV_PORTS_CHANGED" = 1 ]; then
         echo "OK: env file reconciled to slot ports (PGPORT=${LD_PG_PORT} PORT=${PORT} FE_PORT=${FE_PORT})"
     else
@@ -218,6 +243,9 @@ EMAIL_SMTP_SENDER_EMAIL=noreply@lightdash.local
 # Dev API access (auto-provisioned PAT from seed data)
 LIGHTDASH_API_URL=http://localhost:${PORT}
 LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
+
+# Allow registering fresh users/orgs (signup flow testing)
+ALLOW_MULTIPLE_ORGS=true
 EOF
     echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
     echo "OK: env file created"
@@ -229,6 +257,24 @@ if grep -q "^LIGHTDASH_LICENSE_KEY=" .env.development.local 2>/dev/null; then
 fi
 if [ "$EE_MODE" = true ] && ! grep -q "^LIGHTDASH_LICENSE_KEY=eyJ" .env.development.local 2>/dev/null; then
     fail "ee-license" "EE requested but no LIGHTDASH_LICENSE_KEY in .env.development.local; run Step EE-1 (1Password) first"
+fi
+
+# The bare `--ee` fast path only applies the license + EE schema. The full AI/agent
+# experience — Copilot, default-agent (Aurora) auto-provisioning, and BigQuery Google-SSO —
+# comes from the `/docker-dev start ee` PROFILE, which additionally pulls ANTHROPIC_API_KEY
+# and the AUTH_GOOGLE_OAUTH2_* creds and sets AI_COPILOT_ENABLED. Without those a `--ee` run
+# still reports READY, so it silently ships half of EE. Warn (non-fatal) when that config is
+# absent so the gap is visible immediately instead of at feature-hit time. See scripts/dev-profiles.json.
+if [ "$EE_MODE" = true ]; then
+    _ee_missing=""
+    grep -q "^AI_COPILOT_ENABLED=true" .env.development.local 2>/dev/null || _ee_missing="${_ee_missing} AI_COPILOT_ENABLED"
+    grep -q "^ANTHROPIC_API_KEY=." .env.development.local 2>/dev/null || _ee_missing="${_ee_missing} ANTHROPIC_API_KEY"
+    grep -q "^AUTH_GOOGLE_OAUTH2_CLIENT_ID=." .env.development.local 2>/dev/null || _ee_missing="${_ee_missing} AUTH_GOOGLE_OAUTH2_CLIENT_ID"
+    if [ -n "$_ee_missing" ]; then
+        echo "WARN: EE license present but the AI profile config is incomplete (missing:${_ee_missing})."
+        echo "WARN: this bare --ee run brings up license + EE schema only; Copilot, agents (Aurora), and BigQuery Google-SSO stay OFF."
+        echo "WARN: for the full experience run '/docker-dev start ee' (or 'start newux' for the new onboarding UX) — it pulls the secrets and sets the flags. See scripts/dev-profiles.json."
+    fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -268,10 +314,54 @@ fi
 
 # ---------------------------------------------------------------------------
 step "Start Docker services"
-docker compose -p ld-shared -f "$SHARED_COMPOSE" --env-file .env.development up -d \
-    || fail "docker-shared" "could not start shared services (minio/headless-browser/mailpit/nats)"
+# Two instances booting concurrently race inside `compose up` on the shared
+# project (container-name conflicts / vanished-container errors). Serialize
+# with flock where available (Linux); everywhere else a single retry after a
+# short delay resolves the transient race — by then the winner has the
+# services up and this call becomes an idempotent no-op.
+start_shared_services() {
+    docker compose -p ld-shared -f "$SHARED_COMPOSE" --env-file .env.development up -d
+}
+SHARED_LOCK="${HOME}/.lightdash/shared-compose.lock"
+mkdir -p "${HOME}/.lightdash"
+if command -v flock >/dev/null 2>&1; then
+    flock "$SHARED_LOCK" docker compose -p ld-shared -f "$SHARED_COMPOSE" --env-file .env.development up -d \
+        || { sleep 5; start_shared_services; } \
+        || fail "docker-shared" "could not start shared services (minio/headless-browser/mailpit/nats)"
+else
+    start_shared_services \
+        || { sleep 5; start_shared_services; } \
+        || fail "docker-shared" "could not start shared services (minio/headless-browser/mailpit/nats)"
+fi
 docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" --env-file .env.development up -d \
     || fail "docker-instance" "could not start per-instance PostgreSQL"
+
+# ---------------------------------------------------------------------------
+# The Docker sandbox provider launches agent containers from local images that
+# are built once per machine, never pulled. A missing image only surfaces later
+# as a runtime 404 ("No such image: lightdash-agent-onboarding:local") when a
+# sandbox-backed feature first runs, so build any that are absent now. Env
+# overrides mean the operator points at their own image — leave those alone.
+if grep -q "^SANDBOX_PROVIDER=docker" .env.development.local 2>/dev/null; then
+    step "Ensure local sandbox images"
+    ensure_sandbox_image() {
+        SANDBOX_IMAGE="$1"; SANDBOX_BUILD_SCRIPT="$2"; SANDBOX_OVERRIDE_VAR="$3"
+        if grep -q "^${SANDBOX_OVERRIDE_VAR}=" .env.development.local 2>/dev/null; then
+            echo "OK: ${SANDBOX_OVERRIDE_VAR} is overridden; skipping ${SANDBOX_IMAGE}"
+            return 0
+        fi
+        if docker image inspect "$SANDBOX_IMAGE" >/dev/null 2>&1; then
+            echo "OK: ${SANDBOX_IMAGE} present"
+            return 0
+        fi
+        echo "Building ${SANDBOX_IMAGE} (one-time per machine; several minutes)"
+        "$SANDBOX_BUILD_SCRIPT" \
+            || fail "sandbox-images" "failed to build ${SANDBOX_IMAGE} via ${SANDBOX_BUILD_SCRIPT}"
+    }
+    ensure_sandbox_image lightdash-sandbox:local ./sandboxes/data-apps/build-local-image.sh SANDBOX_DOCKER_IMAGE
+    ensure_sandbox_image lightdash-ai-writeback:local ./sandboxes/ai-writeback/build-local-image.sh SANDBOX_AI_WRITEBACK_DOCKER_IMAGE
+    ensure_sandbox_image lightdash-agent-onboarding:local ./sandboxes/agent-onboarding/build-local-image.sh SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE
+fi
 
 step "Wait for PostgreSQL"
 PG_READY=false
@@ -437,6 +527,32 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# main regenerates the TSOA artifacts per build, so a pulled/rebased
+# routes.ts can still import controllers that main has already deleted —
+# the backend then crash-loops on MODULE_NOT_FOUND before serving anything.
+step "Check generated API routes resolve"
+GENERATED_DIR="packages/backend/src/generated"
+if [ ! -f "$GENERATED_DIR/routes.ts" ]; then
+    echo "SKIP: $GENERATED_DIR/routes.ts not present"
+else
+    STALE_IMPORTS=""
+    for import_path in $(grep -oE "from '\./\.\./[^']*'" "$GENERATED_DIR/routes.ts" | sed -E "s/^from '//; s/'$//" | sort -u); do
+        if [ ! -f "$GENERATED_DIR/$import_path.ts" ]; then
+            STALE_IMPORTS="$STALE_IMPORTS $import_path"
+        fi
+    done
+    if [ -n "$STALE_IMPORTS" ]; then
+        echo "Stale imports in routes.ts:$STALE_IMPORTS"
+        echo "Regenerating API artifacts..."
+        pnpm generate-api >/dev/null 2>&1 \
+            || fail "generate-api" "pnpm generate-api failed while regenerating stale routes.ts"
+        echo "OK: regenerated API artifacts"
+    else
+        echo "OK: generated routes resolve"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 step "Start PM2"
 RUNNING_CWD="$(pm2 jlist 2>/dev/null | INSTANCE="$LD_INSTANCE_ID" python3 -c "
 import sys, json, os
@@ -453,15 +569,16 @@ if mine:
 " 2>/dev/null || true)"
 if [ -n "$RUNNING_CWD" ] && [ "$RUNNING_CWD" != "$(pwd)" ]; then
     echo "Instance PM2 was running from $RUNNING_CWD — switching to this worktree"
-    # shellcheck disable=SC2046
-    pm2 delete $(instance_pm2_names) >/dev/null 2>&1 || true
+    delete_instance_pm2
 elif [ "${ENV_PORTS_CHANGED:-0}" = 1 ]; then
     # Ports were reconciled but procs may already be online with the stale env.
     # PM2 caches env at spawn time, so delete+start is required (restart --update-env
     # only inherits the current shell, not the .env file).
     echo "Env ports changed — recycling PM2 so the new env is picked up"
-    # shellcheck disable=SC2046
-    pm2 delete $(instance_pm2_names) >/dev/null 2>&1 || true
+    delete_instance_pm2
+fi
+if [ "$SDK_TEST_MODE" = true ]; then
+    export LD_ENABLE_SDK_TEST=true
 fi
 pnpm pm2:start >/dev/null 2>&1 || fail "pm2" "pnpm pm2:start failed (check 'pm2 logs ${LD_INSTANCE_ID}-api')"
 echo "OK: pm2 started"

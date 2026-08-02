@@ -150,6 +150,101 @@ describe('getCartesianConditionalFormattingColor', () => {
         ).toBe('#ff0000');
     });
 
+    test('routes each config to its target series on multi-metric charts', () => {
+        const metricConfig = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            {
+                fieldId: getItemId(itemsMap.metric_value),
+            },
+        );
+        metricConfig.rules = [
+            {
+                id: 'red',
+                operator: FilterOperator.LESS_THAN,
+                values: [10],
+            },
+        ];
+
+        const rowValues = { metric_value: 5, comparison_value: 5 };
+
+        // Both series' values match the rule, but only the targeted series
+        // gets the color
+        expect(
+            getCartesianConditionalFormattingColor({
+                itemsMap,
+                conditionalFormattings: [metricConfig],
+                rowValues,
+                series: {
+                    encode: { yRef: { field: 'metric_value' } },
+                } as any,
+            }),
+        ).toBe('#ff0000');
+        expect(
+            getCartesianConditionalFormattingColor({
+                itemsMap,
+                conditionalFormattings: [metricConfig],
+                rowValues,
+                series: {
+                    encode: { yRef: { field: 'comparison_value' } },
+                } as any,
+            }),
+        ).toBeUndefined();
+    });
+
+    test('applies independent configs to their own series on multi-metric charts', () => {
+        const redConfig = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            {
+                fieldId: getItemId(itemsMap.metric_value),
+            },
+        );
+        redConfig.rules = [
+            {
+                id: 'red',
+                operator: FilterOperator.LESS_THAN,
+                values: [10],
+            },
+        ];
+
+        const blueConfig = createConditionalFormattingConfigWithSingleColor(
+            '#0000ff',
+            {
+                fieldId: getItemId(itemsMap.comparison_value),
+            },
+        );
+        blueConfig.rules = [
+            {
+                id: 'blue',
+                operator: FilterOperator.GREATER_THAN,
+                values: [8],
+            },
+        ];
+
+        const rowValues = { metric_value: 5, comparison_value: 10 };
+        const conditionalFormattings = [redConfig, blueConfig];
+
+        expect(
+            getCartesianConditionalFormattingColor({
+                itemsMap,
+                conditionalFormattings,
+                rowValues,
+                series: {
+                    encode: { yRef: { field: 'metric_value' } },
+                } as any,
+            }),
+        ).toBe('#ff0000');
+        expect(
+            getCartesianConditionalFormattingColor({
+                itemsMap,
+                conditionalFormattings,
+                rowValues,
+                series: {
+                    encode: { yRef: { field: 'comparison_value' } },
+                } as any,
+            }),
+        ).toBe('#0000ff');
+    });
+
     test('ignores unsupported config types when selecting the last matching color', () => {
         const singleColorConfig =
             createConditionalFormattingConfigWithSingleColor('#00ff00', {

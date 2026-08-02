@@ -1,20 +1,19 @@
 import { ProjectType } from '@lightdash/common';
+import type { MockedFunction, MockInstance } from 'vitest';
 import { Config } from '../config';
 import { lightdashApi } from './dbt/apiClient';
 import { logSelectedProject, selectProject } from './selectProject';
 
-jest.mock('inquirer');
-jest.mock('../analytics/analytics');
-jest.mock('./dbt/apiClient', () => ({
-    lightdashApi: jest.fn(),
+vi.mock('inquirer');
+vi.mock('../analytics/analytics');
+vi.mock('./dbt/apiClient', () => ({
+    lightdashApi: vi.fn(),
 }));
-jest.mock('../config', () => ({
-    unsetPreviewProject: jest.fn().mockResolvedValue(undefined),
+vi.mock('../config', () => ({
+    unsetPreviewProject: vi.fn().mockResolvedValue(undefined),
 }));
 
-const mockLightdashApi = lightdashApi as jest.MockedFunction<
-    typeof lightdashApi
->;
+const mockLightdashApi = lightdashApi as MockedFunction<typeof lightdashApi>;
 
 const PREVIEW_UUID = '00000000-0000-0000-0000-000000000001';
 const MAIN_UUID = '00000000-0000-0000-0000-000000000002';
@@ -29,7 +28,7 @@ const mockPreviewProjectResponse = (uuid: string) => {
 
 describe('selectProject', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('returns the preview project (without prompting) when the stored main and preview UUIDs are the same', async () => {
@@ -75,10 +74,10 @@ describe('selectProject', () => {
 });
 
 describe('logSelectedProject', () => {
-    let consoleErrorSpy: jest.SpyInstance;
+    let consoleErrorSpy: MockInstance;
 
     beforeEach(() => {
-        consoleErrorSpy = jest
+        consoleErrorSpy = vi
             .spyOn(console, 'error')
             .mockImplementation(() => {});
     });

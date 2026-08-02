@@ -25,7 +25,10 @@ import {
     UnexpectedServerError,
     UpdateSqlChart,
     type SpaceSummaryBase,
+    type UUID,
+    type UuidOrSlug,
 } from '@lightdash/common';
+import { validate as isValidUuid } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
@@ -1460,16 +1463,57 @@ export class PromoteService extends BaseService {
         }
     }
 
-    async getPromoteDashboardDiff(user: SessionUser, dashboardUuid: string) {
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+    /**
+     * Resolve a dashboard uuid-or-slug for promotion. Slugs are duplicated
+     * across preview projects by design, so an unscoped slug lookup must not
+     * guess — it only resolves when the slug is unique within the caller's
+     * organization; otherwise callers must pass projectUuid or use the uuid.
+     */
+    private async getDashboardToPromote(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        projectUuid?: UUID,
+    ): Promise<DashboardDAO> {
+        if (projectUuid) {
+            return this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug, {
+                projectUuid,
+            });
+        }
+        if (isValidUuid(dashboardUuidOrSlug)) {
+            return this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        }
+        const matches = await this.dashboardModel.find({
+            slug: dashboardUuidOrSlug,
+            organizationUuid: user.organizationUuid!,
+        });
+        if (matches.length === 0) {
+            throw new NotFoundError('Dashboard not found');
+        }
+        if (matches.length > 1) {
+            throw new ParameterError(
+                `Multiple dashboards match slug '${dashboardUuidOrSlug}'. Use the dashboard uuid or pass projectUuid to disambiguate.`,
+            );
+        }
+        return this.dashboardModel.getByIdOrSlug(matches[0].uuid);
+    }
+
+    async getPromoteDashboardDiff(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: UUID },
+    ) {
+        const dashboard = await this.getDashboardToPromote(
+            user,
+            dashboardUuidOrSlug,
+            options?.projectUuid,
+        );
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
             dashboard.projectUuid,
         );
         if (!upstreamProjectUuid)
             throw new NotFoundError(
-                'This chart does not have an upstream project',
+                "This dashboard's project does not have an upstream project",
             );
 
         const { promotedDashboard, upstreamDashboard } =
@@ -2444,16 +2488,23 @@ export class PromoteService extends BaseService {
         return { promotedDashboard, upstreamDashboard };
     }
 
-    async promoteDashboard(user: SessionUser, dashboardUuid: string) {
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+    async promoteDashboard(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: UUID },
+    ) {
+        const dashboard = await this.getDashboardToPromote(
+            user,
+            dashboardUuidOrSlug,
+            options?.projectUuid,
+        );
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
             dashboard.projectUuid,
         );
         if (!upstreamProjectUuid)
             throw new NotFoundError(
-                'This chart does not have an upstream project',
+                "This dashboard's project does not have an upstream project",
             );
 
         const { promotedDashboard, upstreamDashboard } =

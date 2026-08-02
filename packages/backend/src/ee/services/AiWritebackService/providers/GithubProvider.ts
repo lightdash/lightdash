@@ -6,12 +6,14 @@ import {
     ParameterError,
     PullRequestProvider,
     UnexpectedServerError,
+    type ClosePullRequestResult,
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import type { Logger } from 'winston';
 import {
+    closePullRequest as closeGithubPullRequest,
     createBranch,
     createPullRequest,
     createSignedCommitOnBranch,
@@ -52,6 +54,7 @@ import {
 } from '../utils';
 import type {
     AdoptPullRequestArgs,
+    ClosePullRequestArgs,
     GitProvider,
     LandedCommit,
     OpenPullRequestArgs,
@@ -61,6 +64,7 @@ import {
     collectDiffStat,
     collectFileChanges,
     commitLocal,
+    resolveDbtProjectPaths,
     stageChanges,
 } from './sandboxGit';
 
@@ -276,6 +280,7 @@ export class GithubProvider implements GitProvider {
             description,
             user,
             setStage,
+            denyCiPaths: args.denyCiPaths,
         });
 
         setStage('pull_request');
@@ -325,6 +330,7 @@ export class GithubProvider implements GitProvider {
             description,
             user,
             setStage,
+            denyCiPaths: args.denyCiPaths,
         });
 
         setStage('pull_request');
@@ -414,6 +420,21 @@ export class GithubProvider implements GitProvider {
         };
     }
 
+    async closePullRequest({
+        owner,
+        repo,
+        pullNumber,
+        installation,
+    }: ClosePullRequestArgs): Promise<ClosePullRequestResult> {
+        const github = asGithubInstallation(installation);
+        return closeGithubPullRequest({
+            owner,
+            repo,
+            pullNumber,
+            ...githubAuth(github),
+        });
+    }
+
     /**
      * Stage the agent's edits and commit them to `branch` via the GitHub API so
      * the commit is signed/verified and authored by the Lightdash GitHub App. A
@@ -436,6 +457,7 @@ export class GithubProvider implements GitProvider {
         description,
         user,
         setStage,
+        denyCiPaths,
     }: {
         sandbox: SandboxHandle;
         connection: GithubConnection;
@@ -446,10 +468,16 @@ export class GithubProvider implements GitProvider {
         description: string;
         user: SessionUser;
         setStage: SetStage;
+        denyCiPaths: boolean;
     }): Promise<LandedCommit> {
         setStage('commit');
-        await stageChanges(sandbox, connection.projectSubPath, this.logger);
-        const fileChanges = await collectFileChanges(sandbox);
+        const projectPaths = await resolveDbtProjectPaths(
+            sandbox,
+            connection.projectSubPath,
+            this.logger,
+        );
+        await stageChanges(sandbox, projectPaths, this.logger);
+        const fileChanges = await collectFileChanges(sandbox, { denyCiPaths });
         // Read the line stat while the change is still staged — the local commit
         // below clears the index.
         const diffStat = await collectDiffStat(sandbox);

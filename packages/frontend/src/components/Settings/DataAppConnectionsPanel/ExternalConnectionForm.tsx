@@ -1,32 +1,46 @@
 import {
-    ActionIcon,
-    Button,
+    type ExternalConnectionAuthType,
+    type ExternalConnectionMethod,
+} from '@lightdash/common';
+import {
     Divider,
     Group,
+    JsonInput,
     MultiSelect,
-    NumberInput,
     PasswordInput,
     Select,
     Stack,
-    Text,
+    TagsInput,
     TextInput,
 } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
-import { type FC } from 'react';
-import { ExfilWarningCallout } from '../../../features/externalConnections/components/ExfilWarningCallout';
-import MantineIcon from '../../common/MantineIcon';
-import classes from './ExternalConnectionForm.module.css';
+import { type FC, useState } from 'react';
+import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
+import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
+import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
+import { SUGGESTED_GOOGLE_SCOPES } from '../../../features/externalConnections/constants';
+import { type CustomHeaderRow } from '../../../features/externalConnections/utils/customHeaders';
+import {
+    type PathMode,
+    type PathPrefix,
+} from '../../../features/externalConnections/utils/pathRules';
+import { NumberInput } from '../../common/NumberInput';
+import FormCollapseButton from '../../ProjectConnection/FormCollapseButton';
+import FormSection from '../../ProjectConnection/Inputs/FormSection';
 
 export type ExternalConnectionFormValues = {
     name: string;
     origin: string;
-    type: 'none' | 'api_key' | 'bearer_token';
+    instructions: string;
+    type: ExternalConnectionAuthType;
     secret: string;
     apiKeyName: string;
     apiKeyLocation: 'header' | 'query';
-    allowedMethods: ('GET' | 'POST')[];
-    allowedPathPrefixes: string[];
+    oauthScopes: string[];
+    customHeaders: CustomHeaderRow[];
+    allowedMethods: ExternalConnectionMethod[];
+    pathMode: PathMode;
+    allowedPathPrefixes: PathPrefix[];
     allowedContentTypes: string[];
     responseMaxBytes: number;
     requestMaxBytes: number;
@@ -56,8 +70,9 @@ export const ExternalConnectionForm: FC<Props> = ({
     disabled,
     hasSecret,
 }) => {
-    const { type, allowedMethods, origin } = form.values;
+    const { type, allowedMethods } = form.values;
     const allowsPost = allowedMethods.includes('POST');
+    const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
     const secretPlaceholder =
         hasSecret && type !== 'none'
             ? '•••• set (leave blank to keep current)'
@@ -65,11 +80,6 @@ export const ExternalConnectionForm: FC<Props> = ({
 
     return (
         <Stack gap="sm">
-            <ExfilWarningCallout
-                origin={origin}
-                allowedMethods={allowedMethods}
-            />
-
             <TextInput
                 required
                 label="Name"
@@ -90,21 +100,51 @@ export const ExternalConnectionForm: FC<Props> = ({
             <Select
                 label="Authentication"
                 disabled={disabled}
+                allowDeselect={false}
                 data={[
                     { value: 'none', label: 'None' },
                     { value: 'api_key', label: 'API key' },
                     { value: 'bearer_token', label: 'Bearer token' },
+                    {
+                        value: 'google_service_account',
+                        label: 'Google service account',
+                    },
                 ]}
                 {...form.getInputProps('type')}
             />
 
-            {type !== 'none' && (
+            {type !== 'none' && type !== 'google_service_account' && (
                 <PasswordInput
                     label={type === 'api_key' ? 'API key' : 'Bearer token'}
                     placeholder={secretPlaceholder}
                     disabled={disabled}
                     {...form.getInputProps('secret')}
                 />
+            )}
+
+            {type === 'google_service_account' && (
+                <>
+                    <JsonInput
+                        label="Service account JSON"
+                        description="Paste the full service account key file"
+                        placeholder={
+                            secretPlaceholder ??
+                            '{ "type": "service_account", ... }'
+                        }
+                        formatOnBlur
+                        autosize
+                        minRows={4}
+                        disabled={disabled}
+                        {...form.getInputProps('secret')}
+                    />
+                    <TagsInput
+                        label="OAuth scopes"
+                        description="e.g. https://www.googleapis.com/auth/bigquery"
+                        data={SUGGESTED_GOOGLE_SCOPES}
+                        disabled={disabled}
+                        {...form.getInputProps('oauthScopes')}
+                    />
+                </>
             )}
 
             {type === 'api_key' && (
@@ -128,102 +168,89 @@ export const ExternalConnectionForm: FC<Props> = ({
                 </Group>
             )}
 
+            <CustomHeadersField
+                label="Custom headers"
+                value={form.values.customHeaders}
+                onChange={(value) => form.setFieldValue('customHeaders', value)}
+                error={form.errors.customHeaders}
+                disabled={disabled}
+            />
+
             <Divider label="Request policy" labelPosition="left" />
 
-            <MultiSelect
-                required
+            <MethodsField
                 label="Allowed methods"
+                value={allowedMethods}
+                onChange={(value) =>
+                    form.setFieldValue('allowedMethods', value)
+                }
+                error={form.errors.allowedMethods}
                 disabled={disabled}
-                data={[
-                    { value: 'GET', label: 'GET' },
-                    { value: 'POST', label: 'POST' },
-                ]}
-                {...form.getInputProps('allowedMethods')}
             />
 
-            <Stack gap={4}>
-                <Text fz="sm" fw={500}>
-                    Allowed path prefixes
-                </Text>
-                {form.values.allowedPathPrefixes.map((_prefix, index) => (
-                    <div key={index} className={classes.pathPrefixRow}>
-                        <TextInput
-                            w="100%"
-                            placeholder="/v1/"
+            <PathRulesField
+                label="Allowed paths"
+                mode={form.values.pathMode}
+                onModeChange={(mode) => form.setFieldValue('pathMode', mode)}
+                prefixes={form.values.allowedPathPrefixes}
+                onPrefixesChange={(prefixes) =>
+                    form.setFieldValue('allowedPathPrefixes', prefixes)
+                }
+                error={form.errors.allowedPathPrefixes}
+                disabled={disabled}
+            />
+
+            <FormSection name="advanced" isOpen={isAdvancedOpen}>
+                <Stack gap="sm" mt="xs">
+                    <MultiSelect
+                        label="Allowed response content types"
+                        disabled={disabled}
+                        data={CONTENT_TYPE_OPTIONS}
+                        searchable
+                        {...form.getInputProps('allowedContentTypes')}
+                    />
+
+                    <Group grow align="flex-start">
+                        <NumberInput
+                            label="Response max bytes"
+                            min={0}
                             disabled={disabled}
-                            {...form.getInputProps(
-                                `allowedPathPrefixes.${index}`,
-                            )}
+                            {...form.getInputProps('responseMaxBytes')}
                         />
-                        <ActionIcon
-                            color="red"
-                            variant="subtle"
+                        {allowsPost && (
+                            <NumberInput
+                                label="Request max bytes"
+                                min={0}
+                                disabled={disabled}
+                                {...form.getInputProps('requestMaxBytes')}
+                            />
+                        )}
+                    </Group>
+
+                    <Group grow align="flex-start">
+                        <NumberInput
+                            label="Timeout (ms)"
+                            min={0}
                             disabled={disabled}
-                            onClick={() =>
-                                form.removeListItem(
-                                    'allowedPathPrefixes',
-                                    index,
-                                )
-                            }
-                        >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    </div>
-                ))}
-                <Button
-                    variant="subtle"
-                    size="compact-sm"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    disabled={disabled}
-                    onClick={() =>
-                        form.insertListItem('allowedPathPrefixes', '')
-                    }
-                >
-                    Add path prefix
-                </Button>
-            </Stack>
-
-            <MultiSelect
-                label="Allowed response content types"
-                disabled={disabled}
-                data={CONTENT_TYPE_OPTIONS}
-                searchable
-                {...form.getInputProps('allowedContentTypes')}
-            />
-
-            <Group grow align="flex-start">
-                <NumberInput
-                    label="Response max bytes"
-                    min={0}
-                    disabled={disabled}
-                    {...form.getInputProps('responseMaxBytes')}
-                />
-                {allowsPost && (
-                    <NumberInput
-                        label="Request max bytes"
-                        min={0}
-                        disabled={disabled}
-                        {...form.getInputProps('requestMaxBytes')}
-                    />
-                )}
-            </Group>
-
-            <Group grow align="flex-start">
-                <NumberInput
-                    label="Timeout (ms)"
-                    min={0}
-                    disabled={disabled}
-                    {...form.getInputProps('timeoutMs')}
-                />
-                {allowsPost && (
-                    <NumberInput
-                        label="Rate limit (per minute)"
-                        min={0}
-                        disabled={disabled}
-                        {...form.getInputProps('rateLimitPerMinute')}
-                    />
-                )}
-            </Group>
+                            {...form.getInputProps('timeoutMs')}
+                        />
+                        {allowsPost && (
+                            <NumberInput
+                                label="Rate limit (per minute)"
+                                min={0}
+                                disabled={disabled}
+                                {...form.getInputProps('rateLimitPerMinute')}
+                            />
+                        )}
+                    </Group>
+                </Stack>
+            </FormSection>
+            <FormCollapseButton
+                isSectionOpen={isAdvancedOpen}
+                onClick={() => setIsAdvancedOpen((open) => !open)}
+            >
+                Advanced settings
+            </FormCollapseButton>
         </Stack>
     );
 };

@@ -1,0 +1,778 @@
+/**
+ * Unit tests for the PURE core of the release-safety generator.
+ * Run: `npx tsx scripts/gen-release-safety.test.ts`
+ *
+ * Self-contained (node:assert) so it does not depend on the jest project config.
+ */
+import * as assert from 'assert';
+import {
+    buildMarker,
+    detectMigrations,
+    GitChange,
+    MARKER_SCHEMA_VERSION,
+    ownExpandContractFloor,
+} from './gen-release-safety';
+
+let passed = 0;
+const failures: string[] = [];
+
+function test(name: string, fn: () => void): void {
+    try {
+        fn();
+        passed += 1;
+    } catch (err) {
+        failures.push(
+            `${name}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+    }
+}
+
+const CORE = 'packages/backend/src/database/migrations';
+const EE = 'packages/backend/src/ee/database/migrations';
+const change = (status: string, p: string): GitChange => ({ status, path: p });
+
+// --- detectMigrations --------------------------------------------------------
+
+test('counts only ADDED timestamped migration files', () => {
+    const res = detectMigrations([
+        change('A', `${CORE}/20260628120000_add_thing.ts`),
+        change('A', `${CORE}/20260628130000_add_other.ts`),
+    ]);
+    assert.strictEqual(res.present, true);
+    assert.strictEqual(res.count, 2);
+    assert.deepStrictEqual(res.files, [
+        '20260628120000_add_thing.ts',
+        '20260628130000_add_other.ts',
+    ]);
+    assert.strictEqual(res.ee, false);
+});
+
+test('does NOT count modified/renamed/copied historical migrations', () => {
+    const res = detectMigrations([
+        change('M', `${CORE}/20210713230243_users.ts`),
+        change('R100', `${CORE}/20210713230243_users.ts`),
+        change('C75', `${CORE}/20210713230243_users.ts`),
+    ]);
+    assert.strictEqual(res.present, false);
+    assert.strictEqual(res.count, 0);
+});
+
+test('records deleted historical migrations as a warning, not a count', () => {
+    const res = detectMigrations([
+        change('D', `${CORE}/20210713230243_users.ts`),
+    ]);
+    assert.strictEqual(res.present, false);
+    assert.strictEqual(res.count, 0);
+    assert.deepStrictEqual(res.deletedHistorical, ['20210713230243_users.ts']);
+});
+
+test('ee flag true iff an added file is under the ee migrations dir', () => {
+    assert.strictEqual(
+        detectMigrations([change('A', `${EE}/20260628120000_x.ts`)]).ee,
+        true,
+    );
+    assert.strictEqual(
+        detectMigrations([change('A', `${CORE}/20260628120000_x.ts`)]).ee,
+        false,
+    );
+});
+
+test('core + ee counts reconcile to total', () => {
+    const res = detectMigrations([
+        change('A', `${CORE}/20260628120000_core.ts`),
+        change('A', `${EE}/20260628130000_ee.ts`),
+    ]);
+    assert.strictEqual(res.count, 2);
+    assert.strictEqual(res.ee, true);
+});
+
+test('ignores non-migration files and non-timestamped names', () => {
+    const res = detectMigrations([
+        change('A', `${CORE}/README.md`),
+        change('A', `${CORE}/helpers.ts`),
+        change('A', `${CORE}/notatimestamp_x.ts`),
+    ]);
+    assert.strictEqual(res.present, false);
+    assert.strictEqual(res.count, 0);
+});
+
+test('accepts compiled .js migration filenames too', () => {
+    const res = detectMigrations([
+        change('A', `${CORE}/20260628120000_add_thing.js`),
+    ]);
+    assert.strictEqual(res.count, 1);
+});
+
+// --- buildMarker honesty rules -----------------------------------------------
+
+const base = {
+    version: '0.3261.0',
+    previousVersion: '0.3260.2',
+    releaseDate: '2026-06-29T00:00:00.000Z',
+};
+
+test('migration-bearing release => rollingUpdateSafe "unknown", Recreate', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: {
+            present: true,
+            count: 1,
+            files: ['x.ts'],
+            ee: false,
+            deletedHistorical: [],
+        },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'Recreate');
+    assert.notStrictEqual(m.compatibility.rollingUpdateSafe, false); // never silently false
+});
+
+test('no-migration release => rollingUpdateSafe true, RollingUpdate', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: {
+            present: false,
+            count: 0,
+            files: [],
+            ee: false,
+            deletedHistorical: [],
+        },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'RollingUpdate');
+});
+
+test('first release (null migrations) => present "unknown", never claims safe', () => {
+    const m = buildMarker({
+        version: '0.0.1',
+        previousVersion: null,
+        releaseDate: base.releaseDate,
+        migrations: null,
+    });
+    assert.strictEqual(m.migrations.present, 'unknown');
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.strictEqual(m.previousVersion, null);
+});
+
+test('marker shape: schemaVersion, capabilities, api unchecked stubs', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: {
+            present: true,
+            count: 1,
+            files: ['x.ts'],
+            ee: false,
+            deletedHistorical: [],
+        },
+    });
+    assert.strictEqual(m.schemaVersion, MARKER_SCHEMA_VERSION);
+    assert.deepStrictEqual(m.capabilities, ['migrations']);
+    assert.strictEqual(m.api.rest.checked, false);
+    assert.strictEqual(m.api.mcp.checked, false);
+    assert.strictEqual(m.upgrade.requiredStop, false);
+    assert.strictEqual(m.upgrade.minPreviousVersion, null);
+});
+
+test('notes always disclose the blind spot', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: {
+            present: false,
+            count: 0,
+            files: [],
+            ee: false,
+            deletedHistorical: [],
+        },
+    });
+    assert.ok(/does NOT/i.test(m.compatibility.notes));
+});
+
+// --- aiReview override (P6) --------------------------------------------------
+
+test('aiReview flips a migration-bearing release to its verdict + adds capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'All migrations additive; verified old code unaffected.',
+        },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'RollingUpdate');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review']);
+    assert.ok(/AI rolling-update review:/.test(m.compatibility.notes));
+});
+
+test('aiReview "breaking" verdict sets rollingUpdateSafe false', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        aiReview: {
+            rollingUpdateSafe: false,
+            recommendedStrategy: 'Recreate',
+            summary: 'Drops a column the old code still reads.',
+        },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'Recreate');
+});
+
+test('aiReview is ignored on a no-migration release (never invents a verdict)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        aiReview: {
+            rollingUpdateSafe: false,
+            recommendedStrategy: 'Recreate',
+            summary: 'should be ignored',
+        },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true); // base no-migration value
+    assert.deepStrictEqual(m.capabilities, ['migrations']);
+});
+
+// --- restApi (P2) ------------------------------------------------------------
+
+test('checked restApi populates api.rest + adds "rest" capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        restApi: {
+            checked: true,
+            breaking: true,
+            changes: ['GET /api/v1/foo — api removed without deprecation'],
+        },
+    });
+    assert.strictEqual(m.api.rest.checked, true);
+    assert.strictEqual(m.api.rest.breaking, true);
+    assert.deepStrictEqual(m.api.rest.changes, ['GET /api/v1/foo — api removed without deprecation']);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'rest']);
+});
+
+test('checked-but-clean restApi => breaking false, "rest" capability present', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        restApi: { checked: true, breaking: false, changes: [] },
+    });
+    assert.strictEqual(m.api.rest.checked, true);
+    assert.strictEqual(m.api.rest.breaking, false);
+    assert.ok(m.capabilities.includes('rest'));
+});
+
+test('unchecked restApi leaves the stub and does NOT claim the capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        restApi: { checked: false, breaking: false, changes: [] },
+    });
+    assert.strictEqual(m.api.rest.checked, false);
+    assert.ok(!m.capabilities.includes('rest'));
+});
+
+test('null restApi behaves like the unchecked stub (back-compat)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        restApi: null,
+    });
+    assert.strictEqual(m.api.rest.checked, false);
+    assert.deepStrictEqual(m.capabilities, ['migrations']);
+});
+
+test('restApi and aiReview compose: capabilities carry both', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'safe.' },
+        restApi: { checked: true, breaking: false, changes: [] },
+    });
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest']);
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.api.rest.checked, true);
+});
+
+// --- sqlLint (deterministic floor) -------------------------------------------
+
+const migPresent = { present: true as const, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] };
+
+test('sqlLint breaking sets rollingUpdateSafe false + adds "sql-lint" capability (no AI)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'Recreate');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint']);
+    assert.ok(/Migration linter detected breaking/.test(m.compatibility.notes));
+});
+
+test('high-confidence AI "safe" OVERRIDES a linter flag + derives a minPreviousVersion floor', () => {
+    const m = buildMarker({
+        ...base, // previousVersion: '0.3260.2'
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'old code has zero refs to the dropped column.' },
+    });
+    // AI wins: the drop is the contract step of an expand/contract → safe
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'RollingUpdate');
+    assert.ok(/CLEARED a deterministic linter flag/.test(m.compatibility.notes));
+    assert.ok(/Safe ONLY when upgrading from 0\.3260\.2/.test(m.compatibility.notes));
+    // ...and the safe verdict is made honest with an auto-derived upgrade floor
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review', 'upgrade']);
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3260.2');
+    assert.strictEqual(m.upgrade.requiredStop, false);
+    assert.ok(/Auto-derived/.test(m.upgrade.note ?? ''));
+});
+
+test('a git-traced expand floor is preferred over the conservative previousVersion', () => {
+    const m = buildMarker({
+        ...base, // previousVersion: '0.3260.2'
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared.' },
+        expandContractFloor: '0.3240.0', // app stopped using it 20 minors earlier
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3240.0'); // traced, more permissive
+    assert.ok(/git history shows the app stopped referencing/.test(m.upgrade.note ?? ''));
+});
+
+test('a human-authored minPreviousVersion (overrides) wins over the auto-derived floor', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared.' },
+        upgrade: { consulted: true, minPreviousVersion: '0.3100.0', requiredStop: true, note: 'maintainer set this' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3100.0'); // overrides win
+    assert.strictEqual(m.upgrade.requiredStop, true);
+    assert.strictEqual(m.upgrade.note, 'maintainer set this');
+});
+
+test('no expand/contract derivation when the AI cleared a linter-CLEAN migration', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: false, findings: [] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'additive, verified.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    // additive clearance is not an expand/contract → no auto floor, no upgrade cap
+    assert.ok(!m.capabilities.includes('upgrade'));
+    assert.strictEqual(m.upgrade.minPreviousVersion, null);
+});
+
+test('AI "breaking" confirms a linter flag → stays false', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'old code still reads the column.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review']);
+});
+
+test('inconclusive AI ("unknown") does NOT downgrade a linter flag — floor holds at false', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['m.ts:3 drops a column [drop-column]'] },
+        aiReview: { rollingUpdateSafe: 'unknown', recommendedStrategy: 'Recreate', summary: 'could not verify.' },
+    });
+    // AI ran (capability claimed) but stayed unknown → linter floor of false is kept
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review']);
+    assert.ok(/Migration linter detected breaking/.test(m.compatibility.notes));
+});
+
+test('sqlLint clean leaves verdict unknown and claims the capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: false, findings: [] },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint']);
+});
+
+test('sqlLint clean + AI "safe" => AI applies (true); both capabilities, sql-lint first', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: false, findings: [] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'verified additive' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review']);
+});
+
+test('sqlLint that did not run claims no capability and changes nothing', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: false, breaking: false, findings: [] },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.ok(!m.capabilities.includes('sql-lint'));
+});
+
+test('sqlLint is ignored on a no-migration release (never invents a verdict)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        sqlLint: { ran: true, breaking: true, findings: ['should be ignored'] },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true); // no-migration base value
+    assert.ok(!m.capabilities.includes('sql-lint'));
+});
+
+// --- mcpApi (P3) -------------------------------------------------------------
+
+test('checked mcpApi populates api.mcp + adds "mcp" capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        mcpApi: { checked: true, breaking: true, changes: ['MCP tool `x` removed'] },
+    });
+    assert.strictEqual(m.api.mcp.checked, true);
+    assert.strictEqual(m.api.mcp.breaking, true);
+    assert.deepStrictEqual(m.api.mcp.changes, ['MCP tool `x` removed']);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'mcp']);
+});
+
+test('unchecked/null mcpApi leaves the stub and does NOT claim the capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        mcpApi: { checked: false, breaking: false, changes: [] },
+    });
+    assert.strictEqual(m.api.mcp.checked, false);
+    assert.ok(!m.capabilities.includes('mcp'));
+    const m2 = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        mcpApi: null,
+    });
+    assert.ok(!m2.capabilities.includes('mcp'));
+});
+
+// --- AI validates non-migration breaks (REST/MCP) ----------------------------
+
+const noMig = { present: false as const, count: 0, files: [], ee: false, deletedHistorical: [] };
+
+test('REST break with NO migration → base "unknown" (cautious), not silently safe', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: true, changes: ['DELETE /api/v1/foo — endpoint removed'] },
+    });
+    // no migration would normally be "true"; a flagged REST break makes it unknown
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'Recreate');
+    assert.ok(/breaking REST API change/.test(m.compatibility.notes));
+    // AI did not run here, so no ai-review capability — but rest is claimed
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'rest']);
+});
+
+test('REST break + AI "safe/high" verdict → RollingUpdate (in-flight frontend unaffected)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: true, changes: ['DELETE /api/v1/legacy — removed'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'Endpoint is external-only; the bundled frontend never calls it.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'RollingUpdate');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest']);
+    assert.ok(/AI rolling-update review:/.test(m.compatibility.notes));
+});
+
+test('REST break + AI "breaking" verdict → false (an in-flight consumer breaks)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: true, changes: ['GET /api/v1/saved — response field removed'] },
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'The bundled frontend reads the removed field.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.strictEqual(m.compatibility.recommendedStrategy, 'Recreate');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest']);
+});
+
+test('REST break + inconclusive AI ("unknown") → stays "unknown" (never asserts safe)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: true, changes: ['PATCH /api/v1/x — param now required'] },
+        aiReview: { rollingUpdateSafe: 'unknown', recommendedStrategy: 'Recreate', summary: 'Could not determine frontend usage.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, 'unknown');
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'rest']);
+});
+
+test('MCP break with NO migration + AI "breaking" → false', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        mcpApi: { checked: true, breaking: true, changes: ['MCP tool `run_query` removed'] },
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'An in-flight agent session would fail the call.' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'ai-review', 'mcp']);
+});
+
+test('a clean REST surface does NOT make a no-migration release "unknown"', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        restApi: { checked: true, breaking: false, changes: [] },
+        // an aiReview passed here must be ignored — nothing was flagged to validate
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'should be ignored' },
+    });
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, true);
+    assert.ok(!m.capabilities.includes('ai-review'));
+});
+
+// --- upgrade overrides (P4) --------------------------------------------------
+
+test('consulted upgrade override folds into the upgrade block + adds "upgrade" capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        upgrade: {
+            consulted: true,
+            minPreviousVersion: '0.3200.0',
+            requiredStop: true,
+            note: 'Stop here first.',
+        },
+    });
+    assert.strictEqual(m.upgrade.requiredStop, true);
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3200.0');
+    assert.strictEqual(m.upgrade.note, 'Stop here first.');
+    assert.ok(m.capabilities.includes('upgrade'));
+});
+
+test('consulted-but-default upgrade => stub values, "upgrade" capability still present', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        upgrade: { consulted: true, minPreviousVersion: null, requiredStop: false, note: null },
+    });
+    assert.strictEqual(m.upgrade.requiredStop, false);
+    assert.ok(m.capabilities.includes('upgrade'));
+});
+
+test('unconsulted/null upgrade leaves the stub and does NOT claim the capability', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        upgrade: { consulted: false, minPreviousVersion: null, requiredStop: false, note: null },
+    });
+    assert.strictEqual(m.upgrade.requiredStop, false);
+    assert.ok(!m.capabilities.includes('upgrade'));
+    const m2 = buildMarker({
+        ...base,
+        migrations: { present: false, count: 0, files: [], ee: false, deletedHistorical: [] },
+        upgrade: null,
+    });
+    assert.ok(!m2.capabilities.includes('upgrade'));
+});
+
+test('all phases compose: capabilities ordered migrations, sql-lint, ai-review, rest, mcp, upgrade', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: { present: true, count: 1, files: ['x.ts'], ee: false, deletedHistorical: [] },
+        sqlLint: { ran: true, breaking: false, findings: [] },
+        aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: 'breaks.' },
+        restApi: { checked: true, breaking: true, changes: ['GET /x — removed'] },
+        mcpApi: { checked: true, breaking: false, changes: [] },
+        upgrade: { consulted: true, minPreviousVersion: null, requiredStop: true, note: 'stop' },
+    });
+    assert.deepStrictEqual(m.capabilities, ['migrations', 'sql-lint', 'ai-review', 'rest', 'mcp', 'upgrade']);
+    assert.strictEqual(m.compatibility.rollingUpdateSafe, false);
+    assert.strictEqual(m.api.rest.breaking, true);
+    assert.strictEqual(m.api.mcp.checked, true);
+    assert.strictEqual(m.upgrade.requiredStop, true);
+});
+
+// --- carriedFloor (forward-carried high-water mark) --------------------------
+
+test('carriedFloor sets the floor on a release with no own floor + claims "upgrade"', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        carriedFloor: { minPreviousVersion: '0.3260.0', sourceVersion: '0.3265.0', kind: 'minPrevious' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3260.0');
+    assert.strictEqual(m.upgrade.requiredStop, false);
+    assert.ok(m.capabilities.includes('upgrade'));
+    assert.ok(/0\.3265\.0/.test(m.upgrade.note ?? ''));
+});
+
+test('carriedFloor RAISES a lower human-declared floor (an in-between hazard wins)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        upgrade: { consulted: true, minPreviousVersion: '0.3200.0', requiredStop: false, note: 'declared' },
+        carriedFloor: { minPreviousVersion: '0.3260.0', sourceVersion: '0.3265.0', kind: 'minPrevious' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3260.0'); // raised, not 0.3200.0
+    assert.ok(/0\.3265\.0/.test(m.upgrade.note ?? ''));
+    assert.ok(/declared/.test(m.upgrade.note ?? '')); // prior note preserved
+});
+
+test('carriedFloor does NOT lower a higher existing floor', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        upgrade: { consulted: true, minPreviousVersion: '0.3290.0', requiredStop: false, note: 'declared' },
+        carriedFloor: { minPreviousVersion: '0.3260.0', sourceVersion: '0.3265.0', kind: 'minPrevious' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3290.0'); // unchanged
+    assert.strictEqual(m.upgrade.note, 'declared'); // note untouched
+});
+
+test('a required-stop carriedFloor yields a required-stop note; own requiredStop preserved', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        upgrade: { consulted: true, minPreviousVersion: null, requiredStop: true, note: 'this release is also a stop' },
+        carriedFloor: { minPreviousVersion: '0.3280.0', sourceVersion: '0.3280.0', kind: 'requiredStop' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3280.0');
+    assert.strictEqual(m.upgrade.requiredStop, true); // own stop preserved
+    assert.ok(/required stop/i.test(m.upgrade.note ?? ''));
+});
+
+// --- ownExpandContractFloor (persisted-floor source of truth) ----------------
+
+test('ownExpandContractFloor returns the traced expand floor when present', () => {
+    const f = ownExpandContractFloor({
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['drop-column'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared' },
+        expandContractFloor: '0.3240.0',
+        previousVersion: '0.3260.2',
+    });
+    assert.strictEqual(f, '0.3240.0');
+});
+
+test('ownExpandContractFloor falls back to previousVersion with no traced floor', () => {
+    const f = ownExpandContractFloor({
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['drop-column'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared' },
+        previousVersion: '0.3260.2',
+    });
+    assert.strictEqual(f, '0.3260.2');
+});
+
+test('ownExpandContractFloor is null unless linter-flagged AND AI-cleared AND migration present', () => {
+    const cleared = { rollingUpdateSafe: true as const, recommendedStrategy: 'RollingUpdate' as const, summary: '' };
+    const breaking = { ran: true, breaking: true, findings: ['x'] };
+    // linter clean → null
+    assert.strictEqual(ownExpandContractFloor({ migrations: migPresent, sqlLint: { ran: true, breaking: false, findings: [] }, aiReview: cleared, previousVersion: '0.3260.2' }), null);
+    // AI not "safe" → null
+    assert.strictEqual(ownExpandContractFloor({ migrations: migPresent, sqlLint: breaking, aiReview: { rollingUpdateSafe: false, recommendedStrategy: 'Recreate', summary: '' }, previousVersion: '0.3260.2' }), null);
+    // no migration → null
+    assert.strictEqual(ownExpandContractFloor({ migrations: noMig, sqlLint: breaking, aiReview: cleared, previousVersion: '0.3260.2' }), null);
+    // first release (no previousVersion, no traced floor) → null
+    assert.strictEqual(ownExpandContractFloor({ migrations: migPresent, sqlLint: breaking, aiReview: cleared, previousVersion: null }), null);
+});
+
+test('NO DRIFT: ownExpandContractFloor equals the floor buildMarker advertises', () => {
+    // Same inputs, no human override and no carried floor → the persisted floor
+    // (ownExpandContractFloor) must equal what the marker shows, or operators get a
+    // floor in the committed file that disagrees with the published marker.
+    const input = {
+        ...base,
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['drop-column'] },
+        aiReview: { rollingUpdateSafe: true as const, recommendedStrategy: 'RollingUpdate' as const, summary: 'cleared' },
+        expandContractFloor: '0.3240.0',
+    };
+    const m = buildMarker(input);
+    assert.strictEqual(ownExpandContractFloor(input), m.upgrade.minPreviousVersion);
+    assert.strictEqual(ownExpandContractFloor(input), '0.3240.0');
+});
+
+// --- upgrade.sourceVersion / kind / requiredStops (structured, no prose) -----
+
+test('carriedFloor from a required stop => kind=requiredStop + sourceVersion (the stop to LAND on)', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        carriedFloor: { minPreviousVersion: '0.3280.0', sourceVersion: '0.3280.0', kind: 'requiredStop' },
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3280.0');
+    assert.strictEqual(m.upgrade.kind, 'requiredStop');
+    assert.strictEqual(m.upgrade.sourceVersion, '0.3280.0');
+});
+
+test('carriedFloor from a drop floor => kind=minPrevious + the source release', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        carriedFloor: { minPreviousVersion: '0.3260.0', sourceVersion: '0.3265.0', kind: 'minPrevious' },
+    });
+    assert.strictEqual(m.upgrade.kind, 'minPrevious');
+    assert.strictEqual(m.upgrade.sourceVersion, '0.3265.0');
+});
+
+test("this release's own expand/contract floor is attributed to this version", () => {
+    const m = buildMarker({
+        ...base, // version 0.3261.0
+        migrations: migPresent,
+        sqlLint: { ran: true, breaking: true, findings: ['drop-column'] },
+        aiReview: { rollingUpdateSafe: true, recommendedStrategy: 'RollingUpdate', summary: 'cleared' },
+        expandContractFloor: '0.3240.0',
+    });
+    assert.strictEqual(m.upgrade.minPreviousVersion, '0.3240.0');
+    assert.strictEqual(m.upgrade.sourceVersion, '0.3261.0'); // this release set it
+    assert.strictEqual(m.upgrade.kind, 'minPrevious');
+});
+
+test('a default floor => kind=default, sourceVersion null', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        carriedFloor: { minPreviousVersion: '0.3000.0', sourceVersion: null, kind: 'default' },
+    });
+    assert.strictEqual(m.upgrade.kind, 'default');
+    assert.strictEqual(m.upgrade.sourceVersion, null);
+});
+
+test('no floor => sourceVersion null and kind null', () => {
+    const m = buildMarker({ ...base, migrations: noMig });
+    assert.strictEqual(m.upgrade.minPreviousVersion, null);
+    assert.strictEqual(m.upgrade.sourceVersion, null);
+    assert.strictEqual(m.upgrade.kind, null);
+});
+
+test('requiredStops list surfaces verbatim on the marker; defaults to []', () => {
+    const m = buildMarker({
+        ...base,
+        migrations: noMig,
+        requiredStops: ['0.3280.0', '0.3290.0'],
+    });
+    assert.deepStrictEqual(m.upgrade.requiredStops, ['0.3280.0', '0.3290.0']);
+    const m2 = buildMarker({ ...base, migrations: noMig });
+    assert.deepStrictEqual(m2.upgrade.requiredStops, []);
+});
+
+// --- report ------------------------------------------------------------------
+
+if (failures.length > 0) {
+    console.error(`\n❌ ${failures.length} failed, ${passed} passed:\n`);
+    for (const f of failures) console.error(`  - ${f}`);
+    process.exit(1);
+}
+console.log(`✅ ${passed} tests passed`);

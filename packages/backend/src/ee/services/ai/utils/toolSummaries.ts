@@ -57,6 +57,8 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
                 quoted(readString(input, ['contentUuid', 'slug'])) ??
                 'Reading content'
             );
+        case 'resolveUrl':
+            return quoted(readString(input, ['url'])) ?? 'Resolving link';
         case 'describeWarehouseTable':
             return (
                 quoted(readString(input, ['table', 'tableName'])) ??
@@ -73,8 +75,9 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
         case 'getProjectInfo':
             return 'Reading project details';
         case 'editDbtProject':
-        case 'proposeChange':
             return 'Preparing change proposal';
+        case 'editRepo':
+            return 'Editing repository';
         default:
             return quoted(
                 readString(input, ['query', 'searchQuery', 'name', 'path']),
@@ -82,12 +85,24 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
     }
 };
 
+export const isPendingToolResult = (output: AnyType) =>
+    Boolean(output) &&
+    typeof output === 'object' &&
+    typeof output.metadata === 'object' &&
+    Boolean(output.metadata) &&
+    output.metadata.status === 'pending';
+
 export const summarizeToolResult = (toolName: string, output: AnyType) => {
     if (!output || typeof output !== 'object') return `Finished ${toolName}`;
     const metadataStatus =
         typeof output.metadata === 'object' && output.metadata
             ? output.metadata.status
             : undefined;
+    if (metadataStatus === 'pending') {
+        return (
+            summarizeToolCall(toolName, undefined) ?? `Running ${toolName}...`
+        );
+    }
     if (typeof metadataStatus === 'string' && metadataStatus !== 'success') {
         if (toolName === 'runSql') {
             return 'Skipped restricted SQL; used table metadata instead';
@@ -125,7 +140,7 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
         }
         return 'Query ran';
     }
-    if (toolName === 'editDbtProject') {
+    if (toolName === 'editDbtProject' || toolName === 'editRepo') {
         const metadata =
             typeof output.metadata === 'object' && output.metadata
                 ? output.metadata
@@ -133,7 +148,9 @@ export const summarizeToolResult = (toolName: string, output: AnyType) => {
         const action = (metadata as { prAction?: string | null }).prAction;
         if (action === 'updated') return 'Pull request updated';
         if (action === 'opened') return 'Pull request opened';
-        return 'Writeback complete';
+        return toolName === 'editRepo'
+            ? 'Coding agent complete'
+            : 'Writeback complete';
     }
     if (typeof output.rowCount === 'number') {
         return `Returned ${output.rowCount} rows`;

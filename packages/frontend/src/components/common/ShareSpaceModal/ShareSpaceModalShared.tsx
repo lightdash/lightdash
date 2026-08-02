@@ -29,6 +29,7 @@ import chunk from 'lodash/chunk';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useUpdateMutation } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
+import { LightdashUserAvatar } from '../../Avatar';
 import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
@@ -116,11 +117,12 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                         className={classes.userRow}
                     >
                         <Group>
-                            <Avatar
+                            <LightdashUserAvatar
                                 size="sm"
-                                radius="xl"
                                 tt="uppercase"
-                                color="blue"
+                                userUuid={sharedUser.userUuid}
+                                avatarUrl={sharedUser.avatarUrl}
+                                avatarGradient={sharedUser.avatarGradient}
                             >
                                 {getInitials(
                                     sharedUser.userUuid,
@@ -129,7 +131,7 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                                     sharedUser.email,
                                     sharedUser.isInternal,
                                 )}
-                            </Avatar>
+                            </LightdashUserAvatar>
                             <Text fw={600} fz="sm">
                                 {getUserNameOrEmail(
                                     sharedUser.userUuid,

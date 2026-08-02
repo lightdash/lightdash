@@ -1,5 +1,6 @@
 import {
     GetClusterCredentialsCommand,
+    GetClusterCredentialsWithIAMCommand,
     RedshiftClient,
     type RedshiftClientConfig,
 } from '@aws-sdk/client-redshift';
@@ -11,6 +12,7 @@ import { fromTemporaryCredentials } from '@aws-sdk/credential-providers';
 import {
     CreateRedshiftCredentials,
     getErrorMessage,
+    RedshiftIamTokenError,
     WarehouseConnectionError,
 } from '@lightdash/common';
 
@@ -20,6 +22,23 @@ import {
 const CREDENTIALS_DURATION_SECONDS = 3600;
 
 const ROLE_SESSION_NAME = 'lightdash-redshift-session';
+
+const EXPIRED_AWS_TOKEN_ERROR_NAMES = new Set([
+    'ExpiredToken',
+    'ExpiredTokenException',
+]);
+
+export const isExpiredAwsTokenError = (error: unknown): boolean => {
+    const errorName = (error as { name?: string })?.name;
+    const errorMessage = getErrorMessage(error).toLowerCase();
+
+    return (
+        (!!errorName && EXPIRED_AWS_TOKEN_ERROR_NAMES.has(errorName)) ||
+        errorMessage.includes(
+            'security token included in the request is expired',
+        )
+    );
+};
 
 export type RedshiftIamDbCredentials = {
     dbUser: string;
@@ -126,15 +145,32 @@ export const mintRedshiftIamCredentials = async (
                 'Redshift IAM authentication requires a cluster identifier',
             );
         }
-        if (!credentials.user) {
-            throw new WarehouseConnectionError(
-                'Redshift IAM authentication requires a database user',
-            );
-        }
+
         const client = new RedshiftClient({
             region: credentials.region,
             credentials: awsCredentials,
         });
+
+        if (!credentials.user) {
+            const response = await client.send(
+                new GetClusterCredentialsWithIAMCommand({
+                    ClusterIdentifier: credentials.clusterIdentifier,
+                    DbName: credentials.dbname,
+                    DurationSeconds: CREDENTIALS_DURATION_SECONDS,
+                }),
+            );
+            if (!response.DbUser || !response.DbPassword) {
+                throw new WarehouseConnectionError(
+                    'Redshift did not return temporary credentials',
+                );
+            }
+            return {
+                dbUser: response.DbUser,
+                dbPassword: response.DbPassword,
+                expiration: response.Expiration,
+            };
+        }
+
         const response = await client.send(
             new GetClusterCredentialsCommand({
                 ClusterIdentifier: credentials.clusterIdentifier,
@@ -161,6 +197,11 @@ export const mintRedshiftIamCredentials = async (
     } catch (e) {
         if (e instanceof WarehouseConnectionError) {
             throw e;
+        }
+        if (isExpiredAwsTokenError(e)) {
+            throw new RedshiftIamTokenError(
+                'Your Redshift IAM AWS session has expired. Generate new AWS credentials and log in to Redshift again.',
+            );
         }
         throw new WarehouseConnectionError(
             `Failed to mint Redshift IAM credentials: ${getErrorMessage(e)}`,

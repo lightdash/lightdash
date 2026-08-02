@@ -4,6 +4,11 @@ import { EventEmitter } from 'events';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
+import { registerAiUsageTracker } from './analytics/aiUsage';
+import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
+import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
+import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
+import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { registerOAuthRefreshStrategies } from './auth/registerOAuthRefreshStrategies';
 import {
@@ -13,8 +18,12 @@ import {
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
+import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import { initOtelHttpMetrics } from './prometheus/otelHttpMetrics';
+import {
+    initOtelHttpMetrics,
+    shouldSelfRegisterHttpInstrumentation,
+} from './prometheus/otelHttpMetrics';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import schedulerWorkerEventEmitter, {
@@ -24,7 +33,7 @@ import {
     derivePoolIdFromEnv,
     SchedulerWorkerHealth,
 } from './scheduler/SchedulerWorkerHealth';
-import { IGNORE_ERRORS } from './sentry';
+import { errorsOnlyIntegrations, IGNORE_ERRORS } from './sentry';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
@@ -38,6 +47,8 @@ import {
 } from './tracing/tracing';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
+
+const FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS = 15 * 60 * 1000;
 
 type SchedulerAppArguments = {
     lightdashConfig: LightdashConfig;
@@ -62,6 +73,7 @@ const schedulerWorkerFactory = (context: {
     clients: ClientRepository;
     utils: UtilRepository;
     workerHealth: SchedulerWorkerHealth;
+    prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
@@ -94,10 +106,15 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getPreAggregateMaterializationService(),
         organizationSettingsModel:
             context.models.getOrganizationSettingsModel(),
+        emailWhitelabelService:
+            context.serviceRepository.getEmailWhitelabelService(),
+        warehouseConnectCodeModel:
+            context.models.getWarehouseConnectCodeModel(),
         workerHealth: context.workerHealth,
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
+        prometheusMetrics: context.prometheusMetrics,
     });
 
 export default class SchedulerApp {
@@ -117,6 +134,8 @@ export default class SchedulerApp {
 
     private readonly prometheusMetrics: PrometheusMetrics;
 
+    private readonly eventStreamWriter: BufferedEventStreamWriter | null;
+
     private readonly models: ModelRepository;
 
     private readonly database: Knex;
@@ -125,11 +144,20 @@ export default class SchedulerApp {
 
     private readonly analyticsEventEmitter: EventEmitter;
 
+    private featureFlagCheckFlushInterval: NodeJS.Timeout | undefined;
+
     constructor(args: SchedulerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
         this.environment = args.environment || 'production';
         this.analyticsEventEmitter = new EventEmitter();
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
+        this.eventStreamWriter = createEventStreamWriter(
+            this.lightdashConfig,
+            this.prometheusMetrics,
+        );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
@@ -142,7 +170,14 @@ export default class SchedulerApp {
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
             eventEmitter: this.analyticsEventEmitter,
+            eventStreamSink: this.eventStreamWriter
+                ? new EventStreamSink(
+                      eventStreamRegistry,
+                      this.eventStreamWriter,
+                  )
+                : undefined,
         });
+        registerAiUsageTracker((event) => this.analytics.track(event));
 
         this.database = knex(
             this.environment === 'production'
@@ -170,9 +205,6 @@ export default class SchedulerApp {
             }),
             models: this.models,
         });
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -191,6 +223,18 @@ export default class SchedulerApp {
     }
 
     public async start() {
+        this.featureFlagCheckFlushInterval = setInterval(() => {
+            try {
+                this.analytics.trackFeatureFlagChecks(
+                    flushFeatureFlagChecks(),
+                    'scheduler',
+                );
+            } catch {
+                // telemetry must never break the app
+            }
+        }, FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS);
+        this.featureFlagCheckFlushInterval.unref();
+
         registerOAuthRefreshStrategies();
 
         this.prometheusMetrics.start();
@@ -212,7 +256,12 @@ export default class SchedulerApp {
     }
 
     private async initSentry() {
-        initOtelHttpMetrics(this.lightdashConfig.prometheus);
+        initOtelHttpMetrics(this.lightdashConfig.prometheus, {
+            registerHttpInstrumentation: shouldSelfRegisterHttpInstrumentation({
+                hasSentryDsn: !!this.lightdashConfig.sentry.backend.dsn,
+                isOtelTracingEnabled: otelTracingEnabled(),
+            }),
+        });
         Sentry.init({
             release: VERSION,
             dsn: this.lightdashConfig.sentry.backend.dsn,
@@ -222,7 +271,9 @@ export default class SchedulerApp {
                     : this.lightdashConfig.mode,
             skipOpenTelemetrySetup: otelTracingEnabled(),
             registerEsmLoaderHooks: !otelTracingEnabled(),
-            integrations: [],
+            // OTel mode owns traces; strip Sentry's span-emitting default
+            // integrations (postgres etc.) so the worker is errors-only.
+            integrations: otelTracingEnabled() ? errorsOnlyIntegrations : [],
             ignoreErrors: IGNORE_ERRORS,
         });
         initOtelTracing();
@@ -239,6 +290,7 @@ export default class SchedulerApp {
             clients: this.clients,
             utils: this.utils,
             workerHealth,
+            prometheusMetrics: this.prometheusMetrics,
         });
         await worker.run();
         return { worker, workerHealth };
@@ -282,6 +334,23 @@ export default class SchedulerApp {
                 Logger.info('Shutting down gracefully');
             },
             onSignal: async () => {
+                if (this.featureFlagCheckFlushInterval) {
+                    clearInterval(this.featureFlagCheckFlushInterval);
+                    this.featureFlagCheckFlushInterval = undefined;
+                }
+                try {
+                    this.analytics.trackFeatureFlagChecks(
+                        flushFeatureFlagChecks(),
+                        'scheduler',
+                    );
+                    await this.analytics.flushEvents();
+                } catch {
+                    // telemetry must never break shutdown
+                }
+                if (this.eventStreamWriter) {
+                    Logger.info('Flushing usage event stream writer');
+                    await this.eventStreamWriter.close();
+                }
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
                 await shutdownOtelTracing();
@@ -302,5 +371,9 @@ export default class SchedulerApp {
         });
 
         server.listen(this.port);
+    }
+
+    public getEventStreamWriter() {
+        return this.eventStreamWriter;
     }
 }

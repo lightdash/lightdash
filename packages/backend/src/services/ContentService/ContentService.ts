@@ -438,8 +438,7 @@ export class ContentService extends BaseService {
         filters: DeletedContentFilters,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<DeletedContentWithDescendants[]>> {
-        const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
+        if (user.organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
         }
 
@@ -448,7 +447,7 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Project UUID is required');
         }
 
-        const { name: projectName } =
+        const { name: projectName, organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
 
@@ -468,7 +467,7 @@ export class ContentService extends BaseService {
 
         // Non-admins can only see their own deleted content
         // (data-scoping decision, not a permission gate — intentionally unaudited)
-        // eslint-disable-next-line no-direct-ability-check
+        // eslint-disable-next-line lightdash/no-direct-ability-check
         const isAdmin = user.ability.can(
             'manage',
             subject('DeletedContent', { organizationUuid, projectUuid }),

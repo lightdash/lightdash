@@ -27,6 +27,11 @@ output "app_role_arn" {
   value       = aws_iam_role.lightdash_app.arn
 }
 
+output "microvm_execution_role_arn" {
+  description = "IAM role assumed by Lambda MicroVMs at runtime (RunMicrovm executionRoleArn)."
+  value       = aws_iam_role.microvm_execution.arn
+}
+
 output "ecr_repository_url" {
   value = aws_ecr_repository.lightdash.repository_url
 }

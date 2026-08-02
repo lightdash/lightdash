@@ -1,0 +1,40 @@
+/* Match the composer's centered column (AgentChatInput .minimalContainer:
+   max-width 62rem, centered, horizontal spacing-sm) so the panel lines up with
+   the input box instead of spanning edge-to-edge against the sidebar/window. */
+.container {
+    width: 100%;
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: 0 var(--mantine-spacing-sm);
+}
+
+.row {
+    border-radius: var(--mantine-radius-sm);
+    transition: background-color 100ms ease;
+}
+
+.row:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.spacer {
+    flex-grow: 1;
+}
+
+.chevron {
+    transition: transform 150ms ease;
+}
+
+.chevronExpanded {
+    composes: chevron;
+    transform: rotate(90deg);
+}
+
+.noShrink {
+    flex-shrink: 0;
+}
+
+.title {
+    flex: 0 1 auto;
+    min-width: 0;
+}

@@ -1,17 +1,17 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
 import {
-    ActionIcon,
-    Anchor,
-    Button,
     CopyButton,
     Group,
-    Modal,
     Stack,
     Text,
+    Button,
+    ActionIcon,
+    Anchor,
+    Modal,
     Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
-import { modals } from '@mantine/modals';
+} from '@mantine-8/core';
+import { modals } from '@mantine-8/modals';
+import { useMantineTheme } from '@mantine/core';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
 import { useContext } from 'react';
@@ -38,7 +38,12 @@ const CopyErrorButton = ({
                 withArrow
                 position="right"
             >
-                <ActionIcon size="xs" onClick={copy} variant="transparent">
+                <ActionIcon
+                    color="gray"
+                    size="xs"
+                    onClick={copy}
+                    variant="transparent"
+                >
                     <MantineIcon
                         color={color}
                         icon={copied ? IconCheck : IconCopy}
@@ -53,9 +58,10 @@ const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
     const { mutate: openLoginPopup } = useGoogleLoginPopup('gdrive');
 
     return (
-        <Text mb={0}>
+        <Text mb={0} fz="xs">
             {message}{' '}
             <Anchor
+                inherit
                 component="button"
                 type="button"
                 onClick={() => openLoginPopup()}
@@ -76,15 +82,15 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
 
     if (apiError.sentryEventId || apiError.sentryTraceId) {
         return (
-            <Stack spacing="xxs">
-                <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+            <Stack gap="xxs">
+                <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
                     {apiError.message}
                 </Text>
-                <Text mb={0} weight="bold">
+                <Text mb={0} fz="xs" fw="bold">
                     Contact support with the following information:
                 </Text>
-                <Group spacing="xxs" align="flex-start">
-                    <Text mb={0} weight="bold">
+                <Group gap="xxs" align="flex-start">
+                    <Text mb={0} fz="xs" fw="bold">
                         Error ID: {apiError.sentryEventId || 'n/a'}
                         <br />
                         Trace ID: {apiError.sentryTraceId || 'n/a'}
@@ -101,7 +107,7 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     }
 
     return (
-        <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+        <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
             {apiError.message}
         </Text>
     );
@@ -130,7 +136,6 @@ const ApiErrorDisplayWithHealth = ({
         case 'SnowflakeTokenError':
             return (
                 <>
-                    {/* FIXME: Replace with MantineModal when we migrate fully to Mantine 8 */}
                     <Modal
                         opened={true}
                         onClose={() => onClose?.()}
@@ -138,8 +143,8 @@ const ApiErrorDisplayWithHealth = ({
                         centered
                         size="md"
                     >
-                        <Stack spacing="md">
-                            <Text mb={0} color="red">
+                        <Stack gap="md">
+                            <Text mb={0} c="red">
                                 {apiError.message}
                             </Text>
 
@@ -154,7 +159,9 @@ const ApiErrorDisplayWithHealth = ({
                             />
                         </Stack>
                     </Modal>
-                    <Text mb={0}>{apiError.message}</Text>
+                    <Text mb={0} fz="xs">
+                        {apiError.message}
+                    </Text>
                 </>
             );
         default:
@@ -167,21 +174,21 @@ const ApiErrorDisplayWithHealth = ({
         // Cloud/dev: show button only, no IDs
         if (showSupportButton) {
             return (
-                <Stack spacing="xxs" align="start">
+                <Stack gap="xxs" align="start">
                     <Text
                         mb={0}
-                        color="red.6"
+                        fz="xs"
+                        c="red.6"
                         style={{ whiteSpace: 'pre-wrap' }}
                     >
                         {apiError.message}
                     </Text>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <Button
-                            size="xs"
-                            compact
+                            size="compact-xs"
                             variant="outline"
                             color="red.6"
-                            leftIcon={
+                            leftSection={
                                 <MantineIcon
                                     color="red.6"
                                     icon={IconSpeakerphone}
@@ -197,7 +204,7 @@ const ApiErrorDisplayWithHealth = ({
                                 });
                             }}
                         >
-                            <Text color="red.6" weight="lighter">
+                            <Text fz="xs" c="red.6" fw="lighter">
                                 Notify support
                             </Text>
                         </Button>
@@ -214,15 +221,15 @@ const ApiErrorDisplayWithHealth = ({
 
         // Self-hosted: show IDs with copy button
         return (
-            <Stack spacing="xxs">
-                <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+            <Stack gap="xxs">
+                <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
                     {apiError.message}
                 </Text>
-                <Text mb={0} weight="bold">
+                <Text mb={0} fz="xs" fw="bold">
                     Contact support with the following information:
                 </Text>
-                <Group spacing="xxs" align="flex-start">
-                    <Text mb={0} weight="bold">
+                <Group gap="xxs" align="flex-start">
+                    <Text mb={0} fz="xs" fw="bold">
                         Error ID: {apiError.sentryEventId || 'n/a'}
                         <br />
                         Trace ID: {apiError.sentryTraceId || 'n/a'}
@@ -239,7 +246,7 @@ const ApiErrorDisplayWithHealth = ({
     }
 
     return (
-        <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+        <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
             {apiError.message}
         </Text>
     );

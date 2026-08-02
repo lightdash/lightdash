@@ -10,13 +10,19 @@ import { getWarehouseLabel } from '../utils';
 interface ConnectManuallyStep2Props {
     isCreatingFirstProject: boolean;
     selectedWarehouse: WarehouseTypes;
+    warehouseOnly?: boolean;
     onBack: () => void;
+    successRedirect?: (projectUuid: string) => string;
+    celebrateOnSuccess?: boolean;
 }
 
 const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
     isCreatingFirstProject,
     selectedWarehouse,
+    warehouseOnly = false,
     onBack,
+    successRedirect,
+    celebrateOnSuccess = false,
 }) => {
     return (
         <>
@@ -37,6 +43,9 @@ const ConnectManuallyStep2: FC<ConnectManuallyStep2Props> = ({
                 <CreateProjectConnection
                     isCreatingFirstProject={isCreatingFirstProject}
                     selectedWarehouse={selectedWarehouse}
+                    warehouseOnly={warehouseOnly}
+                    successRedirect={successRedirect}
+                    celebrateOnSuccess={celebrateOnSuccess}
                 />
             </Stack>
         </>

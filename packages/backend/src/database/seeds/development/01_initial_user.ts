@@ -110,11 +110,14 @@ export async function seed(knex: Knex): Promise<void> {
             role: seedUserRole,
         });
 
-        await knex(OnboardingTableName).insert({
-            organization_id: organizationId,
-            ranQuery_at: new Date(),
-            shownSuccess_at: new Date(),
-        });
+        await knex(OnboardingTableName)
+            .insert({
+                organization_id: organizationId,
+                ranQuery_at: new Date(),
+                shownSuccess_at: new Date(),
+            })
+            .onConflict('organization_id')
+            .ignore();
 
         return { organizationId, user, organizationUuid };
     };
@@ -190,7 +193,7 @@ export async function seed(knex: Knex): Promise<void> {
             ...SEED_PROJECT,
             organization_id: organizationId,
             dbt_connection: encryptedProjectSettings,
-            dbt_version: SupportedDbtVersions.V1_7,
+            dbt_version: SupportedDbtVersions.V1_11,
             created_by_user_uuid: user.user_uuid,
         })
         .returning(['project_id', 'project_uuid']);
@@ -263,7 +266,7 @@ export async function seed(knex: Knex): Promise<void> {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
             },
-            SupportedDbtVersions.V1_7,
+            SupportedDbtVersions.V1_11,
         );
         const explores = await adapter.compileAllExplores({
             userUuid: user.user_uuid,
@@ -289,6 +292,30 @@ export async function seed(knex: Knex): Promise<void> {
             lightdashConfig,
         });
         const tagsModel = new TagsModel({ database: knex });
+
+        const lightdashProjectConfig = await adapter.getLightdashProjectConfig({
+            projectUuid,
+            organizationUuid,
+            userUuid: user.user_uuid,
+        });
+
+        // Persist spotlight categories as yaml tags before indexing so the
+        // catalog index attaches them (mirrors ProjectService compile). Without
+        // this the seed project has no categories and category filtering
+        // returns nothing.
+        await tagsModel.replaceYamlTags(
+            projectUuid,
+            Object.entries(
+                lightdashProjectConfig.spotlight?.categories ?? {},
+            ).map(([yamlReference, category]) => ({
+                project_uuid: projectUuid,
+                name: category.label,
+                color: category.color ?? 'gray',
+                created_by_user_uuid: user.user_uuid,
+                yaml_reference: yamlReference,
+            })),
+        );
+
         const projectYamlTags = await tagsModel.getYamlTags(projectUuid);
         const cachedExploresMap = await projectModel.findExploresFromCache(
             projectUuid,
@@ -303,11 +330,6 @@ export async function seed(knex: Knex): Promise<void> {
         );
 
         // Seed parameters
-        const lightdashProjectConfig = await adapter.getLightdashProjectConfig({
-            projectUuid,
-            organizationUuid,
-            userUuid: user.user_uuid,
-        });
         await new ProjectParametersModel({
             database: knex,
         }).replace(projectUuid, lightdashProjectConfig.parameters ?? {});

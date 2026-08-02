@@ -1,3 +1,4 @@
+import { type AiDashboardRuntimeOverrides } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { type LauncherActiveAgentUuid } from '../components/Launcher/launcherAgentSelection';
 
@@ -5,6 +6,8 @@ export type LauncherDockItem = {
     threadId: string;
     agentUuid: string;
     title: string;
+    // Optional: missing on items persisted before this field existed.
+    createdAt?: number;
 };
 
 export type LauncherPendingContext = {
@@ -17,6 +20,7 @@ export type LauncherCurrentDashboard = {
     uuid: string;
     name: string;
     activeTabUuid: string | null;
+    runtimeOverrides: AiDashboardRuntimeOverrides | null;
 };
 
 export type DashboardRefreshRequest = {
@@ -53,7 +57,7 @@ export const aiAgentLauncherSlice = createSlice({
             state,
             action: PayloadAction<{
                 threadId: string | null;
-                agentUuid: LauncherActiveAgentUuid | null;
+                agentUuid: LauncherActiveAgentUuid;
                 pendingContext?: LauncherPendingContext | null;
             }>,
         ) => {
@@ -61,6 +65,23 @@ export const aiAgentLauncherSlice = createSlice({
             state.activeThreadId = action.payload.threadId;
             state.activeAgentUuid = action.payload.agentUuid;
             state.pendingContext = action.payload.pendingContext ?? null;
+        },
+        openDefaultAgentPanel: (
+            state,
+            action: PayloadAction<{
+                pendingContext?: LauncherPendingContext | null;
+            }>,
+        ) => {
+            state.mode = 'panel-open';
+            state.activeThreadId = null;
+            state.activeAgentUuid = null;
+            state.pendingContext = action.payload.pendingContext ?? null;
+        },
+        setActiveAgent: (
+            state,
+            action: PayloadAction<LauncherActiveAgentUuid>,
+        ) => {
+            state.activeAgentUuid = action.payload;
         },
         closePanel: (state) => {
             state.mode = 'collapsed';
@@ -108,6 +129,8 @@ export const aiAgentLauncherSlice = createSlice({
 
 export const {
     openPanel,
+    openDefaultAgentPanel,
+    setActiveAgent,
     closePanel,
     resetActivePanel,
     dockItemRemoved,

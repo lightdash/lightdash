@@ -7,20 +7,20 @@ import { AiAgentReviewNotificationService } from './AiAgentReviewNotificationSer
 
 const makeService = () => {
     const notificationsModel = {
-        createAiReviewNotifications: jest.fn().mockResolvedValue(undefined),
+        createAiReviewNotifications: vi.fn().mockResolvedValue(undefined),
     };
     const schedulerClient = {
-        scheduleTask: jest.fn().mockResolvedValue({ jobId: 'job-1' }),
+        scheduleTask: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
     };
     const aiAgentReviewClassifierModel = {
-        getReviewItem: jest.fn().mockResolvedValue({
+        getReviewItem: vi.fn().mockResolvedValue({
             fingerprint: 'fingerprint-1',
             title: 'Missing metric',
             primaryRootCause: 'semantic_layer',
         }),
     };
     const organizationMemberProfileModel = {
-        getOrganizationMembers: jest.fn().mockResolvedValue({
+        getOrganizationMembers: vi.fn().mockResolvedValue({
             data: [
                 {
                     userUuid: 'developer-1',

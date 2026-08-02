@@ -11,7 +11,7 @@ describe('CSP: dbt/validation must not generate code at import (#21276)', () => 
 
     afterEach(() => {
         global.Function = RealFunction;
-        jest.resetModules();
+        vi.resetModules();
     });
 
     it('importing the module invokes no `new Function` (no eval-based codegen)', async () => {
@@ -28,7 +28,7 @@ describe('CSP: dbt/validation must not generate code at import (#21276)', () => 
         FunctionTrap.prototype = RealFunction.prototype;
         global.Function = FunctionTrap as unknown as FunctionConstructor;
 
-        jest.resetModules();
+        vi.resetModules();
         await import('./validation');
 
         expect(constructed).toEqual([]);

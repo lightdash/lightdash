@@ -5,7 +5,7 @@ import {
     type ApiScheduledDownloadCsv,
     type GsheetExportProgress,
 } from '@lightdash/common';
-import { notifications } from '@mantine/notifications';
+import { notifications } from '@mantine-8/notifications';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getCsvFileUrl } from '../../../api/csv';
 import useToaster from '../../../hooks/toaster/useToaster';

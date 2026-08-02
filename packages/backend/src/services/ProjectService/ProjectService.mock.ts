@@ -50,6 +50,8 @@ export const user: SessionUser = {
     lastName: 'lastName',
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    avatarUrl: null,
+    avatarGradient: null,
     isSetupComplete: true,
     timezone: null,
     userId: 0,

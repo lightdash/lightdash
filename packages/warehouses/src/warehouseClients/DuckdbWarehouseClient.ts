@@ -1,8 +1,13 @@
-import { DuckDBInstance, DuckDBTypeId } from '@duckdb/node-api';
+import {
+    DuckDBInstance,
+    DuckDBTypeId,
+    version as duckdbVersion,
+} from '@duckdb/node-api';
 import {
     AnyType,
     CreateDuckdbCredentials,
     CreateDuckdbDucklakeCredentials,
+    CreateDuckdbEmbeddedCredentials,
     CreateDuckdbMotherduckCredentials,
     DimensionType,
     DuckdbConnectionType,
@@ -14,12 +19,17 @@ import {
     MetricType,
     NotImplementedError,
     ParameterError,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     WarehouseCatalog,
+    WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
+    type WarehouseQueryPhase,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import fsSync from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -57,6 +67,7 @@ type DuckdbConnection = {
         values?: AnyType[] | Record<string, AnyType>,
     ) => Promise<DuckdbStreamResult>;
     extractStatements: (sql: string) => Promise<DuckdbExtractedStatements>;
+    interrupt: () => void;
     closeSync?: () => void;
     disconnectSync?: () => void;
 };
@@ -120,11 +131,8 @@ export type DuckdbS3Credentials = {
 
 export type DuckdbConnectionCredentials = DuckdbS3Credentials;
 
-// Backwards-compatible alias while this API settles.
-export type DuckdbS3ConnectionConfig = DuckdbS3Credentials;
-
 export type DuckdbWarehouseClientOptions = {
-    /** Resource-constrained isolated sessions, used for materialization/parquet conversion. */
+    /** Resource-constrained isolated sessions, used for materialization/parquet conversion and embedded databases. */
     resourceLimits?: DuckdbResourceLimits;
     /** Resource limits for query sessions. When combined with instanceCacheKey, they apply to the shared warm instance. */
     sharedResourceLimits?: DuckdbResourceLimits;
@@ -137,6 +145,7 @@ export type DuckdbWarehouseClientOptions = {
     instanceCacheKey?: string;
     logger?: DuckdbLogger;
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
+    embeddedQueryTimeoutMs?: number;
 };
 
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
@@ -170,6 +179,17 @@ export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
         default:
             return DimensionType.STRING;
     }
+};
+
+export const getDuckdbTimestampDomainFromString = (
+    typeName: string,
+): TimestampDomain | undefined => {
+    const upper = typeName.toUpperCase().replace(/\(\d+\)/, '');
+    if (upper === 'TIMESTAMP WITH TIME ZONE' || upper === 'TIMESTAMPTZ')
+        return 'aware';
+    // TIMESTAMP and its precision variants (TIMESTAMP_S/_MS/_NS)
+    if (upper.startsWith('TIMESTAMP')) return 'naive';
+    return undefined;
 };
 
 const mapFieldTypeFromString = (typeName: string): DimensionType => {
@@ -261,6 +281,33 @@ class AsyncSemaphore {
     }
 }
 
+class ConcurrencyBudget {
+    private active = 0;
+
+    constructor(private readonly limit: number) {}
+
+    tryAcquire(): boolean {
+        if (this.active >= this.limit) {
+            return false;
+        }
+
+        this.active += 1;
+        return true;
+    }
+
+    release(): void {
+        this.active -= 1;
+    }
+
+    isIdle(): boolean {
+        return this.active === 0;
+    }
+
+    reset(): void {
+        this.active = 0;
+    }
+}
+
 // DuckDB StatementType values — see duckdb/common/enums/statement_type.hpp
 const ALLOWED_STATEMENT_TYPES_USER_SQL = new Set([1 /* SELECT */]);
 
@@ -274,19 +321,105 @@ const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
 ]);
 
 const BLOCKED_FUNCTION_PATTERN =
-    /\b(current_setting|duckdb_settings|duckdb_secrets)\s*\(/i;
+    /\b(current_setting|duckdb_settings|duckdb_secrets|query|query_table)\s*\(/i;
 
-export type DuckdbWarehouseClientArgs = {
-    databasePath?: string;
-    s3Config?: DuckdbS3SessionConfig;
+const BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN =
+    /\b(read\s*_\s*(?:blob|csv(?:\s*_\s*auto)?|json(?:\s*_\s*(?:auto|objects(?:\s*_\s*auto)?))?|ndjson(?:\s*_\s*(?:auto|objects(?:\s*_\s*auto)?))?|parquet|text|xlsx)|parquet\s*_\s*scan|glob|sqlite\s*_\s*scan|postgres\s*_\s*scan|mysql\s*_\s*scan)\s*\(/i;
+
+const BLOCKED_USER_SQL_FILE_TABLE_PATTERN = /\b(?:from|join)\s+'[^']*'/i;
+
+const buildMotherduckConnectionString = ({
+    database,
+    token,
+}: Pick<CreateDuckdbMotherduckCredentials, 'database' | 'token'>): string => {
+    const params = new URLSearchParams({
+        motherduck_token: token,
+        saas_mode: 'true',
+    });
+
+    return `md:${encodeURIComponent(database)}?${params.toString()}`;
+};
+
+const EMBEDDED_DATASET_PATTERN = /^[a-z0-9_-]+$/;
+
+const DEFAULT_EMBEDDED_DATA_DIRECTORY = path.resolve(
+    __dirname,
+    '../../../backend/assets/playground',
+);
+
+const EMBEDDED_RESOURCE_LIMITS: Required<DuckdbResourceLimits> = {
+    memoryLimit: '256MB',
+    threads: 1,
+};
+
+const EMBEDDED_QUERY_TIMEOUT_MS = 10_000;
+
+const EMBEDDED_MAX_CONCURRENT_QUERIES = 2;
+
+const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION = 1;
+
+const resolveEmbeddedDatabasePath = (dataset: string): string => {
+    if (!EMBEDDED_DATASET_PATTERN.test(dataset)) {
+        throw new ParameterError(
+            'Embedded DuckDB dataset must contain only lowercase letters, numbers, hyphens, and underscores',
+        );
+    }
+
+    const baseDirectory =
+        process.env.PLAYGROUND_DATA_DIR ?? DEFAULT_EMBEDDED_DATA_DIRECTORY;
+    let realBaseDirectory: string;
+    try {
+        realBaseDirectory = fsSync.realpathSync(baseDirectory);
+    } catch {
+        throw new ParameterError(
+            `Embedded DuckDB dataset "${dataset}" was not found in ${baseDirectory}`,
+        );
+    }
+
+    const databasePath = path.join(baseDirectory, `${dataset}.duckdb`);
+    let realDatabasePath: string;
+    try {
+        realDatabasePath = fsSync.realpathSync(databasePath);
+    } catch {
+        throw new ParameterError(
+            `Embedded DuckDB dataset "${dataset}" was not found in ${baseDirectory}`,
+        );
+    }
+
+    const relativePath = path.relative(realBaseDirectory, realDatabasePath);
+    if (
+        relativePath === '' ||
+        relativePath.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relativePath)
+    ) {
+        throw new ParameterError(
+            `Embedded DuckDB dataset "${dataset}" resolves outside ${baseDirectory}`,
+        );
+    }
+
+    return realDatabasePath;
 };
 
 export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMotherduckCredentials> {
     private static readonly sharedInstances = new Map<string, DuckdbInstance>();
 
+    private static readonly sharedInstanceResourceLimits = new Map<
+        string,
+        DuckdbResourceLimits | undefined
+    >();
+
     private static readonly sharedInstanceSemaphores = new Map<
         string,
         AsyncSemaphore
+    >();
+
+    private static readonly embeddedConcurrencyBudget = new ConcurrencyBudget(
+        EMBEDDED_MAX_CONCURRENT_QUERIES,
+    );
+
+    private static readonly embeddedOrganizationConcurrencyBudgets = new Map<
+        string,
+        ConcurrencyBudget
     >();
 
     private static readonly sqlBuilder = new DuckdbSqlBuilder();
@@ -296,6 +429,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private readonly s3Config?: DuckdbS3SessionConfig;
 
     private readonly ducklakeConfig?: CreateDuckdbDucklakeCredentials;
+
+    private readonly embeddedConfig?: CreateDuckdbEmbeddedCredentials;
 
     private readonly resourceLimits?: DuckdbResourceLimits;
 
@@ -308,6 +443,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private readonly onQueryProfile?: (
         profile: DuckdbQueryProfileMetrics,
     ) => void;
+
+    private readonly embeddedQueryTimeoutMs: number;
+
+    private allowsPreAggregateFileReads = false;
 
     constructor(
         credentials?: CreateDuckdbCredentials | DuckdbConnectionCredentials,
@@ -323,6 +462,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             'type' in credentials &&
             credentials.type === WarehouseTypes.DUCKDB &&
             credentials.connectionType === DuckdbConnectionType.DUCKLAKE;
+        const isEmbedded =
+            !isS3Only &&
+            credentials &&
+            'type' in credentials &&
+            credentials.type === WarehouseTypes.DUCKDB &&
+            credentials.connectionType === DuckdbConnectionType.EMBEDDED;
 
         let effectiveCredentials: CreateDuckdbMotherduckCredentials;
         if (isS3Only) {
@@ -343,6 +488,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 startOfWeek: ducklake.startOfWeek,
                 dataTimezone: ducklake.dataTimezone,
             };
+        } else if (isEmbedded) {
+            effectiveCredentials = DUCKDB_INTERNAL_CREDENTIALS;
         } else {
             effectiveCredentials =
                 (credentials as CreateDuckdbMotherduckCredentials) ??
@@ -363,9 +510,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 credentials as CreateDuckdbDucklakeCredentials;
         }
 
+        if (isEmbedded) {
+            this.embeddedConfig =
+                credentials as CreateDuckdbEmbeddedCredentials;
+        }
+
         // Project DuckDB credentials map to MotherDuck only. The in-memory
         // internal credentials remain available for pre-aggregate helper flows.
-        if (
+        if (this.embeddedConfig) {
+            this.databasePath = resolveEmbeddedDatabasePath(
+                this.embeddedConfig.dataset,
+            );
+        } else if (
             this.ducklakeConfig ||
             effectiveCredentials.database === ':memory:'
         ) {
@@ -377,10 +533,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     'MotherDuck token is required for DuckDB warehouse connections',
                 );
             }
-            this.databasePath = `md:${effectiveCredentials.database}?motherduck_token=${token}`;
+            this.databasePath = buildMotherduckConnectionString({
+                database: effectiveCredentials.database,
+                token,
+            });
         }
 
-        this.resourceLimits = options?.resourceLimits;
+        this.resourceLimits = this.embeddedConfig
+            ? {
+                  ...EMBEDDED_RESOURCE_LIMITS,
+                  ...options?.resourceLimits,
+              }
+            : options?.resourceLimits;
         this.sharedResourceLimits = options?.sharedResourceLimits;
         // DuckLake attaches a postgres catalog secret on every fresh DuckDB
         // instance, and the postgres extension only pools 8 connections per
@@ -394,6 +558,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             options?.instanceCacheKey ?? ducklakeAutoCacheKey;
         this.logger = options?.logger;
         this.onQueryProfile = options?.onQueryProfile;
+        this.embeddedQueryTimeoutMs =
+            options?.embeddedQueryTimeoutMs ?? EMBEDDED_QUERY_TIMEOUT_MS;
     }
 
     private static hashDucklakeConfig(
@@ -406,10 +572,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     }
 
     static createForPreAggregate(
-        credentials?: DuckdbConnectionCredentials,
+        credentials: DuckdbS3Credentials,
         options?: DuckdbWarehouseClientOptions,
     ): DuckdbWarehouseClient {
-        return new DuckdbWarehouseClient(credentials, options);
+        const client = new DuckdbWarehouseClient(credentials, options);
+        client.allowsPreAggregateFileReads = true;
+        return client;
     }
 
     private static getSharedInstanceSemaphore(
@@ -442,6 +610,46 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return this.instanceCacheKey;
     }
 
+    private static tryAcquireEmbeddedConcurrency(
+        organizationUuid?: string,
+    ): (() => void) | undefined {
+        if (!DuckdbWarehouseClient.embeddedConcurrencyBudget.tryAcquire()) {
+            return undefined;
+        }
+
+        if (!organizationUuid) {
+            return () =>
+                DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
+        }
+
+        const organizationBudget =
+            DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.get(
+                organizationUuid,
+            ) ??
+            new ConcurrencyBudget(
+                EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION,
+            );
+        DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.set(
+            organizationUuid,
+            organizationBudget,
+        );
+
+        if (!organizationBudget.tryAcquire()) {
+            DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
+            return undefined;
+        }
+
+        return () => {
+            organizationBudget.release();
+            DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
+            if (organizationBudget.isIdle()) {
+                DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.delete(
+                    organizationUuid,
+                );
+            }
+        };
+    }
+
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
         if (!tags) {
             return sql;
@@ -450,15 +658,24 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return `${sql}\n-- ${JSON.stringify(tags)}`;
     }
 
-    private static async hardenInstance(
-        db: DuckdbConnection,
-        options?: { allowKnownExtensionAutoload?: boolean },
-    ): Promise<void> {
+    private static async hardenInstance(db: DuckdbConnection): Promise<void> {
         await db.run('SET allow_community_extensions = false;');
-        const autoload = options?.allowKnownExtensionAutoload ?? false;
-        await db.run(`SET autoinstall_known_extensions = ${autoload};`);
-        await db.run(`SET autoload_known_extensions = ${autoload};`);
+        await db.run('SET autoinstall_known_extensions = false;');
+        await db.run('SET autoload_known_extensions = false;');
         await db.run('SET allow_unredacted_secrets = false;');
+    }
+
+    private static async applyResourceLimits(
+        db: DuckdbConnection,
+        resourceLimits?: DuckdbResourceLimits,
+    ): Promise<void> {
+        if (resourceLimits?.memoryLimit) {
+            await db.run(`SET memory_limit = '${resourceLimits.memoryLimit}';`);
+        }
+
+        if (resourceLimits?.threads) {
+            await db.run(`SET threads = ${resourceLimits.threads};`);
+        }
     }
 
     private static usesS3CredentialChain(
@@ -467,13 +684,56 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return !(s3Config.accessKey && s3Config.secretKey);
     }
 
-    private static async loadAwsExtensionForCredentialChain(
+    private static async getBundledExtensionPath(
+        extension: 'httpfs' | 'aws',
+    ): Promise<string | undefined> {
+        // Production images bundle signed extensions under the embedded DuckDB
+        // version to avoid runtime downloads. Local development has no bundled
+        // files and intentionally falls back to INSTALL/LOAD below.
+        const extensionPath = path.resolve(
+            __dirname,
+            '..',
+            'duckdbExtensions',
+            duckdbVersion(),
+            `${extension}.duckdb_extension`,
+        );
+
+        try {
+            await fs.access(extensionPath, fsSync.constants.R_OK);
+            return extensionPath;
+        } catch {
+            return undefined;
+        }
+    }
+
+    private async loadExtension(
         db: DuckdbConnection,
-        s3Config?: DuckdbS3SessionConfig,
+        extension: 'httpfs' | 'aws',
     ): Promise<void> {
-        if (s3Config && DuckdbWarehouseClient.usesS3CredentialChain(s3Config)) {
-            await db.run('INSTALL aws;');
-            await db.run('LOAD aws;');
+        const extensionPath =
+            await DuckdbWarehouseClient.getBundledExtensionPath(extension);
+        if (!extensionPath) {
+            await db.run(`INSTALL ${extension};`);
+            await db.run(`LOAD ${extension};`);
+            return;
+        }
+
+        // A bundled file should be valid because Docker verifies the version at
+        // build time. Surface load failures instead of hiding corruption or an
+        // ABI mismatch behind a network install.
+        await db.run(
+            `LOAD '${DuckdbWarehouseClient.escapeDuckdbString(extensionPath)}';`,
+        );
+    }
+
+    private async loadAwsExtensionForCredentialChain(
+        db: DuckdbConnection,
+    ): Promise<void> {
+        if (
+            this.s3Config &&
+            DuckdbWarehouseClient.usesS3CredentialChain(this.s3Config)
+        ) {
+            await this.loadExtension(db, 'aws');
         }
     }
 
@@ -486,12 +746,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         if (!client.ducklakeConfig) {
             // For DuckLake mode, httpfs and the ducklake/postgres/mysql/azure
             // extensions are autoloaded by ATTACH — no explicit INSTALL/LOAD.
-            await db.run('INSTALL httpfs;');
-            await db.run('LOAD httpfs;');
-            await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
-                db,
-                client.s3Config,
-            );
+            await client.loadExtension(db, 'httpfs');
+            await client.loadAwsExtensionForCredentialChain(db);
         }
         const httpfsMs = performance.now() - httpfsStart;
 
@@ -507,21 +763,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             await db.run('SET pg_connection_limit = 64;');
         }
 
-        await DuckdbWarehouseClient.hardenInstance(db, {
-            allowKnownExtensionAutoload: !!client.ducklakeConfig,
-        });
-
-        if (client.sharedResourceLimits?.memoryLimit) {
-            await db.run(
-                `SET memory_limit = '${client.sharedResourceLimits.memoryLimit}';`,
-            );
+        if (client.ducklakeConfig) {
+            await db.run('SET autoinstall_known_extensions = true;');
+            await db.run('SET autoload_known_extensions = true;');
         }
 
-        if (client.sharedResourceLimits?.threads) {
-            await db.run(
-                `SET threads = ${client.sharedResourceLimits.threads};`,
-            );
-        }
+        await DuckdbWarehouseClient.applyResourceLimits(
+            db,
+            client.sharedResourceLimits,
+        );
 
         if (client.s3Config) {
             await db.run(
@@ -539,6 +789,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 await db.run(stmt);
             }
         }
+
+        await DuckdbWarehouseClient.hardenInstance(db);
 
         const bootstrapMs = performance.now() - bootstrapStart;
         client.logger?.info(
@@ -634,6 +886,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 instanceCacheKey,
                 instance,
             );
+            DuckdbWarehouseClient.sharedInstanceResourceLimits.set(
+                instanceCacheKey,
+                client.sharedResourceLimits,
+            );
             client.logger?.info(
                 `DuckDB shared instance initialized: cacheKey=${instanceCacheKey} semaphore_wait=${formatMilliseconds(semaphoreWaitMs)}ms instance_create=${formatMilliseconds(instanceCreateMs)}ms bootstrap=${formatMilliseconds(bootstrapMs)}ms`,
                 {
@@ -655,35 +911,47 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
     }
 
-    private static clearSharedInstance(
+    private static async clearSharedInstance(
         instanceCacheKey: string,
         logger?: DuckdbLogger,
-    ): void {
-        const sharedInstance =
-            DuckdbWarehouseClient.sharedInstances.get(instanceCacheKey);
-        if (sharedInstance) {
-            try {
-                sharedInstance.closeSync?.();
-            } catch {
-                // best-effort cleanup
+    ): Promise<void> {
+        const semaphore =
+            DuckdbWarehouseClient.getSharedInstanceSemaphore(instanceCacheKey);
+        await semaphore.acquire();
+        try {
+            const sharedInstance =
+                DuckdbWarehouseClient.sharedInstances.get(instanceCacheKey);
+            if (sharedInstance) {
+                try {
+                    sharedInstance.closeSync?.();
+                } catch {
+                    // best-effort cleanup
+                }
+                DuckdbWarehouseClient.sharedInstances.delete(instanceCacheKey);
+                DuckdbWarehouseClient.sharedInstanceResourceLimits.delete(
+                    instanceCacheKey,
+                );
+                logger?.info(
+                    `DuckDB shared instance cleared: ${instanceCacheKey}`,
+                );
             }
-            DuckdbWarehouseClient.sharedInstances.delete(instanceCacheKey);
-            DuckdbWarehouseClient.sharedInstanceSemaphores.delete(
-                instanceCacheKey,
-            );
-            logger?.info(`DuckDB shared instance cleared: ${instanceCacheKey}`);
+        } finally {
+            semaphore.release();
         }
     }
 
     /** Reset shared state without closing — for use in tests with mocked instances. */
     static resetSharedDuckdbStateForTesting(): void {
         DuckdbWarehouseClient.sharedInstances.clear();
+        DuckdbWarehouseClient.sharedInstanceResourceLimits.clear();
         DuckdbWarehouseClient.sharedInstanceSemaphores.clear();
+        DuckdbWarehouseClient.embeddedConcurrencyBudget.reset();
+        DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.clear();
     }
 
     async close(): Promise<void> {
         if (this.instanceCacheKey) {
-            DuckdbWarehouseClient.clearSharedInstance(
+            await DuckdbWarehouseClient.clearSharedInstance(
                 this.instanceCacheKey,
                 this.logger,
             );
@@ -989,7 +1257,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 instanceCacheKey,
             },
         );
-        DuckdbWarehouseClient.clearSharedInstance(
+        await DuckdbWarehouseClient.clearSharedInstance(
             instanceCacheKey,
             this.logger,
         );
@@ -1021,17 +1289,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         tempDir: string,
     ): Promise<void> {
         if (!this.ducklakeConfig) {
-            await db.run('INSTALL httpfs;');
-            await db.run('LOAD httpfs;');
-            await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
-                db,
-                this.s3Config,
-            );
+            await this.loadExtension(db, 'httpfs');
+            await this.loadAwsExtensionForCredentialChain(db);
         }
-
-        await DuckdbWarehouseClient.hardenInstance(db, {
-            allowKnownExtensionAutoload: !!this.ducklakeConfig,
-        });
 
         await db.run(`SET temp_directory = '${tempDir}';`);
 
@@ -1039,15 +1299,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             await db.run('SET pg_connection_limit = 64;');
         }
 
-        if (this.resourceLimits?.memoryLimit) {
-            await db.run(
-                `SET memory_limit = '${this.resourceLimits.memoryLimit}';`,
-            );
+        if (this.ducklakeConfig) {
+            await db.run('SET autoinstall_known_extensions = true;');
+            await db.run('SET autoload_known_extensions = true;');
         }
 
-        if (this.resourceLimits?.threads) {
-            await db.run(`SET threads = ${this.resourceLimits.threads};`);
-        }
+        await DuckdbWarehouseClient.applyResourceLimits(
+            db,
+            this.resourceLimits,
+        );
 
         if (this.s3Config) {
             await db.run(DuckdbWarehouseClient.buildS3SecretSql(this.s3Config));
@@ -1063,6 +1323,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 await db.run(stmt);
             }
         }
+
+        await DuckdbWarehouseClient.hardenInstance(db);
 
         this.logger?.info(
             `DuckDB isolated bootstrap: memory_limit=${this.resourceLimits?.memoryLimit ?? 'default'} threads=${this.resourceLimits?.threads ?? 'default'} s3=${this.s3Config ? 'configured' : 'none'} ducklake=${this.ducklakeConfig ? 'configured' : 'none'}`,
@@ -1172,6 +1434,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const sharedConnection = await this.connectWithRetry();
 
         try {
+            await DuckdbWarehouseClient.applyResourceLimits(
+                sharedConnection.connection,
+                DuckdbWarehouseClient.sharedInstanceResourceLimits.get(
+                    this.getRequiredInstanceCacheKey(),
+                ),
+            );
+            await DuckdbWarehouseClient.hardenInstance(
+                sharedConnection.connection,
+            );
             const queryStart = performance.now();
             const result = await callback(sharedConnection.connection);
             const queryMs = performance.now() - queryStart;
@@ -1213,9 +1484,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
      */
     private async withSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
+        organizationUuid?: string,
     ): Promise<T> {
         if (this.databasePath !== ':memory:') {
-            return this.withDirectSession(callback);
+            return this.withDirectSession(callback, organizationUuid);
         }
 
         if (this.hasResourceLimits()) {
@@ -1232,21 +1504,51 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     /** Direct connection to the configured MotherDuck database. */
     private async withDirectSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
+        organizationUuid?: string,
     ): Promise<T> {
         const sessionStart = performance.now();
 
-        const instanceCreateStart = performance.now();
-        const instance = await DuckDBInstance.create(this.databasePath);
-        const instanceCreateMs = performance.now() - instanceCreateStart;
+        const releaseEmbeddedConcurrency = this.embeddedConfig
+            ? DuckdbWarehouseClient.tryAcquireEmbeddedConcurrency(
+                  organizationUuid,
+              )
+            : undefined;
+        if (this.embeddedConfig && !releaseEmbeddedConcurrency) {
+            throw new WarehouseQueryError(
+                'Playground query capacity is full. Try again shortly.',
+            );
+        }
 
-        const connectStart = performance.now();
-        const connection = await instance.connect();
-        const connectMs = performance.now() - connectStart;
+        const instanceCreateStart = performance.now();
+        let instance: DuckdbInstance | undefined;
+        let connection: DuckdbConnection | undefined;
 
         try {
-            await DuckdbWarehouseClient.hardenInstance(connection);
+            instance = this.embeddedConfig
+                ? await DuckDBInstance.create(this.databasePath, {
+                      access_mode: 'READ_ONLY',
+                      memory_limit:
+                          this.resourceLimits?.memoryLimit ??
+                          EMBEDDED_RESOURCE_LIMITS.memoryLimit,
+                      threads: String(
+                          this.resourceLimits?.threads ??
+                              EMBEDDED_RESOURCE_LIMITS.threads,
+                      ),
+                  })
+                : await DuckDBInstance.create(this.databasePath);
+            const instanceCreateMs = performance.now() - instanceCreateStart;
+
+            const connectStart = performance.now();
+            connection = await instance.connect();
+            const connectMs = performance.now() - connectStart;
+
+            if (this.embeddedConfig) {
+                await DuckdbWarehouseClient.hardenInstance(connection);
+            }
             const queryStart = performance.now();
-            const result = await callback(connection);
+            const result = this.embeddedConfig
+                ? await this.withEmbeddedQueryDeadline(connection, callback)
+                : await callback(connection);
             const queryMs = performance.now() - queryStart;
 
             const totalMs = performance.now() - sessionStart;
@@ -1266,10 +1568,45 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
             return result;
         } finally {
-            connection.closeSync?.();
-            connection.disconnectSync?.();
-            instance.closeSync?.();
+            connection?.closeSync?.();
+            connection?.disconnectSync?.();
+            instance?.closeSync?.();
+            releaseEmbeddedConcurrency?.();
         }
+    }
+
+    private async withEmbeddedQueryDeadline<T>(
+        connection: DuckdbConnection,
+        callback: (db: DuckdbConnection) => Promise<T>,
+    ): Promise<T> {
+        let deadlineExceeded = false;
+        const timeout = setTimeout(() => {
+            deadlineExceeded = true;
+            connection.interrupt();
+        }, this.embeddedQueryTimeoutMs);
+        timeout.unref();
+
+        try {
+            const result = await callback(connection);
+            if (deadlineExceeded) {
+                throw this.getEmbeddedQueryTimeoutError();
+            }
+            return result;
+        } catch (error) {
+            if (deadlineExceeded) {
+                throw this.getEmbeddedQueryTimeoutError();
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    private getEmbeddedQueryTimeoutError(): WarehouseQueryError {
+        return new WarehouseQueryError(
+            `Playground query exceeded the ${this.embeddedQueryTimeoutMs / 1000} second execution limit and was stopped. Try a simpler query.`,
+            { timeoutMs: this.embeddedQueryTimeoutMs },
+        );
     }
 
     private getBindValues(options?: {
@@ -1408,9 +1745,66 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     }
 
     private static stripSqlComments(sql: string): string {
-        return sql
-            .replace(/--[^\n]*/g, '') // line comments
-            .replace(/\/\*[\s\S]*?\*\//g, ''); // block comments
+        let result = '';
+        let index = 0;
+        let quote: "'" | '"' | '$$' | null = null;
+
+        while (index < sql.length) {
+            const current = sql[index];
+            const next = sql[index + 1];
+
+            if (quote) {
+                result += current;
+                if (quote === '$$') {
+                    if (current === '$' && next === '$') {
+                        result += next;
+                        index += 2;
+                        quote = null;
+                    } else {
+                        index += 1;
+                    }
+                } else if (current === quote) {
+                    if (next === quote) {
+                        result += next;
+                        index += 2;
+                    } else {
+                        quote = null;
+                        index += 1;
+                    }
+                } else {
+                    index += 1;
+                }
+            } else if (current === "'" || current === '"') {
+                quote = current;
+                result += current;
+                index += 1;
+            } else if (current === '$' && next === '$') {
+                quote = '$$';
+                result += '$$';
+                index += 2;
+            } else if (current === '-' && next === '-') {
+                result += ' ';
+                index += 2;
+                while (index < sql.length && sql[index] !== '\n') {
+                    index += 1;
+                }
+            } else if (current === '/' && next === '*') {
+                result += ' ';
+                index += 2;
+                while (
+                    index < sql.length &&
+                    !(sql[index] === '*' && sql[index + 1] === '/')
+                ) {
+                    index += 1;
+                }
+                index = Math.min(index + 2, sql.length);
+            } else {
+                result += current;
+                index += 1;
+            }
+        }
+
+        return result;
     }
 
     private static validateSqlFunctions(sql: string): void {
@@ -1423,7 +1817,26 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
     }
 
-    private async validateUserSql(
+    private static validateUserSqlFileAccess(sql: string): void {
+        const stripped = DuckdbWarehouseClient.stripSqlComments(sql);
+        const functionMatch = stripped.match(
+            BLOCKED_USER_SQL_FILE_FUNCTION_PATTERN,
+        );
+        if (functionMatch) {
+            const functionName = functionMatch[1].replace(/\s+/g, '');
+            throw new Error(
+                `SQL validation error: function '${functionName}' is not allowed`,
+            );
+        }
+
+        if (BLOCKED_USER_SQL_FILE_TABLE_PATTERN.test(stripped)) {
+            throw new Error(
+                'SQL validation error: file table paths are not allowed',
+            );
+        }
+    }
+
+    private async validateSelectSql(
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
@@ -1449,8 +1862,23 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         } finally {
             stmt.destroySync();
         }
+    }
 
+    private async validateUserSql(
+        db: DuckdbConnection,
+        sql: string,
+    ): Promise<void> {
         DuckdbWarehouseClient.validateSqlFunctions(sql);
+        DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        await this.validateSelectSql(db, sql);
+    }
+
+    private async validatePreAggregateSql(
+        db: DuckdbConnection,
+        sql: string,
+    ): Promise<void> {
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
+        await this.validateSelectSql(db, sql);
     }
 
     private async validateInternalSql(
@@ -1490,29 +1918,45 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             queryParams?: Record<string, AnyType>;
             tags?: Record<string, string>;
             timezone?: string;
+            onPhaseTiming?: (
+                phase: WarehouseQueryPhase,
+                durationMs: number,
+            ) => void;
         },
     ): Promise<void> {
+        const reportPhase = options?.onPhaseTiming;
         await this.withSession(async (db) => {
+            const sessionStart = performance.now();
             if (options?.timezone) {
                 await db.run(
                     `SET TimeZone = '${this.escapeString(options.timezone)}';`,
                 );
             }
 
-            const profilePath = this.logger
-                ? path.join(
-                      os.tmpdir(),
-                      `duckdb-profile-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
-                  )
-                : undefined;
+            const profilePath =
+                this.logger && !this.embeddedConfig
+                    ? path.join(
+                          os.tmpdir(),
+                          `duckdb-profile-${Date.now()}-${Math.random().toString(36).slice(2)}.json`,
+                      )
+                    : undefined;
 
             if (profilePath) {
                 await db.run("PRAGMA enable_profiling='json';");
                 await db.run(`PRAGMA profiling_output='${profilePath}';`);
             }
 
-            await this.validateUserSql(db, sql);
+            if (this.embeddedConfig) {
+                await db.run("SET disabled_filesystems = 'LocalFileSystem';");
+            }
+            if (this.allowsPreAggregateFileReads) {
+                await this.validatePreAggregateSql(db, sql);
+            } else {
+                await this.validateUserSql(db, sql);
+            }
+            reportPhase?.('session', performance.now() - sessionStart);
 
+            const queryStart = performance.now();
             const result = await db.stream(
                 this.getSQLWithMetadata(sql, options?.tags),
                 this.getBindValues(options),
@@ -1520,9 +1964,20 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             const fields =
                 DuckdbWarehouseClient.getFieldsFromStreamResult(result);
 
+            let fetchStart: number | undefined;
             // eslint-disable-next-line no-restricted-syntax
             for await (const rows of result.yieldRowObjectJson()) {
+                if (fetchStart === undefined) {
+                    reportPhase?.('query', performance.now() - queryStart);
+                    fetchStart = performance.now();
+                }
                 await streamCallback({ fields, rows });
+            }
+            if (fetchStart === undefined) {
+                reportPhase?.('query', performance.now() - queryStart);
+                reportPhase?.('fetch', 0);
+            } else {
+                reportPhase?.('fetch', performance.now() - fetchStart);
             }
 
             if (profilePath) {
@@ -1532,7 +1987,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     options?.tags,
                 );
             }
-        });
+        }, options?.tags?.organization_uuid);
     }
 
     async executeAsyncQuery(
@@ -1636,14 +2091,21 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     if (!catalog[ref.database][ref.schema]) {
                         catalog[ref.database][ref.schema] = {};
                     }
-                    catalog[ref.database][ref.schema][ref.table] = rows.reduce<
-                        Record<string, DimensionType>
-                    >((acc, row) => {
+                    catalog[ref.database][ref.schema][ref.table] = {};
+                    rows.forEach((row) => {
                         const colName = row.column_name as string;
                         const colType = row.data_type as string;
-                        acc[colName] = mapFieldTypeFromString(colType);
-                        return acc;
-                    }, {});
+                        catalog[ref.database][ref.schema][ref.table][colName] =
+                            mapFieldTypeFromString(colType);
+                        setCatalogTimestampDomain(
+                            catalog,
+                            ref.database,
+                            ref.schema,
+                            ref.table,
+                            colName,
+                            getDuckdbTimestampDomainFromString(colType),
+                        );
+                    });
                 }
             }
             /* eslint-enable no-await-in-loop */

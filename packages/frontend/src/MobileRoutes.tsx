@@ -1,15 +1,14 @@
 import {
     ActionIcon,
+    Box,
     Burger,
     Divider,
     Drawer,
     getDefaultZIndex,
     Group,
-    Header,
-    MantineProvider,
     Stack,
     Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconChartAreaLine,
     IconFolders,
@@ -17,7 +16,7 @@ import {
     IconLayoutDashboard,
     IconLogout,
 } from '@tabler/icons-react';
-import { lazy, Suspense, useCallback, useMemo, useState, type FC } from 'react';
+import { lazy, Suspense, useCallback, useState, type FC } from 'react';
 import {
     Link,
     Navigate,
@@ -34,9 +33,12 @@ import ProjectSwitcher from './components/NavBar/ProjectSwitcher';
 import { ThemeSwitcher } from './components/NavBar/ThemeSwitcher';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
+import LegacyAppPreviewRedirect from './features/apps/LegacyAppPreviewRedirect';
+import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
-import { getMantineThemeOverride } from './mantineTheme';
+import classes from './MobileRoutes.module.css';
+import Mantine8Provider from './providers/Mantine8Provider';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
@@ -44,6 +46,9 @@ import { PageName } from './types/Events';
 const MobileAiAgentsNavLink = lazy(
     () => import('./components/Mobile/MobileAiAgentsNavLink'),
 );
+
+const getMobileNavBarRootElement = () =>
+    document.getElementById('mobile-navbar') ?? undefined;
 
 const RedirectToResource: FC = () => {
     const { projectUuid, savedQueryUuid, dashboardUuid } = useParams();
@@ -81,96 +86,109 @@ export const MobileNavBar: FC = () => {
         },
     });
 
-    // Force dark theme for navbar (excluding global styles)
-    const darkTheme = useMemo(() => {
-        const fullDarkTheme = getMantineThemeOverride('dark');
-        const { globalStyles, ...themeWithoutGlobalStyles } = fullDarkTheme;
-        return themeWithoutGlobalStyles;
-    }, []);
-
     return (
-        <MantineProvider theme={darkTheme}>
-            <Header
-                height={50}
-                display="flex"
-                px="md"
-                zIndex={getDefaultZIndex('app')}
-                sx={{
-                    alignItems: 'center',
-                    boxShadow: 'lg',
-                }}
+        <Box id="mobile-navbar" data-mantine-color-scheme="dark">
+            <Mantine8Provider
+                forceColorScheme="dark"
+                cssVariablesSelector="#mobile-navbar"
+                getRootElement={getMobileNavBarRootElement}
             >
-                <Group align="center" position="apart" sx={{ flex: 1 }}>
-                    <ActionIcon
-                        component={Link}
-                        to={'/'}
-                        title="Home"
-                        size="lg"
-                    >
-                        <Logo />
-                    </ActionIcon>
-                    <Burger opened={isMenuOpen} onClick={toggleMenu} />
-                </Group>
-            </Header>
-
-            <Drawer
-                title={<ThemeSwitcher />}
-                opened={isMenuOpen}
-                onClose={toggleMenu}
-                size="75%"
-            >
-                <Title order={6} fw={600} mb="xs">
-                    Project
-                </Title>
-                <ProjectSwitcher />
-                <Divider my="lg" />
-                <RouterNavLink
-                    exact
-                    label="Home"
-                    to={`/`}
-                    leftSection={<MantineIcon icon={IconHome} />}
-                    onClick={toggleMenu}
-                />
-                <RouterNavLink
-                    exact
-                    label="Spaces"
-                    to={`/projects/${activeProjectUuid}/spaces`}
-                    leftSection={<MantineIcon icon={IconFolders} />}
-                    onClick={toggleMenu}
-                />
-                <RouterNavLink
-                    exact
-                    label="Dashboards"
-                    to={`/projects/${activeProjectUuid}/dashboards`}
-                    leftSection={<MantineIcon icon={IconLayoutDashboard} />}
-                    onClick={toggleMenu}
-                />
-                <RouterNavLink
-                    exact
-                    label="Charts"
-                    to={`/projects/${activeProjectUuid}/saved`}
-                    leftSection={<MantineIcon icon={IconChartAreaLine} />}
-                    onClick={toggleMenu}
-                />
-                {isMenuOpen && (
-                    <Suspense fallback={null}>
-                        <MobileAiAgentsNavLink
-                            activeProjectUuid={activeProjectUuid}
+                <Box
+                    component="header"
+                    className={classes.header}
+                    h={50}
+                    mah={50}
+                    display="flex"
+                    px="md"
+                    style={{ zIndex: getDefaultZIndex('app') }}
+                >
+                    <Group align="center" justify="space-between" flex={1}>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            component={Link}
+                            to={'/'}
+                            title="Home"
+                            size="lg"
+                        >
+                            <Logo />
+                        </ActionIcon>
+                        <Burger
+                            opened={isMenuOpen}
                             onClick={toggleMenu}
+                            color="white"
+                            aria-label={
+                                isMenuOpen
+                                    ? 'Close navigation menu'
+                                    : 'Open navigation menu'
+                            }
+                            aria-expanded={isMenuOpen}
+                            aria-controls="mobile-navigation"
                         />
-                    </Suspense>
-                )}
-                <Divider my="lg" />
+                    </Group>
+                </Box>
 
-                <RouterNavLink
-                    exact
-                    label="Logout"
-                    to={`/`}
-                    leftSection={<MantineIcon icon={IconLogout} />}
-                    onClick={() => logout()}
-                />
-            </Drawer>
-        </MantineProvider>
+                <Drawer
+                    id="mobile-navigation"
+                    title={<ThemeSwitcher />}
+                    opened={isMenuOpen}
+                    onClose={toggleMenu}
+                    size="75%"
+                    portalProps={{ target: '#mobile-navbar' }}
+                >
+                    <Title order={6} fw={600} mb="xs">
+                        Project
+                    </Title>
+                    <ProjectSwitcher />
+                    <Divider my="lg" />
+                    <RouterNavLink
+                        exact
+                        label="Home"
+                        to={`/`}
+                        leftSection={<MantineIcon icon={IconHome} />}
+                        onClick={toggleMenu}
+                    />
+                    <RouterNavLink
+                        exact
+                        label="Spaces"
+                        to={`/projects/${activeProjectUuid}/spaces`}
+                        leftSection={<MantineIcon icon={IconFolders} />}
+                        onClick={toggleMenu}
+                    />
+                    <RouterNavLink
+                        exact
+                        label="Dashboards"
+                        to={`/projects/${activeProjectUuid}/dashboards`}
+                        leftSection={<MantineIcon icon={IconLayoutDashboard} />}
+                        onClick={toggleMenu}
+                    />
+                    <RouterNavLink
+                        exact
+                        label="Charts"
+                        to={`/projects/${activeProjectUuid}/saved`}
+                        leftSection={<MantineIcon icon={IconChartAreaLine} />}
+                        onClick={toggleMenu}
+                    />
+                    {isMenuOpen && (
+                        <Suspense fallback={null}>
+                            <MobileAiAgentsNavLink
+                                activeProjectUuid={activeProjectUuid}
+                                onClick={toggleMenu}
+                            />
+                        </Suspense>
+                    )}
+                    <Divider my="lg" />
+
+                    <RouterNavLink
+                        exact
+                        label="Logout"
+                        to={`/`}
+                        leftSection={<MantineIcon icon={IconLogout} />}
+                        onClick={() => logout()}
+                    />
+                </Drawer>
+            </Mantine8Provider>
+        </Box>
     );
 };
 
@@ -183,6 +201,7 @@ const routesNotSupportedInMobile = [
     '/join-organization',
     '/createProject/:method?',
     '/createProjectSettings/:projectUuid',
+    '/get-started',
     '/generalSettings/:tab?',
     '/projects/:projectUuid/saved/:savedQueryUuid/history',
     '/projects/:projectUuid/sql-runner',
@@ -202,15 +221,20 @@ const PUBLIC_ROUTES: RouteObject[] = [
     {
         path: '/auth/popup/:status',
         lazy: async () => {
-            const { default: AuthPopupResult } =
-                await import('./pages/AuthPopupResult');
+            const AuthPopupResult = await loadLazyRouteDefault(
+                './pages/AuthPopupResult',
+                () => import('./pages/AuthPopupResult'),
+            );
             return { Component: AuthPopupResult };
         },
     },
     {
         path: '/login',
         lazy: async () => {
-            const { default: Login } = await import('./pages/Login');
+            const Login = await loadLazyRouteDefault(
+                './pages/Login',
+                () => import('./pages/Login'),
+            );
             return {
                 Component: () => (
                     <TrackPage name={PageName.LOGIN}>
@@ -228,8 +252,10 @@ const PUBLIC_ROUTES: RouteObject[] = [
         // Autoclose popup after github installation
         path: '/generalSettings/integrations',
         lazy: async () => {
-            const { default: SuccessAuthPopupResult } =
-                await import('./pages/SuccessAuthPopupResult');
+            const SuccessAuthPopupResult = await loadLazyRouteDefault(
+                './pages/SuccessAuthPopupResult',
+                () => import('./pages/SuccessAuthPopupResult'),
+            );
             return { Component: SuccessAuthPopupResult };
         },
     },
@@ -246,8 +272,10 @@ const MINIMAL_ROUTES: RouteObject[] = [
             {
                 path: '/minimal/projects/:projectUuid/saved/:savedQueryUuid',
                 lazy: async () => {
-                    const { default: MinimalSavedExplorer } =
-                        await import('./pages/MinimalSavedExplorer');
+                    const MinimalSavedExplorer = await loadLazyRouteDefault(
+                        './pages/MinimalSavedExplorer',
+                        () => import('./pages/MinimalSavedExplorer'),
+                    );
                     return {
                         Component: () => (
                             <Stack p="lg" h="90vh">
@@ -260,24 +288,30 @@ const MINIMAL_ROUTES: RouteObject[] = [
             {
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid',
                 lazy: async () => {
-                    const { default: MinimalDashboard } =
-                        await import('./pages/MinimalDashboard');
+                    const MinimalDashboard = await loadLazyRouteDefault(
+                        './pages/MinimalDashboard',
+                        () => import('./pages/MinimalDashboard'),
+                    );
                     return { Component: MinimalDashboard };
                 },
             },
             {
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid/view/tabs/:tabUuid',
                 lazy: async () => {
-                    const { default: MinimalDashboard } =
-                        await import('./pages/MinimalDashboard');
+                    const MinimalDashboard = await loadLazyRouteDefault(
+                        './pages/MinimalDashboard',
+                        () => import('./pages/MinimalDashboard'),
+                    );
                     return { Component: MinimalDashboard };
                 },
             },
             {
                 path: '/minimal/projects/:projectUuid/sql-runner/:savedSqlUuid',
                 lazy: async () => {
-                    const { default: MinimalSqlChart } =
-                        await import('./pages/MinimalSqlChart');
+                    const MinimalSqlChart = await loadLazyRouteDefault(
+                        './pages/MinimalSqlChart',
+                        () => import('./pages/MinimalSqlChart'),
+                    );
                     return {
                         Component: () => (
                             <Stack p="lg" h="90vh">
@@ -303,8 +337,10 @@ const APP_ROUTES: RouteObject[] = [
             {
                 path: '/projects',
                 lazy: async () => {
-                    const { default: Projects } =
-                        await import('./pages/Projects');
+                    const Projects = await loadLazyRouteDefault(
+                        './pages/Projects',
+                        () => import('./pages/Projects'),
+                    );
                     return { Component: Projects };
                 },
             },
@@ -318,10 +354,52 @@ const APP_ROUTES: RouteObject[] = [
                 children: [
                     { index: true, element: <Navigate to="home" replace /> },
                     {
+                        path: 'onboarding/agent',
+                        lazy: async () => {
+                            const AgentOnboardingStartPage =
+                                await loadLazyRouteDefault(
+                                    './ee/features/agentOnboarding/AgentOnboardingStartPage',
+                                    () =>
+                                        import('./ee/features/agentOnboarding/AgentOnboardingStartPage'),
+                                );
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.AGENT_ONBOARDING_START}
+                                    >
+                                        <AgentOnboardingStartPage />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
+                        path: 'onboarding/runs/:agentOnboardingRunUuid',
+                        lazy: async () => {
+                            const AgentOnboardingRunPage =
+                                await loadLazyRouteDefault(
+                                    './ee/features/agentOnboarding/AgentOnboardingRunPage',
+                                    () =>
+                                        import('./ee/features/agentOnboarding/AgentOnboardingRunPage'),
+                                );
+                            return {
+                                Component: () => (
+                                    <TrackPage
+                                        name={PageName.AGENT_ONBOARDING_RUN}
+                                    >
+                                        <AgentOnboardingRunPage />
+                                    </TrackPage>
+                                ),
+                            };
+                        },
+                    },
+                    {
                         path: '/projects/:projectUuid/home',
                         lazy: async () => {
-                            const { default: MobileHome } =
-                                await import('./pages/MobileHome');
+                            const MobileHome = await loadLazyRouteDefault(
+                                './pages/MobileHome',
+                                () => import('./pages/MobileHome'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.HOME}>
@@ -342,8 +420,10 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/saved',
                         lazy: async () => {
-                            const { default: MobileCharts } =
-                                await import('./pages/MobileCharts');
+                            const MobileCharts = await loadLazyRouteDefault(
+                                './pages/MobileCharts',
+                                () => import('./pages/MobileCharts'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.SAVED_QUERIES}>
@@ -356,8 +436,10 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/dashboards',
                         lazy: async () => {
-                            const { default: MobileDashboards } =
-                                await import('./pages/MobileDashboards');
+                            const MobileDashboards = await loadLazyRouteDefault(
+                                './pages/MobileDashboards',
+                                () => import('./pages/MobileDashboards'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.SAVED_DASHBOARDS}>
@@ -370,8 +452,10 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/spaces/:spaceUuid',
                         lazy: async () => {
-                            const { default: MobileSpace } =
-                                await import('./pages/MobileSpace');
+                            const MobileSpace = await loadLazyRouteDefault(
+                                './pages/MobileSpace',
+                                () => import('./pages/MobileSpace'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.SPACE}>
@@ -384,8 +468,10 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/spaces',
                         lazy: async () => {
-                            const { default: MobileSpaces } =
-                                await import('./pages/MobileSpaces');
+                            const MobileSpaces = await loadLazyRouteDefault(
+                                './pages/MobileSpaces',
+                                () => import('./pages/MobileSpaces'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.SPACES}>
@@ -396,20 +482,32 @@ const APP_ROUTES: RouteObject[] = [
                         },
                     },
                     {
-                        path: '/projects/:projectUuid/apps/:appUuid/preview',
+                        path: '/projects/:projectUuid/apps/:appUuid/view',
                         lazy: async () => {
-                            const { default: AppPreviewTest } =
-                                await import('./pages/AppPreviewTest');
+                            const AppPreviewTest = await loadLazyRouteDefault(
+                                './pages/AppPreviewTest',
+                                () => import('./pages/AppPreviewTest'),
+                            );
                             return { Component: AppPreviewTest };
                         },
                     },
                     {
-                        path: '/projects/:projectUuid/apps/:appUuid/versions/:version/preview',
+                        path: '/projects/:projectUuid/apps/:appUuid/versions/:version/view',
                         lazy: async () => {
-                            const { default: AppPreviewTest } =
-                                await import('./pages/AppPreviewTest');
+                            const AppPreviewTest = await loadLazyRouteDefault(
+                                './pages/AppPreviewTest',
+                                () => import('./pages/AppPreviewTest'),
+                            );
                             return { Component: AppPreviewTest };
                         },
+                    },
+                    {
+                        path: '/projects/:projectUuid/apps/:appUuid/preview',
+                        element: <LegacyAppPreviewRedirect />,
+                    },
+                    {
+                        path: '/projects/:projectUuid/apps/:appUuid/versions/:version/preview',
+                        element: <LegacyAppPreviewRedirect />,
                     },
                 ],
             },
@@ -460,8 +558,10 @@ const PRIVATE_ROUTES: RouteObject[] = [
             {
                 path: '/share/:shareNanoid',
                 lazy: async () => {
-                    const { default: ShareRedirect } =
-                        await import('./pages/ShareRedirect');
+                    const ShareRedirect = await loadLazyRouteDefault(
+                        './pages/ShareRedirect',
+                        () => import('./pages/ShareRedirect'),
+                    );
                     return {
                         Component: () => (
                             <TrackPage name={PageName.SHARE}>

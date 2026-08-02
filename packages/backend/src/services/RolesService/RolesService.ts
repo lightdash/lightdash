@@ -2,14 +2,22 @@ import { Ability, subject } from '@casl/ability';
 import {
     Account,
     AddScopesToRole,
+    ApiCustomRoleAsCodeUpsertResponse,
+    ApiUserAsCodeUpsertResponse,
+    assertRegisteredAccount,
     CreateRole,
+    CustomRoleAsCode,
     ForbiddenError,
+    getAllScopeMap,
+    InviteLinkPurpose,
+    isOrganizationMemberRole,
     isScopeAssignableAtLevel,
     isSystemRole,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     ProjectMemberRole,
+    PromotionAction,
     Role,
     RoleAssignee,
     RoleAssignment,
@@ -18,14 +26,22 @@ import {
     UpdateRole,
     UpdateRoleAssignmentRequest,
     UpsertUserRoleAssignmentRequest,
+    UserAsCode,
+    UserAsCodeInvitationStatus,
+    UserAsCodeLifecycleStatus,
+    UserAsCodeRole,
+    validateEmail,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { nanoid } from 'nanoid';
 import { DatabaseError } from 'pg';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { GroupsModel } from '../../models/GroupsModel';
+import { InviteLinkModel } from '../../models/InviteLinkModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
@@ -33,9 +49,11 @@ import { UserModel } from '../../models/UserModel';
 import { wrapSentryTransaction } from '../../utils';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { LicenseService } from '../LicenseService/LicenseService';
 
 type RolesServiceArguments = {
     lightdashConfig: LightdashConfig;
+    licenseService: LicenseService;
     analytics: LightdashAnalytics;
     rolesModel: RolesModel;
     userModel: UserModel;
@@ -44,10 +62,14 @@ type RolesServiceArguments = {
     projectModel: ProjectModel;
     emailClient: EmailClient;
     adminNotificationService: AdminNotificationService;
+    inviteLinkModel: InviteLinkModel;
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
 };
 
 export class RolesService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
+
+    private readonly licenseService: LicenseService;
 
     private readonly analytics: LightdashAnalytics;
 
@@ -65,8 +87,13 @@ export class RolesService extends BaseService {
 
     private readonly adminNotificationService: AdminNotificationService;
 
+    private readonly inviteLinkModel: InviteLinkModel;
+
+    private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
+
     constructor({
         lightdashConfig,
+        licenseService,
         analytics,
         rolesModel,
         userModel,
@@ -75,9 +102,12 @@ export class RolesService extends BaseService {
         projectModel,
         emailClient,
         adminNotificationService,
+        inviteLinkModel,
+        organizationMemberProfileModel,
     }: RolesServiceArguments) {
         super({ serviceName: 'RolesService' });
         this.lightdashConfig = lightdashConfig;
+        this.licenseService = licenseService;
         this.analytics = analytics;
         this.rolesModel = rolesModel;
         this.userModel = userModel;
@@ -86,6 +116,8 @@ export class RolesService extends BaseService {
         this.projectModel = projectModel;
         this.emailClient = emailClient;
         this.adminNotificationService = adminNotificationService;
+        this.inviteLinkModel = inviteLinkModel;
+        this.organizationMemberProfileModel = organizationMemberProfileModel;
     }
 
     /**
@@ -235,6 +267,77 @@ export class RolesService extends BaseService {
         }
     }
 
+    private assertCustomRolesLicensed(): void {
+        if (!this.licenseService.getLicenseStatus().valid) {
+            throw new ForbiddenError(
+                'Custom roles require a Lightdash Enterprise license',
+            );
+        }
+    }
+
+    private static validateCustomRoleAsCode(role: CustomRoleAsCode): void {
+        const expectedKeys = [
+            'version',
+            'name',
+            'description',
+            'level',
+            'scopes',
+        ];
+        const unknownKeys = Object.keys(role).filter(
+            (key) => !expectedKeys.includes(key),
+        );
+        if (unknownKeys.length > 0) {
+            throw new ParameterError(
+                `Unknown custom role fields: ${unknownKeys.sort().join(', ')}`,
+            );
+        }
+        if (role.version !== 1) {
+            throw new ParameterError(
+                `Unsupported custom role as-code version ${role.version}`,
+            );
+        }
+        RolesService.validateRoleName(role.name);
+        if (role.description !== null && typeof role.description !== 'string') {
+            throw new ParameterError(
+                'Custom role description must be a string or null',
+            );
+        }
+        if (role.level !== 'project' && role.level !== 'organization') {
+            throw new ParameterError(
+                'Custom role level must be "project" or "organization"',
+            );
+        }
+        if (
+            !Array.isArray(role.scopes) ||
+            !role.scopes.every(
+                (scope) => typeof scope === 'string' && scope.length > 0,
+            )
+        ) {
+            throw new ParameterError(
+                'Custom role scopes must be a list of non-empty strings',
+            );
+        }
+        const duplicateScopes = role.scopes.filter(
+            (scope, index) => role.scopes.indexOf(scope) !== index,
+        );
+        if (duplicateScopes.length > 0) {
+            throw new ParameterError(
+                `Duplicate custom role scopes: ${[...new Set(duplicateScopes)]
+                    .sort()
+                    .join(', ')}`,
+            );
+        }
+        const scopeMap = getAllScopeMap({ isEnterprise: true });
+        const unknownScopes = role.scopes.filter(
+            (scope) => !Object.prototype.hasOwnProperty.call(scopeMap, scope),
+        );
+        if (unknownScopes.length > 0) {
+            throw new ParameterError(
+                `Unknown custom role scopes: ${unknownScopes.sort().join(', ')}`,
+            );
+        }
+    }
+
     private static validateScopesLevel(
         scopeNames: string[],
         level: RoleLevel,
@@ -250,6 +353,20 @@ export class RolesService extends BaseService {
                 )}`,
             );
         }
+    }
+
+    private static normalizeLegacyCustomRoleLevel(
+        role: CustomRoleAsCode,
+    ): CustomRoleAsCode {
+        if (
+            role.level === 'project' &&
+            role.scopes.some(
+                (scopeName) => !isScopeAssignableAtLevel(scopeName, role.level),
+            )
+        ) {
+            return { ...role, level: 'organization' };
+        }
+        return role;
     }
 
     private static validateCustomRoleLevel(
@@ -290,6 +407,527 @@ export class RolesService extends BaseService {
         );
     }
 
+    async getCustomRolesAsCode(
+        account: Account,
+        organizationUuid: string,
+    ): Promise<CustomRoleAsCode[]> {
+        const roles = (await this.getRolesByOrganizationUuid(
+            account,
+            organizationUuid,
+            true,
+            'user',
+        )) as RoleWithScopes[];
+
+        return roles.map((role) => ({
+            version: 1,
+            name: role.name,
+            description: role.description,
+            level: role.level,
+            scopes: [...role.scopes].sort(),
+        }));
+    }
+
+    async upsertCustomRoleAsCode(
+        account: Account,
+        organizationUuid: string,
+        desiredRole: CustomRoleAsCode,
+    ): Promise<ApiCustomRoleAsCodeUpsertResponse['results']> {
+        this.assertCustomRolesLicensed();
+        const auditedAbility = this.createAuditedAbility(account);
+        RolesService.validateOrganizationAccess(
+            account,
+            auditedAbility,
+            organizationUuid,
+        );
+        RolesService.validateCustomRoleAsCode(desiredRole);
+
+        const existingRoles =
+            await this.rolesModel.getRolesWithScopesByOrganizationUuid(
+                organizationUuid,
+                'user',
+            );
+        const existingRole = existingRoles.find(
+            (role) => role.name === desiredRole.name,
+        );
+        const normalizedDesiredRole =
+            RolesService.normalizeLegacyCustomRoleLevel(desiredRole);
+        const effectiveDesiredRole =
+            existingRole?.level === desiredRole.level
+                ? desiredRole
+                : normalizedDesiredRole;
+
+        if (!existingRole) {
+            RolesService.validateScopesLevel(
+                effectiveDesiredRole.scopes,
+                effectiveDesiredRole.level,
+            );
+            await this.createRole(account, organizationUuid, {
+                name: effectiveDesiredRole.name,
+                description: effectiveDesiredRole.description ?? undefined,
+                level: effectiveDesiredRole.level,
+                scopes: effectiveDesiredRole.scopes,
+            });
+            return { action: PromotionAction.CREATE };
+        }
+
+        if (existingRole.level !== effectiveDesiredRole.level) {
+            throw new ParameterError(
+                `Cannot change custom role "${effectiveDesiredRole.name}" level from ${existingRole.level} to ${effectiveDesiredRole.level}. Create a new role instead.`,
+            );
+        }
+
+        const existingScopes = new Set(existingRole.scopes);
+        const desiredScopes = new Set(effectiveDesiredRole.scopes);
+        const scopesToAdd = effectiveDesiredRole.scopes.filter(
+            (scope) => !existingScopes.has(scope),
+        );
+        const scopesToRemove = existingRole.scopes
+            .filter((scope) => !desiredScopes.has(scope))
+            .sort();
+        const descriptionChanged =
+            existingRole.description !== effectiveDesiredRole.description;
+
+        RolesService.validateScopesLevel(
+            scopesToAdd,
+            effectiveDesiredRole.level,
+        );
+
+        if (
+            scopesToAdd.length === 0 &&
+            scopesToRemove.length === 0 &&
+            !descriptionChanged
+        ) {
+            return { action: PromotionAction.NO_CHANGES };
+        }
+
+        await this.updateRole(
+            account,
+            organizationUuid,
+            existingRole.roleUuid,
+            {
+                ...(descriptionChanged
+                    ? { description: effectiveDesiredRole.description }
+                    : {}),
+                scopes: {
+                    add: scopesToAdd,
+                    remove: scopesToRemove,
+                },
+            },
+        );
+        return { action: PromotionAction.UPDATE };
+    }
+
+    private static validateUserAsCode(desiredUser: UserAsCode): UserAsCode {
+        if (
+            typeof desiredUser !== 'object' ||
+            desiredUser === null ||
+            Array.isArray(desiredUser)
+        ) {
+            throw new ParameterError('User as code must be an object');
+        }
+
+        const expectedKeys = ['version', 'email', 'disabled', 'role'];
+        const unknownKeys = Object.keys(desiredUser).filter(
+            (key) => !expectedKeys.includes(key),
+        );
+        if (unknownKeys.length > 0) {
+            throw new ParameterError(
+                `Unknown user fields: ${unknownKeys.sort().join(', ')}`,
+            );
+        }
+        if (desiredUser.version !== 1) {
+            throw new ParameterError(
+                `Unsupported user as-code version ${desiredUser.version}`,
+            );
+        }
+        if (
+            typeof desiredUser.email !== 'string' ||
+            !validateEmail(desiredUser.email)
+        ) {
+            throw new ParameterError(`Invalid email: ${desiredUser.email}`);
+        }
+        if (typeof desiredUser.disabled !== 'boolean') {
+            throw new ParameterError('User disabled must be a boolean');
+        }
+        if (
+            typeof desiredUser.role !== 'object' ||
+            desiredUser.role === null ||
+            Array.isArray(desiredUser.role)
+        ) {
+            throw new ParameterError('User role must be an object');
+        }
+        const unknownRoleKeys = Object.keys(desiredUser.role).filter(
+            (key) => !['type', 'name'].includes(key),
+        );
+        if (unknownRoleKeys.length > 0) {
+            throw new ParameterError(
+                `Unknown user role fields: ${unknownRoleKeys.sort().join(', ')}`,
+            );
+        }
+        if (
+            desiredUser.role.type !== 'system' &&
+            desiredUser.role.type !== 'custom'
+        ) {
+            throw new ParameterError(
+                'User role type must be "system" or "custom"',
+            );
+        }
+        if (
+            typeof desiredUser.role.name !== 'string' ||
+            desiredUser.role.name.trim().length === 0
+        ) {
+            throw new ParameterError('User role name cannot be empty');
+        }
+        if (
+            desiredUser.role.type === 'system' &&
+            !isOrganizationMemberRole(desiredUser.role.name)
+        ) {
+            throw new ParameterError(
+                `Invalid system organization role: ${desiredUser.role.name}`,
+            );
+        }
+
+        return {
+            ...desiredUser,
+            email: desiredUser.email.toLowerCase(),
+        };
+    }
+
+    private static validateUsersAsCodeAccess(
+        account: Account,
+        auditedAbility: CaslAuditWrapper<Ability>,
+        organizationUuid: string,
+        action: 'view' | 'manage',
+    ): void {
+        assertRegisteredAccount(account);
+        if (account.organization.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError();
+        }
+        if (
+            auditedAbility.cannot(
+                action,
+                subject('OrganizationMemberProfile', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    private async resolveUserAsCodeRole(
+        organizationUuid: string,
+        role: UserAsCodeRole,
+    ): Promise<string> {
+        if (role.type === 'system') {
+            return role.name;
+        }
+
+        const matchingRoles = (
+            await this.rolesModel.getRolesWithScopesByOrganizationUuid(
+                organizationUuid,
+                'user',
+            )
+        ).filter(
+            (candidate) =>
+                candidate.name === role.name &&
+                candidate.level === 'organization',
+        );
+
+        if (matchingRoles.length === 0) {
+            throw new ParameterError(
+                `Organization custom role "${role.name}" not found`,
+            );
+        }
+        if (matchingRoles.length > 1) {
+            throw new ParameterError(
+                `Multiple organization custom roles named "${role.name}" found`,
+            );
+        }
+        if (matchingRoles[0].scopes.length === 0) {
+            throw new ParameterError(
+                `Organization custom role "${role.name}" must have at least one scope`,
+            );
+        }
+
+        return matchingRoles[0].roleUuid;
+    }
+
+    async getUsersAsCode(
+        account: Account,
+        organizationUuid: string,
+    ): Promise<UserAsCode[]> {
+        const auditedAbility = this.createAuditedAbility(account);
+        RolesService.validateUsersAsCodeAccess(
+            account,
+            auditedAbility,
+            organizationUuid,
+            'view',
+        );
+
+        const [members, customRoles] = await Promise.all([
+            this.organizationMemberProfileModel.getAllOrganizationMembers(
+                organizationUuid,
+            ),
+            this.rolesModel.getRolesWithScopesByOrganizationUuid(
+                organizationUuid,
+                'user',
+            ),
+        ]);
+        const customRoleNames = new Map(
+            customRoles
+                .filter((role) => role.level === 'organization')
+                .map((role) => [role.roleUuid, role.name]),
+        );
+
+        return members.map((member) => {
+            let role: UserAsCodeRole;
+            if (member.roleUuid) {
+                const roleName = customRoleNames.get(member.roleUuid);
+                if (!roleName) {
+                    throw new ParameterError(
+                        `Organization custom role ${member.roleUuid} assigned to ${member.email} was not found`,
+                    );
+                }
+                role = { type: 'custom', name: roleName };
+            } else {
+                role = { type: 'system', name: member.role };
+            }
+
+            return {
+                version: 1,
+                email: member.email.toLowerCase(),
+                disabled: !member.isActive,
+                role,
+            };
+        });
+    }
+
+    private async validateUsableAdminChange(
+        organizationUuid: string,
+        existingUser: Awaited<ReturnType<UserModel['findUserByEmail']>>,
+        desiredRoleId: string,
+        disabled: boolean,
+    ): Promise<void> {
+        if (
+            !existingUser ||
+            existingUser.role !== OrganizationMemberRole.ADMIN ||
+            !existingUser.isActive ||
+            existingUser.isPending ||
+            (desiredRoleId === OrganizationMemberRole.ADMIN && !disabled)
+        ) {
+            return;
+        }
+
+        const usableAdmins = (
+            await this.organizationMemberProfileModel.getOrganizationAdmins(
+                organizationUuid,
+            )
+        ).filter((admin) => admin.isActive && !admin.isPending);
+        if (
+            usableAdmins.length === 1 &&
+            usableAdmins[0].userUuid === existingUser.userUuid
+        ) {
+            throw new ParameterError(
+                'Organization must have at least one enabled authenticated admin',
+            );
+        }
+    }
+
+    private async getUserAsCodeInvitationStatus({
+        account,
+        organizationUuid,
+        userUuid,
+        desiredUser,
+        sendInvite,
+    }: {
+        account: Account;
+        organizationUuid: string;
+        userUuid: string;
+        desiredUser: UserAsCode;
+        sendInvite: boolean;
+    }): Promise<UserAsCodeInvitationStatus> {
+        if (!sendInvite) {
+            return UserAsCodeInvitationStatus.NOT_REQUESTED;
+        }
+        if (desiredUser.disabled) {
+            return UserAsCodeInvitationStatus.SKIPPED_DISABLED;
+        }
+
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
+        if (!user.isPending) {
+            return UserAsCodeInvitationStatus.SKIPPED_AUTHENTICATED;
+        }
+        if (await this.inviteLinkModel.hasValidInviteLink(userUuid)) {
+            return UserAsCodeInvitationStatus.SKIPPED_VALID_INVITE;
+        }
+
+        assertRegisteredAccount(account);
+        const inviteCode = nanoid(30);
+        const inviteLink = await this.inviteLinkModel.upsert(
+            inviteCode,
+            new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+            organizationUuid,
+            userUuid,
+            InviteLinkPurpose.Member,
+        );
+        try {
+            await this.emailClient.sendInviteEmail(
+                {
+                    firstName: account.user.firstName,
+                    lastName: account.user.lastName,
+                    email: account.user.email,
+                    organizationName: account.organization.name,
+                },
+                inviteLink,
+            );
+        } catch (error) {
+            await this.inviteLinkModel.deleteByCode(inviteCode);
+            throw error;
+        }
+
+        this.analytics.track({
+            userId: account.user.userUuid,
+            event: 'invite_link.created',
+        });
+        return UserAsCodeInvitationStatus.SENT;
+    }
+
+    async upsertUserAsCode(
+        account: Account,
+        organizationUuid: string,
+        desiredUserInput: UserAsCode,
+        sendInvite: boolean = false,
+    ): Promise<ApiUserAsCodeUpsertResponse['results']> {
+        const auditedAbility = this.createAuditedAbility(account);
+        RolesService.validateUsersAsCodeAccess(
+            account,
+            auditedAbility,
+            organizationUuid,
+            'manage',
+        );
+        if (
+            sendInvite &&
+            auditedAbility.cannot(
+                'create',
+                subject('InviteLink', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        assertRegisteredAccount(account);
+        const desiredUser = RolesService.validateUserAsCode(desiredUserInput);
+        const desiredRoleId = await this.resolveUserAsCodeRole(
+            organizationUuid,
+            desiredUser.role,
+        );
+        const existingUser = await this.userModel.findUserByEmail(
+            desiredUser.email,
+        );
+
+        if (
+            existingUser?.organizationUuid &&
+            existingUser.organizationUuid !== organizationUuid
+        ) {
+            throw new ParameterError(
+                'Email is already used by a user in another organization',
+            );
+        }
+        const existingRoleId = existingUser
+            ? (existingUser.roleUuid ?? existingUser.role)
+            : undefined;
+        const disabledChanged = existingUser
+            ? existingUser.isActive === desiredUser.disabled
+            : false;
+        const roleChanged = existingRoleId !== desiredRoleId;
+
+        if (
+            existingUser?.userUuid === account.user.userUuid &&
+            (disabledChanged || roleChanged)
+        ) {
+            throw new ForbiddenError(
+                'Upload cannot change the authenticated user role or disabled state',
+            );
+        }
+
+        await this.validateUsableAdminChange(
+            organizationUuid,
+            existingUser,
+            desiredRoleId,
+            desiredUser.disabled,
+        );
+
+        let userUuid: string;
+        let action: ApiUserAsCodeUpsertResponse['results']['action'];
+        if (!existingUser) {
+            const createdUser = await this.userModel.createPendingUser(
+                organizationUuid,
+                {
+                    email: desiredUser.email,
+                    firstName: '',
+                    lastName: '',
+                    role: OrganizationMemberRole.MEMBER,
+                },
+                !desiredUser.disabled,
+            );
+            userUuid = createdUser.userUuid;
+            action = PromotionAction.CREATE;
+        } else if (!existingUser.organizationUuid) {
+            await this.userModel.joinOrg(
+                existingUser.userUuid,
+                organizationUuid,
+                OrganizationMemberRole.MEMBER,
+                undefined,
+            );
+            if (disabledChanged) {
+                await this.userModel.updateUser(
+                    existingUser.userUuid,
+                    existingUser.email,
+                    { isActive: !desiredUser.disabled },
+                );
+            }
+            userUuid = existingUser.userUuid;
+            action = PromotionAction.CREATE;
+        } else {
+            userUuid = existingUser.userUuid;
+            action =
+                roleChanged || disabledChanged
+                    ? PromotionAction.UPDATE
+                    : PromotionAction.NO_CHANGES;
+        }
+
+        if (roleChanged || action === PromotionAction.CREATE) {
+            const user = await this.userModel.getUserDetailsByUuid(userUuid);
+            await this.applyOrganizationUserRoleAssignment(
+                account,
+                organizationUuid,
+                user,
+                desiredRoleId,
+            );
+        }
+        if (
+            existingUser?.organizationUuid === organizationUuid &&
+            disabledChanged
+        ) {
+            await this.userModel.updateUser(userUuid, existingUser.email, {
+                isActive: !desiredUser.disabled,
+            });
+        }
+
+        const currentUser = await this.userModel.getUserDetailsByUuid(userUuid);
+        const lifecycle = currentUser.isPending
+            ? UserAsCodeLifecycleStatus.AWAITING_AUTHENTICATION
+            : UserAsCodeLifecycleStatus.READY;
+        const invitation = await this.getUserAsCodeInvitationStatus({
+            account,
+            organizationUuid,
+            userUuid,
+            desiredUser,
+            sendInvite,
+        });
+
+        return { action, lifecycle, invitation };
+    }
+
     async createRole(
         account: Account,
         organizationUuid: string,
@@ -316,7 +954,7 @@ export class RolesService extends BaseService {
                     organizationUuid,
                     {
                         name,
-                        description: description || null,
+                        description: description ?? null,
                         level,
                         created_by: account.user?.id,
                     },
@@ -342,6 +980,7 @@ export class RolesService extends BaseService {
                 roleUuid: role.roleUuid,
                 roleName: role.name,
                 organizationUuid,
+                level: role.level,
                 scopes,
             },
         });
@@ -370,10 +1009,13 @@ export class RolesService extends BaseService {
         }
 
         await this.rolesModel.db.transaction(async (tx: Knex.Transaction) => {
-            if (name || description) {
+            if (name !== undefined || description !== undefined) {
                 await this.rolesModel.updateRole(
                     roleUuid,
-                    { name, description },
+                    {
+                        ...(name !== undefined ? { name } : {}),
+                        ...(description !== undefined ? { description } : {}),
+                    },
                     tx,
                 );
             }
@@ -452,6 +1094,83 @@ export class RolesService extends BaseService {
      * Assign a system role or an organization-level custom role to a user at
      * the organization level.
      */
+    private async applyOrganizationUserRoleAssignment(
+        account: Account,
+        orgUuid: string,
+        user: Awaited<ReturnType<UserModel['getUserDetailsByUuid']>>,
+        roleId: string,
+    ): Promise<RoleAssignment> {
+        const previousRole = user.role;
+        const isCustomRole =
+            roleId !== OrganizationMemberRole.MEMBER && !isSystemRole(roleId);
+
+        let roleName = roleId;
+        let ownerType: Role['ownerType'] = 'system';
+
+        if (isCustomRole) {
+            const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
+            if (role.organizationUuid !== orgUuid) {
+                throw new ForbiddenError();
+            }
+            RolesService.validateCustomRoleLevel(role, 'organization');
+
+            if (role.scopes.length === 0) {
+                throw new ParameterError(
+                    'Custom role must have at least one scope',
+                );
+            }
+
+            roleName = role.name;
+            ownerType = 'user';
+        }
+
+        await this.rolesModel.upsertOrganizationUserRoleAssignment(
+            orgUuid,
+            user.userUuid,
+            roleId,
+        );
+
+        this.analytics.track({
+            event: 'organization_role.assigned_to_user',
+            userId: account.user?.id,
+            properties: {
+                organizationUuid: orgUuid,
+                userUuid: user.userUuid,
+                roleId,
+                isSystemRole: !isCustomRole,
+            },
+        });
+
+        if (!isCustomRole) {
+            this.adminNotificationService
+                .notifyOrgAdminRoleChange(
+                    account,
+                    user.userUuid,
+                    orgUuid,
+                    previousRole,
+                    roleId as OrganizationMemberRole,
+                )
+                .catch((err) => {
+                    this.logger.error(
+                        'Failed to send org admin role change notification',
+                        { error: err },
+                    );
+                });
+        }
+
+        return {
+            roleId,
+            roleName,
+            ownerType,
+            assigneeType: 'user',
+            assigneeId: user.userUuid,
+            assigneeName: `${user.firstName} ${user.lastName}`,
+            organizationId: orgUuid,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+    }
+
     async upsertOrganizationUserRoleAssignment(
         account: Account,
         orgUuid: string,
@@ -469,8 +1188,6 @@ export class RolesService extends BaseService {
         );
 
         const user = await this.userModel.getUserDetailsByUuid(userUuid);
-        const previousRole = user.role;
-
         if (user.role === OrganizationMemberRole.ADMIN) {
             // If user is currently an admin, we need to check if there are more admins
             // because every org should have at least one admin
@@ -483,75 +1200,12 @@ export class RolesService extends BaseService {
             }
         }
 
-        const isCustomRole =
-            roleId !== OrganizationMemberRole.MEMBER && !isSystemRole(roleId);
-
-        let roleName = roleId;
-        let ownerType: Role['ownerType'] = 'system';
-
-        if (isCustomRole) {
-            const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
-            RolesService.validateRoleOwnership(account, auditedAbility, role);
-            RolesService.validateCustomRoleLevel(role, 'organization');
-
-            if (role.scopes.length === 0) {
-                throw new ParameterError(
-                    'Custom role must have at least one scope',
-                );
-            }
-
-            roleName = role.name;
-            ownerType = 'user';
-        }
-
-        await this.rolesModel.upsertOrganizationUserRoleAssignment(
+        return this.applyOrganizationUserRoleAssignment(
+            account,
             orgUuid,
-            userUuid,
+            user,
             roleId,
         );
-
-        this.analytics.track({
-            event: 'organization_role.assigned_to_user',
-            userId: account.user?.id,
-            properties: {
-                organizationUuid: orgUuid,
-                userUuid,
-                roleId,
-                isSystemRole: !isCustomRole,
-            },
-        });
-
-        if (!isCustomRole) {
-            // Safe cast: only system roles reach this branch
-            this.adminNotificationService
-                .notifyOrgAdminRoleChange(
-                    account,
-                    userUuid,
-                    orgUuid,
-                    previousRole,
-                    roleId as OrganizationMemberRole,
-                )
-                .catch((err) => {
-                    this.logger.error(
-                        'Failed to send org admin role change notification',
-                        {
-                            error: err,
-                        },
-                    );
-                });
-        }
-
-        return {
-            roleId,
-            roleName,
-            ownerType,
-            assigneeType: 'user',
-            assigneeId: userUuid,
-            assigneeName: `${user.firstName} ${user.lastName}`,
-            organizationId: orgUuid,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
     }
 
     // =====================================
@@ -679,6 +1333,11 @@ export class RolesService extends BaseService {
         await this.validateProjectAccess(account, projectUuid);
         const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
 
+        const user = await this.userModel.getUserDetailsByUuid(userUuid);
+        if (user.organizationUuid !== project.organizationUuid) {
+            throw new ForbiddenError();
+        }
+
         const userProjectRole =
             await this.rolesModel.getProjectAccessByUserUuid(
                 userUuid,
@@ -692,6 +1351,10 @@ export class RolesService extends BaseService {
                 roleId,
             );
         } else {
+            if (role.organizationUuid !== project.organizationUuid) {
+                throw new ForbiddenError();
+            }
+
             if (role.scopes.length === 0) {
                 throw new ParameterError(
                     'Custom role must have at least one scope',
@@ -706,7 +1369,6 @@ export class RolesService extends BaseService {
                 roleId,
             );
         }
-        const user = await this.userModel.getUserDetailsByUuid(userUuid);
 
         // If the user is added to the project for the first time, send an invitation email
         const userEmail = user.email;
@@ -798,6 +1460,10 @@ export class RolesService extends BaseService {
         );
         await this.validateProjectAccess(account, projectUuid);
         const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
+        const group = await this.groupsModel.getGroup(groupUuid);
+        if (group.organizationUuid !== project.organizationUuid) {
+            throw new ForbiddenError();
+        }
 
         if (isSystemRole(roleId)) {
             await this.rolesModel.upsertSystemRoleGroupAccess(
@@ -806,6 +1472,10 @@ export class RolesService extends BaseService {
                 roleId,
             );
         } else {
+            if (role.organizationUuid !== project.organizationUuid) {
+                throw new ForbiddenError();
+            }
+
             if (role.scopes.length === 0) {
                 throw new ParameterError(
                     'Custom role must have at least one scope',
@@ -834,7 +1504,6 @@ export class RolesService extends BaseService {
             },
         });
 
-        const group = await this.groupsModel.getGroup(groupUuid);
         return {
             roleId,
             roleName: role.name,
@@ -938,7 +1607,19 @@ export class RolesService extends BaseService {
         const auditedAbility = this.createAuditedAbility(account);
         RolesService.validateRoleOwnership(account, auditedAbility, role);
         RolesService.validateCustomRoleLevel(role, 'project');
+        const project = await this.projectModel.getSummary(projectUuid);
         await this.validateProjectAccess(account, projectUuid);
+
+        if (
+            !isSystemRole(roleUuid) &&
+            role.organizationUuid !== project.organizationUuid
+        ) {
+            throw new ForbiddenError();
+        }
+        const group = await this.groupsModel.getGroup(groupUuid);
+        if (group.organizationUuid !== project.organizationUuid) {
+            throw new ForbiddenError();
+        }
 
         await this.rolesModel.assignRoleToGroup(
             groupUuid,
@@ -1057,6 +1738,7 @@ export class RolesService extends BaseService {
         });
     }
 
+    /** @deprecated Only used by the deprecated remove-scope endpoint; use updateRole with scopes.remove instead. */
     async removeScopeFromRole(
         account: Account,
         roleUuid: string,

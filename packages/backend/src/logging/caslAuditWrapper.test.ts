@@ -41,8 +41,9 @@ describe('CaslAuditWrapper', () => {
     };
 
     // Use function to create fresh instances for each test
-    const createMockLogger = (): jest.Mock<void, [AuditLogEvent]> =>
-        jest.fn<void, [AuditLogEvent]>();
+    const createMockLogger = (): import('vitest').Mock<
+        (event: AuditLogEvent) => void
+    > => vi.fn<(event: AuditLogEvent) => void>();
 
     // Tests run with a simple set of mock abilities - this does not test the real abilities/permissions in Lightdash
     const createTestAbility = () =>
@@ -71,7 +72,9 @@ describe('CaslAuditWrapper', () => {
         });
 
     // Create a new wrapper for each test - cast ability to avoid complex type issues
-    const createWrapper = (mockLogger: jest.Mock<void, [AuditLogEvent]>) =>
+    const createWrapper = (
+        mockLogger: import('vitest').Mock<(event: AuditLogEvent) => void>,
+    ) =>
         new CaslAuditWrapper(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             createTestAbility() as any,
@@ -85,7 +88,7 @@ describe('CaslAuditWrapper', () => {
         );
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('can method', () => {
@@ -343,9 +346,11 @@ describe('CaslAuditWrapper', () => {
 
     describe('audit logging resilience', () => {
         it('should return correct result when audit logger throws on can()', () => {
-            const throwingLogger = jest.fn(() => {
+            const throwingLogger = vi.fn(() => {
                 throw new Error('Logging infrastructure down');
-            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+            }) as unknown as import('vitest').Mock<
+                (event: AuditLogEvent) => void
+            >;
 
             const wrapper = new CaslAuditWrapper(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -360,9 +365,11 @@ describe('CaslAuditWrapper', () => {
         });
 
         it('should return correct result when audit logger throws on cannot()', () => {
-            const throwingLogger = jest.fn(() => {
+            const throwingLogger = vi.fn(() => {
                 throw new Error('Logging infrastructure down');
-            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+            }) as unknown as import('vitest').Mock<
+                (event: AuditLogEvent) => void
+            >;
 
             const wrapper = new CaslAuditWrapper(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -377,9 +384,11 @@ describe('CaslAuditWrapper', () => {
         });
 
         it('should return denied result correctly when audit logger throws', () => {
-            const throwingLogger = jest.fn(() => {
+            const throwingLogger = vi.fn(() => {
                 throw new Error('Logging infrastructure down');
-            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+            }) as unknown as import('vitest').Mock<
+                (event: AuditLogEvent) => void
+            >;
 
             const wrapper = new CaslAuditWrapper(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -516,9 +525,11 @@ describe('CaslAuditWrapper', () => {
         });
 
         it('should not throw when audit logger fails on bare-string subject', () => {
-            const throwingLogger = jest.fn(() => {
+            const throwingLogger = vi.fn(() => {
                 throw new Error('Logging infrastructure down');
-            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+            }) as unknown as import('vitest').Mock<
+                (event: AuditLogEvent) => void
+            >;
 
             const wrapper = new CaslAuditWrapper(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any

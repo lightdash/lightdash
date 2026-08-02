@@ -26,6 +26,15 @@ const LIGHTDASH_LIQUID_PATTERN =
 
 type ParameterValue = string | number | string[] | number[];
 
+const UNSAFE_PARAMETER_KEY_PARTS = new Set([
+    '__proto__',
+    'constructor',
+    'prototype',
+]);
+
+const isSafeParameterKey = (key: string) =>
+    !key.split('.').some((part) => UNSAFE_PARAMETER_KEY_PARTS.has(part));
+
 const escapeLiquidParameterValue = (
     value: ParameterValue,
     escapeString?: (value: string) => string,
@@ -97,29 +106,34 @@ export const buildLiquidContext = (
     > = {};
 
     for (const [key, value] of Object.entries(parameterValuesMap)) {
-        const escapedValue = escapeLiquidParameterValue(value, escapeString);
+        if (isSafeParameterKey(key)) {
+            const escapedValue = escapeLiquidParameterValue(
+                value,
+                escapeString,
+            );
 
-        parameters[key] = escapedValue;
+            parameters[key] = escapedValue;
 
-        // For dotted names like "model.grain":
-        // - expose as short name ("grain") for backwards compatibility
-        // - expose as nested object ({ model: { grain: value } }) so Liquid
-        //   dot access like ld.parameters.model.grain works
-        const parts = key.split('.');
-        const shortName = parts[parts.length - 1];
-        if (shortName !== key) {
-            parameters[shortName] = escapedValue;
+            // For dotted names like "model.grain":
+            // - expose as short name ("grain") for backwards compatibility
+            // - expose as nested object ({ model: { grain: value } }) so Liquid
+            //   dot access like ld.parameters.model.grain works
+            const parts = key.split('.');
+            const shortName = parts[parts.length - 1];
+            if (shortName !== key) {
+                parameters[shortName] = escapedValue;
 
-            const [tableName, paramName] = parts;
-            const existing = parameters[tableName];
-            if (
-                existing !== undefined &&
-                typeof existing === 'object' &&
-                !Array.isArray(existing)
-            ) {
-                existing[paramName] = escapedValue;
-            } else {
-                parameters[tableName] = { [paramName]: escapedValue };
+                const [tableName, paramName] = parts;
+                const existing = parameters[tableName];
+                if (
+                    existing !== undefined &&
+                    typeof existing === 'object' &&
+                    !Array.isArray(existing)
+                ) {
+                    existing[paramName] = escapedValue;
+                } else {
+                    parameters[tableName] = { [paramName]: escapedValue };
+                }
             }
         }
     }

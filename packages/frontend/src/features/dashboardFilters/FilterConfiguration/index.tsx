@@ -24,21 +24,23 @@ import {
     Button,
     Flex,
     Group,
-    Select,
     Stack,
     Tabs,
     Text,
+    Select,
     Tooltip,
-    type PopoverProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { type PopoverProps } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { flushSync } from 'react-dom';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
+import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
@@ -64,6 +66,7 @@ interface Props {
     isCreatingNew?: boolean;
     isTemporary?: boolean;
     onSave: (value: DashboardFilterRule) => void;
+    onEditRequirementRules?: () => void;
 }
 
 const getDefaultField = (
@@ -91,6 +94,7 @@ const FilterConfiguration: FC<Props> = ({
     defaultFilterRule,
     popoverProps,
     onSave,
+    onEditRequirementRules,
 }) => {
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
     const [selectedField, setSelectedField] = useState<
@@ -100,6 +104,9 @@ const FilterConfiguration: FC<Props> = ({
     const [draftFilterRule, setDraftFilterRule] = useState<
         DashboardFilterRule | undefined
     >(defaultFilterRule);
+
+    const draftFilterRuleRef = useRef(draftFilterRule);
+    draftFilterRuleRef.current = draftFilterRule;
 
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
@@ -163,9 +170,21 @@ const FilterConfiguration: FC<Props> = ({
                     !newFilterRule.required &&
                     !hasFilterValueSet(newFilterRule);
 
+                // In edit mode a required filter without a value is valueless
+                // by definition (dashboard save normalizes it to disabled),
+                // so it must not block Apply by demanding a default value
+                const isRequiredWithoutValue =
+                    isEditMode &&
+                    (!!newFilterRule.required ||
+                        !!newFilterRule.requiredGroupId) &&
+                    !hasFilterValueSet(newFilterRule);
+
                 return {
                     ...newFilterRule,
-                    disabled: isNewFilterDisabled || shouldDisableInViewMode,
+                    disabled:
+                        isNewFilterDisabled ||
+                        shouldDisableInViewMode ||
+                        isRequiredWithoutValue,
                 };
             });
         },
@@ -348,6 +367,21 @@ const FilterConfiguration: FC<Props> = ({
         ],
     );
 
+    const handleApply = useCallback(() => {
+        setSelectedTabId(FilterTabs.SETTINGS);
+
+        const activeElement = document.activeElement;
+        if (
+            activeElement instanceof HTMLInputElement ||
+            activeElement instanceof HTMLTextAreaElement
+        ) {
+            flushSync(() => activeElement.blur());
+        }
+
+        const ruleToSave = draftFilterRuleRef.current;
+        if (ruleToSave) onSave(ruleToSave);
+    }, [onSave]);
+
     const isApplyDisabled = !isFilterEnabled(
         draftFilterRule,
         isEditMode,
@@ -363,21 +397,22 @@ const FilterConfiguration: FC<Props> = ({
         ? 'A locked, required filter must have a value'
         : 'Filter field and value required';
 
+    // Render nested dropdowns inside the popover (not portaled) so selecting an
+    // option doesn't register as an outside click and close the whole popover.
+    const inlinePopoverProps = {
+        ...popoverProps,
+        withinPortal: false,
+    };
+
     return (
-        // Make inline dropdowns flow in the panel (instead of absolute), so the
-        // panel grows with them and Apply stays visible — PROD-2395 sketch.
-        <Stack
-            sx={{
-                '.mantine-Select-dropdown, .mantine-MultiSelect-dropdown': {
-                    position: 'static',
-                    width: '100%',
-                    marginTop: 4,
-                },
-            }}
-        >
+        // Keep dropdowns in document flow so the panel grows and Apply stays
+        // reachable — PROD-2395.
+        <Stack className={classes.inlineDropdowns}>
             <Tabs
                 value={selectedTabId}
-                onTabChange={(tabId: FilterTabs) => setSelectedTabId(tabId)}
+                onChange={(tabId) => {
+                    if (tabId) setSelectedTabId(tabId as FilterTabs);
+                }}
             >
                 {isCreatingNew || isEditMode || isTemporary ? (
                     <Tabs.List mb="md">
@@ -411,7 +446,7 @@ const FilterConfiguration: FC<Props> = ({
                 ) : null}
 
                 <Tabs.Panel value={FilterTabs.SETTINGS} w={400}>
-                    <Stack spacing="sm">
+                    <Stack gap="sm">
                         {isCreatingNew ? (
                             !!fields && fields.length > 0 ? (
                                 <FilterFieldSelect
@@ -422,20 +457,27 @@ const FilterConfiguration: FC<Props> = ({
                                     activeTabUuid={activeTabUuid}
                                     selectedField={selectedField}
                                     onChange={handleChangeField}
-                                    popoverProps={popoverProps}
+                                    popoverProps={inlinePopoverProps}
                                 />
                             ) : (
                                 <Select
+                                    allowDeselect={false}
                                     size="xs"
                                     label={
-                                        <Text>
+                                        <Text fw={500} fz="sm">
                                             Select a column to filter{' '}
-                                            <Text color="red" span>
+                                            <Text c="red" span>
                                                 *
                                             </Text>{' '}
                                         </Text>
                                     }
                                     placeholder="Search column..."
+                                    comboboxProps={{
+                                        withinPortal:
+                                            inlinePopoverProps.withinPortal,
+                                    }}
+                                    onDropdownOpen={inlinePopoverProps.onOpen}
+                                    onDropdownClose={inlinePopoverProps.onClose}
                                     value={draftFilterRule?.target.fieldId}
                                     data={columnsOptions.map(
                                         ({ reference }) => reference,
@@ -454,29 +496,29 @@ const FilterConfiguration: FC<Props> = ({
                                 />
                             )
                         ) : selectedField ? (
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <FieldIcon item={selectedField} />
                                 {originalFilterRule?.label && !isEditMode ? (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {originalFilterRule.label}
                                     </Text>
                                 ) : (
-                                    <FieldLabel item={selectedField} />
+                                    <FieldLabel item={selectedField} fz="sm" />
                                 )}
                             </Group>
                         ) : (
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <MantineIcon
                                     icon={IconSql}
                                     size={'lg'}
                                     color={'#0E5A8A'}
                                 />
                                 {originalFilterRule?.label && !isEditMode ? (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {originalFilterRule.label}
                                     </Text>
                                 ) : (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {draftFilterRule?.target.fieldId ||
                                             'SQL column'}
                                     </Text>
@@ -491,8 +533,10 @@ const FilterConfiguration: FC<Props> = ({
                                 filterType={filterType}
                                 field={selectedField}
                                 filterRule={draftFilterRule}
+                                originalFilterRule={originalFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}
-                                popoverProps={popoverProps}
+                                onEditRequirementRules={onEditRequirementRules}
+                                popoverProps={inlinePopoverProps}
                             />
                         )}
 
@@ -523,7 +567,7 @@ const FilterConfiguration: FC<Props> = ({
                             field={selectedField}
                             tabs={tabs}
                             filterRule={draftFilterRule}
-                            popoverProps={popoverProps}
+                            popoverProps={inlinePopoverProps}
                             tiles={tiles}
                             availableTileFilters={availableTileFilters}
                             onChange={handleChangeTileConfiguration}
@@ -534,7 +578,7 @@ const FilterConfiguration: FC<Props> = ({
             </Tabs>
 
             <Flex gap="sm">
-                <Box sx={{ flexGrow: 1 }} />
+                <Box style={{ flexGrow: 1 }} />
 
                 {!isTemporary &&
                     isFilterModified &&
@@ -573,10 +617,7 @@ const FilterConfiguration: FC<Props> = ({
                             // mousedown and the subsequent click event never
                             // reaches the Apply button — so a real-user click
                             // would otherwise need two presses to apply.
-                            onMouseDown={() => {
-                                setSelectedTabId(FilterTabs.SETTINGS);
-                                if (!!draftFilterRule) onSave(draftFilterRule);
-                            }}
+                            onMouseDown={handleApply}
                         >
                             Apply
                         </Button>

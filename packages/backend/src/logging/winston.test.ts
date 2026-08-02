@@ -1,9 +1,13 @@
+import { vi } from 'vitest';
+import { lightdashConfig } from '../config/lightdashConfig';
 import { AuditLogEvent } from './auditLog';
 import {
     formatAuditAction,
     formatAuditActor,
     formatAuditMessage,
     formatAuditResource,
+    logAuditEvent,
+    winstonLogger,
 } from './winston';
 
 describe('formatAuditAction', () => {
@@ -267,6 +271,61 @@ describe('formatAuditMessage', () => {
             }),
         ).toBe(
             'anonymous user viewed Dashboard -> dashboardUuid: dash-uuid, dashboardName: Sales Overview (allowed)',
+        );
+    });
+});
+
+describe('logAuditEvent', () => {
+    const event: AuditLogEvent = {
+        id: 'event-uuid',
+        timestamp: '2026-04-02T15:00:00.000Z',
+        actor: {
+            type: 'session',
+            uuid: 'user-uuid',
+            email: 'john@company.com',
+            organizationUuid: 'org-uuid',
+            organizationRole: 'admin',
+        },
+        action: 'update',
+        resource: {
+            type: 'Dashboard',
+            organizationUuid: 'org-uuid',
+        },
+        context: {},
+        status: 'allowed',
+    };
+
+    const originalAuditActorAsString =
+        lightdashConfig.logging.auditActorAsString;
+
+    afterEach(() => {
+        lightdashConfig.logging.auditActorAsString = originalAuditActorAsString;
+        vi.restoreAllMocks();
+    });
+
+    it('emits the actor as a nested object by default', () => {
+        const logSpy = vi
+            .spyOn(winstonLogger, 'log')
+            .mockImplementation(() => winstonLogger);
+        lightdashConfig.logging.auditActorAsString = false;
+
+        logAuditEvent(event);
+
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ actor: event.actor }),
+        );
+    });
+
+    it('emits the actor as a JSON string when auditActorAsString is enabled', () => {
+        const logSpy = vi
+            .spyOn(winstonLogger, 'log')
+            .mockImplementation(() => winstonLogger);
+        lightdashConfig.logging.auditActorAsString = true;
+
+        logAuditEvent(event);
+
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ actor: JSON.stringify(event.actor) }),
         );
     });
 });

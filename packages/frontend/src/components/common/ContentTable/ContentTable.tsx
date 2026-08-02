@@ -19,7 +19,6 @@ import {
 } from '@tabler/icons-react';
 import {
     flexRender,
-    type Column,
     type Header,
     type Row,
     type RowData,
@@ -36,11 +35,11 @@ import {
 import MantineIcon from '../MantineIcon';
 import classes from './ContentTable.module.css';
 import {
-    type ContentTableColumnDef,
     type ContentTableInstance,
     type ContentTableMantineProps,
     type ContentTablePropFactory,
 } from './types';
+import { getLightdashColumnDef } from './utils';
 
 const cx = (...classNames: Array<false | null | string | undefined>) =>
     classNames.filter(Boolean).join(' ');
@@ -117,15 +116,6 @@ const resolveProps = <TElement extends HTMLElement, TArgs>(
     args: TArgs,
 ) =>
     typeof propFactory === 'function' ? propFactory(args) : (propFactory ?? {});
-
-const getLightdashColumnDef = <TData extends RowData>(
-    column: Column<TData, unknown>,
-) =>
-    (
-        column.columnDef.meta as
-            | { lightdashColumnDef?: ContentTableColumnDef<TData> }
-            | undefined
-    )?.lightdashColumnDef;
 
 type ColumnSizeVars = CSSProperties & Record<`--${string}`, number>;
 

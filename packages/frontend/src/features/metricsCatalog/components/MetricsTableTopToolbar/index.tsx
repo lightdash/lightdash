@@ -21,21 +21,21 @@ import {
     type CatalogField,
 } from '@lightdash/common';
 import {
-    ActionIcon,
-    Badge,
+    TextInput,
     Box,
-    Button,
     Center,
     Divider,
     Group,
-    Popover,
-    SegmentedControl,
     Stack,
-    Text,
-    TextInput,
-    Tooltip,
     type GroupProps,
-} from '@mantine/core';
+    Text,
+    Button,
+    ActionIcon,
+    SegmentedControl,
+    Badge,
+    Popover,
+    Tooltip,
+} from '@mantine-8/core';
 import {
     IconEye,
     IconEyeOff,
@@ -49,8 +49,12 @@ import isEqual from 'lodash/isEqual';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDebounce } from 'react-use';
-import { type ContentTableInstance } from '../../../../components/common/ContentTable';
+import {
+    getColumnHeaderLabel,
+    type ContentTableInstance,
+} from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useEmbed from '../../../../ee/providers/Embed/useEmbed';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
 import { EventName } from '../../../../types/Events';
@@ -69,6 +73,7 @@ import {
 } from '../../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
+import classes from './MetricsTableTopToolbar.module.css';
 import OwnersFilter from './OwnersFilter';
 import TableFilter from './TableFilter';
 type MetricsTableTopToolbarProps = GroupProps & {
@@ -105,16 +110,16 @@ const SortableColumn: FC<{
     };
 
     return (
-        <Group ref={setNodeRef} style={style} position="apart" h={28}>
-            <Group spacing={4}>
+        <Group ref={setNodeRef} style={style} justify="space-between" h={28}>
+            <Group gap={4}>
                 <Tooltip
-                    variant="xs"
                     disabled={!column.frozen}
                     label={`The ${column.name} column is pinned for usability`}
                     position="top"
                 >
                     <Box>
                         <ActionIcon
+                            variant="subtle"
                             size="xs"
                             color="ldGray.5"
                             {...attributes}
@@ -125,20 +130,15 @@ const SortableColumn: FC<{
                         </ActionIcon>
                     </Box>
                 </Tooltip>
-                <Text
-                    variant="subtle"
-                    fz={13}
-                    radius="md"
-                    fw={500}
-                    color="ldDark.9"
-                >
+                <Text fz={13} fw={500} c="ldDark.9">
                     {column.name}
                 </Text>
             </Group>
             <ActionIcon
+                variant="subtle"
                 size="xs"
                 color="ldGray.5"
-                sx={{
+                style={{
                     visibility: column.frozen ? 'hidden' : 'visible',
                 }}
                 onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
@@ -171,6 +171,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         ...props
     }) => {
         const [search, setSearch] = useState(_search);
+        const { embedToken } = useEmbed();
 
         useDebounce(
             () => {
@@ -333,16 +334,17 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
 
         return (
             <Group {...props}>
-                <Group spacing="xs">
+                <Group gap="xs">
                     {/* Search input */}
                     <TextInput
                         size="xs"
                         radius="md"
+                        classNames={{ input: classes.searchInput }}
                         styles={(theme) => ({
                             input: {
                                 height: 32,
                                 width: 309,
-                                padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
+                                paddingBlock: theme.spacing.xs,
                                 textOverflow: 'ellipsis',
                                 fontSize: theme.fontSizes.sm,
                                 fontWeight: 400,
@@ -350,20 +352,13 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     ? theme.colors.ldGray[8]
                                     : theme.colors.ldGray[5],
                                 boxShadow: theme.shadows.subtle,
-                                border: `1px solid ${theme.colors.ldGray[3]}`,
-                                '&:hover': {
-                                    border: `1px solid ${theme.colors.ldGray[4]}`,
-                                },
-                                '&:focus': {
-                                    border: `1px solid ${theme.colors.blue[5]}`,
-                                },
                             },
                         })}
                         type="search"
                         variant="default"
                         placeholder="Search by name or description"
                         value={search ?? ''}
-                        icon={
+                        leftSection={
                             <MantineIcon
                                 size="md"
                                 color="ldGray.6"
@@ -371,9 +366,14 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             />
                         }
                         onChange={(e) => setSearch(e.target.value)}
+                        rightSectionPointerEvents="all"
                         rightSection={
                             search && (
                                 <ActionIcon
+                                    aria-label="Clear search"
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
                                     onClick={clearSearch}
                                     variant="transparent"
                                     size="xs"
@@ -391,9 +391,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            sx={{
+                            color="ldGray.3"
+                            style={{
                                 alignSelf: 'center',
-                                borderColor: 'ldGray.3',
                             }}
                         />
                     )}
@@ -417,7 +417,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         setSelectedOwners={setSelectedOwners}
                     />
                 </Group>
-                <Group spacing="xs">
+                <Group gap="xs">
                     <Badge
                         bg="ldGray.1"
                         c="ldGray.8"
@@ -427,7 +427,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         tt="none"
                         h={32}
                     >
-                        <Group spacing={6}>
+                        <Group gap={6}>
                             <TotalMetricsDot />
                             <Text fz="sm" fw={500}>
                                 {totalResults} metrics
@@ -438,7 +438,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         <Popover.Target>
                             <Tooltip
                                 withinPortal
-                                variant="xs"
                                 multiline
                                 maw={150}
                                 label="Manage column visibility"
@@ -448,14 +447,15 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     variant="transparent"
                                     size="xs"
                                     color="ldGray.5"
+                                    display={embedToken ? 'none' : undefined}
                                 >
                                     <MantineIcon icon={IconEye} />
                                 </ActionIcon>
                             </Tooltip>
                         </Popover.Target>
                         <Popover.Dropdown p="sm" miw={270}>
-                            <Stack spacing="sm">
-                                <Stack spacing={2}>
+                            <Stack gap="sm">
+                                <Stack gap={2}>
                                     <DndContext
                                         sensors={sensors}
                                         collisionDetection={closestCenter}
@@ -475,9 +475,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                     <SortableColumn
                                                         key={column.id}
                                                         column={{
-                                                            name: column
-                                                                .columnDef
-                                                                .header as string,
+                                                            name: getColumnHeaderLabel(
+                                                                column,
+                                                            ),
                                                             uuid: column.id,
                                                             visible:
                                                                 column.getIsVisible(),
@@ -498,12 +498,11 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 </Stack>
 
                                 <Divider color="ldGray.1" />
-                                <Group position="apart" mt={4}>
+                                <Group justify="space-between" mt={4}>
                                     {canManageSpotlight ? (
                                         <>
                                             <Tooltip
                                                 position="bottom"
-                                                variant="xs"
                                                 withinPortal
                                                 label={
                                                     hasConfigChanges
@@ -517,7 +516,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                     radius="md"
                                                     h={28}
                                                     onClick={handleReset}
-                                                    sx={(theme) => ({
+                                                    style={(theme) => ({
                                                         border: `1px solid ${theme.colors.ldGray[2]}`,
                                                         boxShadow:
                                                             theme.shadows
@@ -537,7 +536,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                             <Button
                                                 size="xs"
                                                 h={28}
-                                                variant="darkPrimary"
+                                                variant="dark"
                                                 onClick={handleSave}
                                                 loading={
                                                     isCreatingSpotlightConfig
@@ -549,7 +548,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     ) : (
                                         <Tooltip
                                             position="bottom"
-                                            variant="xs"
                                             withinPortal
                                             label={'Discard unsaved changes'}
                                         >
@@ -561,7 +559,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 variant="default"
                                                 onClick={handleReset}
                                                 disabled={!hasConfigChanges}
-                                                sx={(theme) => ({
+                                                style={(theme) => ({
                                                     border: `1px solid ${theme.colors.ldGray[2]}`,
                                                     boxShadow:
                                                         theme.shadows.subtle,
@@ -579,9 +577,10 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         orientation="vertical"
                         w={1}
                         h={20}
-                        sx={{
+                        color="#DEE2E6"
+                        display={embedToken ? 'none' : undefined}
+                        style={{
                             alignSelf: 'center',
-                            borderColor: '#DEE2E6',
                         }}
                     />
                     <SegmentedControl
@@ -589,6 +588,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         value={metricCatalogView}
                         styles={(theme) => ({
                             root: {
+                                display: embedToken ? 'none' : undefined,
                                 borderRadius: theme.radius.md,
                                 gap: theme.spacing.two,
                                 padding: theme.spacing.xxs,
@@ -605,7 +605,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 label: (
                                     <Tooltip
                                         withinPortal
-                                        variant="xs"
                                         label="List view"
                                         position="bottom-end"
                                     >
@@ -623,7 +622,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 label: (
                                     <Tooltip
                                         withinPortal
-                                        variant="xs"
                                         label="Canvas"
                                         position="bottom-end"
                                     >

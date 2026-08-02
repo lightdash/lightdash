@@ -1,7 +1,7 @@
 .fan {
     position: relative;
     width: 100%;
-    max-width: 720px;
+    max-width: 920px;
     height: 260px;
     margin: 0 auto;
 }
@@ -37,27 +37,27 @@
 }
 
 .card[data-pos='0'] {
-    --x: -258px;
-    --y: 44px;
-    --rot: -15deg;
+    --x: -249px;
+    --y: 32px;
+    --rot: -12deg;
     z-index: 1;
 }
 .card[data-pos='1'] {
-    --x: -88px;
-    --y: 2px;
-    --rot: -5deg;
+    --x: -83px;
+    --y: 4px;
+    --rot: -4deg;
     z-index: 2;
 }
 .card[data-pos='2'] {
-    --x: 88px;
-    --y: 2px;
-    --rot: 5deg;
+    --x: 83px;
+    --y: 4px;
+    --rot: 4deg;
     z-index: 3;
 }
 .card[data-pos='3'] {
-    --x: 258px;
-    --y: 44px;
-    --rot: 15deg;
+    --x: 249px;
+    --y: 32px;
+    --rot: 12deg;
     z-index: 4;
 }
 
@@ -122,7 +122,7 @@
 }
 
 /* Narrow widths can't hold the arch — stack the cards vertically. */
-@media (max-width: 760px) {
+@media (max-width: 880px) {
     .fan {
         height: auto;
         display: flex;

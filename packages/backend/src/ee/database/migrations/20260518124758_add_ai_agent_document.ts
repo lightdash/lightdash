@@ -99,6 +99,10 @@ export async function up(knex: Knex): Promise<void> {
         );
     }
 
+    // Note added after this migration shipped: absence of access rows is not a
+    // wildcard. An agent sees a document only when project_uuid is null (org
+    // level) or an access row grants it. The ai_agent_uuid comment below states
+    // the original semantics and is left as-is to match databases already migrated.
     if (!(await knex.schema.hasTable(AiAgentDocumentAccessTableName))) {
         await knex.schema.createTable(
             AiAgentDocumentAccessTableName,

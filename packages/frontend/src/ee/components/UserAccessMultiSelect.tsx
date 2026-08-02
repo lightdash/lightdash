@@ -167,6 +167,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                         name={user.label}
                         size="sm"
                         radius="xl"
+                        userUuid={user.userUuid}
                     />
                     <Stack gap="two">
                         <Group gap="xs">
@@ -205,7 +206,7 @@ export const UserAccessMultiSelect: FC<UserAccessMultiSelectProps> = ({
                         User Access
                     </Text>
                     <Tooltip
-                        label="Admins and developers will always have access."
+                        label="Admins and developers (Manage AI Agents scope) will always have access."
                         withArrow
                         withinPortal
                         multiline

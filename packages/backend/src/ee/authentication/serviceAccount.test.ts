@@ -16,7 +16,7 @@ import {
 
 describe('Service Account Authentication Middleware', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('should authenticate valid service account token and attach user', async () => {
@@ -113,8 +113,8 @@ describe('Service Account Authentication Middleware', () => {
         const mockRequestWithServiceError = {
             ...mockRequestWithValidToken,
             services: {
-                getServiceAccountService: jest.fn().mockReturnValue({
-                    authenticateServiceAccount: jest
+                getServiceAccountService: vi.fn().mockReturnValue({
+                    authenticateServiceAccount: vi
                         .fn()
                         .mockRejectedValue(new Error('Database error')),
                 }),

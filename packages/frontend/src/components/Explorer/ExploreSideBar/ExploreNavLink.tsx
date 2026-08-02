@@ -12,9 +12,8 @@ import {
     NavLink,
     Paper,
     Stack,
-    Text,
 } from '@mantine-8/core';
-import { useToggle } from '@mantine/hooks';
+import { useToggle } from '@mantine-8/hooks';
 import {
     IconAlertTriangle,
     IconInfoCircle,
@@ -118,20 +117,19 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                 isError ? (
                     <Stack gap={2}>
                         <Highlight
-                            component={Text}
-                            highlight={query ?? ''}
                             truncate
-                            fz="inherit"
+                            fz="sm"
+                            fw={500}
+                            highlight={query ?? ''}
                         >
                             {displayLabel}
                         </Highlight>
                         {showUnderlyingName && (
                             <Highlight
-                                component={Text}
-                                highlight={query ?? ''}
                                 truncate
                                 fz="xs"
                                 c="ldGray.7"
+                                highlight={query ?? ''}
                             >
                                 {explore.name}
                             </Highlight>
@@ -147,22 +145,20 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                     >
                         <Stack gap={2}>
                             <Highlight
-                                component={Text}
-                                highlight={query ?? ''}
                                 truncate
                                 fz="sm"
                                 fw={500}
                                 c="ldDark.8"
+                                highlight={query ?? ''}
                             >
                                 {displayLabel}
                             </Highlight>
                             {showUnderlyingName && (
                                 <Highlight
-                                    component={Text}
-                                    highlight={query ?? ''}
                                     truncate
                                     fz="xs"
                                     c="ldGray.7"
+                                    highlight={query ?? ''}
                                 >
                                     {explore.name}
                                 </Highlight>

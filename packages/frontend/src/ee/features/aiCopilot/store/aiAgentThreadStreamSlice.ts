@@ -7,7 +7,7 @@ import { type AiAgentToolCall } from '../types';
 
 type ToolCall = AiAgentToolCall & {
     toolCallId: string;
-    toolResult: AiAgentToolCall['toolResult'] | null;
+    toolResult: AiAgentToolCall['toolResult'];
 };
 
 type Reasoning = {

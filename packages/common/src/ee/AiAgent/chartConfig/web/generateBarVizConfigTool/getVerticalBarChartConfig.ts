@@ -1,4 +1,3 @@
-import { type AiVizMetadata } from '..';
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
 import {
@@ -8,6 +7,7 @@ import {
 } from '../../../../../types/savedCharts';
 import { type VerticalBarMetricVizConfigSchemaType } from '../../../schemas';
 import { formatFieldLabel } from '../../shared/formatFieldLabel';
+import { type AiVizMetadata } from '../types';
 
 export const getVerticalBarChartConfig = (
     config: VerticalBarMetricVizConfigSchemaType,

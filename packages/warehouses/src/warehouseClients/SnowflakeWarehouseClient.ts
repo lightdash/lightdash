@@ -7,6 +7,7 @@ import {
     Metric,
     MetricType,
     ParseError,
+    setCatalogTimestampDomain,
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     UnexpectedServerError,
@@ -14,6 +15,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
 } from '@lightdash/common';
@@ -94,7 +96,424 @@ const normaliseSnowflakeType = (type: string): string => {
     return match[0];
 };
 
+// Classifies on the full raw string: normaliseSnowflakeType truncates at the
+// underscore, collapsing TIMESTAMP_NTZ/TZ/LTZ into TIMESTAMP. Strips parameter
+// suffixes like TIMESTAMP_NTZ(9). Bare TIMESTAMP is left unknown — it aliases
+// per-account via TIMESTAMP_TYPE_MAPPING.
+export const getSnowflakeTimestampDomain = (
+    type: string,
+): TimestampDomain | undefined => {
+    switch (type.toUpperCase().replace(/\s*\(.*\)$/, '')) {
+        case SnowflakeTypes.TIMESTAMP_NTZ:
+            return 'naive';
+        case SnowflakeTypes.TIMESTAMP_TZ:
+        case SnowflakeTypes.TIMESTAMP_LTZ:
+            return 'aware';
+        default:
+            return undefined;
+    }
+};
+
 const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
+const OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR = 'OAUTH_AUTHORIZATION_CODE';
+const SESSION_DISCOVERY_LIMIT = 100;
+const SESSION_SCHEMA_DISCOVERY_LIMIT = 1000;
+const SESSION_DATABASE_SIZE_LIMIT = 25;
+// Minimum allowed by Snowflake (range 16-160, default 160)
+const SNOWFLAKE_RESULT_CHUNK_SIZE_MB = 16;
+
+export type SnowflakeOAuthTokens = {
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: Date | null;
+};
+
+type SnowflakeOAuthCredentialManager = {
+    read(key: string): Promise<string | null>;
+    write(key: string, token: string): Promise<void>;
+    remove(key: string): Promise<void>;
+    getTokens(): SnowflakeOAuthTokens | null;
+};
+
+const getAccessTokenExpiresAt = (token: string): Date | null => {
+    try {
+        const payload = token.split('.')[1];
+        if (!payload) {
+            return null;
+        }
+        const parsed = JSON.parse(
+            Buffer.from(payload, 'base64url').toString('utf8'),
+        ) as unknown;
+        if (
+            typeof parsed !== 'object' ||
+            parsed === null ||
+            !('exp' in parsed) ||
+            typeof parsed.exp !== 'number' ||
+            !Number.isFinite(parsed.exp)
+        ) {
+            return null;
+        }
+        return new Date(parsed.exp * 1000);
+    } catch {
+        return null;
+    }
+};
+
+const createOAuthCredentialManager = (): SnowflakeOAuthCredentialManager => {
+    const values = new Map<string, string>();
+    let accessToken: string | null = null;
+    let refreshToken: string | null = null;
+
+    return {
+        async read(key) {
+            if (!key) return null;
+            return values.get(key) ?? null;
+        },
+        async write(key, token) {
+            if (!key) {
+                if (getAccessTokenExpiresAt(token) !== null) {
+                    accessToken = token;
+                } else {
+                    refreshToken = token;
+                }
+                return;
+            }
+            values.set(key, token);
+            if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
+                accessToken = token;
+            } else if (
+                key.endsWith(':{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}')
+            ) {
+                refreshToken = token;
+            }
+        },
+        async remove(key) {
+            if (!key) return;
+            values.delete(key);
+            if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
+                accessToken = null;
+            } else if (
+                key.endsWith(':{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}')
+            ) {
+                refreshToken = null;
+            }
+        },
+        getTokens() {
+            if (accessToken === null || refreshToken === null) {
+                return null;
+            }
+            return {
+                accessToken,
+                refreshToken,
+                expiresAt: getAccessTokenExpiresAt(accessToken),
+            };
+        },
+    };
+};
+
+export type SnowflakeSessionDefaults = {
+    role: string | null;
+    warehouse: string | null;
+    database: string | null;
+    schema: string | null;
+};
+
+export type SnowflakeSessionInventory = {
+    databases: {
+        name: string;
+        comment: string | null;
+        kind: string | null;
+        sizeBytes: number | null;
+    }[];
+    warehouses: {
+        name: string;
+        size: string | null;
+        state: string | null;
+        autoSuspendSeconds: number | null;
+    }[];
+    roles: {
+        name: string;
+        isDefault: boolean;
+    }[];
+    schemas: {
+        databaseName: string;
+        name: string;
+    }[];
+};
+
+export type SnowflakeSessionDiscovery = {
+    user: string;
+    defaults: SnowflakeSessionDefaults;
+    inventory: SnowflakeSessionInventory;
+};
+
+export type SnowflakeDiagnosticErrorCategory =
+    | 'account_identifier'
+    | 'authentication'
+    | 'private_key'
+    | 'database_access'
+    | 'warehouse_access'
+    | 'network_policy'
+    | 'unknown';
+
+export type SnowflakeDiagnosticErrorDetails = {
+    category: SnowflakeDiagnosticErrorCategory;
+    code: string | null;
+    sanitizedMessage: string;
+};
+
+const DIAGNOSTIC_MESSAGES: Record<SnowflakeDiagnosticErrorCategory, string> = {
+    account_identifier: 'The Snowflake account host could not be resolved.',
+    authentication: 'Snowflake rejected the supplied username or password.',
+    private_key:
+        'Snowflake could not authenticate with the supplied private key.',
+    database_access: 'The configured role cannot access the database.',
+    warehouse_access: 'The configured role cannot use the warehouse.',
+    network_policy:
+        'Snowflake blocked this connection because of a network policy.',
+    unknown: 'Snowflake could not complete the connection check.',
+};
+
+const getSnowflakeRowValue = (
+    row: Record<string, AnyType>,
+    name: string,
+): string | null => {
+    const resultValue = row[name] ?? row[name.toUpperCase()];
+    return typeof resultValue === 'string' ? resultValue : null;
+};
+
+const getSnowflakeRowNumber = (
+    row: Record<string, AnyType>,
+    name: string,
+): number | null => {
+    const resultValue = row[name] ?? row[name.toUpperCase()];
+    if (typeof resultValue === 'number') {
+        return Number.isFinite(resultValue) ? resultValue : null;
+    }
+    if (typeof resultValue !== 'string' || resultValue.trim() === '') {
+        return null;
+    }
+    const parsed = Number(resultValue);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const listSnowflakeSchemas = (
+    rows: AnyType[],
+): SnowflakeSessionInventory['schemas'] =>
+    rows.flatMap((rawRow) => {
+        const row = rawRow as Record<string, AnyType>;
+        const name = getSnowflakeRowValue(row, 'name');
+        const databaseName = getSnowflakeRowValue(row, 'database_name');
+        if (!name || !databaseName || name === 'INFORMATION_SCHEMA') {
+            return [];
+        }
+        return [{ databaseName, name }];
+    });
+
+const listSnowflakeDatabases = (
+    rows: AnyType[],
+    databaseSizes: Map<string, number>,
+): SnowflakeSessionInventory['databases'] =>
+    rows
+        .flatMap((rawRow) => {
+            const row = rawRow as Record<string, AnyType>;
+            const name = getSnowflakeRowValue(row, 'name');
+            if (!name) {
+                return [];
+            }
+            return [
+                {
+                    name,
+                    comment:
+                        getSnowflakeRowValue(row, 'comment')?.trim() === ''
+                            ? null
+                            : getSnowflakeRowValue(row, 'comment'),
+                    kind: getSnowflakeRowValue(row, 'kind'),
+                    sizeBytes: databaseSizes.get(name) ?? null,
+                },
+            ];
+        })
+        .slice(0, SESSION_DISCOVERY_LIMIT);
+
+const listSnowflakeWarehouses = (
+    rows: AnyType[],
+): SnowflakeSessionInventory['warehouses'] =>
+    rows
+        .flatMap((rawRow) => {
+            const row = rawRow as Record<string, AnyType>;
+            const name = getSnowflakeRowValue(row, 'name');
+            if (!name) {
+                return [];
+            }
+            return [
+                {
+                    name,
+                    size: getSnowflakeRowValue(row, 'size'),
+                    state: getSnowflakeRowValue(row, 'state'),
+                    autoSuspendSeconds: getSnowflakeRowNumber(
+                        row,
+                        'auto_suspend',
+                    ),
+                },
+            ];
+        })
+        .slice(0, SESSION_DISCOVERY_LIMIT);
+
+const WAREHOUSE_SIZE_ORDER = [
+    'X-Small',
+    'Small',
+    'Medium',
+    'Large',
+    'X-Large',
+    '2X-Large',
+    '3X-Large',
+    '4X-Large',
+    '5X-Large',
+    '6X-Large',
+];
+
+const warehouseSizeRank = (size: string | null): number => {
+    const index = WAREHOUSE_SIZE_ORDER.findIndex(
+        (candidate) =>
+            candidate.toLowerCase() === (size ?? '').trim().toLowerCase(),
+    );
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+};
+
+const pickSizeDiscoveryWarehouse = (rows: AnyType[]): string | null => {
+    const warehouses = rows
+        .map((rawRow) => {
+            const row = rawRow as Record<string, AnyType>;
+            return {
+                name: getSnowflakeRowValue(row, 'name'),
+                size: getSnowflakeRowValue(row, 'size'),
+                state: (getSnowflakeRowValue(row, 'state') ?? '')
+                    .trim()
+                    .toUpperCase(),
+            };
+        })
+        .filter((warehouse) => Boolean(warehouse.name));
+    const started = warehouses.filter(
+        (warehouse) => warehouse.state === 'STARTED',
+    );
+    const pool = started.length > 0 ? started : warehouses;
+    const best = pool.reduce<(typeof pool)[number] | null>(
+        (currentBest, candidate) =>
+            currentBest === null ||
+            warehouseSizeRank(candidate.size) <
+                warehouseSizeRank(currentBest.size)
+                ? candidate
+                : currentBest,
+        null,
+    );
+    return best?.name ?? null;
+};
+
+export const snowflakeIdentifier = (value: string): string =>
+    /^[A-Za-z_][A-Za-z0-9_$]*$/.test(value)
+        ? value
+        : `"${value.replace(/"/g, '""')}"`;
+
+export const mapSnowflakeDiagnosticError = (
+    error: unknown,
+): SnowflakeDiagnosticErrorDetails => {
+    const errorWithCode = error as Partial<
+        SnowflakeError & NodeJS.ErrnoException
+    >;
+    const rawMessage =
+        typeof errorWithCode?.message === 'string'
+            ? errorWithCode.message
+            : getErrorMessage(error);
+    const normalizedMessage = rawMessage.toLowerCase();
+    const code =
+        typeof errorWithCode?.code === 'string' ||
+        typeof errorWithCode?.code === 'number'
+            ? String(errorWithCode.code)
+            : null;
+
+    let category: SnowflakeDiagnosticErrorCategory = 'unknown';
+    if (code === 'ENOTFOUND' || normalizedMessage.includes('enotfound')) {
+        category = 'account_identifier';
+    } else if (
+        code === '390144' ||
+        normalizedMessage.includes('private key') ||
+        normalizedMessage.includes('passphrase') ||
+        normalizedMessage.includes('jwt') ||
+        normalizedMessage.includes('pkcs') ||
+        normalizedMessage.includes('pem routines') ||
+        normalizedMessage.includes('asn1')
+    ) {
+        category = 'private_key';
+    } else if (
+        code === '250001' ||
+        normalizedMessage.includes('incorrect username or password') ||
+        normalizedMessage.includes('incorrect username-password')
+    ) {
+        category = 'authentication';
+    } else if (
+        code === '390422' ||
+        normalizedMessage.includes('network policy') ||
+        normalizedMessage.includes('ip address is not allowed') ||
+        normalizedMessage.includes('not allowed to access snowflake')
+    ) {
+        category = 'network_policy';
+    } else if (
+        normalizedMessage.includes('warehouse') &&
+        (normalizedMessage.includes('not authorized') ||
+            normalizedMessage.includes('does not exist') ||
+            normalizedMessage.includes('no active warehouse') ||
+            normalizedMessage.includes('insufficient privileges'))
+    ) {
+        category = 'warehouse_access';
+    } else if (
+        normalizedMessage.includes('database') &&
+        (normalizedMessage.includes('not authorized') ||
+            normalizedMessage.includes('does not exist') ||
+            normalizedMessage.includes('insufficient privileges'))
+    ) {
+        category = 'database_access';
+    }
+
+    return {
+        category,
+        code,
+        sanitizedMessage: DIAGNOSTIC_MESSAGES[category],
+    };
+};
+
+export class SnowflakeDiagnosticError extends Error {
+    readonly details: SnowflakeDiagnosticErrorDetails;
+
+    private readonly rawError!: unknown;
+
+    constructor(error: unknown) {
+        const details = mapSnowflakeDiagnosticError(error);
+        super(details.sanitizedMessage);
+        this.name = 'SnowflakeDiagnosticError';
+        this.details = details;
+        Object.defineProperty(this, 'rawError', {
+            configurable: false,
+            enumerable: false,
+            value: error,
+            writable: false,
+        });
+    }
+
+    getRawError(): unknown {
+        return this.rawError;
+    }
+}
+
+export type SnowflakeDiagnosticSession = {
+    connection: Connection;
+};
+
+export type SnowflakePublicKeySlot = 'RSA_PUBLIC_KEY' | 'RSA_PUBLIC_KEY_2';
+
+export type SnowflakePublicKeySlots = {
+    RSA_PUBLIC_KEY: string | null;
+    RSA_PUBLIC_KEY_2: string | null;
+};
 
 export const mapFieldType = (type: string): DimensionType => {
     switch (normaliseSnowflakeType(type)) {
@@ -205,13 +624,26 @@ export class SnowflakeSqlBuilder extends WarehouseBaseSqlBuilder {
 }
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
+    private static readonly MAX_QUERY_TAG_LENGTH = 2000;
+
     connectionOptions: ConnectionOptions;
 
     quotedIdentifiersIgnoreCase?: boolean;
 
-    // Cache connection promise for external browser authentication to avoid opening multiple browser tabs
-    // We cache the promise itself (not the resolved connection) to prevent race conditions
-    private externalBrowserConnectionPromise?: Promise<Connection>;
+    static formatQueryTag(tags: Record<string, string>): string {
+        return Array.from(JSON.stringify(tags))
+            .slice(0, SnowflakeWarehouseClient.MAX_QUERY_TAG_LENGTH)
+            .join('')
+            .replace(/'/g, "''");
+    }
+
+    private interactiveConnectionPromise?: Promise<Connection>;
+
+    private readonly privateKey: string | undefined;
+
+    private readonly privateKeyPassphrase: string | undefined;
+
+    private readonly oauthCredentialManager?: SnowflakeOAuthCredentialManager;
 
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
@@ -239,6 +671,21 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             };
         } else if (
             credentials.authenticationType ===
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE
+        ) {
+            this.oauthCredentialManager = createOAuthCredentialManager();
+            configure({
+                customCredentialManager: this.oauthCredentialManager,
+            });
+            authenticationOptions = {
+                authenticator: OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR,
+                ...(credentials.user ? { username: credentials.user } : {}),
+                role: credentials.role,
+                clientStoreTemporaryCredential: true,
+                browserActionTimeout: 300_000,
+            };
+        } else if (
+            credentials.authenticationType ===
             SnowflakeAuthenticationType.EXTERNAL_BROWSER
         ) {
             // This can only be used on the CLI
@@ -253,36 +700,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 credentials.authenticationType ===
                     SnowflakeAuthenticationType.PRIVATE_KEY)
         ) {
-            if (!credentials.privateKeyPass) {
-                authenticationOptions = {
-                    username: credentials.user,
-                    role: credentials.role,
-                    privateKey: credentials.privateKey,
-                    authenticator: 'SNOWFLAKE_JWT',
-                };
-            } else {
-                /**
-                 * @ref https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver-authenticate#use-key-pair-authentication-and-key-pair-rotation
-                 */
-                const privateKeyObject = crypto.createPrivateKey({
-                    key: credentials.privateKey,
-                    format: 'pem',
-                    passphrase: credentials.privateKeyPass,
-                });
-
-                // Extract the private key from the object as a PEM-encoded string.
-                const privateKey = privateKeyObject.export({
-                    format: 'pem',
-                    type: 'pkcs8',
-                });
-
-                authenticationOptions = {
-                    username: credentials.user,
-                    role: credentials.role,
-                    privateKey: privateKey.toString(),
-                    authenticator: 'SNOWFLAKE_JWT',
-                };
-            }
+            authenticationOptions = {
+                username: credentials.user,
+                role: credentials.role,
+                authenticator: 'SNOWFLAKE_JWT',
+            };
         } else if (credentials.password) {
             authenticationOptions = {
                 username: credentials.user,
@@ -291,6 +713,13 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 authenticator: 'SNOWFLAKE',
             };
         }
+
+        const usesPrivateKey =
+            authenticationOptions.authenticator === 'SNOWFLAKE_JWT';
+        this.privateKey = usesPrivateKey ? credentials.privateKey : undefined;
+        this.privateKeyPassphrase = usesPrivateKey
+            ? credentials.privateKeyPass
+            : undefined;
 
         this.connectionOptions = {
             account: credentials.account,
@@ -333,60 +762,89 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async getConnection(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
     ) {
-        // External browser authentication uses a cached connection to avoid opening multiple browser tabs
-        if (
-            this.connectionOptions.authenticator ===
-            EXTERNAL_BROWSER_AUTHENTICATOR
-        ) {
-            return this.createExternalBrowserConnection(
-                connectionOptionsOverrides,
-            );
+        if (this.isInteractiveAuthenticator()) {
+            return this.createInteractiveConnection(connectionOptionsOverrides);
         }
 
-        // For other authentication types, create a new connection with optional overrides
         return this.createConnection(connectionOptionsOverrides);
     }
 
-    /**
-     * Creates and caches a connection for external browser authentication.
-     * This prevents opening multiple browser tabs when parallel queries are executed.
-     */
-    private async createExternalBrowserConnection(
+    private isInteractiveAuthenticator(): boolean {
+        return (
+            this.connectionOptions.authenticator ===
+                EXTERNAL_BROWSER_AUTHENTICATOR ||
+            this.connectionOptions.authenticator ===
+                OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR
+        );
+    }
+
+    private async getConnectionOptions(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
-    ): Promise<Connection> {
-        // Return cached promise if one exists (handles both in-flight and completed connections)
-        if (this.externalBrowserConnectionPromise) {
-            return this.externalBrowserConnectionPromise;
+    ): Promise<ConnectionOptions> {
+        let privateKey: string | undefined;
+        if (this.privateKey && this.privateKeyPassphrase) {
+            privateKey = crypto
+                .createPrivateKey({
+                    key: this.privateKey,
+                    format: 'pem',
+                    passphrase: this.privateKeyPassphrase,
+                })
+                .export({ format: 'pem', type: 'pkcs8' })
+                .toString();
+        } else {
+            privateKey = this.privateKey;
         }
 
-        // Create and cache the connection promise
-        this.externalBrowserConnectionPromise = (async () => {
+        return {
+            ...this.connectionOptions,
+            ...(privateKey ? { privateKey } : {}),
+            ...connectionOptionsOverrides,
+        };
+    }
+
+    private async createInteractiveConnection(
+        connectionOptionsOverrides?: Partial<ConnectionOptions>,
+    ): Promise<Connection> {
+        if (this.interactiveConnectionPromise) {
+            return this.interactiveConnectionPromise;
+        }
+
+        this.interactiveConnectionPromise = (async () => {
             let connection: Connection;
+            const isExternalBrowser =
+                this.connectionOptions.authenticator ===
+                EXTERNAL_BROWSER_AUTHENTICATOR;
             try {
                 connection = createConnection({
-                    ...this.connectionOptions,
-                    ...connectionOptionsOverrides,
+                    ...(await this.getConnectionOptions(
+                        connectionOptionsOverrides,
+                    )),
                 });
 
                 console.info(
-                    `Connecting to snowflake warehouse with "external_browser" authentication type`,
+                    isExternalBrowser
+                        ? `Connecting to snowflake warehouse with "external_browser" authentication type`
+                        : `Connecting to snowflake warehouse with interactive authentication type`,
                 );
                 await Util.promisify(
                     connection.connectAsync.bind(connection),
                 )();
             } catch (e: unknown) {
                 throw new WarehouseConnectionError(
-                    `Snowflake external browser error: ${getErrorMessage(e)}`,
+                    isExternalBrowser
+                        ? `Snowflake external browser error: ${getErrorMessage(e)}`
+                        : `Snowflake interactive authentication error: ${getErrorMessage(
+                              e,
+                          )}`,
                 );
             }
             return connection;
         })();
 
         try {
-            return await this.externalBrowserConnectionPromise;
+            return await this.interactiveConnectionPromise;
         } catch (e) {
-            // Clear cache on error to allow retry
-            this.externalBrowserConnectionPromise = undefined;
+            this.interactiveConnectionPromise = undefined;
             throw e;
         }
     }
@@ -397,8 +855,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         let connection: Connection;
         try {
             connection = createConnection({
-                ...this.connectionOptions,
-                ...connectionOptionsOverrides,
+                ...(await this.getConnectionOptions(
+                    connectionOptionsOverrides,
+                )),
             });
 
             await Util.promisify(connection.connect.bind(connection))();
@@ -410,57 +869,337 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         return connection;
     }
 
-    /**
-     * Creates a Programmatic Access Token (PAT) after external browser authentication.
-     * This allows the backend to use the PAT for subsequent queries without requiring
-     * browser-based authentication.
-     *
-     * @param tokenName - Name for the PAT (must be unique per user)
-     * @param daysToExpiry - Number of days until the token expires (default: 1, max: 365)
-     * @param minsToBypassNetworkPolicy - Minutes to bypass network policy requirement (default: 1440 = 1 day, max: 1440)
-     * @returns The PAT secret that can be used as a password for authentication
-     */
+    async openDiagnosticConnection(): Promise<SnowflakeDiagnosticSession> {
+        try {
+            const connection = createConnection(
+                await this.getConnectionOptions(),
+            );
+            await Util.promisify(connection.connect.bind(connection))();
+            return { connection };
+        } catch (error) {
+            throw new SnowflakeDiagnosticError(error);
+        }
+    }
+
+    async selectOneDiagnosticConnection(
+        session: SnowflakeDiagnosticSession,
+    ): Promise<void> {
+        try {
+            await this.executeStatements(session.connection, 'SELECT 1');
+        } catch (error) {
+            throw new SnowflakeDiagnosticError(error);
+        }
+    }
+
+    async closeDiagnosticConnection(
+        session: SnowflakeDiagnosticSession,
+    ): Promise<void> {
+        await this.destroyConnection(
+            session.connection,
+            this.connectionOptions.authenticator,
+        );
+    }
+
+    async getSessionDiscovery(
+        user?: string,
+    ): Promise<SnowflakeSessionDiscovery> {
+        const connection = await this.getConnection();
+        const defaultsResult = await this.executeStatements(
+            connection,
+            'SELECT CURRENT_USER() AS user, CURRENT_ROLE() AS role, CURRENT_WAREHOUSE() AS warehouse, CURRENT_DATABASE() AS database, CURRENT_SCHEMA() AS schema',
+        );
+        const defaultsRow = (defaultsResult.rows[0] ?? {}) as Record<
+            string,
+            AnyType
+        >;
+        const sessionUser = user || getSnowflakeRowValue(defaultsRow, 'user');
+        if (!sessionUser) {
+            throw new SnowflakeDiagnosticError(
+                new Error('Could not determine the authenticated user'),
+            );
+        }
+        const databasesResult = await this.executeStatements(
+            connection,
+            `SHOW DATABASES LIMIT ${SESSION_DISCOVERY_LIMIT}`,
+        );
+        const warehousesResult = await this.executeStatements(
+            connection,
+            `SHOW WAREHOUSES LIMIT ${SESSION_DISCOVERY_LIMIT}`,
+        );
+        const grantsResult = await this.executeStatements(
+            connection,
+            `SHOW GRANTS TO USER ${snowflakeIdentifier(
+                sessionUser,
+            )} LIMIT ${SESSION_DISCOVERY_LIMIT}`,
+        );
+        let schemaRows: AnyType[] = [];
+        try {
+            const schemasResult = await this.executeStatements(
+                connection,
+                `SHOW SCHEMAS IN ACCOUNT LIMIT ${SESSION_SCHEMA_DISCOVERY_LIMIT}`,
+            );
+            schemaRows = schemasResult.rows;
+        } catch {
+            schemaRows = [];
+        }
+        const databaseSizes = new Map<string, number>();
+        const sizeCandidates = databasesResult.rows
+            .map((rawRow) =>
+                getSnowflakeRowValue(rawRow as Record<string, AnyType>, 'name'),
+            )
+            .filter((name): name is string => Boolean(name))
+            .slice(0, SESSION_DATABASE_SIZE_LIMIT);
+        // INFORMATION_SCHEMA aggregation needs an active warehouse; without a
+        // session default, activate one (prefer already-running, then smallest)
+        if (sizeCandidates.length > 0) {
+            const sessionWarehouseName = getSnowflakeRowValue(
+                defaultsRow,
+                'warehouse',
+            );
+            const sizeWarehouseName =
+                sessionWarehouseName ??
+                pickSizeDiscoveryWarehouse(warehousesResult.rows);
+            if (!sessionWarehouseName && sizeWarehouseName) {
+                try {
+                    await this.executeStatements(
+                        connection,
+                        `USE WAREHOUSE ${snowflakeIdentifier(
+                            sizeWarehouseName,
+                        )}`,
+                    );
+                } catch {
+                    /* size queries will fail and sizes stay null */
+                }
+            }
+        }
+        await sizeCandidates.reduce(
+            (previous, databaseName) =>
+                previous.then(async () => {
+                    try {
+                        const sizeResult = await this.executeStatements(
+                            connection,
+                            `SELECT SUM(bytes) AS "total_bytes" FROM ${snowflakeIdentifier(
+                                databaseName,
+                            )}.INFORMATION_SCHEMA.TABLES WHERE table_type = 'BASE TABLE'`,
+                        );
+                        const totalBytes = getSnowflakeRowNumber(
+                            (sizeResult.rows[0] ?? {}) as Record<
+                                string,
+                                AnyType
+                            >,
+                            'total_bytes',
+                        );
+                        if (totalBytes !== null && totalBytes > 0) {
+                            databaseSizes.set(databaseName, totalBytes);
+                        }
+                    } catch {
+                        /* size stays null for this database */
+                    }
+                }),
+            Promise.resolve(),
+        );
+        const defaultRole = getSnowflakeRowValue(defaultsRow, 'role');
+        const grantedRoles = [
+            ...new Set([
+                ...(defaultRole ? [defaultRole] : []),
+                ...grantsResult.rows.flatMap((row) => {
+                    const role = getSnowflakeRowValue(
+                        row as Record<string, AnyType>,
+                        'role',
+                    );
+                    return role ? [role] : [];
+                }),
+            ]),
+        ].filter((role) => role !== 'PUBLIC');
+        const roles = [
+            ...grantedRoles.slice(0, SESSION_DISCOVERY_LIMIT - 1),
+            'PUBLIC',
+        ].map((name) => ({
+            name,
+            isDefault: name === defaultRole,
+        }));
+        return {
+            user: sessionUser,
+            defaults: {
+                role: getSnowflakeRowValue(defaultsRow, 'role'),
+                warehouse: getSnowflakeRowValue(defaultsRow, 'warehouse'),
+                database: getSnowflakeRowValue(defaultsRow, 'database'),
+                schema: getSnowflakeRowValue(defaultsRow, 'schema'),
+            },
+            inventory: {
+                databases: listSnowflakeDatabases(
+                    databasesResult.rows,
+                    databaseSizes,
+                ),
+                warehouses: listSnowflakeWarehouses(warehousesResult.rows),
+                roles,
+                schemas: listSnowflakeSchemas(schemaRows),
+            },
+        };
+    }
+
+    async getUserPublicKeySlots(
+        user: string,
+    ): Promise<SnowflakePublicKeySlots> {
+        const connection = await this.getConnection();
+        const result = await this.executeStatements(
+            connection,
+            `DESCRIBE USER ${snowflakeIdentifier(user)}`,
+        );
+        const fingerprints = new Map(
+            result.rows.flatMap((rawRow) => {
+                const row = rawRow as Record<string, AnyType>;
+                const property = getSnowflakeRowValue(row, 'property');
+                const value = getSnowflakeRowValue(row, 'value');
+                return property
+                    ? [[property.toUpperCase(), value] as const]
+                    : [];
+            }),
+        );
+        const getFingerprint = (property: string): string | null => {
+            const value = fingerprints.get(property);
+            const fingerprint = value?.trim();
+            return fingerprint && fingerprint.toLowerCase() !== 'null'
+                ? fingerprint
+                : null;
+        };
+        return {
+            RSA_PUBLIC_KEY: getFingerprint('RSA_PUBLIC_KEY_FP'),
+            RSA_PUBLIC_KEY_2: getFingerprint('RSA_PUBLIC_KEY_2_FP'),
+        };
+    }
+
+    async setUserPublicKey(
+        user: string,
+        slot: SnowflakePublicKeySlot,
+        publicKey: string,
+    ): Promise<void> {
+        if (!/^[A-Za-z0-9+/=]+$/.test(publicKey)) {
+            throw new UnexpectedServerError('Invalid Snowflake public key');
+        }
+        const connection = await this.getConnection();
+        await this.executeStatements(
+            connection,
+            `ALTER USER ${snowflakeIdentifier(
+                user,
+            )} SET ${slot} = '${publicKey}'`,
+        );
+    }
+
+    async unsetUserPublicKey(
+        user: string,
+        slot: SnowflakePublicKeySlot,
+    ): Promise<void> {
+        const connection = await this.getConnection();
+        await this.executeStatements(
+            connection,
+            `ALTER USER ${snowflakeIdentifier(user)} UNSET ${slot}`,
+        );
+    }
+
+    getOAuthTokens(): SnowflakeOAuthTokens | null {
+        return this.oauthCredentialManager?.getTokens() ?? null;
+    }
+
     async createProgrammaticAccessToken(
         tokenName: string = `lightdash_pat_${Date.now()}`,
         daysToExpiry: number = 1,
         minsToBypassNetworkPolicy: number = 1440,
+        roleRestriction: string | null = null,
     ): Promise<{ tokenSecret: string; tokenName: string }> {
         if (
             this.connectionOptions.authenticator !==
-            EXTERNAL_BROWSER_AUTHENTICATOR
+                EXTERNAL_BROWSER_AUTHENTICATOR &&
+            this.connectionOptions.authenticator !==
+                OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR
         ) {
             throw new UnexpectedServerError(
-                'PAT creation is only supported with external browser authentication',
+                'PAT creation requires an interactive Snowflake session',
             );
         }
 
-        const connection = await this.createExternalBrowserConnection();
+        const connection = await this.getConnection();
 
         try {
-            // MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT allows PAT to work without network policy
-            // This is needed for human users who are not subject to a network policy
-            const sqlText = `ALTER USER ADD PAT ${tokenName} DAYS_TO_EXPIRY = ${daysToExpiry} MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = ${minsToBypassNetworkPolicy} COMMENT = 'Lightdash backend access token'`;
+            if (!/^[A-Za-z_][A-Za-z0-9_$]*$/.test(tokenName)) {
+                throw new UnexpectedServerError('Invalid Snowflake PAT name');
+            }
+            const existingTokens = await this.executeStatements(
+                connection,
+                'SHOW USER PROGRAMMATIC ACCESS TOKENS',
+            );
+            const tokenExists = existingTokens.rows.some((row) =>
+                Object.entries(row).some(
+                    ([key, value]) =>
+                        key.toLowerCase() === 'name' &&
+                        String(value).toUpperCase() === tokenName.toUpperCase(),
+                ),
+            );
+            if (tokenExists) {
+                await this.executeStatements(
+                    connection,
+                    `ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN ${tokenName}`,
+                );
+            }
+            const inactiveLightdashTokenNames = existingTokens.rows.flatMap(
+                (row) => {
+                    const name = Object.entries(row).find(
+                        ([key]) => key.toLowerCase() === 'name',
+                    )?.[1];
+                    const status = Object.entries(row).find(
+                        ([key]) => key.toLowerCase() === 'status',
+                    )?.[1];
+                    return name !== undefined &&
+                        /^[A-Za-z_][A-Za-z0-9_$]*$/.test(String(name)) &&
+                        String(name)
+                            .toUpperCase()
+                            .startsWith('LIGHTDASH_ONBOARDING') &&
+                        String(name).toUpperCase() !==
+                            tokenName.toUpperCase() &&
+                        status !== undefined &&
+                        String(status).toUpperCase() !== 'ACTIVE'
+                        ? [String(name)]
+                        : [];
+                },
+            );
+            try {
+                await inactiveLightdashTokenNames.reduce<Promise<void>>(
+                    async (previousRemoval, inactiveTokenName) => {
+                        await previousRemoval;
+                        await this.executeStatements(
+                            connection,
+                            `ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN ${inactiveTokenName}`,
+                        );
+                    },
+                    Promise.resolve(),
+                );
+            } catch {
+                // Stale-token cleanup must not prevent minting a new token.
+            }
+            const roleClause = roleRestriction
+                ? ` ROLE_RESTRICTION = '${roleRestriction.replace(/'/g, "''")}'`
+                : '';
+            const sqlText = `ALTER USER ADD PROGRAMMATIC ACCESS TOKEN ${tokenName}${roleClause} DAYS_TO_EXPIRY = ${daysToExpiry} MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = ${minsToBypassNetworkPolicy} COMMENT = 'Lightdash backend access token'`;
 
             const result = await this.executeStatements(connection, sqlText);
 
-            // The ALTER USER ADD PAT command returns a row with the token_secret
             if (!result.rows || result.rows.length === 0) {
                 throw new UnexpectedServerError(
                     'Failed to create PAT: no result returned',
                 );
             }
 
-            const tokenSecret = result.rows[0]?.token_secret;
+            const tokenSecret = Object.entries(result.rows[0] ?? {}).find(
+                ([key]) => key.toLowerCase() === 'token_secret',
+            )?.[1];
             if (!tokenSecret) {
                 throw new UnexpectedServerError(
                     'Failed to create PAT: token_secret not found in result',
                 );
             }
 
-            return { tokenSecret, tokenName };
+            return { tokenSecret: String(tokenSecret), tokenName };
         } catch (e: unknown) {
-            // Note: External browser connections are not destroyed as they're cached
-            // for the lifetime of the client, but we still need proper error handling
             throw new WarehouseConnectionError(
                 `Failed to create Snowflake PAT: ${getErrorMessage(e)}`,
             );
@@ -525,7 +1264,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
 
         if (options?.tags) {
-            sessionParams.push(`QUERY_TAG = '${JSON.stringify(options.tags)}'`);
+            sessionParams.push(
+                `QUERY_TAG = '${SnowflakeWarehouseClient.formatQueryTag(
+                    options.tags,
+                )}'`,
+            );
         }
 
         const timezoneQuery = options?.timezone || 'UTC';
@@ -547,6 +1290,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             `Setting Snowflake session STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`,
         );
         sessionParams.push(`STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`);
+
+        // Snowflake grows result chunks up to 160MB and the driver holds ~4
+        // chunks in memory regardless of consumer backpressure, so uncapped
+        // chunks make heap usage scale with the query row limit and can OOM
+        // the worker on large results
+        sessionParams.push(
+            `CLIENT_RESULT_CHUNK_SIZE = ${SNOWFLAKE_RESULT_CHUNK_SIZE_MB}`,
+        );
 
         await this.executeStatements(
             connection,
@@ -576,9 +1327,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         connection: Connection,
         authenticator: string | undefined,
     ) {
-        if (authenticator === EXTERNAL_BROWSER_AUTHENTICATOR) {
-            // EXTERNALBROWSER connections are never destroyed - they live for the lifetime of the client✅
-            // Other auth types (password, SSO, private key) still destroy connections after use
+        if (
+            authenticator === EXTERNAL_BROWSER_AUTHENTICATOR ||
+            authenticator === OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR
+        ) {
             return;
         }
         console.info(
@@ -601,15 +1353,19 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             fields: WarehouseResults['fields'],
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery> {
+        const connectStart = performance.now();
         const connection = await this.getConnection();
+        const connectMs = performance.now() - connectStart;
 
         try {
+            const sessionStart = performance.now();
             await this.prepareWarehouse(connection, {
                 timezone,
                 tags,
             });
+            const sessionMs = performance.now() - sessionStart;
 
-            const { queryId, durationMs, totalRows } =
+            const { queryId, durationMs, totalRows, queryMs, fetchMs } =
                 await this.executeAsyncStatement(
                     connection,
                     sql,
@@ -624,6 +1380,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 queryMetadata: null,
                 totalRows,
                 durationMs,
+                phaseTimings: {
+                    connect: connectMs,
+                    session: sessionMs,
+                    query: queryMs,
+                    fetch: fetchMs,
+                },
             };
         } finally {
             await this.destroyConnection(
@@ -652,6 +1414,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 queryMetadata: null;
                 totalRows: number;
                 durationMs: number;
+                queryMs: number;
+                fetchMs: number;
             }>((resolve, reject) => {
                 connection.execute({
                     sqlText: sql,
@@ -665,6 +1429,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
                         const fields = this.getFieldsFromStatement(stmt);
                         let rowCount = 0;
+                        const queryMs = performance.now() - startTime;
+                        const fetchStart = performance.now();
 
                         pipeline(
                             stmt.streamRows(),
@@ -707,6 +1473,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                                         totalRows: rowCount,
                                         durationMs:
                                             performance.now() - startTime,
+                                        queryMs,
+                                        fetchMs: performance.now() - fetchStart,
                                     });
                                 }
                             },
@@ -761,6 +1529,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             queryMetadata: null,
             totalRows,
             durationMs,
+            queryMs: durationMs,
+            fetchMs: 0,
         };
     }
 
@@ -951,9 +1721,18 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         acc[match.database][match.schema][match.table] =
                             acc[match.database][match.schema][match.table] ||
                             {};
+                        const rawType = JSON.parse(row.data_type).type;
                         acc[match.database][match.schema][match.table][
                             row.column_name
-                        ] = mapFieldType(JSON.parse(row.data_type).type);
+                        ] = mapFieldType(rawType);
+                        setCatalogTimestampDomain(
+                            acc,
+                            match.database,
+                            match.schema,
+                            match.table,
+                            row.column_name,
+                            getSnowflakeTimestampDomain(rawType),
+                        );
                     }
                 });
             }
@@ -1026,7 +1805,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             values,
         });
         const { rows } = await this.runQuery(query, tags, undefined, values);
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return this.parseWarehouseCatalog(
+            rows,
+            mapFieldType,
+            getSnowflakeTimestampDomain,
+        );
     }
 
     /*

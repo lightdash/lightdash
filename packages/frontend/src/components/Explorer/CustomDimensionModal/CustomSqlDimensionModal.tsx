@@ -19,9 +19,19 @@ import {
 } from '@mantine-8/core';
 import { useMantineColorScheme } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconMaximize, IconMinimize, IconSql } from '@tabler/icons-react';
+import {
+    IconMaximize,
+    IconMinimize,
+    IconSparkles,
+    IconSql,
+} from '@tabler/icons-react';
 import { useMemo, useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
+import {
+    AiCustomDimensionInputBody,
+    AiSlot,
+} from '../../../ee/features/ambientAi/components/tableCalculation';
+import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import {
     explorerActions,
     selectCustomDimensions,
@@ -51,6 +61,7 @@ export const CustomSqlDimensionModal: FC<{
 
     const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
+    const isAmbientAiEnabled = useAmbientAiEnabled();
 
     const dispatch = useExplorerDispatch();
     const customDimensions = useExplorerSelector(selectCustomDimensions);
@@ -263,6 +274,29 @@ export const CustomSqlDimensionModal: FC<{
                         gutterBackgroundColor={'var(--mantine-color-ldGray-1)'}
                         {...form.getInputProps('sql')}
                     />
+
+                    {isAmbientAiEnabled && (
+                        <AiSlot
+                            icon={IconSparkles}
+                            iconColor="indigo.4"
+                            title="Generate and improve your custom dimension with AI"
+                        >
+                            <AiCustomDimensionInputBody
+                                currentSql={form.values.sql || undefined}
+                                onApply={(result) => {
+                                    form.setFieldValue('sql', result.sql);
+                                    form.setFieldValue(
+                                        'customDimensionLabel',
+                                        result.displayName,
+                                    );
+                                    form.setFieldValue(
+                                        'dimensionType',
+                                        result.dimensionType,
+                                    );
+                                }}
+                            />
+                        </AiSlot>
+                    )}
                 </Stack>
             </form>
         </MantineModal>

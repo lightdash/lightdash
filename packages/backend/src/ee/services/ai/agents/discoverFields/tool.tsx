@@ -176,8 +176,11 @@ type ToolArgs = {
         | 'agentSettings'
         | 'threadUuid'
         | 'promptUuid'
+        | 'organizationId'
+        | 'userId'
         | 'telemetryEnabled'
         | 'model'
+        | 'keyManagement'
     >;
 };
 

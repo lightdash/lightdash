@@ -1,5 +1,17 @@
-import { ALL_TRAFFIC, CommandExitError, Sandbox, TimeoutError } from 'e2b';
-import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import {
+    ALL_TRAFFIC,
+    CommandExitError,
+    Sandbox,
+    SandboxError,
+    SandboxNotFoundError,
+    TimeoutError,
+} from 'e2b';
+import {
+    SandboxCommandError,
+    SandboxConnectionError,
+    SandboxNotRunningError,
+    SandboxTimeoutError,
+} from './errors';
 import {
     type CommandResult,
     type GitAddTarget,
@@ -7,12 +19,14 @@ import {
     type GitCommitOptions,
     type GitPushOptions,
     type GitStatus,
+    type PersistOptions,
     type RunOptions,
     type SandboxCapabilities,
     type SandboxGit,
     type SandboxHandle,
     type SandboxProvider,
     type SandboxSpec,
+    type SnapshotRef,
 } from './types';
 
 // Sandboxes re-attached via connect() get the same long-lived ceiling as the
@@ -25,8 +39,8 @@ const toArrayBuffer = (bytes: Uint8Array): ArrayBuffer =>
         bytes.byteOffset + bytes.byteLength,
     ) as ArrayBuffer;
 
-/** Rethrow E2B's command/timeout errors as vendor-neutral ones. */
-const normalizeError = (error: unknown): never => {
+/** Rethrow E2B errors as vendor-neutral ones. */
+export const normalizeError = (error: unknown): never => {
     if (error instanceof CommandExitError) {
         throw new SandboxCommandError(
             error.exitCode,
@@ -37,6 +51,17 @@ const normalizeError = (error: unknown): never => {
     if (error instanceof TimeoutError) {
         throw new SandboxTimeoutError(error.message);
     }
+    if (error instanceof SandboxNotFoundError) {
+        throw new SandboxNotRunningError(error.message);
+    }
+    if (
+        (error instanceof SandboxError &&
+            error.name === 'SandboxError' &&
+            /^\d+: \[\w+\] /.test(error.message)) ||
+        (error instanceof TypeError && error.message.includes('fetch failed'))
+    ) {
+        throw new SandboxConnectionError(error.message);
+    }
     throw error;
 };
 
@@ -45,10 +70,6 @@ class E2bSandboxHandle implements SandboxHandle {
 
     get sandboxId(): string {
         return this.sandbox.sandboxId;
-    }
-
-    async pause(): Promise<void> {
-        await this.sandbox.pause();
     }
 
     readonly commands = {
@@ -76,26 +97,44 @@ class E2bSandboxHandle implements SandboxHandle {
     };
 
     readonly files = {
-        read: (path: string): Promise<string> => this.sandbox.files.read(path),
+        read: async (path: string): Promise<string> => {
+            try {
+                return await this.sandbox.files.read(path);
+            } catch (error) {
+                return normalizeError(error);
+            }
+        },
         readBytes: async (path: string): Promise<Buffer> => {
-            const bytes = await this.sandbox.files.read(path, {
-                format: 'bytes',
-            });
-            return Buffer.from(bytes);
+            try {
+                const bytes = await this.sandbox.files.read(path, {
+                    format: 'bytes',
+                });
+                return Buffer.from(bytes);
+            } catch (error) {
+                return normalizeError(error);
+            }
         },
         write: async (
             path: string,
             contents: string | Uint8Array,
         ): Promise<void> => {
-            await this.sandbox.files.write(
-                path,
-                typeof contents === 'string'
-                    ? contents
-                    : toArrayBuffer(contents),
-            );
+            try {
+                await this.sandbox.files.write(
+                    path,
+                    typeof contents === 'string'
+                        ? contents
+                        : toArrayBuffer(contents),
+                );
+            } catch (error) {
+                normalizeError(error);
+            }
         },
         remove: async (path: string): Promise<void> => {
-            await this.sandbox.files.remove(path);
+            try {
+                await this.sandbox.files.remove(path);
+            } catch (error) {
+                normalizeError(error);
+            }
         },
     };
 
@@ -161,13 +200,7 @@ class E2bSandboxHandle implements SandboxHandle {
  * reference implementation and the managed default.
  */
 export class E2bSandboxProvider implements SandboxProvider {
-    readonly capabilities: SandboxCapabilities = {
-        isolation: 'microvm',
-        pauseResume: true,
-        egressAllowlist: true,
-        warmPool: false,
-        persistence: 'memory',
-    };
+    readonly capabilities: SandboxCapabilities = { pauseResume: true };
 
     constructor(private readonly apiKey: string) {}
 
@@ -197,7 +230,29 @@ export class E2bSandboxProvider implements SandboxProvider {
         await Sandbox.kill(sandboxId, { apiKey: this.apiKey });
     }
 
-    async pause(sandboxId: string): Promise<void> {
-        await Sandbox.pause(sandboxId, { apiKey: this.apiKey });
+    // Native in-memory pause IS the snapshot: the paused sandbox keeps RAM, disk
+    // and live processes, so the declared workspace is irrelevant here. The ref
+    // is just the sandboxId to reconnect to.
+    async persist(
+        handle: SandboxHandle,
+        _options: PersistOptions,
+    ): Promise<SnapshotRef> {
+        await Sandbox.pause(handle.sandboxId, { apiKey: this.apiKey });
+        return { kind: 'e2b-paused', sandboxId: handle.sandboxId };
+    }
+
+    async resume(ref: SnapshotRef, _spec: SandboxSpec): Promise<SandboxHandle> {
+        if (ref.kind !== 'e2b-paused') {
+            throw new Error(
+                `E2bSandboxProvider cannot resume a snapshot of kind '${ref.kind}'`,
+            );
+        }
+        return this.connect(ref.sandboxId);
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    async deleteSnapshot(_ref: SnapshotRef): Promise<void> {
+        // The paused sandbox IS the snapshot; destroy(sandboxId) reclaims it, so
+        // there is no separate blob to delete here.
     }
 }

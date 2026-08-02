@@ -1,7 +1,8 @@
 /**
  * Provider-neutral sandbox runtime interfaces. Application code (AppGenerateService,
  * AiWritebackService) depends on these instead of the concrete `e2b` SDK, so the
- * same feature code runs on any backend (E2B, local Docker, …). See DESIGN.md.
+ * same feature code runs on any backend (E2B, local Docker, …).
+ * See docs/sandbox-runtime.md.
  */
 
 /** A minimal logger surface (structurally compatible with winston's Logger). */
@@ -126,27 +127,19 @@ export interface SandboxGit {
  */
 export interface SandboxHandle {
     readonly sandboxId: string;
-    /**
-     * Persist + suspend the sandbox so it can be resumed later. Capability-gated:
-     * providers without a native pause (Docker) treat this as a no-op.
-     */
-    pause(): Promise<void>;
     readonly commands: SandboxCommands;
     readonly files: SandboxFiles;
     readonly git: SandboxGit;
 }
 
-export type SandboxIsolation = 'microvm' | 'gvisor' | 'container';
-export type SandboxPersistence = 'memory' | 'volume' | 'objectstore';
-
 export interface SandboxCapabilities {
-    isolation: SandboxIsolation;
-    /** true only where a native memory snapshot exists (E2B). */
+    /**
+     * true where the backend has a native memory snapshot (E2B, Lambda MicroVMs):
+     * `persist` suspends in place and the suspended sandbox IS the snapshot. false
+     * where there is none (Docker): `persist` tars the workspace to object storage
+     * and the container is destroyed. The only capability the Manager branches on.
+     */
     pauseResume: boolean;
-    /** can it actually enforce SandboxSpec.egress? */
-    egressAllowlist: boolean;
-    warmPool: boolean;
-    persistence: SandboxPersistence;
 }
 
 export interface SandboxSpec {
@@ -156,6 +149,40 @@ export interface SandboxSpec {
     /** Outbound host allowlist. `denyOut: ALL_TRAFFIC` is implicit. */
     egress: { allow: string[] };
     envs?: Record<string, string>;
+}
+
+/**
+ * Declares the slice of the sandbox filesystem worth persisting across a turn.
+ * Everything else (re-cloneable repo objects, installed deps) is re-derived on
+ * resume, keeping snapshots small and free of injected secrets. `include` paths
+ * are absolute; `exclude` entries are `tar --exclude` patterns matched against
+ * archive members.
+ */
+export interface PersistentWorkspace {
+    include: string[];
+    exclude: string[];
+}
+
+/**
+ * A pointer to a persisted sandbox. `e2b-paused` is E2B's native in-memory
+ * snapshot (the paused sandbox itself); `lambda-microvm-suspended` is the
+ * equivalent for AWS Lambda MicroVMs (the suspended microVM, a Firecracker
+ * memory+disk snapshot referenced by its opaque id); `azure-sandbox-suspended`
+ * is the equivalent for Azure Container Apps Sandboxes (the suspended sandbox, a
+ * memory+disk snapshot referenced by its id); `s3-tar` is a portable tarball of
+ * the declared workspace in object storage, used by providers without native
+ * pause (Docker).
+ */
+export type SnapshotRef =
+    | { kind: 'e2b-paused'; sandboxId: string }
+    | { kind: 'lambda-microvm-suspended'; microVmId: string }
+    | { kind: 'azure-sandbox-suspended'; sandboxId: string }
+    | { kind: 's3-tar'; key: string };
+
+/** Inputs for {@link SandboxProvider.persist}. */
+export interface PersistOptions {
+    /** What to capture. Native-pause providers (E2B) ignore this. */
+    workspace: PersistentWorkspace;
 }
 
 /**
@@ -169,6 +196,23 @@ export interface SandboxProvider {
     connect(sandboxId: string): Promise<SandboxHandle>;
     /** Permanently destroy a sandbox. No error if it is already gone. */
     destroy(sandboxId: string): Promise<void>;
-    /** Pause a sandbox by id (capability-gated; no-op where unsupported). */
-    pause(sandboxId: string): Promise<void>;
+    /**
+     * Snapshot a sandbox so it can be resumed later. Native-pause providers
+     * (E2B) suspend in memory and ignore {@link PersistOptions}; object-store
+     * providers (Docker) tar the declared workspace to the given key. Does NOT
+     * destroy the sandbox — the caller decides that from {@link SandboxCapabilities}.
+     */
+    persist(
+        handle: SandboxHandle,
+        options: PersistOptions,
+    ): Promise<SnapshotRef>;
+    /** Re-materialize a sandbox from a {@link SnapshotRef}. */
+    resume(ref: SnapshotRef, spec: SandboxSpec): Promise<SandboxHandle>;
+    /**
+     * Dispose a persisted snapshot. No-op for native-pause providers (the
+     * snapshot IS the suspended sandbox, reclaimed by {@link destroy}); object-
+     * store providers (Docker) delete the backing blob. The Manager calls this on
+     * destroy/GC so storage cleanup stays a provider concern.
+     */
+    deleteSnapshot(ref: SnapshotRef): Promise<void>;
 }

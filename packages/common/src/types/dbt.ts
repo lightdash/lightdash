@@ -6,11 +6,11 @@ import {
 import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
 import { type AnyType } from './any';
+import { type ColumnInfo, type CompiledModelNode } from './dbtFromSchema';
 import {
-    type ColumnInfo,
-    type CompiledModelNode,
-    type ParsedMetric,
-} from './dbtFromSchema';
+    type DbtSemanticMetric,
+    type DbtSemanticModel,
+} from './dbtSemanticLayer';
 import { ParseError } from './errors';
 import { type JoinRelationship } from './explore';
 import {
@@ -18,17 +18,20 @@ import {
     friendlyName,
     getMinMaxBaseDimensionMetadata,
     type CompactOrAlias,
+    type Dimension,
     type DimensionType,
     type FieldUrl,
+    type FilterAutocompleteValue,
     type Format,
     type Metric,
     type MetricType,
     type NumberSeparator,
     type Source,
+    type TimestampDomain,
 } from './field';
 import { parseFilters, type RequiredFilter } from './filterGrammar';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
-import { type OrderFieldsByStrategy } from './table';
+import { type OrderFieldsByStrategy, type TableBase } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
 
 export enum SupportedDbtAdapter {
@@ -75,6 +78,9 @@ export type DbtModelNode = DbtRawModelNode & {
 export type DbtModelColumn = ColumnInfo & {
     meta?: DbtColumnMetadata;
     data_type?: DimensionType;
+    /** Catalog-derived timestamp domain; sibling of data_type because
+     *  attachTypesToModels overwrites data_type wholesale. */
+    timestamp_domain?: TimestampDomain;
     config?: {
         meta?: DbtColumnMetadata;
     };
@@ -181,7 +187,9 @@ export type DbtModelLightdashConfig = ExploreConfig &
         };
         explores?: Record<
             string,
-            ExploreConfig & SharedDbtModelLightdashConfig
+            ExploreConfig &
+                SharedDbtModelLightdashConfig &
+                DbtLightdashFieldTags
         >;
         ai_hint?: string | string[];
         parameters?: LightdashProjectConfig['parameters'];
@@ -193,6 +201,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
 export type DbtModelGroup = {
     label: string;
     description?: string;
+    ai_hint?: string | string[];
 };
 
 export type DbtModelJoinType = 'inner' | 'full' | 'left' | 'right';
@@ -218,6 +227,12 @@ type DbtColumnLightdashConfig = {
     metrics?: { [metricName: string]: DbtColumnLightdashMetric };
 };
 
+export type DbtFilterAutocompleteConfig = {
+    values?: FilterAutocompleteValue[];
+    fetch_from_warehouse?: boolean;
+    label_dimension?: string;
+};
+
 export type DbtColumnLightdashDimension = {
     name?: string;
     label?: string;
@@ -227,6 +242,9 @@ export type DbtColumnLightdashDimension = {
     time_intervals?: boolean | 'default' | 'OFF' | (TimeFrames | string)[];
     /** Set to false to opt this dim out of display-tz conversion. Defaults to true. */
     convert_timezone?: boolean;
+    /** Declares whether the column stores an instant ('aware') or a bare wall
+     *  clock ('naive'); overrides the warehouse catalog. */
+    timestamp_domain?: TimestampDomain;
     hidden?: boolean;
     // @deprecated Use format expression instead
     round?: number;
@@ -244,6 +262,7 @@ export type DbtColumnLightdashDimension = {
     any_attributes?: Record<string, string | string[]>;
     ai_hint?: string | string[];
     case_sensitive?: boolean; // When false, string filters on this dimension will be case insensitive. Default is true
+    filter_autocomplete?: DbtFilterAutocompleteConfig;
     image?: {
         url: string;
         width?: number;
@@ -438,29 +457,6 @@ export const isDbtPackages = (
     results: Record<string, AnyType>,
 ): results is DbtPackages => 'packages' in results;
 
-export type V9MetricRef = {
-    name: string;
-    package?: string | null;
-    version?: string | number | null;
-};
-
-export const isV9MetricRef = (x: string[] | V9MetricRef): x is V9MetricRef =>
-    typeof x === 'object' && x !== null && 'name' in x;
-
-export type DbtMetric = Omit<ParsedMetric, 'refs'> & {
-    meta?: Record<string, AnyType> & DbtMetricLightdashMetadata;
-    refs?: string[][] | V9MetricRef[];
-};
-
-export type DbtMetricLightdashMetadata = {
-    hidden?: boolean;
-    /** @deprecated Use groups instead */
-    group_label?: string;
-    groups?: string[];
-    show_underlying_values?: string[];
-    filters: Record<string, AnyType>[];
-};
-
 export type DbtDoc = {
     unique_id: string;
     name: string;
@@ -470,8 +466,22 @@ export type DbtDoc = {
 export interface DbtManifest {
     nodes: Record<string, DbtNode>;
     metadata: DbtRawManifestMetadata;
-    metrics: Record<string, DbtMetric>;
+    /**
+     * dbt MetricFlow metrics (dbt >= 1.6). Translated into Lightdash metrics
+     * during CLI compile — see `translateMetricFlowMetrics`.
+     */
+    metrics: Record<string, DbtSemanticMetric>;
     docs: Record<string, DbtDoc>;
+    /**
+     * Opaque manifest sections that Lightdash carries through the multi-source
+     * merge (`combineManifestSources`) but does not interpret during compile —
+     * the already-compiled `nodes` carry resolved relation_names, so these are
+     * not read today. Kept for faithful merging and future write-back source
+     * attribution. Optional: not every manifest (or test fixture) includes them.
+     */
+    sources?: Record<string, AnyType>;
+    macros?: Record<string, AnyType>;
+    semantic_models?: Record<string, DbtSemanticModel>;
 }
 
 export interface DbtRawManifestMetadata {
@@ -560,16 +570,36 @@ export const convertToGroups = (
     return groups;
 };
 
-export const convertToAiHints = (
-    aiHint: string | string[] | undefined,
-): string[] | undefined => {
-    if (!aiHint) {
+export const convertToAiHints = (aiHint: unknown): string[] | undefined => {
+    if (typeof aiHint === 'string') {
+        return aiHint ? [aiHint] : undefined;
+    }
+    if (!Array.isArray(aiHint)) {
         return undefined;
     }
-    if (typeof aiHint === 'string') {
-        return [aiHint];
-    }
-    return aiHint;
+
+    const hints = aiHint.filter(
+        (hint): hint is string => typeof hint === 'string',
+    );
+    return hints.length > 0 ? hints : undefined;
+};
+
+export const flattenAiHints = (aiHint: unknown): string =>
+    convertToAiHints(aiHint)?.join(' ') ?? '';
+
+export const getEffectiveFieldAiHints = (
+    field: Pick<Dimension | Metric, 'aiHint' | 'groups'>,
+    table: Pick<TableBase, 'groupDetails'> | undefined,
+): string[] | undefined => {
+    const hints = [
+        ...(convertToAiHints(field.aiHint) ?? []),
+        ...(field.groups ?? []).flatMap(
+            (group) =>
+                convertToAiHints(table?.groupDetails?.[group]?.aiHint) ?? [],
+        ),
+    ];
+
+    return hints.length > 0 ? [...new Set(hints)] : undefined;
 };
 
 export const isDbtRpcRunSqlResults = (

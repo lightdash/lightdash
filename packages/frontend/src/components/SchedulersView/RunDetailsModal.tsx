@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    MAX_DELIVERY_QUERIES,
     PartialFailureType,
     SchedulerFormat,
     SchedulerJobStatus,
@@ -214,9 +215,113 @@ const PartialFailureText: FC<{
                     </Text>
                 </Stack>
             );
+        case PartialFailureType.AI_AUGMENTATION:
+            return (
+                <Stack
+                    gap={4}
+                    p="xs"
+                    style={{
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: theme.colors.orange[0],
+                    }}
+                >
+                    <Text fz="xs" fw={500} c="orange.9">
+                        AI summary could not be generated
+                    </Text>
+                    <Code
+                        c="orange.9"
+                        bg="transparent"
+                        style={{
+                            fontSize: '11px',
+                            padding: 0,
+                        }}
+                    >
+                        {failure.error}
+                    </Code>
+                </Stack>
+            );
+        case PartialFailureType.APP_QUERY:
+            return (
+                <Stack
+                    gap={4}
+                    p="xs"
+                    style={{
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: theme.colors.orange[0],
+                    }}
+                >
+                    <Text fz="xs" fw={500} c="orange.9">
+                        {failure.label}
+                    </Text>
+                    <Code
+                        c="orange.9"
+                        bg="transparent"
+                        style={{
+                            fontSize: '11px',
+                            padding: 0,
+                        }}
+                    >
+                        {failure.error}
+                    </Code>
+                </Stack>
+            );
+        case PartialFailureType.APP_QUERY_MISSING:
+            return (
+                <Stack
+                    gap={4}
+                    p="xs"
+                    style={{
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: theme.colors.orange[0],
+                    }}
+                >
+                    <Text fz="xs" fw={500} c="orange.9">
+                        {failure.label}
+                    </Text>
+                    <Code
+                        c="orange.9"
+                        bg="transparent"
+                        style={{
+                            fontSize: '11px',
+                            padding: 0,
+                        }}
+                    >
+                        {`did not run in this delivery${
+                            failure.identityChanged
+                                ? ' (query changed since it was selected)'
+                                : ''
+                        }`}
+                    </Code>
+                </Stack>
+            );
+        case PartialFailureType.APP_CAPTURE_OVERFLOW:
+            return (
+                <Stack
+                    gap={4}
+                    p="xs"
+                    style={{
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: theme.colors.orange[0],
+                    }}
+                >
+                    <Text fz="xs" fw={500} c="orange.9">
+                        {`${failure.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`}
+                    </Text>
+                </Stack>
+            );
         default:
             return assertUnreachable(failure, 'Unknown partial failure type');
     }
+};
+
+// Stable key for a partial failure row: tileUuid > captureKey > index fallback
+const getPartialFailureKey = (
+    failure: PartialFailure,
+    index: number,
+): string | number => {
+    if ('tileUuid' in failure) return failure.tileUuid;
+    if ('captureKey' in failure) return failure.captureKey;
+    return index;
 };
 
 // Unified component for job rows (success, failure, partial failure)
@@ -256,27 +361,63 @@ const JobRow: FC<{
         getLogStatusIconWithoutTooltip(job.finalStatus, theme)
     );
 
-    // Determine status message
-    const chartFailures = partialFailures.filter(
+    // Determine status message: charts/dashboard-sql-charts and app queries are
+    // both "content" failures (a delivery only ever produces one kind at a time)
+    const contentFailures = partialFailures.filter(
         (f) =>
             f.type === PartialFailureType.DASHBOARD_CHART ||
-            f.type === PartialFailureType.DASHBOARD_SQL_CHART,
+            f.type === PartialFailureType.DASHBOARD_SQL_CHART ||
+            f.type === PartialFailureType.APP_QUERY ||
+            f.type === PartialFailureType.APP_QUERY_MISSING,
     );
-    const hasMissingTargets = partialFailures.some(
+    const missingTargetsCount = partialFailures.filter(
         (f) => f.type === PartialFailureType.MISSING_TARGETS,
-    );
+    ).length;
+    const hasMissingTargets = missingTargetsCount > 0;
 
     const getPartialFailureMessage = (): string => {
+        const chartFailureCount = contentFailures.filter(
+            (f) =>
+                f.type === PartialFailureType.DASHBOARD_CHART ||
+                f.type === PartialFailureType.DASHBOARD_SQL_CHART,
+        ).length;
+        const queryFailureCount = contentFailures.filter(
+            (f) =>
+                f.type === PartialFailureType.APP_QUERY ||
+                f.type === PartialFailureType.APP_QUERY_MISSING,
+        ).length;
+        // Anything not counted above (AI_AUGMENTATION, APP_CAPTURE_OVERFLOW, …)
+        // falls back to a generic "issue(s)" bucket so this never goes empty.
+        const otherIssueCount =
+            partialFailures.length -
+            contentFailures.length -
+            missingTargetsCount;
+
         const parts: string[] = [];
-        if (chartFailures.length > 0) {
+        if (chartFailureCount > 0) {
             parts.push(
-                `${chartFailures.length} failing chart${
-                    chartFailures.length > 1 ? 's' : ''
-                }`,
+                `${chartFailureCount} failing ${pluralize(
+                    chartFailureCount,
+                    'chart',
+                )}`,
+            );
+        }
+        if (queryFailureCount > 0) {
+            parts.push(
+                `${queryFailureCount} failing ${pluralize(
+                    queryFailureCount,
+                    'query',
+                    'queries',
+                )}`,
             );
         }
         if (hasMissingTargets) {
             parts.push('missing recipients');
+        }
+        if (otherIssueCount > 0) {
+            parts.push(
+                `${otherIssueCount} ${pluralize(otherIssueCount, 'issue')}`,
+            );
         }
         return `Completed with ${parts.join(' and ')}`;
     };
@@ -369,12 +510,7 @@ const JobRow: FC<{
                     {partialFailures.map((failure, index) => {
                         return (
                             <PartialFailureText
-                                key={
-                                    // MISSING_TARGETS doesn't have a tileUuid, falling back to index (shouldn't use index, but since it should only be one, it's fine)
-                                    'tileUuid' in failure
-                                        ? failure.tileUuid
-                                        : index
-                                }
+                                key={getPartialFailureKey(failure, index)}
                                 failure={failure}
                                 theme={theme}
                             />

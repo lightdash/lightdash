@@ -1,0 +1,8 @@
+.stickyFooter {
+    position: sticky;
+    bottom: calc(-1 * var(--mantine-spacing-xl));
+    z-index: 1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}

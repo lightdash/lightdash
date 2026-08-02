@@ -55,6 +55,7 @@ export class FileController extends BaseController {
             .getFileStream(fileId, {
                 ip: req.ip,
                 userAgent: req.headers['user-agent'],
+                requestedByUserUuid: req.user?.userUuid ?? null,
             });
 
         const res = req.res!;

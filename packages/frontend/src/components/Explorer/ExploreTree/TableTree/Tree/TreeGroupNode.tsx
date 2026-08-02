@@ -3,10 +3,10 @@ import {
     Badge,
     Group,
     Highlight,
-    HoverCard,
     NavLink,
     Text,
-} from '@mantine/core';
+    HoverCard,
+} from '@mantine-8/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash/intersectionBy';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -100,6 +100,15 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
         () => onToggleGroup(groupKey),
         [onToggleGroup, groupKey],
     );
+    const handleKeyDown = useCallback(
+        (event: React.KeyboardEvent<HTMLElement>) => {
+            if (event.nativeEvent.code === 'Space') {
+                event.preventDefault();
+                handleToggleOpen();
+            }
+        },
+        [handleToggleOpen],
+    );
     const handleMouseEnter = useCallback(
         () => toggleHover(true),
         [toggleHover],
@@ -147,13 +156,15 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
 
     return (
         <NavLink
+            component="button"
             opened={isNavLinkOpen}
             onClick={handleToggleOpen}
+            onKeyDown={handleKeyDown}
             // --start moves chevron to the left
             // mostly hardcoded, to match mantine's internal sizes
             disableRightSectionRotation
             rightSection={<></>}
-            icon={icon}
+            leftSection={icon}
             // --end moves chevron to the left
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -161,7 +172,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
             label={
                 <Group>
                     {!isOpen && hasSelectedChildren && (
-                        <Badge>{selectedChildrenCount}</Badge>
+                        <Badge variant="light">{selectedChildrenCount}</Badge>
                     )}
                     <HoverCard
                         openDelay={300}
@@ -177,13 +188,19 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                         offset={80}
                     >
                         <HoverCard.Target>
-                            <Highlight
-                                component={Text}
+                            <Text
                                 truncate
-                                highlight={searchQuery || ''}
+                                fz="sm"
+                                ff="var(--mantine-font-family)"
                             >
-                                {label}
-                            </Highlight>
+                                <Highlight
+                                    component="span"
+                                    highlight={searchQuery || ''}
+                                    inherit
+                                >
+                                    {label}
+                                </Highlight>
+                            </Text>
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}

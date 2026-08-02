@@ -7,13 +7,13 @@ import {
     Accordion,
     Center,
     Group,
-    NumberInput,
     SegmentedControl,
     Stack,
     Tooltip,
 } from '@mantine-8/core';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
+import { NumberInput } from '../../common/NumberInput';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
@@ -88,6 +88,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                         <Group gap="xs" align="flex-end">
                             {minValueMode === GaugeValueMode.FIXED ? (
                                 <NumberInput
+                                    size="xs"
                                     label="Min value"
                                     description="Set the minimum value for the section"
                                     value={section.min}
@@ -155,6 +156,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                         <Group gap="xs" align="flex-end">
                             {maxValueMode === GaugeValueMode.FIXED ? (
                                 <NumberInput
+                                    size="xs"
                                     label="Max value"
                                     description="Set the maximum value for the section"
                                     value={section.max}

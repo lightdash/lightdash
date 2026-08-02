@@ -206,12 +206,6 @@ export const applyOrganizationMemberStaticAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
-        // Create personal data apps; once created, the user can also view
-        // and manage their own. Moving an app into a space is gated
-        // separately by the target space's manage rule.
-        can('create', 'DataApp', {
-            organizationUuid: member.organizationUuid,
-        });
         can('view', 'DataApp', {
             organizationUuid: member.organizationUuid,
             createdByUserUuid: member.userUuid,
@@ -219,6 +213,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'DataApp', {
             organizationUuid: member.organizationUuid,
             createdByUserUuid: member.userUuid,
+        });
+        // View external connections to select and link them when building a
+        // data app. Managing (create/edit/delete) stays admin-only.
+        can('view', 'ExternalConnection', {
+            organizationUuid: member.organizationUuid,
         });
 
         can('manage', 'Space', {
@@ -243,10 +242,16 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('create', 'AiAgentThread', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'ContentVerification', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     editor(member, { can }) {
         applyOrganizationMemberStaticAbilities.interactive_viewer(member, {
             can,
+        });
+        can('create', 'DataApp', {
+            organizationUuid: member.organizationUuid,
         });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
@@ -274,9 +279,10 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'OrganizationWarehouseCredentials', {
             organizationUuid: member.organizationUuid,
         });
-        // Editors can download content as code but not upload it. Upload
-        // stays gated behind `manage:ContentAsCode` (developer+).
         can('view', 'ContentAsCode', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('create', 'ContentAsCode', {
             organizationUuid: member.organizationUuid,
         });
     },
@@ -292,6 +298,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'CustomFields', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'CompiledSql', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'CustomSqlTableCalculations', {
@@ -394,11 +403,27 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             userUuid: member.userUuid,
         });
+        can('manage', 'ContentVerification', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('create', 'AiDeepResearch', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });
 
+        can('view', 'Roadmap', {
+            organizationUuid: member.organizationUuid,
+        });
+
         can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+        });
+
+        // Adding custom npm dependencies is a supply-chain capability gated
+        // above ordinary data-app management — admins only by default.
+        can('manage', 'DataAppDependency', {
             organizationUuid: member.organizationUuid,
         });
 
@@ -407,10 +432,6 @@ export const applyOrganizationMemberStaticAbilities: Record<
         });
 
         can('manage', 'OrganizationDesign', {
-            organizationUuid: member.organizationUuid,
-        });
-
-        can('manage', 'ContentVerification', {
             organizationUuid: member.organizationUuid,
         });
 
@@ -440,6 +461,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Organization', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'OrganizationColorPalette', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'Analytics', {
             organizationUuid: member.organizationUuid,
         });
@@ -447,6 +471,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'PinnedItems', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'ProjectHomepage', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'Group', {

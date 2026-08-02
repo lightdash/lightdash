@@ -9,10 +9,10 @@ import {
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 
 export const PROJECT_MODEL = {
-    getExploreFromCache: jest.fn(() => ({ ymlPath: 'path/to/schema.yml' })),
-    getWarehouseCredentialsForProject: jest.fn(() => ({})),
-    getWarehouseClientFromCredentials: jest.fn(() => warehouseClientMock),
-    get: jest.fn(() =>
+    getExploreFromCache: vi.fn(() => ({ ymlPath: 'path/to/schema.yml' })),
+    getWarehouseCredentialsForProject: vi.fn(() => ({})),
+    getWarehouseClientFromCredentials: vi.fn(() => warehouseClientMock),
+    get: vi.fn(() =>
         Promise.resolve({
             projectUuid: 'projectUuid',
             dbtVersion: SupportedDbtVersions.V1_9,

@@ -48,3 +48,21 @@
 .scopeDescription {
     line-height: 1.4;
 }
+
+.dependencyToggleIcon {
+    color: var(--mantine-color-dimmed);
+    transition: transform 150ms ease;
+}
+
+.dependencyToggleIcon[data-open='true'] {
+    transform: rotate(180deg);
+}
+
+.dependencyItem {
+    padding-left: var(--mantine-spacing-md);
+}
+
+.dependencyContent {
+    flex: 1;
+    min-width: 0;
+}

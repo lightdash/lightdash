@@ -124,7 +124,7 @@ describe('GoogleDriveClient', () => {
                 },
             } as never);
 
-            const appendCsvToSheet = jest
+            const appendCsvToSheet = vi
                 .spyOn(client, 'appendCsvToSheet')
                 .mockResolvedValue(undefined);
 

@@ -338,7 +338,7 @@ describe('Async Query API', () => {
                 bigqueryWarehouseConfig(),
             );
             await runAsyncQueryTest(admin, projectUuid);
-        }, 120_000);
+        }, 420_000);
     });
 
     describe('JWT Auth', () => {

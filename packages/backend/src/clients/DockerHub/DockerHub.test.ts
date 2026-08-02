@@ -1,10 +1,15 @@
-import fetchMock from 'jest-fetch-mock';
+import fetchMock from '../../testing/fetchMock';
 import { fetchDockerHubVersion } from './DockerHub';
 import { ImagesResponse } from './DockerHub.mock';
 
+vi.mock('node-fetch', async () => ({
+    __esModule: true,
+    default: (await import('../../testing/fetchMock')).default,
+}));
+
 describe('DockerHub', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     beforeEach(() => {

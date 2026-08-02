@@ -1,3 +1,4 @@
+import { type DataAppVizOptionValue } from '../ee/apps/dataAppVizConfigOptions';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
@@ -31,6 +32,7 @@ export enum ChartKind {
     GAUGE = 'gauge',
     MAP = 'map',
     SANKEY = 'sankey',
+    DATA_APP_VIZ = 'data_app_viz',
 }
 
 export enum ChartType {
@@ -44,6 +46,7 @@ export enum ChartType {
     CUSTOM = 'custom',
     MAP = 'map',
     SANKEY = 'sankey',
+    DATA_APP_VIZ = 'data_app_viz',
 }
 
 export enum ComparisonFormatTypes {
@@ -409,6 +412,8 @@ export type ColumnProperties = {
     displayStyle?: 'text' | 'bar';
     /** Color for bar display style (hex code) */
     color?: string;
+    /** Color for negative bars in diverging bar display (hex code). Falls back to `color` when unset. */
+    negativeColor?: string;
     width?: number;
 };
 
@@ -621,6 +626,8 @@ export type EchartsLegend = {
     /** High-level placement preset. Overrides orient/top/right/bottom/left
      * when set to an outside value. */
     placement?: LegendPlacement;
+    /** Legend entries toggled off by name. Missing entries default to visible. */
+    selected?: Record<string, boolean>;
 };
 
 export type EchartsGrid = {
@@ -776,6 +783,24 @@ export type CustomVis = {
     spec?: Record<string, unknown>;
 };
 
+/** Maps a data app viz's field name → the host query field id bound to it. */
+export type DataAppVizFieldMapping = Record<string, string>;
+
+/** Maps a declared config option's name → the value the user chose for it. */
+export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;
+
+export type DataAppVizChart = {
+    /** The reusable data app viz this chart renders with (by reference). */
+    dataAppVizUuid: string;
+    fieldMapping: DataAppVizFieldMapping;
+    /**
+     * Only options the user explicitly changed — declared defaults are never
+     * seeded here, they're resolved at render time. Absent on charts saved
+     * before config options shipped.
+     */
+    optionValues?: DataAppVizOptionValues;
+};
+
 export type CartesianChart = {
     /** Layout configuration for the chart axes and orientation */
     layout: CartesianChartLayout;
@@ -810,6 +835,13 @@ export type CustomVisConfig = {
     type: ChartType.CUSTOM;
     /** Chart-type-specific configuration */
     config?: CustomVis;
+};
+
+export type DataAppVizChartConfig = {
+    /** Type of chart visualization */
+    type: ChartType.DATA_APP_VIZ;
+    /** Reference to a data app viz plus its field mapping. */
+    config?: DataAppVizChart;
 };
 
 export type PieChartConfig = {
@@ -870,6 +902,7 @@ export type ChartConfig =
     | TableChartConfig
     | TreemapChartConfig
     | GaugeChartConfig
+    | DataAppVizChartConfig
     | MapChartConfig
     | SankeyChartConfig;
 
@@ -895,6 +928,8 @@ export type SavedChart = {
     pivotConfig?: {
         /** Fields to use as pivot columns */
         columns: string[];
+        /** Ordered fields to render on the pivot row axis */
+        rows?: string[];
     };
     /** Visualization configuration for the chart */
     chartConfig: ChartConfig;
@@ -959,14 +994,17 @@ type CreateChartBase = Pick<
     | 'parameters'
 >;
 
+// colorPaletteUuid is on each member to avoid an allOf in the OpenAPI schema.
 export type CreateChartInSpace = CreateChartBase & {
     spaceUuid?: string;
     dashboardUuid?: null;
+    colorPaletteUuid?: string | null;
 };
 
 export type CreateChartInDashboard = CreateChartBase & {
     dashboardUuid: string;
     spaceUuid?: null;
+    colorPaletteUuid?: string | null;
 };
 
 export type CreateSavedChart = CreateChartInSpace | CreateChartInDashboard;
@@ -1025,13 +1063,20 @@ export const isCartesianChartConfig = (
 ): value is CartesianChart =>
     !!value && 'layout' in value && 'eChartsConfig' in value;
 
+export const isDataAppVizChart = (
+    value: ChartConfig['config'],
+): value is DataAppVizChart =>
+    !!value && 'dataAppVizUuid' in value && 'fieldMapping' in value;
+
 export const isBigNumberConfig = (
     value: ChartConfig['config'],
-): value is BigNumber => !!value && !isCartesianChartConfig(value);
+): value is BigNumber =>
+    !!value && !isCartesianChartConfig(value) && !isDataAppVizChart(value);
 
 export const isTableChartConfig = (
     value: ChartConfig['config'],
-): value is TableChart => !!value && !isCartesianChartConfig(value);
+): value is TableChart =>
+    !!value && !isCartesianChartConfig(value) && !isDataAppVizChart(value);
 
 export const isPieChartConfig = (
     value: ChartConfig['config'],
@@ -1067,6 +1112,13 @@ export const getConditionalFormattingsFromChartConfig = (
         ? config.conditionalFormattings
         : undefined;
 
+export const getShowColumnTotalsFromChartConfig = (
+    config: ChartConfig['config'] | undefined,
+): boolean | undefined =>
+    config && isTableChartConfig(config)
+        ? config.showColumnCalculation
+        : undefined;
+
 export const hashFieldReference = (reference: PivotReference) =>
     reference.pivotValues
         ? `${reference.field}.${reference.pivotValues
@@ -1078,6 +1130,58 @@ export const getSeriesId = (series: Series) =>
     `${hashFieldReference(series.encode.xRef)}|${hashFieldReference(
         series.encode.yRef,
     )}`;
+
+const stripPivotValuesFromSeries = (series: Series): Series => {
+    const { encode, name, color, ...rest } = series;
+    return {
+        ...rest,
+        encode: {
+            xRef: { field: encode.xRef.field },
+            yRef: { field: encode.yRef.field },
+        },
+    };
+};
+
+export const removePivotedSeriesValuesFromChartConfig = (
+    chartConfig: ChartConfig,
+): ChartConfig => {
+    if (chartConfig.type !== ChartType.CARTESIAN || !chartConfig.config) {
+        return chartConfig;
+    }
+
+    const { series } = chartConfig.config.eChartsConfig;
+    if (!series || series.length === 0) {
+        return chartConfig;
+    }
+
+    const seenSeriesIds = new Set<string>();
+    const portableSeries = series.reduce<Series[]>((acc, currentSeries) => {
+        const hasPivotValues =
+            isPivotReferenceWithValues(currentSeries.encode.yRef) ||
+            isPivotReferenceWithValues(currentSeries.encode.xRef);
+        const portableSerie = hasPivotValues
+            ? stripPivotValuesFromSeries(currentSeries)
+            : currentSeries;
+        const seriesId = getSeriesId(portableSerie);
+        if (seenSeriesIds.has(seriesId)) {
+            return acc;
+        }
+
+        seenSeriesIds.add(seriesId);
+        return [...acc, portableSerie];
+    }, []);
+
+    return {
+        ...chartConfig,
+        config: {
+            ...chartConfig.config,
+            eChartsConfig: {
+                ...chartConfig.config.eChartsConfig,
+                series: portableSeries,
+            },
+        },
+    };
+};
 
 export const ECHARTS_DEFAULT_COLORS = [
     '#5470c6',
@@ -1132,6 +1236,8 @@ export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
             return ChartType.GAUGE;
         case ChartKind.SANKEY:
             return ChartType.SANKEY;
+        case ChartKind.DATA_APP_VIZ:
+            return ChartType.DATA_APP_VIZ;
         default:
             return ChartType.CARTESIAN;
     }
@@ -1192,6 +1298,8 @@ export const getChartKind = (
             return ChartKind.MAP;
         case ChartType.SANKEY:
             return ChartKind.SANKEY;
+        case ChartType.DATA_APP_VIZ:
+            return ChartKind.DATA_APP_VIZ;
         default:
             return assertUnreachable(
                 chartType,

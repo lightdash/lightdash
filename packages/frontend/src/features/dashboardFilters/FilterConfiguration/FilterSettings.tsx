@@ -8,19 +8,18 @@ import {
     type FilterRule,
 } from '@lightdash/common';
 import {
+    TextInput,
     ActionIcon,
     Box,
     Button,
-    Checkbox,
     Group,
-    Select,
     Stack,
-    Switch,
     Text,
-    TextInput,
+    Select,
+    Switch,
     Tooltip,
-    type PopoverProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { type PopoverProps } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
@@ -29,6 +28,7 @@ import { getFilterOperatorOptions } from '../../../components/common/Filters/Fil
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
+import RequiredFilterCard from '../FilterRequirements/RequiredFilterCard';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -36,8 +36,10 @@ interface FilterSettingsProps {
     filterType: FilterType;
     field?: DashboardFilterableField;
     filterRule: DashboardFilterRule;
+    originalFilterRule?: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
+    onEditRequirementRules?: () => void;
 }
 
 const FilterSettings: FC<FilterSettingsProps> = ({
@@ -46,8 +48,10 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     field,
     filterType,
     filterRule,
+    originalFilterRule,
     popoverProps,
     onChangeFilterRule,
+    onEditRequirementRules,
 }) => {
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
@@ -77,6 +81,42 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     const isFilterDisabled = !!filterRule.disabled;
 
+    const hasRequirement =
+        !!filterRule.required || !!filterRule.requiredGroupId;
+
+    const handleToggleRequired = (checked: boolean) => {
+        // Toggling on restores the saved rule membership if there is one,
+        // otherwise it creates a one-member rule; off removes it from its rule.
+        const restoredGroupId = checked
+            ? originalFilterRule?.requiredGroupId
+            : undefined;
+
+        const newFilter: DashboardFilterRule = restoredGroupId
+            ? {
+                  ...filterRule,
+                  required: false,
+                  requiredGroupId: restoredGroupId,
+                  disabled: true,
+                  values: [],
+              }
+            : {
+                  ...filterRule,
+                  required: checked,
+                  requiredGroupId: undefined,
+              };
+
+        onChangeFilterRule(
+            checked
+                ? newFilter
+                : getFilterRuleWithDefaultValue(
+                      filterType,
+                      field,
+                      newFilter,
+                      null,
+                  ),
+        );
+    };
+
     const showValueInput = useMemo(() => {
         // Always show the input in view mode
         if (!isEditMode) {
@@ -101,7 +141,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     return (
         <Stack>
-            <Stack spacing="xs">
+            <Stack gap="xs">
                 {isEditMode && (
                     <TextInput
                         label="Filter label"
@@ -127,16 +167,24 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
 
                 <Select
+                    allowDeselect={false}
                     size="xs"
                     data={filterOperatorOptions}
-                    withinPortal={popoverProps?.withinPortal}
+                    comboboxProps={{ withinPortal: popoverProps?.withinPortal }}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
-                    onChange={handleChangeFilterOperator}
+                    onChange={(value) =>
+                        value &&
+                        handleChangeFilterOperator(
+                            value as FilterRule['operator'],
+                        )
+                    }
                     value={filterRule.operator}
-                    itemComponent={({ label, value, ...others }) => {
+                    renderOption={({ option }) => {
                         const description =
-                            filterOperatorDescription[value as FilterOperator];
+                            filterOperatorDescription[
+                                option.value as FilterOperator
+                            ];
                         if (description) {
                             return (
                                 <Tooltip
@@ -146,13 +194,14 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     maw={300}
                                     withinPortal
                                 >
-                                    <div {...others}>{label}</div>
+                                    <div>{option.label}</div>
                                 </Tooltip>
                             );
                         }
-                        return <div {...others}>{label}</div>;
+                        return <div>{option.label}</div>;
                     }}
                     rightSectionWidth={140}
+                    rightSectionPointerEvents="all"
                     rightSectionProps={{
                         style: {
                             justifyContent: 'flex-end',
@@ -163,12 +212,10 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         supportsSingleValue(filterType, filterRule.operator) &&
                         isEditMode && (
                             <Button
-                                compact
-                                size="xs"
+                                size="compact-xs"
                                 variant={'light'}
-                                rightIcon={
+                                rightSection={
                                     <Tooltip
-                                        variant="xs"
                                         label={
                                             filterRule.singleValue
                                                 ? 'Prevent selection of multiple values'
@@ -195,7 +242,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         )
                     }
                 />
-                {showAnyValueDisabledInput && !filterRule.required && (
+                {showAnyValueDisabledInput && !hasRequirement && (
                     <TextInput
                         disabled
                         size="xs"
@@ -207,8 +254,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     />
                 )}
 
-                {(showValueInput || filterRule.required) && (
-                    <Group spacing="xs" noWrap align="flex-start">
+                {(showValueInput || hasRequirement) && (
+                    <Group gap="xs" wrap="nowrap" align="flex-start">
                         <Box style={{ flex: 1 }}>
                             <FilterInputComponent
                                 popoverProps={popoverProps}
@@ -224,7 +271,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         </Box>
                         {canManageExplore &&
                             !isEditMode &&
-                            !filterRule.required &&
+                            !hasRequirement &&
                             ![
                                 FilterOperator.NULL,
                                 FilterOperator.NOT_NULL,
@@ -269,14 +316,14 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
                 {isEditMode && (
                     <>
-                        {filterRule.required &&
+                        {hasRequirement &&
                             (filterRule?.values || []).length > 0 && (
-                                <Text size="xs" color={'ldGray.7'}>
+                                <Text size="xs" c={'ldGray.7'}>
                                     Temporary filter values for required filters
                                     will be removed on dashboard save
                                 </Text>
                             )}
-                        {!filterRule.required && (
+                        {!hasRequirement && (
                             <Tooltip
                                 withinPortal
                                 position="right"
@@ -309,6 +356,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                                             ? // If the filter is required and the user is disabling it, we should also disable the required flag
                                                               false
                                                             : filterRule.required,
+                                                    // Toggling a default value removes the filter from any requirement rule
+                                                    requiredGroupId: undefined,
                                                 };
 
                                             onChangeFilterRule(
@@ -327,27 +376,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             </Tooltip>
                         )}
 
-                        <Checkbox
-                            size="xs"
-                            checked={filterRule.required}
-                            onChange={(e) => {
-                                const newFilter: DashboardFilterRule = {
-                                    ...filterRule,
-                                    required: e.currentTarget.checked,
-                                };
-
-                                onChangeFilterRule(
-                                    e.currentTarget.checked
-                                        ? newFilter
-                                        : getFilterRuleWithDefaultValue(
-                                              filterType,
-                                              field,
-                                              newFilter,
-                                              null,
-                                          ),
-                                );
-                            }}
-                            label="Require viewers to pick a value to load the dashboard"
+                        <RequiredFilterCard
+                            filterRule={filterRule}
+                            onToggleRequired={handleToggleRequired}
+                            onChangeFilterRule={onChangeFilterRule}
+                            onEditRules={onEditRequirementRules}
                         />
                     </>
                 )}

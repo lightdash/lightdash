@@ -9,7 +9,6 @@ import {
     Checkbox,
     Group,
     Loader,
-    NumberInput,
     Stack,
     Text,
     Tooltip,
@@ -25,6 +24,7 @@ import {
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
+import { NumberInput } from '../../common/NumberInput';
 
 const SECONDS_PER_DAY = 86400;
 // Generous UI guardrail. There's no backend cap: longer links transparently

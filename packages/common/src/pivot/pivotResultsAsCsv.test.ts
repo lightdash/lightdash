@@ -12,6 +12,7 @@ const buildItemsMap = (): ItemsMap => {
         'payments_payment_method',
         'orders_order_date_year',
         'payments_total_revenue',
+        'orders_total_order_amount',
     ];
     const map: ItemsMap = {};
     fieldIds.forEach((id) => {
@@ -32,6 +33,57 @@ const PIVOT_CONFIG = {
 };
 
 describe('pivotResultsAsCsv', () => {
+    it('exports a pivot row metric once in its displayed position', () => {
+        const rowMetricId = 'orders_total_order_amount';
+        const pivotDetails = {
+            ...SQL_PIVOT_DETAILS,
+            valuesColumns: SQL_PIVOT_DETAILS.valuesColumns.flatMap(
+                (column, columnIndex) => [
+                    column,
+                    {
+                        ...column,
+                        referenceField: rowMetricId,
+                        pivotColumnName: `${rowMetricId}_${columnIndex}`,
+                    },
+                ],
+            ),
+        };
+        const rows = SQL_PIVOTED_ROWS.map((row) => ({
+            ...row,
+            ...Object.fromEntries(
+                SQL_PIVOT_DETAILS.valuesColumns.map((_, columnIndex) => [
+                    `${rowMetricId}_${columnIndex}`,
+                    {
+                        value: {
+                            raw: 1000 + columnIndex,
+                            formatted: String(1000 + columnIndex),
+                        },
+                    },
+                ]),
+            ),
+        }));
+
+        const result = pivotResultsAsCsv({
+            pivotConfig: {
+                ...PIVOT_CONFIG,
+                rowFieldIds: ['orders_order_date_year', rowMetricId],
+            },
+            rows,
+            itemMap: buildItemsMap(),
+            customLabels: undefined,
+            onlyRaw: false,
+            pivotDetails,
+        });
+
+        expect(
+            result.flat().filter((value) => value === 'Order Amount'),
+        ).toHaveLength(1);
+        expect(result[2].filter((value) => value === '1000')).toHaveLength(1);
+        expect(result[2]).not.toContain('1001');
+        expect(result[2]).not.toContain('1002');
+        expect(result[2]).not.toContain('1003');
+    });
+
     it('returns string[][] with headers and formatted data rows', () => {
         const result = pivotResultsAsCsv({
             pivotConfig: PIVOT_CONFIG,

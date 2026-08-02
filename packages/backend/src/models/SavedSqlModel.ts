@@ -1,6 +1,8 @@
 import {
     AllVizChartConfig,
+    ConflictError,
     CreateSqlChart,
+    generateSlug,
     NotFoundError,
     ResolvedProjectColorPalette,
     SpaceSummary,
@@ -8,6 +10,7 @@ import {
     UpdateSqlChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DatabaseError } from 'pg';
 import { LightdashConfig } from '../config/parseConfig';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { resolveColorPalette } from '../database/entities/organizationColorPalettes';
@@ -24,7 +27,15 @@ import {
 } from '../database/entities/savedSql';
 import { DbSpace, SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
-import { generateUniqueSlug } from '../utils/SlugUtils';
+import {
+    acquireProjectSlugLock,
+    generateUniqueSlugScopedToProject,
+} from '../utils/SlugUtils';
+
+const isProjectSlugUniqueViolation = (error: unknown): boolean =>
+    error instanceof DatabaseError &&
+    error.code === '23505' &&
+    error.constraint === 'saved_sql_project_uuid_slug_unique';
 
 type SelectSavedSql = Pick<
     DbSavedSql,
@@ -336,35 +347,56 @@ export class SavedSqlModel {
         slug: string;
         savedSqlVersionUuid: string;
     }> {
-        return this.database.transaction(async (trx) => {
-            // Use provided slug or generate one from the name
-            const finalSlug =
-                data.slug ??
-                (await generateUniqueSlug(trx, SavedSqlTableName, data.name));
+        return this.database
+            .transaction(async (trx) => {
+                let finalSlug = data.slug;
+                const baseSlug = finalSlug ?? generateSlug(data.name);
+                await acquireProjectSlugLock(
+                    trx,
+                    projectUuid,
+                    `saved-sql:${baseSlug}`,
+                );
+                if (finalSlug === undefined) {
+                    finalSlug = await generateUniqueSlugScopedToProject(
+                        trx,
+                        projectUuid,
+                        SavedSqlTableName,
+                        baseSlug,
+                    );
+                }
 
-            const [{ saved_sql_uuid: savedSqlUuid, slug }] = await trx(
-                SavedSqlTableName,
-            ).insert(
-                {
-                    slug: finalSlug,
-                    name: data.name,
-                    description: data.description,
-                    created_by_user_uuid: userUuid,
-                    project_uuid: projectUuid,
-                    space_uuid: data.spaceUuid,
-                    dashboard_uuid: null, // TODO: if we start using dashboard_uuid, implement cascade soft delete in DashboardModel (like saved_queries)
-                },
-                ['saved_sql_uuid', 'slug'],
-            );
-            const savedSqlVersionUuid = await SavedSqlModel.createVersion(trx, {
-                savedSqlUuid,
-                userUuid,
-                config: data.config,
-                sql: data.sql,
-                limit: data.limit,
+                const [{ saved_sql_uuid: savedSqlUuid, slug }] = await trx(
+                    SavedSqlTableName,
+                ).insert(
+                    {
+                        slug: finalSlug,
+                        name: data.name,
+                        description: data.description,
+                        created_by_user_uuid: userUuid,
+                        project_uuid: projectUuid,
+                        space_uuid: data.spaceUuid,
+                        dashboard_uuid: null, // TODO: if we start using dashboard_uuid, implement cascade soft delete in DashboardModel (like saved_queries)
+                    },
+                    ['saved_sql_uuid', 'slug'],
+                );
+                const savedSqlVersionUuid = await SavedSqlModel.createVersion(
+                    trx,
+                    {
+                        savedSqlUuid,
+                        userUuid,
+                        config: data.config,
+                        sql: data.sql,
+                        limit: data.limit,
+                    },
+                );
+                return { savedSqlUuid, slug, savedSqlVersionUuid };
+            })
+            .catch((error: unknown) => {
+                if (!isProjectSlugUniqueViolation(error)) throw error;
+                throw new ConflictError(
+                    `SQL chart slug "${data.slug ?? generateSlug(data.name)}" is already in use in this project`,
+                );
             });
-            return { savedSqlUuid, slug, savedSqlVersionUuid };
-        });
     }
 
     async update(data: {

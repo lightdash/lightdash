@@ -2,18 +2,30 @@ import {
     type ApiError,
     type Role,
     type RoleAssignment,
+    type RoleWithScopes,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryResult,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useApp from '../providers/App/useApp';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
-export const useOrganizationRoles = (loadScopes?: boolean) => {
+export function useOrganizationRoles(
+    loadScopes: true,
+): UseQueryResult<RoleWithScopes[], ApiError>;
+export function useOrganizationRoles(
+    loadScopes?: false,
+): UseQueryResult<Role[], ApiError>;
+export function useOrganizationRoles(loadScopes?: boolean) {
     const { user } = useApp();
     const setErrorResponse = useQueryError();
 
-    return useQuery<Role[], ApiError>(
+    return useQuery<Role[] | RoleWithScopes[], ApiError>(
         ['organization_roles', user.data?.organizationUuid, loadScopes],
         () => {
             if (!user.data?.organizationUuid) {
@@ -32,7 +44,7 @@ export const useOrganizationRoles = (loadScopes?: boolean) => {
             onError: (result: ApiError) => setErrorResponse(result),
         },
     );
-};
+}
 
 export const useOrganizationRoleAssignments = () => {
     const { user } = useApp();

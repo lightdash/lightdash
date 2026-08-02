@@ -1,6 +1,7 @@
 import { type ApiError, type CreateOrganization } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
+import { refetchFeatureFlags } from '../useServerOrClientFeatureFlag';
 
 const createOrgQuery = async (data: CreateOrganization) =>
     lightdashApi<null>({
@@ -14,7 +15,11 @@ export const useOrganizationCreateMutation = () => {
     return useMutation<null, ApiError, CreateOrganization>(createOrgQuery, {
         mutationKey: ['organization_create'],
         onSuccess: async () => {
-            await queryClient.invalidateQueries(['user']);
+            await Promise.all([
+                queryClient.invalidateQueries(['user']),
+                queryClient.invalidateQueries(['organization']),
+                refetchFeatureFlags(queryClient),
+            ]);
         },
     });
 };

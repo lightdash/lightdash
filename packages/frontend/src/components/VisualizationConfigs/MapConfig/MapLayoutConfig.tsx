@@ -10,14 +10,14 @@ import {
     MapChartType,
 } from '@lightdash/common';
 import {
+    TextInput,
     Group,
     Loader,
+    Stack,
     SegmentedControl,
     Select,
-    Stack,
     Switch,
-    TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     findMatchingProperty,
@@ -28,6 +28,7 @@ import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import compactStyles from '../mantineTheme.module.css';
 import MapFieldConfiguration from './MapFieldConfiguration';
 
 // Get the label and description for the region field based on map type
@@ -332,6 +333,7 @@ export const Layout: FC = memo(() => {
                 <Config.Section>
                     <Config.Heading>Map Type</Config.Heading>
                     <SegmentedControl
+                        size="xs"
                         data={locationTypeOptions}
                         value={locationType}
                         onChange={(value) =>
@@ -350,7 +352,7 @@ export const Layout: FC = memo(() => {
                 <Config>
                     <Config.Section>
                         <Config.Heading>Coordinates</Config.Heading>
-                        <Group spacing="md" grow>
+                        <Group gap="md" grow>
                             <FieldSelect
                                 label="Latitude"
                                 placeholder="Select field"
@@ -393,6 +395,10 @@ export const Layout: FC = memo(() => {
                             <Config.Heading>Location</Config.Heading>
 
                             <Switch
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Custom region"
                                 checked={isCustomMap}
                                 onChange={(e) => {
@@ -408,6 +414,7 @@ export const Layout: FC = memo(() => {
                             {isCustomMap ? (
                                 <>
                                     <TextInput
+                                        size="xs"
                                         label="Custom GeoJSON URL"
                                         placeholder="https://example.com/map.geojson"
                                         value={config.customGeoJsonUrl || ''}
@@ -460,6 +467,7 @@ export const Layout: FC = memo(() => {
                                 </>
                             ) : (
                                 <Select
+                                    allowDeselect={false}
                                     label="Map region"
                                     disabled={isCustomMap}
                                     data={mapTypeOptions}

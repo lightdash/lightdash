@@ -216,6 +216,34 @@ describe('DashboardModel', () => {
         expect(tracker.history.select).toHaveLength(2);
     });
 
+    test('should get dashboard parameters using the dashboard project uuid', async () => {
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const parameters = {
+            test_parameter: 'test value',
+        };
+        tracker.on.select(DashboardsTableName).response([{ parameters }]);
+
+        const result = await model.getDashboardParametersByIdOrSlug(
+            dashboardUuid,
+            projectUuid,
+        );
+
+        expect(result).toEqual(parameters);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).toContain(
+            '"dashboards"."project_uuid"',
+        );
+        expect(tracker.history.select[0].sql).not.toContain(
+            'inner join "spaces"',
+        );
+        expect(tracker.history.select[0].sql).not.toContain(
+            'inner join "projects"',
+        );
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([projectUuid, dashboardUuid]),
+        );
+    });
+
     test('should check if saved chart exists in dashboard', async () => {
         const testProjectUuid = 'test-project-uuid';
         const testDashboardUuid = 'test-dashboard-uuid';
@@ -273,6 +301,7 @@ describe('DashboardModel', () => {
     });
 
     test('should create dashboard with tile ids', async () => {
+        tracker.on.select('pg_advisory_xact_lock').response({});
         tracker.on.select(SpaceTableName).responseOnce([spaceEntry]);
         tracker.on.insert(DashboardsTableName).responseOnce([dashboardEntry]);
         tracker.on
@@ -289,16 +318,23 @@ describe('DashboardModel', () => {
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
         tracker.on.select(DashboardsTableName).responseOnce('slug');
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
-        jest.spyOn(DashboardModel, 'generateUniqueSlug').mockResolvedValue(
+        vi.spyOn(DashboardModel, 'generateUniqueSlug').mockResolvedValue(
             createDashboard.slug,
         );
 
         await model.create('spaceUuid', createDashboard, user, projectUuid);
 
-        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.select).toHaveLength(3);
+        expect(tracker.history.select[0].bindings).toEqual([
+            2,
+            `${projectUuid}:${createDashboard.slug}`,
+        ]);
+        expect(tracker.history.select[1].bindings).toEqual(
+            expect.arrayContaining(['spaceUuid', projectUuid]),
+        );
         expect(tracker.history.insert).toHaveLength(5);
         expect(tracker.history.insert[0]).toMatchObject({
             sql: expect.stringContaining(DashboardsTableName),
@@ -306,9 +342,11 @@ describe('DashboardModel', () => {
                 createDashboard.description,
                 createDashboard.name,
                 createDashboard.slug,
+                projectUuid,
                 spaceEntry.space_id,
             ]),
         });
+        expect(tracker.history.insert[0].sql).toContain('"project_uuid"');
         expect(tracker.history.insert[1]).toMatchObject({
             sql: expect.stringContaining(DashboardVersionsTableName),
             bindings: expect.arrayContaining([
@@ -352,48 +390,183 @@ describe('DashboardModel', () => {
         });
     });
 
+    test('rejects an exact slug owned by a deleted dashboard', async () => {
+        tracker.on.select('pg_advisory_xact_lock').response({});
+        tracker.on.select(DashboardsTableName).responseOnce([
+            {
+                dashboard_uuid: 'deleted-dashboard-uuid',
+                deleted_at: new Date(),
+            },
+        ]);
+
+        await expect(
+            model.create(
+                'spaceUuid',
+                { ...createDashboard, forceSlug: true },
+                user,
+                projectUuid,
+            ),
+        ).rejects.toThrow(
+            `Dashboard slug "${createDashboard.slug}" is already used by a deleted dashboard`,
+        );
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
     test('should update dashboard', async () => {
         const dashboardUuid = 'dashboard uuid';
-        tracker.on
-            .update(
-                queryMatcher(DashboardsTableName, [
-                    updateDashboard.name,
-                    updateDashboard.description,
-                    dashboardUuid,
-                ]),
-            )
-            .response([]);
-        tracker.on
-            .select(queryMatcher(DashboardsTableName, [dashboardUuid, 1]))
-            .response([dashboardWithVersionEntry]);
-        tracker.on
-            .select(
-                queryMatcher(DashboardViewsTableName, [
-                    dashboardWithVersionEntry.dashboard_version_id,
-                ]),
-            )
-            .response([dashboardViewEntry]);
-        tracker.on
-            .select(
-                queryMatcher(DashboardTilesTableName, [
-                    dashboardWithVersionEntry.dashboard_version_id,
-                ]),
-            )
-            .response([
-                dashboardTileWithSavedChartEntry,
-                loomTileEntry,
-                markdownTileEntry,
-            ]);
-        tracker.on
-            .select(
-                queryMatcher(DashboardTabsTableName, [
-                    dashboardWithVersionEntry.dashboard_version_id,
-                    dashboardWithVersionEntry.dashboard_id,
-                ]),
-            )
-            .response([]);
+        const getByIdOrSlugSpy = vi
+            .spyOn(model, 'getByIdOrSlug')
+            .mockResolvedValue({
+                ...expectedDashboard,
+                uuid: dashboardUuid,
+                projectUuid,
+            });
+        tracker.on.update(DashboardsTableName).response([]);
+
         await model.update(dashboardUuid, updateDashboard);
+
         expect(tracker.history.update).toHaveLength(1);
+        expect(tracker.history.update[0].sql).toContain('"project_uuid"');
+        expect(tracker.history.update[0].bindings).toContain(projectUuid);
+        getByIdOrSlugSpy.mockRestore();
+    });
+
+    test('rejects moving a dashboard to a space in another project', async () => {
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const targetSpaceUuid = '33333333-3333-4333-8333-333333333333';
+        const getByIdOrSlugSpy = vi
+            .spyOn(model, 'getByIdOrSlug')
+            .mockResolvedValueOnce({
+                ...expectedDashboard,
+                uuid: dashboardUuid,
+                projectUuid,
+            });
+        tracker.on.select(SpaceTableName).responseOnce([]);
+
+        await expect(
+            model.update(dashboardUuid, {
+                ...updateDashboard,
+                spaceUuid: targetSpaceUuid,
+            }),
+        ).rejects.toThrow('Space not found');
+
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([targetSpaceUuid, projectUuid]),
+        );
+        expect(tracker.history.update).toHaveLength(0);
+        getByIdOrSlugSpy.mockRestore();
+    });
+
+    test('updates multiple dashboards within the requested project', async () => {
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const targetSpaceUuid = '33333333-3333-4333-8333-333333333333';
+        const targetSpaceId = 7;
+        const getByIdOrSlugSpy = vi
+            .spyOn(model, 'getByIdOrSlug')
+            .mockResolvedValueOnce({
+                ...expectedDashboard,
+                uuid: dashboardUuid,
+                projectUuid,
+            });
+        tracker.on
+            .select(SpaceTableName)
+            .responseOnce([{ space_id: targetSpaceId }]);
+        tracker.on.update(DashboardsTableName).responseOnce(1);
+
+        await model.updateMultiple(projectUuid, [
+            {
+                uuid: dashboardUuid,
+                name: updateDashboard.name,
+                description: updateDashboard.description,
+                spaceUuid: targetSpaceUuid,
+            },
+        ]);
+
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([targetSpaceUuid, projectUuid]),
+        );
+        expect(tracker.history.update[0].sql).toContain('"project_uuid"');
+        expect(tracker.history.update[0].bindings).toEqual(
+            expect.arrayContaining([dashboardUuid, projectUuid, targetSpaceId]),
+        );
+        getByIdOrSlugSpy.mockRestore();
+    });
+
+    test('moves a dashboard within the requested project and writes ownership', async () => {
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const targetSpaceUuid = '33333333-3333-4333-8333-333333333333';
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on.update(DashboardsTableName).responseOnce(1);
+
+        await model.moveToSpace({
+            projectUuid,
+            itemUuid: dashboardUuid,
+            targetSpaceUuid,
+        });
+
+        expect(tracker.history.update[0].sql).toContain('"project_uuid"');
+        expect(tracker.history.update[0].bindings).toEqual(
+            expect.arrayContaining([dashboardUuid, projectUuid, 7]),
+        );
+    });
+
+    test('moves a dashboard to a space in the same project on update', async () => {
+        const requestedProjectUuid = '22222222-2222-4222-8222-222222222222';
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const targetSpaceUuid = '33333333-3333-4333-8333-333333333333';
+        const targetSpaceId = 7;
+        const dashboard = {
+            ...expectedDashboard,
+            uuid: dashboardUuid,
+            projectUuid: requestedProjectUuid,
+        };
+        const getByIdOrSlugSpy = vi
+            .spyOn(model, 'getByIdOrSlug')
+            .mockResolvedValueOnce(dashboard)
+            .mockResolvedValueOnce(dashboard);
+
+        tracker.on
+            .select(SpaceTableName)
+            .responseOnce([{ space_id: targetSpaceId }]);
+        tracker.on.update(DashboardsTableName).responseOnce(1);
+
+        const result = await model.update(dashboardUuid, {
+            ...updateDashboard,
+            spaceUuid: targetSpaceUuid,
+        });
+
+        expect(result).toEqual(dashboard);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([targetSpaceUuid, requestedProjectUuid]),
+        );
+        expect(tracker.history.update).toHaveLength(1);
+        expect(tracker.history.update[0].bindings).toEqual(
+            expect.arrayContaining([targetSpaceId, dashboardUuid]),
+        );
+
+        getByIdOrSlugSpy.mockRestore();
+    });
+
+    test('only moves dashboards between spaces in the requested project', async () => {
+        const requestedProjectUuid = '22222222-2222-4222-8222-222222222222';
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const targetSpaceUuid = '33333333-3333-4333-8333-333333333333';
+
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on.update(DashboardsTableName).responseOnce(0);
+
+        await expect(
+            model.moveToSpace({
+                projectUuid: requestedProjectUuid,
+                itemUuid: dashboardUuid,
+                targetSpaceUuid,
+            }),
+        ).rejects.toThrow('Failed to move dashboard to space');
+
+        const [updateQuery] = tracker.history.update;
+        expect(updateQuery.bindings).toContain(dashboardUuid);
+        expect(updateQuery.bindings).toContain(requestedProjectUuid);
     });
 
     test('should delete dashboard', async () => {
@@ -475,7 +648,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileMarkdownsTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 
@@ -583,7 +756,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 
@@ -660,7 +833,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 
@@ -777,7 +950,7 @@ describe('DashboardModel', () => {
         tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
         tracker.on.update(DashboardViewsTableName).responseOnce([]);
 
-        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
             Promise.resolve(expectedDashboard),
         );
 

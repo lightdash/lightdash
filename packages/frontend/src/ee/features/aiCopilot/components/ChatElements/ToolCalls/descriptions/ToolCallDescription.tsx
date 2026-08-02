@@ -1,5 +1,7 @@
 import type {
     DiscoverFieldsInput,
+    ToolGrepFieldsArgs,
+    ToolGetMetadataArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -10,6 +12,7 @@ import {
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
     type ToolAnalyzeFieldImpactArgs,
+    type ToolCreateScheduledDeliveryOutput,
     type ToolDashboardArgs,
     type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
@@ -45,12 +48,15 @@ import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldImpactToolCallDescription } from './FieldImpactToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
+import { GetMetadataToolCallDescription } from './GetMetadataToolCallDescription';
+import { GrepFieldsToolCallDescription } from './GrepFieldsToolCallDescription';
 import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
 import { ListContentToolCallDescription } from './ListContentToolCallDescription';
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
 import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
+import { ScheduledDeliveryToolCallDescription } from './ScheduledDeliveryToolCallDescription';
 import { SemanticLayerSearchToolCallDescription } from './SemanticLayerSearchToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
@@ -73,7 +79,7 @@ export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
     toolResult?: AiAgentToolResult;
-}> = ({ toolName, toolCall }) => {
+}> = ({ toolName, toolCall, toolResult }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
@@ -112,6 +118,21 @@ export const ToolCallDescription: FC<{
             return (
                 <DiscoverFieldsToolCallDescription
                     userQuery={discoverFieldsArgs.userQuery}
+                />
+            );
+        case 'grepFields':
+            const grepFieldsArgs = toolCall.toolArgs as ToolGrepFieldsArgs;
+            return (
+                <GrepFieldsToolCallDescription
+                    patterns={grepFieldsArgs.patterns ?? []}
+                    exploreName={grepFieldsArgs.exploreName}
+                />
+            );
+        case 'getMetadata':
+            const getMetadataArgs = toolCall.toolArgs as ToolGetMetadataArgs;
+            return (
+                <GetMetadataToolCallDescription
+                    requests={getMetadataArgs.requests ?? []}
                 />
             );
         case 'searchFieldValues':
@@ -326,14 +347,37 @@ export const ToolCallDescription: FC<{
                     command={toolArgsExploreRepo.command ?? null}
                 />
             );
+        case 'createScheduledDelivery': {
+            const args = toolCall.toolArgs as { name?: string };
+            const metadata =
+                toolResult &&
+                toolResult.toolName === 'createScheduledDelivery' &&
+                'metadata' in toolResult
+                    ? (toolResult.metadata as ToolCreateScheduledDeliveryOutput['metadata'])
+                    : undefined;
+            return (
+                <ScheduledDeliveryToolCallDescription
+                    name={args.name ?? null}
+                    href={metadata?.status === 'success' ? metadata.href : null}
+                />
+            );
+        }
         case 'discoverRepos':
-        case 'proposeChange':
+        case 'listWorkstreams':
+        case 'closePullRequest':
+        case 'getPullRequestDiff':
         case 'editDbtProject':
         case 'editProjectContext':
+        case 'editRepo':
+        case 'updateUserName':
         case 'syncDbtProject':
         case 'setupPreviewDeploy':
         case 'runSavedChart':
         case 'readPinnedThread':
+        case 'submitResearchReport':
+        case 'submitResearchHypotheses':
+        case 'submitInvestigationReport':
+        case 'resolveUrl':
             return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);

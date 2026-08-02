@@ -460,7 +460,9 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                         tileName,
                         tileType: DashboardTileTypes.SAVED_CHART,
                         savedChartUuid,
+                        chartName: savedChart.name,
                         exploreName: explore.name,
+                        exploreLabel: explore.label,
                         preAggregateName: matchResult.preAggregateName,
                     };
                 }
@@ -471,7 +473,9 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     tileName,
                     tileType: DashboardTileTypes.SAVED_CHART,
                     savedChartUuid,
+                    chartName: savedChart.name,
                     exploreName: explore.name,
+                    exploreLabel: explore.label,
                     miss: matchResult.miss,
                     missFieldLabel: PreAggregateStrategy.resolveMissFieldLabel(
                         matchResult.miss,

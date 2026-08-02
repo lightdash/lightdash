@@ -5,14 +5,8 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import {
-    Badge,
-    Flex,
-    Group,
-    useMantineTheme,
-    type FlexProps,
-} from '@mantine/core';
+import { Flex, Group, Menu, type FlexProps, Badge } from '@mantine-8/core';
+import { useMantineTheme } from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -97,13 +91,13 @@ export const Table = <T extends IResultsRunner>({
             direction="column"
             miw="100%"
             {...flexProps}
-            sx={{
+            style={{
                 overflow: 'auto',
                 fontFeatureSettings: "'tnum'",
                 flexGrow: 1,
-                ...(typeof flexProps?.sx === 'object' &&
-                !Array.isArray(flexProps.sx)
-                    ? flexProps.sx
+                ...(typeof flexProps?.style === 'object' &&
+                !Array.isArray(flexProps.style)
+                    ? flexProps.style
                     : {}),
             }}
             className="sentry-block ph-no-capture"
@@ -138,10 +132,11 @@ export const Table = <T extends IResultsRunner>({
                                                   }
                                         }
                                     >
-                                        <Group spacing="two" fz={13}>
+                                        <Group gap="two" fz={13}>
                                             {columnsConfig[header.id]
                                                 ?.aggregation && (
                                                 <Badge
+                                                    variant="light"
                                                     size="sm"
                                                     color="indigo"
                                                     radius="xs"

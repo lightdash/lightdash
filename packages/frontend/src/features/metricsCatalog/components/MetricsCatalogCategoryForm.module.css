@@ -1,0 +1,8 @@
+.categoriesInput {
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-right: 3px;
+    font-weight: 500;
+    border-radius: var(--mantine-radius-md);
+    row-gap: 4px;
+}

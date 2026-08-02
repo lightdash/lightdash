@@ -51,6 +51,9 @@ export const DashboardFilterInteractivityOptionsSchema = z.object({
     // Nullish because we have python clients that serialize None to null
     allowedFilters: z.array(z.string()).nullish(),
     hidden: z.boolean().optional(),
+    // Lets embed viewers add their own temporary filters via the filter bar.
+    // Only effective when filter interactivity is enabled.
+    canAddFilters: z.boolean().optional(),
 });
 
 export type DashboardFilterInteractivityOptions = z.infer<
@@ -175,6 +178,12 @@ export const EmbedJwtSchema = z
                 type: z.literal('aiAgent'),
                 projectUuid: z.string().optional(),
                 agentUuid: z.string(),
+                canExplore: z.boolean().optional(),
+            }),
+            z.object({
+                type: z.literal('metricsCatalog'),
+                projectUuid: z.string().optional(),
+                canExplore: z.boolean().optional(),
             }),
             z.object({
                 type: z.literal('apiAccess'),
@@ -202,6 +211,9 @@ export type CommonEmbedJwtContent = {
         allowedFilters?: string[] | null;
         // Should the filters be rendered hidden or visible in the UI
         hidden?: boolean;
+        // Lets embed viewers add their own temporary filters via the filter bar.
+        // Only effective when filter interactivity is enabled.
+        canAddFilters?: boolean;
     };
     parameterInteractivity?: {
         enabled: boolean;
@@ -260,6 +272,13 @@ export type EmbedJwtContentAiAgent = {
     type: 'aiAgent';
     projectUuid?: string;
     agentUuid: string;
+    canExplore?: boolean;
+};
+
+export type EmbedJwtContentMetricsCatalog = {
+    type: 'metricsCatalog';
+    projectUuid?: string;
+    canExplore?: boolean;
 };
 
 export type EmbedJwtContentApiAccess = {
@@ -275,6 +294,7 @@ export type CreateEmbedJwt = {
         | EmbedJwtContentChart
         | EmbedJwtContentDataApp
         | EmbedJwtContentAiAgent
+        | EmbedJwtContentMetricsCatalog
         | EmbedJwtContentApiAccess;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
@@ -359,6 +379,15 @@ export function isFilterInteractivityEnabled(
                 `Unknown FilterInteractivityValue ${filterInteractivityValue}`,
             );
     }
+}
+
+export function canAddDashboardFiltersInEmbed(
+    filterInteractivityOptions?: DashboardFilterInteractivityOptions,
+): boolean {
+    return (
+        !!isFilterInteractivityEnabled(filterInteractivityOptions) &&
+        filterInteractivityOptions?.canAddFilters === true
+    );
 }
 
 export function isParameterInteractivityEnabled(

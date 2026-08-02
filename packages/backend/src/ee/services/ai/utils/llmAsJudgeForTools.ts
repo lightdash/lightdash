@@ -7,9 +7,17 @@ import { generateObject } from 'ai';
 import { JSONDiff } from 'autoevals';
 import { compact, differenceWith } from 'lodash';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { DbAiAgentToolCall } from '../../../database/entities/ai';
 import { defaultAgentOptions } from '../agents/agentV2';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from './aiCallTelemetry';
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
@@ -17,6 +25,8 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     searchSemanticLayer: 'search_semantic_layer',
     analyzeFieldImpact: 'analyze_field_impact',
     discoverFields: 'discover_fields',
+    grepFields: 'grep_fields',
+    getMetadata: 'get_metadata',
     searchFieldValues: 'search_field_values',
     findContent: 'find_content',
     listContent: 'list_content',
@@ -24,8 +34,11 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     findCharts: 'find_charts',
     getDashboardCharts: 'get_dashboard_charts',
     readContent: 'read_content',
+    resolveUrl: 'resolve_url',
     editContent: 'edit_content',
     createContent: 'create_content',
+    createScheduledDelivery: 'create_scheduled_delivery',
+    updateUserName: 'update_user_name',
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
@@ -47,13 +60,19 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     improveContext: 'improve_context',
     listProjects: 'list_projects',
     getProjectInfo: 'get_project_info',
-    proposeChange: 'propose_change',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
+    editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
     exploreRepo: 'explore_repo',
     discoverRepos: 'discover_repos',
+    listWorkstreams: 'list_workstreams',
+    closePullRequest: 'close_pull_request',
+    getPullRequestDiff: 'get_pull_request_diff',
     setupPreviewDeploy: 'setup_preview_deploy',
+    submitResearchReport: 'submit_research_report',
+    submitResearchHypotheses: 'submit_research_hypotheses',
+    submitInvestigationReport: 'submit_investigation_report',
 } satisfies Record<ToolName, string>;
 
 const getToolInfo = (toolName: string) => {
@@ -278,10 +297,16 @@ export const evaluateToolCallSequence = async (
         .map((score) => score.description)
         .join('\n\n');
 
-    const { object: evaluationResult } = await generateObject({
+    const telemetry = getAiCallTelemetry({
+        functionId: 'evaluateToolCallSequence',
+        feature: 'llm-judge',
+        ...getLanguageModelAttribution(judge),
+    });
+    const result = await generateObject({
         model: judge,
         ...defaultAgentOptions,
         ...callOptions,
+        experimental_telemetry: telemetry,
         schema: toolEvaluationSchema,
         prompt: `
 You are evaluating AI agent tool usage for business logic testing. Here is the data:
@@ -357,8 +382,9 @@ For passed, return true if effectiveness is excellent/good AND appropriateTools 
 Use empty arrays for suggestions, missingTools, unnecessaryTools, validationErrors, and expectedArgsValidation when not applicable.
         `,
     });
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return evaluationResult;
+    return result.object;
 };
 
 export const llmAsJudgeForTools = async ({

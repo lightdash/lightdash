@@ -2,7 +2,6 @@ import { Box, Text } from '@mantine-8/core';
 import {
     IconAlertTriangle,
     IconArrowBackUp,
-    IconBolt,
     IconBulb,
     IconChartBar,
     IconClock,
@@ -15,6 +14,7 @@ import {
     IconMessageQuestion,
     IconPlus,
     IconStar,
+    IconTarget,
     IconTool,
     IconTrash,
 } from '@tabler/icons-react';
@@ -23,8 +23,8 @@ import classes from './ToolActivityBadge.module.css';
 
 // Mirrors backend FRIENDLY_TOOL_LABELS values from
 // packages/backend/src/ee/services/ManagedAgentService/ManagedAgentService.ts.
-// Out-of-map labels fall back to IconBolt.
-const ACTIVITY_ICON: Record<string, typeof IconBolt> = {
+// Out-of-map labels fall back to IconTarget.
+const ACTIVITY_ICON: Record<string, typeof IconTarget> = {
     'Reviewing recent activity': IconHistory,
     'Looking for stale charts': IconChartBar,
     'Looking for stale dashboards': IconLayoutDashboard,
@@ -43,7 +43,7 @@ const ACTIVITY_ICON: Record<string, typeof IconBolt> = {
     'Reverting earlier change': IconArrowBackUp,
 };
 
-const iconFor = (label: string) => ACTIVITY_ICON[label] ?? IconBolt;
+const iconFor = (label: string) => ACTIVITY_ICON[label] ?? IconTarget;
 
 const FALLBACK_LABEL = 'Autopilot is working';
 
@@ -115,7 +115,7 @@ export const ToolActivityBadge: FC<{ currentActivity: string | null }> = ({
         };
     }, [currentActivity]);
 
-    const ActiveIcon = currentActivity ? iconFor(currentActivity) : IconBolt;
+    const ActiveIcon = currentActivity ? iconFor(currentActivity) : IconTarget;
     const label =
         thinkingVerb ??
         stripTrailingEllipsis(currentActivity ?? FALLBACK_LABEL);

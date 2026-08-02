@@ -1,6 +1,7 @@
 import {
     JobStatusType,
     JobStepStatusType,
+    JobType,
     type ApiError,
     type ApiRefreshResults,
     type Job,
@@ -28,7 +29,21 @@ export const jobStepStatusLabel = (status: JobStepStatusType) => {
             throw new Error('Unknown job step status');
     }
 };
-export const jobStatusLabel = (status: JobStatusType) => {
+export const jobStatusLabel = (status: JobStatusType, jobType?: JobType) => {
+    if (jobType === JobType.CREATE_PROJECT) {
+        switch (status) {
+            case JobStatusType.DONE:
+                return 'Project created!';
+            case JobStatusType.STARTED:
+                return 'Pending project creation';
+            case JobStatusType.ERROR:
+                return 'Error while creating project';
+            case JobStatusType.RUNNING:
+                return 'Creating your project';
+            default:
+                throw new Error('Unknown job status');
+        }
+    }
     switch (status) {
         case JobStatusType.DONE:
             return 'Successfully synced dbt project!';

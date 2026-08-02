@@ -1,8 +1,17 @@
-import { AiPromptContext } from '@lightdash/common';
+import {
+    AiPromptContext,
+    FilterOperator,
+    type DashboardFilters,
+} from '@lightdash/common';
 import { AiAgentService } from './AiAgentService';
 
-jest.mock('../ai/AiAgentMcpRuntimeClient', () => ({
-    AiAgentMcpRuntimeClient: jest.fn().mockImplementation(() => ({})),
+vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
+    AiAgentMcpRuntimeClient: vi
+        .fn()
+        // eslint-disable-next-line prefer-arrow-callback
+        .mockImplementation(function MockAiAgentMcpRuntimeClient() {
+            return {};
+        }),
 }));
 
 const buildMessage = (context: AiPromptContext): string => {
@@ -12,6 +21,121 @@ const buildMessage = (context: AiPromptContext): string => {
 };
 
 describe('AiAgentService.createPinnedContextMessage review pins', () => {
+    it('renders dashboard context without active dashboard tab', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: null,
+            },
+        ]);
+        expect(content).toContain(
+            '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard)',
+        );
+    });
+
+    it('renders the active dashboard tab name without its uuid', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    activeTab: { uuid: 'tab-uuid', name: 'Customers' },
+                },
+            },
+        ]);
+        expect(content).toContain('Active tab: "Customers"');
+        expect(content).not.toContain('tab-uuid');
+    });
+
+    it('renders dashboard filter overrides', () => {
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'country-filter-uuid',
+                    label: 'Country',
+                    operator: FilterOperator.EQUALS,
+                    target: {
+                        fieldId: 'orders.country',
+                        tableName: 'orders',
+                    },
+                    values: ['US'],
+                    tileTargets: {
+                        'tile-uuid': {
+                            fieldId: 'orders.country',
+                            tableName: 'orders',
+                        },
+                    },
+                    lockedTabUuids: ['tab-uuid'],
+                    requiredGroupId: 'group-uuid',
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    dashboardFilters,
+                },
+            },
+        ]);
+        expect(content).toContain('Filters applied:');
+        expect(content).toContain('"values":["US"]');
+        expect(content).not.toContain('country-filter-uuid');
+        expect(content).not.toContain('tileTargets');
+        expect(content).not.toContain('lockedTabUuids');
+        expect(content).not.toContain('requiredGroupId');
+    });
+
+    it('renders dashboard parameter and date zoom overrides', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    dashboardParameters: {
+                        region: 'EU',
+                        tiers: ['gold'],
+                    },
+                    dateZoom: { granularity: 'Week' },
+                },
+            },
+        ]);
+        expect(content).toContain(
+            'Parameter values: {"region":"EU","tiers":["gold"]}',
+        );
+        expect(content).toContain('Date zoom: {"granularity":"Week"}');
+    });
+
+    it('renders an explicit no-date-zoom override', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: { dateZoom: null },
+            },
+        ]);
+        expect(content).toContain('Date zoom: null');
+    });
+
     it('renders a pull_request line with number, status and title', () => {
         const content = buildMessage([
             {

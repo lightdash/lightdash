@@ -5,6 +5,10 @@ export default function mockHealthResponse(
 ): HealthState {
     return {
         healthy: true,
+        license: {
+            hasLicenseKey: false,
+            valid: false,
+        },
         mode: LightdashMode.CLOUD_BETA,
         version: '0.0.0',
         localDbtEnabled: true,
@@ -94,6 +98,8 @@ export default function mockHealthResponse(
             },
         },
         hasEmailClient: false,
+        hasPlaygroundProjects: false,
+        hasEmailWhitelabel: false,
         hasHeadlessBrowser: false,
         hasExtendedUsageAnalytics: false,
         hasGithub: false,
@@ -104,6 +110,7 @@ export default function mockHealthResponse(
             overrideColorPalette: undefined,
             overrideColorPaletteName: undefined,
         },
+        hasBrandfetch: false,
         isServiceAccountEnabled: false,
         isOrganizationWarehouseCredentialsEnabled: false,
         isAthenaWarehouseIamRoleAuthEnabled: false,
@@ -136,6 +143,7 @@ export default function mockHealthResponse(
         },
         dataApps: {
             previewOrigin: null,
+            sampleDataEnabled: true,
         },
         ...overrides,
     };

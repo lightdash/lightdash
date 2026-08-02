@@ -1,11 +1,15 @@
-import { Avatar, Button, Stack, Text } from '@mantine/core';
+import { FeatureFlags } from '@lightdash/common';
+import { Button, Stack, Text, Avatar } from '@mantine-8/core';
 import {
     IconChecklist,
     IconChevronLeft,
     IconChevronRight,
+    IconDatabase,
+    IconRobot,
     IconTerminal,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -17,16 +21,24 @@ import { ConnectMethod } from './types';
 
 interface SelectConnectMethodProps {
     isCreatingFirstProject: boolean;
+    isCodingAgentOnboardingEnabled: boolean;
     onBack: () => void;
     onSelect: (method: ConnectMethod) => void;
 }
 
 const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
     isCreatingFirstProject,
+    isCodingAgentOnboardingEnabled,
     onSelect,
     onBack,
 }) => {
     const { track } = useTracking();
+
+    const warehouseConnectFlag = useServerFeatureFlag(
+        FeatureFlags.NewOnboarding,
+    );
+    const isWarehouseConnectEnabled =
+        warehouseConnectFlag.data?.enabled ?? false;
 
     return (
         <OnboardingWrapper>
@@ -35,7 +47,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                 variant="subtle"
                 size="sm"
                 top={-50}
-                leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
                 Back
@@ -47,12 +59,42 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                         isCreatingFirstProject={isCreatingFirstProject}
                     />
 
-                    <Text color="dimmed">
-                        To get started, choose how you want to upload your dbt
-                        project:
+                    <Text c="dimmed">
+                        {isWarehouseConnectEnabled
+                            ? 'To get started, choose how you want to connect:'
+                            : 'To get started, choose how you want to upload your dbt project:'}
                     </Text>
 
                     <Stack>
+                        {isCodingAgentOnboardingEnabled && (
+                            <OnboardingButton
+                                onClick={() => {
+                                    track({
+                                        name: EventName.CREATE_PROJECT_AGENT_BUTTON_CLICKED,
+                                    });
+                                    onSelect(ConnectMethod.AGENT);
+                                }}
+                                leftIcon={
+                                    <Avatar radius="xl">
+                                        <MantineIcon
+                                            icon={IconRobot}
+                                            color="black"
+                                            size="lg"
+                                        />
+                                    </Avatar>
+                                }
+                                rightIcon={
+                                    <MantineIcon
+                                        icon={IconChevronRight}
+                                        color="black"
+                                    />
+                                }
+                                description="Connect your warehouse, then let Lightdash finish your project setup"
+                            >
+                                Set up with a coding agent
+                            </OnboardingButton>
+                        )}
+
                         <OnboardingButton
                             onClick={() => {
                                 track({
@@ -113,6 +155,35 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                         >
                             Manually
                         </OnboardingButton>
+
+                        {isWarehouseConnectEnabled && (
+                            <OnboardingButton
+                                onClick={() => {
+                                    track({
+                                        name: EventName.CREATE_PROJECT_WAREHOUSE_BUTTON_CLICKED,
+                                    });
+                                    onSelect(ConnectMethod.WAREHOUSE);
+                                }}
+                                leftIcon={
+                                    <Avatar radius="xl">
+                                        <MantineIcon
+                                            icon={IconDatabase}
+                                            color="black"
+                                            size="lg"
+                                        />
+                                    </Avatar>
+                                }
+                                rightIcon={
+                                    <MantineIcon
+                                        icon={IconChevronRight}
+                                        color="black"
+                                    />
+                                }
+                                description="Fastest way to get started — connect directly and query your tables"
+                            >
+                                Connect to your warehouse
+                            </OnboardingButton>
+                        )}
                     </Stack>
                 </Stack>
             </ProjectCreationCard>

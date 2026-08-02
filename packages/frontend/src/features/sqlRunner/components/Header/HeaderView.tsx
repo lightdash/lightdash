@@ -1,16 +1,16 @@
 import { subject } from '@casl/ability';
 import { DashboardTileTypes } from '@lightdash/common';
 import {
-    ActionIcon,
-    Button,
     Group,
-    Menu,
     Paper,
     Stack,
     Title,
+    Button,
+    ActionIcon,
+    Menu,
     Tooltip,
-} from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+} from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconCirclesRelation,
     IconDatabaseExport,
@@ -41,6 +41,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { toggleModal } from '../../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
+import headerStyles from './HeaderPaper.module.css';
 
 export const HeaderView: FC = () => {
     const navigate = useNavigate();
@@ -156,17 +157,11 @@ export const HeaderView: FC = () => {
                 withBorder={false}
                 px="md"
                 py="xs"
-                sx={(theme) => ({
-                    borderBottom: `1px solid ${
-                        theme.colorScheme === 'dark'
-                            ? theme.colors.ldDark[8]
-                            : theme.colors.ldGray[3]
-                    }`,
-                })}
+                className={headerStyles.paper}
             >
-                <Group position="apart">
-                    <Stack spacing="none">
-                        <Group spacing="two">
+                <Group justify="space-between">
+                    <Stack gap="none">
+                        <Group gap="two">
                             {space && (
                                 <TitleBreadCrumbs
                                     projectUuid={projectUuid}
@@ -178,7 +173,7 @@ export const HeaderView: FC = () => {
                                 {savedSqlChart.name}
                             </Title>
                         </Group>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <UpdatedInfo
                                 updatedAt={savedSqlChart.lastUpdatedAt}
                                 user={savedSqlChart.lastUpdatedBy}
@@ -197,7 +192,7 @@ export const HeaderView: FC = () => {
                         </Group>
                     </Stack>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {canManageSqlRunner && canManageChart && (
                             <Button
                                 size="xs"
@@ -221,14 +216,14 @@ export const HeaderView: FC = () => {
                                 width={200}
                             >
                                 <Menu.Target>
-                                    <ActionIcon variant="subtle">
+                                    <ActionIcon color="gray" variant="subtle">
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
                                 <Menu.Dropdown>
                                     <Menu.Label>Manage</Menu.Label>
                                     <Menu.Item
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconLayoutGridAdd}
                                             />
@@ -253,7 +248,7 @@ export const HeaderView: FC = () => {
                                                 })}
                                             >
                                                 <Menu.Item
-                                                    icon={
+                                                    leftSection={
                                                         <MantineIcon
                                                             icon={
                                                                 IconCirclesRelation
@@ -279,7 +274,7 @@ export const HeaderView: FC = () => {
                                         >
                                             <div>
                                                 <Menu.Item
-                                                    icon={
+                                                    leftSection={
                                                         <MantineIcon
                                                             icon={
                                                                 IconDatabaseExport
@@ -302,7 +297,7 @@ export const HeaderView: FC = () => {
                                         </Tooltip>
                                     )}
                                     <Menu.Item
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconTrash}
                                                 color="red"

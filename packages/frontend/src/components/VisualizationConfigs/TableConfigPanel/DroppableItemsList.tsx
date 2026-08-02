@@ -7,7 +7,9 @@ import { Group, Stack, Text } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { GrabIcon } from '../common/GrabIcon';
-import ColumnConfiguration from './ColumnConfiguration';
+import ColumnConfiguration, {
+    type ColumnConfigurationProps,
+} from './ColumnConfiguration';
 
 type DraggablePortalHandlerProps = {
     snapshot: DraggableStateSnapshot;
@@ -26,6 +28,10 @@ type DroppableItemsListProps = {
     isDragging: boolean;
     disableReorder: boolean;
     placeholder?: string;
+    draggableItemIds?: string[];
+    getColumnConfigurationProps?: (
+        itemId: string,
+    ) => Omit<ColumnConfigurationProps, 'fieldId'>;
 };
 
 const DroppableItemsList: FC<DroppableItemsListProps> = ({
@@ -34,6 +40,8 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
     isDragging,
     disableReorder,
     placeholder,
+    draggableItemIds,
+    getColumnConfigurationProps,
 }) => {
     const hasItems = itemIds.length > 0;
     return (
@@ -70,6 +78,10 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                 key={itemId}
                                 draggableId={itemId}
                                 index={index}
+                                isDragDisabled={
+                                    draggableItemIds !== undefined &&
+                                    !draggableItemIds.includes(itemId)
+                                }
                             >
                                 {(
                                     {
@@ -95,14 +107,22 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                                 ...draggableProps.style,
                                             }}
                                         >
-                                            <GrabIcon
-                                                dragHandleProps={
-                                                    dragHandleProps
-                                                }
-                                            />
+                                            {draggableItemIds === undefined ||
+                                            draggableItemIds.includes(
+                                                itemId,
+                                            ) ? (
+                                                <GrabIcon
+                                                    dragHandleProps={
+                                                        dragHandleProps
+                                                    }
+                                                />
+                                            ) : null}
 
                                             <ColumnConfiguration
                                                 fieldId={itemId}
+                                                {...getColumnConfigurationProps?.(
+                                                    itemId,
+                                                )}
                                             />
                                         </Group>
                                     </DraggablePortalHandler>

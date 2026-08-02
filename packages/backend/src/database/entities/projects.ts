@@ -41,6 +41,7 @@ export type DbProject = {
     expires_at: Date | null;
     default_preview_expiration_hours: number;
     max_preview_expiration_hours: number;
+    provisioning_source: string | null;
 };
 
 type CreateDbProject = Pick<
@@ -58,6 +59,7 @@ type CreateDbProject = Pick<
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
     query_timezone?: string | null;
     use_project_timezone_in_filters?: boolean; // On create it will default to false as per migration
+    provisioning_source?: string | null;
 };
 type UpdateDbProject = Partial<
     Pick<
@@ -80,8 +82,10 @@ type UpdateDbProject = Partial<
         | 'project_defaults'
         | 'color_palette_uuid'
         | 'table_groups'
+        | 'expires_at'
         | 'default_preview_expiration_hours'
         | 'max_preview_expiration_hours'
+        | 'provisioning_source'
     >
 >;
 

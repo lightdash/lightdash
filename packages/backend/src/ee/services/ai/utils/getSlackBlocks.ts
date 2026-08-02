@@ -3,18 +3,27 @@ import {
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
     AiArtifact,
-    FollowUpTools,
+    ChartType,
     followUpToolsText,
+    getGroupByDimensions,
+    getItemMap,
+    getWebAiChartConfig,
+    isActiveFollowUpTool,
+    isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
-    isToolProposeChangeResult,
     isToolSetupPreviewDeployResult,
+    parseAiArtifactChartConfig,
     parseVizConfig,
     SlackPrompt,
+    type AiLegacySemanticChartArtifactConfig,
+    type ChartConfig,
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
+import { z } from 'zod';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
+import { stripMemoryCitations } from './memoryCitation';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
 const SLACK_SECTION_TEXT_LIMIT = 3000;
@@ -89,7 +98,7 @@ export const getTextBlocks = (
  * Pass the agent's raw markdown response here — no slackifyMarkdown needed.
  */
 export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
-    chunkSlackText(text).map(
+    chunkSlackText(stripMemoryCitations(text)).map(
         (chunk) =>
             ({
                 type: 'markdown',
@@ -162,6 +171,7 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     describeWarehouseTable: 'Inspecting table',
     findContent: 'Searching saved content',
     readContent: 'Reading saved content',
+    resolveUrl: 'Resolving link',
     getDashboardCharts: 'Reading dashboard',
     runContentQuery: 'Running saved-content query',
     runSavedChart: 'Running saved chart',
@@ -172,8 +182,8 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     generateDashboard: 'Creating dashboard',
     createContent: 'Saving content',
     editContent: 'Updating content',
-    proposeChange: 'Drafting semantic-layer change',
     editDbtProject: 'Opening dbt project PR',
+    editRepo: 'Opening repository PR',
     setupPreviewDeploy: 'Preparing preview deploy',
     listKnowledgeDocuments: 'Checking project knowledge',
     getKnowledgeDocumentContent: 'Reading project knowledge',
@@ -189,6 +199,67 @@ const truncateTaskText = (text: string, maxLength = 256) =>
 const truncateCardText = (text: string, maxLength: number) =>
     text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
 
+// Slack renders citations as compact chips, so keep the label short.
+const SLACK_CITATION_TEXT_LIMIT = 75;
+
+export type SlackMemoryCitation = {
+    slug: string;
+    title: string;
+    url: string;
+};
+
+/**
+ * Native Block Kit citation elements for the memories an answer cited. They're
+ * rich-text-only (not valid inside `markdown` blocks), so they ride in their
+ * own trailing `rich_text` block after the answer prose.
+ *
+ * Uses the `web` details variant, not `memory`: Slack resolves `memory` against
+ * its own memory store, ignoring our `url` and label.
+ */
+export const getMemoryCitationBlocks = (
+    citations: SlackMemoryCitation[],
+): (Block | KnownBlock)[] => {
+    // Slack rejects a citation with empty `text` (min_length 1), and an
+    // invalid block fails the whole answer message — so drop unlabelled ones.
+    const labelled = citations.flatMap((citation) => {
+        const text = citation.title.trim() || citation.slug.trim();
+        return text ? [{ ...citation, text }] : [];
+    });
+    if (labelled.length === 0) {
+        return [];
+    }
+
+    return [
+        {
+            type: 'rich_text',
+            elements: [
+                {
+                    type: 'rich_text_section',
+                    elements: labelled.map((citation, index) => {
+                        const text = truncateCardText(
+                            citation.text,
+                            SLACK_CITATION_TEXT_LIMIT,
+                        );
+                        return {
+                            type: 'citation',
+                            url: citation.url,
+                            text,
+                            index: index + 1,
+                            from_llm: true,
+                            is_slack_url: false,
+                            details: {
+                                citation_type: 'web',
+                                display_name: 'Lightdash memory',
+                                title: text,
+                            },
+                        };
+                    }),
+                },
+            ],
+        } as unknown as Block,
+    ];
+};
+
 const getSlackTaskId = (toolName: string) =>
     toolName.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
 
@@ -201,6 +272,9 @@ const normalizeTaskCopy = (text: string) =>
 export const getSlackToolTitle = (toolName: string): string => {
     if (toolName.startsWith('editDbtProject:')) {
         return toolName.replace('editDbtProject:', '');
+    }
+    if (toolName.startsWith('editRepo:')) {
+        return toolName.replace('editRepo:', '');
     }
     return (
         TOOL_TASK_TITLES[toolName] ??
@@ -381,16 +455,18 @@ export function getFollowUpToolBlocks(
     }
 
     // Extract follow-up tools from the chart config if they exist
-    let savedFollowUpTools: FollowUpTools = [];
+    let savedFollowUpTools: unknown[] = [];
     if (
         'followUpTools' in chartArtifact.chartConfig &&
         Array.isArray(chartArtifact.chartConfig.followUpTools)
     ) {
-        savedFollowUpTools = chartArtifact.chartConfig
-            .followUpTools as FollowUpTools;
+        savedFollowUpTools = chartArtifact.chartConfig.followUpTools;
     }
 
-    if (!savedFollowUpTools?.length) {
+    const activeSavedFollowUpTools =
+        savedFollowUpTools.filter(isActiveFollowUpTool);
+
+    if (!activeSavedFollowUpTools.length) {
         return [];
     }
 
@@ -409,7 +485,7 @@ export function getFollowUpToolBlocks(
         },
         {
             type: 'actions',
-            elements: savedFollowUpTools.map((tool) => ({
+            elements: activeSavedFollowUpTools.map((tool) => ({
                 type: 'button',
                 text: {
                     type: 'plain_text',
@@ -521,13 +597,27 @@ export async function getModernArtifactCardBlocks(
     maxQueryLimit: number,
     createShareUrl: (path: string, params: string) => Promise<string>,
     getExplore: (exploreName: string) => Promise<Explore>,
+    isImageUrlReachable: (url: string) => Promise<boolean>,
     agentUuid?: string,
-    artifacts?: AiArtifact[],
+    artifacts?: Array<
+        Omit<AiArtifact, 'chartConfig' | 'savedSqlUuid'> & {
+            chartConfig:
+                | AiArtifact['chartConfig']
+                | AiLegacySemanticChartArtifactConfig;
+            savedSqlUuid?: string | null;
+        }
+    >,
     toolResults?: AiAgentToolResult[],
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
     }
+
+    const normalizedArtifacts: AiArtifact[] = artifacts.map((artifact) => ({
+        ...artifact,
+        savedSqlUuid: artifact.savedSqlUuid ?? null,
+        chartConfig: parseAiArtifactChartConfig(artifact.chartConfig),
+    }));
 
     const chartImageUrls = (toolResults ?? [])
         .filter(
@@ -544,15 +634,103 @@ export async function getModernArtifactCardBlocks(
                     .chartImageUrl,
         )
         .filter((url): url is string => Boolean(url));
-    const chartArtifacts = artifacts
-        .slice(0, 3)
-        .filter((artifact) => Boolean(artifact.chartConfig));
+    // A hero image with a URL Slack's servers can't fetch renders blank, so
+    // cards only embed URLs that pass the reachability probe.
+    const reachableImageUrls = new Set(
+        (
+            await Promise.all(
+                [...new Set(chartImageUrls)].map(async (url) =>
+                    (await isImageUrlReachable(url)) ? url : null,
+                ),
+            )
+        ).filter((url): url is string => url !== null),
+    );
+    // The viz type lives in chartConfig.chartConfig.defaultVizType (line, bar,
+    // ...); parseVizConfig flattens the unified generateVisualization shape to
+    // "query_result" and can't tell a line from a bar, so read it directly and
+    // fall back to parseVizConfig's type for legacy per-tool shapes.
+    const vizTypeSchema = z.object({
+        chartConfig: z
+            .object({ defaultVizType: z.string() })
+            .nullable()
+            .optional(),
+    });
+    const getChartVizType = (artifact: AiArtifact): string => {
+        if (!artifact.chartConfig) {
+            return 'chart';
+        }
+        if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+            return 'table';
+        }
+        const parsed = vizTypeSchema.safeParse(artifact.chartConfig.config);
+        if (parsed.success && parsed.data.chartConfig?.defaultVizType) {
+            return parsed.data.chartConfig.defaultVizType;
+        }
+        return (
+            parseVizConfig(artifact.chartConfig.config, maxQueryLimit)?.type ??
+            'chart'
+        );
+    };
+
+    // Identity of a chart within a turn: viz type + title. A retry keeps both
+    // (even when it tweaks the query, e.g. day -> month), so retries collapse;
+    // a line and a bar of the same data differ in viz type, and different
+    // charts differ in title, so both stay separate. Untitled charts fall back
+    // to their query so they don't all collapse together.
+    const getArtifactIdentity = (artifact: AiArtifact): string => {
+        const title = artifact.title?.trim();
+        if (artifact.chartConfig) {
+            const vizType = getChartVizType(artifact);
+            if (title) return `chart:${vizType}:${title}`;
+            if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+                return `chart:${vizType}:${artifact.chartConfig.sql}`;
+            }
+            const viz = parseVizConfig(
+                artifact.chartConfig.config,
+                maxQueryLimit,
+            );
+            const query = viz
+                ? JSON.stringify(
+                      { type: viz.type, metricQuery: viz.metricQuery },
+                      (key, value) => (key === 'id' ? undefined : value),
+                  )
+                : artifact.versionUuid;
+            return `chart:${vizType}:${query}`;
+        }
+        if (artifact.dashboardConfig) {
+            return title
+                ? `dashboard:${title}`
+                : `dashboard:${JSON.stringify(artifact.dashboardConfig)}`;
+        }
+        return `version:${artifact.versionUuid}`;
+    };
+
+    // Keep the latest version per identity, preserving first-appearance order
+    // (Slack allows up to 10 cards).
+    const latestByIdentity = new Map<string, AiArtifact>();
+    normalizedArtifacts.forEach((artifact) => {
+        const identity = getArtifactIdentity(artifact);
+        const existing = latestByIdentity.get(identity);
+        if (!existing || artifact.versionNumber > existing.versionNumber) {
+            latestByIdentity.set(identity, artifact);
+        }
+    });
+    const dedupedArtifacts = Array.from(latestByIdentity.values()).slice(0, 10);
+
+    const chartArtifacts = dedupedArtifacts.filter(
+        (artifact) =>
+            Boolean(artifact.chartConfig) &&
+            !isAiSqlChartArtifactConfig(artifact.chartConfig),
+    );
 
     const blocks = await Promise.all(
-        artifacts.slice(0, 3).map(async (artifact, index) => {
-            if (artifact.chartConfig) {
+        dedupedArtifacts.map(async (artifact, index) => {
+            if (
+                artifact.chartConfig &&
+                !isAiSqlChartArtifactConfig(artifact.chartConfig)
+            ) {
                 const vizConfig = parseVizConfig(
-                    artifact.chartConfig,
+                    artifact.chartConfig.config,
                     maxQueryLimit,
                 );
                 if (!vizConfig) {
@@ -580,62 +758,97 @@ export async function getModernArtifactCardBlocks(
                     ...tableCalculationNames,
                 ];
 
+                const metricQueryWithSql = {
+                    ...vizConfig.metricQuery,
+                    additionalMetrics: additionalMetricsWithSql,
+                };
+
+                // Match the generated viz type in the explorer; fall back to
+                // table if the conversion fails so the link always works.
+                let chartConfig: ChartConfig = {
+                    type: ChartType.TABLE,
+                    config: {
+                        showColumnCalculation: false,
+                        showRowCalculation: false,
+                        showTableNames: true,
+                        showResultsTotal: false,
+                        showSubtotals: false,
+                        columns: {},
+                        hideRowNumbers: false,
+                        conditionalFormattings: [],
+                        metricsAsRows: false,
+                    },
+                };
+                let pivotConfig: { columns: string[] } | undefined;
+                try {
+                    const webAiChartConfig = getWebAiChartConfig({
+                        vizConfig: artifact.chartConfig.config,
+                        metricQuery: metricQueryWithSql,
+                        maxQueryLimit,
+                        fieldsMap: getItemMap(
+                            explore,
+                            additionalMetricsWithSql,
+                            vizConfig.metricQuery.tableCalculations,
+                        ),
+                    });
+                    if (webAiChartConfig.echartsConfig) {
+                        chartConfig = webAiChartConfig.echartsConfig;
+                    }
+                    const groupByDimensions =
+                        getGroupByDimensions(webAiChartConfig);
+                    pivotConfig = groupByDimensions?.length
+                        ? { columns: groupByDimensions }
+                        : undefined;
+                } catch {
+                    // keep the table fallback
+                }
+
                 const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
                 const params = `?create_saved_chart_version=${encodeURIComponent(
                     JSON.stringify({
                         tableName: vizConfig.metricQuery.exploreName,
-                        metricQuery: {
-                            ...vizConfig.metricQuery,
-                            additionalMetrics: additionalMetricsWithSql,
-                        },
+                        metricQuery: metricQueryWithSql,
                         tableConfig: {
                             columnOrder,
                         },
-                        chartConfig: {
-                            type: 'table',
-                            config: {
-                                showColumnCalculation: false,
-                                showRowCalculation: false,
-                                showTableNames: true,
-                                showResultsTotal: false,
-                                showSubtotals: false,
-                                columns: {},
-                                hideRowNumbers: false,
-                                conditionalFormattings: [],
-                                metricsAsRows: false,
-                            },
-                        },
+                        chartConfig,
+                        ...(pivotConfig ? { pivotConfig } : {}),
                     }),
                 )}`;
 
+                // Always link via a short /share URL — inlining the full chart
+                // state in the button URL exceeds Slack's URL length limits.
+                // If share creation fails, link the bare explore instead.
                 const exploreUrl = await createShareUrl(path, params).catch(
-                    () => `${siteUrl}${path}${params}`,
+                    () => `${siteUrl}${path}`,
                 );
 
                 const metricCount =
                     vizConfig.metricQuery.metrics.length +
                     additionalMetricsWithSql.length;
                 const dimensionCount = vizConfig.metricQuery.dimensions.length;
-                // A prompt upserts a single artifact, so its retried
-                // visualizations produce several images for that one artifact —
-                // the latest is its current render. Use it for the single-artifact
-                // case; for multiple artifacts fall back to positional matching.
+                // A single chart with several images is a retried render — show
+                // the latest. Multiple charts (one card per version) match their
+                // image positionally by version.
                 const chartImageUrl =
                     chartArtifacts.length === 1
                         ? chartImageUrls[chartImageUrls.length - 1]
                         : chartImageUrls[
                               chartArtifacts.findIndex(
                                   (chartArtifact) =>
-                                      chartArtifact.artifactUuid ===
-                                      artifact.artifactUuid,
+                                      chartArtifact.versionUuid ===
+                                      artifact.versionUuid,
                               )
                           ];
 
                 return buildSlackCardBlock({
-                    blockId: `ai_agent_chart_card_${artifact.artifactUuid}`,
+                    blockId: `ai_agent_chart_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: `${vizConfig.metricQuery.exploreName} chart`,
-                    heroImageUrl: chartImageUrl,
+                    heroImageUrl:
+                        chartImageUrl && reachableImageUrls.has(chartImageUrl)
+                            ? chartImageUrl
+                            : undefined,
                     body:
                         artifact.description ||
                         `${metricCount} metric${
@@ -674,7 +887,7 @@ export async function getModernArtifactCardBlocks(
 
             if (artifact.dashboardConfig && agentUuid) {
                 return buildSlackCardBlock({
-                    blockId: `ai_agent_dashboard_card_${artifact.artifactUuid}`,
+                    blockId: `ai_agent_dashboard_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: 'Lightdash dashboard',
                     body:
@@ -700,7 +913,119 @@ export async function getModernArtifactCardBlocks(
         }),
     );
 
-    return blocks.filter((block): block is Block => Boolean(block));
+    const cards = blocks.filter((block): block is Block => Boolean(block));
+
+    // A single card renders on its own; multiple cards go in a horizontally
+    // scrollable carousel (Slack allows up to 10 cards).
+    if (cards.length <= 1) {
+        return cards;
+    }
+
+    return [
+        {
+            type: 'carousel',
+            block_id: `ai_agent_artifact_carousel_${slackPrompt.promptUuid}`,
+            elements: cards.slice(0, 10),
+        } as unknown as Block,
+    ];
+}
+
+// SQL artifacts aren't persisted for Slack (see the `!isSlack` guard in
+// runSql.ts), so — unlike chart/dashboard cards above — these are built
+// directly from tool calls/results rather than the artifacts table. One card
+// per successful runSql call: each carries its own {sql, limit}, so a turn
+// with multiple runSql calls gets one correctly-scoped card each rather than
+// a single link that can only point at one of them.
+export async function getSqlArtifactCardBlocks(
+    promptUuid: string,
+    toolCalls: Array<{
+        tool_call_id: string;
+        tool_name: string;
+        tool_args: unknown;
+    }>,
+    toolResults: AiAgentToolResult[],
+    createSqlRunnerShareUrl: (
+        sql: string,
+        limit: number | undefined,
+    ) => Promise<string>,
+): Promise<(Block | KnownBlock)[]> {
+    const succeededCallIds = new Set(
+        toolResults
+            .filter(
+                (result) =>
+                    result.toolName === 'runSql' &&
+                    (result.metadata as { status?: string } | null)?.status ===
+                        'success',
+            )
+            .map((result) => result.toolCallId),
+    );
+    const rowCountByCallId = new Map(
+        toolResults
+            .filter((result) => result.toolName === 'runSql')
+            .map((result) => [
+                result.toolCallId,
+                (result.metadata as { rowCount?: number } | null)?.rowCount,
+            ]),
+    );
+
+    const successfulSqlCalls = toolCalls.filter(
+        (call) =>
+            call.tool_name === 'runSql' &&
+            succeededCallIds.has(call.tool_call_id),
+    );
+
+    const cards = await Promise.all(
+        successfulSqlCalls.map(async (call, index) => {
+            const args = call.tool_args as
+                | { sql?: string; limit?: number }
+                | undefined;
+            if (!args?.sql) return undefined;
+
+            const shareUrl = await createSqlRunnerShareUrl(
+                args.sql,
+                args.limit,
+            ).catch(() => undefined);
+            if (!shareUrl) return undefined;
+
+            const rowCount = rowCountByCallId.get(call.tool_call_id);
+
+            return buildSlackCardBlock({
+                blockId: `ai_agent_sql_card_${call.tool_call_id}`,
+                title: 'SQL query results',
+                subtitle:
+                    typeof rowCount === 'number'
+                        ? `${rowCount} row${rowCount === 1 ? '' : 's'}`
+                        : undefined,
+                subtext: 'Open in SQL Runner to inspect, edit, or save.',
+                actions: [
+                    {
+                        type: 'button',
+                        url: shareUrl,
+                        style: 'primary',
+                        action_id: `actions.open_sql_runner_card_button_click.${index}`,
+                        text: {
+                            type: 'plain_text',
+                            text: 'Open in SQL Runner',
+                        },
+                    },
+                ],
+            });
+        }),
+    );
+
+    const cardBlocks = cards.filter((block): block is Block => Boolean(block));
+
+    if (cardBlocks.length <= 1) {
+        return cardBlocks;
+    }
+
+    return [
+        {
+            type: 'carousel',
+            block_id: `ai_agent_sql_carousel_${promptUuid}`,
+            elements: cardBlocks.slice(0, 10),
+        } as unknown as Block,
+    ];
 }
 
 // Tool names whose successful results count as "an answer the user can score".
@@ -715,6 +1040,7 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'runSavedChart',
     'generateDashboard',
     'editDbtProject',
+    'editRepo',
 ]);
 
 // One compact footer: small "How did I do?" header + a single row with
@@ -783,60 +1109,6 @@ export function getDeepLinkBlocks(
                 type: 'mrkdwn',
                 text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
             },
-        },
-    ];
-}
-
-export function getProposeChangeBlocks(
-    slackPrompt: SlackPrompt,
-    siteUrl: string,
-    toolResults?: AiAgentToolResult[],
-): (Block | KnownBlock)[] {
-    if (!toolResults || toolResults.length === 0) {
-        return [];
-    }
-
-    const proposeChangeResults = toolResults.filter(isToolProposeChangeResult);
-
-    if (proposeChangeResults.length === 0) {
-        return [];
-    }
-
-    const [successes, failures] = partition(
-        proposeChangeResults,
-        (r) => r.metadata.status === 'success',
-    );
-
-    return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'context',
-            elements: [
-                ...successes.map((success) => ({
-                    type: 'plain_text' as const,
-                    text: `✅ ${success.result}`,
-                })),
-                ...failures.map((failure) => ({
-                    type: 'plain_text' as const,
-                    text: `❌ ${failure.result}`,
-                })),
-            ],
-        },
-        {
-            type: 'actions',
-            elements: [
-                {
-                    type: 'button',
-                    url: `${siteUrl}/generalSettings/projectManagement/${slackPrompt.projectUuid}/changesets`,
-                    action_id: 'actions.view_changesets_button_click',
-                    text: {
-                        type: 'plain_text',
-                        text: 'View Changeset',
-                    },
-                },
-            ],
         },
     ];
 }
@@ -950,6 +1222,95 @@ export function getModernPullRequestCardBlocks(
     return cards;
 }
 
+// Slack caps option text and option-group labels at 75 characters.
+const truncateSlackText = (text: string | null, maxLength: number): string => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return `${text.substring(0, maxLength - 3)}...`;
+};
+
+type AgentSelectOption = Pick<AiAgent, 'uuid' | 'name' | 'projectUuid'>;
+
+const buildAgentOptions = (
+    agents: AgentSelectOption[],
+    buildValue: (agent: AgentSelectOption) => string,
+) =>
+    agents.map((agent) => ({
+        text: {
+            type: 'plain_text' as const,
+            text: truncateSlackText(agent.name, 75),
+        },
+        value: buildValue(agent),
+    }));
+
+const buildAgentOptionGroups = (
+    agents: AgentSelectOption[],
+    projectMap: Map<string, string>,
+    buildValue: (agent: AgentSelectOption) => string,
+    lastUsedProjectUuid?: string,
+) => {
+    const agentsByProject = new Map<string, AgentSelectOption[]>();
+    for (const agent of agents) {
+        const group = agentsByProject.get(agent.projectUuid);
+        if (group) {
+            group.push(agent);
+        } else {
+            agentsByProject.set(agent.projectUuid, [agent]);
+        }
+    }
+
+    return Array.from(agentsByProject.entries())
+        .map(([projectUuid, projectAgents]) => ({
+            projectUuid,
+            name: projectMap.get(projectUuid) ?? 'Other projects',
+            agents: projectAgents,
+        }))
+        .sort((a, b) => {
+            if (a.projectUuid === lastUsedProjectUuid) return -1;
+            if (b.projectUuid === lastUsedProjectUuid) return 1;
+            return a.name.localeCompare(b.name);
+        })
+        .map((group) => ({
+            label: {
+                type: 'plain_text' as const,
+                text: truncateSlackText(group.name, 75),
+            },
+            options: buildAgentOptions(group.agents, buildValue),
+        }));
+};
+
+const buildAgentSelectBlocks = (args: {
+    headerText: string;
+    blockId: string;
+    actionId: string;
+    element:
+        | { options: ReturnType<typeof buildAgentOptions> }
+        | { option_groups: ReturnType<typeof buildAgentOptionGroups> };
+}): (Block | KnownBlock)[] => [
+    {
+        type: 'section',
+        text: {
+            type: 'mrkdwn',
+            text: args.headerText,
+        },
+    },
+    {
+        type: 'actions',
+        block_id: args.blockId,
+        elements: [
+            {
+                type: 'static_select',
+                action_id: args.actionId,
+                placeholder: {
+                    type: 'plain_text',
+                    text: 'Choose an agent...',
+                },
+                ...args.element,
+            },
+        ],
+    },
+];
+
 export function getAgentSelectionBlocks(
     agents: AiAgent[],
     channelId: string,
@@ -968,114 +1329,29 @@ export function getAgentSelectionBlocks(
         ];
     }
 
-    const truncateText = (text: string | null, maxLength: number): string => {
-        if (!text) return '';
-        if (text.length <= maxLength) return text;
-        return `${text.substring(0, maxLength - 3)}...`;
-    };
+    const buildValue = (agent: AgentSelectOption) =>
+        JSON.stringify({
+            agentUuid: agent.uuid,
+            channelId,
+            shouldSkipForwardingQuery,
+        });
 
-    // Group agents by project if projectMap is provided
-    const shouldGroupByProject = projectMap && projectMap.size > 0;
-
-    if (shouldGroupByProject) {
-        // Group agents by projectUuid
-        const agentsByProject = new Map<string, AiAgent[]>();
-        for (const agent of agents) {
-            const { projectUuid } = agent;
-            if (!agentsByProject.has(projectUuid)) {
-                agentsByProject.set(projectUuid, []);
-            }
-            agentsByProject.get(projectUuid)!.push(agent);
-        }
-
-        // Create option groups
-        const optionGroups = Array.from(agentsByProject.entries())
-            .map(([projectUuid, projectAgents]) => {
-                const projectName = projectMap.get(projectUuid) || projectUuid;
-                return {
-                    label: {
-                        type: 'plain_text' as const,
-                        // Slack has a 75 character limit for option group labels
-                        text: truncateText(projectName, 75),
-                    },
-                    options: projectAgents.map((agent) => ({
-                        text: {
-                            type: 'plain_text' as const,
-                            // Slack has a 75 character limit for option text
-                            text: truncateText(agent.name, 75),
-                        },
-                        value: JSON.stringify({
-                            agentUuid: agent.uuid,
-                            channelId,
-                            shouldSkipForwardingQuery,
-                        }),
-                    })),
-                };
-            })
-            .sort((a, b) => a.label.text.localeCompare(b.label.text)); // Sort groups alphabetically
-
-        return [
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: ':robot_face: *Which AI agent would you like to chat with?*\n\nSelect an agent to get started.',
-                },
-            },
-            {
-                type: 'actions',
-                block_id: 'agent_selection',
-                elements: [
-                    {
-                        type: 'static_select',
-                        action_id: 'select_agent',
-                        placeholder: {
-                            type: 'plain_text',
-                            text: 'Choose an agent...',
-                        },
-                        option_groups: optionGroups,
-                    },
-                ],
-            },
-        ];
-    }
-
-    // Fallback to flat list if no projectMap provided
-    return [
-        {
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: ':robot_face: *Which AI agent would you like to chat with?*\n\nSelect an agent to get started.',
-            },
-        },
-        {
-            type: 'actions',
-            block_id: 'agent_selection',
-            elements: [
-                {
-                    type: 'static_select',
-                    action_id: 'select_agent',
-                    placeholder: {
-                        type: 'plain_text',
-                        text: 'Choose an agent...',
-                    },
-                    options: agents.map((agent) => ({
-                        text: {
-                            type: 'plain_text',
-                            // Slack has a 75 character limit for option text
-                            text: truncateText(agent.name, 75),
-                        },
-                        value: JSON.stringify({
-                            agentUuid: agent.uuid,
-                            channelId,
-                            shouldSkipForwardingQuery,
-                        }),
-                    })),
-                },
-            ],
-        },
-    ];
+    return buildAgentSelectBlocks({
+        headerText:
+            ':robot_face: *Which AI agent would you like to chat with?*\n\nSelect an agent to get started.',
+        blockId: 'agent_selection',
+        actionId: 'select_agent',
+        element:
+            projectMap && projectMap.size > 0
+                ? {
+                      option_groups: buildAgentOptionGroups(
+                          agents,
+                          projectMap,
+                          buildValue,
+                      ),
+                  }
+                : { options: buildAgentOptions(agents, buildValue) },
+    });
 }
 
 // At or below this many projects we render quick-tap buttons; above it we fall
@@ -1086,11 +1362,6 @@ export function getProjectSelectionBlocks(
     projects: { projectUuid: string; name: string }[],
     channelId: string,
 ): (Block | KnownBlock)[] {
-    const truncateText = (text: string, maxLength: number): string => {
-        if (text.length <= maxLength) return text;
-        return `${text.substring(0, maxLength - 3)}...`;
-    };
-
     const promptBlock: Block | KnownBlock = {
         type: 'section',
         text: {
@@ -1107,7 +1378,7 @@ export function getProjectSelectionBlocks(
         JSON.stringify({
             p: project.projectUuid,
             c: channelId,
-            n: truncateText(project.name, 50),
+            n: truncateSlackText(project.name, 50),
         });
 
     // Few projects: one button each for a single tap.
@@ -1124,7 +1395,7 @@ export function getProjectSelectionBlocks(
                     // Slack caps button text at 75 characters.
                     text: {
                         type: 'plain_text',
-                        text: truncateText(project.name, 75),
+                        text: truncateSlackText(project.name, 75),
                     },
                     value: buildSelectionValue(project),
                 })),
@@ -1150,7 +1421,7 @@ export function getProjectSelectionBlocks(
                     options: projects.map((project) => ({
                         text: {
                             type: 'plain_text',
-                            text: truncateText(project.name, 75),
+                            text: truncateSlackText(project.name, 75),
                         },
                         value: buildSelectionValue(project),
                     })),
@@ -1158,6 +1429,35 @@ export function getProjectSelectionBlocks(
             ],
         },
     ];
+}
+
+// Slack caps static_select at 100 options.
+const CHANNEL_LINK_MAX_OPTIONS = 100;
+
+export function getChannelLinkAgentSelectionBlocks(
+    agents: AgentSelectOption[],
+    channelId: string,
+    projectMap: Map<string, string>,
+    lastUsedProjectUuid?: string,
+): (Block | KnownBlock)[] {
+    const limitedAgents = [...agents]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, CHANNEL_LINK_MAX_OPTIONS);
+
+    return buildAgentSelectBlocks({
+        headerText: `:link: *No agent is linked to this channel yet.*\n\nPick an agent to answer questions here — this links it to <#${channelId}> for everyone.`,
+        blockId: 'channel_agent_link',
+        actionId: 'link_channel_agent',
+        element: {
+            option_groups: buildAgentOptionGroups(
+                limitedAgents,
+                projectMap,
+                // Slack caps option values at 150 chars — keep names out of the value.
+                (agent) => JSON.stringify({ a: agent.uuid, c: channelId }),
+                lastUsedProjectUuid,
+            ),
+        },
+    });
 }
 
 export function getAgentConfirmationBlocks(

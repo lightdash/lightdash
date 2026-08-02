@@ -1,9 +1,9 @@
 import {
+    calculateComparisonValue,
     applyCustomFormat,
     ComparisonFormatTypes,
     CustomFormatType,
     formatItemValue,
-    friendlyName,
     getDefaultMetricTreeNodeDateRange,
     getRollingPeriodDates,
     MetricTotalComparisonType,
@@ -24,7 +24,6 @@ import { IconHierarchy3, IconInfoCircle } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { calculateComparisonValue } from '../../../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../../../sqlRunner/store/hooks';
 import { useRunMetricTotal } from '../../../../hooks/useRunMetricExplorerQuery';
 import { MetricDetailPopover } from '../../../MetricDetailPopover';
@@ -104,7 +103,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
     isConnectable,
     selected,
 }) => {
-    const title = useMemo(() => friendlyName(data.label), [data.label]);
+    const title = data.label;
 
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,

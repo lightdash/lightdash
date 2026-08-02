@@ -163,7 +163,7 @@ describe('Dashboard', () => {
         cy.findByRole('option', {
             name: 'How much revenue do we have per payment method?',
         }).click();
-        cy.findByRole('dialog').get('.mantine-MultiSelect-input').click(); // Close dropdown
+        cy.findByRole('dialog').findByRole('textbox').type('{esc}');
         cy.findByText('Add').click();
         cy.findByText('How much revenue do we have per payment method?').should(
             'exist',
@@ -250,21 +250,22 @@ describe('Dashboard', () => {
         // Check tile targets are correct and all charts have that filter applied
         cy.contains('Payment method is credit_card').click();
         cy.findAllByRole('tab').eq(1).click();
-        cy.get(
-            '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',
-        ).should('have.length', 4); // 3 checkboxes for the 3 charts + `select all` checkbox
-        cy.get(
-            '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',
-        ).each(($el) => {
-            cy.wrap($el).find('input[checked]').should('have.length', 1);
-        });
+        cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
+            .findAllByRole('checkbox')
+            .should('have.length', 4) // 3 checkboxes for the 3 charts + `select all` checkbox
+            .each(($checkbox) => {
+                cy.wrap($checkbox).should('be.checked');
+            });
 
         // Remove filter from first chart - saved chart
-        cy.get(
-            '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',
-        )
+        cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
+            .findAllByRole('checkbox')
             .eq(1)
-            .click();
+            .click({ force: true });
+        cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
+            .findAllByRole('checkbox')
+            .eq(1)
+            .should('not.be.checked');
         cy.contains('button', 'Apply').click({ force: true });
 
         // Saved chart should have no filter applied
@@ -305,9 +306,9 @@ describe('Dashboard', () => {
         // Open filter popover  and check that all charts have the filter applied except for the new one (which is referencing another explore)
         cy.contains('Payment method is credit_card').click(); // Note: disable React strict mode in local dev to avoid error in this line
         cy.findAllByRole('tab').eq(1).click();
-        cy.get(
-            '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',
-        ).should('have.length', 5); // 4 checkboxes for the 4 charts + `select all` checkbox
+        cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
+            .findAllByRole('checkbox')
+            .should('have.length', 5); // 4 checkboxes for the 4 charts + `select all` checkbox
 
         // Enable filter for the new chart (Stg payments - different explore)
         // Checking the box auto-selects a default field via matchFieldByTypeAndName
@@ -316,8 +317,8 @@ describe('Dashboard', () => {
         )
             .contains('Stg Payments (payment method x amount)?')
             .closest('[data-testid="tile-filter-item"]')
-            .find('.mantine-Checkbox-body')
-            .click();
+            .findByRole('checkbox')
+            .check({ force: true });
         cy.get(
             '[data-testid="DashboardFilterConfiguration/ChartTiles"] [data-testid="tile-filter-item"]',
         )

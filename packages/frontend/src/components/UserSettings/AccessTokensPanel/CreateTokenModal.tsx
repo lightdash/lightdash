@@ -60,6 +60,7 @@ export const CreateTokenModal: FC<{
         <MantineModal
             opened
             onClose={onBackClick}
+            role="alertdialog"
             title={data ? 'Your token has been generated' : 'New token'}
             cancelLabel={isSuccess ? 'Close' : 'Cancel'}
             icon={IconKey}

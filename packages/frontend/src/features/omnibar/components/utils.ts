@@ -88,6 +88,18 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
     }
 };
 
+export const itemHasValidationError = (searchItem: SearchItem) =>
+    searchItem.item &&
+    ['dashboard', 'saved_chart', 'table'].includes(searchItem.type) &&
+    'validationErrors' in searchItem.item &&
+    searchItem.item.validationErrors?.length > 0;
+
+export const itemHasVerification = (searchItem: SearchItem) =>
+    searchItem.item &&
+    'verification' in searchItem.item &&
+    searchItem.item.verification !== null &&
+    searchItem.item.verification !== undefined;
+
 export const getSearchResultsGroupsSorted = (results: SearchResultMap) =>
     Object.entries(results)
         .map((items) => {

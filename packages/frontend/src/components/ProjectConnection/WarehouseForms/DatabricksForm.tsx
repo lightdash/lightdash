@@ -3,19 +3,19 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import {
-    ActionIcon,
-    Anchor,
-    Button,
+    TextInput,
     Group,
-    PasswordInput,
-    Select,
     Stack,
     Text,
-    TextInput,
+    Button,
+    ActionIcon,
+    Anchor,
+    Select,
+    PasswordInput,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconCheck, IconPlus, IconTrash } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -33,10 +33,12 @@ import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { DatabricksDefaultValues } from './defaultValues';
 import { getSsoLabel, PERSONAL_ACCESS_TOKEN_LABEL } from './util';
+import styles from './WarehouseButtons.module.css';
 
 export const DatabricksSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
 
     return (
@@ -46,17 +48,20 @@ export const DatabricksSchemaInput: FC<{
             {...form.getInputProps('warehouse.database')}
             label="Schema"
             description={
-                <p>
-                    Check out for more details in{' '}
-                    <Anchor
-                        target="_blank"
-                        href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
-                        rel="noreferrer"
-                    >
-                        given documentation
-                    </Anchor>
-                    .
-                </p>
+                description ?? (
+                    <p>
+                        Check out for more details in{' '}
+                        <Anchor
+                            inherit
+                            target="_blank"
+                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
+                            rel="noreferrer"
+                        >
+                            given documentation
+                        </Anchor>
+                        .
+                    </p>
+                )
             }
             required
             disabled={disabled}
@@ -64,7 +69,7 @@ export const DatabricksSchemaInput: FC<{
     );
 };
 
-export const DatabricksSSOInput: FC<{
+const DatabricksSSOInput: FC<{
     isAuthenticated: boolean;
     disabled: boolean;
     disabledTooltip?: string;
@@ -80,8 +85,8 @@ export const DatabricksSSOInput: FC<{
             variant="default"
             color="gray"
             disabled={disabled}
-            leftIcon={getWarehouseIcon(WarehouseTypes.DATABRICKS, 'sm')}
-            sx={{ ':hover': { textDecoration: 'underline' } }}
+            leftSection={getWarehouseIcon(WarehouseTypes.DATABRICKS, 'sm')}
+            className={styles.signInButton}
             fullWidth
         >
             Sign in with Databricks
@@ -214,6 +219,7 @@ const DatabricksForm: FC<{
                         <p>
                             Check out for more details in{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-hostname"
                                 rel="noreferrer"
@@ -236,6 +242,7 @@ const DatabricksForm: FC<{
                         <p>
                             Check out for more details in{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-path"
                                 rel="noreferrer"
@@ -250,8 +257,9 @@ const DatabricksForm: FC<{
                     placeholder="/sql/protocolv1/o/xxxx/xxxx"
                 />
 
-                <Group spacing="sm">
+                <Group gap="sm">
                     <Select
+                        allowDeselect={false}
                         name="warehouse.authenticationType"
                         {...form.getInputProps('warehouse.authenticationType')}
                         defaultValue={defaultAuthType}
@@ -259,9 +267,10 @@ const DatabricksForm: FC<{
                         description={
                             isSsoEnabled &&
                             isLoadingAuth ? null : isAuthenticated ? (
-                                <Text mt="0" color="gray" fs="xs">
+                                <Text mt="0" c="gray" fs="xs">
                                     You are connected to Databricks,{' '}
                                     <Anchor
+                                        inherit
                                         href="#"
                                         onClick={() => {
                                             openLoginPopup();
@@ -298,6 +307,7 @@ const DatabricksForm: FC<{
                             <p>
                                 Check out for more details in{' '}
                                 <Anchor
+                                    inherit
                                     target="_blank"
                                     href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
                                     rel="noreferrer"
@@ -317,7 +327,7 @@ const DatabricksForm: FC<{
                     />
                 ) : authenticationType ===
                   DatabricksAuthenticationType.OAUTH_M2M ? (
-                    <Stack spacing="sm">
+                    <Stack gap="sm">
                         <PasswordInput
                             name="warehouse.oauthClientId"
                             {...form.getInputProps('warehouse.oauthClientId')}
@@ -379,13 +389,15 @@ const DatabricksForm: FC<{
                             disabled={disabled}
                             {...form.getInputProps(
                                 'warehouse.requireUserCredentials',
-                                { type: 'checkbox' },
+                                {
+                                    type: 'checkbox',
+                                },
                             )}
                         />
                         <DataTimezoneField disabled={disabled} />
                         <StartOfWeekSelect disabled={disabled} />
-                        <Stack spacing="xs">
-                            <Stack spacing={0}>
+                        <Stack gap="xs">
+                            <Stack gap={0}>
                                 <Text fw={500}>Compute Resources</Text>
                                 <Text c="dimmed" size="xs">
                                     Configure compute resources to use in your
@@ -398,8 +410,8 @@ const DatabricksForm: FC<{
                                         <Group
                                             // @ts-expect-error
                                             key={field.key}
-                                            noWrap
-                                            spacing="xs"
+                                            wrap="nowrap"
+                                            gap="xs"
                                         >
                                             <TextInput
                                                 style={{
@@ -425,6 +437,8 @@ const DatabricksForm: FC<{
                                             />
                                             <Tooltip label="Remove compute">
                                                 <ActionIcon
+                                                    variant="subtle"
+                                                    color="gray"
                                                     size="sm"
                                                     onClick={() =>
                                                         removeCompute(index)
@@ -443,11 +457,11 @@ const DatabricksForm: FC<{
                                     <Button
                                         variant="default"
                                         size="xs"
-                                        sx={(theme) => ({
+                                        style={(theme) => ({
                                             alignSelf: 'flex-end',
                                             boxShadow: theme.shadows.subtle,
                                         })}
-                                        leftIcon={
+                                        leftSection={
                                             <MantineIcon icon={IconPlus} />
                                         }
                                         onClick={addCompute}

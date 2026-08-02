@@ -227,6 +227,12 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     next();
 };
 
+export const storeOIDCLinkIntent: RequestHandler = (req, res, next) => {
+    req.session.oauth = req.session.oauth || {};
+    req.session.oauth.intent = 'link';
+    next();
+};
+
 export const storeSlackContext: RequestHandler = (req, res, next) => {
     const { team, channel, message, thread_ts: threadTs, trigger } = req.query;
     req.session.slack = {};

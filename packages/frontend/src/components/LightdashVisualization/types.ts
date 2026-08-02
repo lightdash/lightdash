@@ -19,6 +19,7 @@ import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useC
 import type useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import type useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import type useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
+import type useDataAppVizVisualizationConfig from '../../hooks/useDataAppVizVisualizationConfig';
 import type useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import type useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import type usePieChartConfig from '../../hooks/usePieChartConfig';
@@ -151,6 +152,8 @@ export type VisualizationTableConfigProps =
         itemsMap: ItemsMap | undefined;
         columnOrder: string[];
         validPivotDimensions: string[] | undefined;
+        initialPivotRows: string[] | undefined;
+        onPivotRowsChange?: (value: string[] | undefined) => void;
         savedChartUuid: string | undefined;
         dashboardFilters: DashboardFilters | undefined;
         invalidateCache: boolean | undefined;
@@ -196,6 +199,24 @@ export const isCustomVisualizationConfig = (
 export type VisualizationCustomConfigProps =
     VisualizationConfigCommon<VisualizationCustomConfigType> & {
         // TODO: shared prop once all visualizations are converted
+        itemsMap?: ItemsMap | undefined;
+    };
+
+// Data app viz
+
+export type VisualizationConfigDataAppViz = {
+    chartType: ChartType.DATA_APP_VIZ;
+    chartConfig: ReturnType<typeof useDataAppVizVisualizationConfig>;
+};
+
+export const isDataAppVizVisualizationConfig = (
+    visualizationConfig: VisualizationConfig | undefined,
+): visualizationConfig is VisualizationConfigDataAppViz => {
+    return visualizationConfig?.chartType === ChartType.DATA_APP_VIZ;
+};
+
+export type VisualizationDataAppVizConfigProps =
+    VisualizationConfigCommon<VisualizationConfigDataAppViz> & {
         itemsMap?: ItemsMap | undefined;
     };
 
@@ -279,4 +300,5 @@ export type VisualizationConfig =
     | VisualizationConfigGauge
     | VisualizationConfigMap
     | VisualizationCustomConfigType
-    | VisualizationConfigSankeyType;
+    | VisualizationConfigSankeyType
+    | VisualizationConfigDataAppViz;

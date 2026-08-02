@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { FeatureFlags, type AiAgentModelConfig } from '@lightdash/common';
 import {
     Anchor,
@@ -25,12 +26,13 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import { type useForm } from '@mantine/form';
-import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustmentsAlt,
     IconAlertTriangle,
     IconBook2,
+    IconCode,
     IconInfoCircle,
     IconLock,
     IconPlug,
@@ -61,6 +63,7 @@ import {
 import { useAiOrganizationSettings } from '../hooks/useAiOrganizationSettings';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
+import AiAgentAsCodeModal from './AiAgentAsCodeModal';
 import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { InstructionsGuidelines } from './InstructionsSupport';
@@ -85,6 +88,7 @@ const formSchema = z.object({
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
+    enableUserContext: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -149,6 +153,15 @@ export const AiAgentFormSetup = ({
 
     const { user } = useApp();
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [isAsCodeModalOpen, asCodeModalHandlers] = useDisclosure(false);
+
+    const canViewContentAsCode = !!user.data?.ability.can(
+        'view',
+        subject('ContentAsCode', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const handleDeleteClick = useCallback(() => {
         setDeleteModalOpen(true);
@@ -197,12 +210,6 @@ export const AiAgentFormSetup = ({
     const isGroupsEnabled =
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
-    const agentRevampFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.AiAgentRevamp,
-    );
-    const isAgentRevampEnabled =
-        agentRevampFeatureFlagQuery.isSuccess &&
-        agentRevampFeatureFlagQuery.data.enabled;
 
     const handlePersistedMcpServerChange = useCallback(
         (value: string[]) => {
@@ -283,16 +290,31 @@ export const AiAgentFormSetup = ({
             <form>
                 <Stack gap="sm">
                     <Paper p="xl">
-                        <Group align="center" gap="xs" mb="md">
-                            <Paper p="xxs" withBorder radius="sm">
-                                <MantineIcon
-                                    icon={IconAdjustmentsAlt}
-                                    size="md"
-                                />
-                            </Paper>
-                            <Title order={5} c="ldGray.9" fw={700}>
-                                Basic information
-                            </Title>
+                        <Group align="center" justify="space-between" mb="md">
+                            <Group align="center" gap="xs">
+                                <Paper p="xxs" withBorder radius="sm">
+                                    <MantineIcon
+                                        icon={IconAdjustmentsAlt}
+                                        size="md"
+                                    />
+                                </Paper>
+                                <Title order={5} c="ldGray.9" fw={700}>
+                                    Basic information
+                                </Title>
+                            </Group>
+                            {mode === 'edit' &&
+                                agentUuid &&
+                                canViewContentAsCode && (
+                                    <Button
+                                        variant="default"
+                                        onClick={asCodeModalHandlers.open}
+                                        leftSection={
+                                            <MantineIcon icon={IconCode} />
+                                        }
+                                    >
+                                        View as code
+                                    </Button>
+                                )}
                         </Group>
                         <Stack>
                             <Group>
@@ -538,7 +560,7 @@ export const AiAgentFormSetup = ({
                                     <Radio
                                         value="specific"
                                         label={`Specific users ${isGroupsEnabled ? ' & groups' : ''}`}
-                                        description={`Only the users${isGroupsEnabled ? ' and groups ' : ' '}you choose. Admins and developers always have access.`}
+                                        description={`Only the users${isGroupsEnabled ? ' and groups ' : ' '}you choose. Admins and developers (Manage AI Agents scope) always have access.`}
                                     />
                                 </Stack>
                             </Radio.Group>
@@ -566,7 +588,7 @@ export const AiAgentFormSetup = ({
                                                         Group Access
                                                     </Text>
                                                     <Tooltip
-                                                        label="Admins and developers will always have access to this agent."
+                                                        label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
                                                         withArrow
                                                         withinPortal
                                                         multiline
@@ -763,53 +785,76 @@ export const AiAgentFormSetup = ({
                                     }
                                 }}
                             />
-                            {isAgentRevampEnabled && (
-                                <Switch
-                                    variant="subtle"
-                                    label={
-                                        <Group gap="xs">
-                                            <Text fz="sm" fw={500}>
-                                                Allow agent to manage Lightdash
-                                                content
-                                            </Text>
-                                            <Tooltip
-                                                label="Requires data access to be enabled. Only works for users with content-as-code access (admins and developers)."
-                                                withArrow
-                                                withinPortal
-                                                multiline
-                                                position="right"
-                                                maw="300px"
-                                            >
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            Allow agent to manage Lightdash
+                                            content
+                                        </Text>
+                                        <Tooltip
+                                            label="Requires data access to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                            withArrow
+                                            withinPortal
+                                            multiline
+                                            position="right"
+                                            maw="300px"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </Tooltip>
+                                        <Badge
+                                            color="indigo"
+                                            radius="sm"
+                                            variant="light"
+                                            leftSection={
                                                 <MantineIcon
-                                                    icon={IconInfoCircle}
+                                                    icon={IconSparkles}
                                                 />
-                                            </Tooltip>
-                                            <Badge
-                                                color="indigo"
-                                                radius="sm"
-                                                variant="light"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconSparkles}
-                                                    />
-                                                }
-                                            >
-                                                Beta
-                                            </Badge>
-                                        </Group>
-                                    }
-                                    description={
-                                        'Agent can build new dashboards and charts and update existing ones — add or rearrange tiles, organize tabs, change filters, and more.'
-                                    }
-                                    {...form.getInputProps(
-                                        'enableContentTools',
-                                        {
-                                            type: 'checkbox',
-                                        },
-                                    )}
-                                    disabled={!form.values.enableDataAccess}
-                                />
-                            )}
+                                            }
+                                        >
+                                            Beta
+                                        </Badge>
+                                    </Group>
+                                }
+                                description={
+                                    'Agent can build new dashboards and charts and update existing ones — add or rearrange tiles, organize tabs, change filters, and more. Can also create scheduled deliveries, which go live as soon as they are created.'
+                                }
+                                {...form.getInputProps('enableContentTools', {
+                                    type: 'checkbox',
+                                })}
+                                disabled={!form.values.enableDataAccess}
+                            />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            Pass user information
+                                        </Text>
+                                        <Tooltip
+                                            label="Only applies when the agent knows who is asking — on Slack this requires the OAuth requirement to be enabled in the organization's Slack settings."
+                                            withArrow
+                                            withinPortal
+                                            multiline
+                                            position="right"
+                                            maw="300px"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </Tooltip>
+                                    </Group>
+                                }
+                                description={
+                                    "Shares the requesting user's name, role, and group memberships with the agent so it can tailor answers to who is asking."
+                                }
+                                {...form.getInputProps('enableUserContext', {
+                                    type: 'checkbox',
+                                })}
+                            />
                         </Stack>
                     </Paper>
 
@@ -1113,6 +1158,14 @@ export const AiAgentFormSetup = ({
                 description="This action cannot be undone."
                 onConfirm={handleDelete}
             />
+            {agentUuid && (
+                <AiAgentAsCodeModal
+                    opened={isAsCodeModalOpen}
+                    onClose={asCodeModalHandlers.close}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                />
+            )}
         </>
     );
 };

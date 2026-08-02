@@ -9,7 +9,7 @@ import {
     Text,
     Textarea,
 } from '@mantine-8/core';
-import { modals } from '@mantine/modals';
+import { modals } from '@mantine-8/modals';
 import { IconIdOff } from '@tabler/icons-react';
 import html2canvas from 'html2canvas-pro';
 import { useCallback, useEffect, useState, type FC } from 'react';
@@ -137,7 +137,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                                 </Text>
                             </>
                         ) : (
-                            <Loader height={200} w="100%" variant="dots" />
+                            <Loader height={200} w="100%" type="dots" />
                         )}
                     </Stack>
                 </Paper>

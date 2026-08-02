@@ -1,0 +1,343 @@
+name: Release-safety preview
+
+# PROD-8359: shift-left the release-safety marker to PR time. On PRs that touch
+# the schema / API / MCP surface, compute the marker the generator WOULD emit
+# (diffed against the merge-base with the target branch) and post a sticky comment
+# with the determination, the matrix of checks, and the customer-deploy impact —
+# so the author is in the loop before merge. Does NOT run the paid AI review
+# (release-time only) and never publishes anything (the marker stays dark-launched).
+#
+# SPK-695: the REST half needs the PR's OpenAPI spec, which no PR can commit —
+# `.husky/pre-commit` unstages the generated artifacts and the release workflow
+# commits them instead (#25605). So the spec pair is generated here, from the
+# comparison base and from the PR, exactly as the release job generates it before
+# computing the release-time marker. Without that pair the REST check is not run
+# at all: the committed spec is a release-time artifact, identical on both sides
+# of every PR diff, and diffing it against itself reports "no breaking changes"
+# for an API break it never looked at.
+
+on:
+  pull_request:
+    # Include ready_for_review so flipping a draft to ready re-runs the preview —
+    # that's the event that newly enables the AI migration review (see below).
+    types: [opened, synchronize, reopened, ready_for_review]
+    # The OpenAPI surface is not a file list: TSOA derives the spec from the
+    # controllers and every type they reach, so any backend or common change can
+    # move it (this is also why `.github/file-filters.yml`'s api_schema filter is
+    # deliberately broad). Migrations and the MCP snapshot live under those two
+    # globs too; the generated swagger.json used to be listed here on its own,
+    # which is what left the REST check unreachable.
+    paths:
+      - 'packages/backend/**'
+      - 'packages/common/**'
+      - 'release-safety.overrides.json'
+      - 'scripts/gen-release-safety.ts'
+      - 'scripts/ai-migration-review.ts'
+      - 'scripts/sql-migration-lint.ts'
+      - 'scripts/rest-api-diff.ts'
+      - 'scripts/mcp-tools-diff.ts'
+      - 'scripts/upgrade-overrides.ts'
+      - 'scripts/release-safety-pr-comment.ts'
+      - '.github/file-filters.yml'
+      - '.github/workflows/release-safety-pr.yml'
+
+# Spec generation makes a run long enough that an older run could otherwise
+# finish last and overwrite the sticky comment with a stale verdict.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  changes:
+    name: Resolve base and changed surfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      base_sha: ${{ steps.base.outputs.sha }}
+      base_short: ${{ steps.base.outputs.short }}
+      openapi: ${{ steps.filter.outputs.release_safety_api }}
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      # Resolved once, here, and reused by every job: the spec pair, the migration
+      # diff and the comment's base label all have to describe the same comparison.
+      - name: Resolve comparison base
+        id: base
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${{ github.event.pull_request.base.ref }}"
+          BASE=$(git merge-base FETCH_HEAD HEAD)
+          echo "sha=${BASE}" >> "$GITHUB_OUTPUT"
+          echo "short=$(git rev-parse --short "${BASE}")" >> "$GITHUB_OUTPUT"
+
+      - name: Check for files changes
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
+        id: filter
+        with:
+          token: ${{ github.token }}
+          filters: .github/file-filters.yml
+
+  openapi-specs:
+    name: Generate OpenAPI specs
+    needs: changes
+    if: needs.changes.outputs.openapi == 'true'
+    runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 30
+    env:
+      NODE_OPTIONS: '--max-old-space-size=8192'
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.changes.outputs.base_sha }}
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      # Each side is built from its own revision's sources AND its own revision's
+      # dependencies — sharing one install across both would be a faithful build of
+      # neither. `generate-api:backend` is the script the release job runs before
+      # computing the marker; the root `generate-api` adds post-hooks that write
+      # the chart/dashboard/MCP schemas, none of which feed the OpenAPI spec.
+      # /tmp survives the second checkout's clean; the workspace does not.
+      - name: Generate base OpenAPI spec
+        run: |
+          set -euo pipefail
+          sfw pnpm install --frozen-lockfile --prefer-offline
+          pnpm generate-api:backend
+          mkdir -p /tmp/openapi-specs
+          cp packages/backend/src/generated/swagger.json /tmp/openapi-specs/base-swagger.json
+
+      - name: Checkout PR
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Generate PR OpenAPI spec
+        run: |
+          set -euo pipefail
+          sfw pnpm install --frozen-lockfile --prefer-offline
+          pnpm generate-api:backend
+          cp packages/backend/src/generated/swagger.json /tmp/openapi-specs/pr-swagger.json
+
+      - name: Upload the spec pair
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: release-safety-openapi-specs
+          path: /tmp/openapi-specs/
+          retention-days: 1
+
+  preview:
+    name: Release-safety preview
+    needs: [changes, openapi-specs]
+    # Runs even when spec generation was skipped (no API-surface change) or failed:
+    # the migration and MCP halves still have something to say, and the comment
+    # reports the REST check as not run rather than silently omitting it. A failed
+    # openapi-specs job stays red on its own — this job does not launder it green.
+    if: ${{ always() && needs.changes.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install tsx
+        run: sfw npm install -g tsx@4.19.4
+
+      - name: Install oasdiff
+        env:
+          OASDIFF_VERSION: '1.21.0'
+          OASDIFF_SHA256: '293811c172672e9e86313ef925f136d8a2352c7b56937f6b0f91c5de1166bd8f'
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/oasdiff.tar.gz \
+            "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          echo "${OASDIFF_SHA256}  /tmp/oasdiff.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/oasdiff.tar.gz -C /tmp oasdiff
+          sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
+          oasdiff --version
+
+      - name: Download the generated OpenAPI spec pair
+        if: ${{ needs.openapi-specs.result == 'success' }}
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: release-safety-openapi-specs
+          path: /tmp/openapi-specs
+
+      # A spec job that reported success but shipped no usable pair is broken
+      # wiring, not a normal "not checked" — fail loudly instead of quietly
+      # downgrading the REST result.
+      - name: Verify the spec pair
+        if: ${{ needs.openapi-specs.result == 'success' }}
+        run: |
+          set -euo pipefail
+          for side in base pr; do
+            spec="/tmp/openapi-specs/${side}-swagger.json"
+            if [ ! -s "${spec}" ]; then
+              echo "::error::openapi-specs succeeded but ${spec} is missing or empty"
+              exit 1
+            fi
+          done
+
+      - name: Select the REST spec source
+        id: rest
+        run: |
+          set -euo pipefail
+          if [ "${{ needs.openapi-specs.result }}" = "success" ]; then
+            echo "expected=true" >> "$GITHUB_OUTPUT"
+            echo "flags=--rest-base-spec /tmp/openapi-specs/base-swagger.json --rest-new-spec /tmp/openapi-specs/pr-swagger.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "expected=false" >> "$GITHUB_OUTPUT"
+            echo "flags=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute release-safety marker
+        id: marker
+        env:
+          # Enable the write so we get the temp marker file; this is a throwaway,
+          # nothing is published.
+          RELEASE_SAFETY_MARKER_ENABLED: 'true'
+          # The AI migration review runs on READY PRs only (a real "about to merge"
+          # signal), never on drafts (still churning — not worth the spend). It runs
+          # on ALL migration-bearing PRs (even ones the linter flagged) so it can
+          # clear an expand/contract drop, and degrades to "unknown" without a key
+          # (e.g. fork PRs, which don't comment anyway).
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          IS_DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          set -euo pipefail
+          AI_FLAG=""
+          if [ "${IS_DRAFT}" = "true" ]; then
+            echo "draft=true" >> "$GITHUB_OUTPUT"
+            echo "Draft PR → skipping the AI migration review."
+          else
+            echo "draft=false" >> "$GITHUB_OUTPUT"
+            AI_FLAG="--ai-review"
+            echo "Ready PR → running the AI migration review (if migrations present)."
+          fi
+          tsx scripts/gen-release-safety.ts \
+            --version "pr-${{ github.event.pull_request.number }}" \
+            --previous-version "${{ needs.changes.outputs.base_short }}" \
+            --last-tag "${{ needs.changes.outputs.base_sha }}" \
+            --out /tmp/release-safety.json \
+            ${{ steps.rest.outputs.flags }} \
+            ${AI_FLAG}
+
+      # The generator soft-degrades every REST failure to `checked: false` so that
+      # nothing it does can fail a release. On a PR that silence has to be visible:
+      # if the specs were generated and handed over, a check that still did not run
+      # is broken wiring, not a clean bill of health. The comment is rendered and
+      # posted first, then the job fails — the author gets the honest verdict AND a
+      # red check, instead of one or the other.
+      - name: Confirm the REST check ran
+        id: rest-result
+        run: |
+          set -euo pipefail
+          CHECKED=$(node -e 'const m=JSON.parse(require("fs").readFileSync("/tmp/release-safety.json","utf8"));process.stdout.write(String(m?.api?.rest?.checked === true))')
+          if [ "${{ steps.rest.outputs.expected }}" = "true" ] && [ "${CHECKED}" = "true" ]; then
+            echo "status=ran" >> "$GITHUB_OUTPUT"
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+          elif [ "${{ steps.rest.outputs.expected }}" = "true" ]; then
+            echo "::error::the OpenAPI spec pair was generated but the REST diff did not run — see the marker step's [rest-api-diff] log"
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            echo "broken=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ needs.openapi-specs.result }}" = "skipped" ]; then
+            echo "status=skipped" >> "$GITHUB_OUTPUT"
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+          else
+            # openapi-specs is already red; it carries the failure on its own.
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Capture raw SQL-linter verdict (for expand/contract attribution)
+        id: lint
+        run: |
+          set -euo pipefail
+          if tsx scripts/sql-migration-lint.ts --last-tag "${{ needs.changes.outputs.base_sha }}" | grep -q '"breaking": true'; then
+            echo "breaking=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "breaking=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Render PR comment
+        run: |
+          tsx scripts/release-safety-pr-comment.ts \
+            --marker /tmp/release-safety.json \
+            --base "${{ github.event.pull_request.base.ref }} (${{ needs.changes.outputs.base_short }})" \
+            --rest-status "${{ steps.rest-result.outputs.status }}" \
+            ${{ steps.marker.outputs.draft == 'true' && '--draft' || '' }} \
+            ${{ steps.lint.outputs.breaking == 'true' && '--linter-breaking' || '--no-linter-breaking' }} \
+            --out /tmp/release-safety-comment.md
+
+      - name: Post or update sticky comment
+        # Fork PRs get a read-only token and cannot comment; skip them gracefully.
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/release-safety-comment.md', 'utf8');
+            const marker = '<!-- release-safety-marker -->';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail when a REST check was handed its specs but did not run
+        if: ${{ steps.rest-result.outputs.broken == 'true' }}
+        run: exit 1

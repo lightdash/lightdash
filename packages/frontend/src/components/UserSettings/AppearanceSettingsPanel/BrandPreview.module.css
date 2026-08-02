@@ -1,0 +1,114 @@
+.window {
+    overflow: hidden;
+    background-color: var(--mantine-color-body);
+}
+
+.chrome {
+    padding: 10px 14px;
+    background-color: var(--mantine-color-ldGray-0);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.dotRed,
+.dotYellow,
+.dotGreen {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+}
+
+.dotRed {
+    background-color: #ff5f57;
+}
+
+.dotYellow {
+    background-color: #febc2e;
+}
+
+.dotGreen {
+    background-color: #28c840;
+}
+
+.urlBar {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 24px;
+    margin: 0 40px;
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-md);
+    padding: 12px 18px;
+}
+
+.navLogo {
+    max-height: 22px;
+    max-width: 90px;
+    object-fit: contain;
+}
+
+.navLogoFallback {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background-color: var(--mantine-color-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.navAvatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.title {
+    line-height: 1.2;
+}
+
+.primaryButton {
+    padding: 8px 14px;
+    border-radius: var(--mantine-radius-md);
+    flex-shrink: 0;
+}
+
+.card {
+    padding: 14px;
+    background-color: var(--mantine-color-body);
+}
+
+.barsRow {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    height: 90px;
+}
+
+.bar {
+    flex: 1;
+    border-radius: 4px 4px 0 0;
+    min-height: 4px;
+}

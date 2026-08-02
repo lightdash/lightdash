@@ -35,6 +35,17 @@ export const useSettingsContext = (): SettingsContext => {
     const shouldShowAiAgentReviews =
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
 
+    const deepResearchFlagQuery = useServerFeatureFlag(
+        FeatureFlags.AiDeepResearch,
+    );
+    const { data: deepResearchFlag } = deepResearchFlagQuery;
+    const isDeepResearchEnabled = deepResearchFlag?.enabled ?? false;
+
+    const { data: aiAgentMemoryFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAgentMemory,
+    );
+    const shouldShowAiAgentMemories = aiAgentMemoryFlag?.enabled ?? false;
+
     const { data: serviceAccountsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
     );
@@ -73,20 +84,35 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.UserGroupsEnabled,
     );
 
-    const { data: dataAppsFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableDataApps,
-    );
+    const dataAppsFlagQuery = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const { data: dataAppsFlag } = dataAppsFlagQuery;
 
     const { data: proLimitsFlag } = useServerFeatureFlag(
         FeatureFlags.ProLimits,
     );
     const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
 
+    const organizationRoadmapFlagQuery = useServerFeatureFlag(
+        FeatureFlags.OrganizationRoadmap,
+    );
+    const { data: organizationRoadmapFlag } = organizationRoadmapFlagQuery;
+    const isOrganizationRoadmapEnabled =
+        organizationRoadmapFlag?.enabled ?? false;
+
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
         FeatureFlags.SsoOrganizationSettings,
     );
     const isSsoOrganizationSettingsEnabled =
         ssoOrganizationSettingsFlag?.enabled ?? false;
+
+    const { data: emailWhitelabelFlag } = useServerFeatureFlag(
+        FeatureFlags.EmailWhitelabel,
+    );
+    // Instance must be configured for whitelabelling (health) AND the org must
+    // have the feature flag.
+    const isEmailWhitelabelEnabled =
+        (health?.hasEmailWhitelabel ?? false) &&
+        (emailWhitelabelFlag?.enabled ?? false);
 
     const {
         data: organization,
@@ -166,16 +192,24 @@ export const useSettingsContext = (): SettingsContext => {
         isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
         isProLimitsEnabled,
+        isOrganizationRoadmapEnabled,
+        isOrganizationRoadmapLoading:
+            organizationRoadmapFlagQuery.isInitialLoading,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
+        shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading:
             aiOrganizationSettingsQuery.isInitialLoading,
+        isDeepResearchFlagLoading: deepResearchFlagQuery.isInitialLoading,
         dataAppsFlag,
+        isDataAppsFlagLoading: dataAppsFlagQuery.isInitialLoading,
         embeddingEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,

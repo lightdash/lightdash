@@ -1,0 +1,182 @@
+.step {
+    display: flex;
+    gap: var(--mantine-spacing-md);
+    position: relative;
+}
+
+.step:not(:last-child) .content {
+    padding-bottom: var(--mantine-spacing-lg);
+}
+
+/* Connecting line runs down the centre of the bullet column, behind bullets. */
+.step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    top: 34px;
+    bottom: 6px;
+    left: 14px;
+    width: 2px;
+    transform: translateX(-50%);
+    background-color: var(--mantine-color-default-border);
+}
+
+.bullet {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--mantine-radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    z-index: 1;
+}
+
+.bulletActive {
+    background-color: var(--mantine-color-blue-filled);
+    color: var(--mantine-color-white);
+}
+
+.bulletInactive {
+    background-color: var(--mantine-color-blue-light);
+    color: var(--mantine-color-blue-light-color);
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+}
+
+.codeBlock {
+    position: relative;
+    background-color: var(--mantine-color-dark-8);
+    color: var(--mantine-color-gray-1);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-md);
+    padding-right: 48px;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.codeBlockCopy {
+    position: absolute;
+    top: var(--mantine-spacing-xs);
+    right: var(--mantine-spacing-xs);
+}
+
+.codeMask {
+    opacity: 0.55;
+    letter-spacing: 1px;
+}
+
+/* Compact read-only info chips for the connection details step. */
+.chipGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--mantine-spacing-xs);
+}
+
+.chipSpan2 {
+    grid-column: 1 / -1;
+}
+
+.chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    padding: 8px 10px;
+}
+
+.chipText {
+    min-width: 0;
+}
+
+.chipLabel {
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--mantine-color-dimmed);
+}
+
+.chipValue {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 12.5px;
+    color: var(--mantine-color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Generated-token success card: header, field, copy button and hint all live
+   inside one green-tinted surface so they read as a single connected unit. */
+.tokenCard {
+    background-color: var(--mantine-color-green-light);
+    border: 1px solid var(--mantine-color-green-light-hover);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+
+.tokenCardTitle {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    color: var(--mantine-color-green-light-color);
+}
+
+.tokenCardMeta {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-green-light-color);
+    opacity: 0.85;
+}
+
+.tokenCardHint {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-green-light-color);
+    opacity: 0.85;
+}
+
+.tokenField {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-green-light-hover);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-green-light-color);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tokenCopyBtn {
+    flex: none;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-green-light-hover);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-green-light-color);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+}
+
+.tokenCopyBtn:hover {
+    background-color: var(--mantine-color-green-light);
+}

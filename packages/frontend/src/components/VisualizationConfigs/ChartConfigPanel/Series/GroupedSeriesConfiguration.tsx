@@ -19,14 +19,20 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Checkbox, Group, Select, Stack, Switch } from '@mantine/core';
+import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine-8/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
+import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
+import {
+    SeriesDepthControl,
+    type SeriesDrawOrderControl,
+} from './SeriesDrawOrder';
+import drawOrderStyles from './seriesDrawOrder.module.css';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
 const VALUE_LABELS_OPTIONS = [
@@ -76,6 +82,7 @@ type GroupedSeriesConfigurationProps = {
     items: Array<Field | TableCalculation | CustomDimension>;
     dragHandleProps?: DraggableProvidedDragHandleProps | null;
     isDragDisabled?: boolean;
+    drawOrder?: SeriesDrawOrderControl;
     updateAllGroupedSeries: (fieldKey: string, series: Partial<Series>) => void;
     series: Series[];
 } & Pick<
@@ -93,6 +100,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateAllGroupedSeries,
     dragHandleProps,
     isDragDisabled,
+    drawOrder,
     updateSeries,
     series,
 }) => {
@@ -152,7 +160,11 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     return (
         <Config>
             <Config.Section>
-                <Group noWrap spacing="two">
+                <Group
+                    wrap="nowrap"
+                    gap="two"
+                    className={drawOrderStyles.seriesHeader}
+                >
                     <GrabIcon
                         dragHandleProps={dragHandleProps}
                         disabled={isDragDisabled}
@@ -162,9 +174,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     <Config.Heading>
                         {getItemLabelWithoutTableName(item)} (grouped)
                     </Config.Heading>
+                    {drawOrder && <SeriesDepthControl control={drawOrder} />}
                 </Group>
-                <Stack spacing="xs" ml="md">
-                    <Group noWrap spacing="xs" align="start">
+                <Stack gap="xs" ml="md">
+                    <Group wrap="nowrap" gap="xs" align="start">
                         <ChartTypeSelect
                             chartValue={chartValue}
                             showMixed={!isChartTypeTheSameForAllSeries}
@@ -184,6 +197,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         />
 
                         <Select
+                            allowDeselect={false}
                             label="Axis"
                             value={
                                 isAxisTheSameForAllSeries
@@ -212,6 +226,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                             }}
                         />
                         <Select
+                            allowDeselect={false}
                             label="Value labels"
                             value={
                                 isLabelTheSameForAllSeries
@@ -243,9 +258,13 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         />
                         {seriesGroup[0].stack &&
                             chartValue === CartesianSeriesType.BAR && (
-                                <Stack spacing="xs" mt="two">
+                                <Stack gap="xs" mt="two">
                                     <Config.Label>Total</Config.Label>
                                     <Switch
+                                        size="xs"
+                                        classNames={{
+                                            label: compactStyles.compactCheckboxLabel,
+                                        }}
                                         checked={
                                             seriesGroup[0].stackLabel?.show
                                         }
@@ -263,8 +282,12 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     </Group>
                     {(chartValue === CartesianSeriesType.LINE ||
                         chartValue === CartesianSeriesType.AREA) && (
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 checked={Boolean(seriesGroup[0].showSymbol)}
                                 label="Show symbol"
                                 onChange={() => {
@@ -276,6 +299,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 }}
                             />
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 checked={seriesGroup[0].smooth}
                                 label="Smooth"
                                 onChange={() => {
@@ -294,7 +321,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     p="xxs"
                     ml="md"
                     py="xs"
-                    sx={(theme) => ({ borderRadius: theme.radius.sm })}
+                    style={{ borderRadius: 'var(--mantine-radius-sm)' }}
                 >
                     <DragDropContext onDragEnd={onDragEnd}>
                         <Droppable droppableId="grouped-series-sort-fields">

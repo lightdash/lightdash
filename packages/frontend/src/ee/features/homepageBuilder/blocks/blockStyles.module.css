@@ -1,0 +1,735 @@
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.sectionHeaderCentered {
+    justify-content: center;
+}
+
+.sectionTitle {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mantine-color-ldDark-9);
+}
+
+.miniPill {
+    font-size: 11px;
+    color: var(--mantine-color-ldGray-5);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 5px;
+    padding: 1px 6px;
+    white-space: nowrap;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+/* Card height scale. Every card is one unit or two, so cards of different
+ * types tessellate: two collection cards stack to exactly one resource card.
+ * The unit is the metric card's natural height — it has the most content
+ * (label, value, sparkline, comparison), so it sets the floor. Shorter cards
+ * grow into it rather than the metric card shrinking and crushing its chart. */
+.cardUnit1 {
+    min-height: var(--card-unit);
+}
+
+/* Content tile: a compact horizontal row at the half-unit floor. When its
+ * elastic grid hands it more height (container query on the cell), it turns
+ * into a vertical card and reveals the extra meta line — richer, not airier. */
+.contentTile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+}
+
+.tileBody {
+    flex: 1;
+    min-width: 0;
+}
+
+.tileExtra {
+    display: none;
+    font-size: 11.5px;
+    color: var(--mantine-color-ldGray-6);
+    margin-top: 8px;
+}
+
+@container (min-height: 112px) {
+    .contentTile {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: space-between;
+    }
+
+    .contentTile .tileActions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    .tileExtra {
+        display: block;
+    }
+}
+
+/* Half a unit: two of these plus the 10px grid gap equal one unit card.
+ * A floor, not a fixed height — elastic grids stretch tiles to close the
+ * gap to a taller sibling column. */
+.cardUnitHalf {
+    min-height: calc((var(--card-unit) - 10px) / 2);
+}
+
+.hoverCard {
+    --card-unit: 140px;
+
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+a .hoverCard:hover,
+.hoverCard.clickable:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-1px);
+}
+
+.listCard {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+    overflow: hidden;
+}
+
+.listRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+}
+
+.listRow + .listRow {
+    border-top: 1px solid var(--mantine-color-ldGray-1);
+}
+
+.listRow.clickable:hover {
+    background: var(--mantine-color-ldGray-0);
+}
+
+.pickerRow {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 5px 8px;
+    transition: background-color 0.1s ease;
+}
+
+.pickerRow:hover {
+    background: var(--mantine-color-ldGray-1);
+}
+
+.pickerScrollList {
+    overflow-y: auto;
+    /* override flex min-height:auto so the list shrinks and scrolls internally */
+    min-height: 0;
+}
+
+.actionRow {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 8px;
+}
+
+.plainLink {
+    color: inherit;
+    text-decoration: none;
+}
+
+.iconSquare {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    background: var(--mantine-color-ldGray-1);
+    display: grid;
+    place-items: center;
+    color: var(--mantine-color-ldGray-7);
+    flex-shrink: 0;
+}
+
+.iconSquareLg {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+}
+
+.dashedEmpty {
+    font-size: 12.5px;
+    color: var(--mantine-color-ldGray-5);
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.favPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 240px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-size: 13px;
+    font-weight: 500;
+    color: inherit;
+    text-decoration: none;
+    box-shadow: var(--mantine-shadow-subtle);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.favPill:hover {
+    color: inherit;
+}
+
+.favPill:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.favPillName {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Icons are flex children, so a long name squeezed them instead of itself —
+ * the name owns all the shrinking. */
+.favPill > svg {
+    flex-shrink: 0;
+}
+
+.favPillMore {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: 8px;
+    padding: 7px 11px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.favPillMore:hover {
+    border-color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-ldGray-7);
+}
+
+.rowName {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    /* The name is the thing being scanned: never let it wrap and push the
+     * supporting line around. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rowMeta {
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-6);
+}
+
+/* The supporting line under a name in the list layout. One line, always: a
+ * wrapped sentence outweighs the name it is supporting and makes row heights
+ * ragged, so a list of ten stops being scannable. */
+.rowDesc {
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rowAside {
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-5);
+    white-space: nowrap;
+}
+
+.announcementDot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mantine-color-ldGray-4);
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.listRowTop {
+    align-items: flex-start;
+}
+
+.flexFill {
+    flex: 1;
+    min-width: 0;
+}
+
+.announcementText {
+    font-size: 13.5px;
+    line-height: 1.45;
+}
+
+.rowAsideSpaced {
+    margin-top: 2px;
+}
+
+.listCardSpaced {
+    margin-bottom: 8px;
+}
+
+/* KPI cards stack top-down with their comparison line pinned to the bottom.
+ * A metric without a time dimension has no sparkline, so without this its
+ * content stops mid-card and the tile reads as empty next to a fuller
+ * neighbour — the grid already stretches every card to the row's height. */
+.kpiCard {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.kpiFoot {
+    margin-top: auto;
+}
+
+.kpiLabel {
+    font-size: 12px;
+    color: var(--mantine-color-ldGray-6);
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.kpiValue {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 2px;
+}
+
+/* The delta keeps its size; only the caption beside it gives way. */
+.kpiDelta {
+    flex-shrink: 0;
+
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.kpiDeltaUp {
+    color: var(--mantine-color-teal-7);
+}
+
+.kpiDeltaDown {
+    color: var(--mantine-color-red-7);
+}
+
+.buildHint {
+    font-size: 11.5px;
+    color: var(--mantine-color-ldGray-5);
+    margin-top: 8px;
+}
+
+/* Single-cell grid so the wrapped card keeps its block box inside SimpleGrid */
+.sortableTile {
+    display: grid;
+    cursor: grab;
+    transition: opacity 0.12s ease-in-out;
+}
+
+.sortableTile[data-dragging='true'] {
+    opacity: 0.4;
+    cursor: grabbing;
+    position: relative;
+    z-index: 1;
+}
+
+.addContentTile {
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: 10px;
+    min-height: calc((var(--card-unit, 140px) - 10px) / 2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    color: var(--mantine-color-ldGray-5);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    background: transparent;
+    font-family: inherit;
+    transition: all 0.15s ease-in-out;
+}
+
+.addContentTile:hover {
+    border-color: var(--mantine-color-ldGray-5);
+    color: var(--mantine-color-ldGray-7);
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+}
+
+/* A lone quick-actions row is a CTA band: give it extra vertical air. When
+ * the block shares a row (parent column has siblings) it stays flush. */
+:only-child > .quickActionsBand {
+    margin-block: 24px;
+}
+
+.quickActionChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: inherit;
+    text-decoration: none;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border: 1px solid var(--mantine-color-ldGray-2);
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+/* Primary quick action: same box, inverted. Colours only — no size change, so
+ * it can't introduce a height difference next to its siblings. */
+.quickActionChipPrimary,
+.quickActionChipPrimary:hover {
+    background: light-dark(
+        var(--mantine-color-dark-9),
+        var(--mantine-color-gray-0)
+    );
+    border-color: light-dark(
+        var(--mantine-color-dark-9),
+        var(--mantine-color-gray-0)
+    );
+    color: light-dark(#fff, var(--mantine-color-dark-9));
+}
+
+.quickActionChip:hover {
+    text-decoration: none;
+    color: inherit;
+    background: var(--mantine-color-ldGray-0);
+    border-color: var(--mantine-color-ldGray-3);
+}
+
+/* --- Resource cards ---------------------------------------------------- */
+
+.mediaCard {
+    --card-unit: 140px;
+
+    position: relative;
+
+    /* Fixed to the unit rather than floored by it: the band below absorbs
+     * whatever the body doesn't use, so a one-line and a two-line description
+     * still produce the same card height. */
+    height: var(--card-unit);
+
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+    color: inherit;
+    text-decoration: none;
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* A resources block alone in its row has the full page width to itself, so its
+ * cards can grow taller — the extra height goes to the thumb band (flex: 1),
+ * showing more of a 16:9 still (e.g. a YouTube thumbnail) before object-fit:
+ * cover crops it. The double-class keeps it winning the --card-unit cascade
+ * regardless of source order. */
+.mediaCard.mediaCardTall {
+    --card-unit: 200px;
+}
+
+.mediaCard.clickable:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-2px);
+    text-decoration: none;
+    color: inherit;
+}
+
+/* The band takes the card's spare height instead of an aspect ratio, so the
+ * image stays a calm strip at any column width and the card stays one unit.
+ * object-fit keeps it framed as the box changes shape. */
+.resThumb {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    /* Floor, not zero: the band absorbs slack but must always frame the
+     * floating icon with margin rather than being flush with it. */
+    min-height: 56px;
+    overflow: hidden;
+    background: var(--mantine-color-ldGray-1);
+}
+
+.resThumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    animation: resFadeIn 0.2s ease-out;
+    transition: transform 0.25s ease;
+}
+
+.mediaCard.clickable:hover .resThumb img {
+    transform: scale(1.03);
+}
+
+/* Quiet duotone tile: a muted per-kind wash with a small bare favicon —
+ * no blurred backdrop, no floating chip. */
+.resThumbTile {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 56px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(
+        135deg,
+        light-dark(#eef0f4, #23262e),
+        light-dark(#e3e6ee, #1c1f26)
+    );
+    color: var(--mantine-color-ldGray-6);
+}
+
+.resFavTile {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    object-fit: contain;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+    animation: resFadeIn 0.2s ease-out;
+}
+
+.resGlyphTile {
+    display: grid;
+    place-items: center;
+    opacity: 0.75;
+}
+
+.resThumbDoc {
+    background: linear-gradient(
+        135deg,
+        light-dark(#e8f0ea, #222e27),
+        light-dark(#dbe8df, #1a251f)
+    );
+    color: light-dark(#4c7a5c, #8fbf9f);
+}
+
+.resThumbLink {
+    background: linear-gradient(
+        135deg,
+        light-dark(#eaedf8, #252a3b),
+        light-dark(#dfe3f2, #1e2231)
+    );
+    color: light-dark(#5a68a8, #9ba8dd);
+}
+
+.resThumbVideo {
+    background: linear-gradient(
+        135deg,
+        light-dark(#efeaf8, #2b2539),
+        light-dark(#e5def2, #231e2f)
+    );
+    color: light-dark(#7a5aa8, #b19bdd);
+}
+
+.resThumbClaude {
+    background: linear-gradient(
+        135deg,
+        light-dark(#f7ede5, #362a21),
+        light-dark(#f1e2d3, #2c221b)
+    );
+    color: light-dark(#c15f3c, #e0916f);
+}
+
+.resThumbYoutube {
+    background: linear-gradient(
+        135deg,
+        light-dark(#f8eae8, #362525),
+        light-dark(#f2dedb, #2c1f1f)
+    );
+    color: light-dark(#b0453a, #dd8a80);
+}
+
+/* Data apps use the brand orange, tinted into a quiet backdrop for the
+ * icon fallback when an app has no thumbnail. */
+/* External-link affordance: quiet corner mark, revealed on hover. */
+.resExternal {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 1;
+    color: light-dark(rgba(0, 0, 0, 0.35), rgba(255, 255, 255, 0.45));
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.mediaCard:hover .resExternal {
+    opacity: 1;
+}
+
+.mediaIcon {
+    /* Stands in for the image band, so an icon-only card is exactly as tall as
+     * one with a screenshot and a mixed grid keeps a single baseline. */
+    flex: 1;
+    min-height: 56px;
+    display: grid;
+    place-items: center;
+}
+
+.mediaBody {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 9px 11px 11px;
+}
+
+.mediaTitle {
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    /* One line always: a wrapped title eats the image band above it, since
+     * the band absorbs whatever the body leaves. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.mediaDesc {
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--mantine-color-ldGray-6);
+    display: -webkit-box;
+    /* Two lines, but a *fixed* two-line box either way — the band absorbs
+     * the card's slack, so a variable body would make it wobble. */
+    -webkit-line-clamp: 2;
+    height: 2.8em;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.mediaTitleInput input {
+    font-weight: 600;
+}
+
+/* Small leading thumbnail for list rows */
+.rowThumb {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    /* Inset ring instead of a hard border — softer against the favicon. */
+    box-shadow: inset 0 0 0 1px
+        light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.08));
+    background: var(--mantine-color-ldGray-1);
+}
+
+.rowThumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Skeletons while a pasted link resolves */
+.skeletonBlock,
+.skeletonLine {
+    background: linear-gradient(
+        90deg,
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-ldGray-1)
+    );
+    background-size: 200% 100%;
+    animation: resShimmer 1.2s ease-in-out infinite;
+    border-radius: 6px;
+}
+
+.skeletonLine {
+    height: 10px;
+}
+
+.skeletonKind {
+    width: 40%;
+}
+
+.skeletonShort {
+    width: 60%;
+}
+
+.skeletonRowSecond {
+    margin-top: 5px;
+}
+
+@keyframes resShimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes resFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mediaCard,
+    .resThumb img {
+        transition: none;
+    }
+    .mediaCard.clickable:hover {
+        transform: none;
+    }
+    .mediaCard.clickable:hover .resThumb img {
+        transform: none;
+    }
+    .resThumb img,
+    .skeletonBlock,
+    .skeletonLine {
+        animation: none;
+    }
+}

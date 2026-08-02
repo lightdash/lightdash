@@ -524,7 +524,6 @@ export class CatalogController extends BaseController {
         @Query() tables?: ApiCatalogSearch['tables'],
         @Query() ownerUserUuids?: ApiCatalogSearch['ownerUserUuids'],
     ): Promise<ApiMetricsCatalog> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const paginateArgs: KnexPaginateArgs | undefined =
@@ -545,7 +544,7 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getMetricsCatalog(
-                toSessionUser(req.account),
+                req.account!,
                 projectUuid,
                 CatalogSearchContext.SPOTLIGHT,
                 paginateArgs,
@@ -608,17 +607,11 @@ export class CatalogController extends BaseController {
         @Path() metricName: string,
         @Request() req: express.Request,
     ): Promise<ApiGetMetricPeek> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetric(
-                toSessionUser(req.account),
-                projectUuid,
-                tableName,
-                metricName,
-            );
+            .getMetric(req.account!, projectUuid, tableName, metricName);
 
         return {
             status: 'ok',
@@ -641,13 +634,12 @@ export class CatalogController extends BaseController {
         @Request() req: express.Request,
         @Query() tableName?: string,
     ): Promise<ApiMetricsWithAssociatedTimeDimensionResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
             .getAllCatalogMetricsWithTimeDimensions(
-                toSessionUser(req.account),
+                req.account!,
                 projectUuid,
                 CatalogSearchContext.SPOTLIGHT,
                 tableName,
@@ -675,13 +667,12 @@ export class CatalogController extends BaseController {
         @Path() tableName: string,
         @Request() req: express.Request,
     ): Promise<ApiFilterDimensionsResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
             .getFilterDimensions(
-                toSessionUser(req.account),
+                req.account!,
                 projectUuid,
                 tableName,
                 CatalogSearchContext.METRICS_EXPLORER,
@@ -709,13 +700,12 @@ export class CatalogController extends BaseController {
         @Path() tableName: string,
         @Request() req: express.Request,
     ): Promise<ApiSegmentDimensionsResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
             .getSegmentDimensions(
-                toSessionUser(req.account),
+                req.account!,
                 projectUuid,
                 tableName,
                 CatalogSearchContext.METRICS_EXPLORER,
@@ -1026,12 +1016,11 @@ export class CatalogController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: CatalogOwner[] }> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetricOwners(toSessionUser(req.account), projectUuid);
+            .getMetricOwners(req.account!, projectUuid);
 
         return {
             status: 'ok',

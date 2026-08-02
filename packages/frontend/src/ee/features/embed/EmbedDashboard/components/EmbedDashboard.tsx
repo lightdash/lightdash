@@ -5,18 +5,20 @@ import {
     type DashboardTile,
     type EmbedDashboard as EmbedDashboardType,
 } from '@lightdash/common';
-import { Button, Group, Tabs, TextInput } from '@mantine-8/core';
+import { Box, Button, Group, Tabs, TextInput } from '@mantine-8/core';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { LockedDashboardModal } from '../../../../../components/common/modal/LockedDashboardModal';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import AddTileButton from '../../../../../components/DashboardTiles/AddTileButton';
 import DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
+import TileBase from '../../../../../components/DashboardTiles/TileBase';
+import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
+import GuidedFilterSetupOverlay from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
 import {
     convertLayoutToBaseCoordinates,
     GRID_CONTAINER_PADDING,
@@ -32,6 +34,7 @@ import {
 } from '../../../../../hooks/dashboard/useDashboard';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useEmbed from '../../../../providers/Embed/useEmbed';
+import { embedContractClass } from '../../styles/embedClassContract';
 import { useEmbedDashboard } from '../hooks';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
@@ -55,7 +58,7 @@ const EmbedDashboardGrid: FC<{
     projectUuid: string;
     paletteColors?: string[];
     paletteDarkColors?: string[] | null;
-    hasRequiredDashboardFiltersToSet: boolean;
+    hasUnmetFilterRequirements: boolean;
     isTabEmpty?: boolean;
     gridProps: ResponsiveGridLayoutProps;
     isEditMode: boolean;
@@ -71,7 +74,7 @@ const EmbedDashboardGrid: FC<{
     projectUuid,
     paletteColors,
     paletteDarkColors,
-    hasRequiredDashboardFiltersToSet,
+    hasUnmetFilterRequirements,
     isTabEmpty,
     gridProps,
     isEditMode,
@@ -103,13 +106,27 @@ const EmbedDashboardGrid: FC<{
                     onDragStop={onLayoutChange}
                     onResizeStop={onLayoutChange}
                     onBreakpointChange={(_, cols) => onBreakpointChange(cols)}
-                    className={`react-grid-layout-dashboard ${
-                        hasRequiredDashboardFiltersToSet ? 'locked' : ''
-                    }`}
+                    className="react-grid-layout-dashboard"
                 >
                     {filteredTiles.map((tile, index) => (
                         <div key={tile.uuid} data-tile-uuid={tile.uuid}>
-                            {tile.type === DashboardTileTypes.SAVED_CHART ? (
+                            {(tile.type === DashboardTileTypes.SAVED_CHART ||
+                                tile.type === DashboardTileTypes.SQL_CHART) &&
+                            hasUnmetFilterRequirements ? (
+                                // Placeholder instead of the tile so its
+                                // query hooks never mount while locked
+                                <TileBase
+                                    key={tile.uuid}
+                                    isLoading={false}
+                                    title={''}
+                                    tile={tile}
+                                    isEditMode={isEditMode}
+                                    onDelete={() => onDeleteTile(tile)}
+                                    onEdit={onEditTile}
+                                >
+                                    <UnmetRequirementsPlaceholder />
+                                </TileBase>
+                            ) : tile.type === DashboardTileTypes.SAVED_CHART ? (
                                 useDashboardEditorTileQueries ? (
                                     <DashboardChartTile
                                         key={tile.uuid}
@@ -148,9 +165,7 @@ const EmbedDashboardGrid: FC<{
                                             dashboard.canExportImages
                                         }
                                         canViewExplore={dashboard.canExplore}
-                                        locked={
-                                            hasRequiredDashboardFiltersToSet
-                                        }
+                                        locked={hasUnmetFilterRequirements}
                                         tileIndex={index}
                                     />
                                 )
@@ -339,25 +354,26 @@ const EmbedDashboard: FC<{
             setEmbedDashboard(dashboard);
         }
     }, [dashboard, setEmbedDashboard]);
-    const requiredDashboardFilters = useDashboardContext(
-        (c) => c.requiredDashboardFilters,
+    const unmetFilterRequirements = useDashboardContext(
+        (c) => c.unmetFilterRequirements,
     );
 
-    const hasRequiredDashboardFiltersToSet =
-        requiredDashboardFilters.length > 0;
+    const hasUnmetFilterRequirements = unmetFilterRequirements.length > 0;
+
+    // Guided setup card over the locked grid; dismissal lasts until reload
+    const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
+    const showGuidedSetup = useMemo(
+        () =>
+            !isEditMode &&
+            !isGuidedSetupDismissed &&
+            hasUnmetFilterRequirements,
+        [isEditMode, isGuidedSetupDismissed, hasUnmetFilterRequirements],
+    );
+
     const currentDashboardTiles = useMemo(
         () => dashboardTiles ?? dashboard?.tiles ?? [],
         [dashboard?.tiles, dashboardTiles],
     );
-    const hasChartTiles =
-        useMemo(
-            () =>
-                currentDashboardTiles.some(
-                    (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-                ),
-            [currentDashboardTiles],
-        ) || false;
-
     // Ensure dashboard tabs are set in context
     useEffect(() => {
         if (!dashboardTabs.length && dashboard && dashboard.tabs.length > 0) {
@@ -721,6 +737,34 @@ const EmbedDashboard: FC<{
         );
     };
 
+    const renderGridWithGuidedSetup = (options?: { isTabEmpty?: boolean }) => (
+        <>
+            {showGuidedSetup && (
+                <GuidedFilterSetupOverlay
+                    className={embedContractClass('ld-dashboard-guided-setup')}
+                    onDismiss={() => setIsGuidedSetupDismissed(true)}
+                />
+            )}
+            <EmbedDashboardGrid
+                filteredTiles={filteredTiles}
+                layouts={layouts}
+                dashboard={dashboard}
+                projectUuid={projectUuid}
+                paletteColors={dashboard.selectedPalette?.colors}
+                paletteDarkColors={dashboard.selectedPalette?.darkColors}
+                hasUnmetFilterRequirements={hasUnmetFilterRequirements}
+                isTabEmpty={options?.isTabEmpty}
+                gridProps={gridProps}
+                isEditMode={isEditMode}
+                onLayoutChange={handleLayoutChange}
+                onBreakpointChange={setCurrentCols}
+                onDeleteTile={handleDeleteTile}
+                onEditTile={handleEditTile}
+                useDashboardEditorTileQueries={canWriteDashboard}
+            />
+        </>
+    );
+
     return (
         <div
             // Used by EmbedDashboardExportPdf to temporarily set height:auto for multipage PDF printing
@@ -732,10 +776,6 @@ const EmbedDashboard: FC<{
                 }
             }
         >
-            <LockedDashboardModal
-                opened={hasRequiredDashboardFiltersToSet && !!hasChartTiles}
-            />
-
             {currentDashboardTiles.length === 0 ? (
                 <>
                     <EmbedDashboardHeader
@@ -743,12 +783,12 @@ const EmbedDashboard: FC<{
                         projectUuid={projectUuid}
                     />
                     {renderDashboardEditToolbar()}
-                    <div style={{ marginTop: '20px' }}>
+                    <Box mt="lg">
                         <SuboptimalState
                             title="Empty dashboard"
                             description="This dashboard has no tiles"
                         />
-                    </div>
+                    </Box>
                 </>
             ) : tabsEnabled ? (
                 <Tabs
@@ -779,27 +819,7 @@ const EmbedDashboard: FC<{
                         }
                     />
                     {renderDashboardEditToolbar()}
-                    <EmbedDashboardGrid
-                        filteredTiles={filteredTiles}
-                        layouts={layouts}
-                        dashboard={dashboard}
-                        projectUuid={projectUuid}
-                        paletteColors={dashboard.selectedPalette?.colors}
-                        paletteDarkColors={
-                            dashboard.selectedPalette?.darkColors
-                        }
-                        hasRequiredDashboardFiltersToSet={
-                            hasRequiredDashboardFiltersToSet
-                        }
-                        isTabEmpty={isTabEmpty}
-                        gridProps={gridProps}
-                        isEditMode={isEditMode}
-                        onLayoutChange={handleLayoutChange}
-                        onBreakpointChange={setCurrentCols}
-                        onDeleteTile={handleDeleteTile}
-                        onEditTile={handleEditTile}
-                        useDashboardEditorTileQueries={canWriteDashboard}
-                    />
+                    {renderGridWithGuidedSetup({ isTabEmpty })}
                 </Tabs>
             ) : (
                 <>
@@ -808,26 +828,7 @@ const EmbedDashboard: FC<{
                         projectUuid={projectUuid}
                     />
                     {renderDashboardEditToolbar()}
-                    <EmbedDashboardGrid
-                        filteredTiles={filteredTiles}
-                        layouts={layouts}
-                        dashboard={dashboard}
-                        projectUuid={projectUuid}
-                        paletteColors={dashboard.selectedPalette?.colors}
-                        paletteDarkColors={
-                            dashboard.selectedPalette?.darkColors
-                        }
-                        hasRequiredDashboardFiltersToSet={
-                            hasRequiredDashboardFiltersToSet
-                        }
-                        gridProps={gridProps}
-                        isEditMode={isEditMode}
-                        onLayoutChange={handleLayoutChange}
-                        onBreakpointChange={setCurrentCols}
-                        onDeleteTile={handleDeleteTile}
-                        onEditTile={handleEditTile}
-                        useDashboardEditorTileQueries={canWriteDashboard}
-                    />
+                    {renderGridWithGuidedSetup()}
                 </>
             )}
         </div>

@@ -103,6 +103,12 @@ export class GeoJsonProxyController extends BaseController {
                 // original controller, which accepted any content-type.
                 allowedContentTypes: [],
             });
+            // secureFetch forwards non-2xx responses; keep rejecting them here.
+            if (result.status >= 400) {
+                throw new ParameterError(
+                    `Failed to fetch GeoJSON: Request failed with status ${result.status}`,
+                );
+            }
             bodyText = result.bodyText;
         } catch (error) {
             if (error instanceof SecureFetchError) {

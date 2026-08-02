@@ -19,6 +19,8 @@ export enum ContentTypePriority {
 export type ContentFilters = {
     projectUuids?: string[];
     spaceUuids?: string[];
+    /** Restrict to specific content uuids (e.g. resolving curated collections) */
+    uuids?: string[];
     contentTypes?: ContentType[];
     chart?: {
         sources?: ChartContent['source'][];

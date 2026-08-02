@@ -197,7 +197,11 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                 closeOnClickOutside
             >
                 <Menu.Target>
-                    <ActionIcon variant="subtle" disabled={disabled}>
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        disabled={disabled}
+                    >
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>
@@ -252,6 +256,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
+                role="alertdialog"
                 title="Delete user"
                 icon={IconTrash}
                 cancelDisabled={isDeleting}

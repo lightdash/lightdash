@@ -34,26 +34,23 @@ const getSingleQueryValue = (value: unknown): string | undefined => {
     return undefined;
 };
 
-const parseProjectUuid = (req: Pick<Request, 'query' | 'path'>) => {
-    const queryProjectUuid =
-        getSingleQueryValue(req.query.projectUuid) ??
-        getSingleQueryValue(req.query.projectUuids);
-
-    if (queryProjectUuid) {
-        return queryProjectUuid;
-    }
-
-    const pathParts = req.path.split('/');
+const getPathProjectUuid = (path: string): string | undefined => {
+    const pathParts = path.split('/');
     const projectParams = ['embed', 'projects'];
     const projectUuidIndex =
         pathParts.findIndex((part) => projectParams.includes(part)) + 1;
 
-    if (projectUuidIndex < 1) {
+    if (projectUuidIndex < 1 || !pathParts[projectUuidIndex]) {
         return undefined;
     }
 
     return pathParts[projectUuidIndex];
 };
+
+const parseProjectUuid = (req: Pick<Request, 'query' | 'path'>) =>
+    getPathProjectUuid(req.path) ??
+    getSingleQueryValue(req.query.projectUuid) ??
+    getSingleQueryValue(req.query.projectUuids);
 
 // This is the only embed endpoint that requires a user to be authenticated.
 // All other embed endpoints run off of the JWT.

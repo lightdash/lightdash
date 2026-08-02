@@ -409,6 +409,7 @@ export class ExcelService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         enableImprovedExcelDates = false,
         timezone,
     }: {
@@ -420,6 +421,7 @@ export class ExcelService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         enableImprovedExcelDates?: boolean;
         timezone?: string;
     }): Promise<Excel.Buffer> {
@@ -447,6 +449,7 @@ export class ExcelService {
                 pivotDetails,
                 warehouseRowTotals,
                 warehouseColumnTotals,
+                warehouseGrandTotals,
                 timezone,
             });
         }
@@ -460,6 +463,7 @@ export class ExcelService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
         });
 
         // Build date column metadata: for each data column, determine if
@@ -580,6 +584,7 @@ export class ExcelService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         timezone,
     }: {
         formattedRows: ResultRow[];
@@ -590,6 +595,7 @@ export class ExcelService {
         pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         timezone?: string;
     }): Promise<Excel.Buffer> {
         const csvResults = pivotResultsAsCsv({
@@ -601,6 +607,7 @@ export class ExcelService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
         });
 
         const workbook = new Excel.Workbook();
@@ -656,6 +663,7 @@ export class ExcelService {
         pivotDetails,
         warehouseRowTotals,
         warehouseColumnTotals,
+        warehouseGrandTotals,
         timezone,
         csvCellsLimit,
     }: {
@@ -667,6 +675,7 @@ export class ExcelService {
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         warehouseRowTotals?: PivotRowTotalsByIndex;
         warehouseColumnTotals?: Record<string, number>;
+        warehouseGrandTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -729,6 +738,7 @@ export class ExcelService {
             pivotDetails,
             warehouseRowTotals,
             warehouseColumnTotals,
+            warehouseGrandTotals,
             enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
             timezone,
         });
@@ -786,6 +796,7 @@ export class ExcelService {
         timezone?: string,
         conditionalFormattings?: ConditionalFormattingConfig[],
         minMaxMap?: ConditionalFormattingMinMaxMap,
+        columnTotals?: Record<string, number>,
     ): Promise<{ truncated: boolean }> {
         // Use the same approach as our working tests - direct filename instead of stream
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
@@ -873,6 +884,22 @@ export class ExcelService {
             maxLines: ExcelService.EXCEL_ROW_LIMIT,
         });
 
+        if (columnTotals && Object.keys(columnTotals).length > 0) {
+            const totalsRow: Record<string, string | number> = {};
+            sortedFieldIds.forEach((fieldId, colIndex) => {
+                const total = columnTotals[fieldId];
+                if (total !== undefined) {
+                    totalsRow[`col_${colIndex}`] = total;
+                }
+            });
+            // Label the row like the table footer does, as long as the first
+            // column has no total of its own to show.
+            if (totalsRow.col_0 === undefined) {
+                totalsRow.col_0 = 'Total';
+            }
+            worksheet.addRow(totalsRow).commit();
+        }
+
         // Commit Excel to temp file
         worksheet.commit();
         await workbook.commit();
@@ -899,6 +926,8 @@ export class ExcelService {
             hiddenFields?: string[];
             attachmentDownloadName?: string;
             conditionalFormattings?: ConditionalFormattingConfig[];
+            // Warehouse-computed totals appended as a final row, keyed by field id
+            columnTotals?: Record<string, number>;
         } = {},
         timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
@@ -911,6 +940,7 @@ export class ExcelService {
             hiddenFields = [],
             attachmentDownloadName,
             conditionalFormattings,
+            columnTotals,
         } = options;
 
         const { resultsStorageClient, exportsStorageClient } = clients;
@@ -958,6 +988,7 @@ export class ExcelService {
                 timezone,
                 conditionalFormattings,
                 minMaxMap,
+                columnTotals,
             );
 
             // Generate filename with truncated flag

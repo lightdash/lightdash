@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type {
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
+    ApiExecuteAsyncSqlQueryResults,
     ApiSuccess,
     ApiSuccessEmpty,
     CacheMetadata,
@@ -9,18 +10,20 @@ import type {
     KnexPaginatedData,
     ToolDashboardArgs,
     ToolName,
-    ToolProposeChangeOutput,
     ToolRunQueryArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '../..';
+import assertUnreachable from '../../utils/assertUnreachable';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
+import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentModelConfig,
     type AiPromptContext,
     type AiPromptContextInput,
     type AiPromptTokenUsage,
+    type AiThreadCreatedFrom,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
 import { ToolNameSchema } from './schemas/visualizations';
@@ -31,6 +34,8 @@ export * from './aiEvalAssessment';
 export * from './chartConfig/slack';
 export * from './chartConfig/web';
 export * from './constants';
+export * from './coder';
+export * from './dashboardContext';
 export * from './aiAgentReviewClassifierTypes';
 export * from './documentTypes';
 export * from './filterExploreByTags';
@@ -144,6 +149,7 @@ export const baseAgentSchema = z.object({
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
+    enableUserContext: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -171,6 +177,7 @@ export type AiAgent = Pick<
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableContentTools'
+    | 'enableUserContext'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
@@ -196,10 +203,18 @@ export type AiAgentSummary = Pick<
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableContentTools'
+    | 'enableUserContext'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
 >;
+
+// An empty spaceAccess list means the agent is unrestricted (all spaces).
+export const hasAiAgentAccessToSpace = (
+    agent: Pick<AiAgent, 'spaceAccess'>,
+    spaceUuid: string,
+): boolean =>
+    agent.spaceAccess.length === 0 || agent.spaceAccess.includes(spaceUuid);
 
 export type AiAgentUser = {
     uuid: string;
@@ -288,7 +303,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     uuid: string;
     agentUuid: string;
     createdAt: string;
-    createdFrom: string;
+    createdFrom: AiThreadCreatedFrom;
     title: string | null;
     titleGeneratedAt: string | null;
     firstMessage: {
@@ -323,6 +338,178 @@ export type ApiAiAgentResponse = {
     results: AiAgent;
 };
 
+export type AiAgentMemorySource = {
+    slug: string;
+    agentUuid: string | null;
+    threadUuid: string;
+    threadTitle: string | null;
+    threadSummary: string;
+};
+
+export type AiAgentMemoryStatus = 'active' | 'superseded' | 'retired';
+
+export type AiAgentMemoryEditableStatus = 'active' | 'retired';
+
+/**
+ * Never affects which memories are recalled: selection, pull, ranking and
+ * access all filter on ownership alone. The label IS rendered into the injected
+ * fence, so it shapes how the agent treats an entry it already has.
+ * `project` means "nominate for review", never "safe to broadcast".
+ */
+export type AiAgentMemoryScope = 'user' | 'project';
+
+export type AiAgentMemory = {
+    uuid: string;
+    slug: string;
+    title: string;
+    rawMemory: string;
+    terms: string[];
+    objects: AiProjectContextTypedObjectRef[];
+    status: AiAgentMemoryStatus;
+    scope: AiAgentMemoryScope;
+    generatedAt: string;
+    citedCount: number;
+    provenance:
+        | { type: 'source_thread'; source: AiAgentMemorySource }
+        | { type: 'consolidated'; sources: AiAgentMemorySource[] };
+    replacementSlug: string | null;
+};
+
+export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
+
+/** A memory list row as its owner sees it. Not shared with the admin list row. */
+export type AiAgentUserMemoryItem = {
+    uuid: string;
+    slug: string;
+    title: string;
+    // Memory body, truncated server-side for the list view
+    summary: string;
+    status: AiAgentMemoryStatus;
+    scope: AiAgentMemoryScope;
+    // Null when the memory was consolidated across agents
+    agent: {
+        uuid: string;
+        name: string;
+        imageUrl: string | null;
+    } | null;
+    sourceThreadUuid: string | null;
+    citedCount: number;
+    lastCitedAt: string | null;
+    pulledCount: number;
+    lastPulledAt: string | null;
+    generatedAt: string;
+};
+
+export type AiAgentUserMemoriesSummary = {
+    memories: AiAgentUserMemoryItem[];
+};
+
+export type ApiAiAgentUserMemoriesResponse = ApiSuccess<
+    KnexPaginatedData<AiAgentUserMemoriesSummary>
+>;
+
+/**
+ * One curated memory as the consolidation curator sees it. Slug is the only
+ * identifier; thread summaries and usage counters are deliberately absent.
+ */
+export type AiAgentMemoryConsolidationInputEntry = {
+    id: string;
+    title: string;
+    memory: string;
+    terms: string[];
+    objects: Array<{
+        object: AiProjectContextTypedObjectRef;
+        resolved: boolean;
+    }>;
+    scope: AiAgentMemoryScope;
+    age_days: number;
+    generated_at: string;
+};
+
+export type AiAgentMemoryConsolidationOperation =
+    | {
+          type: 'merge';
+          source_slugs: string[];
+          slug: string;
+          title: string;
+          memory: string;
+          terms: string[];
+          objects: AiProjectContextTypedObjectRef[];
+          reason: string;
+      }
+    | {
+          type: 'supersede';
+          loser_slug: string;
+          winner_slug: string;
+          reason: string;
+      }
+    | {
+          type: 'retire';
+          slug: string;
+          reason: string;
+      };
+
+export type AiAgentMemoryConsolidationOperationType =
+    AiAgentMemoryConsolidationOperation['type'];
+
+export const AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES: ReadonlyArray<AiAgentMemoryConsolidationOperationType> =
+    ['merge', 'supersede', 'retire'];
+
+/** The one operation that creates a row. */
+export type AiAgentMemoryConsolidationMergeOperation = Extract<
+    AiAgentMemoryConsolidationOperation,
+    { type: 'merge' }
+>;
+
+/**
+ * Every existing row an operation names — a merge's sources included. Validation
+ * and the apply transaction's locking share it, so the set of rows an operation
+ * is checked against can never drift from the set it locks.
+ */
+export const getAiAgentMemoryConsolidationOperationSlugs = (
+    operation: AiAgentMemoryConsolidationOperation,
+): string[] => {
+    switch (operation.type) {
+        case 'merge':
+            return operation.source_slugs;
+        case 'supersede':
+            return [operation.loser_slug, operation.winner_slug];
+        case 'retire':
+            return [operation.slug];
+        default:
+            return assertUnreachable(operation, 'Unknown consolidation op');
+    }
+};
+
+/** Enumerable and content-free, so both the run audit and metrics can label by it. */
+export const AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS = [
+    'unknown_slug',
+    'duplicate_target',
+    'self_supersede',
+    'insufficient_sources',
+    'row_moved',
+] as const;
+
+export type AiAgentMemoryConsolidationRejectionReason =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS)[number];
+
+export type AiAgentMemoryConsolidationRejection = {
+    operation: AiAgentMemoryConsolidationOperation;
+    reason: AiAgentMemoryConsolidationRejectionReason;
+};
+
+export type AiAgentMemoryConsolidationRunStatus = 'succeeded' | 'failed';
+
+export type ApiUpdateAiAgentMemoryStatusRequest = {
+    status: AiAgentMemoryEditableStatus;
+};
+
+export type ApiUpdateAiAgentMemoryStatusResponse = ApiSuccessEmpty;
+
+export type ApiTriggerAiAgentMemoryDistillResponse = ApiSuccess<{
+    jobId: string;
+}>;
+
 export type ApiAiAgentAvatarUploadResponse = ApiSuccess<AiAgent>;
 
 export type ApiAiAgentSummaryResponse = {
@@ -347,6 +534,7 @@ export type ApiCreateAiAgent = Pick<
     | 'version'
 > & {
     enableContentTools?: boolean;
+    enableUserContext?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
@@ -368,6 +556,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'enableDataAccess'
         | 'enableSelfImprovement'
         | 'enableContentTools'
+        | 'enableUserContext'
         | 'adminOnly'
         | 'modelConfig'
         | 'version'
@@ -389,8 +578,14 @@ export type ApiCreateAiMcpServer = {
     allowOAuthCredentialSharing?: boolean;
     credentialScope?: AiMcpCredentialScope;
     credentials?: {
-        bearerToken: string;
+        bearerToken?: string;
+        clientId?: string;
+        clientSecret?: string;
     } | null;
+};
+
+export type ApiUpdateAiMcpServerCredentialBody = {
+    bearerToken: string;
 };
 
 export type ApiAiMcpOAuthCredentialRequest = {
@@ -439,7 +634,7 @@ export type ApiAiAgentThreadSummaryListResponse = {
 
 export type AiAgentThreadFilters = {
     agentUuid?: string;
-    createdFrom?: 'web_app' | 'slack';
+    createdFrom?: AiThreadCreatedFrom;
     search?: string;
 };
 
@@ -480,6 +675,25 @@ export type AiAgentThreadPullRequest = {
 
 export type ApiAiAgentThreadPullRequestResponse =
     ApiSuccess<AiAgentThreadPullRequest | null>;
+
+/**
+ * One pull request a chat thread has opened with the coding agent (a
+ * "workstream" — one sandbox + one PR). A thread can hold several, across one or
+ * more repos. `state` is resolved live from the git host where possible (null
+ * when it couldn't be fetched, e.g. GitLab or a transient error).
+ */
+export type AiAgentThreadWorkstream = {
+    prUrl: string;
+    repository: string;
+    prNumber: number;
+    title: string | null;
+    summary: string | null;
+    state: 'open' | 'merged' | 'closed' | null;
+};
+
+export type ApiAiAgentThreadWorkstreamsResponse = ApiSuccess<
+    AiAgentThreadWorkstream[]
+>;
 
 export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
@@ -593,6 +807,7 @@ export type AiVizMetadata = {
 };
 
 export type ApiAiAgentThreadMessageVizQuery = {
+    source: 'semantic';
     type: AiResultType;
     query: ApiExecuteAsyncMetricQueryResults;
     metadata: AiVizMetadata;
@@ -601,6 +816,28 @@ export type ApiAiAgentThreadMessageVizQuery = {
 export type ApiAiAgentThreadMessageVizQueryResponse = {
     status: 'ok';
     results: ApiAiAgentThreadMessageVizQuery;
+};
+
+export type ApiAiAgentSqlArtifactVizQuery = {
+    source: 'sql';
+    type: AiResultType.TABLE_RESULT;
+    query: ApiExecuteAsyncSqlQueryResults;
+    sql: string;
+    limit: number;
+    metadata: AiVizMetadata;
+};
+
+export type ApiAiAgentArtifactVizQuery =
+    | ApiAiAgentThreadMessageVizQuery
+    | ApiAiAgentSqlArtifactVizQuery;
+
+export const isAiAgentSqlArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentSqlArtifactVizQuery => query.source === 'sql';
+
+export type ApiAiAgentArtifactVizQueryResponse = {
+    status: 'ok';
+    results: ApiAiAgentArtifactVizQuery;
 };
 
 export type AiAgentUserPreferences = {
@@ -671,12 +908,7 @@ export type AiAgentToolResult = AiAgentBaseToolResult &
     (
         | {
               toolType: 'built-in';
-              toolName: 'proposeChange';
-              metadata: ToolProposeChangeOutput['metadata'];
-          }
-        | {
-              toolType: 'built-in';
-              toolName: Exclude<ToolName, 'proposeChange'>;
+              toolName: Exclude<ToolName, never>;
               metadata: AgentToolOutput['metadata'];
           }
         | {
@@ -705,30 +937,58 @@ export type ApiAiAgentExploreAccessSummaryResponse = ApiSuccess<
     AiAgentExploreAccessSummary[]
 >;
 
+export type AiSqlChartArtifactConfig = {
+    source: 'sql';
+    sql: string;
+    limit: number;
+};
+
+export type AiLegacySemanticChartArtifactConfig =
+    | ToolTableVizArgs
+    | ToolTimeSeriesArgs
+    | ToolVerticalBarArgs
+    | ToolRunQueryArgs;
+
+export type AiSemanticChartArtifactConfig = {
+    source: 'semantic';
+    config: AiLegacySemanticChartArtifactConfig;
+};
+
+export type AiChartArtifactConfig =
+    | AiSemanticChartArtifactConfig
+    | AiSqlChartArtifactConfig;
+
 export type AiArtifact = {
     artifactUuid: string;
     threadUuid: string;
     promptUuid: string | null;
     artifactType: 'chart' | 'dashboard';
     savedQueryUuid: string | null;
+    savedSqlUuid: string | null;
     savedDashboardUuid: string | null;
     createdAt: Date;
     versionNumber: number;
     versionUuid: string;
     title: string | null;
     description: string | null;
-    // We store raw tool calls
-    chartConfig:
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs
-        | null;
+    chartConfig: AiChartArtifactConfig | null;
     dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;
     verifiedByUserUuid: string | null;
     verifiedAt: Date | null;
 };
+
+export const isAiSqlChartArtifactConfig = (
+    config: unknown,
+): config is AiSqlChartArtifactConfig =>
+    typeof config === 'object' &&
+    config !== null &&
+    'source' in config &&
+    config.source === 'sql' &&
+    'sql' in config &&
+    typeof config.sql === 'string' &&
+    'limit' in config &&
+    typeof config.limit === 'number';
 
 export type AiArtifactTSOACompat = Omit<
     AiArtifact,
@@ -913,12 +1173,6 @@ export type ApiAppendInstructionRequest = {
 export type ApiAppendInstructionResponse = ApiSuccess<{
     updatedInstruction: string;
 }>;
-
-export type ApiRevertChangeRequest = {
-    changeUuid: string;
-};
-
-export type ApiRevertChangeResponse = ApiSuccessEmpty;
 
 export type AgentSummaryContext = {
     uuid: string;

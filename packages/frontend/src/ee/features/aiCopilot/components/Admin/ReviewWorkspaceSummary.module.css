@@ -1,0 +1,66 @@
+/* Rail workspace summary — the entry point plus the verdict state. */
+.workspace {
+    margin-top: var(--mantine-spacing-lg);
+    padding-top: var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-ldGray-1);
+}
+
+.label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mantine-color-ldGray-6);
+}
+
+/* Verdict line — mirrors the workspace header's "Verdict ready" state. */
+.verdict {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-9);
+}
+
+.verdictDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.verdict[data-state='ready'] .verdictDot {
+    background: light-dark(
+        var(--mantine-color-green-6),
+        var(--mantine-color-green-5)
+    );
+    border-color: transparent;
+}
+
+.verdict[data-state='ready'] {
+    color: light-dark(
+        var(--mantine-color-green-8),
+        var(--mantine-color-green-4)
+    );
+}
+
+.verdict[data-state='live'] .verdictDot {
+    border-color: light-dark(
+        var(--mantine-color-teal-8),
+        var(--mantine-color-teal-4)
+    );
+    box-shadow: 0 0 0 3px
+        light-dark(rgba(12, 133, 99, 0.12), rgba(56, 217, 169, 0.16));
+}
+
+.verdict[data-state='live'] {
+    color: light-dark(var(--mantine-color-teal-8), var(--mantine-color-teal-4));
+}
+
+.verdict[data-state='pending'] {
+    color: var(--mantine-color-ldGray-5);
+    font-weight: 400;
+}

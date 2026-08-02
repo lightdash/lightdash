@@ -12,8 +12,9 @@ the hood, Claude Code runs inside an isolated sandbox, reads the project's dbt m
 builds it with Vite, and deploys the artifacts to S3. The resulting app is served in a sandboxed iframe and can query
 Lightdash metrics through a secure postMessage bridge.
 
-When creating a new app, users start from a **Starter Template** (Dashboard / Slide Show / PDF Report / Custom) and
-answer a few clarifying questions to seed the first prompt. See [Starter Templates](#starter-templates) below.
+When creating a new app, users optionally pick a **Starter Template** (Dashboard / Slide Show / PDF Report / Data app
+visualization) and may be asked a few clarifying questions before the build starts. See
+[Starter Templates](#starter-templates) below.
 
 The feature is enterprise-only, gated behind the `APP_RUNTIME_ENABLED` flag and the `view:DataApp` / `create:DataApp` / `manage:DataApp` permission scopes (see [Permissions](#permissions) below).
 
@@ -41,11 +42,15 @@ flowchart LR
 
 2. **Sandbox setup** — An [E2B](https://e2b.dev/) sandbox is created from the `lightdash-data-app` template (override
    with `E2B_TEMPLATE_NAME` for development). The template contains a pre-configured React + Vite project with the
-   Lightdash App SDK, plus a system prompt (`/app/skill.md`) that teaches Claude how to build data apps.
+   Lightdash App SDK, plus a system prompt (`/app/skill.md`) that teaches Claude how to build data apps. The skill
+   follows the progressive-disclosure pattern: a slim always-loaded core plus on-demand reference files under
+   `/app/references/*.md` (chart references, external APIs, attached images, element references, parameters, Sheets
+   export, PDF downloads, themes, resizable panels, drilldown, D3) that Claude Reads only when the build needs them.
 
-3. **Catalog injection** — The project's dbt catalog (tables, dimensions, metrics) is fetched via `CatalogModel` and
-   written as YAML into the sandbox at `/tmp/dbt-repo/models/schema.yml`. This gives Claude full context on the
-   available data model.
+3. **Catalog injection** — The project's compiled explores (tables, dimensions, metrics, joins, parameters, and AI
+   hints) are fetched from the project cache and written as YAML into the sandbox at
+   `/tmp/dbt-repo/models/schema.yml`. This gives Claude full context on the available data model and the field-selection
+   guidance configured for other AI surfaces.
 
 4. **Code generation** — Claude Code runs inside the sandbox with scoped file access
    (`Read`, `Write`, `Edit`, `Glob`, `Grep`) and generates the React app under `/app/src/`. Stream events are parsed in
@@ -63,30 +68,36 @@ flowchart LR
 
 ### Starter Templates
 
-To avoid the blank-page problem, the **new-app** flow opens with a 3-stage wizard instead of an empty chat:
+To avoid the blank-page problem, the **new-app** flow opens with a template picker above the chat textarea:
 
-1. **Pick a template** - `Dashboard`, `Slide Show`, `PDF Report`, or `Custom`. Each describes a layout intent.
-2. **Answer 2-3 clarifying questions** - template-specific (e.g., topic, audience, key metrics for Dashboard).
-   "Custom" skips this stage.
-3. **Review & generate** - the wizard composes a starting prompt from the answers, prefills the textarea, and
-   the user can edit it before hitting send.
+1. **Pick a template** (optional) - `Dashboard`, `Slide Show`, `PDF Report`, or `Data app visualization`. Each
+   describes a layout intent. Clicking the selected card again deselects it; picking nothing is the "custom" case.
+2. **Describe the app** in the textarea and send. A [pre-build clarifier](#pre-build-clarifying-questions) may ask
+   0-4 questions before the build kicks off.
 
-Templates are **only meaningful for v1**. Iteration prompts (v2+) never see the wizard.
+Templates are **only meaningful for v1**. Iteration prompts (v2+) never see the picker.
+
+`Data app visualization` (`data_app_viz`) is a template like the others - same clarify and build path - but it produces
+a single reusable chart component rather than an app. It never runs a query: it receives `rows` plus a `fieldMapping`
+from `useVizContext()` and renders whatever the host explore hands it, and it declares the fields it reads as a
+`DataAppVizSchema` (structured output, not a file). The full contract is in `DATA_APP_VIZ_INSTRUCTIONS`
+(`AppGenerateService/templates.ts`).
 
 How the template flows through the stack:
 
-- The frontend sends a structured `template: 'dashboard' | 'slideshow' | 'pdf' | 'custom'` field on
-  `POST /api/v1/ee/projects/{projectUuid}/apps/`, alongside the user's prompt.
+- The frontend sends a structured `template: 'dashboard' | 'slideshow' | 'pdf' | 'custom' | 'data_app_viz'` field on
+  `POST /api/v1/ee/projects/{projectUuid}/apps/`, alongside the user's prompt. The picker itself never emits
+  `'custom'` - it sends nothing at all when no card is selected.
 - The backend `AppGenerateService` carries `template` into the `appGeneratePipeline` job payload.
 - During the `catalog` stage in `writeCatalogAndPrompt`, the backend prepends a template-specific instruction block
   (from `AppGenerateService/templates.ts`) to the prompt before writing it to `/tmp/prompt.txt`. This is the same
   prepend slot used today for chart references and image references.
 - For `template === 'custom'`, no instructions are prepended - Claude only sees the user's free-text prompt.
 - The chosen template is persisted on the `apps` row (`apps.template`) so the chip above the chat textarea
-  survives reload. `'custom'` is stored as `NULL` — it's the absence of a template, not a template itself, so
+  survives reload. Custom is stored as `NULL` — it's the absence of a template, not a template itself, so
   no chip is shown for custom apps. The template is set once at creation and is **not** editable afterwards:
-  once the wizard's prompt is composed, switching templates would leave the user's typed text out of sync with
-  a different instruction prepend, so we lock it in.
+  switching templates after the fact would leave the user's typed text out of sync with a different instruction
+  prepend, so we lock it in.
 - Templates only influence the first generation. Iteration prompts (v2+) never re-prepend instructions.
 
 Where the template metadata lives:
@@ -94,33 +105,48 @@ Where the template metadata lives:
 | Concern                                | Location                                                                                     |
 | -------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Enum + request type                    | `packages/common/src/ee/apps/types.ts` (`DATA_APP_TEMPLATES`, `DataAppTemplate`)             |
-| Backend instructions                   | `packages/backend/src/ee/services/AppGenerateService/templates.ts`                           |
-| Frontend metadata + prompt composition | `packages/frontend/src/features/apps/templates.ts`                                           |
-| Wizard UI                              | `AppTemplatePicker.tsx`, `AppTemplateQuestions.tsx`; orchestrated by `pages/AppGenerate.tsx` |
+| Backend build instructions             | `packages/backend/src/ee/services/AppGenerateService/templates.ts`                           |
+| Backend clarifier prompts              | `packages/backend/src/ee/services/AppGenerateService/clarifierPrompts.ts`                    |
+| Frontend metadata                      | `packages/frontend/src/features/apps/templates.ts`                                           |
+| Picker UI                              | `AppTemplatePicker.tsx`; orchestrated by `pages/AppGenerate.tsx`                             |
 
 ### Pre-build clarifying questions
 
-There is a **second** clarifying-question flow that runs after the template wizard and before code generation. It's a
-single LLM call (`POST /api/v1/ee/projects/{projectUuid}/apps/clarify`) that returns 0–4 short questions whose answers
-would materially change what gets built. The user answers them inline in the chat before the build kicks off; their
-answers are sent back as `clarifications` on the eventual generate request and persisted on
-`app_versions.resources.clarifications` for chat rendering.
+After the user sends their prompt and before code generation, a single LLM call
+(`POST /api/v1/ee/projects/{projectUuid}/apps/clarify`) returns 0–4 short questions whose answers would materially
+change what gets built. The user answers them inline in the chat before the build kicks off; their answers are sent
+back as `clarifications` on the eventual generate request and persisted on `app_versions.resources.clarifications`
+for chat rendering.
 
 Properties of this flow:
 
 - **Stateless and best-effort.** No DB writes, no sandbox spin-up. The frontend ignores errors and falls through to
   build without clarifications — a clarifier outage must not block the actual feature. Capped at a 15s LLM timeout.
 - **First-build only.** Iteration prompts (v2+) skip clarify entirely; intent is already grounded in the prior version.
-- **Inputs the LLM sees.** Prompt + template + a compact catalog summary (top 30 tables, up to 5 dimensions/metrics
-  each) + the resources the user has already attached in the picker (chart names + their explores, dashboard name,
-  count of attached images).
+- **Two prompt variants, keyed on template.** Both live in `AppGenerateService/clarifierPrompts.ts`.
+  - `CLARIFY_APP_SYSTEM_PROMPT` — dashboard / slideshow / pdf / custom. Catalog-grounded, so it can ask which
+    tables or metrics to query, what default time range, and who the audience is.
+  - `CLARIFY_VIZ_SYSTEM_PROMPT` — `data_app_viz` only. A viz never runs a query, so questions about explores,
+    dimensions, metrics or time ranges are unanswerable at build time. The askable set is narrowed to what changes
+    the component or its declared `DataAppVizSchema`: chart type, whether a series/breakdown field is needed, and
+    whether the value axis carries one metric or several.
+- **Inputs the LLM sees.** Prompt + the resources the user has already attached in the picker (chart names + their
+  explores, dashboard name, count of attached images). For non-viz templates it also gets the app kind and a compact
+  catalog summary (top 30 tables, up to 5 dimensions/metrics each). **For `data_app_viz` the catalog summary is
+  neither sent nor fetched** — skipping the read is the point, since context the model can't act on only invites
+  questions the user can't answer.
+- **The response schema description is shared.** `clarifySchema`'s zod `.describe()` becomes JSON Schema on every
+  call, both variants, so it is deliberately worded template-neutrally ("what gets built", not "the app").
 - **What it deliberately doesn't do.** No sample-data fetch and no S3 image read for the clarify call. Sample rows and
   pixel content don't change _whether_ a question is worth asking, and skipping them keeps the call inside the 15s
   budget. Both happen later in the generate pipeline if opted in.
 - **Resources flow.** The frontend forwards the same `charts: { uuid, includeSampleData }[]`,
   `dashboard: { uuid, includeSampleData }`, and `imageIds` already in scope at the chat input. `includeSampleData` is
-  ignored at this stage. The system prompt explicitly tells the model not to ask which chart/dashboard/image to use
+  ignored at this stage. Both system prompts explicitly tell the model not to ask which chart/dashboard/image to use
   when the resources block is non-empty.
+
+Unit tests around this call can only pin what is _sent_ to the model — the messages and the schema — never what comes
+back. Changes to either prompt need verifying against a real model.
 
 ### Sample data (opt-in)
 
@@ -190,10 +216,37 @@ How it flows through the stack:
 
 The shared enum + default live in `packages/common/src/ee/apps/types.ts` (`DATA_APP_CLAUDE_MODELS`, `DataAppClaudeModel`, `DEFAULT_DATA_APP_CLAUDE_MODEL`) so the frontend picker, the request body, and the backend validation stay in sync.
 
+Reasoning effort follows the version, not the user: first builds (`version === 1`) run `--effort low` — benchmarked ~40% faster with no regressions on the build/render/query-validity gates — while iterations (v2+) run `--effort high` (the CLI default, passed explicitly), since they make targeted edits to existing code where deeper reasoning matters more than blank-page latency. The resolved level is tracked as `claudeEffort` on the data-app analytics events. The benchmark harness behind that decision lives in `sandboxes/data-apps/benchmark/`.
+
 ### Cancellation
 
 Users can cancel a building version. This atomically marks it as `status='error'` in the database and pauses the sandbox
 (interrupting any running commands). The sandbox remains resumable for subsequent iterations.
+
+### Analytics and generation telemetry
+
+Data App analytics use the app version as the user-facing turn identifier: version 1 is turn 1, version 2 is turn 2,
+and so on. This is distinct from Claude's internal `numTurns`, which counts assistant/tool loops inside the generation.
+
+- `data_app.created` and `data_app.iterated` carry the version plus prompt/workload context (model, prompt and image
+  size, samples, template/clarifications on creation, and theme/design context on iteration).
+- `data_app.version.completed` carries end-to-end and stage durations (`sandboxMs`, `resumeMs`, `restoreMs`, `catalogMs`,
+  `generateMs`, `buildMs`, `metadataMs`, `packageMs`, and `uploadMs`) plus the resolved Claude provider, artifact/catalog
+  sizes, and build-fix counts. `schedulerWaitMs` separately measures how long the Graphile job waited after its scheduled
+  run time before a worker began processing it.
+- Claude usage on a completed version is aggregated across main generation, CLI retries, build-fix calls, and v1 metadata
+  generation. It includes uncached/cache-read/cache-write input tokens, output tokens, internal turns, API duration, cost,
+  main-generation attempt count, time to first token, and the slowest internal turn.
+- `data_app.version.failed` carries the completed stage timings and, when Claude had started, the partial token/cost/turn
+  telemetry incurred before failure. That usage is also emitted to the shared `ai.usage` stream so failed builds are not
+  omitted from spend accounting. Pre-generation failures leave Claude fields absent instead of reporting false zeroes.
+- `data_app.version.cancelled` records the stage and elapsed time at cancellation. It cannot include in-memory Claude
+  usage because cancellation is handled by a separate request while the worker is being interrupted.
+
+The pipeline also creates a `DataApp.generate` OpenTelemetry parent span tagged with app UUID, version, project,
+organization, user, iteration status, scheduler wait, model, and provider. Claude Code request/tool spans nest underneath
+it. Analytics events are the stable source for product dashboards; the OTEL waterfall is the deeper operational view and
+is queried in the configured GCP telemetry backend.
 
 ### Refreshing the preview
 
@@ -212,6 +265,105 @@ boolean to `true` on the first refresh and forwards it through `AppIframePreview
 `invalidateCache` onto every intercepted metric-query POST — the same flag chart tiles send. The flag starts `false`
 so the initial page load can still serve cached results fast; once you've asked for a refresh, every subsequent query
 runs against the warehouse fresh. (This mirrors the sticky behaviour of the dashboard tile below.)
+
+### Shareable URL state
+
+A data app's own interactive controls (period selectors, tabs, global filters) can round-trip their state through the
+**host page's URL**, so the address bar is always a shareable link to the current view: a colleague opening the link
+lands on the app with the same in-app state applied. Tracked in
+[PROD-8151](https://linear.app/lightdash/issue/PROD-8151).
+
+State is a single keyed map — each control owns a key with a JSON-serializable value, ≤ 4 KB serialized for the whole
+map — carried in one `?state=` query param on the host page. Two directions, no backend involvement:
+
+- **Seed (URL → app).** The validated `?state=` param is appended to the iframe hash
+  (`#transport=postMessage&projectUuid=…&state=<encoded>`). The SDK reads it synchronously at boot, so the app's
+  initial render and queries already use the seeded state — no flash of default state, no handshake race. The
+  appended value is re-latched **only when the iframe `src` changes for other reasons** (manual refresh, a new build
+  version, a token refetch), so reloads keep the current view without state changes reloading the app on every click.
+- **Write-back (app → URL).** The SDK's `useUrlState(key, default)` hook posts a `lightdash:sdk:url-state-change`
+  message to the parent immediately — the host must always hold the latest state so reloads can re-seed it.
+  `useAppSdkBridge` validates the payload (plain object, under the size cap; rejections log a console warning) and
+  the host updates in memory at once, debouncing only the `history.replaceState` URL write.
+
+State is **tagged with the app it came from**: when the builder switches preview apps, the previous app's state
+neither seeds the new app nor lingers in the page URL.
+
+The pre-installed template filter context (`lib/filters.tsx`, `useGlobalFilters`) stores its filters in
+`useUrlState('globalFilters')`, so **global filter selections are shareable with no effort from the generation agent**.
+Seeded values come from a user-editable URL and are treated as untrusted: the SDK drops non-object garbage at the map
+level, the filter provider sanitizes each filter's shape so malformed entries can't fail every query for an explore,
+and the skill instructs generated apps to validate individual values before use.
+
+Host opt-in is a single `urlStateSync` flag on `AppIframePreview`, which owns both halves internally via the
+`useAppUrlStateSync` hook — a host can't accidentally wire write-back without seeding or vice versa:
+
+| Host | URL state | Notes |
+| --- | --- | --- |
+| `AppPreviewTest` (`/view` routes) | ✓ | Primary share surface |
+| `AppGenerate` (builder) | ✓ | Authors can test shareable links |
+| `EmbedApp` (full-page embed) | ✓ | The embed page's own URL carries `?state=` |
+| `MinimalApp` (headless render) | ✓ | Seeds scheduled-delivery screenshots from `?state=`; write-back is inert (no user, no shareable URL) |
+| Dashboard tiles, viz renderer | ✗ | Tiles need per-tile key namespacing (multiple apps share one URL) — out of scope for now |
+
+Compatibility: old bundles never read the hash param or post the message — hosts' changes are inert for them. New
+bundles in non-opted hosts get in-memory state only (the change message is ignored). Existing apps pick up the
+auto-persisted global filters only after an iteration in a **fresh** sandbox with the current template *and* only if
+their restored source's `lib/filters.tsx` is updated — template files live in the app's own `src/` tree and are
+restored as-is from the source tarball.
+
+Key files: `packages/query-sdk/src/urlState.ts` (SDK side),
+`packages/frontend/src/features/apps/hooks/useAppUrlStateSync.ts` (host side),
+`sandboxes/data-apps/template/src/lib/filters.tsx` (global-filter persistence). Keep the "Shareable URL state" section
+of `sandboxes/data-apps/template/skill.md` in sync with this one.
+
+#### Scheduled deliveries with app state
+
+A scheduled delivery can snapshot the app state the creator is looking at, so every run screenshots **that view**
+instead of the app's defaults. When the create/edit delivery modal is opened from the builder or viewer while the page
+URL carries `?state=`, the "Data & format" section offers a **Send current app state** checkbox (on by default) showing
+the shareable URL it captured; unchecking it sends the app's default view.
+
+- **Persistence.** The parsed state map is stored on the scheduler row (`scheduler.app_state`, JSONB), surfaced as
+  `AppScheduler.appState`. `SchedulerService` validates it as a plain JSON object within the same 4 KB cap the URL
+  sync enforces (`MAX_SCHEDULER_APP_STATE_CHARS` in `packages/common/src/types/scheduler.ts`).
+- **Render.** `SchedulerTask.getNotificationPageData` appends `?state=` to the headless render URL; `MinimalApp`
+  opts into `urlStateSync` so the iframe seeds from it exactly like the share surfaces do. The recipient-facing
+  "view in Lightdash" link also carries `&state=`, so clicking through opens the live app in the delivered view.
+- **Send now** works unsaved — the state rides the transient `CreateSchedulerAndTargets` payload.
+- **Edit mode** shows the saved snapshot's URL with uncheck-to-remove. Deliveries created before this feature (or
+  with the box unchecked) have `app_state = NULL` and render defaults, unchanged.
+- The URL display is a v1 — a future improvement is rendering the state's keys/values in a readable form.
+
+### Manual app thumbnails
+
+The builder's Screenshot button uses the iframe-side screenshot handler (`screenshotHandler.js`) to rasterize the current
+preview. In addition to attaching that PNG to the next prompt as a screenshot reference, the frontend immediately uploads
+it as the app thumbnail. The builder's header overflow menu also carries a **Capture thumbnail** action that runs the same
+capture but only saves the thumbnail — nothing is attached to the chat. It's disabled until the iframe announces
+screenshot capability, and hidden in the viewer (`AppPreviewTest`), which passes `captureThumbnail={null}` to
+`AppHeaderActions`. Alongside it sits a **Remove thumbnail** action (same builder-only gating, enabled only when a
+thumbnail exists) that deletes the stored object — the escape hatch when a captured screenshot shows live data that
+shouldn't stay in the thumbnail.
+
+Storage is intentionally simple and app-scoped: the latest manual screenshot overwrites
+`apps/{appUuid}/thumbnail.png` in the app runtime S3 bucket. There is no DB row or per-version history; the object key is
+the metadata convention. The backend exposes signed-url (`GET`) and idempotent delete (`DELETE`) endpoints for that
+optional object, and the My Apps settings table lazy-loads it on name hover to show a preview when a thumbnail exists.
+
+Because the key is app-scoped, an existing thumbnail automatically travels with the app when it moves between spaces.
+The move flow (`MoveAppToSpaceModal`, shared by the app header menu, space chip, My Apps list, and browse table)
+additionally offers a capture checkbox in the modal footer, checked by default: labelled **Include app thumbnail** when
+the app has none, or **Replace app thumbnail** when one already exists (the label — not the default — is what signals
+the overwrite; a default derived from the async thumbnail check would flip the checkbox under the user). When checked, the modal captures
+a fresh screenshot of the app **before the move** and uploads it as the thumbnail. The capture source depends on the
+surface: pages with a live preview (builder, viewer — including via their space chip) pass the iframe's
+`captureScreenshot` handle into the modal, so the thumbnail shows the app **exactly as the user sees it**, interactive
+state (selected metrics, filters) included. Surfaces without a live preview (browse table, My Apps) fall back to an
+invisible `AppIframePreview` of the latest ready version, which renders the app's **default** state — the container is
+in-viewport at `opacity: 0` (never `display: none` or offscreen), so the app still renders, animation frames run, and
+IntersectionObserver-driven content loads. The checkbox is disabled when the app has no ready version; if the app's
+template predates the screenshot handler, the capture times out and the move proceeds with a warning toast.
 
 ### Refreshing a data app inside a dashboard
 
@@ -270,7 +422,7 @@ review rules):**
   when one of the invalidation conditions becomes true, not on every refetch.
 
 This is read-only — pinning an older version is preview-only and does **not** mutate `app_versions` or change which
-version is served outside the generation page (the public `/preview` route still shows the latest ready version). A
+version is served outside the generation page (the public `/view` route still shows the latest ready version). A
 true "restore this version as v_next" flow is a separate, later step ([GLITCH-443](https://linear.app/lightdash/issue/GLITCH-443)).
 
 ### Deletion
@@ -300,7 +452,8 @@ dashboards promote. Two entry points share the same per-app primitive:
 project as one new version — a fresh app on first promotion (linked back via `apps.upstream_app_uuid`), or an appended
 version on the already-linked production app on follow-up promotions. Built S3 artifacts are server-side copied into the
 production app's prefix; the source app is untouched beyond recording the link. `getPromoteAppDiff` previews whether a
-promotion will create or update, and which space it lands in.
+promotion will create or update, and which space it lands in. External-connection links are re-established on the
+production app by slug (see [Connection model](#connection-model)).
 
 **Data app tiles inside a dashboard.** When a dashboard carrying `DATA_APP` tiles is promoted, every referenced app is
 promoted alongside it and the tile's `appUuid` is remapped to the upstream app — exactly how chart / SQL-chart tiles
@@ -343,6 +496,15 @@ Orchestration lives in `AppGenerateService.duplicateAppsForPreview`, called once
 - **Spaces.** `ProjectModel.duplicateContent` now returns the source→preview space-uuid mapping; each app lands in the
   preview's mirror of its source space (ancestors already created by the content copy). Personal apps
   (`space_uuid IS NULL`) stay personal.
+- **External connections.** Because connections are project-scoped and runtime fetches resolve against
+  `app_external_connections` (`resolveAppAlias`), the preview needs its own connections or the copied apps' external
+  fetches would dangle. Before copying apps, `ExternalConnectionModel.copyConnectionsToProject` clones every non-deleted
+  upstream connection — with its secret and saved samples — into the preview project, returning a source→preview
+  connection-uuid map. The secret ciphertext is copied verbatim (`EncryptionUtil` is instance-wide, so the payload is
+  portable). Each app's live links are then translated through that map onto the preview's own connections, and the
+  version snapshot's `externalConnections` is rebuilt from the same translated set. Project deletion cascades
+  (`external_connections.project_uuid ON DELETE CASCADE`) clean the copies up when the preview is torn down. This copy is
+  best-effort: if it fails, apps are still copied (just without working connections).
 - **The round trip — `upstream_app_uuid`.** Each preview copy's `upstream_app_uuid` is set back to the production app it
   was copied from. That is the same link `promoteApp` writes on first promotion, so iterating on the copy inside the
   preview and then promoting **updates the original production app** rather than creating a duplicate. Preview
@@ -411,7 +573,7 @@ type DbApp = {
   project_uuid: string;
   space_uuid: string | null;
   sandbox_id: string | null; // E2B sandbox ID for resume
-  template: 'dashboard' | 'slideshow' | 'pdf' | null; // null = custom (or pre-persistence)
+  template: 'dashboard' | 'slideshow' | 'pdf' | 'data_app_viz' | null; // null = custom (or pre-persistence)
   created_at: Date;
   created_by_user_uuid: string;
   deleted_at: Date | null; // soft delete
@@ -684,7 +846,7 @@ with wording chosen from the filename:
 - **Attachment** → `[Design reference image N at /tmp/images/<uuid>.<ext> — use the Read tool to view it]`
 - **Screenshot** → `[Screenshot of the current app at /tmp/images/screenshot-<uuid>.<ext> — use the Read tool to view it. This is what the user is looking at right now, not a design to reproduce.]`
 
-The screenshot wording is paired with a section in `sandboxes/data-apps/template/skill.md` ("Attached images") that
+The screenshot wording is paired with `sandboxes/data-apps/template/references/attached-images.md` (pointed to by the "Attached images" section of the core skill) that
 documents the filename convention so Claude doesn't try to reproduce its own screenshot pixel-for-pixel. Both lines
 are added by `writeCatalogAndPrompt` in `AppGenerateService.ts` — if you change the prefix string or the filename
 convention, update the skill at the same time.
@@ -785,11 +947,34 @@ defences keep the path robust:
 
 ## External connections
 
-External connections let a project admin register a third-party HTTP API (base URL, auth) that generated data apps can fetch from at runtime, through a parent-mediated proxy that mirrors the metric-query [PostMessage Bridge](#postmessage-bridge-useappsdkbridge). The feature is enterprise-only and gated on the `manage:ExternalConnection` scope for configuration.
+External connections let a project admin register a third-party HTTP API (base URL, auth) that generated data apps can fetch from at runtime, through a parent-mediated proxy that mirrors the metric-query [PostMessage Bridge](#postmessage-bridge-useappsdkbridge). The feature is enterprise-only. Two scopes split the surface: **configuring** a connection (create / edit / delete, including its host, auth secret, and allowed methods) requires the admin-only `manage:ExternalConnection` scope; **viewing** the connection list — so an app builder can pick an existing connection to link in the builder — requires `view:ExternalConnection`, granted to interactive-viewer+ (the same tier that can build data apps). Linking a viewed connection to an app is gated by manage rights on the app itself (`manage:DataApp`, via `assertCanManageApp`), not by connection-manage — so a space editor can link an admin-created connection to an app they own.
+
+### As code
+
+Connections are also a content-as-code resource: `lightdash download
+--include-external-connections` writes each config to
+`lightdash/external-connections/<slug>.yml` and `lightdash upload`
+creates/updates connections from those files (both gated by
+`manage:ExternalConnection`). Secrets stay out of the files — uploads resolve
+them from `LIGHTDASH_EXTERNAL_CONNECTION_SECRET_<SLUG>` environment variables.
+See `docs/content-as-code.md` → *External connections* for the document shape,
+slug identity semantics, and secret handling.
+
+App↔connection **links** travel separately, in each app bundle's manifest
+(`lightdash-app.yml` → `externalConnections: [{alias, connectionSlug}]`) —
+see [Data apps as code](#data-apps-as-code). Download emits the app's live
+links; upload resolves each `connectionSlug` in the target project and
+reconciles the app's links to match.
 
 ### Connection model
 
-A connection lives on the `external_connections` table (`packages/backend/src/ee/database/entities/externalConnections.ts`), scoped to a project. It stores a human-readable **alias**, a **base URL** (origin), the auth method, and an **encrypted secret** (never returned to the client — stripped on read, only decrypted server-side for an actual fetch). Apps opt into a connection by linking it (`app_external_connections`); an app can reference a connection's data only after the admin links it.
+A connection lives on the `external_connections` table (`packages/backend/src/ee/database/entities/externalConnections.ts`), scoped to a project. Each connection also carries a project-unique `slug` (generated from the name, stable across renames) used as its content-as-code identity. It stores a human-readable **alias**, a **base URL** (origin), the auth method, an **encrypted secret** (never returned to the client — stripped on read, only decrypted server-side for an actual fetch), and optional freeform **instructions** (admin-authored markdown, capped at 10 000 chars; not sensitive, returned on read). Apps opt into a connection by linking it (`app_external_connections`); an app can reference a connection's data only after the admin links it.
+
+The **instructions** are usage guidance for the app builder — auth quirks, pagination, which endpoints matter, response caveats — injected into the generation prompt (see [Saved samples → `/tmp/external-data`](#saved-samples--tmpexternal-data) below). They inherit the same admin-trust boundary as the rest of the connection: only `manage:ExternalConnection` (project admin) can set them, and an admin authoring prose is strictly weaker than an admin who already pins the host, secret, and allowed methods.
+
+The auth method (`type`) is one of **`none`**, **`api_key`** (header or query, named by `apiKeyName`/`apiKeyLocation`), **`bearer_token`**, or **`google_service_account`**. For a Google service account the encrypted secret is the service-account **keyfile JSON** and `oauth_scopes` holds the admin-entered OAuth scopes (e.g. `https://www.googleapis.com/auth/bigquery`); the proxy mints a short-lived Google access token from them per request (cached in memory by `GoogleServiceAccountTokenProvider`) and injects it as `Authorization: Bearer …`. This is what lets a data app write back to BigQuery via its REST API.
+
+Runtime fetches resolve the alias against `app_external_connections` (`resolveAppAlias`), so the link rows — not the version `resources` snapshot — are what grant an app access. When an app is **duplicated** (`AppGenerateService.duplicateApp`), its live links are copied onto the new app so the duplicate can make the same external fetches; both apps share a project, so the connection UUIDs stay valid. **Preview duplication** is the cross-project case: the target preview project has none of the source's connections, so it first clones the connections themselves (see [Preview environments](#preview-environments-copy-on-preview)) and re-links the copied apps onto those clones. **Promotion** (`promoteApp`, preview → upstream) re-establishes links by **slug**: preview clones keep the upstream connection's slug, so each preview link maps back to the same-slug connection in the upstream project (`replaceAppLinks` reconciles the production app to match; links to connections that exist only in the preview are skipped with a log warning).
 
 ### Proxy security model
 
@@ -797,16 +982,18 @@ The sandboxed preview iframe has no network access of its own (`default-src 'non
 
 1. The app SDK requests an external fetch over postMessage.
 2. The parent forwards it to the backend external-fetch route, which loads the linked connection, decrypts its secret server-side, and runs the request through `executeExternalFetch`.
-3. `executeExternalFetch` validates the request, enforces the SSRF guard (the request must resolve under the connection's configured base URL/host; private/loopback/link-local targets are rejected), injects the secret as the configured auth, reads a **bounded** response body, and returns `{ status, contentType, body, truncated }`.
+3. `executeExternalFetch` validates the request, enforces the SSRF guard (the request must resolve under the connection's configured base URL/host; private/loopback/link-local targets are rejected), injects the secret as the configured auth (for `google_service_account`, it first mints a short-lived OAuth access token from the stored keyfile + scopes — that token mint calls Google's fixed token endpoint directly, outside the SSRF-guarded fetch), reads a **bounded** response body, and returns `{ status, contentType, body, truncated }`.
 4. The bounded response is posted back to the iframe. The decrypted secret never crosses to the frontend.
 
-### GET / POST rules
+### Method rules
 
-Only `GET` and `POST` are allowed. `GET` is for reads; `POST` carries a JSON body. Other methods are rejected. The request `path` is resolved against the connection's base URL and cannot escape its host (SSRF guard). Responses are size-capped; oversized bodies come back with `truncated: true` rather than streaming unbounded data into the browser.
+Each connection carries a per-connection **allowed-methods** list; an admin opts a connection into whichever of `GET`, `POST`, `PUT`, `PATCH`, and `DELETE` it needs (the shared universe is `EXTERNAL_CONNECTION_METHODS` in `packages/common/src/ee/externalConnections/types.ts`). A fetch whose method is not in that list is rejected. `GET` is for reads and carries no body; every other method may carry a server-serialized JSON body. The request `path` is resolved against the connection's base URL and cannot escape its host (SSRF guard). Responses are size-capped; oversized bodies come back with `truncated: true` rather than streaming unbounded data into the browser.
+
+New connections default to `['GET']` only; broadening the set is an explicit admin opt-in per connection, keeping the exfiltration surface (see [Why the exfiltration warning matters](#why-the-exfiltration-warning-matters)) as small as the app actually needs.
 
 ### Why the exfiltration warning matters
 
-Because the proxy injects a server-held secret and can reach an admin-configured external host, a **generated app could be coaxed into exfiltrating warehouse data** to that host (e.g. POST query results to an attacker-influenced endpoint). The trust model is therefore: **only a project admin can configure and link connections** (`manage:ExternalConnection`), the base URL is admin-pinned (the app can't redirect the fetch to an arbitrary host), and methods/paths are constrained. Admins should only link connections to hosts they trust with project data, and review which apps are linked to which connections.
+Because the proxy injects a server-held secret and can reach an admin-configured external host, a **generated app could be coaxed into exfiltrating warehouse data** to that host (e.g. POST query results to an attacker-influenced endpoint). The trust decision that bounds this lives entirely with the admin: **only a project admin can configure a connection** (`manage:ExternalConnection`) — i.e. pin its host, secret, and allowed methods. Once a connection exists, an app builder can select it and link it to an app they manage (gated by `manage:DataApp`, not connection-manage), but the base URL stays admin-pinned (the app can't redirect the fetch to an arbitrary host) and methods/paths are constrained. So a builder can only ever reach hosts an admin already chose to trust with project data. Admins should only create connections to hosts they trust, keep the allowed-methods set as narrow as the apps need, and review which apps are linked to which connections.
 
 ### Admin "Test connection"
 
@@ -816,7 +1003,126 @@ Admins can test a connection from the app's connections panel before relying on 
 
 From a successful test, an admin can **Save as sample** (`POST .../external-connections/{connectionUuid}/sample` → `ExternalConnectionService.saveSample`). The sample is **sanitized and truncated** (capped to ~16 KB / 50 rows, with known auth keys redacted) and persisted to `external_connections.last_test_sample`; it never contains secret material (`saveSample` never decrypts the connection's credential).
 
-During a generation, for every linked connection that has a saved sample, the pipeline (`AppGenerateService.writeCatalogAndPrompt` → `writeExternalConnectionSamples`) writes `/tmp/external-data/{alias}.json` into the sandbox and prepends a one-line reference to `/tmp/prompt.txt`, mirroring how chart-reference and image files are surfaced. This grounds Claude in the API's response shape (field names, nesting, formats) so its fetch/render code matches reality. The sample is for code generation only — at runtime the app fetches live data through the proxy, never from these files. The skill (`sandboxes/data-apps/template/skill.md`, "Linked external connections" section) documents the convention; keep the prompt-prepend wording and that section in sync.
+During a generation, for every linked connection that has a saved sample, the pipeline (`AppGenerateService.writeCatalogAndPrompt` → `writeExternalConnectionSamples`) writes `/tmp/external-data/{alias}.json` into the sandbox and prepends a one-line reference to `/tmp/prompt.txt`, mirroring how chart-reference and image files are surfaced. This grounds Claude in the API's response shape (field names, nesting, formats) so its fetch/render code matches reality. The sample is for code generation only — at runtime the app fetches live data through the proxy, never from these files. The skill reference (`sandboxes/data-apps/template/references/external-apis.md`, pointed to by the core skill's "Linked external connections" section) documents the convention; keep the prompt-prepend wording and that file in sync.
+
+The same `/tmp/external-data/{alias}.json` doc carries the connection's **instructions** (when the admin set any) as a top-level `instructions` string field, alongside the auto-generated `signature`/`origin`/`rules`/`samples`. The field is omitted entirely when empty, so existing connections with no instructions are unchanged. The prompt-prepend block tells Claude to read and follow the `instructions` field when present.
+
+### Inspecting external requests at runtime
+
+The builder/preview inspector overlay is a **tabbed panel** (`AppInspectorPanel.tsx`) with two tabs that mirror each other: **Queries** (metric queries) and **External requests** (external-connection fetches). Both are captured client-side from the same `useAppSdkBridge` postMessage bridge — nothing is persisted server-side beyond the existing `external_connection.fetch` audit event (which stores byte counts, not bodies).
+
+- **Capture.** The bridge's external-fetch branch emits an `ExternalRequestEvent` when a fetch starts (`pending`) and a terminal `ready`/`error` event when it settles (carrying the upstream HTTP status, content type, response body, `truncated` flag, and round-trip duration). Because an external fetch is a single request → single response, entries merge by `id` with no `queryUuid` remap — `useTrackedExternalRequests` is the simpler sibling of `useTrackedAppQueries`.
+- **Always visible.** Both tabs are always shown (the Requests tab reads `Requests (0)` when idle), so clearing the log doesn't yank the tab out from under the user, and the tab surfaces the feature to apps that haven't used a connection yet.
+- **What's shown.** Per request: connection alias, method + path, query params, request body, response status/content-type/body (collapsible + copy), truncation, error, and duration. The frontend only knows the **alias + path**, never the connection's origin or secret — auth is injected server-side in `executeExternalFetch`, so the panel can never display credential material.
+- **Persistence.** Entries live in in-memory React state, cleared on iframe refresh / new-version load unless the shared **Persist** toggle is on (the same `data-apps:persist-logs` preference the Queries tab uses). "Persist" moves still-`pending` entries to a terminal `error` on reload rather than dropping them.
+
+---
+
+## Data apps as code
+
+Data apps can be **downloaded as source, versioned in git, edited, and re-uploaded** — the server rebuilds them. This parallels charts/dashboards-as-code, but the artifact is the app's **source tree** and upload triggers a **server-side build** (no built `dist` is ever shipped by the client).
+
+### CLI
+
+Opt-in flags on the existing `lightdash download` / `lightdash upload` commands (off by default — core users never touch app code paths unless they ask):
+
+- **`lightdash apps create "<name>"`** — create a new app locally at `lightdash/apps/<slug>/` from the E2B starter template. The command requires npm and first asks the user to accept that it will download packages and run shadcn locally. It then lists the exact direct dependencies and shadcn components for a second approval before writing anything. After approval, it checks that the slug is available in the selected project and adds the complete runnable source tree, manifest, agent skills, and a fresh project context snapshot. `--slug`, `--description`, `--project`, and `--path` override the defaults; `--assume-yes` approves installation in non-interactive environments.
+- **`lightdash download --apps <appReferences...>`** — download specific data apps by UUID, slug, or app URL into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
+- **`lightdash upload --apps <appReferences...>`** — upload specific apps by UUID, slug, or app URL, matched against each local folder's manifest (`slug` or `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes. **Unchanged apps are skipped server-side** (no new version, no rebuild — the CLI reports `unchanged`); `--force` rebuilds anyway. When the per-project build cap rejects an upload (HTTP 429), the CLI **waits and retries** instead of failing (see below).
+
+**Identity:** the manifest's `slug` — unique per project (DB-enforced on `apps`) and fixed at creation — is the source of truth, mirroring charts/dashboards-as-code. The download folder is named by the slug, so re-downloads and renames reuse the same folder. Upload matches the slug against the **target** project: found → append a new version; missing → create a new app with that exact slug. Nothing is ever rewritten on disk after upload. Pre-slug bundles (manifests carrying only `appUuid`) fall back to uuid matching in the same project (the CLI warns and suggests re-downloading); `--create-new` always creates a fresh app with a newly generated slug. Manifests still include `appUuid` and `projectUuid` for released-CLI compatibility, but both are informational — the slug always wins. Both stop being emitted at the announced id-free cutover (see the deferred manifest-ids PR).
+
+### What the endpoints do
+
+- **Download** — `GET /api/v1/ee/projects/{projectUuid}/apps/{appUuidOrSlug}/download` (accepts either a uuid or the app's slug) reads the version's `source.tar` from S3, extracts it in-process (`tar-stream`), and returns the `src/` files + manifest (`AppGenerateService.getAppCode`).
+- **Create locally** — `GET /api/v1/ee/projects/{projectUuid}/apps/authoring-context?slug=<slug>` checks `create:DataApp`, validates that the slug is available (including soft-deleted apps), and returns the selected project's semantic layer plus empty prompt history and theme context. The CLI supplies static files from the same `sandboxes/data-apps/template/` tree packaged into the published CLI, installs the declared dependencies with lifecycle scripts disabled, and runs the same pinned shadcn generator used by the E2B image build.
+- **Upload** — `POST /api/v1/ee/projects/{projectUuid}/apps/upload` (`AppGenerateService.importAppCode`) validates the source (`validateDataAppCode` rejects path traversal), re-tars it, stores `source.tar` at the new version's prefix, creates a `pending` version, and enqueues the **build-only pipeline** `APP_BUILD_FROM_SOURCE` (`runBuildFromSourcePipeline`): sandbox → restore source → `pnpm build` (**fail-loud, no AI autofix**) → package → store → `ready`. Concurrent builds are **rate-limited per project** (`MAX_CONCURRENT_APP_BUILDS_PER_PROJECT`, HTTP 429 when exceeded).
+- **Unchanged skip** — before creating a version (and before the build cap is consulted), an append upload is compared against the app's **latest** version: same `src/` file set (byte-for-byte, from the stored `source.tar`), same custom-dependency summary, and — for viz apps — the same declared viz schema. Identical → the server returns `action: 'unchanged'` with the matched version number and applies only app-level metadata (name/description) and link reconciliation. A latest version in **`error`** status never skips (re-uploading the same source retries the build); an identical **in-flight** build skips (no duplicate build is queued). `force: true` in the body (CLI `--force`) bypasses the check. Comparison failures fall back to a normal rebuild — skipping is only an optimization.
+- **CLI wait-and-retry on the build cap** — when an upload 429s, the CLI retries it with capped exponential backoff (5s → 30s, `withBuildLimitRetry` in `packages/cli/src/handlers/apps/uploadRetry.ts`) instead of recording a failure. The wait budget (10 min) is shared across the run and **refilled by every accepted upload**, so it bounds *consecutive unproductive* waiting (a stuck build queue), not the total duration of a large healthy run — bulk uploads of more apps than the cap complete in waves. Once the budget is spent, remaining apps fail fast on 429 with the pre-retry behavior (non-zero exit, re-run hint).
+
+### Moving an app between projects or instances
+
+Cross-project and cross-instance upload are both a plain **slug upsert** against the target — no manifest editing or retargeting step is needed:
+
+- **Different project (same instance):** `lightdash upload --apps <slug> --project <target-project>` — the manifest's slug is looked up in the target project: missing → creates and builds a new app there with that same slug; found → appends a new version. Re-running the same upload is idempotent (v1, then v2, …).
+- **Different instance:** point the CLI at the destination first — `lightdash login <destination-url>` (or set `LIGHTDASH_URL` / `LIGHTDASH_API_KEY`) — then `lightdash upload --apps <slug> --project <target>`. The **destination builds the source in its own sandbox** (so it must have data apps / the build sandbox enabled); it never receives code built elsewhere. The slug upsert behaves the same as the same-instance case.
+
+### Constraints & notes
+
+- **Enterprise-only** (`APP_RUNTIME_ENABLED`); the caller needs `view` / `create` / `manage:DataApp`.
+- **Declared dependencies:** apps can declare custom npm packages in their `package.json`. The CLI validates the declared set (registry-only specs, no git/file/url, up to 60 direct deps, `pnpm-lock.yaml` must be committed) and warns which packages will be installed in the build sandbox before uploading. Install scripts never run. The per-organization `EnableDataAppCustomDependencies` feature flag must be enabled, and uploading custom dependencies requires `manage:DataAppDependency` (admin-only by default). Uploads are screened against the OSV malicious-packages feed; operators can also require a minimum package release age. Template-only uploads are unaffected. The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading. The dependency summary (name + version) is shown as a chip on the assistant bubble in the chat UI so the author can confirm what was installed.
+- **Semantic-layer coupling:** a moved app's queries run against the **target project's** fields *by name*; fields missing in the target surface as in-app query errors, not upload failures.
+- **External connection links travel in the manifest.** `lightdash-app.yml` carries `externalConnections: [{alias, connectionSlug}]` — download emits the app's live links, upload resolves each slug in the target project and **reconciles** the app's links to match (`replaceAppLinks`: adds, repoints, and removes; an empty list unlinks everything; an absent key leaves links untouched for pre-field bundles). A slug missing in the target is skipped with a warning in the upload response (the CLI prints it) — the same warn-don't-fail stance as semantic-layer coupling. Aliases are validated (charset/length/dupes) and each resolved connection requires `manage:ExternalConnection`, both rejected before any app row is created. Under `--include-all`, connections upload before apps, so config + links move in one pass.
+- **Data app vizs round-trip their schema via the manifest.** A viz's declared schema (`app_versions.viz_schema`) exists only in the database — it is emitted as structured output during generation, never written into the source tree. So `lightdash-app.yml` carries a `vizSchema` field for `data_app_viz` apps, and upload validates it (fail-loud) and persists it on the new version. Without it the uploaded viz would never appear in the viz picker (the picker requires a non-null schema on the latest ready version). Bundles downloaded before this field existed re-upload without a schema — re-download from the source project to fix.
+- **Security:** because the server only ever builds source in its trusted, network-locked sandbox and never serves client-supplied *built* code, the runtime trust model is unchanged from AI-generated apps. See [Security Model](#security-model). (Follow-up: the query bridge runs as the *viewing* user — a pre-existing consideration for any app, generated or uploaded.)
+
+### Local authoring
+
+Apps created with `lightdash apps create "<name>"` and apps checked out with `lightdash download --apps <slug>` use the same locally-buildable structure, so you can verify changes compile before uploading.
+
+#### What a local app includes
+
+The app folder contains `src/` + `lightdash-app.yml`, along with:
+
+- **Build scaffolding:** `package.json` (Lightdash App SDK pinned to the same published version the server uses), `vite.config.js`, `tailwind.config.js`, `postcss.config.js`, `tsconfig.json`, `index.html`
+- **Agent skills:** `.claude/skills/lightdash-data-app` (SDK reference) and `.claude/skills/developing-data-apps-locally` (local authoring workflow)
+- **Project files:** `AGENTS.md`, `README.md`, `.gitignore`
+- **Context snapshot** (`.lightdash/context/`): `semantic-layer.yml`, `parameters.yml` (if the app uses parameters), `prompt-history.md`, and `theme/`
+
+All scaffolding and context files are read-only reference — see [Upload is source-only](#upload-is-source-only) below.
+
+#### The local loop
+
+```sh
+lightdash apps create "<name>"  →  edit src/  →  npm run build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
+```
+
+1. Edit files under `src/`.
+2. Run `npm install && npm run build` as a pre-flight compile check against the downloaded scaffolding.
+3. Optionally run `lightdash apps preview` to test against real data using the current CLI login.
+4. Upload with `lightdash upload --apps <slug>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
+
+**The server's build is authoritative.** Your local build is a compile check only; the deployed app is always the server's output.
+
+#### Upload is source-only
+
+Only `src/` is sent on upload. Scaffolding files and `.lightdash/context/` are local reference; the server ignores them and rebuilds against its own trusted template. Editing a local config file has **no effect** on the deployed app. The [Phase 1 trust model](#security-model) is unchanged — no new security surface.
+
+#### Context is a point-in-time snapshot
+
+`.lightdash/context/` reflects the **source project's** semantic layer at download time. On a cross-project or cross-instance upload, the target project's semantic layer may differ — queries referencing renamed or absent fields will fail in-app after upload (the existing [semantic-layer coupling caveat](#constraints--notes)). Re-download from the source project to refresh the snapshot.
+
+#### Theme asset cap
+
+If the org design linked to the app has more than **30 asset files**, the theme assets are skipped during download and a warning is printed; the theme instruction markdown is still written to `.lightdash/context/theme/`. An app whose theme was skipped may not build locally without those assets — the server-side rebuild is unaffected.
+
+#### Local preview against real data (Phase 3)
+
+`lightdash apps preview [path]` starts the downloaded app's Vite server and connects its SDK to the project in
+`lightdash-app.yml` (override with `--project`). It pre-flights both the CLI credential and project before starting, so
+an expired login or an app downloaded from another instance fails with an actionable error instead of an in-app query
+failure. Bare `npm run dev` has no authenticated data access.
+
+Preview does not copy or pass the durable CLI credential to the app. A loopback-only proxy injects the canonical PAT or
+service-account authorization header (plus configured reverse-proxy authorization) after enforcing the shared data-app
+SDK route allowlist and the selected project. Vite and browser code receive only a random per-run nonce scoped to that
+allowlist and project, never the durable credential. Cross-origin browser access to Vite is disabled, and Vite only adds
+authentication to proxy traffic when the SDK presents that nonce. The Vite child is started with a minimal environment
+so `LIGHTDASH_API_KEY` and
+unrelated parent-process secrets are not inherited. The dev CSP limits network requests to the local origin, forcing SDK
+API calls through that proxy. The deployed postMessage bridge enforces the same route and project boundary.
+
+This removes the credential from the app environment and browser; it does **not** turn local authoring into the
+production sandbox. Vite and the downloaded tooling execute as the local OS user, so malicious local code could read
+that user's files (including the existing CLI config), and the app is intentionally allowed to read query results. Only
+preview trusted source and dependencies. Preview also uses the developer's own permissions and user attributes, which
+may differ from a deployed viewer's. The production app remains the authoritative CSP/sandbox check.
+
+Current local-preview parity is the direct SDK transport: metric and saved-chart queries, polling, underlying data,
+downloads, and current-user lookup. Host-mediated capabilities are not emulated. In particular, external connections
+(`externalFetch`), data-app-viz row/field context, Google Sheets export, and product inspector/URL-state integration need
+the in-product postMessage host. Full host emulation should be implemented as a separate local iframe harness rather than
+expanding the credential proxy ad hoc.
 
 ---
 
@@ -829,8 +1135,11 @@ During a generation, for every linked connection that has a saved sample, the pi
 | `/projects/:projectUuid/apps`                                    | `SavedApps.tsx`      | Browse all data apps (content section)    |
 | `/projects/:projectUuid/apps/generate`                           | `AppGenerate.tsx`    | New app creation (split-panel chat UI)    |
 | `/projects/:projectUuid/apps/:appUuid`                           | `AppGenerate.tsx`    | Edit existing app (loads version history) |
-| `/projects/:projectUuid/apps/:appUuid/versions/:version/preview` | `AppPreviewTest.tsx` | Standalone preview                        |
-| `/projects/:projectUuid/apps/:appUuid/preview`                   | `AppPreviewTest.tsx` | Preview latest ready version              |
+| `/projects/:projectUuid/apps/:appUuid/versions/:version/view`    | `AppPreviewTest.tsx` | View a specific version                   |
+| `/projects/:projectUuid/apps/:appUuid/view`                      | `AppPreviewTest.tsx` | View latest ready version                 |
+
+The `.../view` routes previously lived at `.../preview`; the old paths are kept as client-side redirects
+(`LegacyAppPreviewRedirect.tsx`) so bookmarked links keep working.
 
 ### Key Hooks
 
@@ -957,11 +1266,19 @@ The space columns assume the user is also at least an interactive viewer at the 
 | View someone else's personal app          | ✓             | —                  | —            | —                                 |
 | Create a new app                          | ✓             | ✓                  | ✗            | n/a                               |
 | Iterate / cancel / update / move / delete | ✓             | ✓ (in their space) | ✗            | ✓ (own personal app)              |
+| Duplicate                                 | ✓             | ✓                  | ✗            | ✓                                 |
 | Pin to homepage                           | ✓             | ✓ (in their space) | ✗            | — (personal apps can't be pinned) |
 | Restore / permanently delete              | ✓             | ✗                  | ✗            | ✗                                 |
 
 The "App creator" column applies while an app is still personal (`space_uuid IS NULL`). Once moved into a space, the
 app's permissions follow the space — the creator no longer has special rights unless they also have a space role.
+
+**Duplicate is deliberately looser than the other mutations.** It doesn't modify the source app — it forks the latest
+ready version into a **new personal app owned by the caller** — so `duplicateApp` requires only `view` on the source
+plus project-wide `create:DataApp`, not `manage`. A project editor who can see an app shared project-wide (or sitting
+in a space where they're only a viewer) can fork it into their own space to iterate on. Both frontend surfaces that
+offer the action gate it the same way — `useCanCreateDataApp` in `AppHeaderActions`, and `canDuplicateDataApp` in
+`ResourceActionMenu` (the browse list), where it is the one action a user without manage rights can still see.
 
 ### Implementation
 

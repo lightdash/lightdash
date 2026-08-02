@@ -1,15 +1,14 @@
-import Docker, { type Container } from 'dockerode';
-import { randomBytes } from 'node:crypto';
+import type Docker from 'dockerode';
+import type { Container } from 'dockerode';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { posix } from 'node:path';
 import { Writable } from 'node:stream';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import { createGitOverCommands, shQuote } from './gitOverCommands';
+import { type SnapshotStore } from './SnapshotStore';
 import {
     type CommandResult,
-    type GitAddTarget,
-    type GitCloneOptions,
-    type GitCommitOptions,
-    type GitPushOptions,
-    type GitStatus,
+    type PersistOptions,
     type RunOptions,
     type SandboxCapabilities,
     type SandboxGit,
@@ -17,6 +16,7 @@ import {
     type SandboxLogger,
     type SandboxProvider,
     type SandboxSpec,
+    type SnapshotRef,
 } from './types';
 
 const SANDBOX_LABEL = 'com.lightdash.sandbox';
@@ -26,19 +26,13 @@ const SANDBOX_LABEL = 'com.lightdash.sandbox';
  * `adjective_surname`. A short random suffix keeps each name unique. */
 const SANDBOX_NAME_PREFIX = 'lightdash-sandbox';
 
-/** Single-quote a path for safe interpolation into a `/bin/sh -c` string. */
-const shQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
-
 /**
- * Build a `git -c http.extraHeader=...` prefix carrying HTTPS basic-auth
- * credentials. Passed per-invocation (never written to the repo's `.git/config`),
- * so it matches E2B's non-storing default — the cloned remote URL stays clean.
- * The same pattern GitHub Actions uses for token-authenticated checkouts.
+ * Strip the leading slash so a `tar -C / <path>` archives `home/user/repo`
+ * rather than `/home/user/repo`, letting `tar -x -C /` restore it to the exact
+ * same absolute location on resume.
  */
-const gitAuthPrefix = (username: string, password: string): string => {
-    const token = Buffer.from(`${username}:${password}`).toString('base64');
-    return `git -c ${shQuote(`http.extraHeader=AUTHORIZATION: basic ${token}`)}`;
-};
+const toArchiveRelative = (absolutePath: string): string =>
+    absolutePath.replace(/^\/+/, '');
 
 const toEnvList = (
     envs: Record<string, string> | undefined,
@@ -51,16 +45,7 @@ class DockerSandboxHandle implements SandboxHandle {
     constructor(
         private readonly container: Container,
         readonly sandboxId: string,
-        private readonly logger: SandboxLogger,
     ) {}
-
-    // Docker has no native pause/resume snapshot — leaving the container
-    // running is the resumable state (see DESIGN.md §5.5). No-op by design.
-    async pause(): Promise<void> {
-        this.logger.debug(
-            `Docker sandbox ${this.sandboxId}: pause is a no-op (container left running)`,
-        );
-    }
 
     /**
      * Run an exec to completion, returning raw stdout/stderr buffers and the
@@ -230,119 +215,48 @@ class DockerSandboxHandle implements SandboxHandle {
         },
     };
 
-    // Git over `commands.run` with the system git binary. `commands.run` throws
-    // SandboxCommandError on a non-zero exit, so each operation fails loudly the
-    // way the E2B helper does. Credentials are supplied per-invocation via an
-    // auth header and never persisted to the repo (see `gitAuthPrefix`).
-    readonly git: SandboxGit = {
-        clone: async (url: string, options: GitCloneOptions): Promise<void> => {
-            const flags = [
-                options.depth !== undefined ? `--depth ${options.depth}` : '',
-                options.branch !== undefined
-                    ? `--branch ${shQuote(options.branch)}`
-                    : '',
-            ]
-                .filter(Boolean)
-                .join(' ');
-            await this.commands.run(
-                `${gitAuthPrefix(options.username, options.password)} clone ${flags} ${shQuote(url)} ${shQuote(options.path)}`,
-                options.timeoutMs !== undefined
-                    ? { timeoutMs: options.timeoutMs }
-                    : undefined,
-            );
-        },
-        status: async (path: string): Promise<GitStatus> => {
-            const branch = (
-                await this.commands.run(
-                    `git -C ${shQuote(path)} rev-parse --abbrev-ref HEAD`,
-                )
-            ).stdout.trim();
-            const porcelain = (
-                await this.commands.run(
-                    `git -C ${shQuote(path)} status --porcelain`,
-                )
-            ).stdout;
-            return {
-                // `rev-parse --abbrev-ref HEAD` prints `HEAD` on a detached head.
-                currentBranch: branch && branch !== 'HEAD' ? branch : null,
-                hasChanges: porcelain.trim().length > 0,
-            };
-        },
-        createBranch: async (path: string, branch: string): Promise<void> => {
-            await this.commands.run(
-                `git -C ${shQuote(path)} checkout -b ${shQuote(branch)}`,
-            );
-        },
-        add: async (path: string, target: GitAddTarget): Promise<void> => {
-            const spec =
-                'all' in target
-                    ? '-A'
-                    : `-- ${target.files.map(shQuote).join(' ')}`;
-            await this.commands.run(`git -C ${shQuote(path)} add ${spec}`);
-        },
-        commit: async (
-            path: string,
-            message: string,
-            options: GitCommitOptions,
-        ): Promise<void> => {
-            // Pass the message through a temp file (-F) so arbitrary content —
-            // newlines, quotes, co-author trailers — survives without shell
-            // quoting. user.* is set per-invocation so author == committer,
-            // matching the E2B helper's commit identity.
-            const msgPath = `/tmp/.ld-commit-msg-${randomBytes(4).toString('hex')}`;
-            await this.files.write(msgPath, message);
-            try {
-                await this.commands.run(
-                    `git -C ${shQuote(path)} ` +
-                        `-c user.name=${shQuote(options.authorName)} ` +
-                        `-c user.email=${shQuote(options.authorEmail)} ` +
-                        `commit -F ${shQuote(msgPath)}`,
-                );
-            } finally {
-                await this.files.remove(msgPath);
-            }
-        },
-        push: async (path: string, options: GitPushOptions): Promise<void> => {
-            const upstream = options.setUpstream ? '-u ' : '';
-            await this.commands.run(
-                `${gitAuthPrefix(options.username, options.password)} -C ${shQuote(path)} ` +
-                    `push ${upstream}${shQuote(options.remote)} ${shQuote(options.branch)}`,
-            );
-        },
-    };
+    // Git over the system git binary, via the shared `commands`/`files` helper
+    // (the same one the Lambda provider uses). Credentials are passed
+    // per-invocation and never persisted to the repo.
+    readonly git: SandboxGit = createGitOverCommands(this.commands, this.files);
 }
 
 /**
  * Local-dev provider backing each sandbox with a plain Docker container reached
  * over the Docker socket. The simplest backend that exercises every layer of the
  * abstraction with zero external services — `runc` isolation only, so it is
- * gated to non-production. See DESIGN.md §8.
+ * gated to non-production. See docs/sandbox-runtime.md.
  */
 export class DockerSandboxProvider implements SandboxProvider {
-    readonly capabilities: SandboxCapabilities = {
-        isolation: 'container',
-        pauseResume: false,
-        egressAllowlist: false,
-        warmPool: false,
-        persistence: 'objectstore',
-    };
+    readonly capabilities: SandboxCapabilities = { pauseResume: false };
 
-    private readonly docker: Docker;
+    private docker: Docker | undefined;
 
     constructor(
         private readonly image: string,
         private readonly logger: SandboxLogger,
+        private readonly snapshotStore: SnapshotStore,
     ) {
         if (process.env.NODE_ENV === 'production') {
             throw new Error(
                 'DockerSandboxProvider is not allowed in production (runc + Docker socket is root-equivalent on the host)',
             );
         }
-        this.docker = new Docker();
+    }
+
+    private async getDocker(): Promise<Docker> {
+        if (this.docker) {
+            return this.docker;
+        }
+        const { default: DockerCtor } = await import('dockerode');
+        const docker = new DockerCtor();
+        this.docker = docker;
+        return docker;
     }
 
     async create(spec: SandboxSpec): Promise<SandboxHandle> {
-        const container = await this.docker.createContainer({
+        const docker = await this.getDocker();
+        const container = await docker.createContainer({
             Image: this.image,
             name: `${SANDBOX_NAME_PREFIX}-${randomBytes(4).toString('hex')}`,
             // Keep the container alive so we can exec into it across stages.
@@ -355,19 +269,21 @@ export class DockerSandboxProvider implements SandboxProvider {
         this.logger.info(
             `Docker sandbox created (id=${container.id}, image=${this.image})`,
         );
-        return new DockerSandboxHandle(container, container.id, this.logger);
+        return new DockerSandboxHandle(container, container.id);
     }
 
     async connect(sandboxId: string): Promise<SandboxHandle> {
-        const container = this.docker.getContainer(sandboxId);
+        const docker = await this.getDocker();
+        const container = docker.getContainer(sandboxId);
         // Throws if the container no longer exists — callers fall back to create.
         await container.inspect();
-        return new DockerSandboxHandle(container, sandboxId, this.logger);
+        return new DockerSandboxHandle(container, sandboxId);
     }
 
     async destroy(sandboxId: string): Promise<void> {
         try {
-            await this.docker.getContainer(sandboxId).remove({ force: true });
+            const docker = await this.getDocker();
+            await docker.getContainer(sandboxId).remove({ force: true });
             this.logger.info(`Docker sandbox destroyed (id=${sandboxId})`);
         } catch (error) {
             // 404 — already gone. Anything else is logged but not fatal to the
@@ -383,10 +299,86 @@ export class DockerSandboxProvider implements SandboxProvider {
         }
     }
 
-    // No native pause: the running container is itself the resumable state.
-    async pause(sandboxId: string): Promise<void> {
-        this.logger.debug(
-            `Docker sandbox ${sandboxId}: provider pause is a no-op`,
+    /**
+     * Tar the declared workspace inside the container and push it to the
+     * snapshot store. The archive is built `-C /` from slash-relative include
+     * paths so resume restores them to the same absolute locations. The tarball
+     * is staged to a file and read back as raw bytes (never piped through the
+     * string-typed `commands.run` stdout, which would corrupt binary content).
+     * The object-store key is generated here — the key is an opaque storage
+     * detail the provider owns and returns in the ref (the Manager never sees it).
+     * Does not stop the container — the caller destroys it after persisting.
+     */
+    async persist(
+        handle: SandboxHandle,
+        options: PersistOptions,
+    ): Promise<SnapshotRef> {
+        const { workspace } = options;
+        const snapshotKey = `sandboxes/${randomUUID()}/snapshot.tar.gz`;
+        const archivePath = `/tmp/.ld-snapshot-${randomBytes(4).toString(
+            'hex',
+        )}.tar.gz`;
+        const excludeFlags = workspace.exclude
+            .map((pattern) => `--exclude=${shQuote(pattern)}`)
+            .join(' ');
+        const includeArgs = workspace.include
+            .map((path) => shQuote(toArchiveRelative(path)))
+            .join(' ');
+        // `--ignore-failed-read` so a declared-but-absent include path (e.g. the
+        // HOME candidate for the other provider's runtime user) is skipped rather
+        // than failing the whole archive — the workspace lists both `/root/.claude*`
+        // and `/home/user/.claude*`, and only the live HOME's actually exist.
+        await handle.commands.run(
+            `tar czf ${shQuote(archivePath)} --ignore-failed-read ${excludeFlags} -C / ${includeArgs}`,
         );
+        try {
+            const archive = await handle.files.readBytes(archivePath);
+            await this.snapshotStore.put(snapshotKey, archive);
+        } finally {
+            await handle.files.remove(archivePath);
+        }
+        this.logger.info(
+            `Docker sandbox ${handle.sandboxId} persisted to ${snapshotKey} (${workspace.include.length} path(s))`,
+        );
+        return { kind: 's3-tar', key: snapshotKey };
+    }
+
+    /**
+     * Recreate a fresh container from `spec`, then download the snapshot tarball
+     * and extract it `-C /` so the workspace lands back at its original paths.
+     * The new container has a new id — the caller (Manager) records it.
+     */
+    async resume(ref: SnapshotRef, spec: SandboxSpec): Promise<SandboxHandle> {
+        if (ref.kind !== 's3-tar') {
+            throw new Error(
+                `DockerSandboxProvider cannot resume a snapshot of kind '${ref.kind}'`,
+            );
+        }
+        const handle = await this.create(spec);
+        const archivePath = `/tmp/.ld-restore-${randomBytes(4).toString(
+            'hex',
+        )}.tar.gz`;
+        const archive = await this.snapshotStore.get(ref.key);
+        await handle.files.write(archivePath, archive);
+        try {
+            await handle.commands.run(`tar xzf ${shQuote(archivePath)} -C /`);
+        } finally {
+            await handle.files.remove(archivePath);
+        }
+        this.logger.info(
+            `Docker sandbox ${handle.sandboxId} resumed from ${ref.key}`,
+        );
+        return handle;
+    }
+
+    /**
+     * Delete the snapshot blob backing an s3-tar ref. The Manager calls this on
+     * destroy/GC; storage cleanup lives here next to the tar/untar that wrote it.
+     */
+    async deleteSnapshot(ref: SnapshotRef): Promise<void> {
+        if (ref.kind !== 's3-tar') {
+            return;
+        }
+        await this.snapshotStore.delete(ref.key);
     }
 }

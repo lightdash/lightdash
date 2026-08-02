@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: date zoom queries matches snapshot for a date-zoom query with raw-date filtering 1`] = `
+exports[`MetricQueryBuilder snapshot: date zoom queries > matches snapshot for a date-zoom query with raw-date filtering 1`] = `
 "SELECT
   DATE_TRUNC('month', "orders".created_at) AS "orders_created_at",
   COUNT("orders".order_id) AS "orders_order_count"

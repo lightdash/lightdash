@@ -305,6 +305,18 @@ export class RenameService extends BaseService {
                 updatedChart,
                 undefined,
             );
+
+            if (type === RenameType.MODEL) {
+                this.analytics.track({
+                    event: 'saved_chart.explore_changed',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: chartProjectUuid,
+                        savedChartId: chart.uuid,
+                    },
+                });
+            }
         }
 
         this.analytics.track({

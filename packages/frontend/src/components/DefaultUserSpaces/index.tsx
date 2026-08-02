@@ -10,34 +10,27 @@ export const DefaultUserSpaces: FC<{ projectUuid: string }> = ({
     const { mutate, isLoading } = useUpdateDefaultUserSpaces(projectUuid);
 
     return (
-        <>
-            <Text c="dimmed">
-                Manage default personal spaces for project members
-            </Text>
-
-            <SettingsGridCard>
-                <Box>
-                    <Title order={4}>Default user spaces</Title>
-                    <Text c="ldGray.6" fz="xs">
-                        When enabled, each project member will automatically get
-                        a personal space where they can save their own charts
-                        and dashboards.
-                    </Text>
-                </Box>
-                <Box>
-                    <Switch
-                        label="Enable default user spaces"
-                        checked={project?.hasDefaultUserSpaces ?? false}
-                        disabled={isLoading}
-                        onChange={(event) => {
-                            mutate({
-                                hasDefaultUserSpaces:
-                                    event.currentTarget.checked,
-                            });
-                        }}
-                    />
-                </Box>
-            </SettingsGridCard>
-        </>
+        <SettingsGridCard>
+            <Box>
+                <Title order={5}>Personal spaces</Title>
+                <Text c="ldGray.6" fz="xs">
+                    When enabled, each project member will automatically get a
+                    personal space where they can save their own charts and
+                    dashboards.
+                </Text>
+            </Box>
+            <Box>
+                <Switch
+                    label="Enable default user spaces"
+                    checked={project?.hasDefaultUserSpaces ?? false}
+                    disabled={isLoading}
+                    onChange={(event) => {
+                        mutate({
+                            hasDefaultUserSpaces: event.currentTarget.checked,
+                        });
+                    }}
+                />
+            </Box>
+        </SettingsGridCard>
     );
 };

@@ -1,16 +1,16 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType } from '@lightdash/common';
 import {
-    ActionIcon,
-    Button,
     Group,
-    Menu,
     Paper,
     Stack,
     Text,
+    Button,
+    ActionIcon,
+    Menu,
     Tooltip,
-} from '@mantine/core';
-import { useClipboard } from '@mantine/hooks';
+} from '@mantine-8/core';
+import { useClipboard } from '@mantine-8/hooks';
 import {
     IconBrandGithub,
     IconChevronDown,
@@ -26,6 +26,7 @@ import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegr
 import useHealth from '../../../../hooks/health/useHealth';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useProject } from '../../../../hooks/useProject';
+import useCreateInAnySpaceAccess from '../../../../hooks/user/useCreateInAnySpaceAccess';
 import useApp from '../../../../providers/App/useApp';
 import { CreateVirtualViewModal } from '../../../virtualView';
 import { useCreateSqlRunnerShareUrl } from '../../hooks/useSqlRunnerShareUrl';
@@ -39,6 +40,7 @@ import {
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
+import headerStyles from './HeaderPaper.module.css';
 
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
@@ -52,10 +54,17 @@ export const HeaderCreate: FC = () => {
     const { user } = useApp();
     const organizationUuid = user.data?.organizationUuid;
 
-    const canSaveChart = !!user.data?.ability?.can(
+    // Saving a SQL chart needs both the project-level CustomSql permission and
+    // create access to at least one space (matches the backend SavedChart check).
+    const canManageCustomSql = !!user.data?.ability?.can(
         'manage',
         subject('CustomSql', { organizationUuid, projectUuid }),
     );
+    const canCreateChartInSpace = useCreateInAnySpaceAccess(
+        projectUuid,
+        'SavedChart',
+    );
+    const canSaveChart = canManageCustomSql && canCreateChartInSpace;
     const canCreateVirtualView = !!user.data?.ability?.can(
         'create',
         subject('VirtualView', { organizationUuid, projectUuid }),
@@ -155,14 +164,28 @@ export const HeaderCreate: FC = () => {
             !!cartesianChartSelectors.getErrors(state, selectedChartType),
     );
 
-    const initialCtaAction: CtaAction = canSaveChart
+    // The default depends on permissions that resolve asynchronously
+    // (canSaveChart waits on the spaces query), so derive it during render and
+    // only override it once the user explicitly picks an action.
+    const [userSelectedCtaAction, setUserSelectedCtaAction] =
+        useState<CtaAction | null>(null);
+    const defaultCtaAction: CtaAction = canSaveChart
         ? 'save'
         : canCreateVirtualView
           ? 'createVirtualView'
           : canWriteBackToDbt
             ? 'writeBackToDbt'
             : 'save';
-    const [ctaAction, setCtaAction] = useState<CtaAction>(initialCtaAction);
+    // Ignore a stale selection if the user no longer has permission for it
+    // (permissions can change after the spaces query resolves).
+    const isUserSelectedActionValid =
+        (userSelectedCtaAction === 'save' && canSaveChart) ||
+        (userSelectedCtaAction === 'createVirtualView' &&
+            canCreateVirtualView) ||
+        (userSelectedCtaAction === 'writeBackToDbt' && canWriteBackToDbt);
+    const ctaAction = isUserSelectedActionValid
+        ? (userSelectedCtaAction ?? defaultCtaAction)
+        : defaultCtaAction;
 
     const handleCtaClick = useCallback(() => {
         switch (ctaAction) {
@@ -247,16 +270,10 @@ export const HeaderCreate: FC = () => {
                 withBorder={false}
                 px="md"
                 py="xs"
-                sx={(theme) => ({
-                    borderBottom: `1px solid ${
-                        theme.colorScheme === 'dark'
-                            ? theme.colors.ldDark[8]
-                            : theme.colors.ldGray[3]
-                    }`,
-                })}
+                className={headerStyles.paper}
             >
-                <Group position="apart">
-                    <Group spacing="two">
+                <Group justify="space-between">
+                    <Group gap="two">
                         {hasAnyAction && (
                             <EditableText
                                 size="md"
@@ -270,13 +287,13 @@ export const HeaderCreate: FC = () => {
                         )}
                     </Group>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {hasAnyAction && (
                             <Button.Group>
                                 <Button
                                     variant="default"
                                     size="xs"
-                                    leftIcon={getCtaIcon(ctaAction)}
+                                    leftSection={getCtaIcon(ctaAction)}
                                     disabled={isCtaDisabled}
                                     onClick={handleCtaClick}
                                 >
@@ -318,17 +335,19 @@ export const HeaderCreate: FC = () => {
                                             disabled={canSaveChart}
                                         >
                                             <Group
-                                                sx={{
+                                                style={{
                                                     cursor: 'pointer',
                                                 }}
                                             >
                                                 <Menu.Item
                                                     disabled={!canSaveChart}
                                                     onClick={() => {
-                                                        setCtaAction('save');
+                                                        setUserSelectedCtaAction(
+                                                            'save',
+                                                        );
                                                     }}
                                                 >
-                                                    <Stack spacing="two">
+                                                    <Stack gap="two">
                                                         <Text
                                                             fz="xs"
                                                             fw={600}
@@ -371,7 +390,7 @@ export const HeaderCreate: FC = () => {
                                             disabled={canCreateVirtualView}
                                         >
                                             <Group
-                                                sx={{
+                                                style={{
                                                     cursor: 'pointer',
                                                 }}
                                             >
@@ -380,12 +399,12 @@ export const HeaderCreate: FC = () => {
                                                         !canCreateVirtualView
                                                     }
                                                     onClick={() => {
-                                                        setCtaAction(
+                                                        setUserSelectedCtaAction(
                                                             'createVirtualView',
                                                         );
                                                     }}
                                                 >
-                                                    <Stack spacing="two">
+                                                    <Stack gap="two">
                                                         <Text
                                                             fw={600}
                                                             fz="xs"
@@ -438,7 +457,7 @@ export const HeaderCreate: FC = () => {
                                             }}
                                         >
                                             <Group
-                                                sx={{
+                                                style={{
                                                     cursor: 'pointer',
                                                 }}
                                             >
@@ -448,12 +467,12 @@ export const HeaderCreate: FC = () => {
                                                         undefined
                                                     }
                                                     onClick={() => {
-                                                        setCtaAction(
+                                                        setUserSelectedCtaAction(
                                                             'writeBackToDbt',
                                                         );
                                                     }}
                                                 >
-                                                    <Stack spacing="two">
+                                                    <Stack gap="two">
                                                         <Text
                                                             fw={600}
                                                             fz="xs"

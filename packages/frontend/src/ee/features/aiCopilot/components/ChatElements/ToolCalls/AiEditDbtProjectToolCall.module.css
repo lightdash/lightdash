@@ -38,7 +38,7 @@
     );
     background-size: 250% 250%;
     background-repeat: no-repeat;
-    animation: mergedShimmer 5s ease-in-out infinite;
+    animation: mergedShimmer 5s ease-in-out 1 forwards;
 }
 
 @keyframes mergedShimmer {

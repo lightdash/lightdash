@@ -1,5 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Alert, Anchor, PasswordInput, TextInput } from '@mantine/core';
+import { TextInput, Alert, Anchor, PasswordInput } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
@@ -20,6 +20,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 mb="md"
             >
                 <Anchor
+                    inherit
                     href="https://www.atlassian.com/blog/bitbucket/bitbucket-cloud-transitions-to-api-tokens-enhancing-security-with-app-password-deprecation"
                     target="_blank"
                     rel="noreferrer"
@@ -47,6 +48,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         <p>
                             Bitbucket Cloud users should
                             <Anchor
+                                inherit
                                 href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/"
                                 target="_blank"
                                 rel="noreferrer"
@@ -58,6 +60,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         <p>
                             Bitbucket Server users should
                             <Anchor
+                                inherit
                                 href="https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html"
                                 target="_blank"
                                 rel="noreferrer"
@@ -159,6 +162,7 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <p>
                         If you've
                         <Anchor
+                            inherit
                             href="https://confluence.atlassian.com/bitbucketserver/specify-the-bitbucket-base-url-776640392.html"
                             target="_blank"
                             rel="noreferrer"

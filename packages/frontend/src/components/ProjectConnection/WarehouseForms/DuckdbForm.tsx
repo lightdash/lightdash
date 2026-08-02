@@ -5,16 +5,16 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import {
-    NumberInput,
-    PasswordInput,
+    TextInput,
+    Stack,
     SegmentedControl,
     Select,
-    Stack,
     Switch,
-    TextInput,
-} from '@mantine/core';
-import { type FC } from 'react';
+    PasswordInput,
+} from '@mantine-8/core';
+import { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';
@@ -45,14 +45,17 @@ const DATA_PATH_TYPE_OPTIONS = [
 
 export const DuckdbSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="The default schema for your DuckDB connection."
+            description={
+                description ?? 'The default schema for your DuckDB connection.'
+            }
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -126,6 +129,7 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
                 disabled={disabled}
             />
             <Select
+                allowDeselect={false}
                 label="Catalog backend"
                 description="Database that stores DuckLake catalog metadata."
                 data={CATALOG_TYPE_OPTIONS}
@@ -201,6 +205,7 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
             )}
 
             <Select
+                allowDeselect={false}
                 label="Data path backend"
                 description="Where DuckLake stores Parquet data files."
                 data={DATA_PATH_TYPE_OPTIONS}
@@ -368,6 +373,8 @@ const DuckdbForm: FC<{
         warehouse?.type === WarehouseTypes.DUCKDB
             ? (warehouse.connectionType ?? DuckdbConnectionType.MOTHERDUCK)
             : DuckdbConnectionType.MOTHERDUCK;
+
+    if (connectionType === DuckdbConnectionType.EMBEDDED) return null;
 
     return (
         <Stack mt="sm">

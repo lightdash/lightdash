@@ -3,7 +3,7 @@ import {
     isFilterRule,
     type BaseFilterRule,
 } from '@lightdash/common';
-import { Select } from '@mantine/core';
+import { Select } from '@mantine-8/core';
 import { type FilterInputsProps } from '.';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
 import DefaultFilterInputs from './DefaultFilterInputs';
@@ -28,14 +28,15 @@ const BooleanFilterInputs = <T extends BaseFilterRule>(
 
             return (
                 <Select
+                    allowDeselect={false}
                     w="100%"
                     size="xs"
-                    withinPortal={popoverProps?.withinPortal}
+                    comboboxProps={{ withinPortal: popoverProps?.withinPortal }}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     disabled={disabled}
                     data-autofocus
-                    initiallyOpened={currentValue === null && !disabled}
+                    defaultDropdownOpened={currentValue === null && !disabled}
                     placeholder={placeholder}
                     data={[
                         { value: 'true', label: 'True' },

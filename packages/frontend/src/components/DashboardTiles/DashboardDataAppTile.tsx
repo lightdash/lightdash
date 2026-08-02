@@ -92,9 +92,10 @@ const DataAppTile: FC<Props> = (props) => {
         shouldFetch ? appUuid : undefined,
     );
 
-    const latestReadyVersion = appQuery.data?.pages[0]?.versions.find(
-        (v) => v.status === 'ready',
-    )?.version;
+    // Authoritative across ALL versions — the ready version may be older than
+    // the fetched page of versions, so never scan `versions` for it.
+    const latestReadyVersion =
+        appQuery.data?.pages[0]?.latestReadyVersion ?? undefined;
 
     // Mirror the "Continue building" affordance from the app preview page
     // (AppPreviewTest.tsx) — same space-aware ability check.

@@ -32,7 +32,10 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCharts } from '../../../../hooks/useCharts';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
+import { useAiOrganizationSettings } from '../../aiCopilot/hooks/useAiOrganizationSettings';
+import { useProjectAiAgents } from '../../aiCopilot/hooks/useProjectAiAgents';
 import EmbedAllowListForm from './EmbedAllowListForm';
+import EmbedPreviewAiAgentForm from './EmbedPreviewAiAgentForm';
 import EmbedPreviewAppForm from './EmbedPreviewAppForm';
 import EmbedPreviewChartForm from './EmbedPreviewChartForm';
 import EmbedPreviewDashboardForm from './EmbedPreviewDashboardForm';
@@ -139,6 +142,19 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { isLoading: isLoadingApps, data: apps } = useProjectApps(
         dataAppsEnabled ? projectUuid : undefined,
     );
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
+    const aiAgentsEnabled =
+        aiOrganizationSettingsQuery.isSuccess &&
+        aiOrganizationSettingsQuery.data.aiAgentsVisible &&
+        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
+            aiOrganizationSettingsQuery.data.isTrial);
+    const { isLoading: isLoadingAgents, data: agents } = useProjectAiAgents({
+        projectUuid,
+        redirectOnUnauthorized: false,
+        options: {
+            enabled: aiAgentsEnabled,
+        },
+    });
     const { mutate: createEmbedConfig, isLoading: isCreating } =
         useEmbedConfigCreateMutation(projectUuid);
     const { mutate: updateEmbedConfig, isLoading: isUpdating } =
@@ -146,7 +162,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const [writeActions, setWriteActions] =
         useState<CreateEmbedJwt['writeActions']>();
     const [activeTab, setActiveTab] = useState<
-        'dashboards' | 'charts' | 'apps'
+        'dashboards' | 'charts' | 'apps' | 'aiAgents'
     >('dashboards');
 
     const isSaving = isCreating || isUpdating;
@@ -177,6 +193,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         isLoadingDashboards ||
         isLoadingCharts ||
         (dataAppsEnabled && isLoadingApps) ||
+        (aiAgentsEnabled && isLoadingAgents) ||
         !health.data
     ) {
         return (
@@ -298,7 +315,9 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     value={activeTab}
                     onChange={(value) =>
                         setActiveTab(
-                            value === 'charts' || value === 'apps'
+                            value === 'charts' ||
+                                value === 'apps' ||
+                                value === 'aiAgents'
                                 ? value
                                 : 'dashboards',
                         )
@@ -310,6 +329,9 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         <Tabs.Tab value="charts">Charts</Tabs.Tab>
                         {dataAppsEnabled && (
                             <Tabs.Tab value="apps">Data apps</Tabs.Tab>
+                        )}
+                        {aiAgentsEnabled && (
+                            <Tabs.Tab value="aiAgents">AI agents</Tabs.Tab>
                         )}
                     </Tabs.List>
                     <Tabs.Panel value="dashboards">
@@ -357,6 +379,28 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                     projectUuid={projectUuid}
                                     siteUrl={health.data.siteUrl}
                                     apps={allowedApps}
+                                />
+                            </Stack>
+                        </Tabs.Panel>
+                    )}
+                    {aiAgentsEnabled && (
+                        <Tabs.Panel value="aiAgents">
+                            <Stack mt="md">
+                                <EmbedPreviewAiAgentForm
+                                    projectUuid={projectUuid}
+                                    siteUrl={health.data.siteUrl}
+                                    agents={agents || []}
+                                    writeActions={writeActions}
+                                    writeActionsPanel={
+                                        activeTab === 'aiAgents' ? (
+                                            <EmbedWriteActionsForm
+                                                projectUuid={projectUuid}
+                                                value={writeActions}
+                                                onChange={setWriteActions}
+                                                required
+                                            />
+                                        ) : null
+                                    }
                                 />
                             </Stack>
                         </Tabs.Panel>

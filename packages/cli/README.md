@@ -22,6 +22,56 @@ Commands:
 
 eg: `ligthdash test` Runs `dbt test`
 
+## AI agents as code
+
+AI-agent project configuration can be downloaded into
+`lightdash/ai-agents/<slug>.yml` and applied to another project:
+
+```shell
+lightdash download --include-agents
+lightdash upload
+```
+
+Use `--agents <slugs...>` on either command to select specific agents. The
+files manage the agent name, description, image URL, instructions, semantic
+tags, data/content/user-context flags, self-improvement flag, model config,
+and evaluation suites. Evaluation suites are upserted by title; suites omitted
+from YAML remain unchanged, and evaluation run history is never downloaded.
+The YAML `version` identifies the as-code schema, while `agentVersion` preserves
+the AI agent runtime version.
+Access lists, Slack integrations, MCP servers, documents, conversations, and
+other runtime state stay managed in the target environment.
+
+## Data apps as code
+
+Create a new data app locally from the same starter used by Lightdash's data
+app builder:
+
+```shell
+lightdash apps create "Revenue explorer"
+```
+
+This requires npm. Before writing anything, the command first warns that it
+will download packages and run shadcn locally, then asks whether to show and
+approve the exact direct dependencies and shadcn components. It creates
+`lightdash/apps/revenue-explorer/` with runnable source, the
+Lightdash data app and local-development agent skills, and a point-in-time
+snapshot of the selected project's semantic layer. Use `--project`, `--slug`,
+`--description`, or `--path` to override the defaults; use `--assume-yes` to
+approve installation in a non-interactive environment.
+
+Build and upload it with:
+
+```shell
+cd lightdash/apps/revenue-explorer
+npm run build
+lightdash upload --apps revenue-explorer
+```
+
+The local build is a pre-flight check; Lightdash rebuilds the source when it is
+uploaded. Existing apps can still be checked out with
+`lightdash download --apps <slug>`.
+
 ## Development
 
 First build the package

@@ -11,6 +11,7 @@ import {
     IconMessages,
     IconPencil,
     IconSearch,
+    IconSend,
     type Icon,
 } from '@tabler/icons-react';
 import { type AnchorHTMLAttributes, type ReactNode } from 'react';
@@ -29,7 +30,8 @@ type ContentReferenceKind =
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
-    | 'preview_environment';
+    | 'preview_environment'
+    | 'scheduled_delivery';
 
 type Props = {
     chartKind?: ChartKind;
@@ -107,6 +109,12 @@ const getIconMeta = ({
                 color: 'cyan.7',
                 fill: 'cyan.4',
                 icon: IconFlask,
+            };
+        case 'scheduled_delivery':
+            return {
+                color: 'grape.7',
+                fill: 'grape.4',
+                icon: IconSend,
             };
         case 'chart':
         default:

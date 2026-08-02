@@ -24,7 +24,7 @@ const getCorsHeaders = async ({
 }) => {
     invalidateCorsPolicyCache();
     const organizationSettingsModel = {
-        getAllEnabledCorsAllowedDomains: jest.fn(async () => {
+        getAllEnabledCorsAllowedDomains: vi.fn(async () => {
             if (dbError) {
                 throw dbError;
             }
@@ -51,16 +51,16 @@ const getCorsHeaders = async ({
             'access-control-request-method': 'GET',
         },
     } as unknown as Request;
-    const next = jest.fn();
+    const next = vi.fn();
 
     let res!: Response;
     await new Promise<void>((resolve, reject) => {
         res = {
-            getHeader: jest.fn((key: string) => headers.get(key)),
-            setHeader: jest.fn((key: string, value: string) => {
+            getHeader: vi.fn((key: string) => headers.get(key)),
+            setHeader: vi.fn((key: string, value: string) => {
                 headers.set(key, value);
             }),
-            end: jest.fn(() => resolve()),
+            end: vi.fn(() => resolve()),
         } as unknown as Response;
 
         cors(
@@ -211,7 +211,8 @@ describe('CorsPolicy', () => {
     });
 
     test('falls back to env configured origins when the dynamic policy fails unexpectedly', async () => {
-        const now = jest.spyOn(Date, 'now').mockImplementation(() => {
+        const now = vi.spyOn(Date, 'now').mockImplementationOnce(() => {
+            now.mockRestore();
             throw new Error('clock failed');
         });
 

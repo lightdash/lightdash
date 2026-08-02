@@ -211,15 +211,16 @@ export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.IN_PERIOD_TO_DATE;
 
 /**
- * A dashboard filter is "malformed empty" when it is active (not disabled),
- * uses an operator that requires values, and has no values. These filters
- * look empty in the UI but still override chart-level filters at runtime,
- * which is surprising. See PROD-7445.
+ * An "empty" dashboard filter is active (not disabled), uses a value-requiring
+ * operator, and has no value set — an unset default control the viewer fills in
+ * at runtime. It must not override chart-level filters until a value is picked.
  *
- * `values` is checked with Array.isArray to tolerate hand-authored YAML
- * where `values:` or `values: ~` parses to JS `null` instead of `[]`.
+ * IN_THE_CURRENT / NOT_IN_THE_CURRENT are excluded: they compile from
+ * settings.unitOfTime, not values, so a value-less one is still an active
+ * filter. `values` uses Array.isArray to tolerate hand-authored YAML where
+ * `values:` / `values: ~` parses to JS `null` instead of `[]`.
  */
-export const isMalformedEmptyDashboardFilter = (filter: {
+export const isEmptyDashboardFilterRule = (filter: {
     operator: FilterOperator;
     values?: unknown[] | null;
     disabled?: boolean;
@@ -227,6 +228,8 @@ export const isMalformedEmptyDashboardFilter = (filter: {
 }): boolean =>
     filter.disabled !== true &&
     isWithValueFilter(filter.operator) &&
+    filter.operator !== FilterOperator.IN_THE_CURRENT &&
+    filter.operator !== FilterOperator.NOT_IN_THE_CURRENT &&
     filter.includeNull !== true &&
     (!Array.isArray(filter.values) || filter.values.length === 0);
 
@@ -346,8 +349,9 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                 break;
             }
             case FilterType.BOOLEAN: {
-                filterRuleDefaults.values =
-                    values !== undefined ? values : [false];
+                // No default value: an unset boolean filter is a no-op until the
+                // user picks true/false (see renderBooleanFilterSql)
+                filterRuleDefaults.values = values !== undefined ? values : [];
                 break;
             }
             default:
@@ -778,7 +782,8 @@ export const getDashboardFilterRulesForTile = (
     needsExplicitTileOverride: boolean = false, // If true, we don't apply the default tile targets to the filter rule'
 ): DashboardFilterRule[] =>
     rules
-        .filter((rule) => !rule.disabled)
+        // Skip disabled and unset (empty) filters — neither applies to a tile.
+        .filter((rule) => !rule.disabled && !isEmptyDashboardFilterRule(rule))
         .map((filter) => {
             const tileConfig = filter.tileTargets?.[tileUuid];
 
@@ -875,7 +880,13 @@ export const getDashboardFilterRulesForTables = (
     availableFieldIds: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
-    rules.filter((f) => availableFieldIds.includes(f.target.fieldId));
+    rules.filter(
+        (f) =>
+            // Unset (empty) filters don't apply, so they must not appear in the
+            // applied-filters set that callers diff against chart-level filters.
+            availableFieldIds.includes(f.target.fieldId) &&
+            !isEmptyDashboardFilterRule(f),
+    );
 
 export const getDashboardFilterRulesForTileAndTables = (
     tileUuid: string,
@@ -1194,6 +1205,13 @@ const convertDashboardFilterRuleToFilterRule = (
 const getFieldIdWithoutTable = (fieldId: string, tableName: string) =>
     fieldId.replace(`${tableName}_`, '');
 
+const getBaseTimeDimensionName = (
+    timeDimension: Dimension,
+): string | undefined => {
+    if (timeDimension.isIntervalBase) return timeDimension.name;
+    return timeDimension.timeIntervalBaseDimensionName;
+};
+
 /**
  * Tracks time-based metric filters that need overriding via external map
  * @param metricQueryDimensionFilters - Existing dimension filters in the query
@@ -1222,7 +1240,11 @@ export const trackWhichTimeBasedMetricFiltersToOverride = (
             )
         ];
 
-    if (!baseDimension?.timeIntervalBaseDimensionName) {
+    const baseTimeDimensionName = baseDimension
+        ? getBaseTimeDimensionName(baseDimension)
+        : undefined;
+
+    if (!baseTimeDimensionName) {
         return { filter: dashboardFilterRule };
     }
 
@@ -1247,8 +1269,9 @@ export const trackWhichTimeBasedMetricFiltersToOverride = (
                             ?.dimensions[itemFieldId];
 
                     const isTimeOrDateDimension =
-                        itemDimension?.timeIntervalBaseDimensionName ===
-                        baseDimension.timeIntervalBaseDimensionName;
+                        itemDimension !== undefined &&
+                        getBaseTimeDimensionName(itemDimension) ===
+                            baseTimeDimensionName;
 
                     if (isTimeOrDateDimension) {
                         return [...acc, item.target.fieldId];
@@ -1267,8 +1290,7 @@ export const trackWhichTimeBasedMetricFiltersToOverride = (
         ? {
               filter: dashboardFilterRule,
               overrideData: {
-                  baseTimeDimensionName:
-                      baseDimension.timeIntervalBaseDimensionName,
+                  baseTimeDimensionName,
                   fieldsToChange,
               },
           }
@@ -1289,7 +1311,10 @@ export const addDashboardFiltersToMetricQuery = (
 ): MetricQuery => {
     const timeBasedOverrideMap: TimeBasedOverrideMap = {};
 
+    // Drop unset (empty) filters so they neither add a clause nor replace a
+    // chart-level filter on the same field.
     const processedDimensionFilters = dashboardFilters.dimensions
+        .filter((filter) => !isEmptyDashboardFilterRule(filter))
         .map((filter) => {
             const result = trackWhichTimeBasedMetricFiltersToOverride(
                 metricQuery.filters?.dimensions,
@@ -1313,16 +1338,16 @@ export const addDashboardFiltersToMetricQuery = (
             ),
             metrics: overrideFilterGroupWithFilterRules(
                 metricQuery.filters?.metrics,
-                dashboardFilters.metrics.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+                dashboardFilters.metrics
+                    .filter((filter) => !isEmptyDashboardFilterRule(filter))
+                    .map(convertDashboardFilterRuleToFilterRule),
                 undefined,
             ),
             tableCalculations: overrideFilterGroupWithFilterRules(
                 metricQuery.filters?.tableCalculations,
-                dashboardFilters.tableCalculations.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+                dashboardFilters.tableCalculations
+                    .filter((filter) => !isEmptyDashboardFilterRule(filter))
+                    .map(convertDashboardFilterRuleToFilterRule),
                 undefined,
             ),
         },
@@ -1393,13 +1418,6 @@ export const isFilterRuleInQuery = (
     explore: Explore,
 ): undefined | boolean => {
     if (!dimensionsFilterGroup) return undefined;
-
-    const getBaseTimeDimensionName = (
-        timeDimension: Dimension,
-    ): string | undefined => {
-        if (timeDimension.isIntervalBase) return timeDimension.name;
-        return timeDimension.timeIntervalBaseDimensionName;
-    };
 
     const getDimensionFromExplore = (fieldId: string): Dimension | undefined =>
         Object.values(explore.tables)
@@ -1526,3 +1544,93 @@ export const resetRequiredFilterRules = (
         [getFilterGroupItemsPropertyName(filterGroup)]: updatedItems,
     };
 };
+
+export type UnmetFilterRequirement =
+    | { type: 'single'; filter: DashboardFilterRule }
+    | { type: 'group'; groupId: string; filters: DashboardFilterRule[] };
+
+export type FilterRequirementRule = {
+    type: 'single' | 'group';
+    /**
+     * `requiredGroupId` for shared rules; the filter's own id for one-member
+     * rules expressed via `required: true`.
+     */
+    id: string;
+    members: DashboardFilterRule[];
+};
+
+/**
+ * Unified view of filter requirements: every requirement is a rule, a set of
+ * filters where at least one must be set. `required: true` is a one-member
+ * rule; filters sharing a `requiredGroupId` form one rule. Rules are returned
+ * in first-appearance order (dimensions before metrics). `required` wins when
+ * hand-authored JSON sets both flags on the same filter.
+ */
+export const getFilterRequirementRules = (
+    dashboardFilters: Pick<DashboardFilters, 'dimensions' | 'metrics'>,
+): FilterRequirementRule[] => {
+    const filterRules = [
+        ...dashboardFilters.dimensions,
+        ...dashboardFilters.metrics,
+    ];
+
+    const rules: FilterRequirementRule[] = [];
+    const groupRulesById = new Map<string, FilterRequirementRule>();
+    filterRules.forEach((filterRule) => {
+        if (filterRule.required) {
+            rules.push({
+                type: 'single',
+                id: filterRule.id,
+                members: [filterRule],
+            });
+            return;
+        }
+        if (!filterRule.requiredGroupId) return;
+
+        const existingRule = groupRulesById.get(filterRule.requiredGroupId);
+        if (existingRule) {
+            existingRule.members.push(filterRule);
+            return;
+        }
+        const rule: FilterRequirementRule = {
+            type: 'group',
+            id: filterRule.requiredGroupId,
+            members: [filterRule],
+        };
+        groupRulesById.set(filterRule.requiredGroupId, rule);
+        rules.push(rule);
+    });
+    return rules;
+};
+
+/**
+ * A rule only satisfies a requirement when it actually filters the query:
+ * disabled rules and enabled rules with a value-requiring operator and no
+ * values (e.g. a stale URL override) are both valueless. Value-less operators
+ * like `isNull` / `inTheCurrent` still filter.
+ */
+export const isValuelessDashboardFilterRule = (
+    rule: DashboardFilterRule,
+): boolean => rule.disabled === true || isEmptyDashboardFilterRule(rule);
+
+/** A rule is satisfied when any member actually filters the query */
+export const isRequirementRuleSatisfied = (
+    rule: FilterRequirementRule,
+): boolean =>
+    rule.members.some((member) => !isValuelessDashboardFilterRule(member));
+
+/**
+ * Unmet requirements over dimensions + metrics, derived from
+ * `getFilterRequirementRules` so the dashboard lock and the requirement UIs
+ * share a single rule derivation.
+ */
+export const getUnmetFilterRequirements = (
+    dashboardFilters: DashboardFilters,
+): UnmetFilterRequirement[] =>
+    getFilterRequirementRules(dashboardFilters)
+        .filter((rule) => !isRequirementRuleSatisfied(rule))
+        .map<UnmetFilterRequirement>((rule) =>
+            rule.type === 'single'
+                ? { type: 'single', filter: rule.members[0] }
+                : { type: 'group', groupId: rule.id, filters: rule.members },
+        );

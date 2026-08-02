@@ -28,7 +28,7 @@ import QueryWarnings from './QueryWarnings';
 const ExplorerHeader: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const { user } = useApp();
-    const { onBackToDashboard } = useEmbed();
+    const { content, onBackToDashboard } = useEmbed();
     const ability = useAbilityContext();
 
     // Get state from Redux and new hook
@@ -121,6 +121,12 @@ const ExplorerHeader: FC = memo(() => {
     }, [getHasDashboardChanges]);
 
     const userCanManageCompileProject = ability.can('manage', 'CompileProject');
+    const backButtonLabel =
+        content?.type === 'aiAgent'
+            ? 'Back to AI'
+            : content?.type === 'metricsCatalog'
+              ? 'Back to Metrics Catalog'
+              : 'Back to Dashboard';
 
     return (
         <Group justify="space-between">
@@ -130,7 +136,7 @@ const ExplorerHeader: FC = memo(() => {
                     leftSection={<MantineIcon icon={IconArrowLeft} />}
                     onClick={onBackToDashboard}
                 >
-                    Back to Dashboard
+                    {backButtonLabel}
                 </Button>
             )}
 

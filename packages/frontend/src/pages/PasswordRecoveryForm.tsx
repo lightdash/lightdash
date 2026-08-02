@@ -1,18 +1,19 @@
 import { getEmailSchema } from '@lightdash/common';
 import {
-    Anchor,
-    Button,
+    TextInput,
     Center,
-    List,
     Stack,
     Text,
-    TextInput,
     Title,
-} from '@mantine/core';
+    Button,
+    Anchor,
+    List,
+} from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
+import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import { usePasswordResetLinkMutation } from '../hooks/usePasswordReset';
 import useApp from '../providers/App/useApp';
 
@@ -20,6 +21,8 @@ type RecoverPasswordForm = { email: string };
 
 export const PasswordRecoveryForm: FC = () => {
     const { health } = useApp();
+    const { isNewLayout } = useAuthLayoutVariant();
+    const textAlign = isNewLayout ? 'left' : 'center';
     const form = useForm<RecoverPasswordForm>({
         initialValues: {
             email: '',
@@ -38,10 +41,10 @@ export const PasswordRecoveryForm: FC = () => {
         <div>
             {!isSuccess ? (
                 <>
-                    <Title order={3} ta="center" mb="sm">
+                    <Title order={3} ta={textAlign} mb="sm">
                         Forgot your password?
                     </Title>
-                    <Text ta="center" mb="md" color="dimmed">
+                    <Text ta={textAlign} mb="md" c="dimmed">
                         Enter your email address and we’ll send you a password
                         reset link
                     </Text>
@@ -49,7 +52,7 @@ export const PasswordRecoveryForm: FC = () => {
                         name="password-recovery"
                         onSubmit={form.onSubmit((values) => mutate(values))}
                     >
-                        <Stack spacing="lg">
+                        <Stack gap="lg">
                             <TextInput
                                 label="Email address"
                                 name="email"
@@ -64,7 +67,11 @@ export const PasswordRecoveryForm: FC = () => {
                             </Button>
                             {!health.data?.isAuthenticated && (
                                 <Center>
-                                    <Anchor component={Link} to="/login">
+                                    <Anchor
+                                        inherit
+                                        component={Link}
+                                        to="/login"
+                                    >
                                         Back to sign in
                                     </Anchor>
                                 </Center>
@@ -74,10 +81,10 @@ export const PasswordRecoveryForm: FC = () => {
                 </>
             ) : (
                 <>
-                    <Title order={3} ta="center" mb="sm">
+                    <Title order={3} ta={textAlign} mb="sm">
                         Check your inbox!
                     </Title>
-                    <Text ta="center" mb="lg" color="dimmed">
+                    <Text ta={textAlign} mb="lg" c="dimmed">
                         We have emailed you instructions about how to reset your
                         password. Haven’t received anything yet?
                     </Text>
@@ -87,6 +94,7 @@ export const PasswordRecoveryForm: FC = () => {
                         <List.Item>
                             Try{' '}
                             <Anchor
+                                inherit
                                 component={Link}
                                 to="/recover-password"
                                 onClick={reset}
@@ -99,7 +107,7 @@ export const PasswordRecoveryForm: FC = () => {
                     </List>
 
                     <Center mt="lg">
-                        <Anchor component={Link} to="/login">
+                        <Anchor inherit component={Link} to="/login">
                             Back to sign in
                         </Anchor>
                     </Center>

@@ -5,22 +5,23 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
+import { LicenseService } from '../LicenseService/LicenseService';
 import { HealthService } from './HealthService';
 import { BaseResponse, userMock } from './HealthService.mock';
 
-jest.mock('../../version', () => ({
+vi.mock('../../version', () => ({
     VERSION: '0.1.0',
 }));
 
 const organizationModel = {
-    hasOrgs: jest.fn(async () => true),
+    hasOrgs: vi.fn(async () => true),
 };
-jest.mock('../../clients/DockerHub/DockerHub', () => ({
-    getDockerHubVersion: jest.fn(() => '0.2.7'),
+vi.mock('../../clients/DockerHub/DockerHub', () => ({
+    getDockerHubVersion: vi.fn(() => '0.2.7'),
 }));
 
 const migrationModel = {
-    getMigrationStatus: jest.fn(() => ({
+    getMigrationStatus: vi.fn(() => ({
         isComplete: true,
         currentVersion: 'example',
     })),
@@ -28,20 +29,33 @@ const migrationModel = {
 
 // No per-org overrides — effective limits fall back to the instance defaults.
 const organizationSettingsModel = {
-    get: jest.fn(async () => ({ queryLimit: null, csvCellsLimit: null })),
+    get: vi.fn(async () => ({ queryLimit: null, csvCellsLimit: null })),
 };
+
+const licenseService = new LicenseService({ licenseKey: null });
+const invalidLicenseService = new LicenseService({
+    licenseKey: 'invalid-license-key',
+});
+const validLicenseService = new LicenseService({
+    licenseKey: 'valid-license-key',
+});
+vi.spyOn(validLicenseService, 'getLicenseStatus').mockReturnValue({
+    hasLicenseKey: true,
+    valid: true,
+});
 
 describe('health', () => {
     const healthService = new HealthService({
         organizationModel: organizationModel as unknown as OrganizationModel,
         lightdashConfig: lightdashConfigMock,
+        licenseService,
         migrationModel: migrationModel as unknown as MigrationModel,
         organizationSettingsModel:
             organizationSettingsModel as unknown as OrganizationSettingsModel,
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     beforeEach(() => {
@@ -56,7 +70,7 @@ describe('health', () => {
         );
     });
     it('Should return last version as undefined when fails fetch', async () => {
-        (getDockerHubVersion as jest.Mock).mockImplementationOnce(
+        (getDockerHubVersion as import('vitest').Mock).mockImplementationOnce(
             () => undefined,
         );
 
@@ -72,6 +86,74 @@ describe('health', () => {
             isAuthenticated: true,
         });
     });
+
+    it('advertises playground projects only when a license key is configured', async () => {
+        expect(
+            (await healthService.getHealthState(undefined))
+                .hasPlaygroundProjects,
+        ).toBe(false);
+
+        const licensedService = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                license: {
+                    licenseKey: 'test-license-key',
+                },
+            },
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+        expect(
+            (await licensedService.getHealthState(undefined))
+                .hasPlaygroundProjects,
+        ).toBe(true);
+    });
+    it('returns the enterprise license validation result', async () => {
+        expect((await healthService.getHealthState(undefined)).license).toEqual(
+            {
+                hasLicenseKey: false,
+                valid: false,
+            },
+        );
+
+        const invalidService = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: lightdashConfigMock,
+            licenseService: invalidLicenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        expect(
+            (await invalidService.getHealthState(undefined)).license,
+        ).toEqual({
+            hasLicenseKey: true,
+            valid: false,
+        });
+
+        const validatedService = new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: lightdashConfigMock,
+            licenseService: validLicenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+        });
+
+        expect(
+            (await validatedService.getHealthState(undefined)).license,
+        ).toEqual({
+            hasLicenseKey: true,
+            valid: true,
+        });
+    });
     it('Should return localDbtEnabled false when in cloud beta mode', async () => {
         const service = new HealthService({
             organizationModel:
@@ -80,6 +162,7 @@ describe('health', () => {
                 ...lightdashConfigMock,
                 mode: LightdashMode.CLOUD_BETA,
             },
+            licenseService,
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
@@ -98,9 +181,9 @@ describe('health', () => {
         });
     });
     it('Should return requiresOrgRegistration true if there are no orgs in DB', async () => {
-        (organizationModel.hasOrgs as jest.Mock).mockImplementationOnce(
-            async () => false,
-        );
+        (
+            organizationModel.hasOrgs as import('vitest').Mock
+        ).mockImplementationOnce(async () => false);
 
         expect(await healthService.getHealthState(undefined)).toEqual({
             ...BaseResponse,
@@ -124,7 +207,7 @@ describe('health', () => {
 
         it('throws when the DB is unmigrated and the check runs', async () => {
             (
-                migrationModel.getMigrationStatus as jest.Mock
+                migrationModel.getMigrationStatus as import('vitest').Mock
             ).mockImplementationOnce(() => ({
                 status: -1,
                 currentVersion: 'example',
@@ -158,6 +241,7 @@ describe('health', () => {
                         identityVerificationSecret: testSecret,
                     },
                 },
+                licenseService,
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
@@ -178,6 +262,7 @@ describe('health', () => {
                         identityVerificationSecret: testSecret,
                     },
                 },
+                licenseService,
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,

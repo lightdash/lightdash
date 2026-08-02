@@ -1,0 +1,11 @@
+.fusion/
+.dbt-cloud-cli/
+.venv/
+.venv-core112/
+.fusion-*/
+target/
+warehouse/
+logs/
+dbt_packages/
+.user.yml
+dbt_internal_packages/

@@ -29,31 +29,34 @@ describe('GdriveService.scheduleUploadGsheetFromRows', () => {
 
     function makeService(
         overrides: Partial<{
-            ability: { can: jest.Mock; cannot: jest.Mock };
+            ability: {
+                can: import('vitest').Mock;
+                cannot: import('vitest').Mock;
+            };
             refreshTokenThrows: boolean;
         }> = {},
     ) {
         const projectModel = {
-            getSummary: jest.fn().mockResolvedValue({
+            getSummary: vi.fn().mockResolvedValue({
                 projectUuid,
                 organizationUuid,
                 name: 'Proj',
             }),
         };
         const projectService = {
-            getProject: jest.fn().mockResolvedValue({ organizationUuid }),
+            getProject: vi.fn().mockResolvedValue({ organizationUuid }),
         };
-        const userModel = {
+        const userOAuthGrantsModel = {
             getRefreshToken: overrides.refreshTokenThrows
-                ? jest
+                ? vi
                       .fn()
                       .mockRejectedValue(
                           new NotFoundError('Cannot find refresh token'),
                       )
-                : jest.fn().mockResolvedValue('rt'),
+                : vi.fn().mockResolvedValue('rt'),
         };
         const schedulerClient = {
-            uploadGsheetFromRowsJob: jest
+            uploadGsheetFromRowsJob: vi
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
         };
@@ -63,14 +66,15 @@ describe('GdriveService.scheduleUploadGsheetFromRows', () => {
             projectService: projectService as never,
             savedChartModel: {} as never,
             dashboardModel: {} as never,
-            userModel: userModel as never,
+            userModel: {} as never,
+            userOAuthGrantsModel: userOAuthGrantsModel as never,
             schedulerClient: schedulerClient as never,
             projectModel: projectModel as never,
         });
 
         const ability = overrides.ability ?? {
-            can: jest.fn(() => true),
-            cannot: jest.fn(() => false),
+            can: vi.fn(() => true),
+            cannot: vi.fn(() => false),
         };
         (
             service as unknown as {
@@ -78,7 +82,7 @@ describe('GdriveService.scheduleUploadGsheetFromRows', () => {
             }
         ).createAuditedAbility = () => ability;
 
-        return { service, schedulerClient, userModel, ability };
+        return { service, schedulerClient, userOAuthGrantsModel, ability };
     }
 
     it('enqueues a rows job and returns the jobId', async () => {
@@ -102,8 +106,8 @@ describe('GdriveService.scheduleUploadGsheetFromRows', () => {
 
     it('throws ForbiddenError when GoogleSheets ability is denied', async () => {
         const ability = {
-            can: jest.fn(() => true),
-            cannot: jest.fn(
+            can: vi.fn(() => true),
+            cannot: vi.fn(
                 (
                     _action: string,
                     sub: Parameters<typeof detectSubjectType>[0],

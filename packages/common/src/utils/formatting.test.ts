@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import moment from 'moment';
+import momentTz from 'moment-timezone';
 import {
     Compact,
     CustomFormatType,
@@ -28,12 +29,16 @@ import {
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
+    getFieldFormatOverrideProps,
     getFormatExpressionLocale,
     getFormatterTimezone,
     isCalendarValueItem,
     isItemTimezoneAffected,
     isMomentInput,
     isTimestampString,
+    isUnambiguousTemporalString,
+    parseCalendarValueUTC,
+    parseTimestampValueUTC,
     shouldShiftItemTimezone,
     toIsoWithProjectOffset,
 } from './formatting';
@@ -246,6 +251,14 @@ describe('Formatting', () => {
                 type: CustomFormatType.ID,
             });
         });
+
+        test(`when it is ${Format.SI.toUpperCase()} getCustomFormatFromLegacy should return the correct CustomFormat options`, () => {
+            expect(getCustomFormatFromLegacy({ format: Format.SI })).toEqual({
+                type: CustomFormatType.NUMBER,
+                compact: Compact.AUTO,
+                round: undefined,
+            });
+        });
     });
 
     describe('applying CustomFormat to value', () => {
@@ -325,6 +338,75 @@ describe('Formatting', () => {
                         tz,
                     ),
                 ).toEqual('5%');
+            });
+        });
+
+        // A custom date format on a month dimension double-counted a month for
+        // viewers in a summer-DST timezone. In tz-aware mode month values arrive
+        // as bare `YYYY-MM-DD` strings; the custom-format path parsed them in the
+        // viewer's local zone but read back UTC fields, rolling post-DST months
+        // back one (e.g. Apr -> Mar, giving two "Mar" bars). vitest runs in
+        // TZ=UTC where the two parses match, so override moment's default zone.
+        describe('custom date format across a DST boundary', () => {
+            afterEach(() => momentTz.tz.setDefault());
+
+            // Both are UTC+0 in winter, UTC+1 from ~Mar 29 (DST) — the boundary
+            // that split correct (Jan-Mar) from shifted (Apr+) months.
+            test.each(['Europe/London', 'Europe/Lisbon'])(
+                'month-truncated date-only values keep their own month in %s',
+                (viewerZone) => {
+                    momentTz.tz.setDefault(viewerZone);
+                    const months: [string, string][] = [
+                        ['2026-01-01', 'Jan'],
+                        ['2026-02-01', 'Feb'],
+                        ['2026-03-01', 'Mar'],
+                        ['2026-04-01', 'Apr'], // pre-fix rolled back to 'Mar'
+                        ['2026-05-01', 'May'],
+                        ['2026-06-01', 'Jun'],
+                    ];
+                    months.forEach(([value, expected]) => {
+                        expect(formatValueWithExpression('mmm', value)).toEqual(
+                            expected,
+                        );
+                    });
+                },
+            );
+
+            test('offset-less timestamp strings are not shifted across the boundary', () => {
+                momentTz.tz.setDefault('Europe/London');
+                expect(
+                    formatValueWithExpression('mmm', '2026-04-01T00:00:00'),
+                ).toEqual('Apr');
+            });
+
+            test('Z-suffixed values remain correct', () => {
+                momentTz.tz.setDefault('Europe/London');
+                expect(
+                    formatValueWithExpression('mmm', '2026-04-01T00:00:00Z'),
+                ).toEqual('Apr');
+            });
+
+            test('formatItemValue on a DATE month dimension does not duplicate a month', () => {
+                momentTz.tz.setDefault('Europe/London');
+                const monthDimension: Dimension = {
+                    ...dimension,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    format: 'mmm',
+                };
+                // Mirrors the axis formatter: convertToUTC=true, project tz='UTC'.
+                const labels = ['2026-03-01', '2026-04-01', '2026-05-01'].map(
+                    (value) =>
+                        formatItemValue(
+                            monthDimension,
+                            value,
+                            true,
+                            undefined,
+                            'UTC',
+                            'UTC',
+                        ),
+                );
+                expect(labels).toEqual(['Mar', 'Apr', 'May']);
             });
         });
 
@@ -690,10 +772,17 @@ describe('Formatting', () => {
         });
 
         describe('when applying compact', () => {
-            const K = Compact.THOUSANDS;
-            const M = Compact.MILLIONS;
-            const B = Compact.BILLIONS;
-            const T = Compact.TRILLIONS;
+            const {
+                AUTO,
+                THOUSANDS: K,
+                MILLIONS: M,
+                BILLIONS: B,
+                TRILLIONS: T,
+            } = Compact;
+            const autoConfig = {
+                type: CustomFormatType.NUMBER,
+                compact: AUTO,
+            };
 
             const thousandsConfig = {
                 type: CustomFormatType.NUMBER,
@@ -722,6 +811,41 @@ describe('Formatting', () => {
                 expect(applyCustomFormat(5000000000, trillionsConfig)).toEqual(
                     '0.005T',
                 );
+            });
+
+            test('it should dynamically pick the compact style', () => {
+                expect(applyCustomFormat(999, autoConfig)).toEqual('999');
+                expect(applyCustomFormat(1000, autoConfig)).toEqual('1K');
+                expect(applyCustomFormat(1200, autoConfig)).toEqual('1.2K');
+                expect(applyCustomFormat(1200000, autoConfig)).toEqual('1.2M');
+                expect(applyCustomFormat(-1200000, autoConfig)).toEqual(
+                    '-1.2M',
+                );
+            });
+
+            test('it should apply dynamic compact with round, separators, prefix and suffix', () => {
+                expect(
+                    applyCustomFormat(1200, { ...autoConfig, round: 0 }),
+                ).toEqual('1K');
+                expect(
+                    applyCustomFormat(1234567890123456, {
+                        ...autoConfig,
+                        separator: NumberSeparator.COMMA_PERIOD,
+                        prefix: '~',
+                        suffix: ' total',
+                    }),
+                ).toEqual('~1,234.568T total');
+            });
+
+            test('it should apply dynamic compact with currency', () => {
+                expect(
+                    applyCustomFormat(1200, {
+                        type: CustomFormatType.CURRENCY,
+                        compact: AUTO,
+                        currency: 'USD',
+                        round: 1,
+                    }),
+                ).toEqual('$1.2K');
             });
 
             test('when applying round it should return the right style', () => {
@@ -2152,10 +2276,10 @@ describe('Formatting', () => {
                 'ARS 1.00',
                 'R$1.00',
                 'CLP 1',
-                'COP 1.00',
+                'COP 1',
                 'CZK 1.00',
                 'HK$1.00',
-                'HUF 1.00',
+                'HUF 1',
                 '₹1.00',
                 '₪1.00',
                 '₩1',
@@ -2213,7 +2337,7 @@ describe('Formatting', () => {
                 '¥12,345.124',
             ]);
         });
-        test('convert currencies with separator ', () => {
+        test('convert currencies with separator', () => {
             // Using PERIOD_COMMA changes the position of the currency symbol
             expect(
                 currencies.slice(0, 4).map((currency) =>
@@ -2230,7 +2354,7 @@ describe('Formatting', () => {
                 '12.345 ¥',
             ]);
         });
-        test('convert currencies with compact ', () => {
+        test('convert currencies with compact', () => {
             expect(
                 currencies.slice(0, 4).map((currency) =>
                     applyCustomFormat(12345.1235, {
@@ -2253,7 +2377,7 @@ describe('Formatting', () => {
             ).toEqual(['$123M', '€123M', '£123M', '¥123M']);
         });
 
-        test('convert numbers ', () => {
+        test('convert numbers', () => {
             expect(
                 applyCustomFormat(12345.56789, {
                     type: CustomFormatType.NUMBER,
@@ -2589,6 +2713,23 @@ describe('Formatting', () => {
                     formattedValueWithCustomFormat,
                 );
             });
+        });
+
+        test('should not convert dynamic auto compact to a static format expression', () => {
+            expect(
+                convertCustomFormatToFormatExpression({
+                    type: CustomFormatType.NUMBER,
+                    compact: Compact.AUTO,
+                }),
+            ).toBeNull();
+
+            expect(
+                convertCustomFormatToFormatExpression({
+                    type: CustomFormatType.CURRENCY,
+                    currency: Format.USD,
+                    compact: Compact.AUTO,
+                }),
+            ).toBeNull();
         });
     });
 
@@ -3405,4 +3546,171 @@ describe('Formatting', () => {
             });
         });
     });
+
+    describe('getFieldFormatOverrideProps', () => {
+        const numericDimension: Dimension = {
+            ...dimension,
+            type: DimensionType.NUMBER,
+        };
+
+        test('encodes a non-dynamic override as a format expression, no formatOptions', () => {
+            const props = getFieldFormatOverrideProps({
+                type: CustomFormatType.NUMBER,
+                compact: Compact.THOUSANDS,
+            });
+            expect(props.format).toEqual('#,##0.###,"K"');
+            expect(props.formatOptions).toBeUndefined();
+        });
+
+        test('preserves structured formatOptions for dynamic AUTO compact (no expression form)', () => {
+            const formatOptions: CustomFormat = {
+                type: CustomFormatType.NUMBER,
+                compact: Compact.AUTO,
+            };
+            // AUTO has no ECMA-376 representation, so the expression must be
+            // cleared and the structured options carried through instead.
+            expect(
+                convertCustomFormatToFormatExpression(formatOptions),
+            ).toBeNull();
+            const props = getFieldFormatOverrideProps(formatOptions);
+            expect(props.format).toBeUndefined();
+            expect(props.formatOptions).toEqual(formatOptions);
+        });
+
+        test('preserves structured formatOptions for dynamic AUTO compact on CURRENCY too', () => {
+            const formatOptions: CustomFormat = {
+                type: CustomFormatType.CURRENCY,
+                currency: 'USD',
+                compact: Compact.AUTO,
+            };
+            expect(
+                convertCustomFormatToFormatExpression(formatOptions),
+            ).toBeNull();
+            const props = getFieldFormatOverrideProps(formatOptions);
+            expect(props.format).toBeUndefined();
+            expect(props.formatOptions).toEqual(formatOptions);
+        });
+
+        test('AUTO override on a numeric dimension compacts the value (the reported bug)', () => {
+            const field = {
+                ...numericDimension,
+                ...getFieldFormatOverrideProps({
+                    type: CustomFormatType.NUMBER,
+                    compact: Compact.AUTO,
+                }),
+            };
+            expect(formatItemValue(field, 929_000_000)).toEqual('929M');
+            expect(formatItemValue(field, 1_500)).toEqual('1.5K');
+        });
+
+        test('AUTO override clears a legacy field format expression so it cannot shadow the structured options', () => {
+            // legacy YAML expression that would otherwise win in formatItemValue
+            const fieldWithLegacyFormat = {
+                ...numericDimension,
+                format: '#,##0',
+            };
+            const field = {
+                ...fieldWithLegacyFormat,
+                ...getFieldFormatOverrideProps({
+                    type: CustomFormatType.NUMBER,
+                    compact: Compact.AUTO,
+                }),
+            };
+            // Without clearing the legacy expression this renders '929,000,000'.
+            expect(formatItemValue(field, 929_000_000)).toEqual('929M');
+        });
+    });
+});
+
+describe('parseCalendarValueUTC', () => {
+    test('parses each canonical grain format to the UTC start of its period', () => {
+        expect(parseCalendarValueUTC('2024-07-22')?.toISOString()).toEqual(
+            '2024-07-22T00:00:00.000Z',
+        );
+        expect(parseCalendarValueUTC('2024-07')?.toISOString()).toEqual(
+            '2024-07-01T00:00:00.000Z',
+        );
+        expect(parseCalendarValueUTC('2024-Q3')?.toISOString()).toEqual(
+            '2024-07-01T00:00:00.000Z',
+        );
+        expect(parseCalendarValueUTC('2024')?.toISOString()).toEqual(
+            '2024-01-01T00:00:00.000Z',
+        );
+    });
+
+    test('rejects values outside the canonical formats instead of coercing', () => {
+        expect(parseCalendarValueUTC('42')).toBeUndefined();
+        expect(parseCalendarValueUTC('50.5')).toBeUndefined();
+        expect(parseCalendarValueUTC('')).toBeUndefined();
+        expect(parseCalendarValueUTC('not-a-date')).toBeUndefined();
+        expect(parseCalendarValueUTC('2024-13')).toBeUndefined();
+        expect(parseCalendarValueUTC('2024-Q5')).toBeUndefined();
+        expect(parseCalendarValueUTC('2024-01-15 12:00')).toBeUndefined();
+        expect(parseCalendarValueUTC('2024-01-15T00:00:00Z')).toBeUndefined();
+    });
+});
+
+describe('parseTimestampValueUTC', () => {
+    test('parses offset-less datetimes as naive UTC with hasZone false', () => {
+        expect(parseTimestampValueUTC('2024-01-15 12:00')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: false,
+        });
+        expect(parseTimestampValueUTC('2024-01-15T12:00:00')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: false,
+        });
+        expect(parseTimestampValueUTC('2024-01-15 12:00:00.123456')).toEqual({
+            date: new Date('2024-01-15T12:00:00.123Z'),
+            hasZone: false,
+        });
+    });
+
+    test('parses explicitly zoned datetimes to their instant with hasZone true', () => {
+        expect(parseTimestampValueUTC('2024-01-15T12:00:00Z')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: true,
+        });
+        expect(parseTimestampValueUTC('2024-01-15T12:00:00z')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: true,
+        });
+        expect(parseTimestampValueUTC('2024-01-15 21:00:00+09:00')).toEqual({
+            date: new Date('2024-01-15T12:00:00.000Z'),
+            hasZone: true,
+        });
+        expect(parseTimestampValueUTC('2024-01-15T12:00:00.123-0500')).toEqual({
+            date: new Date('2024-01-15T17:00:00.123Z'),
+            hasZone: true,
+        });
+    });
+
+    test('rejects values outside the canonical shapes instead of coercing', () => {
+        expect(parseTimestampValueUTC('2024-01-15')).toBeUndefined();
+        expect(
+            parseTimestampValueUTC('2024-01-15 12:00 unexpected-suffix'),
+        ).toBeUndefined();
+        expect(parseTimestampValueUTC('42')).toBeUndefined();
+        expect(parseTimestampValueUTC('')).toBeUndefined();
+        expect(parseTimestampValueUTC('2024-01-15 25:00')).toBeUndefined();
+    });
+});
+
+describe('isUnambiguousTemporalString', () => {
+    test.each([
+        '2024-07-22',
+        '2024-07',
+        '2024-Q3',
+        '2024-01-15 12:00',
+        '2024-01-15T12:00:00Z',
+    ])('accepts unambiguous temporal value %s', (value) => {
+        expect(isUnambiguousTemporalString(value)).toBe(true);
+    });
+
+    test.each(['2024', '42', '50.5', '', 'not-a-date', null])(
+        'rejects ambiguous or non-temporal value %s',
+        (value) => {
+            expect(isUnambiguousTemporalString(value)).toBe(false);
+        },
+    );
 });

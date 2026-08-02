@@ -29,6 +29,13 @@ export type OrganizationSettings = {
      */
     supportImpersonationEnabled: boolean | null;
     /**
+     * Per-org enablement of the semantic-layer Postgres wire integration
+     * (surfaced on the project settings page). Like impersonation this has no
+     * instance/env default — it's opt-in only, so `null` (or no stored row)
+     * resolves to `false`.
+     */
+    semanticLayerPgwireEnabled: boolean | null;
+    /**
      * Base lifetime (seconds) of this org's scheduled-delivery download links —
      * the default every channel inherits. Overrides the instance-wide
      * `PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This
@@ -273,6 +280,8 @@ export const resolveEffectiveOrganizationSettings = (
         instanceDefaults.enableOidcToEmailLinking,
     // Opt-in only — no instance default, so an unset value resolves to false.
     supportImpersonationEnabled: raw.supportImpersonationEnabled ?? false,
+    // Opt-in only — no instance default, so an unset value resolves to false.
+    semanticLayerPgwireEnabled: raw.semanticLayerPgwireEnabled ?? false,
     // Base is resolved to an effective number (falls back to the env default).
     scheduledDeliveryExpirationSeconds:
         raw.scheduledDeliveryExpirationSeconds ??

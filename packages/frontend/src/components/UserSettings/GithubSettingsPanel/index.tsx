@@ -1,16 +1,16 @@
 import {
     Alert,
-    Avatar,
     Box,
-    Button,
     Flex,
     Group,
     Loader,
     Stack,
     Text,
     Title,
+    Button,
+    Avatar,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconAlertCircle,
     IconClock,
@@ -69,9 +69,9 @@ const GithubSettingsPanel: FC = () => {
     return (
         <SettingsGridCard>
             <Box>
-                <Group spacing="sm">
-                    <Avatar src={githubIcon} size="md" />
-                    <Title order={4}>Github</Title>
+                <Group gap="sm">
+                    <Avatar src={githubIcon} size="md" alt="" />
+                    <Title order={5}>GitHub</Title>
                 </Group>
             </Box>
 
@@ -91,7 +91,7 @@ const GithubSettingsPanel: FC = () => {
                     </Alert>
                 )}
                 {isValidGithubInstallation && data && data.length > 0 && (
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         <Text c="dimmed" fz="xs">
                             Your GitHub integration has access to the following
                             repositories ({data.length}):
@@ -121,7 +121,7 @@ const GithubSettingsPanel: FC = () => {
                                 target="_blank"
                                 variant="default"
                                 href={GITHUB_INSTALL_URL}
-                                leftIcon={<MantineIcon icon={IconRefresh} />}
+                                leftSection={<MantineIcon icon={IconRefresh} />}
                                 onClick={() => {
                                     deleteGithubInstallationMutation.mutate(
                                         undefined,
@@ -146,7 +146,7 @@ const GithubSettingsPanel: FC = () => {
                                 onClick={() =>
                                     deleteGithubInstallationMutation.mutate()
                                 }
-                                leftIcon={<MantineIcon icon={IconTrash} />}
+                                leftSection={<MantineIcon icon={IconTrash} />}
                             >
                                 Delete
                             </Button>
@@ -169,7 +169,9 @@ const GithubSettingsPanel: FC = () => {
                                     color="yellow"
                                     variant="outline"
                                     href={GITHUB_INSTALL_URL}
-                                    leftIcon={<MantineIcon icon={IconClock} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconClock} />
+                                    }
                                 >
                                     Pending approval
                                 </Button>

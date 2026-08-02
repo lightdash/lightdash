@@ -1,4 +1,10 @@
-import { type OrganizationDesignFileKind } from '@lightdash/common';
+import {
+    checkThemeLimits,
+    MAX_THEME_FILE_BYTES,
+    themeLimitMessage,
+    type ApiOrganizationDesignFile,
+    type OrganizationDesignFileKind,
+} from '@lightdash/common';
 import { Box, FileButton, Group, Loader, Stack, Text } from '@mantine-8/core';
 import { IconUpload } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -46,22 +52,36 @@ const inferKind = (filename: string): OrganizationDesignFileKind | null => {
     return EXTENSION_TO_KIND[lower.slice(dot)] ?? null;
 };
 
+const formatMb = (bytes: number): string =>
+    `${Math.round(bytes / (1024 * 1024))} MB`;
+
 type Props = {
     designUuid: string;
+    themeName: string;
+    existingFiles: ApiOrganizationDesignFile[];
 };
 
-export const DesignFileUpload: FC<Props> = ({ designUuid }) => {
+export const DesignFileUpload: FC<Props> = ({
+    designUuid,
+    themeName,
+    existingFiles,
+}) => {
     const uploadFile = useUploadDesignFile();
     const { showToastError } = useToaster();
     const [isDragging, setIsDragging] = useState(false);
 
     const handleFiles = (files: File[]) => {
-        // Upload sequentially so the backend's `Content-Length` accounting and
-        // the optimistic toast feedback stay readable. Parallel uploads would
-        // race the parent-design `updated_at` bumps in any case.
-        const uploadNext = (index: number) => {
-            if (index >= files.length) return;
-            const file = files[index];
+        // Validate against the theme guardrails client-side before uploading.
+        // The backend enforces the same limits, but rejecting a large upload
+        // mid-flight resets the connection and surfaces as a generic network
+        // error instead of the real message — so catch it here and never send
+        // a doomed upload. `accepted` seeds the running tally from the theme's
+        // stored files and grows across this batch.
+        const accepted: Pick<ApiOrganizationDesignFile, 'sizeBytes'>[] =
+            existingFiles.map((f) => ({ sizeBytes: f.sizeBytes }));
+        const queue: { file: File; kind: OrganizationDesignFileKind }[] = [];
+
+        for (const file of files) {
             const kind = inferKind(file.name);
             if (!kind) {
                 showToastError({
@@ -69,9 +89,38 @@ export const DesignFileUpload: FC<Props> = ({ designUuid }) => {
                     subtitle:
                         'Allowed: .css, .md, .png, .jpg, .jpeg, .gif, .webp, .svg, .woff, .woff2, .ttf, .otf',
                 });
-                uploadNext(index + 1);
-                return;
+                continue;
             }
+            if (file.size > MAX_THEME_FILE_BYTES) {
+                showToastError({
+                    title: `${file.name} is too large`,
+                    subtitle: `Files must be under ${formatMb(
+                        MAX_THEME_FILE_BYTES,
+                    )}.`,
+                });
+                continue;
+            }
+            const violation = checkThemeLimits([
+                ...accepted,
+                { sizeBytes: file.size },
+            ]);
+            if (violation) {
+                showToastError({
+                    title: `Can't add ${file.name}`,
+                    subtitle: themeLimitMessage(violation, themeName),
+                });
+                continue;
+            }
+            accepted.push({ sizeBytes: file.size });
+            queue.push({ file, kind });
+        }
+
+        // Upload sequentially so the backend's `Content-Length` accounting and
+        // the optimistic toast feedback stay readable. Parallel uploads would
+        // race the parent-design `updated_at` bumps in any case.
+        const uploadNext = (index: number) => {
+            if (index >= queue.length) return;
+            const { file, kind } = queue[index];
             uploadFile.mutate(
                 { designUuid, file, kind, filename: file.name },
                 {

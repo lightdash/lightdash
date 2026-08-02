@@ -18,12 +18,13 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconAlertTriangle,
     IconBolt,
     IconCircleCheck,
     IconCircleCheckFilled,
+    IconCode,
     IconCopy,
     IconDatabase,
     IconDatabaseExport,
@@ -50,6 +51,7 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
+import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteDashboardDiffMutation,
@@ -181,6 +183,8 @@ const DashboardHeader = memo(
         const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
         const [isPreAggRefreshOpen, preAggRefreshHandlers] =
             useDisclosure(false);
+        const [isDashboardAsCodeModalOpen, dashboardAsCodeModalHandlers] =
+            useDisclosure(false);
 
         const uniquePreAggregateNames = useMemo(() => {
             if (!preAggregateStatuses) return [];
@@ -288,6 +292,16 @@ const DashboardHeader = memo(
             'manage',
             subject('ExportCsv', { organizationUuid, projectUuid }),
         );
+
+        const userCanViewContentAsCode =
+            project &&
+            user.data?.ability.can(
+                'view',
+                subject('ContentAsCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
 
         const userCanPinDashboard = user.data?.ability.can(
             'manage',
@@ -700,7 +714,8 @@ const DashboardHeader = memo(
                                 shadow="md"
                                 disabled={
                                     !userCanManageDashboard &&
-                                    !userCanExportData
+                                    !userCanExportData &&
+                                    !userCanViewContentAsCode
                                 }
                             >
                                 <Menu.Target>
@@ -739,8 +754,8 @@ const DashboardHeader = memo(
                                         projectUuid={projectUuid}
                                         dashboardUuid={dashboard.uuid}
                                         clickedFrom="dashboard_header"
-                                        withDivider
                                     />
+                                    {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                                     {!!userCanManageDashboard && (
                                         <>
                                             {preAggregatesEnabled &&
@@ -875,7 +890,7 @@ const DashboardHeader = memo(
                                                         }
                                                         onClick={() =>
                                                             getPromoteDashboardDiff(
-                                                                dashboardUuid,
+                                                                dashboard.uuid,
                                                             )
                                                         }
                                                     >
@@ -954,6 +969,27 @@ const DashboardHeader = memo(
                                         </Menu.Item>
                                     )}
 
+                                    {userCanViewContentAsCode && (
+                                        <>
+                                            <Menu.Divider />
+                                            <Menu.Label>
+                                                Content as code
+                                            </Menu.Label>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCode}
+                                                    />
+                                                }
+                                                onClick={
+                                                    dashboardAsCodeModalHandlers.open
+                                                }
+                                            >
+                                                View as code
+                                            </Menu.Item>
+                                        </>
+                                    )}
+
                                     {userCanManageDashboard && (
                                         <>
                                             <Menu.Divider />
@@ -1000,6 +1036,17 @@ const DashboardHeader = memo(
                                 initialSchedulerUuid={initialSchedulerUuid}
                             />
                         )}
+                        {projectUuid && (
+                            <DashboardAsCodeModal
+                                opened={isDashboardAsCodeModalOpen}
+                                onClose={dashboardAsCodeModalHandlers.close}
+                                projectUuid={projectUuid}
+                                dashboardUuid={dashboard.uuid}
+                                hasUnsavedChanges={
+                                    hasDashboardChanged && isEditMode
+                                }
+                            />
+                        )}
                         {(promoteDashboardDiff ||
                             promoteDashboardDiffLoading) &&
                             dashboardUuid && (
@@ -1011,7 +1058,7 @@ const DashboardHeader = memo(
                                         resetPromoteDashboardDiff();
                                     }}
                                     onConfirm={() => {
-                                        promoteDashboard(dashboardUuid);
+                                        promoteDashboard(dashboard.uuid);
                                     }}
                                 />
                             )}

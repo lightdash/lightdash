@@ -1,10 +1,12 @@
 import { type Comment } from '@lightdash/common';
-import { Avatar, Button, Grid, Group, Skeleton, Stack } from '@mantine-8/core';
+import { Button, Grid, Group, Skeleton, Stack } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { type Editor, type JSONContent } from '@tiptap/react';
 import { useMemo, useState, type FC } from 'react';
+import { LightdashUserAvatar } from '../../../components/Avatar';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useSpace } from '../../../hooks/useSpaces';
+import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { type SuggestionsItem } from '../types';
 import { getNameInitials } from '../utils';
@@ -41,6 +43,7 @@ export const CommentForm: FC<Props> = ({
     onCancel,
     mode = 'new',
 }) => {
+    const { user } = useApp();
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const spaceUuid = useDashboardContext((c) => c.dashboard?.spaceUuid);
     const { data: listUsers } = useOrganizationUsers();
@@ -90,9 +93,14 @@ export const CommentForm: FC<Props> = ({
             <Stack gap="xs" mt="xs">
                 <Grid columns={20}>
                     <Grid.Col span={2}>
-                        <Avatar radius="xl" size="sm" color="ldGray.6">
+                        <LightdashUserAvatar
+                            size="sm"
+                            userUuid={user.data?.userUuid}
+                            avatarUrl={user.data?.avatarUrl}
+                            avatarGradient={user.data?.avatarGradient}
+                        >
                             {getNameInitials(userName)}
-                        </Avatar>
+                        </LightdashUserAvatar>
                     </Grid.Col>
                     <Grid.Col span={18} w={mode === 'reply' ? 300 : 350}>
                         {userNames ? (

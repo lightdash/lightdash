@@ -20,8 +20,8 @@ export type PullRequestReviewContext = {
     reviewTitle: string;
     reviewStatus: AiAgentReviewItemStatus;
     primaryRootCause: AiAgentRootCause;
-    sourceFindingUuid: string;
-    sourceThreadUuid: string;
+    sourceFindingUuid: string | null;
+    sourceThreadUuid: string | null;
     sourceProjectUuid: string;
     sourceAgentUuid: string;
 };
@@ -121,8 +121,8 @@ export type ApiGithubUserCredentialResponse = {
  * - `personal`: the user has a linked personal GitHub account; the PR will be
  *   attributed to `githubLogin`.
  * - `org`: the PR will fall back to the shared org-level GitHub App. `canLink`
- *   is whether the user can link a personal account (the github-user-credentials
- *   feature is enabled), i.e. whether nudging to settings is worthwhile.
+ *   is whether the user can link a personal account, i.e. whether nudging to
+ *   settings is worthwhile.
  */
 export type AiWritebackAttribution =
     | { mode: 'personal'; githubLogin: string }
@@ -142,6 +142,11 @@ export type GitRepo = {
     // Which provider the repo lives on, so the UI can pick the right icon.
     // Optional for back-compat with existing GitRepo producers (setup endpoints).
     provider?: 'github' | 'gitlab';
+    // Whether the coding agent can WRITE this repo (open a PR) for the current
+    // user: backed by the same predicate as the editRepo authz chokepoint, so
+    // the picker never offers a repo the backend would then 403. Optional for
+    // back-compat with producers that only surface read access.
+    writable?: boolean;
 };
 
 export type GitFileEntry = {

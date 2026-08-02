@@ -22,6 +22,7 @@ export const useGithubConfig = () => {
         queryKey: ['github_installation'],
         queryFn: () => getGithubConfig(),
         retry: false,
+        staleTime: 5 * 60 * 1000, // 5 minutes - the installation rarely changes; install detection drives its own refetch()
         onError: ({ error }) => {
             if (error.statusCode === 404 || error.statusCode === 401) return; // Ignore missing installation errors or unauthorized in demo
 

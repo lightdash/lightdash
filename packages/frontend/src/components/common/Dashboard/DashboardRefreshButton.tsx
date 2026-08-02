@@ -1,5 +1,5 @@
 import { ActionIcon, Menu, Text, Tooltip } from '@mantine-8/core';
-import { useInterval } from '@mantine/hooks';
+import { useInterval } from '@mantine-8/hooks';
 import { IconCheck, IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import {
     memo,

@@ -1,0 +1,172 @@
+/* Let the corner status dot poke past the icon without being clipped.
+ * Mantine's Button clips overflow on both the root AND its inner label
+ * span by default — both need to be opted back into visible. */
+.cell {
+    overflow: visible;
+}
+
+.cellLabel {
+    overflow: visible;
+}
+
+.iconWrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Corner status dot on the icon. */
+.dotCorner {
+    position: absolute;
+    top: -3px;
+    right: -4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px var(--mantine-color-body);
+}
+
+.dotActive {
+    background: var(--mantine-color-green-6);
+}
+
+.dotFailed {
+    background: var(--mantine-color-red-6);
+}
+
+/* --- Promo hovercard (deliberately dark in both themes) --- */
+.promoDropdown {
+    padding: 0;
+    border: none;
+    background: transparent;
+    overflow: visible;
+}
+
+.promo {
+    position: relative;
+    overflow: hidden;
+    padding: 15px 15px 14px;
+    border-radius: 12px;
+    color: #ededed;
+    background: #141414;
+    box-shadow:
+        0 14px 40px rgba(0, 0, 0, 0.46),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.promoHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 14px;
+}
+
+.promoTitle {
+    font-size: 13.5px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.promoTagline {
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.promoFeatures {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 13px;
+    margin-bottom: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.promoFeature {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.74);
+}
+
+.promoFeatureIcon {
+    color: rgba(255, 255, 255, 0.46);
+    flex-shrink: 0;
+}
+
+.promoCta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: #141414;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    background: #f2f2f2;
+    transition: background-color 140ms ease;
+}
+
+.promoCta:hover {
+    background: #ffffff;
+}
+
+/* --- Mini hovercard for the active/live state --- */
+.miniCard {
+    display: block;
+    width: 100%;
+    padding: 13px 14px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    color: #ededed;
+    background: #141414;
+    box-shadow:
+        0 14px 40px rgba(0, 0, 0, 0.46),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+.miniHeaderText {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.miniStatusDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.miniStatus {
+    font-size: 12.5px;
+    color: rgba(255, 255, 255, 0.74);
+}
+
+.miniSummary {
+    margin-top: 4px;
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.46);
+}
+
+.miniFooter {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+}

@@ -3,11 +3,11 @@ import {
     type AiAgentMessageAssistant,
     type AiAgentToolCall,
     type AiMcpServer,
-    isToolProposeChangeResult,
     isToolEditDbtProjectResult,
+    isToolEditRepoResult,
     isToolSetupPreviewDeployResult,
-    type ToolProposeChangeArgs,
     type ToolEditDbtProjectOutput,
+    type ToolEditRepoOutput,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -63,10 +63,15 @@ import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
+import {
+    MEMORY_CITATION_ALLOWED_TAGS,
+    MEMORY_CITATION_COMPONENTS,
+} from './memoryCitationConfig';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
+import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
-import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
+import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
 import {
     LiveActivityCard,
@@ -99,7 +104,6 @@ type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 
 const HIDDEN_TOOL_NAMES = new Set<AiAgentToolName>([
     'improveContext',
-    'proposeChange',
     'generateHashes',
     'generateUuids',
 ]);
@@ -314,12 +318,14 @@ const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
     agentUuid: string;
+    isLastMessage: boolean;
     mcpServers?: AiMcpServer[];
     onDashboardLinkClick?: (url: string) => void;
 }> = ({
     message,
     projectUuid,
     agentUuid,
+    isLastMessage,
     mcpServers,
     onDashboardLinkClick,
 }) => {
@@ -373,10 +379,17 @@ const AssistantBubbleContent: FC<{
         }),
         [canOpenSqlRunner, projectUuid],
     );
+    // After streaming ends there's a brief window where the client has
+    // refetched the thread but the persisted message.message hasn't landed
+    // yet. The streamed content stays in redux keyed to this message, so we
+    // keep it as a fallback to avoid flashing an empty bubble (and a spurious
+    // "No response" notice) until the persisted text arrives.
+    const streamedContent = streamingState?.content ?? '';
     const hasNoResponse =
         !isStreaming &&
         !streamingError &&
         !message.message &&
+        !streamedContent &&
         !isPending &&
         !message.interrupted;
     const shouldShowRetry = hasError || hasNoResponse || !!streamingError;
@@ -392,7 +405,7 @@ const AssistantBubbleContent: FC<{
     const baseMessageContent =
         isStreaming && streamingState
             ? streamingState.content
-            : (message.message ?? '');
+            : message.message || streamedContent;
 
     const referencedArtifactsMarkdown =
         !isStreaming &&
@@ -408,16 +421,6 @@ const AssistantBubbleContent: FC<{
             : '';
 
     const messageContent = baseMessageContent + referencedArtifactsMarkdown;
-
-    const proposeChangeToolCall = isStreaming
-        ? (streamingState?.toolCalls.find((t) => t.toolName === 'proposeChange')
-              ?.toolArgs as ToolProposeChangeArgs)
-        : (message.toolCalls.find((t) => t.toolName === 'proposeChange')
-              ?.toolArgs as ToolProposeChangeArgs); // TODO: fix message type, it's `object` now
-
-    const proposeChangeToolResult = message.toolResults.find(
-        isToolProposeChangeResult,
-    );
 
     // Writeback PR card metadata. The editDbtProject tool result instructs
     // the LLM not to print the PR URL inline (we surface it via a dedicated
@@ -472,6 +475,25 @@ const AssistantBubbleContent: FC<{
         };
     })();
 
+    // General coding-agent (editRepo) PR card metadata — resolved the same way
+    // as editDbtProject (persisted result, then live streaming part), but kept
+    // separate since it has no preview / post-merge migration.
+    const editRepoMetadata: ToolEditRepoOutput['metadata'] | null = (() => {
+        const persisted = message.toolResults.find(isToolEditRepoResult);
+        if (persisted) return persisted.metadata;
+        const livePart = streamingState?.parts.find(
+            (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
+                p.type === 'toolCall' &&
+                p.toolName === 'editRepo' &&
+                p.toolResult !== null &&
+                p.isPreliminary !== true,
+        );
+        const liveOutput = livePart?.toolResult as
+            | ToolEditRepoOutput
+            | undefined;
+        return liveOutput?.metadata ?? null;
+    })();
+
     return (
         <>
             {shouldShowRetry && (
@@ -505,28 +527,32 @@ const AssistantBubbleContent: FC<{
                                 </Text>
                             </Stack>
                         </Alert>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            color="ldDark.5"
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconRefresh}
-                                    size="sm"
-                                    color="ldGray.7"
-                                />
-                            }
-                            onClick={() =>
-                                handleRetry({
-                                    projectUuid,
-                                    agentUuid,
-                                    threadUuid: message.threadUuid,
-                                    messageUuid: message.uuid,
-                                })
-                            }
-                        >
-                            Try again
-                        </Button>
+                        {/* Retry re-runs the thread's latest prompt, so only
+                            offer it on the message it would actually re-run */}
+                        {isLastMessage && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                color="ldDark.5"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconRefresh}
+                                        size="sm"
+                                        color="ldGray.7"
+                                    />
+                                }
+                                onClick={() =>
+                                    handleRetry({
+                                        projectUuid,
+                                        agentUuid,
+                                        threadUuid: message.threadUuid,
+                                        messageUuid: message.uuid,
+                                    })
+                                }
+                            >
+                                Try again
+                            </Button>
+                        )}
                     </Group>
                 </Paper>
             )}
@@ -575,14 +601,19 @@ const AssistantBubbleContent: FC<{
                     const finalAnswerMd = latestTextSeg ? (
                         <AiMarkdown
                             isStreaming={isStreaming}
+                            allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
                             className={
                                 isStreaming
                                     ? styles.streamingNarration
                                     : undefined
                             }
-                            rehypePlugins={[rehypeAiAgentContentLinks]}
+                            rehypePlugins={[
+                                rehypeAiAgentContentLinks,
+                                rehypeMemoryCitationIndices,
+                            ]}
                             plugins={markdownPlugins}
                             components={{
+                                ...MEMORY_CITATION_COMPONENTS,
                                 a: ({ node, children, ...props }) => {
                                     const contentType =
                                         'data-content-type' in props &&
@@ -766,9 +797,14 @@ const AssistantBubbleContent: FC<{
                         {messageContent.length > 0 ? (
                             <AiMarkdown
                                 className={styles.persistedAnswer}
-                                rehypePlugins={[rehypeAiAgentContentLinks]}
+                                allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
+                                rehypePlugins={[
+                                    rehypeAiAgentContentLinks,
+                                    rehypeMemoryCitationIndices,
+                                ]}
                                 plugins={markdownPlugins}
                                 components={{
+                                    ...MEMORY_CITATION_COMPONENTS,
                                     a: ({ node, children, ...props }) => {
                                         const contentType =
                                             'data-content-type' in props &&
@@ -816,17 +852,6 @@ const AssistantBubbleContent: FC<{
                         <TypingDots />
                     </Box>
                 )}
-            {proposeChangeToolCall && (
-                <AiProposeChangeToolCall
-                    change={proposeChangeToolCall.change}
-                    entityTableName={proposeChangeToolCall.entityTableName}
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={message.threadUuid}
-                    promptUuid={message.uuid}
-                    toolResult={proposeChangeToolResult}
-                />
-            )}
             {editDbtProjectResult && (
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}
@@ -838,12 +863,19 @@ const AssistantBubbleContent: FC<{
                     threadUuid={message.threadUuid}
                 />
             )}
+            {editRepoMetadata && (
+                <AiEditRepoToolCall
+                    metadata={editRepoMetadata}
+                    projectUuid={projectUuid}
+                />
+            )}
         </>
     );
 };
 
 type Props = {
     message: AiAgentMessageAssistant;
+    isLastMessage: boolean;
     isActive?: boolean;
     debug?: boolean;
     projectUuid: string;
@@ -858,6 +890,7 @@ type Props = {
 export const AssistantBubble: FC<Props> = memo(
     ({
         message,
+        isLastMessage,
         isActive = false,
         debug = false,
         projectUuid,
@@ -959,6 +992,7 @@ export const AssistantBubble: FC<Props> = memo(
                     message={message}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
+                    isLastMessage={isLastMessage}
                     mcpServers={mcpServers}
                     onDashboardLinkClick={onDashboardLinkClick}
                 />

@@ -1,5 +1,7 @@
 ---
 name: frontend-style-guide
+metadata:
+  internal: true
 description: Apply the Lightdash frontend style guide when working on React components, migrating Mantine v6 to v8, or styling frontend code. Use when editing TSX files, fixing styling issues, or when user mentions Mantine, styling, or CSS modules.
 allowed-tools: Read, Edit, Write, Glob, Grep
 ---
@@ -319,6 +321,13 @@ const MyComponent = () => {
 - Use `Callout` from `components/common/Callout`
 - Variants: `danger`, `warning`, `info`
 
+### Empty / Unavailable Sections (dotted style)
+
+- **`<Paper variant="dotted">`** (also `Card`) renders a dashed `ldGray.3` border with a transparent background — the house style for empty, placeholder, or unavailable sections. Defined in `mantine8Theme.ts` (`paperDottedStyles`); used by e.g. `FavoritesPanel` and `AiAgentKnowledgeFilesSection`.
+- **Section failed to load**: use `InlineErrorState` from `components/common/InlineErrorState` — a dotted Paper with a muted message and optional `onRetry` button. Keep it quiet; a failing secondary panel shouldn't shout.
+- **Placeholder values** (stat tiles etc. with no data): render an em dash (`—`) in `ldGray.5` inside a dotted container rather than fake zeros or endless skeletons. Skeletons mean "loading", dotted means "nothing here".
+- Reserve `ErrorState` / `SuboptimalState` for whole-page failures.
+
 ### Polymorphic Clickable Containers
 
 Use these when you need a layout container that is also clickable — avoids the native `<button>` background/border reset problem.
@@ -344,6 +353,27 @@ Both accept all props of their base component (`GroupProps` / `PaperProps`) plus
 <UnstyledButton>
     <Group>...</Group>
 </UnstyledButton>
+```
+
+### NumberInput
+
+- **Always use `NumberInput` from `components/common/NumberInput`** — never Mantine's NumberInput directly
+- Mantine 8's onChange emits `number | string` (empty field, half-typed values like `-`/`12.`, unsafe-large integers). The wrapper's `onNumberChange` shields you: it fires with a `number`, or `undefined` when the field is cleared — transient strings never fire
+- **Integer-only by default** — the wrapper defaults `decimalScale={0}` (most fields are ports, counts, timeouts). Decimal fields opt in with `decimalScale={2}` etc., or `decimalScale="unlimited"` to remove the cap
+- The raw `onChange` prop remains available only for `form.getInputProps()` spreads, where the form library owns parsing
+
+```tsx
+// ✅ Good - cleared field maps to a domain decision at the call site
+<NumberInput onNumberChange={(v) => setLimit(v ?? DEFAULT)} />
+
+// ✅ Good - number-or-undefined sinks take the callback directly
+<NumberInput decimalScale={2} onNumberChange={setThreshold} />
+
+// ✅ OK - form spread owns value/onChange
+<NumberInput {...form.getInputProps('warehouse.port')} />
+
+// ❌ Avoid - hand-rolled typeof guards on the raw Mantine component
+<MantineNumberInput onChange={(v) => { if (typeof v === 'number') setX(v); }} />
 ```
 
 ### EmptyStateLoader

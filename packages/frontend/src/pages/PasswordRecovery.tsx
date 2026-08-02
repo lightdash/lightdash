@@ -1,8 +1,6 @@
-import { Box, Card, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { Navigate } from 'react-router';
-import Page from '../components/common/Page/Page';
-import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
+import AuthLayout from '../components/common/AuthLayout';
 import PageSpinner from '../components/PageSpinner';
 import useApp from '../providers/App/useApp';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';
@@ -19,17 +17,9 @@ const PasswordRecovery: FC = () => {
     }
 
     return (
-        <Page title="Recover password" withCenteredContent withNavbar={false}>
-            {/* FIXME: use Mantine sizes for width */}
-            <Stack w={400} mt="4xl">
-                <Box mx="auto" my="lg">
-                    <LightdashLogo />
-                </Box>
-                <Card p="xl" radius="xs" withBorder shadow="xs">
-                    <PasswordRecoveryForm />
-                </Card>
-            </Stack>
-        </Page>
+        <AuthLayout pageTitle="Recover password">
+            <PasswordRecoveryForm />
+        </AuthLayout>
     );
 };
 

@@ -10,16 +10,20 @@ import {
 
 export const useDefaultAiAgent = (projectUuid: string | undefined) => {
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
-    const { data: agents } = useProjectAiAgents({
+    const agentsQuery = useProjectAiAgents({
         projectUuid,
         options: {
             enabled:
                 aiOrganizationSettingsQuery.isSuccess &&
-                aiOrganizationSettingsQuery.data?.aiAgentsVisible,
+                !!aiOrganizationSettingsQuery.data?.aiAgentsVisible &&
+                (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
+                    aiOrganizationSettingsQuery.data.isTrial),
         },
         redirectOnUnauthorized: false,
     });
-    const { data: preferences } = useGetUserAgentPreferences(projectUuid);
+    const agents = agentsQuery.data;
+    const preferencesQuery = useGetUserAgentPreferences(projectUuid);
+    const preferences = preferencesQuery.data;
     const aiRouterConfigQuery = useAiRouterConfig();
 
     const selectedAgent = useMemo(
@@ -38,9 +42,16 @@ export const useDefaultAiAgent = (projectUuid: string | undefined) => {
         ],
     );
 
+    const isResolving =
+        agentsQuery.isLoading ||
+        preferencesQuery.isLoading ||
+        aiRouterConfigQuery.isLoading;
+
     return {
         agent: getConcreteLauncherAgent(selectedAgent),
         selectedAgent,
         agents: agents ?? [],
+        agentsUpdatedAt: agentsQuery.dataUpdatedAt,
+        isResolving,
     };
 };

@@ -512,7 +512,8 @@ const hasMapExtentChanged = (
 export const selectHasPaletteChanges = createSelector(
     [selectSavedChart, selectUnsavedColorPaletteUuid],
     (savedChart, unsavedColorPaletteUuid) => {
-        if (!savedChart) return false;
+        // Unsaved chart: any chosen palette is a change.
+        if (!savedChart) return unsavedColorPaletteUuid !== null;
         return unsavedColorPaletteUuid !== savedChart.colorPaletteUuid;
     },
 );

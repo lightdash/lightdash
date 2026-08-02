@@ -8,9 +8,9 @@ import {
     ItemsMap,
 } from '@lightdash/common';
 import moment, { MomentInput } from 'moment/moment';
-import { createInterface } from 'readline';
 import { Readable } from 'stream';
 import Logger from '../../logging/logger';
+import { splitJsonlStream } from '../streamUtils';
 
 export const isRowValueTimestamp = (
     value: unknown,
@@ -149,54 +149,42 @@ export async function streamJsonlData<T>({
     onComplete?: (results: T[], truncated: boolean) => void;
     maxLines?: number; // undefined = no limit (for CSV), number = limit (for Excel)
 }): Promise<{ results: T[]; truncated: boolean }> {
-    return new Promise((resolve, reject) => {
-        const lineReader = createInterface({
-            input: readStream,
-            crlfDelay: Infinity,
-        });
+    let lineCount = 0;
+    let truncated = false;
+    const results: T[] = [];
 
-        let lineCount = 0;
-        let truncated = false;
-        const results: T[] = [];
+    for await (const line of splitJsonlStream(readStream)) {
+        if (!line.trim()) {
+            // eslint-disable-next-line no-continue
+            continue;
+        }
 
-        lineReader.on('line', (line: string) => {
-            if (!line.trim()) return;
+        lineCount += 1;
 
-            lineCount += 1;
+        // Check if we've exceeded the line limit (only if maxLines is defined)
+        if (maxLines !== undefined && lineCount > maxLines) {
+            truncated = true;
+            readStream.destroy();
+            break;
+        }
 
-            // Check if we've exceeded the line limit (only if maxLines is defined)
-            if (maxLines !== undefined && lineCount > maxLines) {
-                truncated = true;
-                lineReader.close();
-                return;
-            }
-
-            try {
-                const parsedRow = JSON.parse(line);
-                if (onRow) {
-                    const result = onRow(parsedRow, lineCount);
-                    if (result !== undefined) {
-                        results.push(result);
-                    }
+        try {
+            const parsedRow = JSON.parse(line);
+            if (onRow) {
+                const result = onRow(parsedRow, lineCount);
+                if (result !== undefined) {
+                    results.push(result);
                 }
-            } catch (error) {
-                Logger.error(
-                    `Error parsing line ${lineCount}: ${getErrorMessage(
-                        error,
-                    )}`,
-                );
             }
-        });
+        } catch (error) {
+            Logger.error(
+                `Error parsing line ${lineCount}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
 
-        lineReader.on('close', async () => {
-            if (onComplete) {
-                await onComplete(results, truncated);
-            }
-            resolve({ results, truncated });
-        });
-
-        lineReader.on('error', (error) => {
-            reject(error);
-        });
-    });
+    if (onComplete) {
+        await onComplete(results, truncated);
+    }
+    return { results, truncated };
 }

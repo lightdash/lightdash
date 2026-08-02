@@ -6,8 +6,15 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Group, HoverCard, Stack, Text } from '@mantine/core';
+import {
+    Group,
+    Menu,
+    Stack,
+    Text,
+    ActionIcon,
+    HoverCard,
+} from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconAlertTriangle,
     IconCode,
@@ -24,6 +31,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
+import VirtualViewAsCodeModal from '../../../features/contentAsCode/components/VirtualViewAsCodeModal';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -64,6 +72,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
     const [isDeleteVirtualViewOpen, setIsDeleteVirtualViewOpen] =
         useState(false);
+    const [isVirtualViewAsCodeOpen, virtualViewAsCodeModalHandlers] =
+        useDisclosure();
     const [, startTransition] = useTransition();
 
     const projectUuid = useProjectUuid();
@@ -179,6 +189,26 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     if (!explore) return null;
 
+    const virtualViewSubject = subject('VirtualView', {
+        organizationUuid: user.data?.organizationUuid,
+        projectUuid,
+    });
+    const canEditVirtualView = user.data?.ability.can(
+        'create',
+        virtualViewSubject,
+    );
+    const canDeleteVirtualView = user.data?.ability.can(
+        'delete',
+        virtualViewSubject,
+    );
+    const canViewContentAsCode = user.data?.ability.can(
+        'view',
+        subject('ContentAsCode', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
     // Only call `onBack` for 4XX errors, otherwise we lose URL state when there's a Network error or backend is down
     if (status === 'error' && error.error.statusCode < 500) {
         onBack?.();
@@ -189,7 +219,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         <>
             <Stack
                 id={VisualizationConfigPortalId}
-                sx={{
+                style={{
                     flexGrow: 1,
                     overflow: 'hidden',
                     display: isVisualizationConfigOpen ? 'flex' : 'none',
@@ -198,13 +228,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
             <Stack
                 h="100%"
-                sx={{
+                style={{
                     flexGrow: 1,
                     display: isVisualizationConfigOpen ? 'none' : 'flex',
                 }}
             >
-                <Group position="apart">
-                    <Group spacing="xs">
+                <Group justify="space-between">
+                    <Group gap="xs">
                         <PageBreadcrumbs size="md" items={breadcrumbs} />
                         {explore.warnings && explore.warnings.length > 0 && (
                             <HoverCard
@@ -235,55 +265,80 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             </HoverCard>
                         )}
                     </Group>
-                    {explore.type === ExploreType.VIRTUAL && (
-                        <Can
-                            I="create"
-                            this={subject('VirtualView', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                    {explore.type === ExploreType.VIRTUAL &&
+                        (canEditVirtualView ||
+                            canDeleteVirtualView ||
+                            canViewContentAsCode) && (
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
-                                    <ActionIcon variant="transparent">
+                                    <ActionIcon
+                                        aria-label="Virtual view actions"
+                                        color="gray"
+                                        variant="transparent"
+                                    >
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
                                 <Menu.Dropdown>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconPencil} />
-                                        }
-                                        onClick={handleEditVirtualView}
-                                    >
-                                        <Text fz="xs" fw={500}>
-                                            Edit virtual view
-                                        </Text>
-                                    </Menu.Item>
-                                    <Can
-                                        I="delete"
-                                        this={subject('VirtualView', {
-                                            organizationUuid:
-                                                user.data?.organizationUuid,
-                                            projectUuid,
-                                        })}
-                                    >
+                                    {canEditVirtualView && (
                                         <Menu.Item
                                             leftSection={
-                                                <MantineIcon icon={IconTrash} />
+                                                <MantineIcon
+                                                    icon={IconPencil}
+                                                />
                                             }
-                                            color="red"
-                                            onClick={handleDeleteVirtualView}
+                                            onClick={handleEditVirtualView}
                                         >
                                             <Text fz="xs" fw={500}>
-                                                Delete
+                                                Edit virtual view
                                             </Text>
                                         </Menu.Item>
-                                    </Can>
+                                    )}
+                                    {canViewContentAsCode && (
+                                        <>
+                                            {canEditVirtualView && (
+                                                <Menu.Divider />
+                                            )}
+                                            <Menu.Label>
+                                                Content as code
+                                            </Menu.Label>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCode}
+                                                    />
+                                                }
+                                                onClick={
+                                                    virtualViewAsCodeModalHandlers.open
+                                                }
+                                            >
+                                                View as code
+                                            </Menu.Item>
+                                        </>
+                                    )}
+                                    {canDeleteVirtualView && (
+                                        <>
+                                            <Menu.Divider />
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                    />
+                                                }
+                                                color="red"
+                                                onClick={
+                                                    handleDeleteVirtualView
+                                                }
+                                            >
+                                                <Text fz="xs" fw={500}>
+                                                    Delete
+                                                </Text>
+                                            </Menu.Item>
+                                        </>
+                                    )}
                                 </Menu.Dropdown>
                             </Menu>
-                        </Can>
-                    )}
+                        )}
                     {explore.type !== ExploreType.VIRTUAL &&
                         isGitProject &&
                         explore.ymlPath &&
@@ -298,7 +353,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             >
                                 <Menu withArrow offset={-2}>
                                     <Menu.Target>
-                                        <ActionIcon variant="transparent">
+                                        <ActionIcon
+                                            color="gray"
+                                            variant="transparent"
+                                        >
                                             <MantineIcon icon={IconDots} />
                                         </ActionIcon>
                                     </Menu.Target>
@@ -341,6 +399,14 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         onClose={() => setIsDeleteVirtualViewOpen(false)}
                         virtualViewName={activeTableName}
                         projectUuid={projectUuid}
+                    />
+                )}
+                {projectUuid && isVirtualViewAsCodeOpen && (
+                    <VirtualViewAsCodeModal
+                        opened={isVirtualViewAsCodeOpen}
+                        onClose={virtualViewAsCodeModalHandlers.close}
+                        projectUuid={projectUuid}
+                        virtualViewSlug={activeTableName}
                     />
                 )}
             </Stack>

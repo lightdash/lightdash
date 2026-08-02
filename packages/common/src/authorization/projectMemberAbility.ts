@@ -167,12 +167,6 @@ export const projectMemberAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
-        // Create personal data apps; once created, the user can also view
-        // and manage their own. Moving an app into a space is gated
-        // separately by the target space's manage rule.
-        can('create', 'DataApp', {
-            projectUuid: member.projectUuid,
-        });
         can('view', 'DataApp', {
             projectUuid: member.projectUuid,
             createdByUserUuid: member.userUuid,
@@ -180,6 +174,11 @@ export const projectMemberAbilities: Record<
         can('manage', 'DataApp', {
             projectUuid: member.projectUuid,
             createdByUserUuid: member.userUuid,
+        });
+        // View external connections to select and link them when building a
+        // data app. Managing (create/edit/delete) stays admin-only.
+        can('view', 'ExternalConnection', {
+            projectUuid: member.projectUuid,
         });
 
         can('manage', 'Space', {
@@ -201,9 +200,15 @@ export const projectMemberAbilities: Record<
         can('create', 'AiAgentThread', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'ContentVerification', {
+            projectUuid: member.projectUuid,
+        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
+        can('create', 'DataApp', {
+            projectUuid: member.projectUuid,
+        });
         can('create', 'Space', {
             projectUuid: member.projectUuid,
         });
@@ -230,9 +235,10 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             userUuid: member.userUuid,
         });
-        // Editors can download content as code but not upload it. Upload
-        // stays gated behind `manage:ContentAsCode` (developer+).
         can('view', 'ContentAsCode', {
+            projectUuid: member.projectUuid,
+        });
+        can('create', 'ContentAsCode', {
             projectUuid: member.projectUuid,
         });
     },
@@ -248,6 +254,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'CustomFields', {
+            projectUuid: member.projectUuid,
+        });
+        can('view', 'CompiledSql', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'CustomSqlTableCalculations', {
@@ -322,6 +331,12 @@ export const projectMemberAbilities: Record<
         can('manage', 'AiAgentDocument', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'ContentVerification', {
+            projectUuid: member.projectUuid,
+        });
+        can('create', 'AiDeepResearch', {
+            projectUuid: member.projectUuid,
+        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
@@ -330,11 +345,13 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
-        can('manage', 'ExternalConnection', {
+        // Adding custom npm dependencies is a supply-chain capability gated
+        // above ordinary data-app management — admins only by default.
+        can('manage', 'DataAppDependency', {
             projectUuid: member.projectUuid,
         });
 
-        can('manage', 'ContentVerification', {
+        can('manage', 'ExternalConnection', {
             projectUuid: member.projectUuid,
         });
 
@@ -373,6 +390,10 @@ export const projectMemberAbilities: Record<
         });
 
         can('manage', 'DeletedContent', {
+            projectUuid: member.projectUuid,
+        });
+
+        can('manage', 'ProjectHomepage', {
             projectUuid: member.projectUuid,
         });
     },

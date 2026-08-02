@@ -1,5 +1,7 @@
 ---
 name: graphite
+metadata:
+  internal: true
 description: |
   Manage stacked PRs with Graphite CLI (gt) instead of git for branch/PR operations.
   Auto-detects Graphite repos via .git/.graphite_repo_config.

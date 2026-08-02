@@ -1,102 +1,109 @@
-import { type SearchItemType } from '@lightdash/common';
-import { Accordion, Text } from '@mantine-8/core';
+import { Box, Group, Text, UnstyledButton } from '@mantine-8/core';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useEffect, type FC, type MutableRefObject } from 'react';
-import { type FocusedItemIndex, type SearchItem } from '../types/searchItem';
-import { getSearchItemLabel } from '../utils/getSearchItemLabel';
+import MantineIcon from '../../../components/common/MantineIcon';
+import {
+    type FocusedItemIndex,
+    type OmnibarGroup,
+    type SearchItem,
+} from '../types/searchItem';
 import OmnibarItem from './OmnibarItem';
 import classes from './OmnibarItemGroups.module.css';
 
 type Props = {
-    openPanels: SearchItemType[];
-    onOpenPanelsChange: (panels: SearchItemType[]) => void;
     projectUuid: string;
     canUserManageValidation: boolean;
     onClick: (item: SearchItem, redirect: boolean) => void;
     focusedItemIndex?: FocusedItemIndex;
-    groupedItems: [SearchItemType, SearchItem[]][];
+    onFocusedItemChange: (index: FocusedItemIndex) => void;
+    onToggleGroup: (key: string) => void;
+    groups: OmnibarGroup[];
     scrollRef?: MutableRefObject<HTMLDivElement>;
 };
 
 const OmnibarItemGroups: FC<Props> = ({
-    openPanels,
-    onOpenPanelsChange,
     projectUuid,
-    groupedItems,
+    groups,
     canUserManageValidation,
     onClick,
     focusedItemIndex,
+    onFocusedItemChange,
+    onToggleGroup,
     scrollRef,
 }) => {
     useEffect(() => {
         if (scrollRef?.current && focusedItemIndex) {
             scrollRef.current.scrollIntoView({
-                block: 'center',
+                block: 'nearest',
             });
         }
     }, [scrollRef, focusedItemIndex]);
 
-    useEffect(() => {
-        if (focusedItemIndex) {
-            const currentGroupItemType =
-                groupedItems[focusedItemIndex.groupIndex][0];
-
-            if (
-                currentGroupItemType &&
-                !openPanels.includes(currentGroupItemType)
-            ) {
-                onOpenPanelsChange([currentGroupItemType, ...openPanels]);
-            }
-        }
-    }, [focusedItemIndex, openPanels, onOpenPanelsChange, groupedItems]);
-
     return (
-        <Accordion
-            classNames={{
-                control: classes.accordionControl,
-                label: classes.accordionLabel,
-                content: classes.accordionContent,
-            }}
-            multiple
-            value={openPanels}
-            onChange={(newPanels) =>
-                onOpenPanelsChange(newPanels as SearchItemType[])
-            }
-        >
-            {groupedItems.map(([groupType, groupItems], groupIndex) => (
-                <Accordion.Item key={groupType} value={groupType}>
-                    <Accordion.Control>
-                        <Text c="dimmed" fw={500} fz="xs">
-                            {getSearchItemLabel(groupType)}
-                        </Text>
-                    </Accordion.Control>
+        <Box className={classes.groups}>
+            {groups.map((group, groupIndex) => (
+                <Box key={group.key} className={classes.group}>
+                    <UnstyledButton
+                        className={classes.groupLabel}
+                        onClick={() => onToggleGroup(group.key)}
+                        aria-expanded={!group.collapsed}
+                    >
+                        <Group gap={6} wrap="nowrap">
+                            <MantineIcon
+                                icon={
+                                    group.collapsed
+                                        ? IconChevronRight
+                                        : IconChevronDown
+                                }
+                                size="sm"
+                                strokeWidth={1.5}
+                                className={classes.groupChevron}
+                            />
+                            <Text
+                                fz="xs"
+                                fw={600}
+                                className={classes.groupLabelText}
+                            >
+                                {group.label}
+                            </Text>
+                            <Text fz="xs" className={classes.groupCount}>
+                                {group.totalCount}
+                            </Text>
+                        </Group>
+                    </UnstyledButton>
 
-                    <Accordion.Panel>
-                        {groupItems.map((item, itemIndex) => {
-                            const isFocused =
-                                groupIndex === focusedItemIndex?.groupIndex &&
-                                itemIndex === focusedItemIndex?.itemIndex;
-                            return (
-                                <OmnibarItem
-                                    key={itemIndex}
-                                    item={item}
-                                    scrollRef={
-                                        isFocused ? scrollRef : undefined
-                                    }
-                                    onClick={(e: React.MouseEvent) => {
-                                        onClick(item, e.metaKey);
-                                    }}
-                                    projectUuid={projectUuid}
-                                    canUserManageValidation={
-                                        canUserManageValidation
-                                    }
-                                    hovered={isFocused}
-                                />
-                            );
-                        })}
-                    </Accordion.Panel>
-                </Accordion.Item>
+                    {group.items.map((item, itemIndex) => {
+                        const isFocused =
+                            groupIndex === focusedItemIndex?.groupIndex &&
+                            itemIndex === focusedItemIndex?.itemIndex;
+                        return (
+                            <OmnibarItem
+                                key={itemIndex}
+                                item={item}
+                                scrollRef={isFocused ? scrollRef : undefined}
+                                onClick={(e: React.MouseEvent) => {
+                                    onClick(item, e.metaKey);
+                                }}
+                                onMouseMove={
+                                    isFocused
+                                        ? undefined
+                                        : () =>
+                                              onFocusedItemChange({
+                                                  groupIndex,
+                                                  itemIndex,
+                                              })
+                                }
+                                projectUuid={projectUuid}
+                                canUserManageValidation={
+                                    canUserManageValidation
+                                }
+                                hovered={isFocused}
+                            />
+                        );
+                    })}
+                </Box>
             ))}
-        </Accordion>
+        </Box>
     );
 };
 

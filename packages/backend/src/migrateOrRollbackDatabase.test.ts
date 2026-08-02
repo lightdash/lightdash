@@ -3,8 +3,8 @@ import * as fs from 'fs';
 import * as https from 'https';
 import * as path from 'path';
 
-jest.mock('https');
-jest.mock('./knexfile', () => ({
+vi.mock('https');
+vi.mock('./knexfile', () => ({
     __esModule: true,
     default: { development: {}, production: {} },
 }));
@@ -13,7 +13,7 @@ jest.mock('./knexfile', () => ({
 import { resolveMigrationFile } from './migrateOrRollbackDatabase';
 
 const TEMP_DIR = path.join(__dirname, '..', '..', 'temp_migrations');
-const mockedGet = https.get as unknown as jest.Mock;
+const mockedGet = https.get as unknown as import('vitest').Mock;
 
 function mockHttpsGet(statusCode: number, body: string) {
     mockedGet.mockImplementation((_url: unknown, cb: unknown) => {
@@ -32,7 +32,7 @@ function mockHttpsGet(statusCode: number, body: string) {
 }
 
 afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     fs.rmSync(TEMP_DIR, { recursive: true, force: true });
 });
 

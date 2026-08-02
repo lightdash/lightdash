@@ -5,12 +5,14 @@ import {
     Metric,
     MetricType,
     getErrorMessage as originalGetErrorMessage,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
 } from '@lightdash/common';
 import {
     BasicAuth,
@@ -21,6 +23,7 @@ import {
     Trino,
 } from 'trino-client';
 import { WarehouseCatalog } from '../types';
+import { coerceTagToString, DriftedTagValue } from '../utils/coerceTagToString';
 import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
@@ -28,6 +31,18 @@ import {
 import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
+
+const TRINO_CLIENT_TAGS_HEADER = 'X-Trino-Client-Tags';
+
+// Trino splits the header on commas and Node rejects non-latin1 header values,
+// so tag keys/values are restricted to a safe charset
+const sanitizeClientTag = (tag: DriftedTagValue): string =>
+    coerceTagToString(tag, {
+        caller: 'TrinoWarehouseClient.sanitizeClientTag',
+        key: null,
+    })
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .substring(0, 60);
 
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
@@ -85,10 +100,23 @@ const queryTableSchema = ({
                                                                       AND table_name = '${table}'
                                                                     ORDER BY 1, 2, 3, ordinal_position`;
 
+export const getTrinoTimestampDomain = (
+    type: TrinoTypes | string,
+): TimestampDomain | undefined => {
+    switch (type.replace(/\(\d+\)/, '')) {
+        case TrinoTypes.TIMESTAMP:
+            return 'naive';
+        case TrinoTypes.TIMESTAMP_TZ:
+            return 'aware';
+        default:
+            return undefined;
+    }
+};
+
 const convertDataTypeToDimensionType = (
     type: TrinoTypes | string,
 ): DimensionType => {
-    const typeWithoutTimePrecision = type.replace(/\(\d\)/, '');
+    const typeWithoutTimePrecision = type.replace(/\(\d+\)/, '');
     switch (typeWithoutTimePrecision) {
         case TrinoTypes.BOOLEAN:
             return DimensionType.BOOLEAN;
@@ -138,6 +166,14 @@ const catalogToSchema = (results: string[][][]): WarehouseCatalog => {
                 warehouseCatalog[table_catalog][table_schema][table_name][
                     column_name
                 ] = convertDataTypeToDimensionType(data_type);
+                setCatalogTimestampDomain(
+                    warehouseCatalog,
+                    table_catalog,
+                    table_schema,
+                    table_name,
+                    column_name,
+                    getTrinoTimestampDomain(data_type),
+                );
             },
         );
     });
@@ -172,6 +208,11 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
 
     getAdapterType(): SupportedDbtAdapter {
         return SupportedDbtAdapter.TRINO;
+    }
+
+    // Trino never materializes a CTE — every reference re-runs its full lineage.
+    supportsCteMaterialization(): boolean {
+        return false;
     }
 
     getEscapeStringQuoteChar(): string {
@@ -279,15 +320,38 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         try {
             let alteredQuery = sql;
             if (options?.tags) {
+                // tags can carry BigInt values at runtime; plain
+                // JSON.stringify would throw without the app-level toJSON patch
                 alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
                     options?.tags,
+                    (_key, value) =>
+                        typeof value === 'bigint' ? value.toString() : value,
                 )}`;
             }
             if (options?.timezone) {
                 console.debug(`Setting Trino timezone to ${options?.timezone}`);
                 await session.query(`SET TIME ZONE '${options?.timezone}'`);
             }
-            query = await session.query(alteredQuery);
+
+            query = await session.query(
+                options?.tags
+                    ? {
+                          query: alteredQuery,
+                          extraHeaders: {
+                              [TRINO_CLIENT_TAGS_HEADER]: Object.entries(
+                                  options.tags,
+                              )
+                                  .map(
+                                      ([key, value]) =>
+                                          `${sanitizeClientTag(
+                                              key,
+                                          )}=${sanitizeClientTag(value)}`,
+                                  )
+                                  .join(','),
+                          },
+                      }
+                    : alteredQuery,
+            );
 
             let queryResult = await query.next();
 
@@ -405,7 +469,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             ORDER BY 1,2,3
         `;
         const { rows } = await this.runQuery(query, tags);
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getTrinoTimestampDomain,
+        );
     }
 
     async getFields(
@@ -435,7 +503,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         `;
         const { rows } = await this.runQuery(query, tags);
 
-        return this.parseWarehouseCatalog(rows, convertDataTypeToDimensionType);
+        return this.parseWarehouseCatalog(
+            rows,
+            convertDataTypeToDimensionType,
+            getTrinoTimestampDomain,
+        );
     }
 
     async getAllTables() {

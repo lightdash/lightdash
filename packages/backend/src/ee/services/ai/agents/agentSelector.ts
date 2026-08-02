@@ -1,6 +1,15 @@
 import { AiAgentWithContext } from '@lightdash/common';
 import { generateObject, LanguageModel } from 'ai';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
+import {
+    AiCallAttribution,
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../utils/aiCallTelemetry';
 
 const AgentSelectionSchema = z.object({
     agentUuid: z
@@ -118,11 +127,13 @@ export async function selectAgent({
     candidates,
     prompt,
     instructions = null,
+    telemetry,
 }: {
     model: LanguageModel;
     candidates: AiAgentWithContext[];
     prompt: string;
     instructions?: string | null;
+    telemetry?: AiCallAttribution;
 }): Promise<RouterDecision> {
     if (candidates.length === 0) {
         throw new Error('No agents available for selection');
@@ -145,8 +156,15 @@ export async function selectAgent({
         buildAdminInstructionsSection(instructions),
     );
 
+    const telemetryConfig = getAiCallTelemetry({
+        functionId: 'selectAgent',
+        feature: 'agent-selector',
+        ...getLanguageModelAttribution(model),
+        ...telemetry,
+    });
     const result = await generateObject({
         model,
+        experimental_telemetry: telemetryConfig,
         schema: AgentSelectionSchema,
         messages: [
             { role: 'system', content: systemPrompt },
@@ -156,6 +174,7 @@ export async function selectAgent({
             },
         ],
     });
+    emitAiUsage(telemetryConfig, languageModelUsageToTokens(result.usage));
 
     const selection = result.object;
     const exists = candidates.some((c) => c.uuid === selection.agentUuid);

@@ -1,5 +1,7 @@
+/* eslint-disable prefer-arrow-callback, func-names */
 import * as pg from 'pg';
 import { PassThrough } from 'stream';
+import type { Mock } from 'vitest';
 import {
     PostgresSqlBuilder,
     PostgresWarehouseClient,
@@ -13,41 +15,46 @@ import {
     config,
     expectedFields,
     expectedRow,
-    expectedWarehouseSchema,
+    expectedWarehouseSchemaWithNaiveTimestamp,
 } from './WarehouseClient.mock';
 
-jest.mock('pg', () => ({
-    ...jest.requireActual('pg'),
-    Pool: jest.fn(() => ({
-        connect: jest.fn((callback) => {
-            callback(
-                null,
-                {
-                    query: jest.fn((arg: unknown) => {
-                        // Session statements (SET statement_timeout / timezone)
-                        // are issued as plain string queries and must return a
-                        // thenable, not a stream.
-                        if (typeof arg === 'string') {
-                            return Promise.resolve({ rows: [], fields: [] });
-                        }
-                        const mockedStream = new PassThrough();
-                        setTimeout(() => {
-                            mockedStream.emit('data', {
-                                row: expectedRow,
-                                fields: queryColumnsMock,
-                            });
-                            mockedStream.end();
-                        }, 100);
-                        return mockedStream;
-                    }),
-                    on: jest.fn(async () => undefined),
-                },
-                jest.fn(),
-            );
-        }),
-        end: jest.fn(async () => undefined),
-        on: jest.fn(async () => undefined),
-    })),
+vi.mock('pg', async () => ({
+    ...(await vi.importActual<{ default: typeof import('pg') }>('pg')).default,
+    Pool: vi.fn(function () {
+        return {
+            connect: vi.fn((callback) => {
+                callback(
+                    null,
+                    {
+                        query: vi.fn((arg: unknown) => {
+                            // Session statements (SET statement_timeout / timezone)
+                            // are issued as plain string queries and must return a
+                            // thenable, not a stream.
+                            if (typeof arg === 'string') {
+                                return Promise.resolve({
+                                    rows: [],
+                                    fields: [],
+                                });
+                            }
+                            const mockedStream = new PassThrough();
+                            setTimeout(() => {
+                                mockedStream.emit('data', {
+                                    row: expectedRow,
+                                    fields: queryColumnsMock,
+                                });
+                                mockedStream.end();
+                            }, 100);
+                            return mockedStream;
+                        }),
+                        on: vi.fn(async () => undefined),
+                    },
+                    vi.fn(),
+                );
+            }),
+            end: vi.fn(async () => undefined),
+            on: vi.fn(async () => undefined),
+        };
+    }),
 }));
 
 describe('PostgresWarehouseClient', () => {
@@ -59,92 +66,126 @@ describe('PostgresWarehouseClient', () => {
     });
     it('expect schema with postgres types mapped to dimension types', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
-        (pg.Pool as unknown as jest.Mock)
-            .mockImplementationOnce(() => ({
-                connect: jest.fn((callback) => {
-                    callback(
-                        null,
-                        {
-                            query: jest.fn((arg: unknown) => {
-                                if (typeof arg === 'string') {
-                                    return Promise.resolve({
-                                        rows: [],
-                                        fields: [],
-                                    });
-                                }
-                                const mockedStream = new PassThrough();
-                                setTimeout(() => {
-                                    mockedStream.emit('data', {
-                                        row: { version: 'PostgreSQL 15.4' },
-                                        fields: [],
-                                    });
-                                    mockedStream.end();
-                                }, 100);
-                                return mockedStream;
-                            }),
-                            on: jest.fn(async () => undefined),
-                        },
-                        jest.fn(),
-                    );
-                }),
-                end: jest.fn(async () => undefined),
-                on: jest.fn(async () => undefined),
-            }))
-            .mockImplementationOnce(() => ({
-                connect: jest.fn((callback) => {
-                    callback(
-                        null,
-                        {
-                            query: jest.fn((arg: unknown) => {
-                                if (typeof arg === 'string') {
-                                    return Promise.resolve({
-                                        rows: [],
-                                        fields: [],
-                                    });
-                                }
-                                const mockedStream = new PassThrough();
-                                setTimeout(() => {
-                                    columns.forEach((column) => {
-                                        mockedStream.emit('data', {
-                                            row: column,
+        (pg.Pool as unknown as Mock)
+            .mockImplementationOnce(function () {
+                return {
+                    connect: vi.fn((callback) => {
+                        callback(
+                            null,
+                            {
+                                query: vi.fn((arg: unknown) => {
+                                    if (typeof arg === 'string') {
+                                        return Promise.resolve({
+                                            rows: [],
                                             fields: [],
                                         });
-                                    });
-                                    mockedStream.end();
-                                }, 100);
-                                return mockedStream;
-                            }),
-                            on: jest.fn(async () => undefined),
-                        },
-                        jest.fn(),
-                    );
-                }),
-                end: jest.fn(async () => undefined),
-                on: jest.fn(async () => undefined),
-            }));
+                                    }
+                                    const mockedStream = new PassThrough();
+                                    setTimeout(() => {
+                                        mockedStream.emit('data', {
+                                            row: { version: 'PostgreSQL 15.4' },
+                                            fields: [],
+                                        });
+                                        mockedStream.end();
+                                    }, 100);
+                                    return mockedStream;
+                                }),
+                                on: vi.fn(async () => undefined),
+                            },
+                            vi.fn(),
+                        );
+                    }),
+                    end: vi.fn(async () => undefined),
+                    on: vi.fn(async () => undefined),
+                };
+            })
+            .mockImplementationOnce(function () {
+                return {
+                    connect: vi.fn((callback) => {
+                        callback(
+                            null,
+                            {
+                                query: vi.fn((arg: unknown) => {
+                                    if (typeof arg === 'string') {
+                                        return Promise.resolve({
+                                            rows: [],
+                                            fields: [],
+                                        });
+                                    }
+                                    const mockedStream = new PassThrough();
+                                    setTimeout(() => {
+                                        columns.forEach((column) => {
+                                            mockedStream.emit('data', {
+                                                row: column,
+                                                fields: [],
+                                            });
+                                        });
+                                        mockedStream.end();
+                                    }, 100);
+                                    return mockedStream;
+                                }),
+                                on: vi.fn(async () => undefined),
+                            },
+                            vi.fn(),
+                        );
+                    }),
+                    end: vi.fn(async () => undefined),
+                    on: vi.fn(async () => undefined),
+                };
+            });
         expect(await warehouse.getCatalog(config)).toEqual(
-            expectedWarehouseSchema,
+            expectedWarehouseSchemaWithNaiveTimestamp,
         );
     });
     it('expect empty catalog when dbt project has no references', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
         expect(await warehouse.getCatalog([])).toEqual({});
     });
+
+    it('binds catalog filter values as query parameters', async () => {
+        const warehouse = new PostgresWarehouseClient(credentials);
+        const database =
+            "missing') OR (SELECT CAST(current_database() AS integer)=0) OR ('x'='x";
+        const runQuery = vi
+            .spyOn(warehouse, 'runQuery')
+            .mockResolvedValueOnce({
+                rows: [{ version: 'PostgreSQL 15.4' }],
+                fields: {},
+            })
+            .mockResolvedValueOnce({ rows: [], fields: {} });
+
+        await warehouse.getCatalog([
+            { database, schema: 'public', table: 'orders' },
+        ]);
+
+        const catalogQuery = runQuery.mock.calls[1][0];
+        expect(catalogQuery).toContain('table_catalog IN ($1)');
+        expect(catalogQuery).toContain('table_schema IN ($2)');
+        expect(catalogQuery).toContain('table_name IN ($3)');
+        expect(catalogQuery).not.toContain(database);
+        expect(runQuery.mock.calls[1][3]).toEqual([
+            database,
+            'public',
+            'orders',
+        ]);
+    });
 });
 
 describe('PostgresWarehouseClient statement timeout', () => {
-    const mockPoolWithQuery = (queryMock: jest.Mock) => {
-        (pg.Pool as unknown as jest.Mock).mockImplementationOnce(() => ({
-            connect: jest.fn((callback) => {
-                callback(null, { query: queryMock, on: jest.fn() }, jest.fn());
-            }),
-            end: jest.fn(async () => undefined),
-            on: jest.fn(),
-        }));
+    const mockPoolWithQuery = (queryMock: Mock) => {
+        (pg.Pool as unknown as Mock).mockImplementationOnce(function () {
+            return {
+                connect: vi.fn((callback) => {
+                    callback(null, { query: queryMock, on: vi.fn() }, vi.fn());
+                }),
+                end: vi.fn(async () => undefined),
+                on: vi.fn(),
+            };
+        });
     };
 
     const respondingQueryMock = () =>
-        jest.fn((arg: unknown) => {
+        vi.fn((arg: unknown) => {
             if (typeof arg === 'string') {
                 return Promise.resolve({ rows: [], fields: [] });
             }
@@ -160,7 +201,7 @@ describe('PostgresWarehouseClient statement timeout', () => {
         });
 
     afterEach(() => {
-        jest.useRealTimers();
+        vi.useRealTimers();
     });
 
     it('sets a server-side statement_timeout using the 9-minute default ceiling', async () => {
@@ -189,8 +230,8 @@ describe('PostgresWarehouseClient statement timeout', () => {
     });
 
     it('rejects with a timeout error when a query stalls past the client backstop', async () => {
-        jest.useFakeTimers();
-        const queryMock = jest.fn((arg: unknown) => {
+        vi.useFakeTimers();
+        const queryMock = vi.fn((arg: unknown) => {
             if (typeof arg === 'string') {
                 return Promise.resolve({ rows: [], fields: [] });
             }
@@ -202,12 +243,11 @@ describe('PostgresWarehouseClient statement timeout', () => {
         const resultPromise = warehouse.runQuery('select pg_sleep(9999)');
         // Attach the rejection handler before advancing the clock so the
         // rejection is never momentarily unhandled.
-        const assertion = expect(resultPromise).rejects.toThrow(
-            'Query timed out after 570s',
-        );
-        // 9-minute statement_timeout + 30s client buffer = 570s
-        await jest.advanceTimersByTimeAsync(570 * 1000 + 1000);
-        await assertion;
+        await Promise.all([
+            expect(resultPromise).rejects.toThrow('Query timed out after 570s'),
+            // 9-minute statement_timeout + 30s client buffer = 570s
+            vi.advanceTimersByTimeAsync(570 * 1000 + 1000),
+        ]);
     });
 });
 

@@ -1,5 +1,6 @@
 import {
     type ApiDataTimezonePreviewResults,
+    type ApiCreateProjectResults,
     type ApiError,
     type ApiJobStartedResults,
     type CreateProject,
@@ -18,8 +19,11 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useLocation } from 'react-router';
 import { lightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
@@ -28,6 +32,15 @@ const createProject = async (data: CreateProject) =>
         url: `/org/projects/precompiled`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
+    });
+
+const createProjectWithoutCompile = async (data: CreateProject) =>
+    lightdashApi<ApiCreateProjectResults>({
+        url: `/org/projects`,
+        method: 'POST',
+        body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const updateProject = async (uuid: string, data: UpdateProject) =>
@@ -35,9 +48,10 @@ const updateProject = async (uuid: string, data: UpdateProject) =>
         url: `/projects/${uuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
-const getProject = async (uuid: string) =>
+export const getProject = async (uuid: string) =>
     lightdashApi<Project>({
         url: `/projects/${uuid}`,
         method: 'GET',
@@ -114,20 +128,62 @@ export const useUpdateMutation = (uuid: string) => {
     );
 };
 
-export const useCreateMutation = () => {
-    const { setActiveJobId } = useActiveJob();
+export const useCreateMutation = (options?: {
+    quietJobToast?: boolean;
+    warehouseOnly?: boolean;
+}) => {
+    const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
+    const { track } = useTracking();
+    const { pathname } = useLocation();
+    const onboardingFlow = pathname.startsWith('/onboarding/')
+        ? 'new'
+        : 'legacy';
     return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
         (data) => createProject(data),
         {
             mutationKey: ['project_create'],
             retry: 3,
             onSuccess: (data) => {
-                setActiveJobId(data.jobUuid);
+                if (options?.quietJobToast) {
+                    setQuietActiveJobId(data.jobUuid);
+                } else {
+                    setActiveJobId(data.jobUuid);
+                }
+            },
+            onError: ({ error }, data) => {
+                track({
+                    name: EventName.CREATE_PROJECT_FAILED,
+                    properties: {
+                        warehouse: data.warehouseConnection.type,
+                        errorType: error.name,
+                        warehouseOnly: options?.warehouseOnly,
+                        onboardingFlow,
+                    },
+                });
+                showToastApiError({
+                    title: `Failed to create project`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const useCreateProjectWithoutCompileMutation = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<ApiCreateProjectResults, ApiError, CreateProject>(
+        (data) => createProjectWithoutCompile(data),
+        {
+            mutationKey: ['project_create_without_compile'],
+            retry: false,
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['projects']);
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: `Failed to create project`,
+                    title: 'Failed to create project',
                     apiError: error,
                 });
             },
@@ -145,6 +201,7 @@ const updateWarehouseCredentials = async (
         body: JSON.stringify({
             warehouseConnection: warehouseCredentials,
         }),
+        sensitive: true,
     });
 
 export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {

@@ -1,5 +1,7 @@
 import type {
     DiscoverFieldsInput,
+    ToolGrepFieldsArgs,
+    ToolGetMetadataArgs,
     ToolDashboardArgs,
     ToolDescribeWarehouseTableArgs,
     ToolFindChartsArgs,
@@ -13,6 +15,7 @@ import type {
     ToolListContentArgs,
     ToolListWarehouseTablesArgs,
     ToolName,
+    ToolResolveUrlArgs,
     ToolRunContentQueryArgs,
     ToolRunQueryArgs,
     ToolSearchFieldValuesArgs,
@@ -86,6 +89,21 @@ export const getToolCallChipLabel = (
             const args = toolArgs as DiscoverFieldsInput;
             return args.userQuery ?? null;
         }
+        case 'grepFields': {
+            const args = toolArgs as ToolGrepFieldsArgs;
+            return args.patterns?.length
+                ? args.patterns.map((p) => `/${p}/`).join(' ')
+                : null;
+        }
+        case 'getMetadata': {
+            const args = toolArgs as ToolGetMetadataArgs;
+            const names = (args.requests ?? []).flatMap((r) =>
+                r.type === 'explore'
+                    ? r.exploreIds
+                    : r.fields.map((f) => f.fieldId),
+            );
+            return names.length ? names.join(', ') : null;
+        }
         case 'findContent': {
             const args = toolArgs as ToolFindContentArgs;
             return args.searchQueries?.[0]?.label ?? null;
@@ -135,6 +153,10 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolReadContentArgs;
             return args.slug ?? null;
         }
+        case 'resolveUrl': {
+            const args = toolArgs as ToolResolveUrlArgs;
+            return args.url ?? null;
+        }
         case 'editContent': {
             const args = toolArgs as ToolEditContentArgs;
             return args.slug ?? null;
@@ -142,6 +164,10 @@ export const getToolCallChipLabel = (
         case 'createContent': {
             const args = toolArgs as ToolCreateContentArgs;
             return args.content?.slug ?? null;
+        }
+        case 'createScheduledDelivery': {
+            const args = toolArgs as { name?: string };
+            return args.name ?? null;
         }
         case 'exploreRepo': {
             const args = toolArgs as { command?: string; target?: string };
@@ -155,16 +181,15 @@ export const getToolCallChipLabel = (
         case 'runSavedChart':
         case 'generateHashes':
         case 'improveContext':
-        case 'proposeChange':
             return null;
         case 'runContentQuery': {
             const args = toolArgs as ToolRunContentQueryArgs;
-            if (args.source.type === 'metricQuery')
+            if (args.source?.type === 'metricQuery')
                 return args.source.tableName;
-            if (args.source.type === 'dashboardChart') {
+            if (args.source?.type === 'dashboardChart') {
                 return `${args.source.dashboardSlug}: ${args.source.chartSlug}`;
             }
-            return args.source.chartSlug;
+            return args.source?.chartSlug ?? null;
         }
         case 'loadProjectContext': {
             const args = toolArgs as { search?: string | null };

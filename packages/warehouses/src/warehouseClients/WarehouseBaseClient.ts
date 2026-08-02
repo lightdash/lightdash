@@ -4,14 +4,18 @@ import {
     DimensionType,
     Metric,
     PartitionColumn,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseCatalog,
     WarehouseResults,
     WarehouseSqlBuilder,
     WeekDay,
+    type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
+    type WarehousePhaseTimings,
+    type WarehouseQueryPhase,
 } from '@lightdash/common';
 import { type WarehouseClient } from '../types';
 
@@ -29,6 +33,10 @@ export default abstract class WarehouseBaseClient<
 
     getAdapterType(): SupportedDbtAdapter {
         return this.sqlBuilder.getAdapterType();
+    }
+
+    supportsCteMaterialization(): boolean {
+        return this.sqlBuilder.supportsCteMaterialization();
     }
 
     getStringQuoteChar(): string {
@@ -75,6 +83,10 @@ export default abstract class WarehouseBaseClient<
             queryParams?: Record<string, AnyType>;
             tags?: Record<string, string>;
             timezone?: string;
+            onPhaseTiming?: (
+                phase: WarehouseQueryPhase,
+                durationMs: number,
+            ) => void;
         },
     ): Promise<void>;
 
@@ -93,6 +105,7 @@ export default abstract class WarehouseBaseClient<
     ): Promise<WarehouseExecuteAsyncQuery> {
         let rowCount = 0;
 
+        const phaseTimings: WarehousePhaseTimings = {};
         const startTime = performance.now();
         await this.streamQuery(
             sql,
@@ -105,6 +118,10 @@ export default abstract class WarehouseBaseClient<
                 queryParams,
                 tags,
                 timezone,
+                onPhaseTiming: (phase, durationMs) => {
+                    phaseTimings[phase] =
+                        (phaseTimings[phase] ?? 0) + durationMs;
+                },
             },
         );
 
@@ -114,6 +131,7 @@ export default abstract class WarehouseBaseClient<
             queryMetadata: null,
             durationMs: performance.now() - startTime,
             totalRows: rowCount,
+            phaseTimings,
         };
     }
 
@@ -182,6 +200,7 @@ export default abstract class WarehouseBaseClient<
     parseWarehouseCatalog(
         rows: Record<string, AnyType>[],
         mapFieldType: (type: string) => DimensionType,
+        mapTimestampDomain?: (type: string) => TimestampDomain | undefined,
     ): WarehouseCatalog {
         return rows.reduce(
             (
@@ -199,9 +218,18 @@ export default abstract class WarehouseBaseClient<
                     acc[table_catalog][table_schema] || {};
                 acc[table_catalog][table_schema][table_name] =
                     acc[table_catalog][table_schema][table_name] || {};
-                if (column_name && data_type)
+                if (column_name && data_type) {
                     acc[table_catalog][table_schema][table_name][column_name] =
                         mapFieldType(data_type);
+                    setCatalogTimestampDomain(
+                        acc,
+                        table_catalog,
+                        table_schema,
+                        table_name,
+                        column_name,
+                        mapTimestampDomain?.(data_type),
+                    );
+                }
                 return acc;
             },
             {},

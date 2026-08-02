@@ -5,20 +5,27 @@ import {
     AuthorizationError,
     ChartType,
     DashboardTileTypes,
+    DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
+    expandSelectedTabs,
+    EXPORT_TAB_PAGE_CLASS,
     ForbiddenError,
+    getChartType,
     getErrorMessage,
     HealthState,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isTileInPagedExport,
     isTileInSelectedTabs,
     LightdashMode,
     LightdashPage,
     LightdashRequestMethodHeader,
     NotFoundError,
     ParameterError,
+    parseDeliveryCaptureManifest,
     QueryHistoryStatus,
     RequestMethod,
+    resolveExportTabs,
     SCREENSHOT_SELECTORS,
     ScreenshotError,
     SessionStorageKeys,
@@ -26,9 +33,11 @@ import {
     SlackInstallationNotFoundError,
     sleep,
     snakeCaseName,
+    UnexpectedServerError,
     validateSelectedTabs,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DeliveryCaptureManifest,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -40,7 +49,6 @@ import {
 import { StringIndexed } from '@slack/bolt/dist/types/helpers';
 import { WebClient } from '@slack/web-api';
 import * as fsPromise from 'fs/promises';
-import { uniq } from 'lodash';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import playwright, { type ElementHandle, type Page } from 'playwright';
@@ -68,12 +76,16 @@ import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { countPdfPages } from './countPdfPages';
 
-const RESPONSE_TIMEOUT_MS = 180000;
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
+const shareUrlRegex = new RegExp(`/share/(${nanoid})`);
+
+export const matchShareUrlNanoid = (url: string): string | null =>
+    url.match(shareUrlRegex)?.[1] ?? null;
 const createQueryEndpointRegex = /\/query/;
 // Matches /query/{uuid} but NOT /query/{uuid}/results (SQL chart endpoint)
 const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}(?!/results)`);
@@ -208,6 +220,9 @@ const appViewport = {
 
 const APP_SCREENSHOT_MIN_HEIGHT = 600;
 
+// How long we wait for `MinimalApp` to mount the ready indicator.
+const APP_READY_TIMEOUT_MS = 60_000;
+
 const bigNumberViewport = {
     width: 768,
     height: 500,
@@ -231,6 +246,26 @@ const getBackoffDelay = (retryCount: number, baseDelayMs: number): number => {
     const exponentialDelay = baseDelayMs * 2 ** retryCount;
     const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1);
     return Math.round(exponentialDelay + jitter);
+};
+
+// Browserless honours the window size only through launch args, not the
+// Playwright viewport, and app iframes size themselves to the window.
+const getAppBrowserEndpoint = (
+    browserEndpoint: string,
+    size: { width: number; height: number },
+    internalHost?: string,
+): string => {
+    const endpoint = new URL(browserEndpoint);
+    const args = [`--window-size=${size.width},${size.height}`];
+    // App bundles call secure-context APIs (crypto.randomUUID in the SDK
+    // transport), which a plain-http internal host silently breaks.
+    if (internalHost?.startsWith('http://')) {
+        args.push(
+            `--unsafely-treat-insecure-origin-as-secure=${new URL(internalHost).origin}`,
+        );
+    }
+    endpoint.searchParams.set('launch', JSON.stringify({ args }));
+    return endpoint.toString();
 };
 
 const isBrowserQueueFullError = (error: unknown): boolean => {
@@ -328,6 +363,8 @@ export class UnfurlService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    private readonly screenshotTimeoutMs: number;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -359,6 +396,8 @@ export class UnfurlService extends BaseService {
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.spacePermissionService = spacePermissionService;
+        this.screenshotTimeoutMs =
+            lightdashConfig.headlessBrowser.screenshotTimeoutMs;
     }
 
     async getPreviewSignedUrl(previewId: string): Promise<string> {
@@ -484,6 +523,9 @@ export class UnfurlService extends BaseService {
                     title: sqlChart.name,
                     description: sqlChart.description ?? undefined,
                     organizationUuid: sqlChart.organization.organizationUuid,
+                    // Drives the screenshot viewport; big numbers get a
+                    // shorter one so the value isn't lost in whitespace.
+                    chartType: getChartType(sqlChart.chartKind),
                     resourceUuid: sqlChart.savedSqlUuid,
                 };
             case LightdashPage.EXPLORE:
@@ -707,6 +749,164 @@ export class UnfurlService extends BaseService {
         };
     }
 
+    /**
+     * Render every selected tab in ONE browser session, paginated by CSS print
+     * page breaks with a uniform page size (tallest tab). Produces a native
+     * multi-page PDF from a single `page.pdf()` call — one navigation instead of
+     * one browser session per tab. The PDF `/Title` comes from the frontend's
+     * `document.title` (set to the dashboard name in paged mode).
+     */
+    async unfurlPdfCssPaged({
+        minimalUrl,
+        dashboardUuid,
+        imageId,
+        authUserUuid,
+        gridWidth,
+        context,
+        contextId,
+        selectedTabs,
+        sendNowSchedulerDashboardFilters,
+        sendNowSchedulerFilters,
+        sendNowSchedulerParameters,
+    }: {
+        minimalUrl: string;
+        dashboardUuid: string;
+        imageId: string;
+        authUserUuid: string;
+        gridWidth: number | undefined;
+        context: ScreenshotContext;
+        contextId?: unknown;
+        selectedTabs: string[] | null;
+        sendNowSchedulerDashboardFilters?: DashboardFilters;
+        sendNowSchedulerFilters?: DashboardFilterRule[];
+        sendNowSchedulerParameters?: ParametersValuesMap;
+    }): Promise<{
+        pdfFile: { source: string; fileName: string };
+        pdfPageCount: number;
+    }> {
+        return traceSpan(
+            {
+                op: 'unfurl.pdf_css_paged',
+                name: 'UnfurlService.unfurlPdfCssPaged',
+            },
+            async (span) => {
+                const startTime = Date.now();
+                const dashboard =
+                    await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+                const resolvedTabs = resolveExportTabs(
+                    dashboard.tabs,
+                    selectedTabs,
+                );
+
+                // Untabbed dashboard (stale flag): render exactly like a plain
+                // PDF — one stacked page cropped to content, no headers.
+                const isUntabbed = dashboard.tabs.length === 0;
+                if (!isUntabbed && resolvedTabs.length === 0) {
+                    throw new ParameterError(
+                        `Page-per-tab PDF requested for dashboard ${dashboardUuid} but it has no visible or selected tabs to export`,
+                    );
+                }
+
+                // Single render URL: all resolved tab UUIDs plus the orphan
+                // sentinel (null), paginated on the frontend by print CSS.
+                const pagedUrl = new URL(minimalUrl);
+                if (!isUntabbed) {
+                    const tabSelection: (string | null)[] = [
+                        ...resolvedTabs.map((tab) => tab.uuid),
+                        null,
+                    ];
+                    pagedUrl.searchParams.set(
+                        'selectedTabs',
+                        JSON.stringify(tabSelection),
+                    );
+                    pagedUrl.searchParams.set('exportPagedTabs', 'true');
+                }
+
+                const cookie = await this.getUserCookie(authUserUuid);
+
+                // Derive the readiness tile sets locally from the dashboard
+                // record instead of unfurlDetails — unfurlDetails runs
+                // validateSelectedTabs, which throws on a zero-tile selection
+                // and would kill a scheduler that picked ONLY an empty tab.
+                // isTileInPagedExport is the shared predicate the frontend
+                // renders by, so the awaited-tile sets (charts + looms) stay in
+                // lock-step — orphan tiles ride the first resolved tab's page.
+                const resolvedTabUuids = resolvedTabs.map((tab) => tab.uuid);
+                const renderedTiles = isUntabbed
+                    ? dashboard.tiles
+                    : dashboard.tiles.filter((tile) =>
+                          isTileInPagedExport(tile, resolvedTabUuids),
+                      );
+
+                const result = await this.saveScreenshot({
+                    authUserUuid,
+                    imageId,
+                    cookie,
+                    url: pagedUrl.href,
+                    lightdashPage: LightdashPage.DASHBOARD,
+                    organizationUuid: dashboard.organizationUuid,
+                    gridWidth,
+                    resourceUuid: dashboard.uuid,
+                    resourceName: dashboard.name,
+                    chartTileUuids: renderedTiles
+                        .filter(isDashboardChartTileType)
+                        .map((t) => t.properties.savedChartUuid),
+                    sqlChartTileUuids: renderedTiles
+                        .filter(isDashboardSqlChartTile)
+                        .map((t) => t.properties.savedSqlUuid),
+                    loomTileUuids: renderedTiles
+                        .filter((t) => t.type === DashboardTileTypes.LOOM)
+                        .map((t) => t.uuid),
+                    context,
+                    contextId,
+                    selectedTabs,
+                    sendNowSchedulerDashboardFilters,
+                    sendNowSchedulerFilters,
+                    sendNowSchedulerParameters,
+                    outputFormat: 'pdf',
+                    withPdf: false,
+                    pdfPagination: isUntabbed ? 'crop' : 'cssPaged',
+                });
+                if (!result?.pdfBuffer) {
+                    throw new UnexpectedServerError(
+                        `Unable to render css-paged PDF for dashboard "${dashboard.name}"`,
+                    );
+                }
+
+                // Hard invariant: exactly one PDF page per rendered tab
+                // container (untabbed fallback = one stacked page). Count pages
+                // straight from the bytes and fail the job on any mismatch —
+                // never deliver a subtly broken document. pdfPageCount reports
+                // the VERIFIED count.
+                const expectedPageCount = isUntabbed ? 1 : resolvedTabs.length;
+                const pdfPageCount = countPdfPages(result.pdfBuffer);
+                if (pdfPageCount !== expectedPageCount) {
+                    throw new UnexpectedServerError(
+                        `css-paged PDF for dashboard ${dashboardUuid} rendered ${pdfPageCount} pages but expected ${expectedPageCount} (one per tab) - unfurlId: ${imageId}`,
+                    );
+                }
+
+                const pdfFile = await this.uploadPdf(
+                    imageId,
+                    result.pdfBuffer,
+                    dashboard.name,
+                );
+
+                const executionTime = Date.now() - startTime;
+                span.setAttributes({
+                    tabsCount: resolvedTabs.length,
+                    pdfPageCount,
+                    pagePerTab: true,
+                });
+                this.logger.info(
+                    `UnfurlService unfurlPdfCssPaged rendered ${pdfPageCount} pages for dashboard ${dashboardUuid} in ${executionTime} ms - unfurlId: ${imageId}`,
+                );
+
+                return { pdfFile, pdfPageCount };
+            },
+        );
+    }
+
     async exportDashboard(
         dashboardUuid: string,
         queryFilters: string,
@@ -724,15 +924,11 @@ export class UnfurlService extends BaseService {
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);
 
-        // Create a new URLSearchParams object for query filters.
-        // When selectedTabs is null we forward every tab UUID present on the
-        // dashboard (and `null` for orphan tiles) so the frontend's
-        // `schedulerTabsSelected.includes(tile.tabUuid)` filter keeps orphans
-        // in the aggregated screenshot. See PROD-2505.
         const selectedTabsParams = new URLSearchParams();
-        const selectedTabsList: (string | null)[] =
-            selectedTabs ??
-            uniq(dashboard.tiles.map((tile) => tile.tabUuid ?? null));
+        const selectedTabsList = expandSelectedTabs(
+            selectedTabs,
+            dashboard.tiles,
+        );
 
         if (selectedTabsList.length > 0)
             selectedTabsParams.set(
@@ -812,8 +1008,13 @@ export class UnfurlService extends BaseService {
     async exportChart(
         chartUuidOrSlug: string,
         user: SessionUser,
+        projectUuid?: string,
     ): Promise<string> {
-        const chart = await this.savedChartModel.get(chartUuidOrSlug);
+        const chart = await this.savedChartModel.get(
+            chartUuidOrSlug,
+            undefined,
+            projectUuid ? { projectUuid } : undefined,
+        );
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -959,6 +1160,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerParameters,
         outputFormat = 'image',
         withPdf = false,
+        pdfPagination = 'crop',
     }: {
         imageId: string;
         cookie: string;
@@ -983,6 +1185,10 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
+        // 'crop' (default): single-page PDF clipped to content.
+        // 'cssPaged': multi-page PDF, uniform page height, print page breaks
+        // between EXPORT_TAB_PAGE_CLASS containers (one per tab).
+        pdfPagination?: 'crop' | 'cssPaged';
     }): Promise<{ imageBuffer?: Buffer; pdfBuffer?: Buffer } | undefined> {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
@@ -1048,18 +1254,12 @@ export class UnfurlService extends BaseService {
 
                     const browserConnectionEndpoint =
                         lightdashPage === LightdashPage.APP
-                            ? (() => {
-                                  const endpoint = new URL(browserEndpoint);
-                                  endpoint.searchParams.set(
-                                      'launch',
-                                      JSON.stringify({
-                                          args: [
-                                              `--window-size=${initialViewport.width},${initialViewport.height}`,
-                                          ],
-                                      }),
-                                  );
-                                  return endpoint.toString();
-                              })()
+                            ? getAppBrowserEndpoint(
+                                  browserEndpoint,
+                                  initialViewport,
+                                  this.lightdashConfig.headlessBrowser
+                                      .internalLightdashHost,
+                              )
                             : browserEndpoint;
 
                     browser = await playwright.chromium.connectOverCDP(
@@ -1103,30 +1303,11 @@ export class UnfurlService extends BaseService {
                     });
 
                     if (lightdashPage === LightdashPage.APP) {
-                        // Browserless drops Playwright's viewport over CDP (see [APP-DIAG]
-                        // logs stuck at 800×600); push the override straight to Chrome.
-                        try {
-                            const cdp = await page
-                                .context()
-                                .newCDPSession(page);
-                            await cdp.send(
-                                'Emulation.setDeviceMetricsOverride',
-                                {
-                                    width: initialViewport.width,
-                                    height: initialViewport.height,
-                                    deviceScaleFactor: 1,
-                                    mobile: false,
-                                },
-                            );
-                        } catch (cdpErr) {
-                            this.logger.warn(
-                                `[APP] CDP viewport override failed; falling through - unfurlId: ${imageId}, err: ${
-                                    cdpErr instanceof Error
-                                        ? cdpErr.message
-                                        : String(cdpErr)
-                                }`,
-                            );
-                        }
+                        await this.overrideCdpViewport(
+                            page,
+                            initialViewport,
+                            `unfurlId: ${imageId}`,
+                        );
                     }
 
                     // Scope custom headers to internal requests only — setting them
@@ -1431,7 +1612,8 @@ export class UnfurlService extends BaseService {
                                             `#loom-loaded-${id}`,
                                             {
                                                 state: 'attached',
-                                                timeout: RESPONSE_TIMEOUT_MS,
+                                                timeout:
+                                                    this.screenshotTimeoutMs,
                                             },
                                         ),
                                 );
@@ -1535,11 +1717,11 @@ export class UnfurlService extends BaseService {
                         // (the bridge sees every metric query the iframe
                         // runs). After the signal we sleep briefly so CSS /
                         // chart entrance animations can finish.
-                        const APP_READY_TIMEOUT_MS = 60_000;
                         const APP_ANIMATION_BUFFER_MS = 5_000;
                         this.logger.info(
                             `Waiting for app screenshot ready indicator (timeout ${APP_READY_TIMEOUT_MS}ms) - unfurlId: ${imageId}`,
                         );
+                        const waitStart = Date.now();
                         try {
                             await page.waitForSelector(
                                 SCREENSHOT_SELECTORS.READY_INDICATOR,
@@ -1551,6 +1733,16 @@ export class UnfurlService extends BaseService {
                             this.logger.info(
                                 `App ready indicator found - waiting ${APP_ANIMATION_BUFFER_MS}ms for animations - unfurlId: ${imageId}`,
                             );
+                            this.analytics.track({
+                                event: 'headless_browser.app_ready_wait',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    ready: true,
+                                    waitMs: Date.now() - waitStart,
+                                    context,
+                                    imageId,
+                                },
+                            });
                         } catch (waitError) {
                             // Fall through to the animation buffer so the
                             // screenshot still happens for apps that never
@@ -1558,6 +1750,16 @@ export class UnfurlService extends BaseService {
                             this.logger.warn(
                                 `App ready indicator not detected within ${APP_READY_TIMEOUT_MS}ms; proceeding with animation buffer only - unfurlId: ${imageId}`,
                             );
+                            this.analytics.track({
+                                event: 'headless_browser.app_ready_wait',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    ready: false,
+                                    waitMs: Date.now() - waitStart,
+                                    context,
+                                    imageId,
+                                },
+                            });
                         }
                         // page.evaluate keeps CDP traffic flowing during the
                         // animation buffer so a remote Chromium doesn't drop
@@ -1578,7 +1780,7 @@ export class UnfurlService extends BaseService {
                                 SCREENSHOT_SELECTORS.READY_INDICATOR,
                                 {
                                     state: 'attached',
-                                    timeout: RESPONSE_TIMEOUT_MS,
+                                    timeout: this.screenshotTimeoutMs,
                                 },
                             );
                             this.logger.info(
@@ -1624,6 +1826,18 @@ export class UnfurlService extends BaseService {
                                 // of overflow.
                                 const contentHeight = await appFrame.evaluate(
                                     () => {
+                                        // Opt-in: honor an element flagged with
+                                        // `data-screenshot-bounds` as the content extent.
+                                        const explicit = document.querySelector(
+                                            '[data-screenshot-bounds]',
+                                        );
+                                        if (explicit) {
+                                            const r =
+                                                explicit.getBoundingClientRect();
+                                            if (r.width > 0 && r.height > 0) {
+                                                return Math.ceil(r.bottom);
+                                            }
+                                        }
                                         let maxBottom = 0;
                                         const root =
                                             document.querySelector('#root') ??
@@ -1753,7 +1967,7 @@ export class UnfurlService extends BaseService {
 
                     const fullPage = await page.locator(finalSelector);
                     const fullPageSize = await fullPage?.boundingBox({
-                        timeout: RESPONSE_TIMEOUT_MS,
+                        timeout: this.screenshotTimeoutMs,
                     });
 
                     if (
@@ -1773,6 +1987,48 @@ export class UnfurlService extends BaseService {
                     // Helper: generate PDF from the current page state
                     const generatePdf = async () => {
                         const pdfWidth = gridWidth ?? viewport.width;
+                        // One native multi-page PDF. Uniform page height =
+                        // tallest tab container; print CSS breaks each tab onto
+                        // its own page. No pageRanges, no crop — let it paginate.
+                        // Every page is the tallest tab's height, so shorter
+                        // tabs get bottom whitespace — a deliberate product
+                        // decision (single render over native per-tab heights).
+                        if (pdfPagination === 'cssPaged') {
+                            const tallestTab = await page!.evaluate(
+                                (tabPageClass) => {
+                                    const els = Array.from(
+                                        document.querySelectorAll(
+                                            `.${tabPageClass}`,
+                                        ),
+                                    );
+                                    let maxHeight = 0;
+                                    for (const el of els) {
+                                        const { height } =
+                                            el.getBoundingClientRect();
+                                        if (height > maxHeight)
+                                            maxHeight = height;
+                                    }
+                                    return Math.ceil(maxHeight);
+                                },
+                                EXPORT_TAB_PAGE_CLASS,
+                            );
+                            // Buffer absorbs sub-pixel rounding so the tallest
+                            // tab never spills onto a blank extra page.
+                            const pageHeight =
+                                tallestTab > 0 ? tallestTab + 4 : 800;
+                            const pdfBytes = await page!.pdf({
+                                width: `${pdfWidth}px`,
+                                height: `${pageHeight}px`,
+                                printBackground: true,
+                                margin: {
+                                    top: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    left: 0,
+                                },
+                            });
+                            return Buffer.from(pdfBytes);
+                        }
                         // Measure the actual content area: use the element's
                         // bounding box bottom (accounts for position on page)
                         // but also check children in case the container has
@@ -1836,7 +2092,7 @@ export class UnfurlService extends BaseService {
                         ) {
                             await page.locator(finalSelector).screenshot({
                                 animations: 'disabled',
-                                timeout: RESPONSE_TIMEOUT_MS,
+                                timeout: this.screenshotTimeoutMs,
                             });
                         } else {
                             await page.screenshot({
@@ -1859,7 +2115,7 @@ export class UnfurlService extends BaseService {
                             .screenshot({
                                 path,
                                 animations: 'disabled',
-                                timeout: RESPONSE_TIMEOUT_MS,
+                                timeout: this.screenshotTimeoutMs,
                             });
                     } else if (lightdashPage === LightdashPage.APP) {
                         // Leave the iframe at the initial tall viewport and
@@ -1869,7 +2125,7 @@ export class UnfurlService extends BaseService {
                         const iframeBox = await page
                             .locator('iframe')
                             .first()
-                            .boundingBox({ timeout: RESPONSE_TIMEOUT_MS });
+                            .boundingBox({ timeout: this.screenshotTimeoutMs });
 
                         if (iframeBox) {
                             const clipWidth = Math.max(
@@ -1888,157 +2144,10 @@ export class UnfurlService extends BaseService {
                                     ),
                                 ),
                             );
-                            // DIAG-app-screenshot-viewport — remove after investigation.
-                            // Fully isolated: errors and timeouts cannot affect the screenshot,
-                            // and the entire block is unreachable for non-APP deliveries.
-                            if (lightdashPage === LightdashPage.APP) {
-                                if (lightdashPage !== LightdashPage.APP) {
-                                    this.logger.warn(
-                                        `[APP-DIAG] unreachable non-APP diagnostic path - unfurlId: ${imageId}`,
-                                    );
-                                } else {
-                                    const DIAG_BUDGET_MS = 2000;
-                                    const diagWork = (async () => {
-                                        const frames = page!.frames();
-                                        const diagFrame = frames.find(
-                                            (f) => f !== page!.mainFrame(),
-                                        );
-                                        const playwrightViewport =
-                                            page!.viewportSize();
-                                        const parentView = await page!.evaluate(
-                                            () => ({
-                                                innerW: window.innerWidth,
-                                                innerH: window.innerHeight,
-                                                dpr: window.devicePixelRatio,
-                                                docW: document.documentElement
-                                                    .clientWidth,
-                                                docH: document.documentElement
-                                                    .clientHeight,
-                                            }),
-                                        );
-                                        const iframeView = diagFrame
-                                            ? await diagFrame.evaluate(() => ({
-                                                  innerW: window.innerWidth,
-                                                  innerH: window.innerHeight,
-                                                  dpr: window.devicePixelRatio,
-                                                  bodyScrollW:
-                                                      document.body
-                                                          ?.scrollWidth ?? null,
-                                                  bodyScrollH:
-                                                      document.body
-                                                          ?.scrollHeight ??
-                                                      null,
-                                                  docScrollW:
-                                                      document.documentElement
-                                                          .scrollWidth,
-                                                  docScrollH:
-                                                      document.documentElement
-                                                          .scrollHeight,
-                                                  rootRect: (() => {
-                                                      const r = (
-                                                          document.querySelector(
-                                                              '#root',
-                                                          ) ?? document.body
-                                                      )?.getBoundingClientRect();
-                                                      return r
-                                                          ? {
-                                                                w: r.width,
-                                                                h: r.height,
-                                                                x: r.x,
-                                                                y: r.y,
-                                                            }
-                                                          : null;
-                                                  })(),
-                                                  maxLeafRight: (() => {
-                                                      let maxRight = 0;
-                                                      const root =
-                                                          document.querySelector(
-                                                              '#root',
-                                                          ) ?? document.body;
-                                                      if (!root) return 0;
-                                                      const walker =
-                                                          document.createTreeWalker(
-                                                              root,
-                                                              NodeFilter.SHOW_ELEMENT,
-                                                          );
-                                                      let node: Node | null =
-                                                          walker.currentNode;
-                                                      while (node) {
-                                                          const el =
-                                                              node as Element;
-                                                          if (
-                                                              el.children
-                                                                  .length === 0
-                                                          ) {
-                                                              const rect =
-                                                                  el.getBoundingClientRect();
-                                                              if (
-                                                                  rect.width >
-                                                                      0 &&
-                                                                  rect.height >
-                                                                      0
-                                                              ) {
-                                                                  maxRight =
-                                                                      Math.max(
-                                                                          maxRight,
-                                                                          rect.right,
-                                                                      );
-                                                              }
-                                                          }
-                                                          node =
-                                                              walker.nextNode();
-                                                      }
-                                                      return Math.ceil(
-                                                          maxRight,
-                                                      );
-                                                  })(),
-                                              }))
-                                            : null;
-                                        this.logger.info(
-                                            `[APP-DIAG] unfurlId=${imageId} playwrightViewport=${JSON.stringify(
-                                                playwrightViewport,
-                                            )} parent=${JSON.stringify(
-                                                parentView,
-                                            )} iframe=${JSON.stringify(
-                                                iframeView,
-                                            )} iframeBox=${JSON.stringify(
-                                                iframeBox,
-                                            )} clipW=${clipWidth} clipH=${clipHeight} appContentHeight=${
-                                                appContentHeight ?? null
-                                            }`,
-                                        );
-                                    })();
-
-                                    try {
-                                        await Promise.race([
-                                            diagWork,
-                                            new Promise<void>((_, reject) => {
-                                                setTimeout(
-                                                    () =>
-                                                        reject(
-                                                            new Error(
-                                                                'diag timeout',
-                                                            ),
-                                                        ),
-                                                    DIAG_BUDGET_MS,
-                                                );
-                                            }),
-                                        ]);
-                                    } catch (diagErr) {
-                                        this.logger.warn(
-                                            `[APP-DIAG] skipped: ${
-                                                diagErr instanceof Error
-                                                    ? diagErr.message
-                                                    : String(diagErr)
-                                            } - unfurlId: ${imageId}`,
-                                        );
-                                    }
-                                }
-                            }
                             imageBuffer = await page.screenshot({
                                 path,
                                 animations: 'disabled',
-                                timeout: RESPONSE_TIMEOUT_MS,
+                                timeout: this.screenshotTimeoutMs,
                                 clip: {
                                     x: iframeBox.x,
                                     y: iframeBox.y,
@@ -2053,7 +2162,7 @@ export class UnfurlService extends BaseService {
                                 .screenshot({
                                     path,
                                     animations: 'disabled',
-                                    timeout: RESPONSE_TIMEOUT_MS,
+                                    timeout: this.screenshotTimeoutMs,
                                 });
                         }
                     } else {
@@ -2133,10 +2242,12 @@ export class UnfurlService extends BaseService {
                             context,
                             contextId,
                             selectedTabs,
+                            sendNowSchedulerDashboardFilters,
                             sendNowSchedulerFilters,
                             sendNowSchedulerParameters,
                             outputFormat,
                             withPdf,
+                            pdfPagination,
                         });
                     }
 
@@ -2193,6 +2304,162 @@ export class UnfurlService extends BaseService {
         );
     }
 
+    // Browserless drops Playwright's viewport over CDP; push it to Chrome.
+    private async overrideCdpViewport(
+        page: playwright.Page,
+        size: { width: number; height: number },
+        logContext: string,
+    ): Promise<void> {
+        try {
+            const cdp = await page.context().newCDPSession(page);
+            await cdp.send('Emulation.setDeviceMetricsOverride', {
+                width: size.width,
+                height: size.height,
+                deviceScaleFactor: 1,
+                mobile: false,
+            });
+        } catch (cdpErr) {
+            this.logger.warn(
+                `[APP] CDP viewport override failed; falling through - ${logContext}, err: ${
+                    cdpErr instanceof Error ? cdpErr.message : String(cdpErr)
+                }`,
+            );
+        }
+    }
+
+    // Fail-closed: a missing ready indicator, missing global or invalid
+    // manifest all throw — an empty manifest would ship a partial delivery.
+    async captureAppDeliveryManifest({
+        url,
+        authUserUuid,
+        contextId,
+    }: {
+        url: string;
+        authUserUuid: string;
+        contextId?: string;
+    }): Promise<DeliveryCaptureManifest> {
+        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
+            throw new UnexpectedServerError(
+                `Can't capture app delivery queries if HEADLESS_BROWSER_HOST env variable is not defined`,
+            );
+        }
+        const cookie = await this.getUserCookie(authUserUuid);
+
+        let browser: playwright.Browser | undefined;
+        let page: playwright.Page | undefined;
+        try {
+            browser = await playwright.chromium.connectOverCDP(
+                getAppBrowserEndpoint(
+                    this.lightdashConfig.headlessBrowser.browserEndpoint,
+                    appViewport,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
+                ),
+                { timeout: 1000 * 60 * 30 },
+            );
+            page = await browser.newPage({
+                viewport: appViewport,
+                ignoreHTTPSErrors:
+                    this.lightdashConfig.headlessBrowser
+                        .internalLightdashHostIgnoreHttpsErrors,
+            });
+            // Same geometry as the screenshot render so the app issues the
+            // same set of queries.
+            await this.overrideCdpViewport(
+                page,
+                appViewport,
+                `contextId: ${contextId}`,
+            );
+
+            // Scope custom headers to internal requests only — setting them on
+            // every request (e.g. Google Fonts) triggers CORS preflight failures.
+            const internalHost =
+                this.lightdashConfig.headlessBrowser.internalLightdashHost.replace(
+                    /\/+$/,
+                    '',
+                );
+            await page.route(`${internalHost}/**`, async (route) => {
+                try {
+                    await route.continue({
+                        headers: {
+                            ...route.request().headers(),
+                            [LightdashRequestMethodHeader]:
+                                RequestMethod.HEADLESS_BROWSER,
+                            'Lightdash-Headless-Browser-Context':
+                                ScreenshotContext.SCHEDULED_DELIVERY,
+                            // String(): a non-string jobId (graphile ids can
+                            // surface as bigint) throws in route.continue.
+                            'Lightdash-Headless-Browser-Context-Id': String(
+                                contextId ?? 'undefined',
+                            ),
+                        },
+                    });
+                } catch {
+                    // Best effort only: a failed continue({headers}) pollutes
+                    // the request's fallback overrides, so no retry can resume
+                    // it — the String() above is the real safeguard.
+                    await route.continue().catch(() => {});
+                }
+            });
+
+            const cookieMatch = cookie.match(/connect\.sid=([^;]+)/);
+            if (!cookieMatch)
+                throw new UnexpectedServerError('Invalid cookie provided');
+            await page.context().addCookies([
+                {
+                    name: 'connect.sid',
+                    value: cookieMatch[1],
+                    domain: new URL(url).hostname,
+                    path: '/',
+                    sameSite: 'Strict',
+                },
+            ]);
+
+            page.on('console', (msg) => {
+                if (msg.type() === 'error') {
+                    this.logger.error(
+                        `Delivery capture console error - contextId: ${contextId}, text: ${msg.text()}`,
+                    );
+                }
+            });
+
+            await page.goto(url, { timeout: 150000 });
+
+            try {
+                await page.waitForSelector(
+                    SCREENSHOT_SELECTORS.READY_INDICATOR,
+                    { state: 'attached', timeout: APP_READY_TIMEOUT_MS },
+                );
+            } catch (waitError) {
+                // Fail-closed: unlike the screenshot path there is no partial
+                // result worth shipping, so the timeout propagates.
+                this.logger.error(
+                    `App delivery capture ready indicator not detected within ${APP_READY_TIMEOUT_MS}ms - contextId: ${contextId}`,
+                );
+                throw waitError;
+            }
+
+            const raw = await page.evaluate(
+                (globalName) =>
+                    (window as unknown as Record<string, unknown>)[globalName],
+                DELIVERY_CAPTURE_GLOBAL,
+            );
+            const manifest = parseDeliveryCaptureManifest(raw);
+            if (manifest === null) {
+                throw new UnexpectedServerError(
+                    `App delivery capture missing or malformed - contextId: ${contextId}`,
+                );
+            }
+
+            this.logger.info(
+                `App delivery capture returned ${manifest.items.length} queries (overflow ${manifest.overflowCount}) - contextId: ${contextId}`,
+            );
+            return manifest;
+        } finally {
+            if (page) await page.close().catch(() => {});
+            if (browser) await browser.close().catch(() => {});
+        }
+    }
+
     private async getSharedUrl(linkUrl: string): Promise<string> {
         const [shareId] = linkUrl.match(nanoidRegex) || [];
         if (!shareId) return linkUrl;
@@ -2209,8 +2476,7 @@ export class UnfurlService extends BaseService {
     }
 
     async parseUrl(linkUrl: string): Promise<ParsedUrl> {
-        const shareUrl = new RegExp(`/share/${nanoid}`);
-        const url = linkUrl.match(shareUrl)
+        const url = matchShareUrlNanoid(linkUrl)
             ? await this.getSharedUrl(linkUrl)
             : linkUrl;
 

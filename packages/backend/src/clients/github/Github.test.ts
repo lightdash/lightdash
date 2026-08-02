@@ -1,13 +1,18 @@
 import { Octokit } from '@octokit/rest';
 import { getRepoTree, isGithubRateLimitError } from './Github';
 
-jest.mock('@octokit/rest');
+vi.mock('@octokit/rest');
 
-const mockGetTree = jest.fn();
-(Octokit as unknown as jest.Mock).mockImplementation(() => ({
-    rest: { git: { getTree: mockGetTree } },
-    hook: { after: jest.fn(), error: jest.fn() },
-}));
+const mockGetTree = vi.fn();
+(Octokit as unknown as import('vitest').Mock).mockImplementation(
+    // eslint-disable-next-line prefer-arrow-callback
+    function MockOctokit() {
+        return {
+            rest: { git: { getTree: mockGetTree } },
+            hook: { after: vi.fn(), error: vi.fn() },
+        };
+    },
+);
 
 const octokitError = (
     status: number,

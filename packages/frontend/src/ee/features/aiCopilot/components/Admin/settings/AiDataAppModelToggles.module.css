@@ -1,0 +1,6 @@
+/* The last enabled model can't be turned off, but using Mantine's `disabled`
+   would grey out the checked track and make the one active model read as
+   inactive. Soft-disable instead: full checked styling, blocked interaction. */
+.lockedSwitch input {
+    cursor: not-allowed;
+}

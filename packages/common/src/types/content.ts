@@ -53,6 +53,7 @@ export enum ContentSortByColumns {
     NAME = 'name',
     SPACE_NAME = 'space_name',
     LAST_UPDATED_AT = 'last_updated_at',
+    VIEWS = 'views',
 }
 
 // Chart types

@@ -25,6 +25,7 @@ const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
                     contentType={item.contentType}
                     name={item.name}
                     slug={item.slug}
+                    href={item.href}
                     chartCount={item.chartCount}
                     dashboardCount={item.dashboardCount}
                     childSpaceCount={item.childSpaceCount}
@@ -36,6 +37,7 @@ const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
                     contentType={item.contentType}
                     name={item.name}
                     slug={item.slug}
+                    href={item.href}
                 />
             ),
         )}

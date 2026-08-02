@@ -243,19 +243,18 @@ describe('CLI', () => {
 
     it('Should throw error on lightdash compile', () => {
         cy.exec(
-            `${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir} -m orders`,
+            `${cliCommand} compile --project-dir ${projectDir} --profiles-dir ${profilesDir} -m orders --no-partial-compilation`,
             {
                 failOnNonZeroExit: false,
                 env: {
                     CI: true,
                     NODE_ENV: 'development',
-                    PARTIAL_COMPILATION_ENABLED: 'false',
                     ...databaseEnvVars,
                 },
                 log: true,
             },
         ).then((result) => {
-            expect(result.code).to.eq(1);
+            expect(result.exitCode).to.eq(1);
             expect(result.stderr).to.contain(
                 'Failed to compile project. Found 2 errors',
             );

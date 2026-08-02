@@ -1,5 +1,8 @@
 import {
+    AlertAsCode,
     AnyType,
+    ApiAlertAsCodeListResponse,
+    ApiAlertAsCodeUpsertResponse,
     ApiCalculateTotalResponse,
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
@@ -12,18 +15,26 @@ import {
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
+    ApiGoogleSheetsSyncAsCodeListResponse,
+    ApiGoogleSheetsSyncAsCodeUpsertResponse,
     ApiPreviewExpirationProjectSettingsResponse,
+    ApiPreviewExpiresAtResponse,
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
+    ApiScheduledDeliveryAsCodeListResponse,
+    ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSpaceSummaryListResponse,
     ApiSqlChartAsCodeListResponse,
     ApiSqlChartAsCodeUpsertResponse,
     ApiSqlQueryResults,
     ApiSuccessEmpty,
+    ApiVirtualViewAsCodeListResponse,
+    ApiVirtualViewAsCodeUpsertResponse,
     assertRegisteredAccount,
     CalculateTotalFromQuery,
     ChartAsCode,
+    ContentAsCodeType,
     CreateProjectMember,
     DashboardAsCode,
     DbtExposure,
@@ -31,15 +42,19 @@ import {
     ForbiddenError,
     getErrorMessage,
     getRequestMethod,
+    GoogleSheetsSyncAsCode,
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
     ParameterError,
     RequestMethod,
+    ScheduledDeliveryAsCode,
     SqlChartAsCode,
     UpdateDefaultUserSpaces,
     UpdateMetadata,
+    UpdateProjectDetails,
     UpdateProjectMember,
     UserWarehouseCredentials,
+    VirtualViewAsCode,
     type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
@@ -57,9 +72,11 @@ import {
     type CreateDashboardWithCharts,
     type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
+    type ProjectSummary,
     type Tag,
     type UpdateMultipleDashboards,
     type UpdatePreviewExpirationProjectSettings,
+    type UpdatePreviewExpiresAt,
     type UpdateQueryTimezoneSettings,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
@@ -119,6 +136,32 @@ export class ProjectController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .getProject(projectUuid, req.account!),
+        };
+    }
+
+    /**
+     * Update simple project details without changing its connection configuration
+     * @summary Update project details
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/details')
+    @OperationId('UpdateProjectDetails')
+    async updateProjectDetails(
+        @Path() projectUuid: string,
+        @Body() body: UpdateProjectDetails,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ProjectSummary>> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .updateProjectDetails(projectUuid, req.account!, body),
         };
     }
 
@@ -1157,6 +1200,39 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
+     * Update the expiration date of a preview project. The expiration is
+     * recomputed from now, clamped to the upstream project's maximum preview
+     * expiration. Omit expiresInHours to reset to the upstream default.
+     * @summary Update preview expiration
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/preview-expiration')
+    @OperationId('updatePreviewExpiresAt')
+    async updatePreviewExpiresAt(
+        @Path() projectUuid: string,
+        @Body() body: UpdatePreviewExpiresAt,
+        @Request() req: express.Request,
+    ): Promise<ApiPreviewExpiresAtResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getProjectService()
+            .updatePreviewExpiresAt(
+                toSessionUser(req.account),
+                projectUuid,
+                body.expiresInHours,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
      * Update scheduler settings for a project
      * @summary Update scheduler settings
      */
@@ -1392,237 +1468,15 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetTagsResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getProjectService()
-            .getTags(toSessionUser(req.account), projectUuid);
+            .getTags(req.account!, projectUuid);
 
         return {
             status: 'ok',
             results,
-        };
-    }
-
-    /**
-     * Get charts in code representation
-     * @summary List charts as code
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('{projectUuid}/charts/code')
-    @OperationId('getChartsAsCode')
-    async getChartsAsCode(
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-        @Query() ids?: string[],
-        @Query() offset?: number,
-        @Query() languageMap?: boolean,
-    ): Promise<ApiChartAsCodeListResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getCoderService()
-                .getCharts(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    ids,
-                    offset,
-                    languageMap,
-                ),
-        };
-    }
-
-    /**
-     * Get dashboards in code representation
-     * @summary List dashboards as code
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('{projectUuid}/dashboards/code')
-    @OperationId('getDashboardsAsCode')
-    async getDashboardsAsCode(
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-        @Query() ids?: string[],
-        @Query() offset?: number,
-        @Query() languageMap?: boolean,
-    ): Promise<ApiDashboardAsCodeListResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getCoderService()
-                .getDashboards(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    ids,
-                    offset,
-                    languageMap,
-                ),
-        };
-    }
-
-    /**
-     * Upsert a chart from code representation
-     * @summary Upsert chart as code
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/charts/{slug}/code')
-    @OperationId('upsertChartAsCode')
-    async upsertChartAsCode(
-        @Path() projectUuid: string,
-        @Path() slug: string,
-        @Body()
-        chart: Omit<ChartAsCode, 'chartConfig' | 'description'> & {
-            skipSpaceCreate?: boolean;
-            publicSpaceCreate?: boolean;
-            force?: boolean;
-            spaceNames?: Record<string, string>;
-            chartConfig: AnyType;
-            description?: string | null; // Allow both undefined and null
-        },
-        @Request() req: express.Request,
-    ): Promise<ApiChartAsCodeUpsertResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services.getCoderService().upsertChart(
-                toSessionUser(req.account),
-                projectUuid,
-                slug,
-                {
-                    ...chart,
-                    description: chart.description ?? undefined,
-                },
-                {
-                    skipSpaceCreate: chart.skipSpaceCreate,
-                    publicSpaceCreate: chart.publicSpaceCreate,
-                    force: chart.force,
-                    spaceNames: chart.spaceNames,
-                },
-            ),
-        };
-    }
-
-    /**
-     * Gets SQL charts in code representation
-     * @summary Get SQL charts as code
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('{projectUuid}/sqlCharts/code')
-    @OperationId('getSqlChartsAsCode')
-    async getSqlChartsAsCode(
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-        @Query() ids?: string[],
-        @Query() offset?: number,
-    ): Promise<ApiSqlChartAsCodeListResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getCoderService()
-                .getSqlCharts(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    ids,
-                    offset,
-                ),
-        };
-    }
-
-    /**
-     * Upserts an SQL chart from code representation
-     * @summary Upsert SQL chart as code
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/sqlCharts/{slug}/code')
-    @OperationId('upsertSqlChartAsCode')
-    async upsertSqlChartAsCode(
-        @Path() projectUuid: string,
-        @Path() slug: string,
-        @Body()
-        sqlChart: Omit<SqlChartAsCode, 'config' | 'description'> & {
-            skipSpaceCreate?: boolean;
-            publicSpaceCreate?: boolean;
-            force?: boolean;
-            spaceNames?: Record<string, string>;
-            config: AnyType;
-            description?: string | null;
-        },
-        @Request() req: express.Request,
-    ): Promise<ApiSqlChartAsCodeUpsertResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services.getCoderService().upsertSqlChart(
-                toSessionUser(req.account),
-                projectUuid,
-                slug,
-                {
-                    ...sqlChart,
-                    description: sqlChart.description ?? null,
-                },
-                sqlChart.skipSpaceCreate,
-                sqlChart.publicSpaceCreate,
-                sqlChart.force,
-                sqlChart.spaceNames,
-            ),
-        };
-    }
-
-    /**
-     * Upsert a dashboard from code representation
-     * @summary Upsert dashboard as code
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/dashboards/{slug}/code')
-    @OperationId('upsertDashboardAsCode')
-    async upsertDashboardAsCode(
-        @Path() projectUuid: string,
-        @Path() slug: string,
-        @Body()
-        dashboard: Omit<DashboardAsCode, 'tiles' | 'description'> & {
-            skipSpaceCreate?: boolean;
-            publicSpaceCreate?: boolean;
-            force?: boolean;
-            spaceNames?: Record<string, string>;
-            tiles: AnyType;
-            description?: string | null; // Allow both undefined and null
-        }, // Simplify filter type for tsoa
-        @Request() req: express.Request,
-    ): Promise<ApiDashboardAsCodeUpsertResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services.getCoderService().upsertDashboard(
-                toSessionUser(req.account),
-                projectUuid,
-                slug,
-                {
-                    ...dashboard,
-                    description: dashboard.description ?? undefined,
-                },
-                {
-                    skipSpaceCreate: dashboard.skipSpaceCreate,
-                    publicSpaceCreate: dashboard.publicSpaceCreate,
-                    force: dashboard.force,
-                    spaceNames: dashboard.spaceNames,
-                },
-            ),
         };
     }
 

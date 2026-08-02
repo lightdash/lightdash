@@ -431,6 +431,7 @@ const run = (): void => {
             JSON.parse(currentContent) as JsonObject,
         );
         if (normalizedCurrentContent !== nextContent) {
+            // eslint-disable-next-line no-console
             console.error(
                 'dashboard-as-code schema is out of date. Run `pnpm generate:dashboard-as-code-schema`.',
             );

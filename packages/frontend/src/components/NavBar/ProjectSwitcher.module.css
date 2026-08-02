@@ -21,6 +21,12 @@
     }
 }
 
+/* Allow the button label (and its flex children) to shrink so the project
+   name truncates with an ellipsis instead of being cropped. */
+.targetButtonLabel {
+    min-width: 0;
+}
+
 .breadcrumbSeparator {
     flex-shrink: 0;
 }

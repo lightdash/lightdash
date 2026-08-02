@@ -1,9 +1,11 @@
 import {
     assertUnreachable,
+    EXTERNAL_CONNECTION_METHODS,
     ParameterError,
     type ApiKeyLocation,
     type ExternalConnectionAuthType,
 } from '@lightdash/common';
+import { validateCustomHeaders } from './proxyValidation';
 
 // Defense-in-depth caps for the numeric limits. The runtime proxy enforces
 // these too, but bad config should never be persisted in the first place.
@@ -11,11 +13,15 @@ const MAX_RESPONSE_BYTES = 25 * 1024 * 1024; // 25 MiB
 const MAX_REQUEST_BYTES = 10 * 1024 * 1024; // 10 MiB
 const MAX_TIMEOUT_MS = 120_000; // 2 minutes
 const MAX_RATE_LIMIT = 100_000;
+const MAX_INSTRUCTIONS_CHARS = 10_000;
 
-const SUPPORTED_METHODS = new Set(['GET', 'POST']);
+const SUPPORTED_METHODS = new Set<string>(EXTERNAL_CONNECTION_METHODS);
 // RFC 7230 token chars — valid for HTTP header names and a safe set for query keys.
 const HTTP_TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
 const CONTENT_TYPE = /^[a-z0-9*]+\/[a-z0-9.+*-]+$/i;
+// Google OAuth scopes are full https URLs, except the OIDC scopes
+// openid/email/profile which Google's token endpoint accepts as bare names.
+export const OAUTH_SCOPE = /^(https:\/\/\S+|openid|email|profile)$/;
 // Must be an absolute path with no whitespace, query, or fragment.
 const PATH_PREFIX = /^\/[^\s?#]*$/;
 
@@ -27,6 +33,7 @@ const PATH_PREFIX = /^\/[^\s?#]*$/;
 export type ValidatableExternalConnectionConfig = {
     type: ExternalConnectionAuthType;
     origin: string;
+    instructions?: string | null;
     allowedPathPrefixes: string[];
     allowedMethods: string[];
     allowedContentTypes: string[];
@@ -36,7 +43,49 @@ export type ValidatableExternalConnectionConfig = {
     rateLimitPerMinute?: number | null;
     apiKeyName?: string | null;
     apiKeyLocation?: ApiKeyLocation | null;
+    oauthScopes?: string[] | null;
+    customHeaders?: Record<string, string> | null;
 };
+
+/**
+ * Validate a Google service account keyfile (the decrypted secret for a
+ * 'google_service_account' connection). Called where the plaintext secret is
+ * available (create / update-with-secret / testConfig) — the shape-only
+ * validateExternalConnectionConfig can't see the secret value itself.
+ */
+export function validateServiceAccountKeyfile(secret: string): void {
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(secret);
+    } catch {
+        throw new ParameterError('Service account key must be valid JSON');
+    }
+    if (!parsed || typeof parsed !== 'object') {
+        throw new ParameterError('Service account key must be a JSON object');
+    }
+    const keyfile = parsed as Record<string, unknown>;
+    if (keyfile.type !== 'service_account') {
+        throw new ParameterError(
+            'Service account key must have type "service_account"',
+        );
+    }
+    if (
+        typeof keyfile.client_email !== 'string' ||
+        keyfile.client_email.length === 0
+    ) {
+        throw new ParameterError(
+            'Service account key must include a client_email',
+        );
+    }
+    if (
+        typeof keyfile.private_key !== 'string' ||
+        keyfile.private_key.length === 0
+    ) {
+        throw new ParameterError(
+            'Service account key must include a private_key',
+        );
+    }
+}
 
 const assertBoundedInt = (
     value: number | undefined,
@@ -83,6 +132,15 @@ export function validateExternalConnectionConfig(
     }
     if (!url.hostname) {
         throw new ParameterError('origin must include a host');
+    }
+
+    if (
+        config.instructions != null &&
+        config.instructions.length > MAX_INSTRUCTIONS_CHARS
+    ) {
+        throw new ParameterError(
+            `instructions must be at most ${MAX_INSTRUCTIONS_CHARS} characters`,
+        );
     }
 
     // --- path prefixes: absolute, no traversal ---
@@ -148,7 +206,22 @@ export function validateExternalConnectionConfig(
         );
     }
 
+    // --- custom request headers ---
+    validateCustomHeaders(
+        config.customHeaders,
+        config.apiKeyLocation === 'header' ? (config.apiKeyName ?? null) : null,
+    );
+
     // --- auth invariants ---
+    if (
+        config.type !== 'google_service_account' &&
+        config.oauthScopes &&
+        config.oauthScopes.length > 0
+    ) {
+        throw new ParameterError(
+            'OAuth scopes are only valid for type "google_service_account"',
+        );
+    }
     switch (config.type) {
         case 'none':
             if (hasSecretAfter) {
@@ -184,6 +257,30 @@ export function validateExternalConnectionConfig(
                     'type "api_key" requires apiKeyLocation of "header" or "query"',
                 );
             }
+            break;
+        case 'google_service_account':
+            if (!hasSecretAfter) {
+                throw new ParameterError(
+                    'type "google_service_account" requires a service account key',
+                );
+            }
+            if (config.apiKeyName || config.apiKeyLocation) {
+                throw new ParameterError(
+                    'type "google_service_account" must not set an api key name or location',
+                );
+            }
+            if (!config.oauthScopes || config.oauthScopes.length === 0) {
+                throw new ParameterError(
+                    'type "google_service_account" requires at least one OAuth scope',
+                );
+            }
+            config.oauthScopes.forEach((scope) => {
+                if (typeof scope !== 'string' || !OAUTH_SCOPE.test(scope)) {
+                    throw new ParameterError(
+                        `Invalid OAuth scope: ${JSON.stringify(scope)}`,
+                    );
+                }
+            });
             break;
         default:
             assertUnreachable(

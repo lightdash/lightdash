@@ -48,7 +48,6 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
         <>
             <Tooltip
                 withinPortal
-                variant="xs"
                 maw={130}
                 label={
                     scheduler.enabled

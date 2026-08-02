@@ -4,6 +4,7 @@ import { type OrganizationMemberRole } from './organizationMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceQuery } from './savedCharts';
+import { type UserAvatarColorValue } from './userAvatars';
 
 // Permissions added directly to a space (not inherited from parent/orgs/projects)
 export enum DirectSpaceAccessOrigin {
@@ -130,6 +131,8 @@ export type SpaceAccessUserMetadata = {
     lastName: string;
     email: string;
     isInternal: boolean;
+    avatarUrl: string | null;
+    avatarGradient: UserAvatarColorValue | null;
 };
 
 export type SpaceInheritanceChainItem = {

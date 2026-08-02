@@ -38,7 +38,7 @@ describe('Charts as Code API', () => {
 
     it('should download charts as code', async () => {
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/charts/code`,
+            `/api/v1/projects/${projectUuid}/code/charts`,
         );
         expect(response.status).toBe(200);
 
@@ -60,7 +60,7 @@ describe('Charts as Code API', () => {
 
     it('should download charts as code by slug', async () => {
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/charts/code?ids=${chartAsCode.slug}`,
+            `/api/v1/projects/${projectUuid}/code/charts?ids=${chartAsCode.slug}`,
         );
         expect(response.status).toBe(200);
         expect(response.body.results).toBeDefined();
@@ -75,7 +75,7 @@ describe('Charts as Code API', () => {
 
     it('should download charts as code with offset', async () => {
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/charts/code?offset=5`,
+            `/api/v1/projects/${projectUuid}/code/charts?offset=5`,
         );
         expect(response.status).toBe(200);
         const { results } = response.body;
@@ -107,7 +107,7 @@ describe('Charts as Code API', () => {
         };
 
         const response = await admin.post<any>(
-            `/api/v1/projects/${projectUuid}/charts/${chartAsCode.slug}/code`,
+            `/api/v1/projects/${projectUuid}/code/charts/${chartAsCode.slug}`,
             updatedChartAsCode,
         );
         expect(response.status).toBe(200);
@@ -139,7 +139,7 @@ describe('Dashboards as Code API', () => {
 
     it('should download dashboards as code', async () => {
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/dashboards/code`,
+            `/api/v1/projects/${projectUuid}/code/dashboards`,
         );
         expect(response.status).toBe(200);
         expect(response.body.results).toBeDefined();
@@ -156,7 +156,7 @@ describe('Dashboards as Code API', () => {
 
     it('should download dashboards as code by slug', async () => {
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/dashboards/code?ids=${dashboardAsCode.slug}`,
+            `/api/v1/projects/${projectUuid}/code/dashboards?ids=${dashboardAsCode.slug}`,
         );
         expect(response.status).toBe(200);
         expect(response.body.results).toBeDefined();
@@ -171,7 +171,7 @@ describe('Dashboards as Code API', () => {
 
     it('should download dashboards as code with offset', async () => {
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/dashboards/code?offset=1`,
+            `/api/v1/projects/${projectUuid}/code/dashboards?offset=1`,
         );
         expect(response.status).toBe(200);
         const { results } = response.body;
@@ -191,7 +191,7 @@ describe('Dashboards as Code API', () => {
         };
 
         const response = await admin.post<any>(
-            `/api/v1/projects/${projectUuid}/dashboards/${dashboardAsCode.slug}/code`,
+            `/api/v1/projects/${projectUuid}/code/dashboards/${dashboardAsCode.slug}`,
             updatedDashboardAsCode,
         );
         expect(response.status).toBe(200);
@@ -232,14 +232,14 @@ describe('Dashboards as Code API', () => {
         };
 
         const uploadResponse = await admin.post<any>(
-            `/api/v1/projects/${projectUuid}/dashboards/${dashboardAsCode.slug}/code`,
+            `/api/v1/projects/${projectUuid}/code/dashboards/${dashboardAsCode.slug}`,
             dashboardWithDateZoom,
         );
         expect(uploadResponse.status).toBe(200);
         expect(uploadResponse.body.results.dashboards[0].action).toBe('update');
 
         const downloadResponse = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/dashboards/code?ids=${dashboardAsCode.slug}`,
+            `/api/v1/projects/${projectUuid}/code/dashboards?ids=${dashboardAsCode.slug}`,
         );
         expect(downloadResponse.status).toBe(200);
         const downloaded = downloadResponse.body.results.dashboards[0];
@@ -275,7 +275,7 @@ describe('SQL Charts as Code API', () => {
 
     it('should download SQL charts as code', async () => {
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/sqlCharts/code`,
+            `/api/v1/projects/${projectUuid}/code/sqlCharts`,
         );
         expect(response.status).toBe(200);
 
@@ -294,7 +294,7 @@ describe('SQL Charts as Code API', () => {
         };
 
         const response = await admin.post<any>(
-            `/api/v1/projects/${projectUuid}/sqlCharts/${createdSqlChartSlug}/code`,
+            `/api/v1/projects/${projectUuid}/code/sqlCharts/${createdSqlChartSlug}`,
             newSqlChart,
         );
         expect(response.status).toBe(200);
@@ -313,13 +313,13 @@ describe('SQL Charts as Code API', () => {
         };
 
         await admin.post<any>(
-            `/api/v1/projects/${projectUuid}/sqlCharts/${createdSqlChartSlug}/code`,
+            `/api/v1/projects/${projectUuid}/code/sqlCharts/${createdSqlChartSlug}`,
             newSqlChart,
         );
 
         // Now download by slug
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/sqlCharts/code?ids=${createdSqlChartSlug}`,
+            `/api/v1/projects/${projectUuid}/code/sqlCharts?ids=${createdSqlChartSlug}`,
         );
         expect(response.status).toBe(200);
         expect(response.body.results).toBeDefined();
@@ -342,7 +342,7 @@ describe('SQL Charts as Code API', () => {
         };
 
         await admin.post<any>(
-            `/api/v1/projects/${projectUuid}/sqlCharts/${createdSqlChartSlug}/code`,
+            `/api/v1/projects/${projectUuid}/code/sqlCharts/${createdSqlChartSlug}`,
             newSqlChart,
         );
 
@@ -356,7 +356,7 @@ describe('SQL Charts as Code API', () => {
         };
 
         const response = await admin.post<any>(
-            `/api/v1/projects/${projectUuid}/sqlCharts/${createdSqlChartSlug}/code`,
+            `/api/v1/projects/${projectUuid}/code/sqlCharts/${createdSqlChartSlug}`,
             updatedSqlChart,
         );
         expect(response.status).toBe(200);
@@ -367,7 +367,7 @@ describe('SQL Charts as Code API', () => {
 
     it('should download SQL charts as code with offset', async () => {
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/sqlCharts/code?offset=0`,
+            `/api/v1/projects/${projectUuid}/code/sqlCharts?offset=0`,
         );
         expect(response.status).toBe(200);
         const { results } = response.body;
@@ -378,7 +378,7 @@ describe('SQL Charts as Code API', () => {
     it('should return missing IDs for non-existent SQL charts', async () => {
         const nonExistentSlug = 'non-existent-sql-chart-slug-12345';
         const response = await admin.get<any>(
-            `/api/v1/projects/${projectUuid}/sqlCharts/code?ids=${nonExistentSlug}`,
+            `/api/v1/projects/${projectUuid}/code/sqlCharts?ids=${nonExistentSlug}`,
         );
         expect(response.status).toBe(200);
         expect(response.body.results.missingIds).toBeInstanceOf(Array);

@@ -1,24 +1,47 @@
-.accordionControl {
-    height: var(--mantine-spacing-xxl);
-    padding-left: var(--mantine-spacing-md);
-    padding-right: var(--mantine-spacing-md);
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-2)
-    );
+.groups {
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-xs)
+        var(--mantine-spacing-xs);
+}
+
+.group {
+    padding-top: var(--mantine-spacing-xs);
+}
+
+.group:first-child {
+    padding-top: 0;
+}
+
+.groupLabel {
+    display: block;
+    width: 100%;
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
 
     &:hover {
         background-color: light-dark(
-            var(--mantine-color-ldGray-1),
+            var(--mantine-color-ldGray-0),
             var(--mantine-color-ldDark-3)
         );
     }
 }
 
-.accordionLabel {
-    padding: 0;
+.groupChevron {
+    color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-7)
+    );
 }
 
-.accordionContent {
-    padding: var(--mantine-spacing-xs);
+.groupLabelText {
+    color: light-dark(
+        var(--mantine-color-ldGray-7),
+        var(--mantine-color-ldGray-7)
+    );
+}
+
+.groupCount {
+    color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-7)
+    );
 }

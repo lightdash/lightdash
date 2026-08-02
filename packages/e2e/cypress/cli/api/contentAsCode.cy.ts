@@ -23,7 +23,7 @@ describe('Content as Code CLI', () => {
 
     it('should download charts as code using CLI', () => {
         cy.exec('lightdash download').then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Count chart files and make sure there are more than 0
@@ -43,7 +43,7 @@ describe('Content as Code CLI', () => {
         cy.exec(
             'lightdash download -c "what-s-the-average-spend-per-customer" -d "jaffle-dashboard"',
         ).then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
         cy.exec(`ls ${lightdashDir}/charts | wc -l`).then((result) => {
             const fileCount = parseInt(result.stdout, 10);
@@ -59,7 +59,7 @@ describe('Content as Code CLI', () => {
     it('should upload modified charts as code using CLI', () => {
         // Requires download to be run first
         cy.exec('lightdash download').then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
         const chartFilePath = `lightdash/charts/what-s-the-average-spend-per-customer.yml`;
         const metadataPath = `lightdash/.lightdash-metadata.json`;
@@ -70,7 +70,7 @@ describe('Content as Code CLI', () => {
         // Update the chart description
         cy.exec(`sed -i "${updateSedDescription}" ${chartFilePath}`).then(
             (result) => {
-                cy.wrap(result.code).should('eq', 0);
+                cy.wrap(result.exitCode).should('eq', 0);
             },
         );
 
@@ -80,19 +80,19 @@ describe('Content as Code CLI', () => {
         cy.exec(
             `node -e "const fs = require('fs'); const m = JSON.parse(fs.readFileSync('${metadataPath}', 'utf-8')); m.charts['${chartSlug}'] = '${date1MinuteAgo}'; fs.writeFileSync('${metadataPath}', JSON.stringify(m, null, 2));"`,
         ).then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         cy.exec('lightdash upload --verbose').then((result) => {
             cy.wrap(result.stdout).should('contain', 'charts updated: 1');
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
     });
 
     it('should create new dashboard if we change the slug using CLI', () => {
         // Requires download to be run first
         cy.exec('lightdash download').then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
         const dashboardFilePath = `lightdash/dashboards/jaffle-dashboard.yml`;
 
@@ -101,20 +101,20 @@ describe('Content as Code CLI', () => {
         const updateSedSlug = `s/slug: .*/slug: jaffle-dashboard-${new Date().getTime()}/`;
         cy.exec(`sed -i "${updateSedSlug}" ${dashboardFilePath}`).then(
             (result) => {
-                cy.wrap(result.code).should('eq', 0);
+                cy.wrap(result.exitCode).should('eq', 0);
             },
         );
 
         cy.exec('lightdash upload --verbose').then((result) => {
             cy.wrap(result.stdout).should('contain', 'dashboards created: 1');
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
     });
 
     it('should create a new SQL chart using CLI upload', () => {
         // First download to create the directory structure
         cy.exec('lightdash download').then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Create a new SQL chart YAML file
@@ -141,12 +141,12 @@ downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
         cy.exec(
             `echo '${sqlChartContent}' > ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`,
         ).then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         cy.exec('lightdash upload --verbose').then((result) => {
             cy.wrap(result.stdout).should('contain', 'charts created: 1');
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
     });
 
@@ -174,31 +174,31 @@ downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
 
         // Download first to create dir structure
         cy.exec('lightdash download').then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Create the SQL chart file (using .sql.yml extension)
         cy.exec(
             `echo '${sqlChartContent}' > ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`,
         ).then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Upload to create it on the server
         cy.exec('lightdash upload --verbose').then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Clean up and download only that SQL chart by slug
         cy.exec(`rm -rf ${lightdashDir}`);
         cy.exec(`lightdash download -c "${sqlChartSlug}"`).then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Verify the SQL chart was downloaded (with .sql.yml extension)
         cy.exec(`ls ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`).then(
             (result) => {
-                cy.wrap(result.code).should('eq', 0);
+                cy.wrap(result.exitCode).should('eq', 0);
             },
         );
     });
@@ -227,20 +227,20 @@ downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
 
         // Download first to create dir structure
         cy.exec('lightdash download').then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Create the SQL chart file (using .sql.yml extension)
         cy.exec(
             `echo '${sqlChartContent}' > ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`,
         ).then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Upload to create it on the server
         cy.exec('lightdash upload --verbose').then((result) => {
             cy.wrap(result.stdout).should('contain', 'charts created: 1');
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Now update the description
@@ -250,13 +250,13 @@ downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
         cy.exec(
             `sed -i "${updateSedDescription}" ${lightdashDir}/charts/${sqlChartSlug}.sql.yml && sed -i "${updateSedDownloadedAt}" ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`,
         ).then((result) => {
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
 
         // Upload the update
         cy.exec('lightdash upload --verbose').then((result) => {
             cy.wrap(result.stdout).should('contain', 'charts updated: 1');
-            cy.wrap(result.code).should('eq', 0);
+            cy.wrap(result.exitCode).should('eq', 0);
         });
     });
 });

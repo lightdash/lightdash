@@ -1,11 +1,14 @@
 import {
     AddScopesToRole,
+    ApiCustomRoleAsCodeListResponse,
+    ApiCustomRoleAsCodeUpsertResponse,
     ApiDefaultRoleResponse,
     ApiErrorPayload,
     ApiRemoveScopeFromRoleResponse,
     ApiRoleAssigneesResponse,
     ApiUnassignRoleFromUserResponse,
     CreateRole,
+    CustomRoleAsCode,
     UpdateRole,
 } from '@lightdash/common';
 import {

@@ -54,6 +54,10 @@ type DbtManifestProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     analytics?: LightdashAnalytics;
     manifest: string;
+    // Optional dbt project dir to read lightdash.config.yml / project_context.yml
+    // from. Used by the multiple-dbt-sources merge to point the merged manifest
+    // adapter at the primary source's checkout so its project config is kept.
+    dbtProjectDir?: string;
 };
 
 export class DbtManifestProjectAdapter extends DbtBaseProjectAdapter {
@@ -63,6 +67,7 @@ export class DbtManifestProjectAdapter extends DbtBaseProjectAdapter {
         dbtVersion,
         analytics,
         manifest,
+        dbtProjectDir,
     }: DbtManifestProjectAdapterArgs) {
         // Create a dummy dbt client since we don't need it for manifest-based compilation
         const manifestDbtClient = new ManifestDbtClient(manifest);
@@ -72,7 +77,7 @@ export class DbtManifestProjectAdapter extends DbtBaseProjectAdapter {
             warehouseClient,
             cachedWarehouse,
             dbtVersion,
-            undefined, // no dbt project dir
+            dbtProjectDir,
             analytics,
         );
     }

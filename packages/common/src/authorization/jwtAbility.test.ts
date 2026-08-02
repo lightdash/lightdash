@@ -613,94 +613,6 @@ describe('Embedded dashboard abilities', () => {
                     }),
                 ),
             ).toBe(false);
-        });
-
-        it('should not allow viewing Explore domains when canExplore is undefined', () => {
-            const embedUser = createEmbedJwt({
-                content: { canExplore: undefined },
-            });
-            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
-
-            expect(
-                ability.can(
-                    'view',
-                    subject('Explore', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
-        });
-
-        it('should not allow viewing Explore domains for different projects', () => {
-            const embedUser = createEmbedJwt({
-                content: { canExplore: true },
-            });
-            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
-
-            expect(
-                ability.can(
-                    'view',
-                    subject('Explore', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid: 'different-project-uuid',
-                    }),
-                ),
-            ).toBe(false);
-            expect(
-                ability.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid: 'different-project-uuid',
-                    }),
-                ),
-            ).toBe(false);
-        });
-    });
-
-    describe('Explore abilities', () => {
-        it('should allow viewing Explore domains when canExplore is true', () => {
-            const embedUser = createEmbedJwt({
-                content: { canExplore: true },
-            });
-            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
-
-            expect(
-                ability.can(
-                    'view',
-                    subject('Explore', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(true);
-            expect(
-                ability.can(
-                    'view',
-                    subject('Project', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(true);
-        });
-
-        it('should not allow viewing Explore domains when canExplore is false', () => {
-            const embedUser = createEmbedJwt({
-                content: { canExplore: false },
-            });
-            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
-
-            expect(
-                ability.can(
-                    'view',
-                    subject('Explore', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid,
-                    }),
-                ),
-            ).toBe(false);
             expect(
                 ability.can(
                     'view',
@@ -877,6 +789,236 @@ describe('Embedded data app abilities', () => {
                     organizationUuid: organization.organizationUuid,
                     projectUuid: 'different-project-uuid',
                     metadata: { appUuid },
+                }),
+            ),
+        ).toBe(false);
+    });
+});
+
+const defineAbilityForAiAgentEmbedUser = (
+    embedUser: CreateEmbedJwt,
+    agentUuid: string,
+): MemberAbility => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    applyEmbeddedAbility(
+        embedUser,
+        { agentUuid, type: 'aiAgent', chartUuids: [], explores: [] },
+        embed,
+        'external-id-1',
+        builder,
+    );
+    return builder.build();
+};
+
+describe('Embedded AI agent abilities', () => {
+    const agentUuid = 'agent-uuid-1';
+    const projectUuid = 'project-uuid-1';
+    const aiAgentEmbedUser: CreateEmbedJwt = {
+        content: { type: 'aiAgent', agentUuid },
+        exp: Date.now() / 1000 + 3600,
+    };
+
+    it('grants view:Project for the embedded agent project', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            aiAgentEmbedUser,
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not grant view:Explore unless the token enables canExplore', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            aiAgentEmbedUser,
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('grants view:Explore when the token enables canExplore', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            {
+                ...aiAgentEmbedUser,
+                content: {
+                    type: 'aiAgent',
+                    agentUuid,
+                    canExplore: true,
+                },
+            },
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not grant access to a different project', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            aiAgentEmbedUser,
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: 'different-project-uuid',
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: 'different-project-uuid',
+                }),
+            ),
+        ).toBe(false);
+    });
+});
+
+const defineAbilityForMetricsCatalogEmbedUser = (
+    embedUser: CreateEmbedJwt,
+): MemberAbility => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    applyEmbeddedAbility(
+        embedUser,
+        { type: 'metricsCatalog', chartUuids: [], explores: [] },
+        embed,
+        'external-id-1',
+        builder,
+    );
+    return builder.build();
+};
+
+describe('Embedded metrics catalog abilities', () => {
+    const projectUuid = 'project-uuid-1';
+    const metricsCatalogEmbedUser: CreateEmbedJwt = {
+        content: { type: 'metricsCatalog' },
+        exp: Date.now() / 1000 + 3600,
+    };
+
+    it('grants view:Project for the embedded metrics catalog project', () => {
+        const ability = defineAbilityForMetricsCatalogEmbedUser(
+            metricsCatalogEmbedUser,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('grants view:Tags for catalog filters', () => {
+        const ability = defineAbilityForMetricsCatalogEmbedUser(
+            metricsCatalogEmbedUser,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Tags', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('grants view:SpotlightTableConfig for catalog columns', () => {
+        const ability = defineAbilityForMetricsCatalogEmbedUser(
+            metricsCatalogEmbedUser,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('SpotlightTableConfig', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not grant view:Explore unless the token enables canExplore', () => {
+        const ability = defineAbilityForMetricsCatalogEmbedUser(
+            metricsCatalogEmbedUser,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('grants view:Explore when the token enables canExplore', () => {
+        const ability = defineAbilityForMetricsCatalogEmbedUser({
+            ...metricsCatalogEmbedUser,
+            content: {
+                type: 'metricsCatalog',
+                canExplore: true,
+            },
+        });
+
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not grant access to a different project', () => {
+        const ability = defineAbilityForMetricsCatalogEmbedUser(
+            metricsCatalogEmbedUser,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: 'different-project-uuid',
                 }),
             ),
         ).toBe(false);

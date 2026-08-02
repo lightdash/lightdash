@@ -2,15 +2,24 @@ import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
+    ApiAgentAsCodeListResponse,
+    ApiAgentAsCodeUpsertResponse,
+    ApiAgentOnboardingFileResponse,
+    ApiAgentOnboardingRunResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentAdminEvalPromptsResponse,
+    ApiAiAgentAdminEvalsResponse,
+    ApiAiAgentAdminMemoriesResponse,
     ApiAiAgentAdminPromptActivityResponse,
     ApiAiAgentArtifactResponse,
+    ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
     ApiAiAgentEvaluationRunResultsResponse,
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
+    ApiAiAgentMemoryResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
@@ -26,9 +35,12 @@ import type {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAiAgentThreadWorkstreamsResponse,
+    ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
+    ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
@@ -39,23 +51,40 @@ import type {
     ApiAiRouterInstructionResponse,
     ApiAiRouterResponse,
     ApiAiRouterRouteResponse,
+    ApiAnnouncementResponse,
+    ApiAnnouncementsResponse,
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
+    ApiAppThumbnailUrlResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
+    ApiDataAppActivityResponse,
+    ApiExternalConnectionAsCodeListResponse,
+    ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
+    ApiGetAppCodeResponse,
     ApiGetAppResponse,
+    ApiGetDataAppAuthoringContextResponse,
+    ApiGetDataAppVizResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiHomepageLinkMetadataResponse,
+    ApiHomepageViewAsResponse,
+    ApiListDataAppVizsResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
+    ApiMcpActivityResponse,
+    ApiMcpActivityStatsResponse,
     ApiMyAppsResponse,
     ApiOrganizationDesignFileResponse,
     ApiOrganizationDesignResponse,
     ApiOrganizationDesignsResponse,
     ApiPreviewTokenResponse,
+    ApiProjectHomepageOrNullResponse,
+    ApiProjectHomepageResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
+    ApiResolvedHomepageResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
     AppExternalConnectionLink,
@@ -86,6 +115,7 @@ import {
 import { type ApiGetSpotlightTableConfig } from './api/spotlight';
 import { type ApiSuccessEmpty } from './api/success';
 import { type Account } from './auth';
+import { type BigqueryProjectRecommendation } from './bigQuerySSO';
 import {
     type ApiCatalogAnalyticsResults,
     type ApiCatalogMetadataResults,
@@ -96,17 +126,26 @@ import {
     type ApiMetricsTreeLockResponse,
     type ApiUpdateMetricsTreeResponse,
 } from './catalog';
-import { type ApiGetChangeResponse } from './changeset';
 import {
     type CiChecks,
     type ClosePullRequestResult,
     type MergePullRequestResult,
 } from './ci';
 import {
+    type ApiAlertAsCodeListResponse,
+    type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiDashboardAsCodeListResponse,
+    type ApiGoogleSheetsSyncAsCodeListResponse,
+    type ApiGoogleSheetsSyncAsCodeUpsertResponse,
+    type ApiScheduledDeliveryAsCodeListResponse,
+    type ApiScheduledDeliveryAsCodeUpsertResponse,
+    type ApiSpaceAsCodeListResponse,
+    type ApiSpaceAsCodeUpsertResponse,
     type ApiSqlChartAsCodeListResponse,
+    type ApiVirtualViewAsCodeListResponse,
+    type ApiVirtualViewAsCodeUpsertResponse,
 } from './coder';
 import {
     type ApiChartContentResponse,
@@ -152,7 +191,11 @@ import {
     type PullRequestCreated,
     type PullRequestPreview,
 } from './gitIntegration';
-import type { ApiGroupListResponse } from './groups';
+import type {
+    ApiGroupAsCodeListResponse,
+    ApiGroupAsCodeUpsertResponse,
+    ApiGroupListResponse,
+} from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
@@ -176,6 +219,7 @@ import {
     type UpdateAllowedEmailDomains,
 } from './organization';
 import { type OrganizationAccess } from './organizationAccess';
+import { type ApiOrganizationBrandResponse } from './organizationBrand';
 import {
     type DomainVerificationStatus,
     type VerifiedDomain,
@@ -206,7 +250,10 @@ import type {
     ApiPreAggregateCheckResponse,
     PreAggregateMatchMiss,
 } from './preAggregate';
-import { type ApiPreviewExpirationProjectSettingsResponse } from './previewExpirationProjectSettings';
+import {
+    type ApiPreviewExpirationProjectSettingsResponse,
+    type ApiPreviewExpiresAtResponse,
+} from './previewExpirationProjectSettings';
 import { type ProjectCiStatus } from './projectCiStatus';
 import {
     type ApiProjectCompileLogResponse,
@@ -219,6 +266,7 @@ import {
     DbtProjectType,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
+    type EnsurePlaygroundProjectResults,
     type Project,
     type WarehouseCredentials,
 } from './projects';
@@ -227,6 +275,11 @@ import { type QueryHistoryStatus } from './queryHistory';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
+import { type ApiRoadmapResponse } from './roadmap';
+import {
+    type ApiCustomRoleAsCodeListResponse,
+    type ApiCustomRoleAsCodeUpsertResponse,
+} from './roles';
 import {
     type ApiCalculateSubtotalsResponse,
     type ApiCalculateTotalResponse,
@@ -241,6 +294,7 @@ import {
     type ApiSchedulersResponse,
     type ApiUserSchedulersSummaryResponse,
     type GsheetExportProgress,
+    type SchedulerAiAugmentation,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
 } from './scheduler';
@@ -265,11 +319,18 @@ import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
 import { type ApiUpstreamDiffResults } from './upstreamDiff';
 import {
+    type ApiUserAsCodeListResponse,
+    type ApiUserAsCodeUpsertResponse,
     type LightdashUser,
     type LoginOptions,
     type UserAllowedOrganization,
 } from './user';
-import { type UserWarehouseCredentials } from './userWarehouseCredentials';
+import { type UserAvatarColorValue } from './userAvatars';
+import {
+    type RedshiftAwsSsoCompleteResults,
+    type RedshiftAwsSsoStartResults,
+    type UserWarehouseCredentials,
+} from './userWarehouseCredentials';
 import {
     type ApiChartValidationResponse,
     type ApiDashboardValidationResponse,
@@ -277,7 +338,14 @@ import {
     type ApiSingleValidationResponse,
     type ValidationResponse,
 } from './validation';
-import { type ApiWarehouseTableFields } from './warehouse';
+import {
+    type ApiWarehouseTableFields,
+    type ApiWarehouseTablesCatalog,
+} from './warehouse';
+import {
+    type ApiWarehouseConnectCodeClaimResponse,
+    type ApiWarehouseConnectCodeResponse,
+} from './warehouseConnectCode';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -382,13 +450,29 @@ export type ActivateUserWithInviteCode = ActivateUser & {
     inviteCode: string;
 };
 
+export type CreateEmailOnlyUserArgs = {
+    email: Email;
+};
+
 export type RegisterOrActivateUser =
     | ActivateUserWithInviteCode
-    | CreateUserArgs;
+    | CreateUserArgs
+    | CreateEmailOnlyUserArgs;
 
 export const hasInviteCode = (
     data: RegisterOrActivateUser,
-): data is ActivateUserWithInviteCode => 'inviteCode' in data;
+): data is ActivateUserWithInviteCode =>
+    'inviteCode' in data &&
+    typeof data.inviteCode === 'string' &&
+    data.inviteCode.length > 0;
+
+export const isEmailOnlyUser = (
+    data: RegisterOrActivateUser,
+): data is CreateEmailOnlyUserArgs =>
+    !('inviteCode' in data) &&
+    !('password' in data) &&
+    !('firstName' in data) &&
+    !('lastName' in data);
 
 export type SentryConfig = {
     backend: {
@@ -420,6 +504,10 @@ export enum LightdashMode {
 
 export type HealthState = {
     healthy: boolean;
+    license?: {
+        hasLicenseKey: boolean;
+        valid: boolean;
+    };
     mode: LightdashMode;
     version: string;
     localDbtEnabled: boolean;
@@ -427,6 +515,16 @@ export type HealthState = {
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
+    /**
+     * Instance can provision the sample-data playground project (enterprise
+     * builds only).
+     */
+    hasPlaygroundProjects: boolean;
+    /**
+     * Instance has a Postmark account token, so email whitelabelling can be
+     * offered (the org still needs the EmailWhitelabel feature flag).
+     */
+    hasEmailWhitelabel: boolean;
     hasMicrosoftTeams: boolean;
     isServiceAccountEnabled: boolean;
     isOrganizationWarehouseCredentialsEnabled: boolean;
@@ -533,6 +631,7 @@ export type HealthState = {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
     };
+    hasBrandfetch: boolean;
     isCustomRolesEnabled: boolean;
     embedding: {
         enabled: boolean;
@@ -577,6 +676,12 @@ export type HealthState = {
          * previews are served same-origin (dev / pre-cutover).
          */
         previewOrigin: string | null;
+        /**
+         * Whether app authors may attach chart row samples during app
+         * generation. When false the instance never runs sample queries and
+         * the frontend hides the per-chart "include sample data" opt-in.
+         */
+        sampleDataEnabled: boolean;
     };
 };
 
@@ -676,6 +781,7 @@ export type CreateProject = Omit<
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'
     | 'expiresAt'
+    | 'provisioningSource'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -773,6 +879,8 @@ export type ApiExecuteAsyncDashboardSqlChartQueryResults =
 export type ApiExecuteAsyncFieldValueSearchResults = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
+    valueFieldId: string;
+    labelFieldId: string | null;
 };
 
 export type QueryResultsPerformance = {
@@ -895,6 +1003,14 @@ export type UpdateUserArgs = {
     /* IANA timezone (e.g. 'America/New_York') used as the user's per-viewer
        default. Null clears the preference and falls back to the project. */
     timezone: string | null;
+    /* Explicit gradient placeholder override; null falls back to the deterministic gradient. */
+    avatarGradient: UserAvatarColorValue | null;
+    howDidYouHearAboutUs: string;
+};
+
+export type ApiUserAvatarResponse = {
+    status: 'ok';
+    results: { avatarUrl: string };
 };
 
 export type PasswordResetLink = {
@@ -913,6 +1029,10 @@ export type PasswordReset = {
 };
 
 export type ApiHealthResults = HealthState;
+export enum InviteLinkPurpose {
+    Member = 'member',
+    Setup = 'setup',
+}
 export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
@@ -920,15 +1040,24 @@ export type InviteLink = {
     organizationUuid: string;
     userUuid: string;
     email: string;
+    purpose: InviteLinkPurpose;
 };
-export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
+export type CreateInviteLink = {
     email: string;
+    expiresAt?: Date;
     role?: OrganizationMemberRole;
+    purpose?: InviteLinkPurpose;
+};
+
+export type ApiInviteLinkResponse = {
+    status: 'ok';
+    results: InviteLink;
 };
 
 export type ApiCreateProjectResults = {
     project: Project;
     hasContentCopy: boolean;
+    accessCopyError?: string;
     contentCopyError?: string;
 };
 
@@ -937,6 +1066,10 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | BigqueryProjectRecommendation
+    | EnsurePlaygroundProjectResults
+    | ApiWarehouseConnectCodeResponse['results']
+    | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
@@ -989,6 +1122,7 @@ type ApiResults =
     | UserActivity
     | SchedulerAndTargets
     | SchedulerAndTargets[]
+    | SchedulerAiAugmentation
     | FieldValueSearchResult
     | ApiDownloadCsv
     | AllowedEmailDomains
@@ -1008,6 +1142,7 @@ type ApiResults =
     | SchedulerWithLogs
     | ValidationResponse[]
     | ApiPaginatedValidateResponse['results']
+    | ApiRoadmapResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
@@ -1032,6 +1167,8 @@ type ApiResults =
     | { sha: string; path: string }
     | { filePath: string }
     | UserWarehouseCredentials
+    | RedshiftAwsSsoStartResults
+    | RedshiftAwsSsoCompleteResults
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results']
@@ -1041,18 +1178,21 @@ type ApiResults =
     | ApiCreateComment['results']
     | ApiGetComments['results']
     | ApiDeleteComment
+    | ApiUserAvatarResponse['results']
     | ApiSuccessEmpty
     | ApiCreateProjectResults
     | ApiDeployExploresResults
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
+    | ApiAiGenerateCustomDimensionResponse['results']
     | ApiAiGenerateFormulaTableCalculationResponse['results']
     | ApiAiGenerateTableCalculationResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
+    | ApiWarehouseTablesCatalog['results']
     | ApiTogglePinnedItem['results']
     | ApiOrganizationMemberProfiles['results']
     | ApiSqlChart['results']
@@ -1066,11 +1206,31 @@ type ApiResults =
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
+    | ApiGroupAsCodeListResponse['results']
+    | ApiGroupAsCodeUpsertResponse['results']
     | ApiPullRequestsResponse['results']
     | ApiCreateTagResponse['results']
+    | ApiAgentAsCodeListResponse['results']
+    | ApiAgentAsCodeUpsertResponse['results']
+    | ApiCustomRoleAsCodeListResponse['results']
+    | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiUserAsCodeListResponse['results']
+    | ApiUserAsCodeUpsertResponse['results']
+    | ApiAlertAsCodeListResponse['results']
+    | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
     | ApiDashboardAsCodeListResponse['results']
+    | ApiGoogleSheetsSyncAsCodeListResponse['results']
+    | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
+    | ApiScheduledDeliveryAsCodeListResponse['results']
+    | ApiScheduledDeliveryAsCodeUpsertResponse['results']
+    | ApiVirtualViewAsCodeListResponse['results']
+    | ApiVirtualViewAsCodeUpsertResponse['results']
+    | ApiExternalConnectionAsCodeListResponse['results']
+    | ApiExternalConnectionAsCodeUpsertResponse['results']
+    | ApiSpaceAsCodeListResponse['results']
+    | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']
@@ -1095,8 +1255,11 @@ type ApiResults =
     | ApiDownloadAsyncQueryResults
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
+    | ApiAiAgentMemoryResponse['results']
+    | ApiAiAgentUserMemoriesResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
+    | ApiAiAgentArtifactVizQueryResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults
@@ -1113,11 +1276,17 @@ type ApiResults =
     | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentAdminEvalPromptsResponse['results']
+    | ApiAiAgentAdminEvalsResponse['results']
+    | ApiAiAgentAdminMemoriesResponse['results']
     | ApiAiAgentAdminPromptActivityResponse['results']
+    | ApiMcpActivityResponse['results']
+    | ApiMcpActivityStatsResponse['results']
     | ApiAiAgentReviewItemWritebackPreviewResponse['results']
     | ApiAiAgentReviewItemPrDiffResponse['results']
     | ApiAiAgentReviewItemActivityResponse['results']
     | ApiAiAgentThreadPullRequestResponse['results']
+    | ApiAiAgentThreadWorkstreamsResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']
@@ -1127,7 +1296,6 @@ type ApiResults =
     | ApiCreateEvaluationResponse['results']
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
-    | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiReviewNotificationSettingsResponse['results']
@@ -1149,6 +1317,7 @@ type ApiResults =
     | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
+    | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
     | ApiVerifiedContentListResponse['results']
@@ -1156,16 +1325,32 @@ type ApiResults =
     | OAuthClientSummary
     | CreateOAuthClientResponse
     | ApiGenerateAppResponse['results']
+    | ApiGetAppCodeResponse['results']
+    | ApiGetDataAppAuthoringContextResponse['results']
     | ApiGetAppResponse['results']
+    | ApiListDataAppVizsResponse['results']
+    | ApiGetDataAppVizResponse['results']
     | ApiMyAppsResponse['results']
+    | ApiDataAppActivityResponse['results']
     | ApiPromoteAppResponse['results']
     | ApiPromoteAppDiffResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
+    | ApiAppThumbnailUrlResponse['results']
     | ApiOrganizationDesignResponse['results']
     | ApiOrganizationDesignsResponse['results']
     | ApiOrganizationDesignFileResponse['results']
+    | ApiProjectHomepageResponse['results']
+    | ApiProjectHomepageOrNullResponse['results']
+    | ApiResolvedHomepageResponse['results']
+    | ApiAnnouncementsResponse['results']
+    | ApiAnnouncementResponse['results']
+    | ApiHomepageViewAsResponse['results']
+    | ApiHomepageLinkMetadataResponse['results']
     | ApiProjectColorPaletteResponse['results']
+    | ApiOrganizationBrandResponse['results']
+    | ApiAgentOnboardingFileResponse['results']
+    | ApiAgentOnboardingRunResponse['results']
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']
     | ApiManagedAgentActionResponse['results']

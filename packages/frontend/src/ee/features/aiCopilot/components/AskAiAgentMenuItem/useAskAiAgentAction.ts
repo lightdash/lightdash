@@ -4,8 +4,7 @@ import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import { store as aiAgentStore } from '../../store';
-import { openPanel } from '../../store/aiAgentLauncherSlice';
-import { getLauncherAgentUuid } from '../Launcher/launcherAgentSelection';
+import { openDefaultAgentPanel } from '../../store/aiAgentLauncherSlice';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 type Args = {
@@ -28,14 +27,14 @@ export const useAskAiAgentAction = ({
     clickedFrom,
 }: Args) => {
     const isVisible = useAiAgentButtonVisibility();
-    const { selectedAgent } = useDefaultAiAgent(projectUuid);
+    const { agents } = useDefaultAiAgent(projectUuid);
     const { user } = useApp();
     const { track } = useTracking();
 
-    const canAsk = isVisible && !!selectedAgent;
+    const canAsk = isVisible && agents.length > 0;
 
     const handleClick = () => {
-        if (!selectedAgent) return;
+        if (agents.length === 0) return;
         track({
             name: EventName.AI_AGENT_ASK_CLICKED,
             properties: {
@@ -47,13 +46,7 @@ export const useAskAiAgentAction = ({
         });
         const pendingContext =
             chartUuid || dashboardUuid ? { chartUuid, dashboardUuid } : null;
-        aiAgentStore.dispatch(
-            openPanel({
-                threadId: null,
-                agentUuid: getLauncherAgentUuid(selectedAgent),
-                pendingContext,
-            }),
-        );
+        aiAgentStore.dispatch(openDefaultAgentPanel({ pendingContext }));
     };
 
     return { canAsk, handleClick };

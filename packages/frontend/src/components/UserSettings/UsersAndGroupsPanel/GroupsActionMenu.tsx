@@ -38,7 +38,11 @@ const GroupsActionMenu: FC<GroupsActionMenuProps> = ({
                 closeOnClickOutside
             >
                 <Menu.Target>
-                    <ActionIcon variant="subtle" disabled={disabled}>
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        disabled={disabled}
+                    >
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>

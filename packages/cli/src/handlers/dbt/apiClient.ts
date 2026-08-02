@@ -7,8 +7,10 @@ import {
     ForbiddenError,
     LightdashError,
     ProjectType,
+    SpaceMemberRole,
     type LightdashUserWithAbilityRules,
     type PossibleAbilities,
+    type Project,
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
@@ -115,6 +117,111 @@ export const getUserContext =
             body: undefined,
         });
 
+export type ContentAsCodeUploadPermissions = {
+    charts: boolean;
+    dashboards: boolean;
+    virtualViews: boolean;
+    alerts: boolean;
+    scheduledDeliveries: boolean;
+    googleSheets: boolean;
+    dataApps: boolean;
+    externalConnections: boolean;
+};
+
+export const getContentAsCodeUploadPermissions = async (
+    projectUuid: string,
+): Promise<ContentAsCodeUploadPermissions> => {
+    const [user, project] = await Promise.all([
+        getUserContext(),
+        lightdashApi<Project>({
+            method: 'GET',
+            url: `/api/v1/projects/${projectUuid}`,
+            body: undefined,
+        }),
+    ]);
+    const ability = new Ability<PossibleAbilities>(user.abilityRules);
+
+    const contentAsCodeSubject = subject('ContentAsCode', {
+        organizationUuid: project.organizationUuid,
+        projectUuid: project.projectUuid,
+        upstreamProjectUuid: project.upstreamProjectUuid,
+        type: project.type,
+        createdByUserUuid: project.createdByUserUuid,
+    });
+
+    if (
+        ability.cannot('create', contentAsCodeSubject) &&
+        ability.cannot('manage', contentAsCodeSubject)
+    ) {
+        throw new ForbiddenError(
+            `You don't have permission to upload content as code to project "${project.name}". The create:ContentAsCode or manage:ContentAsCode permission is required.`,
+        );
+    }
+
+    const baseSubject = {
+        organizationUuid: project.organizationUuid,
+        projectUuid: project.projectUuid,
+    };
+    const accessibleResourceSubject = {
+        ...baseSubject,
+        upstreamProjectUuid: project.upstreamProjectUuid,
+        type: project.type,
+        createdByUserUuid: project.createdByUserUuid,
+        inheritsFromOrgOrProject: true,
+        access: [
+            {
+                userUuid: user.userUuid,
+                role: SpaceMemberRole.ADMIN,
+            },
+        ],
+    };
+    const canManageScheduledDeliveries = ability.can(
+        'manage',
+        subject('ScheduledDeliveries', {
+            ...baseSubject,
+            userUuid: user.userUuid,
+        }),
+    );
+    const canCreateScheduledDeliveries = ability.can(
+        'create',
+        subject('ScheduledDeliveries', { ...baseSubject }),
+    );
+
+    return {
+        charts: ability.can(
+            'manage',
+            subject('SavedChart', { ...accessibleResourceSubject }),
+        ),
+        dashboards: ability.can(
+            'manage',
+            subject('Dashboard', { ...accessibleResourceSubject }),
+        ),
+        virtualViews: ability.can(
+            'create',
+            subject('VirtualView', { ...baseSubject }),
+        ),
+        alerts: canManageScheduledDeliveries || canCreateScheduledDeliveries,
+        scheduledDeliveries:
+            canManageScheduledDeliveries || canCreateScheduledDeliveries,
+        googleSheets:
+            (canManageScheduledDeliveries || canCreateScheduledDeliveries) &&
+            ability.can('manage', subject('GoogleSheets', { ...baseSubject })),
+        dataApps:
+            ability.can(
+                'create',
+                subject('DataApp', { ...accessibleResourceSubject }),
+            ) ||
+            ability.can(
+                'manage',
+                subject('DataApp', { ...accessibleResourceSubject }),
+            ),
+        externalConnections: ability.can(
+            'manage',
+            subject('ExternalConnection', { ...baseSubject }),
+        ),
+    };
+};
+
 export const checkProjectCreationPermission = async (
     upstreamProjectUuid: string | undefined,
     projectType: ProjectType,
@@ -195,6 +302,14 @@ export const checkProjectCreationPermission = async (
                     )
                 ) {
                     return;
+                }
+
+                if (!upstreamProjectUuid) {
+                    throw new ForbiddenError(
+                        `No source project is selected. If your role allows creating previews from specific projects, that permission only applies when a source project is selected.\n` +
+                            `Run 'lightdash config set-project' to select a source project and try again.\n` +
+                            `If that doesn't help, contact your organization admin to request access to preview projects.`,
+                    );
                 }
 
                 throw new ForbiddenError(

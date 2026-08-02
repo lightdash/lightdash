@@ -1,3 +1,8 @@
+---
+metadata:
+  internal: true
+---
+
 # Add a Warehouse Adapter
 
 Step-by-step checklist for adding a new warehouse connection to Lightdash. Follow the Athena adapter as the canonical example (PRs #19751/#19752). The MotherDuck/DuckDB adapter is the most recent implementation.

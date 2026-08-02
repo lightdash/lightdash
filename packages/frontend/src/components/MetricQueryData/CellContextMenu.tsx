@@ -1,6 +1,6 @@
 import { isField, type FieldUrl, type ResultValue } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
-import { useClipboard } from '@mantine/hooks';
+import { useClipboard } from '@mantine-8/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -24,7 +24,10 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     }, [value, clipboard, showToastSuccess]);
 
     const urls: FieldUrl[] | undefined = useMemo(
-        () => (value.raw && isField(item) ? item.urls : undefined),
+        () =>
+            value.raw !== undefined && value.raw !== null && isField(item)
+                ? item.urls
+                : undefined,
         [value, item],
     );
 

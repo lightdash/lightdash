@@ -17,14 +17,17 @@ import {
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
+    isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSqlChartScheduler,
     isUserWithOrg,
     isValidFrequency,
+    isValidSchedulerAppState,
     isValidTimezone,
     JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MAX_SCHEDULER_APP_STATE_CHARS,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -34,6 +37,7 @@ import {
     SchedulerCronUpdate,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerOptions,
     SchedulerResourceType,
     SchedulerRun,
     SchedulerRunLogsResponse,
@@ -101,6 +105,10 @@ const getLightdashJobUuid = (
     return typeof jobUuid === 'string' && jobUuid.length > 0
         ? jobUuid
         : undefined;
+};
+
+type GoogleSheetValidationOptions = {
+    validateGoogleSheet: boolean;
 };
 
 export class SchedulerService extends BaseService {
@@ -175,18 +183,22 @@ export class SchedulerService extends BaseService {
 
     public async getSchedulerProjectContext(
         scheduler: Scheduler | CreateSchedulerAndTargets,
-    ): Promise<{ projectUuid: string; organizationUuid: string }> {
+    ): Promise<{
+        projectUuid: string;
+        organizationUuid: string;
+        spaceUuid: string | null;
+    }> {
         if (isChartScheduler(scheduler)) {
-            const { projectUuid, organizationUuid } =
+            const { projectUuid, organizationUuid, spaceUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
-            return { projectUuid, organizationUuid };
+            return { projectUuid, organizationUuid, spaceUuid };
         }
         if (isDashboardScheduler(scheduler)) {
-            const { projectUuid, organizationUuid } =
+            const { projectUuid, organizationUuid, spaceUuid } =
                 await this.dashboardModel.getByIdOrSlug(
                     scheduler.dashboardUuid,
                 );
-            return { projectUuid, organizationUuid };
+            return { projectUuid, organizationUuid, spaceUuid };
         }
         if (isSqlChartScheduler(scheduler)) {
             const sqlChart = await this.savedSqlModel.getByUuid(
@@ -196,6 +208,7 @@ export class SchedulerService extends BaseService {
             return {
                 projectUuid: sqlChart.project.projectUuid,
                 organizationUuid: sqlChart.organization.organizationUuid,
+                spaceUuid: sqlChart.space.uuid,
             };
         }
         if (isAppScheduler(scheduler)) {
@@ -206,6 +219,7 @@ export class SchedulerService extends BaseService {
             return {
                 projectUuid: app.project_uuid,
                 organizationUuid: app.organization_uuid,
+                spaceUuid: null,
             };
         }
         throw new ParameterError('Invalid scheduler type');
@@ -290,7 +304,11 @@ export class SchedulerService extends BaseService {
         sendNow: boolean = false,
     ): Promise<{
         scheduler: Scheduler;
-        resource: { projectUuid: string; organizationUuid: string };
+        resource: {
+            projectUuid: string;
+            organizationUuid: string;
+            spaceUuid: string | null;
+        };
     }> {
         // admins can manage all scheduled deliveries,
         // everyone below can only manage their own scheduled deliveries
@@ -339,6 +357,23 @@ export class SchedulerService extends BaseService {
         }
 
         return { scheduler, resource };
+    }
+
+    // Public entry point for callers outside SchedulerService (e.g. the EE
+    // AI-augmentation sub-resource) that need the same manage:ScheduledDeliveries
+    // check the update path enforces.
+    async checkUserCanManageScheduler(
+        user: SessionUser,
+        schedulerUuid: string,
+    ): Promise<{
+        scheduler: Scheduler;
+        resource: {
+            projectUuid: string;
+            organizationUuid: string;
+            spaceUuid: string | null;
+        };
+    }> {
+        return this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
     }
 
     private async checkViewResource(
@@ -515,6 +550,43 @@ export class SchedulerService extends BaseService {
         return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
     }
 
+    // App state is user-supplied JSON destined for a render URL — reject
+    // anything that isn't a plain object within the shareable-URL size cap.
+    private static validateAppState(appState: unknown): void {
+        if (appState === undefined || appState === null) return;
+        if (!isValidSchedulerAppState(appState)) {
+            throw new ParameterError(
+                `App state must be a plain JSON object under ${MAX_SCHEDULER_APP_STATE_CHARS} characters`,
+            );
+        }
+    }
+
+    // App deliveries render the app once and materialise whatever queries it ran,
+    // so each query brings its own limit and GSheets/PDF have no equivalent yet.
+    private static validateAppSchedulerDelivery(scheduler: {
+        format: SchedulerFormat;
+        options: SchedulerOptions;
+    }): void {
+        const allowedFormats = [
+            SchedulerFormat.IMAGE,
+            SchedulerFormat.CSV,
+            SchedulerFormat.XLSX,
+        ];
+        if (!allowedFormats.includes(scheduler.format)) {
+            throw new ParameterError(
+                'Data app schedulers support image, csv and xlsx deliveries',
+            );
+        }
+        if (
+            isSchedulerCsvOptions(scheduler.options) &&
+            scheduler.options.limit !== 'table'
+        ) {
+            throw new ParameterError(
+                "Data app deliveries always use each query's own limit",
+            );
+        }
+    }
+
     private async checkAppScheduledDeliveryAccess(
         user: SessionUser,
         appUuid: string,
@@ -585,11 +657,7 @@ export class SchedulerService extends BaseService {
     ): Promise<SchedulerAndTargets> {
         await this.checkAppScheduledDeliveryAccess(user, appUuid);
 
-        if (newScheduler.format !== SchedulerFormat.IMAGE) {
-            throw new ParameterError(
-                'Data app schedulers only support image deliveries',
-            );
-        }
+        SchedulerService.validateAppSchedulerDelivery(newScheduler);
         if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(
                 'Frequency not allowed, custom input is limited to hourly',
@@ -598,6 +666,9 @@ export class SchedulerService extends BaseService {
         if (!isValidTimezone(newScheduler.timezone)) {
             throw new ParameterError('Timezone string is not valid');
         }
+        SchedulerService.validateAppState(
+            'appState' in newScheduler ? newScheduler.appState : undefined,
+        );
 
         return this.schedulerModel.createScheduler({
             ...newScheduler,
@@ -680,6 +751,9 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         schedulerUuid: string,
         updatedScheduler: UpdateSchedulerAndTargetsWithoutId,
+        { validateGoogleSheet }: GoogleSheetValidationOptions = {
+            validateGoogleSheet: true,
+        },
     ): Promise<SchedulerAndTargets> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -704,6 +778,8 @@ export class SchedulerService extends BaseService {
             );
         }
 
+        SchedulerService.validateAppState(updatedScheduler.appState);
+
         // Validate Google Sheets file if format is GSHEETS
         if (updatedScheduler.format === SchedulerFormat.GSHEETS) {
             if (!isSchedulerGsheetsOptions(updatedScheduler.options)) {
@@ -712,32 +788,34 @@ export class SchedulerService extends BaseService {
                 );
             }
 
-            try {
-                const refreshToken = await this.userService.getRefreshToken(
-                    user.userUuid,
-                );
-                await this.googleDriveClient.assertFileIsGoogleSheet(
-                    refreshToken,
-                    updatedScheduler.options.gdriveId,
-                );
-            } catch (error) {
-                if (error instanceof UnexpectedGoogleSheetsError) {
-                    throw error; // Already has clear user-facing message
-                }
-                if (error instanceof GoogleSheetsTransientError) {
-                    throw error; // Allow transient errors to propagate for retry
-                }
-                if (error instanceof GoogleSheetsScopeError) {
-                    throw error; // Allow scope errors to propagate for frontend re-auth handling
-                }
-                if (error instanceof NotFoundError) {
-                    throw new GoogleSheetsScopeError(
-                        `Google sheet not found or you don't have permission to access it.`,
+            if (validateGoogleSheet) {
+                try {
+                    const refreshToken = await this.userService.getRefreshToken(
+                        user.userUuid,
+                    );
+                    await this.googleDriveClient.assertFileIsGoogleSheet(
+                        refreshToken,
+                        updatedScheduler.options.gdriveId,
+                    );
+                } catch (error) {
+                    if (error instanceof UnexpectedGoogleSheetsError) {
+                        throw error; // Already has clear user-facing message
+                    }
+                    if (error instanceof GoogleSheetsTransientError) {
+                        throw error; // Allow transient errors to propagate for retry
+                    }
+                    if (error instanceof GoogleSheetsScopeError) {
+                        throw error; // Allow scope errors to propagate for frontend re-auth handling
+                    }
+                    if (error instanceof NotFoundError) {
+                        throw new GoogleSheetsScopeError(
+                            `Google sheet not found or you don't have permission to access it.`,
+                        );
+                    }
+                    throw new MissingConfigError(
+                        'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
                     );
                 }
-                throw new MissingConfigError(
-                    'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
-                );
             }
         }
 
@@ -756,8 +834,32 @@ export class SchedulerService extends BaseService {
         }
 
         const {
+            scheduler: existingScheduler,
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+
+        if (isAppScheduler(existingScheduler)) {
+            SchedulerService.validateAppSchedulerDelivery(updatedScheduler);
+        }
+
+        if (updatedScheduler.format === SchedulerFormat.GSHEETS) {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: {
+                            schedulerUuid,
+                            schedulerFormat: updatedScheduler.format,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
 
         await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
             organizationUuid,
@@ -983,7 +1085,7 @@ export class SchedulerService extends BaseService {
         }
 
         if (
-            // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
+            // eslint-disable-next-line lightdash/no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
             newOwner.ability.cannot(
                 'create',
                 subject('ScheduledDeliveries', {
@@ -1004,7 +1106,7 @@ export class SchedulerService extends BaseService {
         );
         if (hasGsheetsSchedulers) {
             if (
-                // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
+                // eslint-disable-next-line lightdash/no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
                 newOwner.ability.cannot(
                     'create',
                     subject('GoogleSheets', {
@@ -1019,7 +1121,7 @@ export class SchedulerService extends BaseService {
             }
 
             try {
-                await this.userModel.getRefreshToken(newOwnerUserUuid);
+                await this.userService.getRefreshToken(newOwnerUserUuid);
             } catch (error) {
                 if (error instanceof NotFoundError) {
                     throw new ForbiddenError(
@@ -1319,6 +1421,7 @@ export class SchedulerService extends BaseService {
         }
     }
 
+    /** @deprecated Only used by the deprecated scheduler jobs endpoint, which will be removed without replacement. */
     async getScheduledJobs(
         user: SessionUser,
         schedulerUuid: string,
@@ -1369,6 +1472,7 @@ export class SchedulerService extends BaseService {
         await this.schedulerModel.updateGsheetExportProgress(jobId, progress);
     }
 
+    /** @deprecated Only used by the deprecated scheduler logs endpoint; use getSchedulerRuns instead. */
     async getSchedulerLogs(
         user: SessionUser,
         projectUuid: string,
@@ -1517,6 +1621,24 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
+        // The body is client-supplied: only trust sourceSchedulerUuid for
+        // delivery links if it resolves to a scheduler on the same resource.
+        if (scheduler.sourceSchedulerUuid) {
+            const sourceScheduler = await this.schedulerModel.getScheduler(
+                scheduler.sourceSchedulerUuid,
+            );
+            if (
+                sourceScheduler.savedChartUuid !== scheduler.savedChartUuid ||
+                sourceScheduler.dashboardUuid !== scheduler.dashboardUuid ||
+                sourceScheduler.savedSqlUuid !== scheduler.savedSqlUuid ||
+                sourceScheduler.appUuid !== scheduler.appUuid
+            ) {
+                throw new ParameterError(
+                    'sourceSchedulerUuid does not belong to the delivery resource',
+                );
+            }
+        }
+
         const slackChannels = scheduler.targets
             .filter(isCreateSchedulerSlackTarget)
             .map((target) => target.channel);
@@ -1529,6 +1651,10 @@ export class SchedulerService extends BaseService {
             new Date(),
             {
                 ...scheduler,
+                // Force the creator to the authenticated caller: the body is
+                // client-supplied, and downstream (e.g. AI augmentation) runs
+                // as createdBy, so a forged uuid must never be trusted.
+                createdBy: user.userUuid,
                 organizationUuid,
                 projectUuid,
                 userUuid: user.userUuid,
@@ -1926,7 +2052,7 @@ export class SchedulerService extends BaseService {
         const projectsWithoutPermission: string[] = [];
         for (const project of summary.byProject) {
             if (
-                // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
+                // eslint-disable-next-line lightdash/no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
                 newOwner.ability.cannot(
                     'create',
                     subject('ScheduledDeliveries', {
@@ -1950,7 +2076,7 @@ export class SchedulerService extends BaseService {
         // Check if user has any GSHEETS schedulers - new owner must have Google refresh token
         if (summary.hasGsheetsSchedulers) {
             try {
-                await this.userModel.getRefreshToken(newOwnerUserUuid);
+                await this.userService.getRefreshToken(newOwnerUserUuid);
             } catch (error) {
                 if (error instanceof NotFoundError) {
                     throw new ForbiddenError(

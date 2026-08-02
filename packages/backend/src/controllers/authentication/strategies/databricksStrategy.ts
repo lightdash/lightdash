@@ -4,11 +4,9 @@ import {
     AnyType,
     ForbiddenError,
     OpenIdIdentityIssuerType,
-    OpenIdUser,
     ParameterError,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
-import express from 'express';
 import { Strategy as OAuth2Strategy, VerifyCallback } from 'passport-oauth2';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
@@ -110,7 +108,7 @@ export const createDatabricksStrategy = ({
             req: Express.Request,
             accessToken: string,
             refreshToken: string,
-            profile: AnyType,
+            _profile: AnyType,
             done: VerifyCallback,
         ) => {
             try {
@@ -125,24 +123,23 @@ export const createDatabricksStrategy = ({
                     throw new ForbiddenError('User not authenticated');
                 }
 
-                // Databricks OAuth doesn't return user profile in the token response
-                // We use the existing logged-in user's information
-                const openIdUser: OpenIdUser = {
-                    openId: {
-                        subject: loggedUser.userUuid,
-                        issuer,
-                        issuerType: OpenIdIdentityIssuerType.DATABRICKS,
-                        email: loggedUser.email!,
-                        firstName: loggedUser.firstName,
-                        lastName: loggedUser.lastName,
-                    },
-                };
-
                 if (!refreshToken) {
                     throw new Error(
                         'Databricks OAuth refresh token was not returned. Ensure offline_access scope is granted.',
                     );
                 }
+
+                const userService = req.services.getUserService();
+                await userService.storeOAuthGrant(
+                    loggedUser,
+                    OpenIdIdentityIssuerType.DATABRICKS,
+                    refreshToken,
+                    ['sql', 'offline_access'],
+                    {
+                        subject: loggedUser.userUuid,
+                        email: loggedUser.email!,
+                    },
+                );
 
                 const projectUuid = req.session.oauth?.databricks?.projectUuid;
 
@@ -172,9 +169,8 @@ export const createDatabricksStrategy = ({
                 Logger.info(
                     `Creating user warehouse credentials for Databricks`,
                 );
-                const userCredentials = await req.services
-                    .getUserService()
-                    .createDatabricksWarehouseCredentials(
+                const userCredentials =
+                    await userService.createDatabricksWarehouseCredentials(
                         req.user!,
                         refreshToken,
                         {
@@ -203,21 +199,7 @@ export const createDatabricksStrategy = ({
                     }
                 }
 
-                const user = await req.services
-                    .getUserService()
-                    .loginWithOpenId(
-                        openIdUser,
-                        req.user,
-                        undefined,
-                        refreshToken,
-                        {
-                            ip: (req as express.Request).ip,
-                            userAgent: (req as express.Request).get(
-                                'user-agent',
-                            ),
-                        },
-                    );
-                done(null, user);
+                done(null, loggedUser);
             } catch (error) {
                 done(error);
             }

@@ -1,7 +1,12 @@
 import { GenerateTooltipRequest, TooltipFieldContext } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
 const TooltipSchema = z.object({
     html: z
@@ -35,10 +40,16 @@ export async function generateTooltip(
 ): Promise<GeneratedTooltip> {
     const fieldReferenceGuide = buildFieldReferenceGuide(context.fieldsContext);
 
+    const telemetry = getGeneratorTelemetry(
+        modelOptions,
+        'generateTooltip',
+        'tooltip',
+    );
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
+        experimental_telemetry: telemetry,
         schema: TooltipSchema,
         messages: [
             {
@@ -101,6 +112,8 @@ ${
             },
         ],
     });
+
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
     return result.object;
 }

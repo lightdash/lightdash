@@ -1,4 +1,4 @@
-// eslint-disable-next-line max-classes-per-file
+/* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
 
@@ -64,6 +64,20 @@ export class DeactivatedAccountError extends LightdashError {
         super({
             message,
             name: 'DeactivatedAccountError',
+            statusCode: 403,
+            data,
+        });
+    }
+}
+
+export class TrialExpiredError extends LightdashError {
+    constructor(
+        message = "Your organization's trial has expired. Please contact your organization administrator.",
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'TrialExpiredError',
             statusCode: 403,
             data,
         });
@@ -375,6 +389,17 @@ export class AlreadyExistsError extends LightdashError {
     }
 }
 
+export class ConflictError extends LightdashError {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+        super({
+            message,
+            name: 'ConflictError',
+            statusCode: 409,
+            data,
+        });
+    }
+}
+
 export class MissingConfigError extends LightdashError {
     constructor(message: string) {
         super({
@@ -573,6 +598,7 @@ export class DeprecatedRouteError extends LightdashError {
 
 export const getErrorMessage = (e: unknown) => {
     if (e instanceof Error && e.message) return e.message;
+    if (typeof e === 'string' && e.trim().length > 0) return e;
     return `Unknown ${typeof e} error`;
 };
 
@@ -750,6 +776,20 @@ export class BigqueryTokenError extends LightdashError {
     }
 }
 
+/* This specific error will be used in the frontend
+to show a "reauthenticate" button in the UI
+*/
+export class RedshiftIamTokenError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'RedshiftIamTokenError',
+            statusCode: 401,
+            data: {},
+        });
+    }
+}
+
 export class CustomSqlQueryForbiddenError extends LightdashError {
     constructor(
         message: string = 'User cannot run queries with custom SQL dimensions',
@@ -830,23 +870,6 @@ export class CorruptedExploreError extends LightdashError {
             message,
             name: 'CorruptedExploreError',
             statusCode: 500,
-            data,
-        });
-    }
-}
-
-export class ChangesetConflictError extends LightdashError {
-    constructor(
-        message: string,
-        data: {
-            entityName: string;
-            entityTableName: string;
-        },
-    ) {
-        super({
-            message,
-            name: 'ChangesetConflictError',
-            statusCode: 409,
             data,
         });
     }

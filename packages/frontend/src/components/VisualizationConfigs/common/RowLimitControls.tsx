@@ -1,12 +1,8 @@
 import type { RowLimit } from '@lightdash/common';
-import {
-    Group,
-    NumberInput,
-    SegmentedControl,
-    Switch,
-    Text,
-} from '@mantine-8/core';
+import { Group, SegmentedControl, Switch, Text } from '@mantine-8/core';
 import { type FC } from 'react';
+import { NumberInput } from '../../common/NumberInput';
+import compactStyles from '../mantineTheme.module.css';
 
 const MODE_OPTIONS = [
     { label: 'Show', value: 'show' },
@@ -26,6 +22,8 @@ type Props = {
 export const RowLimitControls: FC<Props> = ({ rowLimit, onRowLimitChange }) => (
     <>
         <Switch
+            size="xs"
+            classNames={{ label: compactStyles.compactCheckboxLabel }}
             label="Limit displayed rows"
             checked={rowLimit !== undefined}
             onChange={(e) =>

@@ -16,8 +16,8 @@ const storedConfig = {
 // Stub encryption: decrypt() returns the JSON the model expects to parse,
 // encrypt() returns an opaque buffer. The config blob is never inspected here.
 const encryptionUtil = {
-    encrypt: jest.fn(() => Buffer.from('encrypted')),
-    decrypt: jest.fn(() => JSON.stringify(storedConfig)),
+    encrypt: vi.fn(() => Buffer.from('encrypted')),
+    decrypt: vi.fn(() => JSON.stringify(storedConfig)),
 } as unknown as EncryptionUtil;
 
 const dbRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
@@ -46,7 +46,7 @@ describe('OrganizationSsoModel', () => {
 
     afterEach(() => {
         tracker.reset();
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('findEnabledMethodsForEmailDomain', () => {

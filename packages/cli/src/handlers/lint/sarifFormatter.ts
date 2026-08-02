@@ -54,7 +54,6 @@ export function formatSarifForCli(
     }
 
     const errorResults = results.filter((r) => r.level === 'error');
-    const warningResults = results.filter((r) => r.level === 'warning');
 
     const renderSection = (
         sectionResults: SarifResult[],
@@ -123,15 +122,6 @@ export function formatSarifForCli(
         (count) => `Validation failed for ${count} file${count > 1 ? 's' : ''}`,
     );
 
-    renderSection(
-        warningResults,
-        'Validation Warnings:',
-        chalk.yellow,
-        chalk.yellow.bold,
-        '⚠',
-        (count) => `${count} file${count > 1 ? 's have' : ' has'} warnings`,
-    );
-
     return output.join('\n');
 }
 
@@ -141,17 +131,13 @@ export function formatSarifForCli(
 export function getSarifSummary(sarifLog: SarifLog): {
     totalFiles: number;
     totalErrors: number;
-    totalWarnings: number;
     hasErrors: boolean;
-    hasWarnings: boolean;
 } {
     if (!sarifLog.runs || sarifLog.runs.length === 0) {
         return {
             totalFiles: 0,
             totalErrors: 0,
-            totalWarnings: 0,
             hasErrors: false,
-            hasWarnings: false,
         };
     }
 
@@ -160,25 +146,18 @@ export function getSarifSummary(sarifLog: SarifLog): {
 
     const uniqueFiles = new Set<string>();
     let totalErrors = 0;
-    let totalWarnings = 0;
     for (const result of results) {
         const location = result.locations?.[0];
         const uri = location?.physicalLocation?.artifactLocation?.uri;
         if (uri) {
             uniqueFiles.add(uri);
         }
-        if (result.level === 'warning') {
-            totalWarnings += 1;
-        } else {
-            totalErrors += 1;
-        }
+        totalErrors += 1;
     }
 
     return {
         totalFiles: uniqueFiles.size,
         totalErrors,
-        totalWarnings,
         hasErrors: totalErrors > 0,
-        hasWarnings: totalWarnings > 0,
     };
 }

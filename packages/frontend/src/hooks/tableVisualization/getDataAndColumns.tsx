@@ -1,16 +1,19 @@
 import {
+    buildPivotRowTotalKey,
     formatItemValue,
     getSubtotalKey,
     isCustomDimension,
     isDimension,
     isField,
+    isNumericItem,
     normalizePivotMatchRaw,
     type ItemsMap,
+    type GroupedPivotRowSubtotals,
     type ParametersValuesMap,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { Skeleton, Text } from '@mantine-8/core';
 import { captureException } from '@sentry/react';
 import type { CellContext } from '@tanstack/react-table';
 import {
@@ -18,6 +21,7 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../../components/common/Table/Table.styles';
+import TotalCalculationErrorCell from '../../components/common/Table/TotalCalculationErrorCell';
 import {
     columnHelper,
     type TableColumn,
@@ -35,12 +39,16 @@ type Args = {
     getFieldLabelOverride: (key: string) => string | undefined;
     columnOrder: string[];
     totals?: Record<string, number>;
+    totalsLoading?: boolean;
+    totalsError?: unknown;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
+    subtotalsLoading?: boolean;
+    subtotalsError?: unknown;
     parameters?: ParametersValuesMap;
 };
 
 export function getGroupingValuesAndSubtotalKey(
-    info: CellContext<ResultRow, ResultRow[string]>,
+    info: Pick<CellContext<ResultRow, unknown>, 'row' | 'table'>,
 ) {
     const groupingDimensions = info.table
         .getState()
@@ -117,6 +125,30 @@ export function getSubtotalValueFromGroup(
     return subtotal[columnId] ?? undefined;
 }
 
+export function getRowSubtotalValue(
+    groupedRowSubtotals: GroupedPivotRowSubtotals | undefined,
+    subtotalGroupKey: string,
+    groupingValues: Record<string, { value: ResultValue } | undefined>,
+    metricFieldId: string | undefined,
+): number | null | undefined {
+    if (!groupedRowSubtotals || !metricFieldId) return undefined;
+
+    const subtotalRow =
+        groupedRowSubtotals[subtotalGroupKey]?.[
+            buildPivotRowTotalKey(
+                Object.entries(groupingValues).map(([fieldId, value]) => [
+                    fieldId,
+                    value?.value.raw,
+                ]),
+            )
+        ];
+    if (!subtotalRow) return undefined;
+
+    const total =
+        subtotalRow[`${metricFieldId}_any`] ?? subtotalRow[metricFieldId];
+    return typeof total === 'number' ? total : null;
+}
+
 const getImageSize = (item: ItemsMap[string] | undefined) => {
     if (isDimension(item) && item.image?.url) {
         const defaultWidth = 100;
@@ -156,7 +188,11 @@ const getDataAndColumns = ({
     getFieldLabelOverride,
     columnOrder,
     totals,
+    totalsLoading,
+    totalsError,
     groupedSubtotals,
+    subtotalsLoading,
+    subtotalsError,
     parameters,
 }: Args): Array<TableHeader | TableColumn> => {
     // Deduplicate columnOrder to prevent duplicate columns if the same field appears multiple times
@@ -223,15 +259,33 @@ const getDataAndColumns = ({
                     ),
                     cell: (info) => getFormattedValueCell(info, parameters),
 
-                    footer: () =>
-                        totals?.[itemId]
-                            ? formatItemValue(
-                                  item,
-                                  totals[itemId],
-                                  false,
-                                  parameters,
-                              )
-                            : null,
+                    footer: () => {
+                        if (totals?.[itemId] !== undefined) {
+                            return formatItemValue(
+                                item,
+                                totals[itemId],
+                                false,
+                                parameters,
+                            );
+                        }
+                        if (totalsError && isNumericItem(item)) {
+                            return (
+                                <TotalCalculationErrorCell
+                                    error={totalsError}
+                                />
+                            );
+                        }
+                        if (totalsLoading && isNumericItem(item)) {
+                            return (
+                                <Skeleton
+                                    height={16}
+                                    width="min(60%, 50px)"
+                                    ml="auto"
+                                />
+                            );
+                        }
+                        return null;
+                    },
                     meta: {
                         item,
                         labelOverride: headerOverride,
@@ -278,8 +332,34 @@ const getDataAndColumns = ({
                                 return null;
                             }
 
+                            if (
+                                subtotalValue === undefined &&
+                                subtotalsError &&
+                                isNumericItem(item)
+                            ) {
+                                return (
+                                    <TotalCalculationErrorCell
+                                        error={subtotalsError}
+                                    />
+                                );
+                            }
+
+                            if (
+                                subtotalValue === undefined &&
+                                subtotalsLoading &&
+                                isNumericItem(item)
+                            ) {
+                                return (
+                                    <Skeleton
+                                        height={16}
+                                        width="min(60%, 50px)"
+                                        ml="auto"
+                                    />
+                                );
+                            }
+
                             return (
-                                <Text span fw={600}>
+                                <Text span inherit fw={600}>
                                     {formatItemValue(
                                         item,
                                         subtotalValue,

@@ -30,7 +30,7 @@ const rawSettings = { queryLimit: null, csvCellsLimit: null };
 
 const buildService = (proLimitsEnabled: boolean) => {
     const featureFlagModel = {
-        get: jest.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
             id: featureFlagId,
             enabled:
                 proLimitsEnabled && featureFlagId === FeatureFlags.ProLimits,
@@ -38,8 +38,8 @@ const buildService = (proLimitsEnabled: boolean) => {
     } as unknown as FeatureFlagModel;
 
     const organizationSettingsModel = {
-        get: jest.fn(async () => rawSettings),
-        update: jest.fn(async () => rawSettings),
+        get: vi.fn(async () => rawSettings),
+        update: vi.fn(async () => rawSettings),
     } as unknown as OrganizationSettingsModel;
 
     const service = new OrganizationSettingsService({

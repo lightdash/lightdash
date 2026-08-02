@@ -263,6 +263,32 @@ describe('compress and uncompress dashboard filters', () => {
                 }).dimensions[0].tileTargets,
             ).toEqual({});
         });
+        it('should round-trip requirement fields through compress and convert', async () => {
+            const dimensions = [
+                {
+                    id: 'group-member',
+                    label: undefined,
+                    operator: FilterOperator.EQUALS,
+                    target: {
+                        fieldId: 'orders_status',
+                        tableName: 'orders',
+                    },
+                    tileTargets: {} as Record<string, DashboardTileTarget>,
+                    disabled: true,
+                    required: true,
+                    requiredGroupId: 'group-1',
+                    values: [],
+                },
+            ];
+            const roundTripped = convertDashboardFiltersParamToDashboardFilters(
+                compressDashboardFiltersToParam({
+                    dimensions,
+                    metrics: [],
+                    tableCalculations: [],
+                }),
+            );
+            expect(roundTripped.dimensions).toEqual(dimensions);
+        });
         it('should handle normal, modified and disabled tile targets', async () => {
             expect(
                 convertDashboardFiltersParamToDashboardFilters({

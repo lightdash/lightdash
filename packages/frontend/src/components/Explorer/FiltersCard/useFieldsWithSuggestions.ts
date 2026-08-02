@@ -5,6 +5,7 @@ import {
     getResultValueArray,
     getVisibleFields,
     isCustomSqlDimension,
+    isDimension,
     isFilterableField,
     type AdditionalMetric,
     type CustomDimension,
@@ -69,7 +70,15 @@ export const useFieldsWithSuggestions = ({
                         const type = isCustomSqlDimension(field)
                             ? field.dimensionType
                             : field.type;
-                        if (type === DimensionType.STRING) {
+                        // A label dimension must always fetch labelled values from
+                        // the warehouse; harvesting raw result values masks the labels.
+                        const hasLabelDimension =
+                            isDimension(field) &&
+                            !!field.filterAutocomplete?.labelDimension;
+                        if (
+                            type === DimensionType.STRING &&
+                            !hasLabelDimension
+                        ) {
                             const currentSuggestions =
                                 prev[getItemId(field)]?.suggestions || [];
                             const newSuggestions: string[] =

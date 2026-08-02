@@ -14,20 +14,20 @@ type Captured = {
  */
 const createModel = (row: Record<string, unknown> | undefined) => {
     const captured: Captured = {};
-    const builder: Record<string, jest.Mock> = {};
+    const builder: Record<string, import('vitest').Mock> = {};
     Object.assign(builder, {
-        where: jest.fn(() => builder),
-        first: jest.fn(async () => row),
-        insert: jest.fn((arg: Record<string, unknown>) => {
+        where: vi.fn(() => builder),
+        first: vi.fn(async () => row),
+        insert: vi.fn((arg: Record<string, unknown>) => {
             captured.insert = arg;
             return builder;
         }),
-        onConflict: jest.fn(() => builder),
-        merge: jest.fn(async (arg: Record<string, unknown>) => {
+        onConflict: vi.fn(() => builder),
+        merge: vi.fn(async (arg: Record<string, unknown>) => {
             captured.merge = arg;
         }),
     });
-    const database = jest.fn(() => builder) as unknown as Knex;
+    const database = vi.fn(() => builder) as unknown as Knex;
     return {
         model: new OrganizationSettingsModel({ database }),
         captured,
@@ -44,6 +44,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
+                semanticLayerPgwireEnabled: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
@@ -68,6 +69,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
+                semanticLayerPgwireEnabled: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
@@ -89,6 +91,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: true,
+                semanticLayerPgwireEnabled: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
@@ -112,6 +115,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
+                semanticLayerPgwireEnabled: null,
                 scheduledDeliveryExpirationSeconds: 604800,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: 1209600,
@@ -134,6 +138,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
+                semanticLayerPgwireEnabled: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,
@@ -160,12 +165,12 @@ describe('OrganizationSettingsModel', () => {
                 },
                 { cors_allowed_domains: ['https://embed.example.com'] },
             ];
-            const builder: Record<string, jest.Mock> = {};
+            const builder: Record<string, import('vitest').Mock> = {};
             Object.assign(builder, {
-                select: jest.fn(() => builder),
-                whereNotNull: jest.fn(async () => rows),
+                select: vi.fn(() => builder),
+                whereNotNull: vi.fn(async () => rows),
             });
-            const database = jest.fn(() => builder) as unknown as Knex;
+            const database = vi.fn(() => builder) as unknown as Knex;
             const model = new OrganizationSettingsModel({ database });
 
             await expect(
@@ -212,6 +217,7 @@ describe('OrganizationSettingsModel', () => {
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: false,
                 supportImpersonationEnabled: null,
+                semanticLayerPgwireEnabled: null,
                 scheduledDeliveryExpirationSeconds: null,
                 scheduledDeliveryExpirationSecondsEmail: null,
                 scheduledDeliveryExpirationSecondsSlack: null,

@@ -151,6 +151,7 @@ export const ServiceAccountsRotateModal: FC<Props> = ({
         <MantineModal
             opened={isOpen}
             onClose={handleClose}
+            role="alertdialog"
             title="Rotate token"
             icon={IconRefresh}
             size="md"

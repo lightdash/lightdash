@@ -5,6 +5,7 @@ import {
     type CartesianChartConfig,
     type ChartConfig,
     type ChartType,
+    type DataAppVizChartConfig,
     type CreateSavedChartVersion,
     type CustomDimension,
     type CustomFormat,
@@ -75,7 +76,7 @@ export enum ActionType {
 
 export type ChartConfigCache<T = AnyType> = {
     chartConfig: T;
-    pivotConfig?: { columns: string[] };
+    pivotConfig?: SavedChart['pivotConfig'];
 };
 
 /**
@@ -106,6 +107,7 @@ export type ConfigCacheMap = {
     [ChartType.MAP]: MapChartConfigCache;
     [ChartType.CUSTOM]: ChartConfigCache<CustomVisConfig['config']>;
     [ChartType.SANKEY]: ChartConfigCache<SankeyChartConfig['config']>;
+    [ChartType.DATA_APP_VIZ]: ChartConfigCache<DataAppVizChartConfig['config']>;
 };
 
 export type Action =
@@ -281,7 +283,7 @@ export interface ExplorerReduceState {
         additionalMetric: {
             isOpen: boolean;
             isEditing?: boolean;
-            item?: Dimension | AdditionalMetric | CustomDimension;
+            item?: Dimension | AdditionalMetric | CustomDimension | Metric;
             type?: MetricType;
         };
         customDimension: {

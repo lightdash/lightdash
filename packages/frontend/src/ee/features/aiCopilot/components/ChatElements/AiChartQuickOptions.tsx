@@ -1,12 +1,12 @@
+import { subject } from '@casl/ability';
 import {
     type AiAgentMessageAssistant,
     type AiArtifact,
     type ApiError,
     type SavedChart,
 } from '@lightdash/common';
-import { ActionIcon, Button, HoverCard, Menu, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Button, Menu, Tooltip } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { Prism } from '@mantine/prism';
 import {
     IconChartBar,
     IconCircleCheck,
@@ -16,11 +16,13 @@ import {
     IconExternalLink,
     IconEye,
     IconLayoutDashboard,
+    IconSend,
     IconTableShortcut,
     IconTerminal2,
 } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
+import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -45,6 +47,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { AiScheduleDeliveryModal } from './AiScheduleDeliveryModal';
 
 type Props = {
     projectUuid: string;
@@ -69,8 +72,10 @@ export const AiChartQuickOptions = ({
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
-    const { writeActions } = useEmbed();
+    const { content, writeActions } = useEmbed();
     const isEmbed = isEmbedAiAgentRoute();
+    const location = useLocation();
+    const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
 
     const dispatch = useAiAgentStoreDispatch();
@@ -81,10 +86,22 @@ export const AiChartQuickOptions = ({
     const [isSavingToDashboard, setIsSavingToDashboard] = useState(false);
 
     const [opened, { open, close }] = useDisclosure(false);
+    const [scheduleOpened, { open: openSchedule, close: closeSchedule }] =
+        useDisclosure(false);
     const [
         verifyModalOpened,
         { open: openVerifyModal, close: closeVerifyModal },
     ] = useDisclosure(false);
+    const [sqlModalOpened, { open: openSqlModal, close: closeSqlModal }] =
+        useDisclosure(false);
+
+    const canCreateScheduledDeliveries = user.data?.ability?.can(
+        'create',
+        subject('ScheduledDeliveries', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
     const {
         visualizationConfig,
         columnOrder,
@@ -239,11 +256,29 @@ export const AiChartQuickOptions = ({
 
     const handleExploreFromHere = useCallback(async () => {
         if (!openInExploreUrl) return;
-        const shareUrl = await createShareUrl({
-            path: openInExploreUrl.pathname,
-            params: `?${openInExploreUrl.search}`,
-        });
-        window.open(`/share/${shareUrl.nanoid}`, '_blank');
+        if (isEmbed) {
+            if (!metricQuery?.exploreName) return;
+
+            void navigate(
+                {
+                    pathname: `/embed/${projectUuid}/explore/${encodeURIComponent(
+                        metricQuery.exploreName,
+                    )}`,
+                    search: openInExploreUrl.search,
+                },
+                {
+                    state: {
+                        embedBackUrl: `${location.pathname}${location.search}`,
+                    },
+                },
+            );
+        } else {
+            const shareUrl = await createShareUrl({
+                path: openInExploreUrl.pathname,
+                params: `?${openInExploreUrl.search}`,
+            });
+            window.open(`/share/${shareUrl.nanoid}`, '_blank');
+        }
         if (
             user?.data?.userUuid &&
             user?.data?.organizationUuid &&
@@ -266,12 +301,16 @@ export const AiChartQuickOptions = ({
         }
     }, [
         openInExploreUrl,
+        isEmbed,
+        navigate,
+        location.pathname,
+        location.search,
+        metricQuery?.exploreName,
         createShareUrl,
         user?.data?.userUuid,
         user?.data?.organizationUuid,
         projectUuid,
         agentUuid,
-        metricQuery?.exploreName,
         track,
         message.threadUuid,
         message.uuid,
@@ -306,7 +345,9 @@ export const AiChartQuickOptions = ({
     const canVerify = !!artifactData && canManageAgent;
     const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
     const hasSaveActions = !message.savedQueryUuid;
-    const hasExploreAction = !isEmbed;
+    const canExploreFromEmbed =
+        content?.type === 'aiAgent' && content.canExplore === true;
+    const hasExploreAction = !isEmbed || canExploreFromEmbed;
     const hasSqlActions = !!compiledSql;
     const hasQuickActions =
         hasSavedChartAction ||
@@ -353,16 +394,30 @@ export const AiChartQuickOptions = ({
                         <Menu.Label>Quick actions</Menu.Label>
                         {message.savedQueryUuid ? (
                             !isEmbed && (
-                                <Menu.Item
-                                    component={Link}
-                                    to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
-                                    target="_blank"
-                                    leftSection={
-                                        <MantineIcon icon={IconTableShortcut} />
-                                    }
-                                >
-                                    View saved chart
-                                </Menu.Item>
+                                <>
+                                    <Menu.Item
+                                        component={Link}
+                                        to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
+                                        target="_blank"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconTableShortcut}
+                                            />
+                                        }
+                                    >
+                                        View saved chart
+                                    </Menu.Item>
+                                    {canCreateScheduledDeliveries && (
+                                        <Menu.Item
+                                            onClick={openSchedule}
+                                            leftSection={
+                                                <MantineIcon icon={IconSend} />
+                                            }
+                                        >
+                                            Schedule delivery
+                                        </Menu.Item>
+                                    )}
+                                </>
                             )
                         ) : (
                             <>
@@ -394,7 +449,7 @@ export const AiChartQuickOptions = ({
                             </>
                         )}
 
-                        {!isEmbed && (
+                        {hasExploreAction && (
                             <Menu.Item
                                 leftSection={
                                     <MantineIcon icon={IconExternalLink} />
@@ -407,41 +462,15 @@ export const AiChartQuickOptions = ({
                         )}
 
                         {!!compiledSql && (
-                            <HoverCard
-                                shadow="subtle"
-                                radius="md"
-                                position="left-start"
-                                withinPortal
-                                openDelay={120}
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconEye} />}
+                                onClick={openSqlModal}
                             >
-                                <HoverCard.Target>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconEye} />
-                                        }
-                                        closeMenuOnClick={false}
-                                    >
-                                        View SQL
-                                    </Menu.Item>
-                                </HoverCard.Target>
-                                <HoverCard.Dropdown p={0} maw={500}>
-                                    <Prism
-                                        language="sql"
-                                        withLineNumbers
-                                        noCopy
-                                        styles={{
-                                            lineContent: {
-                                                fontSize: 10,
-                                            },
-                                        }}
-                                    >
-                                        {compiledSql}
-                                    </Prism>
-                                </HoverCard.Dropdown>
-                            </HoverCard>
+                                View SQL
+                            </Menu.Item>
                         )}
 
-                        {!!compiledSql ? (
+                        {!!compiledSql && !isEmbed ? (
                             <Menu.Item
                                 component={Link}
                                 to={{
@@ -495,9 +524,25 @@ export const AiChartQuickOptions = ({
                     redirectOnSuccess={false}
                 />
             </MantineModal>
+            {!!compiledSql && (
+                <MantineModal
+                    opened={sqlModalOpened}
+                    onClose={closeSqlModal}
+                    title="SQL"
+                    icon={IconEye}
+                    size="xl"
+                >
+                    <CodeBlock
+                        code={compiledSql}
+                        language="sql"
+                        withLineNumbers
+                    />
+                </MantineModal>
+            )}
             <MantineModal
                 opened={verifyModalOpened}
                 onClose={closeVerifyModal}
+                role="alertdialog"
                 title="Remove from verified answers"
                 icon={IconCircleCheck}
                 size="sm"
@@ -508,6 +553,15 @@ export const AiChartQuickOptions = ({
                     </Button>
                 }
             />
+            {scheduleOpened && message.savedQueryUuid && (
+                <AiScheduleDeliveryModal
+                    chartUuid={message.savedQueryUuid}
+                    chartName={saveChartOptions.name ?? ''}
+                    agentUuid={agentUuid}
+                    sourceThreadUuid={message.threadUuid}
+                    onClose={closeSchedule}
+                />
+            )}
         </Fragment>
     );
 };

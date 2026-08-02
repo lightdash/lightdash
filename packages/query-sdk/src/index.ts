@@ -1,5 +1,6 @@
 // Query builder
 export { query } from './query';
+export { savedChart, type SavedChartQuery } from './savedChart';
 
 // Drill-down helper
 export { drillDown } from './drillDown';
@@ -17,6 +18,15 @@ export { LightdashProvider, useLightdashClient } from './LightdashProvider';
 export { createApiTransport, type FetchAdapter } from './apiTransport';
 export { createPostMessageTransport } from './postMessageTransport';
 
+// Feature manifest (also exported via the "./features" subpath for hosts)
+export {
+    SDK_FEATURES,
+    SDK_FEATURE_KEYS,
+    SDK_MANIFEST_MESSAGE_TYPE,
+    type SdkFeature,
+    type SdkManifestMessage,
+} from './features';
+
 // Types
 export type {
     AdditionalMetric,
@@ -28,6 +38,7 @@ export type {
     DownloadResultsResult,
     DownloadResultsValues,
     DownloadUnderlyingDataOptions,
+    ExternalFetchMethod,
     ExternalFetchOptions,
     ExternalFetchResult,
     Filter,
@@ -70,9 +81,33 @@ export type {
     InspectSelectedMessage,
 } from './inspector';
 
+// Scheduled-delivery declarations (data apps)
+export { useDelivery } from './delivery';
+export type { DeliveryQuery } from './delivery';
+
 // Google Sheets export (data apps)
 export { exportToSheets } from './exportToSheets';
 export type {
     ExportToSheetsOptions,
     ExportToSheetsResult,
 } from './exportToSheets';
+
+// Data app viz render context (host-pushed rows + field mapping + config options)
+export {
+    VizContextProvider,
+    useVizContext,
+    getFormatted,
+    getRaw,
+} from './vizContext';
+export type {
+    VizContext,
+    VizContextCell,
+    VizContextOptionValue,
+    VizContextRow,
+    DataAppVizContextMessage,
+    VizContextRequestMessage,
+} from './vizContext';
+
+// Shareable URL state (seeded from and written back to the host page URL)
+export { useUrlState } from './urlState';
+export type { SdkUrlStateChangeMessage, UrlStateMap } from './urlState';

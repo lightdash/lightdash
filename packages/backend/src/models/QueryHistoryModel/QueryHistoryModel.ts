@@ -78,6 +78,7 @@ export class QueryHistoryModel {
             sql: string;
             timezone?: string;
             userUuid: string | null;
+            dataTimezone?: string;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
@@ -93,6 +94,13 @@ export class QueryHistoryModel {
 
         if (resultsIdentifiers.timezone) {
             queryHashKey += `.${resultsIdentifiers.timezone}`;
+        }
+
+        // The session (data) timezone changes results without changing the
+        // SQL text. Appended only when defined so existing keys stay stable;
+        // prefixed so it cannot collide with the display timezone above.
+        if (resultsIdentifiers.dataTimezone) {
+            queryHashKey += `.dtz:${resultsIdentifiers.dataTimezone}`;
         }
 
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
@@ -126,7 +134,6 @@ export class QueryHistoryModel {
             | 'resultsUpdatedAt'
             | 'resultsExpiresAt'
             | 'columns'
-            | 'originalColumns'
             | 'preAggregateCompiledSql'
             | 'processingStartedAt'
             | 'createdByAccount'
@@ -168,7 +175,11 @@ export class QueryHistoryModel {
                 results_updated_at: null,
                 results_expires_at: null,
                 columns: null,
-                original_columns: null,
+                // Persist original (pre-pivot) columns up front. The NATS
+                // worker rebuilds its args from this row, so a null here would
+                // drop the columns for pivoted queries (Bar/Line/Pie SQL charts
+                // read pivotDetails.originalColumns for dashboard filters).
+                original_columns: queryHistory.originalColumns,
                 pre_aggregate_compiled_sql: null,
                 processing_started_at: null,
             })

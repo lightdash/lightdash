@@ -1,5 +1,7 @@
 ---
 name: debug-local
+metadata:
+  internal: true
 description: Debug the Lightdash app using PM2 logs, Spotlight traces, and browser automation. Use when investigating issues, tracking down bugs, understanding request flow, or correlating frontend actions with backend behavior.
 ---
 

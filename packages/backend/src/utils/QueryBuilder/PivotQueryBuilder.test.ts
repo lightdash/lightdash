@@ -25,6 +25,7 @@ import { PivotQueryBuilder } from './PivotQueryBuilder';
 const mockWarehouseSqlBuilder = {
     getFieldQuoteChar: () => '"',
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+    supportsCteMaterialization: () => true,
     getStartOfWeek: () => WeekDay.MONDAY,
     getNullSafeEqualSql: defaultNullSafeEqualSql,
     getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
@@ -742,6 +743,211 @@ describe('PivotQueryBuilder', () => {
             expect(totalMatches - definitionMatches).toBe(3);
         });
 
+        describe('Trino single-scan metric-sort pivot', () => {
+            const mockTrinoWarehouseSqlBuilder = {
+                ...mockWarehouseSqlBuilder,
+                getAdapterType: () => SupportedDbtAdapter.TRINO,
+                supportsCteMaterialization: () => false,
+            } as unknown as WarehouseSqlBuilder;
+
+            const trinoPivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+            };
+
+            test('emits a single-scan stacked pivot_query — one group_by_query reference, no anchor/ranking CTEs', () => {
+                const result = new PivotQueryBuilder(
+                    baseSql,
+                    trinoPivotConfiguration,
+                    mockTrinoWarehouseSqlBuilder,
+                ).toSql();
+
+                const refs =
+                    (result.match(/group_by_query/g) ?? []).length -
+                    (result.match(/group_by_query AS \(/g) ?? []).length;
+                expect(refs).toBe(1);
+                expect(result).not.toContain('column_ranking AS (');
+                expect(result).not.toContain('row_ranking AS (');
+                expect(result).not.toContain('anchor_column AS (');
+                expect(result).not.toContain('CROSS JOIN');
+                expect(replaceWhitespace(result)).toContain(
+                    'pivot_query AS (' +
+                        'SELECT g."date" AS "date", g."category" AS "category", g."revenue_sum" AS "revenue_sum", ' +
+                        'DENSE_RANK() OVER (ORDER BY g."revenue_ra_value" DESC, g."date" ASC) AS "row_index", ' +
+                        'g."col_idx" AS "column_index" ' +
+                        'FROM (' +
+                        'SELECT g.*, MAX(CASE WHEN "col_idx" = 1 THEN g."revenue_sum" END) OVER (PARTITION BY g."date") AS "revenue_ra_value" ' +
+                        'FROM (' +
+                        'SELECT g.*, DENSE_RANK() OVER (ORDER BY g."revenue_ca_value" DESC, g."category" ASC) AS "col_idx" ' +
+                        'FROM (' +
+                        'SELECT g.*, FIRST_VALUE("revenue_sum") OVER (PARTITION BY "category" ORDER BY "revenue_sum" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS "revenue_ca_value" ' +
+                        'FROM group_by_query g) g) g) g)',
+                );
+            });
+
+            test('emits one FIRST_VALUE and one MAX(CASE) per sorted value column', () => {
+                const pivotConfiguration = {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                        {
+                            reference: 'orders',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortBy: [
+                        {
+                            reference: 'revenue',
+                            direction: SortByDirection.DESC,
+                        },
+                        { reference: 'orders', direction: SortByDirection.ASC },
+                    ],
+                };
+
+                const result = replaceWhitespace(
+                    new PivotQueryBuilder(
+                        baseSql,
+                        pivotConfiguration,
+                        mockTrinoWarehouseSqlBuilder,
+                    ).toSql(),
+                );
+
+                expect(result).toContain('AS "revenue_ca_value"');
+                expect(result).toContain('AS "orders_ca_value"');
+                expect(result).toContain(
+                    'MAX(CASE WHEN "col_idx" = 1 THEN g."revenue_sum" END) OVER (PARTITION BY g."date") AS "revenue_ra_value"',
+                );
+                expect(result).toContain(
+                    'MAX(CASE WHEN "col_idx" = 1 THEN g."orders_sum" END) OVER (PARTITION BY g."date") AS "orders_ra_value"',
+                );
+            });
+
+            test('per-metric pinned anchors rebase the predicate onto the in-scan columns', () => {
+                const pivotConfiguration = {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                        {
+                            reference: 'orders',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'status' }],
+                    sortBy: [
+                        {
+                            reference: 'revenue',
+                            direction: SortByDirection.DESC,
+                            pivotValues: [
+                                { reference: 'status', value: 'completed' },
+                            ],
+                        },
+                        {
+                            reference: 'orders',
+                            direction: SortByDirection.DESC,
+                            pivotValues: [
+                                { reference: 'status', value: 'pending' },
+                            ],
+                        },
+                    ],
+                };
+
+                const result = replaceWhitespace(
+                    new PivotQueryBuilder(
+                        baseSql,
+                        pivotConfiguration,
+                        mockTrinoWarehouseSqlBuilder,
+                    ).toSql(),
+                );
+
+                expect(result).toContain(
+                    'MAX(CASE WHEN (g."status") IN (\'completed\') THEN g."revenue_sum" END) OVER (PARTITION BY g."date") AS "revenue_ra_value"',
+                );
+                expect(result).toContain(
+                    'MAX(CASE WHEN (g."status") IN (\'pending\') THEN g."orders_sum" END) OVER (PARTITION BY g."date") AS "orders_ra_value"',
+                );
+                expect(result).not.toContain('cr."status"');
+            });
+
+            test('the gate follows supportsCteMaterialization, not the adapter type', () => {
+                // Athena (also no CTE materialization) gets the single-scan form...
+                const athenaResult = new PivotQueryBuilder(
+                    baseSql,
+                    trinoPivotConfiguration,
+                    {
+                        ...mockWarehouseSqlBuilder,
+                        getAdapterType: () => SupportedDbtAdapter.ATHENA,
+                        supportsCteMaterialization: () => false,
+                    } as unknown as WarehouseSqlBuilder,
+                ).toSql();
+                expect(athenaResult).not.toContain('column_ranking AS (');
+                expect(athenaResult).not.toContain('row_ranking AS (');
+
+                // ...while a Trino adapter that DOES materialize keeps the 3-CTE form.
+                const materializedResult = new PivotQueryBuilder(
+                    baseSql,
+                    trinoPivotConfiguration,
+                    {
+                        ...mockWarehouseSqlBuilder,
+                        getAdapterType: () => SupportedDbtAdapter.TRINO,
+                        supportsCteMaterialization: () => true,
+                    } as unknown as WarehouseSqlBuilder,
+                ).toSql();
+                expect(materializedResult).toContain('column_ranking AS (');
+                expect(materializedResult).toContain('row_ranking AS (');
+            });
+
+            test('only the metric-sort path is rewritten — a sorted sortOnlyDimension keeps the 3-CTE form', () => {
+                const pivotConfiguration = {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortOnlyDimensions: [{ reference: 'priority' }],
+                    sortBy: [
+                        {
+                            reference: 'priority',
+                            direction: SortByDirection.DESC,
+                        },
+                    ],
+                };
+
+                const result = new PivotQueryBuilder(
+                    baseSql,
+                    pivotConfiguration,
+                    mockTrinoWarehouseSqlBuilder,
+                ).toSql();
+
+                expect(result).toContain('column_ranking AS (');
+                expect(result).toContain('row_ranking AS (');
+            });
+        });
+
         test('No metric sort: should NOT create row_ranking CTE when no anchor CTEs exist', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
@@ -1187,6 +1393,219 @@ describe('PivotQueryBuilder', () => {
                 'FROM column_ranking cr WHERE "col_idx" = 1',
             );
             expect(result).toContain('CROSS JOIN anchor_column ac');
+        });
+    });
+
+    describe('Table calculation sorts (row-level, non-anchor semantics)', () => {
+        // Sort-only (undisplayed) table-calc sorts order rows by MAX across
+        // all pivot columns — anchor semantics would NULL out every index
+        // tuple absent from the anchor group. Column ordering and displayed
+        // table-calc sorts keep the existing anchor behavior.
+        const itemsMap = {
+            month_order: {
+                name: 'month_order',
+                displayName: 'Month Order',
+                sql: 'MOD(CAST(${orders.month_num} AS INT) + 8, 12)',
+                type: TableCalculationType.NUMBER,
+            },
+            cumulative_volume: {
+                name: 'cumulative_volume',
+                displayName: 'Cumulative Volume',
+                sql: 'SUM(${orders.count}) OVER (PARTITION BY ${orders.year} ORDER BY ${orders.month})',
+                type: TableCalculationType.NUMBER,
+            },
+        } as unknown as ItemsMap;
+
+        const tableCalcSortConfiguration = {
+            indexColumn: [
+                { reference: 'month_name', type: VizIndexType.CATEGORY },
+                { reference: 'month', type: VizIndexType.TIME },
+            ],
+            valuesColumns: [
+                {
+                    reference: 'cumulative_volume',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+            sortOnlyColumns: [
+                {
+                    reference: 'month_order',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+            groupByColumns: [{ reference: 'year' }],
+            sortBy: [
+                { reference: 'month_order', direction: SortByDirection.ASC },
+                { reference: 'year', direction: SortByDirection.ASC },
+            ],
+        };
+
+        test('row_ranking orders by MAX across all groups instead of the anchor column value', () => {
+            const result = new PivotQueryBuilder(
+                baseSql,
+                tableCalcSortConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(q."month_order_any") AS "month_order_ra_value"',
+            );
+            expect(result).not.toContain('MAX(CASE WHEN');
+            expect(result).not.toContain('anchor_column AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'ORDER BY g."month_order_ra_value" ASC',
+            );
+        });
+
+        test('column ordering still honors the calc anchor — group-companion sorts preserved', () => {
+            const result = new PivotQueryBuilder(
+                baseSql,
+                tableCalcSortConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."month_order_ca_value" ASC, g."year" ASC) AS "col_idx"',
+            );
+        });
+
+        test('metric sorts keep anchor semantics when mixed with a table calc sort', () => {
+            const mixedConfiguration = {
+                indexColumn: [
+                    { reference: 'month_name', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                sortOnlyColumns: [
+                    {
+                        reference: 'month_order',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'year' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                    {
+                        reference: 'month_order',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                mixedConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            // Metric keeps the anchor path
+            expect(result).toContain('anchor_column AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."year" = ac."anchor_year" OR (q."year" IS NULL AND ac."anchor_year" IS NULL)) THEN q."revenue_sum" END) AS "revenue_ra_value"',
+            );
+            expect(result).toContain('revenue_ca_value');
+
+            // Table calc gets row-level MAX; column anchoring stays intact
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(q."month_order_any") AS "month_order_ra_value"',
+            );
+            expect(result).toContain('month_order_ca_value');
+        });
+
+        test('pinned sort-only table calc keeps the anchor path', () => {
+            const pinnedConfiguration = {
+                ...tableCalcSortConfiguration,
+                sortBy: [
+                    {
+                        reference: 'month_order',
+                        direction: SortByDirection.ASC,
+                        pivotValues: [{ reference: 'year', value: '2020' }],
+                    },
+                    { reference: 'year', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                pinnedConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(result).toContain('"month_order_anchor_column" AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."year" = ac."anchor_year" OR (q."year" IS NULL AND ac."anchor_year" IS NULL)) THEN q."month_order_any" END) AS "month_order_ra_value"',
+            );
+            expect(replaceWhitespace(result)).not.toContain(
+                'MAX(q."month_order_any") AS "month_order_ra_value"',
+            );
+        });
+
+        test('displayed table calc sorts keep anchor semantics', () => {
+            const displayedTcConfiguration = {
+                indexColumn: [
+                    { reference: 'month_name', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'cumulative_volume',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'year' }],
+                sortBy: [
+                    {
+                        reference: 'cumulative_volume',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                displayedTcConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(result).toContain('anchor_column AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."year" = ac."anchor_year" OR (q."year" IS NULL AND ac."anchor_year" IS NULL)) THEN q."cumulative_volume_any" END) AS "cumulative_volume_ra_value"',
+            );
+        });
+
+        test('single-scan path (no CTE materialization) also uses plain MAX for table calc sorts', () => {
+            const mockTrinoBuilder = {
+                ...mockWarehouseSqlBuilder,
+                getAdapterType: () => SupportedDbtAdapter.TRINO,
+                supportsCteMaterialization: () => false,
+            } as unknown as WarehouseSqlBuilder;
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                tableCalcSortConfiguration,
+                mockTrinoBuilder,
+                500,
+                itemsMap,
+            ).toSql();
+
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(g."month_order_any") OVER (PARTITION BY g."month_name", g."month") AS "month_order_ra_value"',
+            );
+            expect(result).not.toContain('MAX(CASE WHEN');
+            expect(result).toContain('month_order_ca_value');
         });
     });
 
@@ -1732,6 +2151,62 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'dense_rank() over (order by g."event_type" asc) as "column_index"',
             );
         });
+
+        test('Should aggregate over every row when there are no index or groupBy columns', () => {
+            const pivotConfiguration = {
+                indexColumn: undefined,
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = replaceWhitespace(builder.toSql());
+
+            expect(result).toContain(
+                'group_by_query AS (SELECT count("event_id") AS "event_id_count" FROM original_query)',
+            );
+            expect(result.toLowerCase()).not.toContain('group by');
+        });
+
+        test('Should aggregate multiple value columns into a single row', () => {
+            const pivotConfiguration = {
+                indexColumn: [],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [],
+                sortBy: undefined,
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = replaceWhitespace(builder.toSql());
+
+            expect(result).toContain(
+                'group_by_query AS (SELECT count("event_id") AS "event_id_count", sum("revenue") AS "revenue_sum" FROM original_query)',
+            );
+            expect(result.toLowerCase()).not.toContain('group by');
+        });
     });
 
     describe('Warehouse type compatibility', () => {
@@ -1739,6 +2214,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const mockBigQueryBuilder = {
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+                supportsCteMaterialization: () => true,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
                 getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
@@ -1772,6 +2248,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const mockDatabricksBuilder = {
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
+                supportsCteMaterialization: () => true,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
                 getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
@@ -3643,6 +4120,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const mockBigQueryBuilder = {
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+                supportsCteMaterialization: () => true,
                 getStartOfWeek: () => WeekDay.MONDAY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
                 getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
@@ -4104,6 +4582,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const mockBigQuerySqlBuilder = {
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+                supportsCteMaterialization: () => true,
                 getStartOfWeek: () => WeekDay.MONDAY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
                 getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
@@ -4257,7 +4736,9 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
 
         test('Should log a warning for unknown field references', () => {
-            const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+            const warnSpy = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
 
             const itemsMap: ItemsMap = {
                 tc_unknown: {
@@ -4361,7 +4842,9 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
 
         test('Should handle table-prefixed unknown references', () => {
-            const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+            const warnSpy = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
 
             const itemsMap: ItemsMap = {
                 tc_missing: {
@@ -4579,6 +5062,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const mockDatabricksBuilder = {
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
+                supportsCteMaterialization: () => true,
                 getStartOfWeek: () => WeekDay.MONDAY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
                 getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
@@ -4646,6 +5130,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const mockDatabricksBuilder = {
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
+                supportsCteMaterialization: () => true,
                 getStartOfWeek: () => WeekDay.MONDAY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
                 getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
@@ -5147,6 +5632,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const clickhouseSqlBuilder = {
                 getFieldQuoteChar: () => '"',
                 getAdapterType: () => SupportedDbtAdapter.CLICKHOUSE,
+                supportsCteMaterialization: () => true,
                 getStartOfWeek: () => WeekDay.MONDAY,
                 getNullSafeEqualSql: defaultNullSafeEqualSql,
                 getNullSafeEqualJoinSql: (left: string, right: string) =>

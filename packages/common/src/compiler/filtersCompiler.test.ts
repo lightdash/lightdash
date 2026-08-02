@@ -1,8 +1,9 @@
 import momentTz from 'moment-timezone';
 import moment from 'moment/moment';
 import { SupportedDbtAdapter } from '../types/dbt';
-import { DimensionType } from '../types/field';
+import { DimensionType, type TimestampDomain } from '../types/field';
 import { FilterOperator, UnitOfTime, type FilterRule } from '../types/filter';
+import { TimeFrames } from '../types/timeFrames';
 import { WeekDay } from '../utils/timeFrames';
 import {
     createBoundaryDateFormatter,
@@ -13,6 +14,8 @@ import {
     renderNumberFilterSql,
     renderStringFilterSql,
     renderTimestampFilterSql,
+    resolveTimestampFilterContext,
+    type TimestampFilterLhsMode,
 } from './filtersCompiler';
 import {
     adapterType,
@@ -74,11 +77,19 @@ import {
     InTheNextFilterBase,
     InThePastFilterBase,
     MonthToDateFilterBase,
+    MultiValueEqualsDateFilter,
+    MultiValueEqualsDateFilterSQL,
+    MultiValueEqualsTimestampFilterSQL,
+    MultiValueNotEqualsDateFilter,
+    MultiValueNotEqualsDateFilterSQL,
+    MultiValueNotEqualsTimestampFilterSQL,
     NumberDimensionMock,
     NumberFilterBase,
     NumberFilterBaseWithMultiValues,
     NumberOperatorsWithMultipleValues,
     QuarterToDateFilterBase,
+    SingleValueEqualsDateFilter,
+    SingleValueEqualsDateFilterSQL,
     stringFilterDimension,
     stringFilterRuleMocks,
     TrinoExpectedInTheCurrentFilterSQL,
@@ -101,6 +112,7 @@ import {
     TrinoInTheLast1MonthFilterSQL,
     TrinoInTheLast1WeekFilterSQL,
     TrinoInTheLast1YearFilterSQL,
+    TrinoMultiValueEqualsDateFilterSQL,
     WeekToDateFilterBase,
     YearToDateFilterBase,
 } from './filtersCompiler.mock';
@@ -110,11 +122,11 @@ const formatTimestamp = (date: Date): string =>
 
 describe('Filter SQL', () => {
     beforeAll(() => {
-        jest.useFakeTimers();
-        jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
     });
     afterAll(() => {
-        jest.useFakeTimers();
+        vi.useRealTimers();
     });
     test.each(Object.values(FilterOperator))(
         'should return number filter sql for operator %s',
@@ -151,7 +163,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the current %s filter sql',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -169,7 +181,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the current %s filter sql for trino adapter',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -187,7 +199,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the next %s filter sql',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -205,7 +217,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the next %s filter sql for trino adapter',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -223,7 +235,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the next complete %s filter sql',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -241,7 +253,7 @@ describe('Filter SQL', () => {
     test.each(Object.values(UnitOfTime))(
         'should return in the next complete %s filter sql for trino adapter',
         (unitOfTime) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -261,7 +273,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the next complete week filter sql with %s as the start of the week',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InTheNextFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -285,7 +297,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the next complete week filter sql with %s as the start of the week for trino adapter',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InTheNextFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -309,7 +321,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the last complete week filter sql with %s as the start of the week',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InThePastFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -333,7 +345,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the last complete week filter sql with %s as the start of the week for trino adapter',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InThePastFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -357,7 +369,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the current complete week filter sql with %s as the start of the week',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InTheCurrentFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -381,7 +393,7 @@ describe('Filter SQL', () => {
     test.each([WeekDay.MONDAY, WeekDay.SUNDAY])(
         'should return in the current complete week filter sql with %s as the start of the week for trino adapter',
         (weekDay) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             const filter = {
                 ...InTheCurrentFilterBase,
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
@@ -473,7 +485,7 @@ describe('Filter SQL', () => {
         ).toStrictEqual(TrinoInTheLast1YearFilterSQL);
     });
 
-    test('should return in the last completed date filter sql ', () => {
+    test('should return in the last completed date filter sql', () => {
         expect(
             renderDateFilterSql({
                 dimensionSql: DimensionSqlMock,
@@ -661,6 +673,69 @@ describe('Filter SQL', () => {
                 timestampFormatter: formatTimestamp,
             }),
         ).toStrictEqual(TrinoInBetweenPastTwoYearsTimestampFilterSQL);
+    });
+
+    test('should return equals date filter sql for a single value', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: SingleValueEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toStrictEqual(SingleValueEqualsDateFilterSQL);
+    });
+    test('should return IN list for equals date filter with multiple values', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toStrictEqual(MultiValueEqualsDateFilterSQL);
+    });
+    test('should return IN list for equals date filter with multiple values for trino adapter', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueEqualsDateFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
+        ).toStrictEqual(TrinoMultiValueEqualsDateFilterSQL);
+    });
+    test('should return NOT IN list for notEquals date filter with multiple values', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueNotEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toStrictEqual(MultiValueNotEqualsDateFilterSQL);
+    });
+    test('should return IN list for equals timestamp filter with multiple values', () => {
+        expect(
+            renderTimestampFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                timestampFormatter: formatTimestamp,
+            }),
+        ).toStrictEqual(MultiValueEqualsTimestampFilterSQL);
+    });
+    test('should return NOT IN list for notEquals timestamp filter with multiple values', () => {
+        expect(
+            renderTimestampFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MultiValueNotEqualsDateFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                timestampFormatter: formatTimestamp,
+            }),
+        ).toStrictEqual(MultiValueNotEqualsTimestampFilterSQL);
     });
 
     // To-date filter tests (system time: 04 Apr 2020 06:12:30 GMT)
@@ -1013,7 +1088,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheCurrentDayTimezoneMocks)(
         'should return in the current day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1029,7 +1104,7 @@ describe('Filter SQL', () => {
     test.each(filterInThePastCompletedDayTimezoneMocks)(
         'should return in the past completed day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1051,7 +1126,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheNextCompletedDayTimezoneMocks)(
         'should return in the next completed day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1073,7 +1148,7 @@ describe('Filter SQL', () => {
     test.each(filterInThePastCompletedDayDstMocks)(
         'should handle DST spring forward for in the past completed day filter (timezone %s)',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1095,7 +1170,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheNextCompletedDayDstMocks)(
         'should handle DST spring forward for in the next completed day filter (timezone %s)',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('07 Mar 2020 05:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('07 Mar 2020 05:00:00 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1117,7 +1192,7 @@ describe('Filter SQL', () => {
     test.each(filterInThePastNonCompletedDayTimezoneMocks)(
         'should return in the past non-completed day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1139,7 +1214,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheNextNonCompletedDayTimezoneMocks)(
         'should return in the next non-completed day filter sql for timezone %s',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1161,7 +1236,7 @@ describe('Filter SQL', () => {
     test.each(filterInThePastNonCompletedDayDstMocks)(
         'should handle DST spring forward for in the past non-completed day filter (timezone %s)',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1183,7 +1258,7 @@ describe('Filter SQL', () => {
     test.each(filterInTheNextNonCompletedDayDstMocks)(
         'should handle DST spring forward for in the next non-completed day filter (timezone %s)',
         (timezone, expected) => {
-            jest.setSystemTime(new Date('08 Mar 2020 06:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('08 Mar 2020 06:00:00 GMT').getTime());
             expect(
                 renderDateFilterSql({
                     dimensionSql: DimensionSqlMock,
@@ -1988,6 +2063,33 @@ describe('Boolean Filter SQL', () => {
                 '(("table"."is_active")) = true',
             );
         });
+
+        it('should be a no-op when no value is selected', () => {
+            const filterEmptyArray = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [],
+            };
+            const filterUndefined = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+            };
+            const filterEmptyString = {
+                ...baseFilter,
+                operator: FilterOperator.EQUALS,
+                values: [''],
+            };
+
+            expect(renderBooleanFilterSql(dimensionSql, filterEmptyArray)).toBe(
+                'true',
+            );
+            expect(renderBooleanFilterSql(dimensionSql, filterUndefined)).toBe(
+                'true',
+            );
+            expect(
+                renderBooleanFilterSql(dimensionSql, filterEmptyString),
+            ).toBe('true');
+        });
     });
 
     describe('notEquals operator', () => {
@@ -2012,6 +2114,15 @@ describe('Boolean Filter SQL', () => {
             expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
                 '((("table"."is_active")) != false OR (("table"."is_active")) IS NULL)',
             );
+        });
+
+        it('should be a no-op when no value is selected', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_EQUALS,
+                values: [],
+            };
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe('true');
         });
     });
 
@@ -2324,7 +2435,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInThePastCompletedDayDateFormatterMocks)(
             'inThePast completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2349,7 +2460,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInTheCurrentDayDateFormatterMocks)(
             'inTheCurrent day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2371,7 +2482,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInThePastNonCompletedDayDateFormatterMocks)(
             'inThePast non-completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2396,7 +2507,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInTheNextCompletedDayDateFormatterMocks)(
             'inTheNext completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2421,7 +2532,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterInTheNextNonCompletedDayDateFormatterMocks)(
             'inTheNext non-completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
@@ -2448,7 +2559,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterNegativeOffsetEdgeCaseCurrentDayMocks)(
             'inTheCurrent day near midnight UTC for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 02:00:00 GMT').getTime(),
                 );
                 expect(
@@ -2470,7 +2581,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterNegativeOffsetEdgeCasePastCompletedDayMocks)(
             'inThePast completed day near midnight UTC for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 02:00:00 GMT').getTime(),
                 );
                 expect(
@@ -2497,7 +2608,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterPositiveOffsetEdgeCaseCurrentDayMocks)(
             'inTheCurrent day late UTC for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 22:00:00 GMT').getTime(),
                 );
                 expect(
@@ -2519,7 +2630,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         test.each(filterPositiveOffsetEdgeCasePastCompletedDayMocks)(
             'inThePast completed day late UTC for timezone %s',
             (timezone, expected) => {
-                jest.setSystemTime(
+                vi.setSystemTime(
                     new Date('04 Apr 2020 22:00:00 GMT').getTime(),
                 );
                 expect(
@@ -2551,7 +2662,7 @@ describe('DATE dimension filters are server-timezone-independent', () => {
     const systemTime = new Date('10 Apr 2026 14:00:00 GMT');
 
     beforeEach(() => {
-        jest.setSystemTime(systemTime.getTime());
+        vi.setSystemTime(systemTime.getTime());
     });
 
     afterEach(() => {
@@ -2789,7 +2900,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
 
     describe('relative filters', () => {
         beforeEach(() => {
-            jest.setSystemTime(new Date('2026-04-22 00:00:00 GMT').getTime());
+            vi.setSystemTime(new Date('2026-04-22 00:00:00 GMT').getTime());
         });
 
         const renderWithParam = (
@@ -2907,7 +3018,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('TIMESTAMP(');
             expect(sql).toContain("'2024-01-15'");
@@ -2945,7 +3055,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'America/New_York',
             );
             expect(sql).not.toContain('TIMESTAMP(');
         });
@@ -2966,7 +3075,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('TIMESTAMP(');
             expect(sql).toContain("'2024-01-15'");
@@ -2986,7 +3094,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('AT TIME ZONE');
             expect(sql).not.toContain('::timestamp');
@@ -3006,7 +3113,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('toDateTime(');
         });
@@ -3025,7 +3131,6 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('AT TIME ZONE');
             expect(sql).not.toContain('::timestamp');
@@ -3045,10 +3150,593 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 undefined,
                 true,
                 DimensionType.TIMESTAMP,
-                'UTC',
             );
             expect(sql).not.toContain('toDateTime(');
             expect(sql).toContain("'2024-01-15'");
         });
+    });
+});
+
+describe('domain-directed timestamp filter literals', () => {
+    // 2024-01-14T17:00:00Z == 2024-01-15 02:00:00 in Asia/Tokyo
+    const equalsInstantFilter: FilterRule<FilterOperator, unknown> = {
+        id: 'id',
+        target: { fieldId: 'fieldId' },
+        operator: FilterOperator.EQUALS,
+        values: ['2024-01-14T17:00:00Z'],
+    };
+    const inBetweenInstantFilter: FilterRule<FilterOperator, unknown> = {
+        id: 'id',
+        target: { fieldId: 'fieldId' },
+        operator: FilterOperator.IN_BETWEEN,
+        values: ['2024-01-14T16:30:00Z', '2024-01-14T17:30:00Z'],
+    };
+
+    const renderTimestamp = (
+        adapter: SupportedDbtAdapter,
+        filter: FilterRule<FilterOperator, unknown>,
+        {
+            timezone = 'UTC',
+            sourceTimezone,
+            timestampDomain,
+            timeInterval = TimeFrames.RAW,
+            useTimezoneAwareDateTrunc = true,
+            lhsMode = 'legacy',
+        }: {
+            timezone?: string;
+            sourceTimezone?: string;
+            timestampDomain?: TimestampDomain;
+            timeInterval?: TimeFrames;
+            useTimezoneAwareDateTrunc?: boolean;
+            lhsMode?: TimestampFilterLhsMode;
+        },
+    ) => {
+        const timestampFilterContext = resolveTimestampFilterContext({
+            adapterType: adapter,
+            useTimezoneAwareDateTrunc,
+            sourceTimezone,
+            timestampDomain,
+            timeInterval,
+            lhsMode,
+        });
+
+        return renderFilterRuleSql(
+            filter,
+            DimensionType.TIMESTAMP,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            adapter,
+            timezone,
+            true,
+            undefined,
+            useTimezoneAwareDateTrunc,
+            DimensionType.TIMESTAMP,
+            timestampFilterContext,
+        );
+    };
+
+    describe('bare naive LHS (RAW frame) renders typed data-timezone wall clocks', () => {
+        test.each([
+            [
+                SupportedDbtAdapter.POSTGRES,
+                `(${DimensionSqlMock}) = ('2024-01-15 02:00:00'::timestamp)`,
+            ],
+            [
+                SupportedDbtAdapter.BIGQUERY,
+                `(${DimensionSqlMock}) = DATETIME '2024-01-15 02:00:00'`,
+            ],
+            [
+                SupportedDbtAdapter.TRINO,
+                `(${DimensionSqlMock}) = TIMESTAMP '2024-01-15 02:00:00'`,
+            ],
+            [
+                SupportedDbtAdapter.ATHENA,
+                `(${DimensionSqlMock}) = TIMESTAMP '2024-01-15 02:00:00'`,
+            ],
+            [
+                SupportedDbtAdapter.DATABRICKS,
+                `(${DimensionSqlMock}) = TIMESTAMP_NTZ '2024-01-15 02:00:00'`,
+            ],
+            [
+                SupportedDbtAdapter.SPARK,
+                `(${DimensionSqlMock}) = TIMESTAMP_NTZ '2024-01-15 02:00:00'`,
+            ],
+        ])('equals on %s', (adapter, expected) => {
+            expect(
+                renderTimestamp(adapter, equalsInstantFilter, {
+                    sourceTimezone: 'Asia/Tokyo',
+                    timestampDomain: 'naive',
+                }),
+            ).toStrictEqual(expected);
+        });
+
+        test.each([
+            [
+                SupportedDbtAdapter.POSTGRES,
+                `((${DimensionSqlMock}) >= ('2024-01-15 01:30:00'::timestamp) AND (${DimensionSqlMock}) <= ('2024-01-15 02:30:00'::timestamp))`,
+            ],
+            [
+                SupportedDbtAdapter.BIGQUERY,
+                `((${DimensionSqlMock}) >= DATETIME '2024-01-15 01:30:00' AND (${DimensionSqlMock}) <= DATETIME '2024-01-15 02:30:00')`,
+            ],
+            [
+                SupportedDbtAdapter.TRINO,
+                `((${DimensionSqlMock}) >= TIMESTAMP '2024-01-15 01:30:00' AND (${DimensionSqlMock}) <= TIMESTAMP '2024-01-15 02:30:00')`,
+            ],
+            [
+                SupportedDbtAdapter.ATHENA,
+                `((${DimensionSqlMock}) >= TIMESTAMP '2024-01-15 01:30:00' AND (${DimensionSqlMock}) <= TIMESTAMP '2024-01-15 02:30:00')`,
+            ],
+            [
+                SupportedDbtAdapter.DATABRICKS,
+                `((${DimensionSqlMock}) >= TIMESTAMP_NTZ '2024-01-15 01:30:00' AND (${DimensionSqlMock}) <= TIMESTAMP_NTZ '2024-01-15 02:30:00')`,
+            ],
+            [
+                SupportedDbtAdapter.SPARK,
+                `((${DimensionSqlMock}) >= TIMESTAMP_NTZ '2024-01-15 01:30:00' AND (${DimensionSqlMock}) <= TIMESTAMP_NTZ '2024-01-15 02:30:00')`,
+            ],
+        ])('inBetween on %s', (adapter, expected) => {
+            expect(
+                renderTimestamp(adapter, inBetweenInstantFilter, {
+                    sourceTimezone: 'Asia/Tokyo',
+                    timestampDomain: 'naive',
+                }),
+            ).toStrictEqual(expected);
+        });
+
+        test('relative boundaries use the same data-timezone wall-clock context', () => {
+            vi.setSystemTime(new Date('2024-01-14T17:00:00Z').getTime());
+            const sql = renderTimestamp(
+                SupportedDbtAdapter.POSTGRES,
+                {
+                    id: 'id',
+                    target: { fieldId: 'fieldId' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [1],
+                    settings: {
+                        unitOfTime: UnitOfTime.hours,
+                        completed: false,
+                    },
+                },
+                {
+                    sourceTimezone: 'Asia/Tokyo',
+                    timestampDomain: 'naive',
+                },
+            );
+
+            expect(sql).toStrictEqual(
+                `((${DimensionSqlMock}) >= ('2024-01-15 01:00:00'::timestamp) AND (${DimensionSqlMock}) <= ('2024-01-15 02:00:00'::timestamp))`,
+            );
+        });
+    });
+
+    describe('bare aware LHS renders typed instant literals', () => {
+        test('ClickHouse pins the literal to UTC with toDateTime64', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    equalsInstantFilter,
+                    {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'aware',
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = toDateTime64('2024-01-14 17:00:00', 3, 'UTC')`,
+            );
+        });
+
+        test('ClickHouse treats known-naive as aware (no naive representation)', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    equalsInstantFilter,
+                    {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'naive',
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = toDateTime64('2024-01-14 17:00:00', 3, 'UTC')`,
+            );
+        });
+
+        test('BigQuery emits an offset-bearing TIMESTAMP literal', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.BIGQUERY,
+                    equalsInstantFilter,
+                    {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'aware',
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = TIMESTAMP '2024-01-14 17:00:00+00'`,
+            );
+        });
+
+        test.each([SupportedDbtAdapter.TRINO, SupportedDbtAdapter.ATHENA])(
+            '%s emits a zoned TIMESTAMP literal',
+            (adapter) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'aware',
+                    }),
+                ).toStrictEqual(
+                    `(${DimensionSqlMock}) = TIMESTAMP '2024-01-14 17:00:00 UTC'`,
+                );
+            },
+        );
+
+        test.each([SupportedDbtAdapter.DATABRICKS, SupportedDbtAdapter.SPARK])(
+            '%s keeps the offset-bearing instant literal',
+            (adapter) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'aware',
+                    }),
+                ).toStrictEqual(
+                    `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+                );
+            },
+        );
+
+        test('Postgres keeps the offset-string form byte-identical', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.POSTGRES,
+                    equalsInstantFilter,
+                    {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'aware',
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            );
+        });
+    });
+
+    describe('wrapped LHS (sub-day trunc) wraps the literal with the same round trip', () => {
+        test.each([SupportedDbtAdapter.TRINO, SupportedDbtAdapter.ATHENA])(
+            '%s known-naive at display == data timezone wraps both sides',
+            (adapter) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
+                        timezone: 'Asia/Tokyo',
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'naive',
+                        timeInterval: TimeFrames.HOUR,
+                        lhsMode: 'wrapped',
+                    }),
+                ).toStrictEqual(
+                    `(${DimensionSqlMock}) = CAST(with_timezone(CAST('2024-01-15 02:00:00' AS timestamp), 'Asia/Tokyo') AT TIME ZONE 'UTC' AS timestamp)`,
+                );
+            },
+        );
+
+        test('BigQuery emits a single explicit TIMESTAMP(s, tz) wrap', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.BIGQUERY,
+                    equalsInstantFilter,
+                    {
+                        timezone: 'Asia/Tokyo',
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'naive',
+                        timeInterval: TimeFrames.HOUR,
+                        lhsMode: 'wrapped',
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = TIMESTAMP('2024-01-15 02:00:00', 'Asia/Tokyo')`,
+            );
+        });
+
+        test('Postgres known-aware wraps the literal through the project timezone', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.POSTGRES,
+                    equalsInstantFilter,
+                    {
+                        timezone: 'Asia/Tokyo',
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'aware',
+                        timeInterval: TimeFrames.HOUR,
+                        lhsMode: 'wrapped',
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = ('2024-01-15 02:00:00'::timestamp) AT TIME ZONE 'Asia/Tokyo'`,
+            );
+        });
+
+        test('Trino known-aware sub-day at display == data keeps the legacy literal (unwrapped LHS)', () => {
+            // Equal-zones no-op: the LHS is the legacy naive trunc, so a
+            // typed instant literal would lean on session coercion.
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.TRINO,
+                    equalsInstantFilter,
+                    {
+                        timezone: 'Asia/Tokyo',
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'aware',
+                        timeInterval: TimeFrames.HOUR,
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = CAST('2024-01-14 17:00:00+00:00' AS timestamp)`,
+            );
+        });
+
+        test.each([SupportedDbtAdapter.DATABRICKS, SupportedDbtAdapter.SPARK])(
+            '%s freezes the wrapped literal as TIMESTAMP_NTZ to match the frozen LHS',
+            (adapter) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
+                        timezone: 'Asia/Tokyo',
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'naive',
+                        timeInterval: TimeFrames.HOUR,
+                        lhsMode: 'wrapped',
+                    }),
+                ).toStrictEqual(
+                    `(${DimensionSqlMock}) = CAST(to_utc_timestamp('2024-01-15 02:00:00', 'Asia/Tokyo') AS TIMESTAMP_NTZ)`,
+                );
+            },
+        );
+    });
+
+    describe('unknown domain stays byte-identical (the flag-gated LHS rebase owns this case)', () => {
+        test.each([
+            [
+                SupportedDbtAdapter.POSTGRES,
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            ],
+            [
+                SupportedDbtAdapter.REDSHIFT,
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            ],
+            [
+                SupportedDbtAdapter.DUCKDB,
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            ],
+            [
+                SupportedDbtAdapter.BIGQUERY,
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00')`,
+            ],
+            [
+                SupportedDbtAdapter.CLICKHOUSE,
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00')`,
+            ],
+            [
+                SupportedDbtAdapter.TRINO,
+                `(${DimensionSqlMock}) = CAST('2024-01-14 17:00:00+00:00' AS timestamp)`,
+            ],
+            [
+                SupportedDbtAdapter.DATABRICKS,
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            ],
+        ])('RAW equals on %s', (adapter, expected) => {
+            expect(
+                renderTimestamp(adapter, equalsInstantFilter, {
+                    sourceTimezone: 'Asia/Tokyo',
+                }),
+            ).toStrictEqual(expected);
+        });
+
+        test('sub-day trunc literal stays bare without a domain (Trino)', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.TRINO,
+                    equalsInstantFilter,
+                    {
+                        timezone: 'Asia/Tokyo',
+                        sourceTimezone: 'Asia/Tokyo',
+                        timeInterval: TimeFrames.HOUR,
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = CAST('2024-01-14 17:00:00+00:00' AS timestamp)`,
+            );
+        });
+    });
+
+    describe('legacy invariants with a known domain', () => {
+        test('flag off keeps the legacy literal', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.POSTGRES,
+                    equalsInstantFilter,
+                    {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'naive',
+                        useTimezoneAwareDateTrunc: false,
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            );
+        });
+
+        test('UTC data timezone keeps the legacy literal', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.POSTGRES,
+                    equalsInstantFilter,
+                    {
+                        sourceTimezone: 'UTC',
+                        timestampDomain: 'naive',
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            );
+        });
+
+        test('Snowflake keeps the legacy literal even with a known domain', () => {
+            expect(
+                renderTimestamp(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    equalsInstantFilter,
+                    {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timestampDomain: 'naive',
+                    },
+                ),
+            ).toStrictEqual(
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            );
+        });
+    });
+
+    describe('RAW instant LHS pins the legacy literal (flag-gated rebase companion)', () => {
+        test.each([
+            [
+                SupportedDbtAdapter.BIGQUERY,
+                `(${DimensionSqlMock}) = TIMESTAMP('2024-01-14 17:00:00', 'UTC')`,
+            ],
+            [
+                SupportedDbtAdapter.POSTGRES,
+                `(${DimensionSqlMock}) = ('2024-01-14 17:00:00+00:00')`,
+            ],
+        ])(
+            'RAW equals with an instant LHS on %s (only BigQuery pins to UTC)',
+            (adapter, expected) => {
+                expect(
+                    renderTimestamp(adapter, equalsInstantFilter, {
+                        sourceTimezone: 'Asia/Tokyo',
+                        timeInterval: TimeFrames.RAW,
+                        lhsMode: 'instant',
+                    }),
+                ).toStrictEqual(expected);
+            },
+        );
+    });
+});
+
+describe('resolveTimestampFilterContext', () => {
+    const base = {
+        adapterType: SupportedDbtAdapter.POSTGRES,
+        useTimezoneAwareDateTrunc: true,
+        sourceTimezone: 'Asia/Tokyo',
+        timestampDomain: 'naive' as TimestampDomain,
+        timeInterval: TimeFrames.DAY,
+        lhsMode: 'legacy' as TimestampFilterLhsMode,
+    };
+
+    describe('falls back to the legacy context', () => {
+        test('when the timezone-aware flag is off', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    useTimezoneAwareDateTrunc: false,
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+
+        test('when the domain is unknown (undefined)', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    timestampDomain: undefined,
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+
+        test('when the data timezone resolves to UTC', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    sourceTimezone: 'UTC',
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+
+        test('when the data timezone is omitted (defaults to UTC)', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    sourceTimezone: undefined,
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+
+        test('on Snowflake, whose dimension SQL is wrapped at compile time', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    adapterType: SupportedDbtAdapter.SNOWFLAKE,
+                }),
+            ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+        });
+    });
+
+    test('carries instantLhs on a RAW frame with an instant LHS even in the legacy context', () => {
+        expect(
+            resolveTimestampFilterContext({
+                ...base,
+                // undefined domain forces the legacy short-circuit
+                timestampDomain: undefined,
+                timeInterval: TimeFrames.RAW,
+                lhsMode: 'instant',
+            }),
+        ).toStrictEqual({ mode: 'legacy', instantLhs: true });
+    });
+
+    test('resolves a naive domain to a data-timezone wall-clock context', () => {
+        expect(resolveTimestampFilterContext(base)).toStrictEqual({
+            mode: 'naiveWall',
+            wallClockTimezone: 'Asia/Tokyo',
+        });
+    });
+
+    test('resolves an aware domain to an instant context', () => {
+        expect(
+            resolveTimestampFilterContext({
+                ...base,
+                timestampDomain: 'aware',
+            }),
+        ).toStrictEqual({ mode: 'awareInstant' });
+    });
+
+    test('coerces a naive domain to aware when the adapter has no naive representation (ClickHouse)', () => {
+        expect(
+            resolveTimestampFilterContext({
+                ...base,
+                adapterType: SupportedDbtAdapter.CLICKHOUSE,
+            }),
+        ).toStrictEqual({ mode: 'awareInstant' });
+    });
+
+    describe('sub-day truncation', () => {
+        test('wraps the literal when the LHS is wrapped', () => {
+            expect(
+                resolveTimestampFilterContext({
+                    ...base,
+                    timeInterval: TimeFrames.HOUR,
+                    lhsMode: 'wrapped',
+                }),
+            ).toStrictEqual({ mode: 'wrapped' });
+        });
+
+        test.each<TimestampFilterLhsMode>(['legacy', 'instant'])(
+            'falls back to the legacy context when the LHS is %s (not wrapped)',
+            (lhsMode) => {
+                expect(
+                    resolveTimestampFilterContext({
+                        ...base,
+                        timeInterval: TimeFrames.HOUR,
+                        lhsMode,
+                    }),
+                ).toStrictEqual({ mode: 'legacy', instantLhs: false });
+            },
+        );
     });
 });

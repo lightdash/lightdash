@@ -58,31 +58,32 @@ const gitlabProject = (): AnyType => ({
 });
 
 // Injected GitHub client surface — faked per-test, no module mocking needed.
-const makeGithubClient = (): jest.Mocked<PreviewDeployGithubClient> =>
-    ({
-        createBranch: jest.fn().mockResolvedValue(undefined),
-        createPullRequest: jest.fn(),
-        createSignedCommitOnBranch: jest.fn().mockResolvedValue(undefined),
-        getBranchHeadSha: jest.fn(),
-        getRepoDefaultBranch: jest.fn(),
-        getRepoWorkflowFiles: jest.fn(),
-    }) as AnyType;
+const makeGithubClient =
+    (): import('vitest').Mocked<PreviewDeployGithubClient> =>
+        ({
+            createBranch: vi.fn().mockResolvedValue(undefined),
+            createPullRequest: vi.fn(),
+            createSignedCommitOnBranch: vi.fn().mockResolvedValue(undefined),
+            getBranchHeadSha: vi.fn(),
+            getRepoDefaultBranch: vi.fn(),
+            getRepoWorkflowFiles: vi.fn(),
+        }) as AnyType;
 
 const buildService = (overrides: Record<string, AnyType> = {}) =>
     new PreviewDeploySetupService({
         lightdashConfig: {
             siteUrl: 'https://lightdash.example.com',
         } as AnyType,
-        projectModel: { get: jest.fn() } as AnyType,
+        projectModel: { get: vi.fn() } as AnyType,
         githubAppInstallationsModel: {
-            getInstallationId: jest.fn().mockResolvedValue('inst-1'),
+            getInstallationId: vi.fn().mockResolvedValue('inst-1'),
         } as AnyType,
         pullRequestsModel: {
-            findOrCreate: jest.fn().mockResolvedValue({}),
+            findOrCreate: vi.fn().mockResolvedValue({}),
         } as AnyType,
         projectCiStatusModel: {
-            findByProjectUuid: jest.fn(),
-            upsert: jest.fn(),
+            findByProjectUuid: vi.fn(),
+            upsert: vi.fn(),
         } as AnyType,
         githubClient: makeGithubClient(),
         ...overrides,
@@ -99,7 +100,7 @@ describe('PreviewDeploySetupService.setupPreviewDeploy', () => {
         } as AnyType);
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject('/transform')),
+                get: vi.fn().mockResolvedValue(githubProject('/transform')),
             } as AnyType,
             githubClient,
         });
@@ -134,7 +135,7 @@ describe('PreviewDeploySetupService.setupPreviewDeploy', () => {
         const githubClient = makeGithubClient();
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(gitlabProject()),
+                get: vi.fn().mockResolvedValue(gitlabProject()),
             } as AnyType,
             githubClient,
         });
@@ -152,7 +153,7 @@ describe('PreviewDeploySetupService.setupPreviewDeploy', () => {
         const githubClient = makeGithubClient();
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject()),
+                get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             githubClient,
         });
@@ -177,11 +178,11 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
         const githubClient = makeGithubClient();
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject()),
+                get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             projectCiStatusModel: {
-                findByProjectUuid: jest.fn().mockResolvedValue(existing),
-                upsert: jest.fn(),
+                findByProjectUuid: vi.fn().mockResolvedValue(existing),
+                upsert: vi.fn(),
             } as AnyType,
             githubClient,
         });
@@ -209,12 +210,12 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
             workflowPath: '.github/workflows/start-preview.yml',
         };
         const projectCiStatusModel = {
-            findByProjectUuid: jest.fn().mockResolvedValue(null),
-            upsert: jest.fn().mockResolvedValue(upserted),
+            findByProjectUuid: vi.fn().mockResolvedValue(null),
+            upsert: vi.fn().mockResolvedValue(upserted),
         };
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(githubProject()),
+                get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
             projectCiStatusModel: projectCiStatusModel as AnyType,
             githubClient,
@@ -235,11 +236,11 @@ describe('PreviewDeploySetupService.getOrScanProjectCiStatus', () => {
         const githubClient = makeGithubClient();
         const service = buildService({
             projectModel: {
-                get: jest.fn().mockResolvedValue(gitlabProject()),
+                get: vi.fn().mockResolvedValue(gitlabProject()),
             } as AnyType,
             projectCiStatusModel: {
-                findByProjectUuid: jest.fn().mockResolvedValue(null),
-                upsert: jest.fn(),
+                findByProjectUuid: vi.fn().mockResolvedValue(null),
+                upsert: vi.fn(),
             } as AnyType,
             githubClient,
         });

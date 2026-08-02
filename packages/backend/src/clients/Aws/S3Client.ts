@@ -1,4 +1,5 @@
 import {
+    DeleteObjectCommand,
     GetObjectCommand,
     HeadObjectCommand,
     NoSuchKey,
@@ -13,6 +14,7 @@ import {
     DownloadFileType,
     getErrorMessage,
     MissingConfigError,
+    NotFoundError,
     S3Error,
     type WarehouseResults,
 } from '@lightdash/common';
@@ -250,6 +252,9 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
             }
             return response.Body as Readable;
         } catch (error) {
+            if (error instanceof NoSuchKey || error instanceof NotFound) {
+                throw new NotFoundError('File not found');
+            }
             if (error instanceof S3Error) {
                 Sentry.captureException(error);
                 throw error;
@@ -384,6 +389,18 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         );
 
         return url;
+    }
+
+    async deleteFile(fileName: string): Promise<void> {
+        if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        await this.s3.send(
+            new DeleteObjectCommand({
+                Bucket: this.lightdashConfig.s3.bucket,
+                Key: fileName,
+            }),
+        );
     }
 
     async objectExists(fileName: string): Promise<boolean> {

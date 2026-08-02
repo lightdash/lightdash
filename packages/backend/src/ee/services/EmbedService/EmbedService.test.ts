@@ -1,7 +1,9 @@
+import { Ability } from '@casl/ability';
 import {
     ForbiddenError,
     type AnonymousAccount,
     type CreateEmbedJwt,
+    type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
 import { EmbedService } from './EmbedService';
@@ -19,7 +21,7 @@ describe('EmbedService', () => {
 
     beforeEach(() => {
         service = new EmbedService(EmbedServiceArgumentsMock);
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('updateConfig', () => {
@@ -180,7 +182,7 @@ describe('EmbedService', () => {
             test('should throw ForbiddenError when embedding feature is disabled', async () => {
                 // Mock feature flag as disabled for this test
                 const featureFlagGet = EmbedServiceArgumentsMock
-                    .featureFlagModel.get as jest.Mock;
+                    .featureFlagModel.get as import('vitest').Mock;
                 featureFlagGet.mockResolvedValueOnce({ enabled: false });
 
                 await expect(
@@ -257,17 +259,33 @@ describe('EmbedService', () => {
                 explores: [],
             });
         });
+
+        test('resolves standalone metrics catalog content', async () => {
+            const content = await service.getContentUuidFromJwt(
+                {
+                    content: { type: 'metricsCatalog' },
+                    exp: Date.now() / 1000 + 3600,
+                },
+                mockProjectUuid,
+            );
+            expect(content).toEqual({
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'metricsCatalog',
+                explores: [],
+            });
+        });
     });
 
     describe('getEmbedWriteUser', () => {
         test('uses apiAccess service account over writeActions user', async () => {
             const serviceAccountUserUuid = 'service-account-user-uuid';
             const userModel = {
-                findSessionUserAndOrgByUuid: jest.fn().mockResolvedValue({
+                findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
                     userUuid: serviceAccountUserUuid,
                     isActive: false,
                 }),
-                findServiceAccountByUserUuid: jest.fn().mockResolvedValue({
+                findServiceAccountByUserUuid: vi.fn().mockResolvedValue({
                     uuid: 'service-account-uuid',
                     organizationUuid: mockOrganizationUuid,
                     description: 'Embedded customer actions',
@@ -334,7 +352,7 @@ describe('EmbedService', () => {
             new EmbedService({
                 ...EmbedServiceArgumentsMock,
                 userAttributesModel: {
-                    find: jest.fn().mockResolvedValue(orgUserAttributes),
+                    find: vi.fn().mockResolvedValue(orgUserAttributes),
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
 
@@ -398,14 +416,180 @@ describe('EmbedService', () => {
         });
     });
 
+    describe('raw metric queries', () => {
+        const buildEmbedAccount = (canExplore: boolean) =>
+            ({
+                authentication: { type: 'jwt', source: 'embed-token' },
+                access: { content: { dashboardUuid: 'dashboard-1' } },
+                user: {
+                    id: mockUserUuid,
+                    ability: new Ability<PossibleAbilities>(
+                        canExplore
+                            ? [
+                                  {
+                                      subject: 'Explore',
+                                      action: ['view'],
+                                      conditions: {
+                                          organizationUuid:
+                                              mockOrganizationUuid,
+                                          projectUuid: mockProjectUuid,
+                                      },
+                                  },
+                              ]
+                            : [],
+                    ),
+                },
+                organization: { organizationUuid: mockOrganizationUuid },
+                isAnonymousUser: vi.fn().mockReturnValue(true),
+            }) as unknown as AnonymousAccount;
+
+        // Reaching the explore lookup means the permission gate let the request through
+        const getExploreFromCache = vi
+            .fn()
+            .mockRejectedValue(new Error('reached explore lookup'));
+
+        const gatedService = () =>
+            new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue({
+                        projectUuid: mockProjectUuid,
+                        organizationUuid: mockOrganizationUuid,
+                    }),
+                    getExploreFromCache,
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+        const totalsQuery = {
+            explore: 'customers',
+            metricQuery: {} as never,
+        } as never;
+        const subtotalsQuery = {
+            explore: 'customers',
+            metricQuery: {} as never,
+            columnOrder: [],
+        } as never;
+
+        test('calculateTotalFromQuery rejects tokens without explore access', async () => {
+            await expect(
+                gatedService().calculateTotalFromQuery(
+                    buildEmbedAccount(false),
+                    mockProjectUuid,
+                    totalsQuery,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(getExploreFromCache).not.toHaveBeenCalled();
+        });
+
+        test('calculateSubtotalsFromQuery rejects tokens without explore access', async () => {
+            await expect(
+                gatedService().calculateSubtotalsFromQuery(
+                    buildEmbedAccount(false),
+                    mockProjectUuid,
+                    subtotalsQuery,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(getExploreFromCache).not.toHaveBeenCalled();
+        });
+
+        test('calculateTotalFromQuery allows tokens with explore access', async () => {
+            await expect(
+                gatedService().calculateTotalFromQuery(
+                    buildEmbedAccount(true),
+                    mockProjectUuid,
+                    totalsQuery,
+                ),
+            ).rejects.toThrow('reached explore lookup');
+        });
+
+        test('calculateSubtotalsFromQuery allows tokens with explore access', async () => {
+            await expect(
+                gatedService().calculateSubtotalsFromQuery(
+                    buildEmbedAccount(true),
+                    mockProjectUuid,
+                    subtotalsQuery,
+                ),
+            ).rejects.toThrow('reached explore lookup');
+        });
+
+        // Chart tokens grant Explore scoped to the chart's own explores
+        const buildChartEmbedAccount = (explores: string[]) =>
+            ({
+                authentication: { type: 'jwt', source: 'embed-token' },
+                access: { content: { chartUuid: 'chart-1' } },
+                user: {
+                    id: mockUserUuid,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'Explore',
+                            action: ['view'],
+                            conditions: {
+                                organizationUuid: mockOrganizationUuid,
+                                projectUuid: mockProjectUuid,
+                                exploreNames: { $all: explores },
+                            },
+                        },
+                    ]),
+                },
+                organization: { organizationUuid: mockOrganizationUuid },
+                isAnonymousUser: vi.fn().mockReturnValue(true),
+            }) as unknown as AnonymousAccount;
+
+        test('calculateTotalFromQuery allows chart tokens on their own explore', async () => {
+            await expect(
+                gatedService().calculateTotalFromQuery(
+                    buildChartEmbedAccount(['customers']),
+                    mockProjectUuid,
+                    totalsQuery,
+                ),
+            ).rejects.toThrow('reached explore lookup');
+        });
+
+        test('calculateTotalFromQuery rejects chart tokens on another explore', async () => {
+            await expect(
+                gatedService().calculateTotalFromQuery(
+                    buildChartEmbedAccount(['orders']),
+                    mockProjectUuid,
+                    totalsQuery,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(getExploreFromCache).not.toHaveBeenCalled();
+        });
+
+        test('calculateSubtotalsFromQuery allows chart tokens on their own explore', async () => {
+            await expect(
+                gatedService().calculateSubtotalsFromQuery(
+                    buildChartEmbedAccount(['customers']),
+                    mockProjectUuid,
+                    subtotalsQuery,
+                ),
+            ).rejects.toThrow('reached explore lookup');
+        });
+
+        test('calculateSubtotalsFromQuery rejects chart tokens on another explore', async () => {
+            await expect(
+                gatedService().calculateSubtotalsFromQuery(
+                    buildChartEmbedAccount(['orders']),
+                    mockProjectUuid,
+                    subtotalsQuery,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(getExploreFromCache).not.toHaveBeenCalled();
+        });
+    });
+
     describe('searchFilterValues', () => {
         test('scopes dashboard lookup to the requested project', async () => {
             const dashboardUuid = 'dashboard-1';
             const dashboardModel = {
-                getByIdOrSlug: jest.fn().mockRejectedValue(new Error('stop')),
+                getByIdOrSlug: vi.fn().mockRejectedValue(new Error('stop')),
             };
             const embedModel = {
-                get: jest.fn().mockResolvedValue({
+                get: vi.fn().mockResolvedValue({
                     dashboardUuids: [dashboardUuid],
                     allowAllDashboards: false,
                     user: {
@@ -439,7 +623,7 @@ describe('EmbedService', () => {
                 organization: {
                     organizationUuid: mockOrganizationUuid,
                 },
-                isAnonymousUser: jest.fn().mockReturnValue(true),
+                isAnonymousUser: vi.fn().mockReturnValue(true),
             } as unknown as AnonymousAccount;
 
             await expect(

@@ -17,8 +17,11 @@ export type DbExternalConnection = {
     project_uuid: string;
     organization_uuid: string;
     name: string;
+    // Portable identity: unique per project among live rows, stable across renames
+    slug: string;
     type: ExternalConnectionAuthType;
     origin: string;
+    instructions: string | null;
     allowed_path_prefixes: string[];
     allowed_methods: ExternalConnectionMethod[];
     allowed_content_types: string[];
@@ -28,6 +31,8 @@ export type DbExternalConnection = {
     rate_limit_per_minute: number | null;
     api_key_name: string | null;
     api_key_location: ApiKeyLocation | null;
+    oauth_scopes: string[] | null;
+    custom_headers: Record<string, string> | null;
     created_by_user_uuid: string | null;
     updated_by_user_uuid: string | null;
     created_at: Date;
@@ -39,16 +44,24 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
     DbExternalConnection,
     Pick<
         DbExternalConnection,
-        'project_uuid' | 'organization_uuid' | 'name' | 'type' | 'origin'
+        | 'project_uuid'
+        | 'organization_uuid'
+        | 'name'
+        | 'slug'
+        | 'type'
+        | 'origin'
     > & {
         // jsonb columns are written as serialized JSON strings (read back as arrays)
         allowed_path_prefixes: string;
         allowed_methods: string;
         allowed_content_types: string;
+        oauth_scopes?: string | null;
+        custom_headers?: string | null;
     } & Partial<
             Pick<
                 DbExternalConnection,
                 | 'external_connection_uuid'
+                | 'instructions'
                 | 'response_max_bytes'
                 | 'request_max_bytes'
                 | 'timeout_ms'
@@ -65,6 +78,7 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             | 'name'
             | 'type'
             | 'origin'
+            | 'instructions'
             | 'response_max_bytes'
             | 'request_max_bytes'
             | 'timeout_ms'
@@ -79,6 +93,8 @@ export type ExternalConnectionsTable = Knex.CompositeTableType<
             allowed_path_prefixes: string;
             allowed_methods: string;
             allowed_content_types: string;
+            oauth_scopes: string | null;
+            custom_headers: string | null;
         }
     >
 >;

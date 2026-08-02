@@ -22,7 +22,7 @@ jobs:
         uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
         with:
           mode: firewall-free
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: '.nvmrc'
@@ -30,6 +30,8 @@ jobs:
           cache-dependency-path: 'pnpm-lock.yaml'
       - name: Install packages
         run: sfw pnpm install --frozen-lockfile --prefer-offline
+      - name: Generate backend API artifacts
+        run: pnpm generate-api:backend
       - name: Build all packages
         run: pnpm build
 
@@ -40,7 +42,7 @@ jobs:
     concurrency: ${{ github.ref }}
     permissions:
       contents: read
-      id-token: write  # Required for OIDC authentication with npm
+      id-token: write  # Required for OIDC trusted publishing (pnpm publish is native since pnpm 11)
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -56,7 +58,7 @@ jobs:
         with:
           mode: firewall-free
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -64,11 +66,31 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
-      - name: Upgrade npm for OIDC support
-        run: sfw npm install -g npm@latest
+      # pnpm 11 publishes natively via OIDC trusted publishing; npm is pinned only
+      # for the npm version prepare step in release.config.js.
+      - name: Pin npm for the versioning step
+        run: sfw npm install -g npm@12.0.1
 
       - name: Install dependencies
         run: sfw pnpm install --frozen-lockfile --prefer-offline --prod=false
+
+      # PROD-8359: install oasdiff so the release-safety marker generator can diff
+      # the REST API (swagger.json) between the previous tag and HEAD for breaking
+      # changes (api.rest). Pinned + sha256-verified; the download goes over the
+      # harden-runner audited egress (not a package install, so no Socket Firewall
+      # wrapper). When present on PATH the generator runs the diff automatically.
+      - name: Install oasdiff
+        env:
+          OASDIFF_VERSION: '1.21.0'
+          OASDIFF_SHA256: '293811c172672e9e86313ef925f136d8a2352c7b56937f6b0f91c5de1166bd8f'
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/oasdiff.tar.gz \
+            "https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          echo "${OASDIFF_SHA256}  /tmp/oasdiff.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/oasdiff.tar.gz -C /tmp oasdiff
+          sudo install -m 0755 /tmp/oasdiff /usr/local/bin/oasdiff
+          oasdiff --version
 
       - name: Semantic Release
         # Config is on release.config.js
@@ -77,6 +99,19 @@ jobs:
         env:
           HUSKY: 0
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          # PROD-8359: powers the gated AI migration review (P6) in the marker
+          # generator. The review reaches api.anthropic.com over the harden-runner
+          # audited egress; absent the key, the generator skips it and leaves the
+          # honest "unknown" verdict. Never fails the release.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # PROD-8359 kill-switch (GO-LIVE). "true" → on every release the generator
+          # writes release-safety.json, runs the gated (paid) AI rolling-update
+          # review on any flagged change, and @semantic-release/github attaches the
+          # file as a release asset at releases/download/<tag>/release-safety.json.
+          # Flip back to "false" to instantly dark it again (no file, no asset, no
+          # AI spend) — this is the single revert. The PR preview workflow is
+          # independent (it always runs with its own enabled=true throwaway file).
+          RELEASE_SAFETY_MARKER_ENABLED: 'true'
         with:
           semantic_version: 19
           extra_plugins: |

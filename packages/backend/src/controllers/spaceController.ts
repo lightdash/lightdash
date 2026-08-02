@@ -2,11 +2,14 @@ import {
     AddSpaceGroupAccess,
     AddSpaceUserAccess,
     ApiErrorPayload,
+    ApiSpaceAsCodeListResponse,
+    ApiSpaceAsCodeUpsertResponse,
     ApiSpaceDeleteImpactResponse,
     ApiSpaceResponse,
     ApiSuccessEmpty,
     assertRegisteredAccount,
     CreateSpace,
+    SpaceAsCode,
     UpdateSpace,
 } from '@lightdash/common';
 import {
@@ -18,6 +21,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,

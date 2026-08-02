@@ -13,6 +13,7 @@ describe('contentReferenceUtils', () => {
                     dashboardSlug: 'table-calculations-tests-dashboard',
                     displayName: 'Table Calculations Tests Dashboard',
                     pinnedVersionUuid: null,
+                    runtimeOverrides: null,
                 },
                 {
                     type: 'chart',

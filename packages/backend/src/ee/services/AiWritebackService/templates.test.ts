@@ -1,7 +1,11 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { SHARED_SKILL_PATH, WAREHOUSE_SKILL_PATH } from './constants';
+import {
+    EFFECTIVE_DBT_SQL_SKILL,
+    SHARED_SKILL_PATH,
+    WAREHOUSE_SKILL_PATH,
+} from './constants';
 import { warehouseTypeToSkillKey } from './skills';
-import { buildSystemPrompt } from './templates';
+import { buildGeneralSystemPrompt, buildSystemPrompt } from './templates';
 
 const DBT_PROJECT_DIR = 'analytics/dbt';
 const BASE_CONTEXT = {
@@ -73,5 +77,39 @@ describe('buildSystemPrompt — warehouse skill guidance', () => {
 
     it('matches the snapshot for a no-skill warehouse (duckdb)', () => {
         expect(buildFor(WarehouseTypes.DUCKDB)).toMatchSnapshot();
+    });
+});
+
+describe('buildSystemPrompt — dbt/SQL skill guidance', () => {
+    it('names the effective-dbt-sql skill and calls out correlated subqueries', () => {
+        const prompt = buildFor(WarehouseTypes.POSTGRES);
+        expect(prompt).toContain(EFFECTIVE_DBT_SQL_SKILL);
+        expect(prompt).toContain('correlated subquery');
+        expect(prompt).toMatch(/reuse an existing dimension or metric/);
+    });
+
+    it('injects the nudge regardless of warehouse (warehouse-agnostic)', () => {
+        expect(buildFor(null)).toContain(EFFECTIVE_DBT_SQL_SKILL);
+        expect(buildFor(WarehouseTypes.CLICKHOUSE)).toContain(
+            EFFECTIVE_DBT_SQL_SKILL,
+        );
+    });
+
+    it('de-conflicts with the warehouse guidance rather than restating it', () => {
+        const prompt = buildFor(WarehouseTypes.POSTGRES);
+        // The SQL nudge points to the type-coercion guidance as a separate
+        // concern instead of adding a second competing "you MUST read" block.
+        expect(prompt).toContain('separate from the type-coercion rules');
+        expect(prompt).not.toMatch(
+            /BEFORE writing.*dbt model SQL.*you MUST read/,
+        );
+    });
+
+    it('is scoped to the dbt writeback agent — absent from the general prompt', () => {
+        const general = buildGeneralSystemPrompt({
+            repository: 'acme/jaffle',
+            repoContext: null,
+        });
+        expect(general).not.toContain(EFFECTIVE_DBT_SQL_SKILL);
     });
 });

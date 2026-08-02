@@ -17,7 +17,7 @@ const normalizeInstanceUrl = (pathname: string, origin: string) => {
     return `${origin}${pathname.endsWith('/') ? pathname : `${pathname}/`}`;
 };
 
-const parseEmbedUrl = (value: string) => {
+export const parseEmbedUrl = (value: string) => {
     const trimmedValue = value.trim();
 
     if (!trimmedValue) {

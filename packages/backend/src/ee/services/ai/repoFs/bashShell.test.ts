@@ -199,7 +199,7 @@ describe('runRepoShellCommand (just-bash)', () => {
         });
 
         it('passes the resolved path through to the resolver', async () => {
-            const search = jest.fn(matchOrders);
+            const search = vi.fn(matchOrders);
             await runShellCommandOnFs(await fs(), 'search orders models', {
                 cwd: '/',
                 search,

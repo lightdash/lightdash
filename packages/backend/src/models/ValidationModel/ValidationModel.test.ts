@@ -1,6 +1,8 @@
 import { DashboardFilterValidationErrorType } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { DashboardsTableName } from '../../database/entities/dashboards';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { ValidationTableName } from '../../database/entities/validation';
 import { ValidationModel } from './ValidationModel';
 
@@ -46,6 +48,38 @@ describe('ValidationModel', () => {
             const [query] = tracker.history.delete;
             expect(query.bindings).toContain(dashboardUuid);
             expect(query.bindings).toContain(projectUuid);
+        });
+    });
+
+    describe('project ownership column compatibility', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new ValidationModel({ database });
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        it('qualifies project_uuid in queries that join content tables', async () => {
+            tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+            await model.get('22222222-2222-4222-8222-222222222222');
+
+            const joinedContentQueries = tracker.history.select.filter(
+                ({ sql }) =>
+                    sql.includes(`join "${SavedChartsTableName}"`) ||
+                    sql.includes(`join "${DashboardsTableName}"`),
+            );
+            expect(joinedContentQueries).toHaveLength(2);
+            joinedContentQueries.forEach(({ sql }) => {
+                expect(sql).toContain(
+                    `"${ValidationTableName}"."project_uuid"`,
+                );
+            });
         });
     });
 

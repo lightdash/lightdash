@@ -1,0 +1,260 @@
+/* Owns its own padding so the column divider reaches the container's edges and
+   meets the header rule above it */
+.layout {
+    display: grid;
+    min-height: 100%;
+    grid-template-columns: minmax(0, 1fr) 1px 232px;
+    align-items: stretch;
+}
+
+.main {
+    min-width: 0;
+    padding: 20px 28px 28px 24px;
+}
+
+.statusCalloutText {
+    font-size: var(--mantine-font-size-xs);
+}
+
+.sectionLabel {
+    color: var(--mantine-color-ldGray-6);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.memoryContent {
+    padding-left: 0;
+    font-size: 14px;
+    line-height: 1.65;
+}
+
+.memoryContent p,
+.memoryContent li {
+    font-size: 14px;
+}
+
+.disclosures {
+    margin-top: 28px;
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.disclosureItem {
+    border-bottom-color: var(--mantine-color-ldGray-2);
+}
+
+.disclosureControl {
+    min-height: 60px;
+    padding: 10px 4px;
+    border-radius: 8px;
+}
+
+.disclosureControl:hover {
+    background: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.disclosureLabel {
+    padding: 0;
+}
+
+.disclosureChevron {
+    color: var(--mantine-color-ldGray-5);
+}
+
+.disclosureContent {
+    padding: 2px 28px 20px 4px;
+}
+
+.disclosureTitle {
+    color: var(--mantine-color-ldGray-9);
+    font-size: 13px;
+    font-weight: 550;
+    line-height: 1.4;
+}
+
+.disclosureDescription {
+    margin-top: 2px;
+    color: var(--mantine-color-ldGray-6);
+    font-size: 11.5px;
+    line-height: 1.4;
+}
+
+.disclosureMarkdown {
+    padding-left: 0;
+    color: var(--mantine-color-ldGray-8);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.disclosureMarkdown p,
+.disclosureMarkdown li {
+    color: inherit;
+    font-size: inherit;
+}
+
+.sourceList {
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.sourceRow {
+    padding: 12px 14px;
+}
+
+.sourceRow + .sourceRow {
+    border-top: 1px solid var(--mantine-color-ldGray-1);
+}
+
+.sourceSummary {
+    margin-top: 4px;
+    padding-left: 0;
+    color: var(--mantine-color-ldGray-6);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.sourceSummary p,
+.sourceSummary li {
+    margin: 0;
+    color: inherit;
+    font-size: inherit;
+}
+
+.sourceLink {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 5px;
+    color: var(--mantine-color-ldGray-6);
+    font-size: 11.5px;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.sourceLink:hover {
+    color: var(--mantine-color-indigo-7);
+}
+
+.divider {
+    height: 100%;
+    border-color: var(--mantine-color-ldGray-2);
+}
+
+.rail {
+    align-self: start;
+    position: sticky;
+    top: 0;
+    padding: 20px 24px 28px 28px;
+}
+
+.railRow {
+    min-height: 32px;
+    padding: 3px 0;
+}
+
+.railLabel {
+    width: 54px;
+    flex: none;
+    color: var(--mantine-color-ldGray-6);
+    font-size: 11.5px;
+}
+
+.railValue {
+    min-width: 0;
+    flex: 1;
+}
+
+.railText {
+    color: var(--mantine-color-ldGray-9);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.statusDot {
+    width: 6px;
+    height: 6px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--mantine-color-gray-5);
+}
+
+.statusDot[data-status='active'] {
+    background: var(--mantine-color-teal-6);
+}
+
+.statusTrigger {
+    border-radius: var(--mantine-radius-sm);
+    padding: 3px 5px;
+    margin: -3px -5px;
+}
+
+.statusTrigger:hover {
+    background: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-dark-5)
+    );
+}
+
+.statusTrigger:focus-visible {
+    outline: 2px solid var(--mantine-color-indigo-5);
+    outline-offset: 2px;
+}
+
+.slug {
+    color: var(--mantine-color-ldGray-8);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.railSection {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--mantine-color-ldGray-1);
+}
+
+.objectLink {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--mantine-color-ldGray-9);
+    text-decoration: none;
+}
+
+.objectLink:hover {
+    color: var(--mantine-color-indigo-7);
+}
+
+.objectLinkIcon {
+    flex: none;
+}
+
+@media (max-width: 820px) {
+    .layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .main {
+        padding: 20px 18px 24px;
+    }
+
+    .divider {
+        display: none;
+    }
+
+    .rail {
+        position: static;
+        padding: 20px 18px 24px;
+        border-top: 1px solid var(--mantine-color-ldGray-2);
+    }
+}

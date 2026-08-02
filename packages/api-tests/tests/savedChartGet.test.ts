@@ -86,7 +86,7 @@ async function createAndRefreshProject(
             type: 'dbt',
             project_dir: process.env.DBT_PROJECT_DIR || '/usr/app/dbt',
         },
-        dbtVersion: 'v1.7',
+        dbtVersion: 'v1.11',
         warehouseConnection: postgresWarehouseConfig,
     });
     expect(projectResp.status).toBe(200);
@@ -621,6 +621,7 @@ describe('Saved chart get API behavior', () => {
                 (item) => item.uuid === chart.uuid,
             );
             if (!isInTrash) {
+                // oxlint-disable-next-line vitest-js/no-disabled-tests -- runtime skip when soft delete is disabled on the server
                 ctx.skip();
                 return;
             }

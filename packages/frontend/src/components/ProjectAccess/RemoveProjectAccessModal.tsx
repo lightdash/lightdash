@@ -15,6 +15,7 @@ const RemoveProjectAccessModal: FC<Props> = ({ user, onDelete, onClose }) => {
         <MantineModal
             opened
             onClose={onClose}
+            role="alertdialog"
             title="Revoke project access"
             icon={IconKey}
             description={`Are you sure you want to revoke project access for "${

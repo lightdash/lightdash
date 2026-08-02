@@ -1,7 +1,6 @@
-import { Group, Stack } from '@mantine-8/core';
 import { IconRobotFace } from '@tabler/icons-react';
 import LinkButton from '../../../../../../components/common/LinkButton';
-import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
+import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import { useActiveProjectUuid } from '../../../../../../hooks/useActiveProject';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import AiAgentAdminAgentsTable from '../AiAgentAdminAgentsTable';
@@ -12,27 +11,24 @@ export const AiAgentsSettingsPage = () => {
     const { data: settings } = useAiOrganizationSettings();
 
     return (
-        <Stack mb="lg" gap="md">
-            <Group justify="space-between" align="flex-start">
-                <PageBreadcrumbs
-                    items={[
-                        { title: 'Ask AI', to: '/generalSettings/ai/general' },
-                        { title: 'Agents', active: true },
-                    ]}
-                />
+        <SettingsPage
+            title="Agents"
+            description="Manage the AI agents available across your organization."
+            actions={
                 <LinkButton
                     href={`/projects/${activeProjectUuid}/ai-agents/new`}
                     leftIcon={IconRobotFace}
                     variant="default"
                     radius="md"
+                    size="xs"
                 >
                     New Agent
                 </LinkButton>
-            </Group>
-
+            }
+        >
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
 
             <AiAgentAdminAgentsTable />
-        </Stack>
+        </SettingsPage>
     );
 };

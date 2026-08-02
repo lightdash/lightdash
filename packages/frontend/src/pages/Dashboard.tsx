@@ -32,6 +32,7 @@ import { DashboardExportModal } from '../components/common/modal/DashboardExport
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
+import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import {
     appendNewTilesToBottom,
@@ -46,7 +47,7 @@ import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAge
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
-import useFullscreen from '../providers/Fullscreen/useFullscreen';
+import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
 import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
@@ -100,6 +101,12 @@ const Dashboard: FC = () => {
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
     );
+    const requiredFiltersNote = useDashboardContext(
+        (c) => c.requiredFiltersNote,
+    );
+    const setRequiredFiltersNote = useDashboardContext(
+        (c) => c.setRequiredFiltersNote,
+    );
     const areAllChartsLoaded = useDashboardTileStatusContext(
         (c) => c.areAllChartsLoaded,
     );
@@ -130,6 +137,12 @@ const Dashboard: FC = () => {
             isAddFilterDisabled
         );
     }, [dashboard, isAddFilterDisabled]);
+    const hasRequiredFiltersNoteChanged = useMemo(() => {
+        return (
+            (dashboard?.config?.requiredFiltersNote || undefined) !==
+            (requiredFiltersNote || undefined)
+        );
+    }, [dashboard, requiredFiltersNote]);
     const oldestCacheTime = useDashboardTileStatusContext(
         (c) => c.oldestCacheTime,
     );
@@ -213,8 +226,8 @@ const Dashboard: FC = () => {
     const {
         enabled: isFullScreenFeatureEnabled,
         isFullscreen,
-        toggleFullscreen,
-    } = useFullscreen();
+        handleToggleFullscreen,
+    } = useNativeFullscreenToggle();
     const { user } = useApp();
     const { showToastError } = useToaster();
 
@@ -357,6 +370,8 @@ const Dashboard: FC = () => {
             setHaveDateZoomGranularitiesChanged(false);
             setHasDefaultDateZoomGranularityChanged(false);
             setHasDateZoomConfigChanged(false);
+            // The saved config is the source of truth again
+            setRequiredFiltersNote(undefined);
             setDashboardTemporaryFilters({
                 dimensions: [],
                 metrics: [],
@@ -388,47 +403,10 @@ const Dashboard: FC = () => {
         setHaveDateZoomGranularitiesChanged,
         setHasDefaultDateZoomGranularityChanged,
         setHasDateZoomConfigChanged,
+        setRequiredFiltersNote,
         dashboardTabs,
         activeTab,
     ]);
-
-    const handleToggleFullscreen = useCallback(async () => {
-        if (!isFullScreenFeatureEnabled) return;
-
-        const willBeFullscreen = !isFullscreen;
-
-        if (document.fullscreenElement && !willBeFullscreen) {
-            await document.exitFullscreen();
-        } else if (
-            document.fullscreenEnabled &&
-            !document.fullscreenElement &&
-            willBeFullscreen
-        ) {
-            await document.documentElement.requestFullscreen();
-        }
-
-        toggleFullscreen();
-    }, [isFullScreenFeatureEnabled, isFullscreen, toggleFullscreen]);
-
-    useEffect(() => {
-        if (!isFullScreenFeatureEnabled) return;
-
-        const onFullscreenChange = () => {
-            if (isFullscreen && !document.fullscreenElement) {
-                toggleFullscreen(false);
-            } else if (!isFullscreen && document.fullscreenElement) {
-                toggleFullscreen(true);
-            }
-        };
-
-        document.addEventListener('fullscreenchange', onFullscreenChange);
-
-        return () =>
-            document.removeEventListener(
-                'fullscreenchange',
-                onFullscreenChange,
-            );
-    });
 
     const handleParameterChange = useDashboardContext((c) => c.setParameter);
 
@@ -627,6 +605,7 @@ const Dashboard: FC = () => {
         setHasDefaultDateZoomGranularityChanged(false);
         setDateZoomConfig(normalizeDateZoomConfig(dashboard.config));
         setHasDateZoomConfigChanged(false);
+        setRequiredFiltersNote(undefined);
 
         if (dashboardTabs.length > 0) {
             void navigate(
@@ -662,6 +641,7 @@ const Dashboard: FC = () => {
         setDateZoomConfig,
         setHasDateZoomConfigChanged,
         setHasParameterOrderChanged,
+        setRequiredFiltersNote,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -773,8 +753,13 @@ const Dashboard: FC = () => {
             }),
         ) === true;
 
-    const shouldShowVerificationSaveOptions =
-        !!dashboard?.verification && canManageContentVerification;
+    const isOwnVerification =
+        dashboard?.verification?.verifiedBy.userUuid === user.data?.userUuid;
+
+    const canPreserveVerification =
+        canManageContentVerification || isOwnVerification;
+
+    const shouldShowVerificationSaveOptions = !!dashboard?.verification;
 
     const handleSaveDashboard = (preserveVerification?: boolean) => {
         const dimensionFilters = [
@@ -783,7 +768,7 @@ const Dashboard: FC = () => {
         ];
         // Reset value for required filter on save dashboard
         const requiredFiltersWithoutValues = dimensionFilters.map((filter) => {
-            if (filter.required) {
+            if (filter.required || filter.requiredGroupId) {
                 return {
                     ...filter,
                     disabled: true,
@@ -831,6 +816,7 @@ const Dashboard: FC = () => {
                     ? defaultDateZoomGranularity
                     : dashboard.config?.defaultDateZoomGranularity,
                 dateZoomConfig: savedDateZoomConfig,
+                requiredFiltersNote: requiredFiltersNote || undefined,
             },
             parameters: dashboardParameters,
             ...(preserveVerification !== undefined
@@ -862,6 +848,7 @@ const Dashboard: FC = () => {
             haveTabsChanged ||
             hasDateZoomDisabledChanged ||
             hasAddFilterDisabledChanged ||
+            hasRequiredFiltersNoteChanged ||
             parametersHaveChanged ||
             havePinnedParametersChanged ||
             hasParameterOrderChanged ||
@@ -896,6 +883,7 @@ const Dashboard: FC = () => {
                     onClose={() => {
                         blocker.reset();
                     }}
+                    role="alertdialog"
                     title="Unsaved changes"
                     icon={IconAlertCircle}
                     cancelLabel="Stay"
@@ -923,30 +911,63 @@ const Dashboard: FC = () => {
                 onClose={saveVerificationModalHandlers.close}
                 title="Save verified dashboard"
             >
-                <Text mb="md">Keep this dashboard verified after saving?</Text>
-                <Group justify="flex-end">
-                    <Button
-                        variant="default"
-                        loading={isSaving}
-                        onClick={() => {
-                            saveVerificationModalHandlers.close();
-                            handleSaveDashboard(false);
-                        }}
-                    >
-                        Save
-                    </Button>
-                    <Button
-                        color="green.7"
-                        leftSection={<IconCircleCheckFilled size={16} />}
-                        loading={isSaving}
-                        onClick={() => {
-                            saveVerificationModalHandlers.close();
-                            handleSaveDashboard(true);
-                        }}
-                    >
-                        Save & verify
-                    </Button>
-                </Group>
+                {canPreserveVerification ? (
+                    <>
+                        <Text mb="md">
+                            Keep this dashboard verified after saving?
+                        </Text>
+                        <Group justify="flex-end">
+                            <Button
+                                variant="default"
+                                loading={isSaving}
+                                onClick={() => {
+                                    saveVerificationModalHandlers.close();
+                                    handleSaveDashboard(false);
+                                }}
+                            >
+                                Save
+                            </Button>
+                            <Button
+                                color="green.7"
+                                leftSection={
+                                    <IconCircleCheckFilled size={16} />
+                                }
+                                loading={isSaving}
+                                onClick={() => {
+                                    saveVerificationModalHandlers.close();
+                                    handleSaveDashboard(true);
+                                }}
+                            >
+                                Save & verify
+                            </Button>
+                        </Group>
+                    </>
+                ) : (
+                    <>
+                        <Text mb="md">
+                            This dashboard is verified. Saving your changes will
+                            remove its verified status until someone verifies it
+                            again.
+                        </Text>
+                        <Group justify="flex-end">
+                            <Button
+                                variant="default"
+                                onClick={saveVerificationModalHandlers.close}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                loading={isSaving}
+                                onClick={() => {
+                                    saveVerificationModalHandlers.close();
+                                    handleSaveDashboard(false);
+                                }}
+                            >
+                                Save anyway
+                            </Button>
+                        </Group>
+                    </>
+                )}
             </MantineModal>
 
             <Page
@@ -958,33 +979,40 @@ const Dashboard: FC = () => {
                 <div>
                     <DashboardHeader {...dashboardHeaderProps} />
 
-                    <DashboardTabs
-                        isEditMode={isEditMode}
-                        hasTilesThatSupportFilters={hasTilesThatSupportFilters}
-                        // parameters
-                        parameters={referencedParameters}
-                        shadowedReservedNames={shadowedReservedNames}
-                        parameterValues={parameterValues}
-                        onParameterChange={handleParameterChange}
-                        onParameterClearAll={clearAllParameters}
-                        isParameterLoading={!areAllChartsLoaded}
-                        missingRequiredParameters={missingRequiredParameters}
-                        pinnedParameters={pinnedParameters}
-                        onParameterPin={toggleParameterPin}
-                        parameterOrder={parameterOrder}
-                        onParameterReorder={setParameterOrder}
-                        // tabs
-                        activeTab={activeTab}
-                        addingTab={addingTab}
-                        dashboardTiles={dashboardTiles}
-                        handleAddTiles={handleAddTiles}
-                        handleUpdateTiles={handleUpdateTiles}
-                        handleDeleteTile={handleDeleteTile}
-                        handleBatchDeleteTiles={handleBatchDeleteTiles}
-                        handleEditTile={handleEditTiles}
-                        setGridWidth={setGridWidth}
-                        setAddingTab={setAddingTab}
-                    />
+                    {/* Coordinates filter chip / rules popovers across the dashboard */}
+                    <FilterBarPopoversProvider>
+                        <DashboardTabs
+                            isEditMode={isEditMode}
+                            hasTilesThatSupportFilters={
+                                hasTilesThatSupportFilters
+                            }
+                            // parameters
+                            parameters={referencedParameters}
+                            shadowedReservedNames={shadowedReservedNames}
+                            parameterValues={parameterValues}
+                            onParameterChange={handleParameterChange}
+                            onParameterClearAll={clearAllParameters}
+                            isParameterLoading={!areAllChartsLoaded}
+                            missingRequiredParameters={
+                                missingRequiredParameters
+                            }
+                            pinnedParameters={pinnedParameters}
+                            onParameterPin={toggleParameterPin}
+                            parameterOrder={parameterOrder}
+                            onParameterReorder={setParameterOrder}
+                            // tabs
+                            activeTab={activeTab}
+                            addingTab={addingTab}
+                            dashboardTiles={dashboardTiles}
+                            handleAddTiles={handleAddTiles}
+                            handleUpdateTiles={handleUpdateTiles}
+                            handleDeleteTile={handleDeleteTile}
+                            handleBatchDeleteTiles={handleBatchDeleteTiles}
+                            handleEditTile={handleEditTiles}
+                            setGridWidth={setGridWidth}
+                            setAddingTab={setAddingTab}
+                        />
+                    </FilterBarPopoversProvider>
                 </div>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal

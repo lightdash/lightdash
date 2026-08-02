@@ -58,6 +58,20 @@ export const cliMocks = {
             '  - snowflake:  1.11.0 - Up to date!\n' +
             '  - postgres:   1.11.0 - Up to date!\n',
     } as Partial<ExecaReturnValue>,
+    dbt1_12: {
+        all:
+            'Core:\n' +
+            '  - installed: 1.12.0\n' +
+            '  - latest:    1.12.0 - Up to date!\n' +
+            '\n' +
+            'Plugins:\n' +
+            '  - databricks: 1.12.0 - Up to date!\n' +
+            '  - redshift:   1.12.0 - Up to date!\n' +
+            '  - spark:      1.12.0 - Up to date!\n' +
+            '  - bigquery:   1.12.0 - Up to date!\n' +
+            '  - snowflake:  1.12.0 - Up to date!\n' +
+            '  - postgres:   1.12.0 - Up to date!\n',
+    } as Partial<ExecaReturnValue>,
     dbtCloud: {
         all: 'dbt Cloud CLI - 0.38.22 (1183c2abdb6003083b0fa91fcd89cd5feb25f9f7 2024-11-20T15:49:01Z)',
     } as Partial<ExecaReturnValue>,

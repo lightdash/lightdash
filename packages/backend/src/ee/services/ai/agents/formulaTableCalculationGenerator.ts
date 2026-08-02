@@ -8,8 +8,13 @@ import {
 import { FUNCTION_CATALOG, parse } from '@lightdash/formula';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
 import { GeneratorModelOptions } from '../models/types';
+import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 import {
     CustomFormatSchema,
     sanitizeCustomFormat,
@@ -339,10 +344,16 @@ export async function generateFormulaTableCalculation(
             content: string;
         }> = [],
     ) => {
+        const telemetry = getGeneratorTelemetry(
+            modelOptions,
+            'generateFormulaTableCalculation',
+            'formula-table-calc',
+        );
         const result = await generateObject({
             model: modelOptions.model,
             ...modelOptions.callOptions,
             providerOptions: modelOptions.providerOptions,
+            experimental_telemetry: telemetry,
             schema: FormulaTableCalculationSchema,
             messages: [
                 { role: 'system', content: systemPrompt },
@@ -350,6 +361,7 @@ export async function generateFormulaTableCalculation(
                 ...extraMessages,
             ],
         });
+        emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
         return result.object;
     };
 

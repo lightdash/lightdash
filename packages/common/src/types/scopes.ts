@@ -67,6 +67,18 @@ export type ScopeName =
 /**
  * A scope defines a specific permission in the system
  */
+/**
+ * A scope this scope depends on to be fully functional
+ */
+export type ScopeDependency = {
+    name: ScopeName;
+    /**
+     * Present only for conditional dependencies: describes the sub-path on
+     * which the dependency is enforced (starts with "When ...")
+     */
+    description?: string;
+};
+
 export type Scope = {
     /**
      * The name of the scope, based on ability, subject, and maybe modifier
@@ -86,8 +98,15 @@ export type Scope = {
      */
     group: ScopeGroup;
     /**
-     * The level at which this scope can be granted by a custom role.
-     * Defaults to 'project'. Single source of truth for level classification.
+     * Other scopes this scope needs to be fully functional: without them the
+     * backend rejects or degrades part of its feature. Empty when the scope
+     * works standalone.
+     */
+    dependencies: ScopeDependency[];
+    /**
+     * Organization-only scopes are unavailable to project roles.
+     * Scopes without a level are project scopes; organization roles may grant
+     * them across all projects.
      */
     level?: RoleLevel;
     /**

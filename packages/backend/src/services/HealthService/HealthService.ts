@@ -13,10 +13,12 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
+import { LicenseService } from '../LicenseService/LicenseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 
 type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
+    licenseService: LicenseService;
     organizationModel: OrganizationModel;
     migrationModel: MigrationModel;
     organizationSettingsModel: OrganizationSettingsModel;
@@ -24,6 +26,8 @@ type HealthServiceArguments = {
 
 export class HealthService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
+
+    private readonly licenseService: LicenseService;
 
     private readonly organizationModel: OrganizationModel;
 
@@ -35,10 +39,12 @@ export class HealthService extends BaseService {
         organizationModel,
         migrationModel,
         lightdashConfig,
+        licenseService,
         organizationSettingsModel,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
+        this.licenseService = licenseService;
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;
         this.organizationSettingsModel = organizationSettingsModel;
@@ -119,6 +125,7 @@ export class HealthService extends BaseService {
 
         return {
             healthy: true,
+            license: this.licenseService.getLicenseStatus(),
             mode: this.lightdashConfig.mode,
             version: VERSION,
             localDbtEnabled,
@@ -221,6 +228,12 @@ export class HealthService extends BaseService {
                 },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
+            // Deliberately not isEnterpriseEnabled(): that check is `!==
+            // undefined` against a string|null config value, so it is true
+            // even without a license. Existing consumers rely on that
+            // behaviour; this new field must not (see PROD-9154).
+            hasPlaygroundProjects: !!this.lightdashConfig.license.licenseKey,
+            hasEmailWhitelabel: !!this.lightdashConfig.postmark.accountToken,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
             hasExtendedUsageAnalytics:
@@ -235,6 +248,7 @@ export class HealthService extends BaseService {
                     ? this.lightdashConfig.appearance.overrideColorPaletteName
                     : undefined,
             },
+            hasBrandfetch: !!this.lightdashConfig.brandfetch?.apiKey,
             hasMicrosoftTeams: this.lightdashConfig.microsoftTeams.enabled,
             isServiceAccountEnabled:
                 this.lightdashConfig.serviceAccount.enabled,
@@ -282,6 +296,8 @@ export class HealthService extends BaseService {
             },
             dataApps: {
                 previewOrigin: this.lightdashConfig.appRuntime.previewOrigin,
+                sampleDataEnabled:
+                    this.lightdashConfig.appRuntime.sampleDataEnabled,
             },
         };
     }

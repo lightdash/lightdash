@@ -15,7 +15,7 @@ import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { RolesTableName } from '../../database/entities/roles';
-import { DbUser } from '../../database/entities/users';
+import { DbUser, UserTableName } from '../../database/entities/users';
 import { deprecatedHash, hash } from '../../utils/hash';
 import {
     DbServiceAccounts,
@@ -335,6 +335,16 @@ export class ServiceAccountModel {
                 );
             }
 
+            const backingUser = await trx(UserTableName)
+                .where('user_uuid', existing.service_account_user_uuid)
+                .first('user_id')
+                .forUpdate();
+            if (!backingUser) {
+                throw new UnexpectedDatabaseError(
+                    `Service account ${serviceAccountUuid} is missing its backing user`,
+                );
+            }
+
             const serviceAccountUpdate: DbUpdateServiceAccount = {
                 description: data.description,
             };
@@ -378,9 +388,14 @@ export class ServiceAccountModel {
                     );
             }
 
-            await trx(ServiceAccountsTableName)
+            const updatedServiceAccounts = await trx(ServiceAccountsTableName)
                 .update(serviceAccountUpdate)
                 .where('service_account_uuid', serviceAccountUuid);
+            if (updatedServiceAccounts === 0) {
+                throw new NotFoundError(
+                    `Service account ${serviceAccountUuid} no longer exists`,
+                );
+            }
             await trx('users')
                 .update({ first_name: data.description })
                 .where('user_uuid', existing.service_account_user_uuid);

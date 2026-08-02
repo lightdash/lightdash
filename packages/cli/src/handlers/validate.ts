@@ -1,6 +1,7 @@
 import {
     ApiJobScheduledResponse,
     ApiJobStatusResponse,
+    ApiSpaceSummaryListResponse,
     ApiValidateResponse,
     Explore,
     ExploreError,
@@ -24,6 +25,11 @@ import * as styles from '../styles';
 import { compile, CompileHandlerOptions } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProjectDisableTimestampConversion } from './timestampConversion';
+import {
+    filterValidationsBySpace,
+    resolveSpaceSelection,
+    SpaceFilterMode,
+} from './validateSpaceFilter';
 
 export const requestValidation = async (
     projectUuid: string,
@@ -50,7 +56,14 @@ export const getValidation = async (projectUuid: string, jobId: string) =>
         body: undefined,
     });
 
-export function delay(ms: number) {
+const getProjectSpaces = async (projectUuid: string) =>
+    lightdashApi<ApiSpaceSummaryListResponse['results']>({
+        method: 'GET',
+        url: `/api/v1/projects/${projectUuid}/spaces`,
+        body: undefined,
+    });
+
+function delay(ms: number) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
     });
@@ -70,21 +83,34 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     verbose: boolean;
     preview: boolean;
     only: ValidationTarget[];
+    validateWarehouseColumns: boolean;
     showChartConfigurationWarnings: boolean;
+    includeSpaces?: string[];
+    excludeSpaces?: string[];
 };
 
-export const waitUntilFinished = async (jobUuid: string): Promise<string> => {
+type WaitUntilFinishedOptions = {
+    jobUuid: string;
+    refetchIntervalMs: number;
+    createError: (jobError: string) => Error;
+};
+
+export const waitUntilFinished = async ({
+    jobUuid,
+    refetchIntervalMs,
+    createError,
+}: WaitUntilFinishedOptions): Promise<string> => {
     const job = await getJobState(jobUuid);
     if (job.status === SchedulerJobStatus.COMPLETED) {
         return job.status;
     }
     if (job.status === SchedulerJobStatus.ERROR) {
-        throw new UnexpectedServerError(
-            `\nValidation failed: ${job.details?.error || 'unknown error'}`,
-        );
+        throw createError(job.details?.error || 'unknown error');
     }
 
-    return delay(REFETCH_JOB_INTERVAL).then(() => waitUntilFinished(jobUuid));
+    return delay(refetchIntervalMs).then(() =>
+        waitUntilFinished({ jobUuid, refetchIntervalMs, createError }),
+    );
 };
 
 export const validateHandler = async (
@@ -93,6 +119,12 @@ export const validateHandler = async (
     const options = { ...originalOptions };
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
+
+    if (options.includeSpaces?.length && options.excludeSpaces?.length) {
+        throw new ParameterError(
+            'Cannot use --include-spaces and --exclude-spaces together',
+        );
+    }
 
     const executionId = uuidv4();
     const startTime = Date.now();
@@ -152,12 +184,46 @@ export const validateHandler = async (
             projectId: projectUuid,
             isPreview,
             validationTargets,
+            validateWarehouseColumns: options.validateWarehouseColumns,
+            includedSpacesCount: options.includeSpaces?.length ?? 0,
+            excludedSpacesCount: options.excludeSpaces?.length ?? 0,
         },
     });
 
     let shouldExitWithError = false;
     try {
-        const explores = await compile(options);
+        let spaceFilter:
+            | { mode: SpaceFilterMode; selectedSpaceUuids: Set<string> }
+            | undefined;
+        const spaceFilterSlugs = options.includeSpaces?.length
+            ? options.includeSpaces
+            : options.excludeSpaces;
+        if (spaceFilterSlugs?.length) {
+            const spaces = await getProjectSpaces(projectUuid);
+            spaceFilter = {
+                mode: options.includeSpaces?.length ? 'include' : 'exclude',
+                selectedSpaceUuids: resolveSpaceSelection(
+                    spaces,
+                    spaceFilterSlugs,
+                ),
+            };
+        }
+
+        const includesTableValidation =
+            validationTargets.length === 0 ||
+            validationTargets.includes(ValidationTarget.TABLES);
+        if (options.validateWarehouseColumns && !includesTableValidation) {
+            console.error(
+                styles.warning(
+                    '> Skipping warehouse column validation because --only does not include the tables validation target',
+                ),
+            );
+        }
+        const explores = await compile({
+            ...options,
+            validateWarehouseColumns:
+                options.validateWarehouseColumns && includesTableValidation,
+        });
         GlobalState.debug(`> Compiled ${explores.length} explores`);
 
         const validationJob = await requestValidation(
@@ -172,20 +238,40 @@ export const validateHandler = async (
             `  Waiting for validation to finish`,
         );
 
-        await waitUntilFinished(jobId);
+        await waitUntilFinished({
+            jobUuid: jobId,
+            refetchIntervalMs: REFETCH_JOB_INTERVAL,
+            createError: (jobError) =>
+                new UnexpectedServerError(`\nValidation failed: ${jobError}`),
+        });
 
         const allValidation = await getValidation(projectUuid, jobId);
 
         // Filter out chart configuration warnings unless explicitly requested
-        const validation = options.showChartConfigurationWarnings
-            ? allValidation
-            : allValidation.filter(
-                  (v) =>
-                      !isChartValidationError(v) ||
-                      v.errorType !== ValidationErrorType.ChartConfiguration,
-              );
+        const validationWithoutConfigWarnings =
+            options.showChartConfigurationWarnings
+                ? allValidation
+                : allValidation.filter(
+                      (v) =>
+                          !isChartValidationError(v) ||
+                          v.errorType !==
+                              ValidationErrorType.ChartConfiguration,
+                  );
 
-        const hiddenWarningsCount = allValidation.length - validation.length;
+        const hiddenWarningsCount =
+            allValidation.length - validationWithoutConfigWarnings.length;
+
+        let validation = validationWithoutConfigWarnings;
+        let spaceFilteredCount = 0;
+        if (spaceFilter) {
+            validation = filterValidationsBySpace(
+                validationWithoutConfigWarnings,
+                spaceFilter.selectedSpaceUuids,
+                spaceFilter.mode,
+            );
+            spaceFilteredCount =
+                validationWithoutConfigWarnings.length - validation.length;
+        }
         const tableErrors = validation.filter(isTableValidationError);
         const chartErrors = validation.filter(isChartValidationError);
         const dashboardErrors = validation.filter(isDashboardValidationError);
@@ -197,6 +283,9 @@ export const validateHandler = async (
                 projectId: projectUuid,
                 isPreview,
                 validationTargets,
+                validateWarehouseColumns: options.validateWarehouseColumns,
+                includedSpacesCount: options.includeSpaces?.length ?? 0,
+                excludedSpacesCount: options.excludeSpaces?.length ?? 0,
                 durationMs: Date.now() - startTime,
                 success: validation.length === 0,
                 totalErrors: validation.length,
@@ -214,10 +303,16 @@ export const validateHandler = async (
                           hiddenWarningsCount > 1 ? 's' : ''
                       } hidden, use --show-chart-configuration-warnings to show)`
                     : '';
+            const spaceFilteredMessage =
+                spaceFilteredCount > 0
+                    ? ` (${spaceFilteredCount} error${
+                          spaceFilteredCount > 1 ? 's' : ''
+                      } in filtered-out spaces hidden)`
+                    : '';
             spinner?.succeed(
                 `  Validation finished without errors in ${Math.trunc(
                     elapsedMs / 1000,
-                )}s${hiddenMessage}`,
+                )}s${hiddenMessage}${spaceFilteredMessage}`,
             );
         } else {
             const elapsedMs = Date.now() - startTime;
@@ -256,6 +351,16 @@ export const validateHandler = async (
             ) {
                 console.error(
                     `- Dashboards: ${styleTotalErrors(dashboardErrors.length)}`,
+                );
+            }
+
+            if (spaceFilteredCount > 0) {
+                console.error(
+                    styles.secondary(
+                        `(${spaceFilteredCount} error${
+                            spaceFilteredCount > 1 ? 's' : ''
+                        } in filtered-out spaces hidden)`,
+                    ),
                 );
             }
 

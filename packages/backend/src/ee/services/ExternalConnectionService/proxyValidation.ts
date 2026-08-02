@@ -1,4 +1,8 @@
-import { ParameterError } from '@lightdash/common';
+import {
+    CUSTOM_HEADER_LIMITS,
+    FORBIDDEN_CUSTOM_HEADER_NAMES,
+    ParameterError,
+} from '@lightdash/common';
 
 // Throwaway base used only to resolve a relative path through the WHATWG URL
 // parser for segment-collapse normalization — its `.pathname` is read and the
@@ -196,13 +200,17 @@ export function serializeRequestBody(body: unknown): {
 
 // Header names an api_key must never be injected under: they let stored config
 // control request routing/framing or overwrite the proxy's own security
-// headers (host pinning, content-type, auth). The api_key header name is
+// headers (host pinning, content-type). The api_key header name is
 // admin-supplied config, and the proxy is where it becomes an outbound
 // request — so reject sensitive and hop-by-hop headers here, even though
 // write-time validation also runs.
+//
+// `authorization` is intentionally allowed: some APIs (e.g. Linear) expect the
+// key directly in the Authorization header rather than as `Bearer <token>`.
+// The proxy only sets its own Authorization header on the mutually-exclusive
+// `bearer_token` path, so an api_key injected here can never clobber it.
 const FORBIDDEN_API_KEY_HEADERS = new Set([
     'host',
-    'authorization',
     'cookie',
     'content-length',
     'content-type',
@@ -226,5 +234,70 @@ export function assertSafeApiKeyHeaderName(name: string): void {
     }
     if (FORBIDDEN_API_KEY_HEADERS.has(name.toLowerCase())) {
         throw new ParameterError(`api key header "${name}" is not allowed`);
+    }
+}
+
+// The shared name blocklist (routing/framing + credential-shaped headers) —
+// see FORBIDDEN_CUSTOM_HEADER_NAMES in @lightdash/common for the rationale.
+const FORBIDDEN_CUSTOM_HEADERS = new Set<string>(FORBIDDEN_CUSTOM_HEADER_NAMES);
+
+// Printable ASCII + tab. No CR/LF or other control chars (header injection).
+// eslint-disable-next-line no-control-regex
+const HTTP_HEADER_VALUE = /^[\t\x20-\x7e]+$/;
+
+/**
+ * Validate a connection's custom request headers. Enforced at write time AND
+ * at send time in the proxy core, so a row that bypassed validation can never
+ * inject an unsafe header. A custom header may not collide with
+ * `apiKeyHeaderName` so the injected credential is never shadowed.
+ */
+export function validateCustomHeaders(
+    customHeaders: Record<string, string> | null | undefined,
+    apiKeyHeaderName: string | null,
+): void {
+    if (!customHeaders) return;
+    const entries = Object.entries(customHeaders);
+    if (entries.length > CUSTOM_HEADER_LIMITS.maxCount) {
+        throw new ParameterError(
+            `At most ${CUSTOM_HEADER_LIMITS.maxCount} custom headers are allowed`,
+        );
+    }
+    const seen = new Set<string>();
+    for (const [name, value] of entries) {
+        if (
+            !HTTP_HEADER_TOKEN.test(name) ||
+            name.length > CUSTOM_HEADER_LIMITS.maxNameChars
+        ) {
+            throw new ParameterError(
+                `Custom header name ${JSON.stringify(name)} is not a valid HTTP header name`,
+            );
+        }
+        if (FORBIDDEN_CUSTOM_HEADERS.has(name.toLowerCase())) {
+            throw new ParameterError(
+                `Custom header "${name}" is not allowed — credentials belong in the connection secret`,
+            );
+        }
+        if (
+            typeof value !== 'string' ||
+            value.length === 0 ||
+            value.length > CUSTOM_HEADER_LIMITS.maxValueChars ||
+            !HTTP_HEADER_VALUE.test(value)
+        ) {
+            throw new ParameterError(
+                `Custom header "${name}" has an invalid value`,
+            );
+        }
+        const lower = name.toLowerCase();
+        if (seen.has(lower)) {
+            throw new ParameterError(
+                `Duplicate custom header "${name}" (names are case-insensitive)`,
+            );
+        }
+        seen.add(lower);
+        if (apiKeyHeaderName && lower === apiKeyHeaderName.toLowerCase()) {
+            throw new ParameterError(
+                `Custom header "${name}" conflicts with the connection's api key header`,
+            );
+        }
     }
 }

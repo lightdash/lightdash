@@ -1,5 +1,5 @@
 import { getUnitsOfTimeGreaterOrEqual, UnitOfTime } from '@lightdash/common';
-import { Select, type SelectProps } from '@mantine/core';
+import { type SelectProps, Select } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 
 const getUnitOfTimeLabel = (
@@ -134,6 +134,7 @@ const FilterUnitOfTimeAutoComplete: FC<Props> = ({
 
     return (
         <Select
+            allowDeselect={false}
             searchable
             placeholder="Select value"
             size="xs"

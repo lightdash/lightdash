@@ -1,5 +1,6 @@
 import {
     DbtPackages,
+    DbtRpcGetManifestResults,
     DEFAULT_SPOTLIGHT_CONFIG,
     Explore,
     ExploreError,
@@ -48,6 +49,13 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     public async getDbtPackages(): Promise<DbtPackages | undefined> {
         Logger.debug(`Get dbt packages`);
         return undefined;
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+        throw new ParameterError(
+            'Cannot read a dbt manifest as this project was created via CLI and has no dbt connection configured.',
+        );
     }
 
     public async runQuery(sql: string, queryTags: RunQueryTags) {

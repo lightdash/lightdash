@@ -35,6 +35,22 @@ export const ZERO_CLAUDE_USAGE: ClaudeGenerationUsage = {
     costUsd: 0,
 };
 
+export type ClaudeGenerationTelemetry = {
+    usage: ClaudeGenerationUsage;
+    toolCallCount: number;
+    timeToFirstTokenMs: number | null;
+    turnDurationsMs: number[];
+    attemptCount: number;
+};
+
+export const ZERO_CLAUDE_GENERATION_TELEMETRY: ClaudeGenerationTelemetry = {
+    usage: ZERO_CLAUDE_USAGE,
+    toolCallCount: 0,
+    timeToFirstTokenMs: null,
+    turnDurationsMs: [],
+    attemptCount: 0,
+};
+
 /**
  * Sum two usage records field-by-field. One build can invoke `claude` several
  * times (main generation, build-fix re-runs, metadata), so the pipeline totals
@@ -57,11 +73,46 @@ export function addClaudeUsage(
     };
 }
 
+/**
+ * Add one CLI attempt to the telemetry for a logical Claude invocation.
+ *
+ * A generation can retry the CLI while continuing the same session. Keeping
+ * the aggregation here ensures successful builds include the cost of failed
+ * attempts, and lets the caller retain partial usage when every attempt fails.
+ */
+export function addClaudeGenerationAttempt(
+    aggregate: ClaudeGenerationTelemetry,
+    attempt: {
+        usage: ClaudeGenerationUsage | null;
+        toolCallCount: number;
+        timeToFirstTokenMs: number | null;
+        turnDurationsMs: number[];
+    },
+    attemptStartedAfterMs: number,
+): ClaudeGenerationTelemetry {
+    const attemptTimeToFirstTokenMs =
+        attempt.timeToFirstTokenMs === null
+            ? null
+            : attemptStartedAfterMs + attempt.timeToFirstTokenMs;
+
+    return {
+        usage: addClaudeUsage(aggregate.usage, attempt.usage),
+        toolCallCount: aggregate.toolCallCount + attempt.toolCallCount,
+        timeToFirstTokenMs:
+            aggregate.timeToFirstTokenMs ?? attemptTimeToFirstTokenMs,
+        turnDurationsMs: [
+            ...aggregate.turnDurationsMs,
+            ...attempt.turnDurationsMs,
+        ],
+        attemptCount: aggregate.attemptCount + 1,
+    };
+}
+
 export type ClaudeStreamEvent =
     | { kind: 'thinking_started'; turn: number }
     | { kind: 'thinking_snippet'; snippet: string }
     | { kind: 'tool_use'; index: number; description: string }
-    | { kind: 'result'; text: string };
+    | { kind: 'result'; text: string; structuredOutput: unknown };
 
 const STATUS_THROTTLE_MS = 3000;
 const SNIPPET_SENTENCES = 1;
@@ -70,22 +121,14 @@ const SNIPPET_SENTENCES = 1;
 
 /**
  * Return the most recent `n` complete sentences from `buf` as a single
- * paragraph: whitespace collapsed to single spaces, trailing periods
- * stripped (so they don't visually merge with the UI's animated "..."
- * indicator — `!` and `?` stay since they read distinctly), text-in-progress
- * after the last terminator dropped. Returns `''` while no complete sentence
+ * paragraph: whitespace collapsed to single spaces, text-in-progress after
+ * the last terminator dropped. Returns `''` while no complete sentence
  * exists yet — the caller skips empty updates so the status holds at
  * "Thinking".
  *
  * A sentence terminator is `[.!?]` followed by either whitespace + a capital
  * letter (which skips abbreviations like "e.g." that are followed by a
  * lowercase word) or end-of-string.
- *
- * Invariant for the frontend: the snippet collapses whitespace to a single
- * space, so it is always a single paragraph. The chat UI's `<p>` override
- * that injects `<LoadingDots />` inside the rendered paragraph relies on
- * this — if you change the snippet to preserve `\n\n`, the override needs
- * to learn about "last paragraph only".
  */
 function lastSentencesSnippet(buf: string, n: number): string {
     const flat = buf.replace(/\s+/g, ' ').trim();
@@ -100,10 +143,7 @@ function lastSentencesSnippet(buf: string, n: number): string {
     const end = positions[positions.length - 1];
     const sliceStart =
         positions.length > n ? positions[positions.length - n - 1] + 1 : 0;
-    return flat
-        .slice(sliceStart, end + 1)
-        .trim()
-        .replace(/\.+$/, '');
+    return flat.slice(sliceStart, end + 1).trim();
 }
 
 /**
@@ -210,9 +250,13 @@ function asFiniteNumber(value: unknown): number {
  * the `result` event is emitted once per run and always carries usage, but
  * we parse defensively in case a field is absent on older CLI versions.
  */
-function parseResult(
-    line: string,
-): { text: string | null; usage: ClaudeGenerationUsage } | undefined {
+function parseResult(line: string):
+    | {
+          text: string | null;
+          usage: ClaudeGenerationUsage;
+          structuredOutput: unknown;
+      }
+    | undefined {
     let event: Record<string, unknown>;
     try {
         event = JSON.parse(line);
@@ -223,6 +267,10 @@ function parseResult(
     const usage = (event.usage ?? {}) as Record<string, unknown>;
     return {
         text: typeof event.result === 'string' ? event.result : null,
+        // Populated only when the run was invoked with `--json-schema`; the CLI
+        // validates the final output against that schema and emits the parsed
+        // object here. `null`/absent otherwise.
+        structuredOutput: event.structured_output ?? null,
         usage: {
             inputTokens: asFiniteNumber(usage.input_tokens),
             outputTokens: asFiniteNumber(usage.output_tokens),
@@ -391,7 +439,11 @@ export class ClaudeStreamProcessor {
                 this.lastTurnStartAt = null;
             }
             this.lastUsageValue = result.usage;
-            events.push({ kind: 'result', text: result.text ?? '' });
+            events.push({
+                kind: 'result',
+                text: result.text ?? '',
+                structuredOutput: result.structuredOutput,
+            });
         }
     }
 }

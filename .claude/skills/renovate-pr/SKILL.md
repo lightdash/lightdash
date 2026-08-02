@@ -1,5 +1,7 @@
 ---
 name: renovate-pr
+metadata:
+  internal: true
 description: Test and assess an open Renovate dependency-bump PR. Picks the first open Renovate PR, checks out the branch, starts the app, exercises code paths affected by the upgraded package, reviews the changelog and (if needed) the upstream source diff, and reports whether the bump is safe to merge. Use when asked to "test a renovate PR", "triage renovate", "assess a renovate bump", or "check a dependency upgrade".
 ---
 

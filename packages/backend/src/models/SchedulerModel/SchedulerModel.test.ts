@@ -1,8 +1,26 @@
 import { AnyType, SchedulerJobStatus, SchedulerLog } from '@lightdash/common';
+import knex from 'knex';
+import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { SchedulerTableName } from '../../database/entities/scheduler';
 import { SchedulerModel } from './index';
 
 describe('Scheduler model test', () => {
-    test('Test scheduler log sorting', () => {
+    describe('getSchedulers', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+
+        it('selects project_uuid only from scheduler rows', () => {
+            const { sql } = database(SchedulerTableName)
+                .select(...SchedulerModel.getSchedulerListSelect(database))
+                .toSQL();
+
+            expect(sql).toContain('"scheduler".*');
+            expect(sql).not.toContain(
+                '"projects"."project_uuid" as "project_uuid"',
+            );
+        });
+    });
+
+    test('scheduler log sorting', () => {
         const baseLog: SchedulerLog = {
             task: 'handleScheduledDelivery',
             schedulerUuid: '1',
@@ -109,16 +127,63 @@ describe('Scheduler model test', () => {
         });
     });
 
+    describe('getAllSchedulers', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const model = new SchedulerModel({ database });
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        const schedulerSelectSql = () =>
+            tracker.history.select.find((query) =>
+                query.sql.includes(`from "${SchedulerTableName}"`),
+            )?.sql;
+
+        it('includes active human creators or existing service accounts', async () => {
+            tracker.on
+                .select(/to_regclass/)
+                .response([{ has_service_accounts: true }]);
+            tracker.on.select(SchedulerTableName).response([]);
+
+            await model.getAllSchedulers();
+
+            const sql = schedulerSelectSql();
+            expect(sql).toContain('"users"."is_active"');
+            expect(sql).toContain(
+                'exists (select * from "service_accounts" where service_accounts.service_account_user_uuid = scheduler.created_by)',
+            );
+        });
+
+        it('omits the service account clause when the table is absent (OSS)', async () => {
+            tracker.on
+                .select(/to_regclass/)
+                .response([{ has_service_accounts: false }]);
+            tracker.on.select(SchedulerTableName).response([]);
+
+            await model.getAllSchedulers();
+
+            const sql = schedulerSelectSql();
+            expect(sql).toContain('"users"."is_active"');
+            expect(sql).not.toContain('service_accounts');
+        });
+    });
+
     describe('getSchedulerRuns scheduler filtering', () => {
         const createModel = () =>
             new SchedulerModel({ database: {} as AnyType });
 
         it('uses getSchedulersByUuid when schedulerUuids filter is provided', async () => {
             const model = createModel();
-            const getSchedulersByUuidSpy = jest
+            const getSchedulersByUuidSpy = vi
                 .spyOn(model, 'getSchedulersByUuid')
                 .mockResolvedValue([]);
-            const getSchedulerForProjectSpy = jest
+            const getSchedulerForProjectSpy = vi
                 .spyOn(model, 'getSchedulerForProject')
                 .mockResolvedValue([]);
 
@@ -142,10 +207,10 @@ describe('Scheduler model test', () => {
 
         it('falls back to getSchedulerForProject when no schedulerUuids filter is provided', async () => {
             const model = createModel();
-            const getSchedulersByUuidSpy = jest
+            const getSchedulersByUuidSpy = vi
                 .spyOn(model, 'getSchedulersByUuid')
                 .mockResolvedValue([]);
-            const getSchedulerForProjectSpy = jest
+            const getSchedulerForProjectSpy = vi
                 .spyOn(model, 'getSchedulerForProject')
                 .mockResolvedValue([]);
 

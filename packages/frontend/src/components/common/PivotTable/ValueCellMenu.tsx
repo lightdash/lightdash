@@ -7,8 +7,7 @@ import {
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
-import { Menu, type MenuProps } from '@mantine-8/core';
-import { Text } from '@mantine/core';
+import { Menu, type MenuProps, Text } from '@mantine-8/core';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import { useLocation, useParams } from 'react-router';

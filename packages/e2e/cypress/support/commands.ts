@@ -44,7 +44,6 @@ import {
     SEED_PROJECT,
 } from '@lightdash/common';
 import '@testing-library/cypress/add-commands';
-import 'cypress-file-upload';
 
 declare global {
     namespace Cypress {
@@ -144,12 +143,9 @@ Cypress.on('uncaught:exception', (err) => {
 Cypress.Commands.add(
     'selectMantine',
     (inputName: string, optionLabel: string) => {
-        cy.get(`input[name="${inputName}"]`)
-            .parent()
-            .click() // open dropdown
-            .parent('.mantine-Select-root')
-            .contains(optionLabel)
-            .click(); // click option
+        // Mantine 8 Select puts `name` on a hidden input right after the Select root
+        cy.get(`input[name="${inputName}"]`).prev().find('input').click(); // open dropdown
+        cy.findByRole('option', { name: optionLabel }).click();
     },
 );
 
@@ -468,7 +464,7 @@ Cypress.Commands.add(
                     type: 'dbt',
                     project_dir: Cypress.env('DBT_PROJECT_DIR'),
                 },
-                dbtVersion: 'v1.7',
+                dbtVersion: 'v1.11',
                 warehouseConnection: warehouseConfig || {
                     host: Cypress.env('PGHOST') || 'localhost',
                     user: 'postgres',

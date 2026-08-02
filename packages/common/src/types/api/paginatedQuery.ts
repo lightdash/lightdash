@@ -36,6 +36,12 @@ export type ExecuteAsyncSavedChartRequestParams =
         versionUuid?: string;
         limit?: number | null | undefined;
         pivotResults?: boolean;
+        // ANDed onto the chart's own filters server-side (narrowing only).
+        filters?: Filters;
+        // Filters whose target field is absent from the chart's explore are
+        // dropped silently — a dashboard hosting a data-app tile filters
+        // across explores and one mismatch shouldn't break the linked chart.
+        dashboardFilters?: DashboardFilters;
     };
 
 export type ExecuteAsyncDashboardChartRequestParams =
@@ -128,6 +134,7 @@ export type DownloadAsyncQueryResultsRequestParams = {
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
 };
 
 export type ExecuteAsyncFieldValueSearchRequestParams =
@@ -156,17 +163,19 @@ export const getDateZoomFromRequestParameters = (
     params && 'dateZoom' in params ? params.dateZoom : undefined;
 
 /**
- * Kinds of totals derivable from an executed pivot query. Follow-up PRs
- * will widen the union to enable the commented-out variants below.
+ * Kinds of totals derivable from an executed pivot query.
  */
-export type CalculateTotalKind = 'columnTotal' | 'rowTotal' | 'columnSubtotal';
-// | 'rowSubtotal'
-// | 'grandTotal';
+export type CalculateTotalKind =
+    | 'grandTotal'
+    | 'columnTotal'
+    | 'rowTotal'
+    | 'columnSubtotal'
+    | 'rowSubtotal';
 
 export type ExecuteAsyncCalculateTotalRequestParams = {
     kind: CalculateTotalKind;
-    // Required for `columnSubtotal`: the dimensions this subtotal level groups
-    // by (the pivot groupBy columns are added from the source query).
+    // Required for subtotal kinds: the dimensions this subtotal level groups
+    // by. Column subtotals also add the pivot groupBy columns.
     subtotalDimensions?: string[];
     invalidateCache?: boolean;
 };

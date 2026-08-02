@@ -99,6 +99,20 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 </ContentReferenceLink>
             );
 
+        // Resource view URL with ?scheduler_uuid — navigating opens that
+        // delivery's edit modal on the chart/dashboard page.
+        case 'scheduled-delivery-link':
+            return (
+                <ContentReferenceLink
+                    to={dashboardHref || undefined}
+                    kind="scheduled_delivery"
+                    onClick={handleDashboardClick}
+                    title={title}
+                >
+                    {children}
+                </ContentReferenceLink>
+            );
+
         case 'chart-link': {
             const chartUuid =
                 'data-chart-uuid' in props &&

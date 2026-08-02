@@ -35,6 +35,7 @@ import {
     isValidTimezone,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MetricType,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -114,6 +115,21 @@ type SavedChartServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
     organizationModel: OrganizationModel;
 };
+
+type GoogleSheetValidationOptions = {
+    validateGoogleSheet: boolean;
+};
+
+const TABLE_CALCULATION_FUNCTIONS = [
+    { name: 'total', pattern: /\btotal\b/i },
+    { name: 'row_total', pattern: /\brow_total\b/i },
+    { name: 'row', pattern: /\brow\b/i },
+    { name: 'offset', pattern: /\boffset\b/i },
+    { name: 'index', pattern: /\bindex\b/i },
+    { name: 'lookup', pattern: /\blookup\b/i },
+    { name: 'offset_list', pattern: /\boffset_list\b/i },
+    { name: 'list', pattern: /\blist\b/i },
+] as const;
 
 export class SavedChartService
     extends BaseService
@@ -385,6 +401,47 @@ export class SavedChartService
                     : undefined,
             parametersCount: Object.keys(savedChart.parameters || {}).length,
             ...countCustomDimensionsInMetricQuery(savedChart.metricQuery),
+            ...SavedChartService.getChartConfigEventProperties(savedChart),
+        };
+    }
+
+    static getChartConfigEventProperties(savedChart: SavedChartDAO) {
+        const tableConfig =
+            savedChart.chartConfig.type === ChartType.TABLE
+                ? savedChart.chartConfig.config
+                : undefined;
+        const cartesianConfig =
+            savedChart.chartConfig.type === ChartType.CARTESIAN
+                ? savedChart.chartConfig.config
+                : undefined;
+        const rowLimit = tableConfig?.rowLimit ?? cartesianConfig?.rowLimit;
+        const columnLimit = cartesianConfig?.columnLimit;
+
+        return {
+            hasRowLimit: rowLimit !== undefined,
+            rowLimitCount: rowLimit?.count ?? null,
+            hasColumnLimit: columnLimit !== undefined,
+            columnLimit: columnLimit ?? null,
+            customColumnWidthsCount: Object.values(
+                tableConfig?.columns ?? {},
+            ).filter((column) => column.width !== undefined).length,
+            tableCalculationFunctions: TABLE_CALCULATION_FUNCTIONS.filter(
+                ({ pattern }) =>
+                    savedChart.metricQuery.tableCalculations.some(
+                        (tableCalculation) =>
+                            (isSqlTableCalculation(tableCalculation) &&
+                                pattern.test(tableCalculation.sql)) ||
+                            (isFormulaTableCalculation(tableCalculation) &&
+                                pattern.test(tableCalculation.formula)),
+                    ),
+            ).map(({ name }) => name),
+            hasAverageDistinctAdditionalMetric:
+                savedChart.metricQuery.additionalMetrics?.some(
+                    (metric) => metric.type === MetricType.AVERAGE_DISTINCT,
+                ) ?? false,
+            numCustomGroupBinCustomDimensions:
+                countCustomDimensionsInMetricQuery(savedChart.metricQuery)
+                    .numCustomGroupBinCustomDimensions,
         };
     }
 
@@ -832,6 +889,7 @@ export class SavedChartService
                     cachedExplore?.type === ExploreType.VIRTUAL
                         ? cachedExplore.name
                         : undefined,
+                ...SavedChartService.getChartConfigEventProperties(savedChart),
             },
         });
         if (dashboardUuid && !savedChart.dashboardUuid) {
@@ -963,20 +1021,28 @@ export class SavedChartService
     ): Promise<SavedChart[]> {
         const auditedAbility = this.createAuditedAbility(user);
         const spaceAccessPromises = data.map(async (chart) => {
-            const { inheritsFromOrgOrProject, access, organizationUuid } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    chart.spaceUuid,
-                );
-            return auditedAbility.can(
-                'update',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    inheritsFromOrgOrProject,
-                    access,
-                    metadata: { savedChartUuid: chart.uuid },
-                }),
+            const { spaceUuid: currentSpaceUuid } =
+                await this.savedChartModel.getSummary(chart.uuid);
+            const spaceContexts = await Promise.all(
+                [currentSpaceUuid, chart.spaceUuid].map((spaceUuid) =>
+                    this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        spaceUuid,
+                    ),
+                ),
+            );
+            return spaceContexts.every(
+                ({ inheritsFromOrgOrProject, access, organizationUuid }) =>
+                    auditedAbility.can(
+                        'update',
+                        subject('SavedChart', {
+                            organizationUuid,
+                            projectUuid,
+                            inheritsFromOrgOrProject,
+                            access,
+                            metadata: { savedChartUuid: chart.uuid },
+                        }),
+                    ),
             );
         });
 
@@ -1487,6 +1553,40 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        if (
+            chartToSave.metricQuery.customDimensions?.some(
+                isCustomSqlDimension,
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with custom SQL dimensions',
+            );
+        }
+
+        if (
+            chartToSave.metricQuery.tableCalculations?.some(
+                isSqlTableCalculation,
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomSqlTableCalculations', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with SQL table calculations',
+            );
+        }
+
         if (!resolvedSpaceUuid && !chartToSave.dashboardUuid) {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
@@ -1645,7 +1745,7 @@ export class SavedChartService
             name: data.chartName,
             description: data.chartDesc,
             updatedByUser: user,
-            slug: generateSlug(`${data.chartName} ${Date.now()}`), // Ensure unique slug for duplicated charts
+            slug: chart.slug,
         };
         if (chart.dashboardUuid) {
             duplicatedChart = {
@@ -1856,6 +1956,9 @@ export class SavedChartService
         user: SessionUser,
         chartUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
+        { validateGoogleSheet }: GoogleSheetValidationOptions = {
+            validateGoogleSheet: true,
+        },
     ): Promise<SchedulerAndTargets> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1885,24 +1988,26 @@ export class SavedChartService
                 );
             }
 
-            try {
-                const refreshToken = await this.userService.getRefreshToken(
-                    user.userUuid,
-                );
-                await this.googleDriveClient.assertFileIsGoogleSheet(
-                    refreshToken,
-                    newScheduler.options.gdriveId,
-                );
-            } catch (error) {
-                if (error instanceof UnexpectedGoogleSheetsError) {
-                    throw error; // Already has clear user-facing message
+            if (validateGoogleSheet) {
+                try {
+                    const refreshToken = await this.userService.getRefreshToken(
+                        user.userUuid,
+                    );
+                    await this.googleDriveClient.assertFileIsGoogleSheet(
+                        refreshToken,
+                        newScheduler.options.gdriveId,
+                    );
+                } catch (error) {
+                    if (error instanceof UnexpectedGoogleSheetsError) {
+                        throw error; // Already has clear user-facing message
+                    }
+                    if (error instanceof GoogleSheetsTransientError) {
+                        throw error; // Allow transient errors to propagate for retry
+                    }
+                    throw new MissingConfigError(
+                        'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+                    );
                 }
-                if (error instanceof GoogleSheetsTransientError) {
-                    throw error; // Allow transient errors to propagate for retry
-                }
-                throw new MissingConfigError(
-                    'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
-                );
             }
         }
 
@@ -2278,7 +2383,7 @@ export class SavedChartService
             await this.hasAccess(
                 'update',
                 { user, projectUuid },
-                { savedChartUuid },
+                { savedChartUuid, spaceUuid: targetSpaceUuid },
             );
         }
 

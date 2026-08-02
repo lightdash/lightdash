@@ -1,4 +1,5 @@
 import {
+    AlreadyExistsError,
     getSystemRoles,
     GroupProjectAccess,
     isOrganizationMemberRole,
@@ -32,6 +33,7 @@ import {
     ScopedRolesTableName,
 } from '../database/entities/roles';
 import { UserTableName } from '../database/entities/users';
+import { isUniqueConstraintViolation } from '../database/errors';
 
 type DbRoleWithScopes = DbRole & {
     scopes: string;
@@ -248,17 +250,26 @@ export class RolesModel {
         roleData: Omit<DbRoleInsert, 'organization_uuid'>,
         tx?: Knex.Transaction,
     ): Promise<Role> {
-        const [role] = await (tx || this.database)(RolesTableName)
-            .insert({
-                name: roleData.name,
-                description: roleData.description,
-                level: roleData.level,
-                organization_uuid: organizationUuid,
-                created_by: roleData.created_by,
-            })
-            .returning('*');
+        try {
+            const [role] = await (tx || this.database)(RolesTableName)
+                .insert({
+                    name: roleData.name,
+                    description: roleData.description,
+                    level: roleData.level,
+                    organization_uuid: organizationUuid,
+                    created_by: roleData.created_by,
+                })
+                .returning('*');
 
-        return RolesModel.mapDbRoleToRole(role);
+            return RolesModel.mapDbRoleToRole(role);
+        } catch (error) {
+            if (isUniqueConstraintViolation(error)) {
+                throw new AlreadyExistsError(
+                    `A role named "${roleData.name}" already exists in this organization`,
+                );
+            }
+            throw error;
+        }
     }
 
     async updateRole(
@@ -266,13 +277,25 @@ export class RolesModel {
         updateData: Omit<DbRoleUpdate, 'updated_at'>,
         tx?: Knex.Transaction,
     ): Promise<Role> {
-        const [updatedRole] = await (tx || this.database)(RolesTableName)
-            .where('role_uuid', roleUuid)
-            .update({
-                ...updateData,
-                updated_at: new Date(),
-            })
-            .returning('*');
+        let updatedRole: DbRole | undefined;
+        try {
+            [updatedRole] = await (tx || this.database)(RolesTableName)
+                .where('role_uuid', roleUuid)
+                .update({
+                    ...updateData,
+                    updated_at: new Date(),
+                })
+                .returning('*');
+        } catch (error) {
+            if (isUniqueConstraintViolation(error)) {
+                throw new AlreadyExistsError(
+                    updateData.name
+                        ? `A role named "${updateData.name}" already exists in this organization`
+                        : `A role with this name already exists in this organization`,
+                );
+            }
+            throw error;
+        }
 
         if (!updatedRole) {
             throw new NotFoundError(`Role with uuid ${roleUuid} not found`);
@@ -914,7 +937,7 @@ export class RolesModel {
 
     /**
      * Set a user's organization and project roles to exactly match the provided values.
-     * - Organization role is REQUIRED and must be a valid system organization role id (no custom role allowed).
+     * - Organization role is REQUIRED and can be a system or custom organization role id.
      * - Project roles: adds or updates roles for listed projects; removes memberships for projects not present.
      * - If projectRoles is an empty array, all existing project memberships for the user are removed.
      * - If excludeProjectPreviews is true, preview projects are excluded from removal operations.
@@ -923,7 +946,7 @@ export class RolesModel {
     async setUserOrgAndProjectRoles(
         organizationUuid: string,
         userUuid: string,
-        orgRoleId: OrganizationMemberRole,
+        orgRoleId: string,
         projectRoles: Array<{ projectUuid: string; roleId: string }>,
         excludeProjectPreviews: boolean = false,
         tx?: Knex.Transaction,

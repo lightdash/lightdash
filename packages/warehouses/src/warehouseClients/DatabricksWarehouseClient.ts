@@ -14,6 +14,7 @@ import {
     Metric,
     MetricType,
     ParseError,
+    setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     UnexpectedServerError,
@@ -21,6 +22,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type TimestampDomain,
 } from '@lightdash/common';
 import fetch from 'node-fetch';
 import { WarehouseCatalog } from '../types';
@@ -140,6 +142,7 @@ enum DatabricksTypes {
     MAP = 'MAP',
     CHAR = 'CHAR',
     VARCHAR = 'VARCHAR',
+    TIMESTAMP_NTZ = 'TIMESTAMP_NTZ',
 }
 
 const normaliseDatabricksType = (type: string): DatabricksTypes => {
@@ -190,6 +193,22 @@ const mapFieldType = (type: string): DimensionType => {
             return DimensionType.TIMESTAMP;
         default:
             return DimensionType.STRING;
+    }
+};
+
+// Classifies on the full raw string BEFORE normaliseDatabricksType, whose
+// /^[A-Z]+/ regex truncates TIMESTAMP_NTZ to TIMESTAMP at the underscore.
+// Bare TIMESTAMP is an instant on Databricks; NTZ is the opt-in naive type.
+export const getDatabricksTimestampDomain = (
+    type: string,
+): TimestampDomain | undefined => {
+    switch (type.toUpperCase().replace(/\s*\(.*\)$/, '')) {
+        case DatabricksTypes.TIMESTAMP_NTZ:
+            return 'naive';
+        case DatabricksTypes.TIMESTAMP:
+            return 'aware';
+        default:
+            return undefined;
     }
 };
 
@@ -270,6 +289,9 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
 
 const DATABRICKS_SOCKET_TIMEOUT_MS = 60000;
 const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
+// @databricks/sql defaults fetchChunk to 100k rows, which materializes entire
+// wide results in one array and can OOM the worker on large queries
+const DATABRICKS_FETCH_CHUNK_MAX_ROWS = 5000;
 
 export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabricksCredentials> {
     schema: string;
@@ -425,8 +447,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
             do {
                 // eslint-disable-next-line no-await-in-loop
-                const chunk = await query.fetchChunk();
-                console.log(chunk.length, ' - ♻️ rows fetched');
+                const chunk = await query.fetchChunk({
+                    maxRows: DATABRICKS_FETCH_CHUNK_MAX_ROWS,
+                });
                 // eslint-disable-next-line no-await-in-loop
                 await streamCallback({ fields, rows: chunk });
                 // eslint-disable-next-line no-await-in-loop
@@ -502,16 +525,23 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         const catalog = this.catalog || 'DEFAULT';
         return results.reduce<WarehouseCatalog>(
             (acc, result, index) => {
-                const columns = Object.fromEntries<DimensionType>(
-                    result.map((col) => [
-                        col.COLUMN_NAME,
-                        mapFieldType(col.TYPE_NAME),
-                    ]),
-                );
                 const { schema, table } = requests[index];
 
                 acc[catalog][schema] = acc[catalog][schema] || {};
-                acc[catalog][schema][table] = columns;
+                acc[catalog][schema][table] = {};
+                result.forEach((col) => {
+                    acc[catalog][schema][table][col.COLUMN_NAME] = mapFieldType(
+                        col.TYPE_NAME,
+                    );
+                    setCatalogTimestampDomain(
+                        acc,
+                        catalog,
+                        schema,
+                        table,
+                        col.COLUMN_NAME,
+                        getDatabricksTimestampDomain(col.TYPE_NAME),
+                    );
+                });
 
                 return acc;
             },
@@ -552,7 +582,11 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             undefined,
             schema ? [schema] : undefined,
         );
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return this.parseWarehouseCatalog(
+            rows,
+            mapFieldType,
+            getDatabricksTimestampDomain,
+        );
     }
 
     async getFields(
@@ -580,7 +614,11 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             values.push(database);
         }
         const { rows } = await this.runQuery(query, tags, undefined, values);
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return this.parseWarehouseCatalog(
+            rows,
+            mapFieldType,
+            getDatabricksTimestampDomain,
+        );
     }
 }
 

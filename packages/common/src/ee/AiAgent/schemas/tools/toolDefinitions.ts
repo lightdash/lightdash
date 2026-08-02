@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import {
+    aiDeepResearchHypothesesInputSchema,
+    aiDeepResearchInvestigationReportInputSchema,
+} from '../../../aiDeepResearch/hypotheses';
+import { aiDeepResearchReportInputSchema } from '../../../aiDeepResearch/markdown';
+import {
+    MCP_TOOL_GET_AI_WRITEBACK_STATUS_DESCRIPTION,
     MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION,
+    mcpGetAiWritebackStatusArgsSchema,
+    mcpGetAiWritebackStatusStructuredOutputSchema,
     mcpRunAiWritebackArgsSchema,
     mcpRunAiWritebackStructuredOutputSchema,
 } from '../../../aiWriteback/types';
@@ -9,6 +17,8 @@ import {
     type McpToolAnnotations,
     type ToolDefinition,
     type ToolDefinitionInstance,
+    type ToolDefinitionWithMcpOutput,
+    type ToolDefinitionWithoutMcpOutput,
 } from '../defineTool';
 import {
     MCP_TOOL_LIST_EXPLORES_DESCRIPTION,
@@ -31,10 +41,20 @@ import {
     toolLoadSkillResourceOutputSchema,
 } from './toolBuiltInSkillArgs';
 import {
+    TOOL_CLOSE_PULL_REQUEST_DESCRIPTION,
+    toolClosePullRequestArgsSchema,
+    toolClosePullRequestOutputSchema,
+} from './toolClosePullRequestArgs';
+import {
     TOOL_CREATE_CONTENT_DESCRIPTION,
     toolCreateContentArgsSchema,
     toolCreateContentOutputSchema,
 } from './toolCreateContentArgs';
+import {
+    TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION,
+    toolCreateScheduledDeliveryArgsSchema,
+    toolCreateScheduledDeliveryOutputSchema,
+} from './toolCreateScheduledDeliveryArgs';
 import {
     TOOL_DASHBOARD_DESCRIPTION,
     toolDashboardArgsSchema,
@@ -76,6 +96,11 @@ import {
     toolEditProjectContextOutputSchema,
 } from './toolEditProjectContextArgs';
 import {
+    TOOL_EDIT_REPO_DESCRIPTION,
+    toolEditRepoArgsSchema,
+    toolEditRepoOutputSchema,
+} from './toolEditRepoArgs';
+import {
     TOOL_EXPLORE_REPO_DESCRIPTION,
     toolExploreRepoArgsSchema,
     toolExploreRepoOutputSchema,
@@ -96,11 +121,13 @@ import {
     toolFindDashboardsOutputSchema,
 } from './toolFindDashboardsArgs';
 import {
+    findExploresResultSchema,
     TOOL_FIND_EXPLORES_DESCRIPTION,
     toolFindExploresArgsSchemaV3,
     toolFindExploresOutputSchema,
 } from './toolFindExploresArgs';
 import {
+    findFieldsResultSchema,
     TOOL_FIND_FIELDS_DESCRIPTION,
     toolFindFieldsArgsSchema,
     toolFindFieldsOutputSchema,
@@ -126,14 +153,31 @@ import {
     toolGetKnowledgeDocumentContentOutputSchema,
 } from './toolGetKnowledgeDocumentContentArgs';
 import {
+    GET_METADATA_DESCRIPTION,
+    getMetadataInputSchema,
+    getMetadataResultSchema,
+    toolGetMetadataOutputSchema,
+} from './toolGetMetadataArgs';
+import {
     TOOL_GET_PROJECT_INFO_DESCRIPTION,
     toolGetProjectInfoArgsSchema,
     toolGetProjectInfoOutputSchema,
 } from './toolGetProjectInfoArgs';
 import {
+    TOOL_GET_PULL_REQUEST_DIFF_DESCRIPTION,
+    toolGetPullRequestDiffArgsSchema,
+    toolGetPullRequestDiffOutputSchema,
+} from './toolGetPullRequestDiffArgs';
+import {
     TOOL_GET_QUERY_RESULT_DESCRIPTION,
     toolGetQueryResultArgsSchema,
 } from './toolGetQueryResultArgs';
+import {
+    GREP_FIELDS_DESCRIPTION,
+    grepFieldsInputSchema,
+    grepFieldsResultSchema,
+    toolGrepFieldsOutputSchema,
+} from './toolGrepFieldsArgs';
 import {
     TOOL_IMPROVE_CONTEXT_DESCRIPTION,
     toolImproveContextArgsSchema,
@@ -160,6 +204,11 @@ import {
     toolListWarehouseTablesOutputSchema,
 } from './toolListWarehouseTablesArgs';
 import {
+    TOOL_LIST_WORKSTREAMS_DESCRIPTION,
+    toolListWorkstreamsArgsSchema,
+    toolListWorkstreamsOutputSchema,
+} from './toolListWorkstreamsArgs';
+import {
     TOOL_LOAD_PROJECT_CONTEXT_DESCRIPTION,
     toolLoadProjectContextArgsSchema,
     toolLoadProjectContextOutputSchema,
@@ -169,11 +218,6 @@ import {
     toolLoadSkillArgsSchema,
     toolLoadSkillOutputSchema,
 } from './toolLoadSkillArgs';
-import {
-    TOOL_PROPOSE_CHANGE_DESCRIPTION,
-    toolProposeChangeArgsSchema,
-    toolProposeChangeOutputSchema,
-} from './toolProposeChangeArgs';
 import {
     mcpGetQueryResultStructuredOutputSchema,
     mcpRenderChartStructuredOutputSchema,
@@ -190,6 +234,11 @@ import {
     toolReadPinnedThreadArgsSchema,
     toolReadPinnedThreadOutputSchema,
 } from './toolReadPinnedThreadArgs';
+import {
+    TOOL_RESOLVE_URL_DESCRIPTION,
+    toolResolveUrlArgsSchema,
+    toolResolveUrlOutputSchema,
+} from './toolResolveUrlArgs';
 import {
     TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
     toolRunContentQueryArgsSchema,
@@ -254,6 +303,11 @@ import {
     toolTimeSeriesOutputSchema,
 } from './toolTimeSeriesArgs';
 import {
+    TOOL_UPDATE_USER_NAME_DESCRIPTION,
+    toolUpdateUserNameArgsSchema,
+    toolUpdateUserNameOutputSchema,
+} from './toolUpdateUserNameArgs';
+import {
     TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
     toolVerticalBarArgsSchema,
     toolVerticalBarArgsSchemaTransformed,
@@ -270,6 +324,12 @@ const writeAnnotations: McpToolAnnotations = {
     readOnlyHint: false,
     destructiveHint: false,
     idempotentHint: false,
+};
+
+const contextWriteAnnotations: McpToolAnnotations = {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
 };
 
 const emptyInputSchema = z.object({});
@@ -300,38 +360,66 @@ const routeAgentStructuredOutputSchema = z.object({
     ),
 });
 
-export const findExploresToolDefinition = defineTool({
+export const findExploresToolDefinition: ToolDefinitionWithMcpOutput<
+    'findExplores',
+    typeof toolFindExploresArgsSchemaV3,
+    typeof toolFindExploresArgsSchemaV3,
+    typeof toolFindExploresOutputSchema,
+    typeof findExploresResultSchema
+> = defineTool({
     name: 'findExplores',
     title: 'Find explores',
     description: TOOL_FIND_EXPLORES_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolFindExploresArgsSchemaV3,
     agent: { outputSchema: toolFindExploresOutputSchema },
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: findExploresResultSchema,
+    },
 });
 
-export const findFieldsToolDefinition = defineTool({
+export const findFieldsToolDefinition: ToolDefinitionWithMcpOutput<
+    'findFields',
+    typeof toolFindFieldsArgsSchema,
+    typeof toolFindFieldsArgsSchema,
+    typeof toolFindFieldsOutputSchema,
+    typeof findFieldsResultSchema
+> = defineTool({
     name: 'findFields',
     title: 'Find fields',
     description: TOOL_FIND_FIELDS_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: toolFindFieldsArgsSchema,
     agent: { outputSchema: toolFindFieldsOutputSchema },
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: findFieldsResultSchema,
+    },
 });
 
-export const searchSemanticLayerToolDefinition = defineTool({
+export const searchSemanticLayerToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'searchSemanticLayer',
+    typeof toolSearchSemanticLayerArgsSchema,
+    typeof toolSearchSemanticLayerArgsSchema,
+    typeof toolSearchSemanticLayerOutputSchema
+> = defineTool({
     name: 'searchSemanticLayer',
     title: 'Search semantic layer',
     description: TOOL_SEARCH_SEMANTIC_LAYER_DESCRIPTION,
-    // Agent-only for now: the tool is gated by FeatureFlags.SearchSemanticLayer
-    // on the agent ToolSet, so we don't expose it on the (un-gated) MCP surface.
+    // Agent-only for now: exposed on the agent ToolSet but not on the MCP
+    // surface.
     availability: ['agent'],
     inputSchema: toolSearchSemanticLayerArgsSchema,
     agent: { outputSchema: toolSearchSemanticLayerOutputSchema },
 });
 
-export const analyzeFieldImpactToolDefinition = defineTool({
+export const analyzeFieldImpactToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'analyzeFieldImpact',
+    typeof toolAnalyzeFieldImpactArgsSchema,
+    typeof toolAnalyzeFieldImpactArgsSchema,
+    typeof toolAnalyzeFieldImpactOutputSchema
+> = defineTool({
     name: 'analyzeFieldImpact',
     title: 'Analyze field impact',
     description: TOOL_ANALYZE_FIELD_IMPACT_DESCRIPTION,
@@ -340,7 +428,12 @@ export const analyzeFieldImpactToolDefinition = defineTool({
     agent: { outputSchema: toolAnalyzeFieldImpactOutputSchema },
 });
 
-export const findContentToolDefinition = defineTool({
+export const findContentToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'findContent',
+    typeof toolFindContentArgsSchema,
+    typeof toolFindContentArgsSchema,
+    typeof toolFindContentOutputSchema
+> = defineTool({
     name: 'findContent',
     title: 'Find content',
     description: TOOL_FIND_CONTENT_DESCRIPTION,
@@ -350,7 +443,12 @@ export const findContentToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
-export const searchFieldValuesToolDefinition = defineTool({
+export const searchFieldValuesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'searchFieldValues',
+    typeof toolSearchFieldValuesArgsSchema,
+    typeof toolSearchFieldValuesArgsSchema,
+    typeof toolSearchFieldValuesOutputSchema
+> = defineTool({
     name: 'searchFieldValues',
     title: 'Search field values',
     description: TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
@@ -360,7 +458,12 @@ export const searchFieldValuesToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
-export const generateVisualizationToolDefinition = defineTool({
+export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateVisualization',
+    typeof toolRunQueryArgsSchema,
+    typeof toolRunQueryArgsSchemaTransformed,
+    typeof toolRunQueryOutputSchema
+> = defineTool({
     name: 'generateVisualization',
     title: 'Generate visualization',
     description: TOOL_RUN_QUERY_DESCRIPTION,
@@ -370,7 +473,13 @@ export const generateVisualizationToolDefinition = defineTool({
     agent: { outputSchema: toolRunQueryOutputSchema },
 });
 
-export const runQueryToolDefinition = defineTool({
+export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
+    'runQuery',
+    typeof toolRunQueryArgsSchema,
+    typeof toolRunQueryArgsSchemaTransformed,
+    typeof toolRunQueryOutputSchema,
+    typeof mcpRunMetricQueryStructuredOutputSchema
+> = defineTool({
     name: 'runQuery',
     title: 'Run query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
@@ -385,7 +494,13 @@ export const runQueryToolDefinition = defineTool({
     },
 });
 
-export const runSqlToolDefinition = defineTool({
+export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
+    'runSql',
+    typeof toolRunSqlArgsSchema,
+    typeof toolRunSqlArgsSchema,
+    typeof toolRunSqlOutputSchema,
+    typeof mcpRunSqlStructuredOutputSchema
+> = defineTool({
     name: 'runSql',
     title: 'Run SQL',
     description: buildRunSqlDescription(
@@ -401,7 +516,13 @@ export const runSqlToolDefinition = defineTool({
     },
 });
 
-export const getQueryResultToolDefinition = defineTool({
+export const getQueryResultToolDefinition: ToolDefinitionWithMcpOutput<
+    'getQueryResult',
+    typeof toolGetQueryResultArgsSchema,
+    typeof toolGetQueryResultArgsSchema,
+    undefined,
+    typeof mcpGetQueryResultStructuredOutputSchema
+> = defineTool({
     name: 'getQueryResult',
     title: 'Get query result',
     description: TOOL_GET_QUERY_RESULT_DESCRIPTION,
@@ -413,7 +534,13 @@ export const getQueryResultToolDefinition = defineTool({
     },
 });
 
-export const renderChartToolDefinition = defineTool({
+export const renderChartToolDefinition: ToolDefinitionWithMcpOutput<
+    'renderChart',
+    typeof toolRenderChartArgsSchema,
+    typeof toolRenderChartArgsSchemaTransformed,
+    undefined,
+    typeof mcpRenderChartStructuredOutputSchema
+> = defineTool({
     name: 'renderChart',
     title: 'Render chart',
     description: TOOL_RENDER_CHART_DESCRIPTION,
@@ -427,7 +554,12 @@ export const renderChartToolDefinition = defineTool({
 });
 
 /** @deprecated Legacy CSV-only metric query tool. */
-export const runMetricQueryToolDefinition = defineTool({
+export const runMetricQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'runMetricQuery',
+    typeof toolRunMetricQueryArgsSchema,
+    typeof toolRunMetricQueryArgsSchema,
+    typeof toolRunMetricQueryOutputSchema
+> = defineTool({
     name: 'runMetricQuery',
     title: 'Run metric query',
     description: TOOL_RUN_METRIC_QUERY_DESCRIPTION,
@@ -436,7 +568,12 @@ export const runMetricQueryToolDefinition = defineTool({
     agent: { outputSchema: toolRunMetricQueryOutputSchema },
 });
 
-export const discoverFieldsToolDefinition = defineTool({
+export const discoverFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'discoverFields',
+    typeof discoverFieldsInputSchema,
+    typeof discoverFieldsInputSchema,
+    typeof toolDiscoverFieldsOutputSchema
+> = defineTool({
     name: 'discoverFields',
     title: 'Discover fields',
     description: DISCOVER_FIELDS_DESCRIPTION,
@@ -445,7 +582,50 @@ export const discoverFieldsToolDefinition = defineTool({
     agent: { outputSchema: toolDiscoverFieldsOutputSchema },
 });
 
-export const generateDashboardToolDefinition = defineTool({
+export const grepFieldsToolDefinition: ToolDefinitionWithMcpOutput<
+    'grepFields',
+    typeof grepFieldsInputSchema,
+    typeof grepFieldsInputSchema,
+    typeof toolGrepFieldsOutputSchema,
+    typeof grepFieldsResultSchema
+> = defineTool({
+    name: 'grepFields',
+    title: 'Search fields',
+    description: GREP_FIELDS_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: grepFieldsInputSchema,
+    agent: { outputSchema: toolGrepFieldsOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: grepFieldsResultSchema,
+    },
+});
+
+export const getMetadataToolDefinition: ToolDefinitionWithMcpOutput<
+    'getMetadata',
+    typeof getMetadataInputSchema,
+    typeof getMetadataInputSchema,
+    typeof toolGetMetadataOutputSchema,
+    typeof getMetadataResultSchema
+> = defineTool({
+    name: 'getMetadata',
+    title: 'Get metadata',
+    description: GET_METADATA_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: getMetadataInputSchema,
+    agent: { outputSchema: toolGetMetadataOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: getMetadataResultSchema,
+    },
+});
+
+export const generateDashboardToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateDashboard',
+    typeof toolDashboardV2ArgsSchema,
+    typeof toolDashboardV2ArgsSchema,
+    typeof toolDashboardV2OutputSchema
+> = defineTool({
     name: 'generateDashboard',
     title: 'Generate dashboard',
     description: TOOL_DASHBOARD_V2_DESCRIPTION,
@@ -469,7 +649,12 @@ export const generateDashboardV1ToolDefinition: ToolDefinition<
     agent: { outputSchema: toolDashboardOutputSchema },
 });
 
-export const generateUuidsToolDefinition = defineTool({
+export const generateUuidsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateUuids',
+    typeof toolGenerateUuidsArgsSchema,
+    typeof toolGenerateUuidsArgsSchema,
+    typeof toolGenerateUuidsOutputSchema
+> = defineTool({
     name: 'generateUuids',
     title: 'Generate UUIDs',
     description: TOOL_GENERATE_UUIDS_DESCRIPTION,
@@ -478,7 +663,12 @@ export const generateUuidsToolDefinition = defineTool({
     agent: { outputSchema: toolGenerateUuidsOutputSchema },
 });
 
-export const generateHashesToolDefinition = defineTool({
+export const generateHashesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateHashes',
+    typeof toolGenerateHashesArgsSchema,
+    typeof toolGenerateHashesArgsSchema,
+    typeof toolGenerateHashesOutputSchema
+> = defineTool({
     name: 'generateHashes',
     title: 'Generate hashes',
     description: TOOL_GENERATE_HASHES_DESCRIPTION,
@@ -487,7 +677,12 @@ export const generateHashesToolDefinition = defineTool({
     agent: { outputSchema: toolGenerateHashesOutputSchema },
 });
 
-export const getDashboardChartsToolDefinition = defineTool({
+export const getDashboardChartsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'getDashboardCharts',
+    typeof toolGetDashboardChartsArgsSchema,
+    typeof toolGetDashboardChartsArgsSchema,
+    typeof toolGetDashboardChartsOutputSchema
+> = defineTool({
     name: 'getDashboardCharts',
     title: 'Get dashboard charts',
     description: TOOL_GET_DASHBOARD_CHARTS_DESCRIPTION,
@@ -496,7 +691,12 @@ export const getDashboardChartsToolDefinition = defineTool({
     agent: { outputSchema: toolGetDashboardChartsOutputSchema },
 });
 
-export const readContentToolDefinition = defineTool({
+export const readContentToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'readContent',
+    typeof toolReadContentArgsSchema,
+    typeof toolReadContentArgsSchema,
+    typeof toolReadContentOutputSchema
+> = defineTool({
     name: 'readContent',
     title: 'Read content',
     description: TOOL_READ_CONTENT_DESCRIPTION,
@@ -509,7 +709,30 @@ export const readContentToolDefinition = defineTool({
     },
 });
 
-export const editContentToolDefinition = defineTool({
+export const resolveUrlToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'resolveUrl',
+    typeof toolResolveUrlArgsSchema,
+    typeof toolResolveUrlArgsSchema,
+    typeof toolResolveUrlOutputSchema
+> = defineTool({
+    name: 'resolveUrl',
+    title: 'Resolve URL',
+    description: TOOL_RESOLVE_URL_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolResolveUrlArgsSchema,
+    agent: { outputSchema: toolResolveUrlOutputSchema },
+    mcp: {
+        name: 'resolve_url',
+        annotations: readOnlyAnnotations,
+    },
+});
+
+export const editContentToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'editContent',
+    typeof toolEditContentArgsSchema,
+    typeof toolEditContentArgsSchema,
+    typeof toolEditContentOutputSchema
+> = defineTool({
     name: 'editContent',
     title: 'Edit content',
     description: TOOL_EDIT_CONTENT_DESCRIPTION,
@@ -522,7 +745,12 @@ export const editContentToolDefinition = defineTool({
     },
 });
 
-export const createContentToolDefinition = defineTool({
+export const createContentToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'createContent',
+    typeof toolCreateContentArgsSchema,
+    typeof toolCreateContentArgsSchema,
+    typeof toolCreateContentOutputSchema
+> = defineTool({
     name: 'createContent',
     title: 'Create content',
     description: TOOL_CREATE_CONTENT_DESCRIPTION,
@@ -535,7 +763,44 @@ export const createContentToolDefinition = defineTool({
     },
 });
 
-export const runContentQueryToolDefinition = defineTool({
+export const createScheduledDeliveryToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'createScheduledDelivery',
+    typeof toolCreateScheduledDeliveryArgsSchema,
+    typeof toolCreateScheduledDeliveryArgsSchema,
+    typeof toolCreateScheduledDeliveryOutputSchema
+> = defineTool({
+    name: 'createScheduledDelivery',
+    title: 'Create scheduled delivery',
+    description: TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolCreateScheduledDeliveryArgsSchema,
+    agent: { outputSchema: toolCreateScheduledDeliveryOutputSchema },
+    mcp: {
+        name: 'create_scheduled_delivery',
+        annotations: writeAnnotations,
+    },
+});
+
+export const updateUserNameToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'updateUserName',
+    typeof toolUpdateUserNameArgsSchema,
+    typeof toolUpdateUserNameArgsSchema,
+    typeof toolUpdateUserNameOutputSchema
+> = defineTool({
+    name: 'updateUserName',
+    title: 'Update user name',
+    description: TOOL_UPDATE_USER_NAME_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolUpdateUserNameArgsSchema,
+    agent: { outputSchema: toolUpdateUserNameOutputSchema },
+});
+
+export const runContentQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'runContentQuery',
+    typeof toolRunContentQueryArgsSchema,
+    typeof toolRunContentQueryArgsSchema,
+    typeof toolRunContentQueryOutputSchema
+> = defineTool({
     name: 'runContentQuery',
     title: 'Run content query',
     description: TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
@@ -544,7 +809,12 @@ export const runContentQueryToolDefinition = defineTool({
     agent: { outputSchema: toolRunContentQueryOutputSchema },
 });
 
-export const listContentToolDefinition = defineTool({
+export const listContentToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listContent',
+    typeof toolListContentArgsSchema,
+    typeof toolListContentArgsSchema,
+    typeof toolListContentOutputSchema
+> = defineTool({
     name: 'listContent',
     title: 'List content',
     description: TOOL_LIST_CONTENT_DESCRIPTION,
@@ -557,7 +827,12 @@ export const listContentToolDefinition = defineTool({
     },
 });
 
-export const improveContextToolDefinition = defineTool({
+export const improveContextToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'improveContext',
+    typeof toolImproveContextArgsSchema,
+    typeof toolImproveContextArgsSchema,
+    typeof toolImproveContextOutputSchema
+> = defineTool({
     name: 'improveContext',
     title: 'Improve context',
     description: TOOL_IMPROVE_CONTEXT_DESCRIPTION,
@@ -566,7 +841,12 @@ export const improveContextToolDefinition = defineTool({
     agent: { outputSchema: toolImproveContextOutputSchema },
 });
 
-export const listProjectsToolDefinition = defineTool({
+export const listProjectsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listProjects',
+    typeof toolListProjectsArgsSchema,
+    typeof toolListProjectsArgsSchema,
+    typeof toolListProjectsOutputSchema
+> = defineTool({
     name: 'listProjects',
     title: 'List projects',
     description: TOOL_LIST_PROJECTS_DESCRIPTION,
@@ -575,7 +855,12 @@ export const listProjectsToolDefinition = defineTool({
     agent: { outputSchema: toolListProjectsOutputSchema },
 });
 
-export const getProjectInfoToolDefinition = defineTool({
+export const getProjectInfoToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'getProjectInfo',
+    typeof toolGetProjectInfoArgsSchema,
+    typeof toolGetProjectInfoArgsSchema,
+    typeof toolGetProjectInfoOutputSchema
+> = defineTool({
     name: 'getProjectInfo',
     title: 'Get project info',
     description: TOOL_GET_PROJECT_INFO_DESCRIPTION,
@@ -584,7 +869,12 @@ export const getProjectInfoToolDefinition = defineTool({
     agent: { outputSchema: toolGetProjectInfoOutputSchema },
 });
 
-export const loadSkillToolDefinition = defineTool({
+export const loadSkillToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'loadSkill',
+    typeof toolLoadSkillArgsSchema,
+    typeof toolLoadSkillArgsSchema,
+    typeof toolLoadSkillOutputSchema
+> = defineTool({
     name: 'loadSkill',
     title: 'Load skill',
     description: TOOL_LOAD_SKILL_DESCRIPTION,
@@ -593,7 +883,12 @@ export const loadSkillToolDefinition = defineTool({
     agent: { outputSchema: toolLoadSkillOutputSchema },
 });
 
-export const loadProjectContextToolDefinition = defineTool({
+export const loadProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'loadProjectContext',
+    typeof toolLoadProjectContextArgsSchema,
+    typeof toolLoadProjectContextArgsSchema,
+    typeof toolLoadProjectContextOutputSchema
+> = defineTool({
     name: 'loadProjectContext',
     title: 'Load project context',
     description: TOOL_LOAD_PROJECT_CONTEXT_DESCRIPTION,
@@ -602,16 +897,12 @@ export const loadProjectContextToolDefinition = defineTool({
     agent: { outputSchema: toolLoadProjectContextOutputSchema },
 });
 
-export const proposeChangeToolDefinition = defineTool({
-    name: 'proposeChange',
-    title: 'Propose change',
-    description: TOOL_PROPOSE_CHANGE_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolProposeChangeArgsSchema,
-    agent: { outputSchema: toolProposeChangeOutputSchema },
-});
-
-export const editDbtProjectToolDefinition = defineTool({
+export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'editDbtProject',
+    typeof toolEditDbtProjectArgsSchema,
+    typeof toolEditDbtProjectArgsSchema,
+    typeof toolEditDbtProjectOutputSchema
+> = defineTool({
     name: 'editDbtProject',
     title: 'Edit dbt project',
     description: TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
@@ -620,7 +911,12 @@ export const editDbtProjectToolDefinition = defineTool({
     agent: { outputSchema: toolEditDbtProjectOutputSchema },
 });
 
-export const editProjectContextToolDefinition = defineTool({
+export const editProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'editProjectContext',
+    typeof toolEditProjectContextArgsSchema,
+    typeof toolEditProjectContextArgsSchema,
+    typeof toolEditProjectContextOutputSchema
+> = defineTool({
     name: 'editProjectContext',
     title: 'Edit project context',
     description: TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION,
@@ -629,7 +925,26 @@ export const editProjectContextToolDefinition = defineTool({
     agent: { outputSchema: toolEditProjectContextOutputSchema },
 });
 
-export const syncDbtProjectToolDefinition = defineTool({
+export const editRepoToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'editRepo',
+    typeof toolEditRepoArgsSchema,
+    typeof toolEditRepoArgsSchema,
+    typeof toolEditRepoOutputSchema
+> = defineTool({
+    name: 'editRepo',
+    title: 'Edit repository',
+    description: TOOL_EDIT_REPO_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolEditRepoArgsSchema,
+    agent: { outputSchema: toolEditRepoOutputSchema },
+});
+
+export const syncDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'syncDbtProject',
+    typeof toolSyncDbtProjectArgsSchema,
+    typeof toolSyncDbtProjectArgsSchema,
+    typeof toolSyncDbtProjectOutputSchema
+> = defineTool({
     name: 'syncDbtProject',
     title: 'Sync dbt project',
     description: TOOL_SYNC_DBT_PROJECT_DESCRIPTION,
@@ -638,7 +953,12 @@ export const syncDbtProjectToolDefinition = defineTool({
     agent: { outputSchema: toolSyncDbtProjectOutputSchema },
 });
 
-export const exploreRepoToolDefinition = defineTool({
+export const exploreRepoToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'exploreRepo',
+    typeof toolExploreRepoArgsSchema,
+    typeof toolExploreRepoArgsSchema,
+    typeof toolExploreRepoOutputSchema
+> = defineTool({
     name: 'exploreRepo',
     title: 'Explore repository',
     description: TOOL_EXPLORE_REPO_DESCRIPTION,
@@ -647,7 +967,12 @@ export const exploreRepoToolDefinition = defineTool({
     agent: { outputSchema: toolExploreRepoOutputSchema },
 });
 
-export const discoverReposToolDefinition = defineTool({
+export const discoverReposToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'discoverRepos',
+    typeof toolDiscoverReposArgsSchema,
+    typeof toolDiscoverReposArgsSchema,
+    typeof toolDiscoverReposOutputSchema
+> = defineTool({
     name: 'discoverRepos',
     title: 'Discover repositories',
     description: TOOL_DISCOVER_REPOS_DESCRIPTION,
@@ -656,7 +981,54 @@ export const discoverReposToolDefinition = defineTool({
     agent: { outputSchema: toolDiscoverReposOutputSchema },
 });
 
-export const setupPreviewDeployToolDefinition = defineTool({
+export const listWorkstreamsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listWorkstreams',
+    typeof toolListWorkstreamsArgsSchema,
+    typeof toolListWorkstreamsArgsSchema,
+    typeof toolListWorkstreamsOutputSchema
+> = defineTool({
+    name: 'listWorkstreams',
+    title: 'List pull requests',
+    description: TOOL_LIST_WORKSTREAMS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolListWorkstreamsArgsSchema,
+    agent: { outputSchema: toolListWorkstreamsOutputSchema },
+});
+
+export const closePullRequestToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'closePullRequest',
+    typeof toolClosePullRequestArgsSchema,
+    typeof toolClosePullRequestArgsSchema,
+    typeof toolClosePullRequestOutputSchema
+> = defineTool({
+    name: 'closePullRequest',
+    title: 'Close pull request',
+    description: TOOL_CLOSE_PULL_REQUEST_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolClosePullRequestArgsSchema,
+    agent: { outputSchema: toolClosePullRequestOutputSchema },
+});
+
+export const getPullRequestDiffToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'getPullRequestDiff',
+    typeof toolGetPullRequestDiffArgsSchema,
+    typeof toolGetPullRequestDiffArgsSchema,
+    typeof toolGetPullRequestDiffOutputSchema
+> = defineTool({
+    name: 'getPullRequestDiff',
+    title: 'Read pull request diff',
+    description: TOOL_GET_PULL_REQUEST_DIFF_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGetPullRequestDiffArgsSchema,
+    agent: { outputSchema: toolGetPullRequestDiffOutputSchema },
+});
+
+export const setupPreviewDeployToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'setupPreviewDeploy',
+    typeof toolSetupPreviewDeployArgsSchema,
+    typeof toolSetupPreviewDeployArgsSchema,
+    typeof toolSetupPreviewDeployOutputSchema
+> = defineTool({
     name: 'setupPreviewDeploy',
     title: 'Set up preview deploys',
     description: TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
@@ -665,7 +1037,12 @@ export const setupPreviewDeployToolDefinition = defineTool({
     agent: { outputSchema: toolSetupPreviewDeployOutputSchema },
 });
 
-export const runSavedChartToolDefinition = defineTool({
+export const runSavedChartToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'runSavedChart',
+    typeof toolRunSavedChartArgsSchema,
+    typeof toolRunSavedChartArgsSchema,
+    typeof toolRunSavedChartOutputSchema
+> = defineTool({
     name: 'runSavedChart',
     title: 'Run saved chart',
     description: TOOL_RUN_SAVED_CHART_DESCRIPTION,
@@ -674,7 +1051,12 @@ export const runSavedChartToolDefinition = defineTool({
     agent: { outputSchema: toolRunSavedChartOutputSchema },
 });
 
-export const listWarehouseTablesToolDefinition = defineTool({
+export const listWarehouseTablesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listWarehouseTables',
+    typeof toolListWarehouseTablesArgsSchema,
+    typeof toolListWarehouseTablesArgsSchema,
+    typeof toolListWarehouseTablesOutputSchema
+> = defineTool({
     name: 'listWarehouseTables',
     title: 'List warehouse tables',
     description: TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION,
@@ -683,7 +1065,12 @@ export const listWarehouseTablesToolDefinition = defineTool({
     agent: { outputSchema: toolListWarehouseTablesOutputSchema },
 });
 
-export const describeWarehouseTableToolDefinition = defineTool({
+export const describeWarehouseTableToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'describeWarehouseTable',
+    typeof toolDescribeWarehouseTableArgsSchema,
+    typeof toolDescribeWarehouseTableArgsSchema,
+    typeof toolDescribeWarehouseTableOutputSchema
+> = defineTool({
     name: 'describeWarehouseTable',
     title: 'Describe warehouse table',
     description: TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION,
@@ -692,7 +1079,12 @@ export const describeWarehouseTableToolDefinition = defineTool({
     agent: { outputSchema: toolDescribeWarehouseTableOutputSchema },
 });
 
-export const listKnowledgeDocumentsToolDefinition = defineTool({
+export const listKnowledgeDocumentsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listKnowledgeDocuments',
+    typeof toolListKnowledgeDocumentsArgsSchema,
+    typeof toolListKnowledgeDocumentsArgsSchema,
+    typeof toolListKnowledgeDocumentsOutputSchema
+> = defineTool({
     name: 'listKnowledgeDocuments',
     title: 'List knowledge documents',
     description: TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION,
@@ -701,7 +1093,12 @@ export const listKnowledgeDocumentsToolDefinition = defineTool({
     agent: { outputSchema: toolListKnowledgeDocumentsOutputSchema },
 });
 
-export const getKnowledgeDocumentContentToolDefinition = defineTool({
+export const getKnowledgeDocumentContentToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'getKnowledgeDocumentContent',
+    typeof toolGetKnowledgeDocumentContentArgsSchema,
+    typeof toolGetKnowledgeDocumentContentArgsSchema,
+    typeof toolGetKnowledgeDocumentContentOutputSchema
+> = defineTool({
     name: 'getKnowledgeDocumentContent',
     title: 'Get knowledge document content',
     description: TOOL_GET_KNOWLEDGE_DOCUMENT_CONTENT_DESCRIPTION,
@@ -710,7 +1107,12 @@ export const getKnowledgeDocumentContentToolDefinition = defineTool({
     agent: { outputSchema: toolGetKnowledgeDocumentContentOutputSchema },
 });
 
-export const readPinnedThreadToolDefinition = defineTool({
+export const readPinnedThreadToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'readPinnedThread',
+    typeof toolReadPinnedThreadArgsSchema,
+    typeof toolReadPinnedThreadArgsSchema,
+    typeof toolReadPinnedThreadOutputSchema
+> = defineTool({
     name: 'readPinnedThread',
     title: 'Read pinned conversation',
     description: TOOL_READ_PINNED_THREAD_DESCRIPTION,
@@ -719,8 +1121,76 @@ export const readPinnedThreadToolDefinition = defineTool({
     agent: { outputSchema: toolReadPinnedThreadOutputSchema },
 });
 
+const submitResearchReportOutputSchema = z.object({
+    result: z.string(),
+    metadata: z.object({ status: z.enum(['success', 'error']) }),
+});
+
+export const AI_DEEP_RESEARCH_REPORT_TOOL_NAME = 'submitResearchReport';
+
+export const submitResearchReportToolDefinition: ToolDefinitionWithoutMcpOutput<
+    typeof AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    typeof aiDeepResearchReportInputSchema,
+    typeof aiDeepResearchReportInputSchema,
+    typeof submitResearchReportOutputSchema
+> = defineTool({
+    name: AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    title: 'Submit research report',
+    description:
+        'Save the best current Deep Research report. Submit once useful findings are available and again when the investigation is complete.',
+    availability: ['agent'],
+    inputSchema: aiDeepResearchReportInputSchema,
+    agent: {
+        outputSchema: submitResearchReportOutputSchema,
+    },
+});
+
+export const AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME = 'submitResearchHypotheses';
+
+export const submitResearchHypothesesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    typeof AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
+    typeof aiDeepResearchHypothesesInputSchema,
+    typeof aiDeepResearchHypothesesInputSchema,
+    typeof submitResearchReportOutputSchema
+> = defineTool({
+    name: AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
+    title: 'Submit research hypotheses',
+    description:
+        'Submit the distinct, falsifiable hypotheses that Deep Research will investigate in parallel.',
+    availability: ['agent'],
+    inputSchema: aiDeepResearchHypothesesInputSchema,
+    agent: {
+        outputSchema: submitResearchReportOutputSchema,
+    },
+});
+
+export const AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME =
+    'submitInvestigationReport';
+
+export const submitInvestigationReportToolDefinition: ToolDefinitionWithoutMcpOutput<
+    typeof AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    typeof aiDeepResearchInvestigationReportInputSchema,
+    typeof aiDeepResearchInvestigationReportInputSchema,
+    typeof submitResearchReportOutputSchema
+> = defineTool({
+    name: AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    title: 'Submit investigation report',
+    description:
+        'Submit the structured verdict and evidence for the single hypothesis this investigation examined.',
+    availability: ['agent'],
+    inputSchema: aiDeepResearchInvestigationReportInputSchema,
+    agent: {
+        outputSchema: submitResearchReportOutputSchema,
+    },
+});
+
 /** @deprecated Legacy agent tool kept for historical tool calls. */
-export const findChartsToolDefinition = defineTool({
+export const findChartsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'findCharts',
+    typeof toolFindChartsArgsSchema,
+    typeof toolFindChartsArgsSchema,
+    typeof toolFindChartsOutputSchema
+> = defineTool({
     name: 'findCharts',
     title: 'Find charts',
     description: TOOL_FIND_CHARTS_DESCRIPTION,
@@ -730,7 +1200,12 @@ export const findChartsToolDefinition = defineTool({
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
-export const findDashboardsToolDefinition = defineTool({
+export const findDashboardsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'findDashboards',
+    typeof toolFindDashboardsArgsSchema,
+    typeof toolFindDashboardsArgsSchema,
+    typeof toolFindDashboardsOutputSchema
+> = defineTool({
     name: 'findDashboards',
     title: 'Find dashboards',
     description: TOOL_FIND_DASHBOARDS_DESCRIPTION,
@@ -740,7 +1215,12 @@ export const findDashboardsToolDefinition = defineTool({
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
-export const generateBarVizConfigToolDefinition = defineTool({
+export const generateBarVizConfigToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateBarVizConfig',
+    typeof toolVerticalBarArgsSchema,
+    typeof toolVerticalBarArgsSchemaTransformed,
+    typeof toolVerticalBarOutputSchema
+> = defineTool({
     name: 'generateBarVizConfig',
     title: 'Generate bar visualization config',
     description: TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
@@ -751,7 +1231,12 @@ export const generateBarVizConfigToolDefinition = defineTool({
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
-export const generateTableVizConfigToolDefinition = defineTool({
+export const generateTableVizConfigToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateTableVizConfig',
+    typeof toolTableVizArgsSchema,
+    typeof toolTableVizArgsSchemaTransformed,
+    typeof toolTableVizOutputSchema
+> = defineTool({
     name: 'generateTableVizConfig',
     title: 'Generate table visualization config',
     description: TOOL_TABLE_VIZ_DESCRIPTION,
@@ -762,7 +1247,12 @@ export const generateTableVizConfigToolDefinition = defineTool({
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
-export const generateTimeSeriesVizConfigToolDefinition = defineTool({
+export const generateTimeSeriesVizConfigToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'generateTimeSeriesVizConfig',
+    typeof toolTimeSeriesArgsSchema,
+    typeof toolTimeSeriesArgsSchemaTransformed,
+    typeof toolTimeSeriesOutputSchema
+> = defineTool({
     name: 'generateTimeSeriesVizConfig',
     title: 'Generate time series visualization config',
     description: TOOL_TIME_SERIES_VIZ_DESCRIPTION,
@@ -772,7 +1262,12 @@ export const generateTimeSeriesVizConfigToolDefinition = defineTool({
     agent: { outputSchema: toolTimeSeriesOutputSchema },
 });
 
-export const getLightdashVersionToolDefinition = defineTool({
+export const getLightdashVersionToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'getLightdashVersion',
+    typeof emptyInputSchema,
+    typeof emptyInputSchema,
+    undefined
+> = defineTool({
     name: 'getLightdashVersion',
     title: 'Get Lightdash version',
     description: 'Get the current Lightdash version',
@@ -781,7 +1276,12 @@ export const getLightdashVersionToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
-export const listExploresToolDefinition = defineTool({
+export const listExploresToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listExplores',
+    typeof mcpToolListExploresArgsSchema,
+    typeof mcpToolListExploresArgsSchema,
+    undefined
+> = defineTool({
     name: 'listExplores',
     title: 'List explores',
     description: MCP_TOOL_LIST_EXPLORES_DESCRIPTION,
@@ -790,7 +1290,13 @@ export const listExploresToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
-export const listSkillsToolDefinition = defineTool({
+export const listSkillsToolDefinition: ToolDefinitionWithMcpOutput<
+    'listSkills',
+    typeof toolListSkillsArgsSchema,
+    typeof toolListSkillsArgsSchema,
+    undefined,
+    typeof toolListSkillsOutputSchema
+> = defineTool({
     name: 'listSkills',
     title: 'List Skills',
     description: TOOL_LIST_SKILLS_DESCRIPTION,
@@ -802,7 +1308,13 @@ export const listSkillsToolDefinition = defineTool({
     },
 });
 
-export const readSkillToolDefinition = defineTool({
+export const readSkillToolDefinition: ToolDefinitionWithMcpOutput<
+    'readSkill',
+    typeof toolLoadSkillMcpArgsSchema,
+    typeof toolLoadSkillMcpArgsSchema,
+    undefined,
+    typeof toolLoadSkillOutputSchemaMcp
+> = defineTool({
     name: 'readSkill',
     title: 'Read Skill',
     description: TOOL_LOAD_SKILL_DESCRIPTION_MCP,
@@ -814,7 +1326,13 @@ export const readSkillToolDefinition = defineTool({
     },
 });
 
-export const readSkillResourceToolDefinition = defineTool({
+export const readSkillResourceToolDefinition: ToolDefinitionWithMcpOutput<
+    'readSkillResource',
+    typeof toolLoadSkillResourceArgsSchema,
+    typeof toolLoadSkillResourceArgsSchema,
+    undefined,
+    typeof toolLoadSkillResourceOutputSchema
+> = defineTool({
     name: 'readSkillResource',
     title: 'Read Skill Resource',
     description: TOOL_LOAD_SKILL_RESOURCE_DESCRIPTION,
@@ -826,11 +1344,16 @@ export const readSkillResourceToolDefinition = defineTool({
     },
 });
 
-export const mcpListProjectsToolDefinition = defineTool({
+export const mcpListProjectsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listProjects',
+    typeof emptyInputSchema,
+    typeof emptyInputSchema,
+    undefined
+> = defineTool({
     name: 'listProjects',
     title: 'List projects',
     description:
-        'List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations.',
+        'List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations. Each project includes a "type": prefer DEFAULT projects, which are live production environments. PREVIEW projects are ephemeral CI/PR environments that may be decommissioned — their warehouse credentials are often gone, so run_sql and run_metric_query can fail with 403 errors even when the schema is still visible. Only select a PREVIEW project if the user explicitly asks for it.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -840,16 +1363,21 @@ export const setProjectToolDefinition = defineTool({
     name: 'setProject',
     title: 'Set project',
     description:
-        'Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.',
+        'Set the active project for all subsequent MCP operations. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string(),
         tags: z.array(z.string()).optional(),
     }),
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: { annotations: contextWriteAnnotations },
 });
 
-export const getCurrentProjectToolDefinition = defineTool({
+export const getCurrentProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'getCurrentProject',
+    typeof emptyInputSchema,
+    typeof emptyInputSchema,
+    undefined
+> = defineTool({
     name: 'getCurrentProject',
     title: 'Get current project',
     description:
@@ -871,7 +1399,13 @@ export const listAgentsToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
-export const routeAgentToolDefinition = defineTool({
+export const routeAgentToolDefinition: ToolDefinitionWithMcpOutput<
+    'routeAgent',
+    typeof routeAgentArgsSchema,
+    typeof routeAgentArgsSchema,
+    undefined,
+    typeof routeAgentStructuredOutputSchema
+> = defineTool({
     name: 'routeAgent',
     title: 'Route agent',
     description:
@@ -888,25 +1422,35 @@ export const setAgentToolDefinition = defineTool({
     name: 'setAgent',
     title: 'Set agent',
     description:
-        "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+        "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
     availability: ['mcp'],
     inputSchema: z.object({
         agentUuid: z.string(),
     }),
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: { annotations: contextWriteAnnotations },
 });
 
-export const clearAgentToolDefinition = defineTool({
+export const clearAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'clearAgent',
+    typeof emptyInputSchema,
+    typeof emptyInputSchema,
+    undefined
+> = defineTool({
     name: 'clearAgent',
     title: 'Clear agent',
     description:
         "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
-    mcp: { annotations: readOnlyAnnotations },
+    mcp: { annotations: contextWriteAnnotations },
 });
 
-export const getCurrentAgentToolDefinition = defineTool({
+export const getCurrentAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'getCurrentAgent',
+    typeof emptyInputSchema,
+    typeof emptyInputSchema,
+    undefined
+> = defineTool({
     name: 'getCurrentAgent',
     title: 'Get current agent',
     description:
@@ -916,17 +1460,28 @@ export const getCurrentAgentToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
-export const listVerifiedContentToolDefinition = defineTool({
+export const listVerifiedContentToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listVerifiedContent',
+    typeof emptyInputSchema,
+    typeof emptyInputSchema,
+    undefined
+> = defineTool({
     name: 'listVerifiedContent',
     title: 'List verified content',
     description:
-        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, space, and verification metadata (who verified it and when).',
+        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
 });
 
-export const runAiWritebackToolDefinition = defineTool({
+export const runAiWritebackToolDefinition: ToolDefinitionWithMcpOutput<
+    'runAiWriteback',
+    typeof mcpRunAiWritebackArgsSchema,
+    typeof mcpRunAiWritebackArgsSchema,
+    undefined,
+    typeof mcpRunAiWritebackStructuredOutputSchema
+> = defineTool({
     name: 'runAiWriteback',
     title: 'Run AI writeback',
     description: MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION,
@@ -935,6 +1490,24 @@ export const runAiWritebackToolDefinition = defineTool({
     mcp: {
         annotations: writeAnnotations,
         structuredContentSchema: mcpRunAiWritebackStructuredOutputSchema,
+    },
+});
+
+export const getAiWritebackStatusToolDefinition: ToolDefinitionWithMcpOutput<
+    'getAiWritebackStatus',
+    typeof mcpGetAiWritebackStatusArgsSchema,
+    typeof mcpGetAiWritebackStatusArgsSchema,
+    undefined,
+    typeof mcpGetAiWritebackStatusStructuredOutputSchema
+> = defineTool({
+    name: 'getAiWritebackStatus',
+    title: 'Get AI writeback status',
+    description: MCP_TOOL_GET_AI_WRITEBACK_STATUS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpGetAiWritebackStatusArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetAiWritebackStatusStructuredOutputSchema,
     },
 });
 
@@ -949,24 +1522,32 @@ type AgentToolDefinitionsByName = {
     runQuery: typeof runQueryToolDefinition;
     runSql: typeof runSqlToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
+    grepFields: typeof grepFieldsToolDefinition;
+    getMetadata: typeof getMetadataToolDefinition;
     generateDashboard: typeof generateDashboardToolDefinition;
     generateHashes: typeof generateHashesToolDefinition;
     generateUuids: typeof generateUuidsToolDefinition;
     getDashboardCharts: typeof getDashboardChartsToolDefinition;
     readContent: typeof readContentToolDefinition;
+    resolveUrl: typeof resolveUrlToolDefinition;
     editContent: typeof editContentToolDefinition;
     createContent: typeof createContentToolDefinition;
+    createScheduledDelivery: typeof createScheduledDeliveryToolDefinition;
+    updateUserName: typeof updateUserNameToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
     improveContext: typeof improveContextToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
     loadProjectContext: typeof loadProjectContextToolDefinition;
-    proposeChange: typeof proposeChangeToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
+    editRepo: typeof editRepoToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
+    listWorkstreams: typeof listWorkstreamsToolDefinition;
+    closePullRequest: typeof closePullRequestToolDefinition;
+    getPullRequestDiff: typeof getPullRequestDiffToolDefinition;
     setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
@@ -974,6 +1555,9 @@ type AgentToolDefinitionsByName = {
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
+    submitResearchReport: typeof submitResearchReportToolDefinition;
+    submitResearchHypotheses: typeof submitResearchHypothesesToolDefinition;
+    submitInvestigationReport: typeof submitInvestigationReportToolDefinition;
     findCharts: typeof findChartsToolDefinition;
     findDashboards: typeof findDashboardsToolDefinition;
     generateBarVizConfig: typeof generateBarVizConfigToolDefinition;
@@ -994,24 +1578,32 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     runQuery: runQueryToolDefinition,
     runSql: runSqlToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
+    grepFields: grepFieldsToolDefinition,
+    getMetadata: getMetadataToolDefinition,
     generateDashboard: generateDashboardToolDefinition,
     generateHashes: generateHashesToolDefinition,
     generateUuids: generateUuidsToolDefinition,
     getDashboardCharts: getDashboardChartsToolDefinition,
     readContent: readContentToolDefinition,
+    resolveUrl: resolveUrlToolDefinition,
     editContent: editContentToolDefinition,
     createContent: createContentToolDefinition,
+    createScheduledDelivery: createScheduledDeliveryToolDefinition,
+    updateUserName: updateUserNameToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
     improveContext: improveContextToolDefinition,
     loadSkill: loadSkillToolDefinition,
     loadProjectContext: loadProjectContextToolDefinition,
-    proposeChange: proposeChangeToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
+    editRepo: editRepoToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
+    listWorkstreams: listWorkstreamsToolDefinition,
+    closePullRequest: closePullRequestToolDefinition,
+    getPullRequestDiff: getPullRequestDiffToolDefinition,
     setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
@@ -1019,6 +1611,9 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
+    submitResearchReport: submitResearchReportToolDefinition,
+    submitResearchHypotheses: submitResearchHypothesesToolDefinition,
+    submitInvestigationReport: submitInvestigationReportToolDefinition,
     findCharts: findChartsToolDefinition,
     findDashboards: findDashboardsToolDefinition,
     generateBarVizConfig: generateBarVizConfigToolDefinition,
@@ -1041,24 +1636,32 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getQueryResultToolDefinition,
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
+    grepFieldsToolDefinition,
+    getMetadataToolDefinition,
     generateDashboardToolDefinition,
     generateHashesToolDefinition,
     generateUuidsToolDefinition,
     getDashboardChartsToolDefinition,
     readContentToolDefinition,
+    resolveUrlToolDefinition,
     editContentToolDefinition,
     createContentToolDefinition,
+    createScheduledDeliveryToolDefinition,
+    updateUserNameToolDefinition,
     runContentQueryToolDefinition,
     listContentToolDefinition,
     improveContextToolDefinition,
     loadSkillToolDefinition,
     loadProjectContextToolDefinition,
-    proposeChangeToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
+    editRepoToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,
+    listWorkstreamsToolDefinition,
+    closePullRequestToolDefinition,
+    getPullRequestDiffToolDefinition,
     setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
@@ -1066,6 +1669,9 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,
+    submitResearchReportToolDefinition,
+    submitResearchHypothesesToolDefinition,
+    submitInvestigationReportToolDefinition,
     findChartsToolDefinition,
     findDashboardsToolDefinition,
     generateBarVizConfigToolDefinition,

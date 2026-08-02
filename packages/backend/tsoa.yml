@@ -1,5 +1,8 @@
 entryFile: src/index.ts
 controllerPathGlobs:
+    # Literal content-as-code routes must be registered before routes such as
+    # /spaces/{spaceUuid}, otherwise Express treats "code" as a UUID.
+    - src/controllers/ProjectCoderController.ts
     - src/**/*Controller.ts
 spec:
     name: Lightdash API

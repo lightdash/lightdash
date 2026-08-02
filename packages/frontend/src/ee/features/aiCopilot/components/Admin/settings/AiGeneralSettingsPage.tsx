@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
     Badge,
@@ -16,8 +17,9 @@ import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { getModelKey } from '../../../../../../components/common/ModelSelector/utils';
-import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
+import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
+import { useServerFeatureFlag } from '../../../../../../hooks/useServerOrClientFeatureFlag';
 import {
     getAiAgentModelConfig,
     getModelOptionByKey,
@@ -31,6 +33,7 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
+import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
 
@@ -40,6 +43,11 @@ export const AiGeneralSettingsPage = () => {
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
 
+    const orgAiProviderKeysFlag = useServerFeatureFlag(
+        FeatureFlags.OrgAiProviderApiKeys,
+    );
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+
     const aiRouterQuery = useAiRouterConfig();
     const isRouterEnabled = aiRouterQuery.data?.enabled ?? false;
     const isRouterLoading = aiRouterQuery.isInitialLoading;
@@ -47,6 +55,11 @@ export const AiGeneralSettingsPage = () => {
         useUpsertAiRouterConfig();
     const defaultModelConfig = settings?.defaultAiAgentModelConfig ?? null;
     const defaultModelOptions = settings?.defaultAiAgentModelOptions;
+    // Reviews run on the org's own key; paused when that key can't serve the
+    // review model (computed on the backend).
+    const reviewsPausedByByok = settings?.aiAgentReviewsPausedByByok ?? false;
+    const reviewsEffectivelyOn =
+        Boolean(settings?.aiAgentReviewsEnabled) && !reviewsPausedByByok;
     const {
         fallbackModelLabel: systemDefaultModelLabel,
         selectedModel: selectedDefaultModel,
@@ -59,14 +72,10 @@ export const AiGeneralSettingsPage = () => {
     });
 
     return (
-        <Stack mb="lg" gap="md">
-            <PageBreadcrumbs
-                items={[
-                    { title: 'Ask AI', to: '/generalSettings/ai/general' },
-                    { title: 'General', active: true },
-                ]}
-            />
-
+        <SettingsPage
+            title="Ask AI"
+            description="Configure organization-wide AI features, providers, and defaults."
+        >
             {isSettingsLoading || !settings ? (
                 <Group justify="center" mt="xl">
                     <Loader size="sm" />
@@ -225,6 +234,38 @@ export const AiGeneralSettingsPage = () => {
                         </Stack>
                     </SettingsCard>
 
+                    {orgAiProviderKeysFlag.data?.enabled &&
+                        settings.isCopilotEnabled && (
+                            <AiProvidersCard
+                                providerApiKeysSet={settings.providerApiKeysSet}
+                                providerApiKeyHints={
+                                    settings.providerApiKeyHints
+                                }
+                                modelVisibility={
+                                    settings.modelVisibility ?? null
+                                }
+                                configurableModelOptions={
+                                    settings.configurableModelOptions ?? null
+                                }
+                                dataAppModelVisibility={
+                                    settings.dataAppModelVisibility ?? null
+                                }
+                                showDataAppModels={
+                                    dataAppsFlag.data?.enabled === true
+                                }
+                                disabled={isUpdatingSettings}
+                                onUpdateKeys={(providerApiKeys) =>
+                                    updateSettings({ providerApiKeys })
+                                }
+                                onUpdateVisibility={(modelVisibility) =>
+                                    updateSettings({ modelVisibility })
+                                }
+                                onUpdateDataAppVisibility={(
+                                    dataAppModelVisibility,
+                                ) => updateSettings({ dataAppModelVisibility })}
+                            />
+                        )}
+
                     <SettingsCard>
                         <Stack gap="md">
                             <Group
@@ -247,26 +288,38 @@ export const AiGeneralSettingsPage = () => {
                                         For connected projects, Lightdash can
                                         suggest pull requests that improve
                                         context and dbt definitions.
-                                        {settings.aiAgentReviewsEnabled && (
+                                        {reviewsEffectivelyOn && (
                                             <>
                                                 {' '}
-                                                See findings in{' '}
+                                                See issues in{' '}
                                                 <Anchor
                                                     component={Link}
-                                                    to="/generalSettings/ai/reviews"
+                                                    to="/generalSettings/ai/issues"
                                                     fz="inherit"
                                                 >
-                                                    Ask AI &gt; Reviews
+                                                    Ask AI &gt; Issues
                                                 </Anchor>
                                                 .
                                             </>
                                         )}
                                     </Text>
+                                    {reviewsPausedByByok && (
+                                        <Text c="dimmed" fz="xs" mt={4}>
+                                            Paused — your AI provider key
+                                            can&apos;t run the review model
+                                            (Claude Haiku). Reviews run on your
+                                            own key, so they resume when it has
+                                            access.
+                                        </Text>
+                                    )}
                                 </Box>
                                 <Switch
                                     size="md"
-                                    checked={settings.aiAgentReviewsEnabled}
-                                    disabled={isUpdatingSettings}
+                                    checked={reviewsEffectivelyOn}
+                                    disabled={
+                                        isUpdatingSettings ||
+                                        reviewsPausedByByok
+                                    }
                                     onChange={(event) =>
                                         updateSettings({
                                             aiAgentReviewsEnabled:
@@ -276,7 +329,7 @@ export const AiGeneralSettingsPage = () => {
                                 />
                             </Group>
 
-                            {settings.aiAgentReviewsEnabled && (
+                            {reviewsEffectivelyOn && (
                                 <ReviewNotificationsSettings />
                             )}
                         </Stack>
@@ -362,6 +415,6 @@ export const AiGeneralSettingsPage = () => {
                     </SettingsCard>
                 </>
             )}
-        </Stack>
+        </SettingsPage>
     );
 };

@@ -3,13 +3,7 @@ import {
     getErrorMessage,
     type Space,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    MantineProvider,
-    useMantineColorScheme,
-    type DefaultMantineColor,
-} from '@mantine/core';
+import { Button, Group, type DefaultMantineColor } from '@mantine-8/core';
 import { useForm, zodResolver, type UseFormReturnType } from '@mantine/form';
 import { type Icon } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -77,7 +71,6 @@ const SpaceModal: FC<ActionModalProps> = ({
     parentSpaceUuid,
 }) => {
     const { showToastError } = useToaster();
-    const { colorScheme } = useMantineColorScheme();
 
     const isNestedSpace = !!parentSpaceUuid;
     const [inheritanceValue, setInheritanceValue] = useState<InheritanceType>(
@@ -128,55 +121,50 @@ const SpaceModal: FC<ActionModalProps> = ({
     }
 
     return (
-        <MantineProvider inherit theme={{ colorScheme }}>
-            <MantineModal
-                opened
-                size="lg"
-                icon={icon}
-                title={title}
-                onClose={onClose}
-                actions={
-                    <Group spacing="xs" position="right">
-                        <Button
-                            type="submit"
-                            disabled={isDisabled || !form.isValid}
-                            color={confirmButtonColor}
-                            loading={isLoading}
-                            form="form-space-action-modal"
-                        >
-                            {confirmButtonLabel}
-                        </Button>
-                    </Group>
-                }
+        <MantineModal
+            opened
+            size="lg"
+            icon={icon}
+            title={title}
+            onClose={onClose}
+            actions={
+                <Group gap="xs" justify="flex-end">
+                    <Button
+                        type="submit"
+                        disabled={isDisabled || !form.isValid}
+                        color={confirmButtonColor}
+                        loading={isLoading}
+                        form="form-space-action-modal"
+                    >
+                        {confirmButtonLabel}
+                    </Button>
+                </Group>
+            }
+        >
+            <form
+                name={title}
+                onSubmit={form.onSubmit(handleSubmit)}
+                id="form-space-action-modal"
             >
-                <form
-                    name={title}
-                    onSubmit={form.onSubmit(handleSubmit)}
-                    id="form-space-action-modal"
-                >
-                    {actionType === ActionType.CREATE ? (
-                        <CreateSpaceModalContent
-                            form={form}
-                            projectUuid={projectUuid}
-                            parentSpaceUuid={parentSpaceUuid}
-                            inheritanceValue={inheritanceValue}
-                            onInheritanceChange={setInheritanceValue}
-                        />
-                    ) : actionType === ActionType.UPDATE ? (
-                        <UpdateSpaceModalContent
-                            data={data}
-                            form={form}
-                            projectUuid={projectUuid}
-                        />
-                    ) : (
-                        assertUnreachable(
-                            actionType,
-                            'Unexpected action in space',
-                        )
-                    )}
-                </form>
-            </MantineModal>
-        </MantineProvider>
+                {actionType === ActionType.CREATE ? (
+                    <CreateSpaceModalContent
+                        form={form}
+                        projectUuid={projectUuid}
+                        parentSpaceUuid={parentSpaceUuid}
+                        inheritanceValue={inheritanceValue}
+                        onInheritanceChange={setInheritanceValue}
+                    />
+                ) : actionType === ActionType.UPDATE ? (
+                    <UpdateSpaceModalContent
+                        data={data}
+                        form={form}
+                        projectUuid={projectUuid}
+                    />
+                ) : (
+                    assertUnreachable(actionType, 'Unexpected action in space')
+                )}
+            </form>
+        </MantineModal>
     );
 };
 

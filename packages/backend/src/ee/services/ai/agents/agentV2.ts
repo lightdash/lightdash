@@ -3,6 +3,8 @@ import {
     AnyType,
     assertUnreachable,
     Explore,
+    type AiDeepResearchBudget,
+    type AiDeepResearchExecutionContextSnapshot,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -11,19 +13,33 @@ import {
     stepCountIs,
     streamText,
     StreamTextResult,
+    type LanguageModelUsage,
     type ModelMessage,
     type Output,
     type ToolSet,
 } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
+import {
+    getAiDeepResearchInvestigatorInstructions,
+    getAiDeepResearchJudgeInstructions,
+    getAiDeepResearchPlannerInstructions,
+} from '../../AiDeepResearchService/AiDeepResearchAgent';
+import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
+import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
+import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
 import { getEditDbtProject } from '../tools/editDbtProject';
 import { getEditProjectContext } from '../tools/editProjectContext';
+import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
@@ -32,23 +48,39 @@ import { getGenerateUuids } from '../tools/generateUuids';
 import { getGenerateVisualization } from '../tools/generateVisualization';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
+import { getGetMetadata } from '../tools/getMetadata';
 import { getGetProjectInfo } from '../tools/getProjectInfo';
+import { getGetPullRequestDiff } from '../tools/getPullRequestDiff';
+import { getGrepFields } from '../tools/grepFields';
+import {
+    buildFieldIndex,
+    extractKeywords,
+    renderCandidateBlock,
+    selectCandidateFields,
+} from '../tools/grepFieldsIndex';
 import { getImproveContext } from '../tools/improveContext';
 import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
+import { getListWorkstreams } from '../tools/listWorkstreams';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
+import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
+import { getResolveUrl } from '../tools/resolveUrl';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import { getSubmitInvestigationReport } from '../tools/submitInvestigationReport';
+import { getSubmitResearchHypotheses } from '../tools/submitResearchHypotheses';
+import { getSubmitResearchReport } from '../tools/submitResearchReport';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
+import { getUpdateUserName } from '../tools/updateUserName';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -57,11 +89,18 @@ import type {
 } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
 import {
+    AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
-import { summarizeToolCall, summarizeToolResult } from '../utils/toolSummaries';
+import { renderMemoryBlock } from '../utils/memoryBlock';
+import {
+    isPendingToolResult,
+    summarizeToolCall,
+    summarizeToolResult,
+} from '../utils/toolSummaries';
 import { getDiscoverFields } from './discoverFields/tool';
+import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 
 const createAiAgentLogger =
@@ -71,7 +110,92 @@ const createAiAgentLogger =
         }
     };
 
-const STEP_CAP = 40;
+export const recordAgentStepUsage = async ({
+    usage,
+    telemetry,
+    execution,
+}: {
+    usage: LanguageModelUsage;
+    telemetry: ReturnType<typeof getAgentTelemetryConfig>;
+    execution: AiAgentArgs['execution'];
+}) => {
+    const tokens = languageModelUsageToTokens(usage);
+    emitAiUsage(telemetry, tokens);
+    if (execution.mode === 'deep_research') {
+        await execution.onStepUsage?.({
+            runUuid: execution.runUuid,
+            phase: execution.phase,
+            tokens,
+        });
+    }
+    return tokens;
+};
+
+export const DEFAULT_AGENT_MAX_STEPS = 40;
+
+const PERSIST_TIMEOUT_MS = 10_000;
+
+/**
+ * Decorates updatePrompt with the stream-close contract: awaiting it never
+ * throws and never holds the HTTP stream open past PERSIST_TIMEOUT_MS (the
+ * write continues in the background on timeout). If persisting a response
+ * fails outright, the update degrades to an error marker so a later page load
+ * shows a retry card instead of a silently vanished answer.
+ */
+const makeStreamSafePersist = (
+    updatePrompt: AiAgentDependencies['updatePrompt'],
+    modelName: string,
+) => {
+    const report = (error: unknown) => {
+        Logger.error('[AiAgent][Persist] Failed to persist prompt', error);
+        Sentry.captureException(error, {
+            tags: { 'ai.model': modelName },
+        });
+    };
+
+    const bounded = async (
+        update: Parameters<AiAgentDependencies['updatePrompt']>[0],
+    ): Promise<'persisted' | 'timeout' | 'failed'> => {
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            const persist = updatePrompt(update);
+            const outcome = await Promise.race([
+                persist.then(() => 'persisted' as const),
+                new Promise<'timeout'>((resolve) => {
+                    timer = setTimeout(
+                        () => resolve('timeout'),
+                        PERSIST_TIMEOUT_MS,
+                    );
+                }),
+            ]);
+            if (outcome === 'timeout') {
+                Logger.warn(
+                    `[AiAgent][Persist] Persist exceeded ${PERSIST_TIMEOUT_MS}ms, continuing in background`,
+                );
+                persist.catch(report);
+            }
+            return outcome;
+        } catch (error) {
+            report(error);
+            return 'failed';
+        } finally {
+            clearTimeout(timer);
+        }
+    };
+
+    return async (
+        update: Parameters<AiAgentDependencies['updatePrompt']>[0],
+    ): Promise<void> => {
+        const outcome = await bounded(update);
+        if (outcome === 'failed' && update.response !== undefined) {
+            await bounded({
+                promptUuid: update.promptUuid,
+                errorMessage:
+                    'Something went wrong while saving the response. Please try again.',
+            });
+        }
+    };
+};
 
 const withToolHints = (
     messageHistory: ModelMessage[],
@@ -96,11 +220,135 @@ const withToolHints = (
     ];
 };
 
+/**
+ * Zero-LLM discovery seed: deterministically grep the catalog for the latest
+ * user question's keywords and append the candidate fields to that message, so
+ * the agent often has the right fields on its first turn and can skip the
+ * discovery round-trip. Advisory only — the agent still verifies and can grep
+ * for itself. Appended to the (uncached) user message, never the system prompt.
+ */
+const withPreGrepCandidates = (
+    messageHistory: ModelMessage[],
+    availableExplores: Explore[],
+    verifiedFieldUsage: Map<string, number>,
+): ModelMessage[] => {
+    const lastUserIndex = messageHistory.findLastIndex(
+        (m) => m.role === 'user',
+    );
+    if (lastUserIndex === -1) return messageHistory;
+    const lastUser = messageHistory[lastUserIndex];
+    if (lastUser.role !== 'user') return messageHistory;
+    const userText =
+        typeof lastUser.content === 'string'
+            ? lastUser.content
+            : lastUser.content
+                  .map((part) => (part.type === 'text' ? part.text : ''))
+                  .join(' ');
+    const keywords = extractKeywords(userText);
+    if (keywords.length === 0) return messageHistory;
+    const candidates = selectCandidateFields(
+        buildFieldIndex(availableExplores, verifiedFieldUsage),
+        keywords,
+    );
+    if (candidates.length === 0) return messageHistory;
+    const seed = `\n\n${renderCandidateBlock(candidates)}`;
+    const updatedContent =
+        typeof lastUser.content === 'string'
+            ? `${lastUser.content}${seed}`
+            : [...lastUser.content, { type: 'text' as const, text: seed }];
+    return [
+        ...messageHistory.slice(0, lastUserIndex),
+        { ...lastUser, content: updatedContent } as ModelMessage,
+        ...messageHistory.slice(lastUserIndex + 1),
+    ];
+};
+
 export type AgentMcpToolSetup = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
+};
+
+export const buildDeepResearchExecutionContextSnapshot = (
+    args: AiAgentArgs,
+    tools: ToolSet,
+    mcpToolSetup: AgentMcpToolSetup,
+): AiDeepResearchExecutionContextSnapshot => ({
+    schemaVersion: 1,
+    resolutionStage: 'execution',
+    capturedAt: new Date().toISOString(),
+    agent: {
+        uuid: args.agentSettings.uuid,
+        name: args.agentSettings.name,
+        version: args.agentSettings.version,
+        updatedAt: args.agentSettings.updatedAt.toISOString(),
+        hasInstruction: Boolean(args.agentSettings.instruction),
+        tags: args.agentSettings.tags,
+        spaceAccess: args.agentSettings.spaceAccess,
+        enableDataAccess: args.agentSettings.enableDataAccess,
+        enableSelfImprovement: args.agentSettings.enableSelfImprovement,
+        enableContentTools: args.agentSettings.enableContentTools,
+        enableUserContext: args.agentSettings.enableUserContext,
+    },
+    model: {
+        provider: args.model.provider,
+        modelName: getAiAgentModelName(args.model),
+        reasoningEnabled: args.modelReasoningEnabled,
+        keyManagement: args.keyManagement,
+    },
+    tools: {
+        availableToolNames: Object.keys(tools).sort(),
+        attachedMcpServers: args.mcpServers.map((server) => ({
+            uuid: server.uuid,
+            name: server.name,
+            enabledToolNames: Object.entries(
+                mcpToolSetup.mcpToolNameToServerUuid,
+            )
+                .filter(([, serverUuid]) => serverUuid === server.uuid)
+                .map(([toolName]) => toolName)
+                .sort(),
+        })),
+    },
+    knowledgeDocuments: args.knowledgeDocuments.map((document) => ({
+        uuid: document.uuid,
+        name: document.name,
+        updatedAt: document.updatedAt.toISOString(),
+        alwaysIncludeInContext: document.alwaysIncludeInContext,
+    })),
+    repository: {
+        projectContextEnabled: args.projectContextEnabled,
+        aiWritebackEnabled: args.enableAiWriteback,
+        codingAgentEnabled: args.enableCodingAgent,
+        previewDeploySetupEnabled: args.enablePreviewDeploySetup,
+        repoDiscoveryEnabled: args.enableRepoDiscovery,
+        repoFsRoot: args.repoFsRoot,
+        repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+        availableSkillNames: args.availableSkills
+            .map((skill) => skill.name)
+            .sort(),
+    },
+    effectivePermissions: {
+        canManageAgent: args.canManageAgent,
+        canRunSql: args.canRunSql,
+        canUseDataTools: args.enableDataAccess,
+        canUseContentTools: args.enableDataAccess && args.enableContentTools,
+        canUseSelfImprovementTools: args.canManageAgent,
+        autoApproveSql: args.autoApproveSql,
+    },
+});
+
+const persistDeepResearchExecutionContext = async (
+    args: AiAgentArgs,
+    tools: ToolSet,
+    mcpToolSetup: AgentMcpToolSetup,
+): Promise<void> => {
+    if (args.execution.mode !== 'deep_research') {
+        return;
+    }
+    await args.execution.onExecutionContextResolved?.(
+        buildDeepResearchExecutionContextSnapshot(args, tools, mcpToolSetup),
+    );
 };
 
 export const normalizeToolOutput = (
@@ -134,11 +382,82 @@ export const normalizeToolOutput = (
     }
 };
 
+// Raw args of an invalid tool call: may be a parsed object or, when JSON
+// parsing itself failed, the raw string the model produced.
+const serializeRawToolArgs = (input: unknown): string | null => {
+    if (input === undefined) return null;
+    if (typeof input === 'string') return input;
+    try {
+        return JSON.stringify(input) ?? null;
+    } catch {
+        return String(input);
+    }
+};
+
+export const storeInvalidAgentToolCall = async ({
+    storeToolCallError,
+    promptUuid,
+    toolCall,
+    executionMode,
+}: {
+    storeToolCallError: AiAgentDependencies['storeToolCallError'];
+    promptUuid: string;
+    toolCall: {
+        toolCallId: string;
+        toolName: string;
+        input: unknown;
+        error?: unknown;
+    };
+    executionMode: AiAgentArgs['execution']['mode'];
+}) => {
+    const storeError = storeToolCallError({
+        promptUuid,
+        toolCallId: toolCall.toolCallId,
+        toolName: toolCall.toolName,
+        errorMessage:
+            toolCall.error instanceof Error
+                ? toolCall.error.message
+                : String(toolCall.error),
+        rawArgs: serializeRawToolArgs(toolCall.input),
+    });
+    if (executionMode === 'deep_research') {
+        await storeError;
+    } else {
+        void storeError.catch((error) => {
+            Logger.error(
+                '[AiAgent][On Step Finish] Failed to store invalid tool call',
+                error,
+            );
+        });
+    }
+};
+
+const QUERY_RETRY_CAP_TOOL_NAME = '__query_retry_cap';
+
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
-    stopWhen: stepCountIs(STEP_CAP),
+    stopWhen: stepCountIs(DEFAULT_AGENT_MAX_STEPS),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
+
+const buildStopWhenPromptInterrupted =
+    (
+        args: AiAgentArgs,
+        dependencies: AiAgentDependencies,
+        logger: ReturnType<typeof createAiAgentLogger>,
+    ) =>
+    async () => {
+        const interrupted = await dependencies.isPromptInterrupted(
+            args.promptUuid,
+        );
+        if (interrupted) {
+            logger(
+                'Stop When',
+                `Stopping generation for interrupted prompt UUID: ${args.promptUuid}`,
+            );
+        }
+        return interrupted;
+    };
 
 /**
  * When forceToolHints is set, force the first hinted tool on the opening step
@@ -146,7 +465,7 @@ export const defaultAgentOptions = {
  * to guarantee the agent opens a PR via editDbtProject rather than just
  * discussing the fix. No-op if the forced tool isn't in the registered set.
  */
-const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
+export const buildForcedFirstStep = (args: AiAgentArgs, tools: ToolSet) => {
     if (!args.forceToolHints) return undefined;
     const forcedTool = args.toolHints[0];
     if (!forcedTool || !(forcedTool in tools)) return undefined;
@@ -161,13 +480,18 @@ const buildPrepareStep = ({
     dependencies,
     tools,
     logger,
+    invalidToolCallIds,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
     tools: ToolSet;
     logger: ReturnType<typeof createAiAgentLogger>;
+    // Ids of tool calls the AI SDK dropped for invalid input, recorded by
+    // onStepFinish/onChunk as the turn progresses (shared mutable set).
+    invalidToolCallIds: ReadonlySet<string>;
 }) => {
     const forcedFirstStep = buildForcedFirstStep(args, tools);
+    let retryCapPersisted = false;
 
     return async ({
         stepNumber,
@@ -177,39 +501,84 @@ const buildPrepareStep = ({
         messages: ModelMessage[];
     }) => {
         const forced = forcedFirstStep?.({ stepNumber }) ?? {};
+
+        const extraMessages: ModelMessage[] = [];
+        let activeTools: string[] | undefined;
+
+        // ZAP-574: bound repeated query-tool failures so a slow/looping
+        // visualization can't stack multi-minute warehouse scans in one turn.
+        const retryOverride = buildQueryRetryStepOverride(
+            messages,
+            Object.keys(tools),
+            invalidToolCallIds,
+        );
+        if (retryOverride) {
+            activeTools = retryOverride.activeTools;
+            extraMessages.push({
+                role: 'user' as const,
+                content: retryOverride.nudge,
+            });
+            logger(
+                'Prepare Step',
+                `Query retry cap tripped for prompt UUID: ${args.promptUuid}`,
+            );
+            // Once per prompt: leave a debugging trail that the query tools
+            // were removed this turn (the cap stays tripped on later steps).
+            if (!retryCapPersisted) {
+                retryCapPersisted = true;
+                void dependencies
+                    .storeToolCallError({
+                        promptUuid: args.promptUuid,
+                        toolCallId: `${QUERY_RETRY_CAP_TOOL_NAME}-${args.promptUuid}`,
+                        toolName: QUERY_RETRY_CAP_TOOL_NAME,
+                        errorMessage: retryOverride.nudge,
+                        rawArgs: null,
+                    })
+                    .catch((error) => {
+                        Logger.error(
+                            '[AiAgent][Prepare Step] Failed to store query retry cap marker',
+                            error,
+                        );
+                    });
+            }
+        }
+
         const steers = await dependencies.consumePromptSteers({
             promptUuid: args.promptUuid,
             stepNumber,
         });
+        if (steers.length > 0) {
+            logger(
+                'Prepare Step',
+                `Injecting ${steers.length} steer(s) for prompt UUID: ${args.promptUuid}`,
+            );
+            extraMessages.push({
+                role: 'user' as const,
+                content: [
+                    'Additional guidance from the user while you were working:',
+                    ...steers.map((steer) => `- ${steer.message}`),
+                ].join('\n'),
+            });
+        }
 
-        if (steers.length === 0) return forced;
-
-        logger(
-            'Prepare Step',
-            `Injecting ${steers.length} steer(s) for prompt UUID: ${args.promptUuid}`,
-        );
+        if (extraMessages.length === 0 && activeTools === undefined) {
+            return forced;
+        }
 
         return {
             ...forced,
-            messages: [
-                ...messages,
-                {
-                    role: 'user' as const,
-                    content: [
-                        'Additional guidance from the user while you were working:',
-                        ...steers.map((steer) => `- ${steer.message}`),
-                    ].join('\n'),
-                },
-            ],
+            ...(activeTools !== undefined ? { activeTools } : {}),
+            messages: [...messages, ...extraMessages],
         };
     };
 };
 
-const getAgentTools = (
+export const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
+    verifiedFieldUsage: Map<string, number>,
 ): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -231,8 +600,11 @@ const getAgentTools = (
                 agentSettings: args.agentSettings,
                 threadUuid: args.threadUuid,
                 promptUuid: args.promptUuid,
+                organizationId: args.organizationId,
+                userId: args.userId,
                 telemetryEnabled: args.telemetryEnabled,
                 model: args.model,
+                keyManagement: args.keyManagement,
             },
         },
         {
@@ -244,6 +616,22 @@ const getAgentTools = (
             storeToolResults: dependencies.storeToolResults,
         },
     );
+
+    // Experimental swap: when on, the main agent greps the in-memory annotated
+    // explores itself instead of delegating to the discoverFields sub-agent.
+    const grepFields = args.enableGrepFields
+        ? getGrepFields({
+              availableExplores,
+              findExplores: dependencies.findExplores,
+              verifiedFieldUsage,
+          })
+        : null;
+
+    // Companion to grepFields: rich detail for the explores/fields the agent
+    // selected (joined tables, required filters, filter types, hints).
+    const getMetadata = args.enableGrepFields
+        ? getGetMetadata({ availableExplores })
+        : null;
 
     const findContent = getFindContent({
         findContent: dependencies.findContent,
@@ -283,6 +671,10 @@ const getAgentTools = (
         readContent: dependencies.readContent,
     });
 
+    const resolveUrl = getResolveUrl({
+        resolveUrl: dependencies.resolveUrl,
+    });
+
     const generateVisualization = getGenerateVisualization({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
@@ -311,7 +703,9 @@ const getAgentTools = (
               siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
               storeToolResults: dependencies.storeToolResults,
+              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
@@ -343,6 +737,9 @@ const getAgentTools = (
     const createContent = getCreateContent({
         createContent: dependencies.createContent,
     });
+    const createScheduledDelivery = getCreateScheduledDelivery({
+        createScheduledDelivery: dependencies.createScheduledDelivery,
+    });
     const runContentQuery = getRunContentQuery({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
@@ -364,6 +761,12 @@ const getAgentTools = (
     const editProjectContext = args.enableEditProjectContext
         ? getEditProjectContext({
               editProjectContext: dependencies.editProjectContext,
+          })
+        : null;
+
+    const editRepo = args.enableCodingAgent
+        ? getEditRepo({
+              editRepo: dependencies.editRepo,
           })
         : null;
 
@@ -391,6 +794,33 @@ const getAgentTools = (
               discoverRepos: dependencies.discoverRepos,
           })
         : null;
+
+    // Workstream tools are shared by the general coding agent (editRepo) and the
+    // dbt-writeback agent (editDbtProject) — both can now drive several PRs per
+    // thread, so both need to enumerate and close them.
+    const listWorkstreams =
+        args.enableCodingAgent || args.enableAiWriteback
+            ? getListWorkstreams({
+                  listWorkstreams: dependencies.listWorkstreams,
+              })
+            : null;
+
+    const closePullRequest =
+        args.enableCodingAgent || args.enableAiWriteback
+            ? getClosePullRequest({
+                  closePullRequest: dependencies.closePullRequest,
+              })
+            : null;
+
+    // Read-only companion to the workstream tools: lets the agent inspect a
+    // pull request's actual diff before deciding how to split or consolidate
+    // changes across pull requests. Same gate as list/close.
+    const getPullRequestDiff =
+        args.enableCodingAgent || args.enableAiWriteback
+            ? getGetPullRequestDiff({
+                  getPullRequestDiff: dependencies.getPullRequestDiff,
+              })
+            : null;
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
@@ -431,6 +861,10 @@ const getAgentTools = (
             : null;
     const generateHashes = getGenerateHashes();
     const generateUuids = getGenerateUuids();
+    const submitResearchReport =
+        args.execution.mode === 'deep_research'
+            ? getSubmitResearchReport()
+            : null;
 
     const listProjects = getListProjects({
         listProjects: dependencies.listProjects,
@@ -440,33 +874,61 @@ const getAgentTools = (
         getProjectInfo: dependencies.getProjectInfo,
     });
 
-    const loadProjectContext = args.projectContextEnabled
-        ? getLoadProjectContext({
-              getDocument: dependencies.getProjectContextDocument,
-          })
-        : null;
+    const loadProjectContext =
+        args.projectContextEnabled || args.aiAgentMemoryEnabled
+            ? getLoadProjectContext({
+                  getDocument: async () => {
+                      const [projectContext, memories] = await Promise.all([
+                          args.projectContextEnabled
+                              ? dependencies.getProjectContextDocument()
+                              : Promise.resolve([]),
+                          args.aiAgentMemoryEnabled
+                              ? dependencies.getAiAgentMemoryContextEntries()
+                              : Promise.resolve([]),
+                      ]);
+                      return getProjectContextSearchEntries({
+                          projectContext,
+                          memories,
+                          memoryEnabled: args.aiAgentMemoryEnabled,
+                      });
+                  },
+                  includeMemories: args.aiAgentMemoryEnabled,
+                  onEntriesLoaded: args.aiAgentMemoryEnabled
+                      ? dependencies.incrementAiAgentMemoryPulls
+                      : undefined,
+              })
+            : null;
 
-    const enableContentTools =
-        args.enableAgentRevamp &&
-        args.enableDataAccess &&
-        args.enableContentTools;
+    const enableContentTools = args.enableDataAccess && args.enableContentTools;
 
     const tools: ToolSet = {
         findContent,
-        discoverFields,
+        // grepFields replaces discoverFields when the ai-grep-fields flag is on,
+        // with getMetadata as its rich-detail companion.
+        ...(grepFields ? { grepFields } : { discoverFields }),
+        ...(getMetadata ? { getMetadata } : {}),
         analyzeFieldImpact,
-        ...(args.enableSearchSemanticLayer ? { searchSemanticLayer } : {}),
+        searchSemanticLayer,
         listProjects,
         getProjectInfo,
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
         readPinnedThread,
+        resolveUrl,
+        ...(args.requestingUser
+            ? {
+                  updateUserName: getUpdateUserName({
+                      updateUserName: dependencies.updateUserName,
+                  }),
+              }
+            : {}),
         ...(enableContentTools
             ? {
                   readContent,
                   editContent,
                   listContent,
                   createContent,
+                  createScheduledDelivery,
                   runContentQuery,
               }
             : {
@@ -480,25 +942,66 @@ const getAgentTools = (
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
+        ...(editRepo ? { editRepo } : {}),
         ...(syncDbtProject ? { syncDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(exploreRepo ? { exploreRepo } : {}),
         ...(discoverRepos ? { discoverRepos } : {}),
+        ...(listWorkstreams ? { listWorkstreams } : {}),
+        ...(closePullRequest ? { closePullRequest } : {}),
+        ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
         ...(loadProjectContext ? { loadProjectContext } : {}),
+        ...(submitResearchReport ? { submitResearchReport } : {}),
     };
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
 
+    // Structured deep-research phases replace the toolset: planner and judge
+    // are single-purpose model calls, and investigators trade the report tool
+    // for their per-hypothesis submission tool.
+    const research =
+        args.execution.mode === 'deep_research'
+            ? args.execution.research
+            : undefined;
+    const getResearchTools = (): ToolSet | null => {
+        switch (research?.role) {
+            case 'planner':
+                return {
+                    submitResearchHypotheses: getSubmitResearchHypotheses({
+                        maxHypotheses: research.maxHypotheses,
+                        onHypotheses: research.onHypotheses,
+                    }),
+                };
+            case 'judge':
+                return submitResearchReport ? { submitResearchReport } : null;
+            case 'investigator': {
+                const { submitResearchReport: omitted, ...investigatorTools } =
+                    mergedTools;
+                return {
+                    ...investigatorTools,
+                    submitInvestigationReport: getSubmitInvestigationReport({
+                        onReport: research.onReport,
+                    }),
+                };
+            }
+            case undefined:
+                return null;
+            default:
+                return assertUnreachable(research, 'Unknown research role');
+        }
+    };
+    const finalTools = getResearchTools() ?? mergedTools;
+
     logger(
         'Agent Tools',
-        `Successfully retrieved agent tools: ${Object.keys(mergedTools).join(', ')}`,
+        `Successfully retrieved agent tools: ${Object.keys(finalTools).join(', ')}`,
     );
-    return mergedTools;
+    return finalTools;
 };
 
 // Fires an `in_progress` task update the moment a tool's execute() runs — i.e. as
@@ -507,9 +1010,26 @@ const getAgentTools = (
 // the tool already returned, so without this the Slack/UI card stays empty until
 // the first tool completes. The streaming path emits this from its 'tool-call'
 // chunk instead, so this wrap is only applied in the non-streaming path.
-const withEarlyToolProgress = (
+const getFinalAsyncIterableOutput = async (output: AnyType) => {
+    if (
+        !output ||
+        typeof output !== 'object' ||
+        typeof output[Symbol.asyncIterator] !== 'function'
+    ) {
+        return output;
+    }
+
+    let finalOutput: AnyType;
+    for await (const partialOutput of output as AsyncIterable<AnyType>) {
+        finalOutput = partialOutput;
+    }
+    return finalOutput;
+};
+
+export const withEarlyToolProgress = (
     tools: ToolSet,
     updateProgress: AiAgentDependencies['updateProgress'],
+    waitForProgress: boolean,
 ): ToolSet =>
     Object.fromEntries(
         Object.entries(tools).map(([toolName, toolDef]) => {
@@ -522,13 +1042,22 @@ const withEarlyToolProgress = (
                 {
                     ...toolDef,
                     execute: (input: AnyType, options: AnyType) => {
-                        void updateProgress(
+                        const progress = updateProgress(
                             summarizeToolCall(toolName, input) ??
                                 `Running ${toolName}...`,
                             toolName,
                             options?.toolCallId,
                             'in_progress',
-                        ).catch((error) => {
+                        );
+                        if (waitForProgress) {
+                            return progress.then(() =>
+                                getFinalAsyncIterableOutput(
+                                    originalExecute(input, options),
+                                ),
+                            );
+                        }
+
+                        void progress.catch((error) => {
                             Logger.debug(
                                 '[AiAgent] Failed to emit early tool progress:',
                                 error,
@@ -560,51 +1089,125 @@ const getUnauthenticatedMcpServerNames = (
         .map((server) => server.serverName);
 };
 
+export const buildMessagesWithMemoryBlock = ({
+    systemPrompt,
+    messageHistory,
+    memoryEnabled,
+    memoryBlock,
+}: {
+    systemPrompt: ModelMessage;
+    messageHistory: ModelMessage[];
+    memoryEnabled: boolean;
+    memoryBlock: string | null;
+}): ModelMessage[] => [
+    systemPrompt,
+    ...(memoryEnabled && memoryBlock
+        ? [{ role: 'user' as const, content: memoryBlock }]
+        : []),
+    ...messageHistory,
+];
+
+export const getDeepResearchBudgetInstruction = (
+    budget: AiDeepResearchBudget,
+): string =>
+    `Run limits: at most ${budget.maxTokens} total model tokens, ${budget.maxToolCalls} tool calls, ${budget.maxWarehouseQueries} warehouse queries, and ${budget.maxResultRows} rows per query result. Submit the best report available before a limit is exhausted.`;
+
 const getAgentMessages = (
     args: AiAgentArgs,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
+    verifiedFieldUsage: Map<string, number>,
+    memoryBlock: string | null,
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
-    const messageHistory = withToolHints(args.messageHistory, args.toolHints);
+    const messageHistory = args.enableGrepFields
+        ? withPreGrepCandidates(
+              withToolHints(args.messageHistory, args.toolHints),
+              availableExplores,
+              verifiedFieldUsage,
+          )
+        : withToolHints(args.messageHistory, args.toolHints);
 
     // Project context is loaded on demand via the loadProjectContext tool; the
     // system prompt only advertises that it exists (when enabled + non-empty).
     const hasProjectContext =
         args.projectContextEnabled && args.projectContext.length > 0;
-
-    const messages = [
-        getSystemPromptV2({
-            agentName: args.agentSettings.name,
-            instructions: args.agentSettings.instruction || undefined,
-            availableExplores,
-            availableSkills: args.availableSkills,
-            knowledgeDocuments: args.knowledgeDocuments,
-            hasProjectContext,
-            enableDataAccess: args.enableDataAccess,
-            enableSearchSemanticLayer: args.enableSearchSemanticLayer,
-            enableAiWriteback: args.enableAiWriteback,
-            writebackAttribution: args.writebackAttribution,
-            siteUrl: args.siteUrl,
-            enableRepoDiscovery: args.enableRepoDiscovery,
-            repoFsRoot: args.repoFsRoot,
-            repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-            enableContentTools:
-                args.enableAgentRevamp &&
-                args.enableDataAccess &&
-                args.enableContentTools,
-            canRunSql: args.canRunSql,
-            warehouseType: args.warehouseType,
-            warehouseSchema: args.warehouseSchema,
-            unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
-                args,
-                mcpToolSetup,
-            ),
-        }),
-        ...messageHistory,
-    ];
+    const getDeepResearchInstructions = (): (string | null)[] => {
+        if (args.execution.mode !== 'deep_research') {
+            return [];
+        }
+        const budgetInstruction = getDeepResearchBudgetInstruction(
+            args.execution.budget,
+        );
+        const { research } = args.execution;
+        switch (research?.role) {
+            case 'planner':
+                return [
+                    getAiDeepResearchPlannerInstructions(
+                        research.maxHypotheses,
+                    ),
+                ];
+            case 'investigator':
+                return [
+                    getAiDeepResearchInvestigatorInstructions(
+                        research.hypothesis,
+                    ),
+                    budgetInstruction,
+                ];
+            case 'judge':
+                return [
+                    AI_DEEP_RESEARCH_INSTRUCTIONS,
+                    getAiDeepResearchJudgeInstructions(research.investigations),
+                ];
+            case undefined:
+                return [AI_DEEP_RESEARCH_INSTRUCTIONS, budgetInstruction];
+            default:
+                return assertUnreachable(research, 'Unknown research role');
+        }
+    };
+    const instructions = [
+        args.agentSettings.instruction,
+        ...getDeepResearchInstructions(),
+    ].filter((instruction): instruction is string => !!instruction);
+    const systemPrompt = getSystemPromptV2({
+        agentName: args.agentSettings.name,
+        instructions:
+            instructions.length > 0 ? instructions.join('\n\n') : undefined,
+        requestingUser: args.requestingUser,
+        availableExplores,
+        availableSkills: args.availableSkills,
+        knowledgeDocuments: args.knowledgeDocuments,
+        deepResearchRuns: args.deepResearchRuns,
+        hasProjectContext,
+        enableAiAgentMemory: args.aiAgentMemoryEnabled,
+        enableDataAccess: args.enableDataAccess,
+        enableAiWriteback: args.enableAiWriteback,
+        writebackAttribution: args.writebackAttribution,
+        enableCodingAgent: args.enableCodingAgent,
+        siteUrl: args.siteUrl,
+        enableRepoDiscovery: args.enableRepoDiscovery,
+        repoFsRoot: args.repoFsRoot,
+        repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
+        enableGrepFields: args.enableGrepFields,
+        enableContentTools: args.enableDataAccess && args.enableContentTools,
+        slackChannelId: args.slackChannelId,
+        canRunSql: args.canRunSql,
+        warehouseType: args.warehouseType,
+        warehouseSchema: args.warehouseSchema,
+        runSqlMaxLimit: args.runSqlMaxLimit,
+        unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
+            args,
+            mcpToolSetup,
+        ),
+    });
+    const messages = buildMessagesWithMemoryBlock({
+        systemPrompt,
+        messageHistory,
+        memoryEnabled: args.aiAgentMemoryEnabled,
+        memoryBlock,
+    });
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);
 
@@ -633,14 +1236,26 @@ const getAgentMessages = (
     return messages;
 };
 
+const getMemoryBlock = async (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+): Promise<string | null> => {
+    if (!args.aiAgentMemoryEnabled) return null;
+    return renderMemoryBlock(
+        await dependencies.getAiAgentMemoryContextEntries(),
+    );
+};
+
 export const generateAgentResponse = async ({
     args,
     dependencies,
     mcpToolSetup,
+    abortSignal,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
     mcpToolSetup: AgentMcpToolSetup;
+    abortSignal?: AbortSignal;
 }): Promise<string> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -653,38 +1268,84 @@ export const generateAgentResponse = async ({
     );
     const startTime = Date.now();
     const modelName = getAiAgentModelName(args.model);
+    let generatedTokenUsage =
+        args.execution.mode === 'deep_research'
+            ? args.execution.initialTokenUsage
+            : 0;
 
     try {
-        const availableExplores = await dependencies.listExplores();
+        const [availableExplores, memoryBlock] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+        ]);
+        // Verified-chart usage powers verified-first ranking in grep discovery;
+        // degrade to an empty map if it can't be fetched.
+        const verifiedFieldUsage = args.enableGrepFields
+            ? await dependencies
+                  .getVerifiedFieldUsage()
+                  .catch(() => new Map<string, number>())
+            : new Map<string, number>();
         const tools = withEarlyToolProgress(
-            getAgentTools(args, dependencies, availableExplores, mcpToolSetup),
+            getAgentTools(
+                args,
+                dependencies,
+                availableExplores,
+                mcpToolSetup,
+                verifiedFieldUsage,
+            ),
             dependencies.updateProgress,
+            args.execution.mode === 'deep_research',
         );
+        await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
             args,
             availableExplores,
             mcpToolSetup,
+            verifiedFieldUsage,
+            memoryBlock,
         );
         logger(
             'Generate Agent Response',
             `Calling generateText with model: ${modelName}`,
         );
+        const invalidToolCallIds = new Set<string>();
         const prepareStep = buildPrepareStep({
             args,
             dependencies,
             tools,
             logger,
+            invalidToolCallIds,
         });
+        const telemetry = getAgentTelemetryConfig(
+            'generateAgentResponse',
+            args,
+            args.execution.mode === 'deep_research' ? 'deep-research' : 'agent',
+        );
+        const stopWhenPromptInterrupted = buildStopWhenPromptInterrupted(
+            args,
+            dependencies,
+            logger,
+        );
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
             prepareStep,
+            stopWhen: [
+                stepCountIs(args.execution.maxSteps),
+                stopWhenPromptInterrupted,
+            ],
+            abortSignal,
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
             messages,
             experimental_context: new AgentContext(availableExplores),
             onStepFinish: async (step) => {
+                const stepUsage = await recordAgentStepUsage({
+                    usage: step.usage,
+                    telemetry,
+                    execution: args.execution,
+                });
                 for (const toolCall of step.toolCalls) {
                     if (toolCall) {
                         logger(
@@ -726,6 +1387,28 @@ export const generateAgentResponse = async ({
                                     },
                                 });
 
+                                // Same handling as the streaming path: keep
+                                // invalid attempts out of ai_agent_tool_call
+                                // (replayed into UI/history) and persist them
+                                // in the error table instead.
+                                if (toolCall.invalid) {
+                                    invalidToolCallIds.add(toolCall.toolCallId);
+                                    Sentry.captureException(toolCall.error, {
+                                        tags: {
+                                            errorType: 'AiAgentToolCallInvalid',
+                                            'ai.model': modelName,
+                                        },
+                                    });
+                                    await storeInvalidAgentToolCall({
+                                        storeToolCallError:
+                                            dependencies.storeToolCallError,
+                                        promptUuid: args.promptUuid,
+                                        toolCall,
+                                        executionMode: args.execution.mode,
+                                    });
+                                    return;
+                                }
+
                                 // in_progress is emitted at execute start by withEarlyToolProgress; re-emitting here double-sends it.
 
                                 await dependencies.storeToolCall({
@@ -737,7 +1420,8 @@ export const generateAgentResponse = async ({
                                         mcpToolSetup.mcpToolNameToServerUuid[
                                             toolCall.toolName
                                         ] ?? null,
-                                    parentToolCallId: null,
+                                    parentToolCallId:
+                                        args.execution.parentToolCallId ?? null,
                                 });
                             }
                         }),
@@ -749,63 +1433,82 @@ export const generateAgentResponse = async ({
                         `Storing ${step.toolResults.length} tool results.`,
                     );
 
+                    const toolResults = step.toolResults.filter(
+                        (
+                            toolResult,
+                        ): toolResult is NonNullable<typeof toolResult> =>
+                            toolResult !== null,
+                    );
+                    const progressUpdates = toolResults.map((toolResult) =>
+                        dependencies.updateProgress(
+                            summarizeToolResult(
+                                toolResult.toolName,
+                                toolResult.output as AnyType,
+                            ),
+                            toolResult.toolName,
+                            toolResult.toolCallId,
+                            isPendingToolResult(toolResult.output as AnyType)
+                                ? 'in_progress'
+                                : 'complete',
+                        ),
+                    );
+                    if (args.execution.mode === 'deep_research') {
+                        await Promise.all(progressUpdates);
+                    } else {
+                        void Promise.all(progressUpdates).catch((error) => {
+                            Logger.debug(
+                                '[AiAgent][On Step Finish] Failed to update tool progress:',
+                                error,
+                            );
+                        });
+                    }
+
                     await dependencies.storeToolResults(
-                        step.toolResults
-                            .filter(
-                                (
-                                    toolResult,
-                                ): toolResult is NonNullable<
-                                    typeof toolResult
-                                > => toolResult !== null,
-                            )
-                            .map((toolResult) => {
-                                logger(
-                                    'On Step Finish',
-                                    `Storing tool result for Prompt UUID ${
-                                        args.promptUuid
-                                    }: ${toolResult.toolName} (ID: ${
-                                        toolResult.toolCallId
-                                    }) (RESULT: ${JSON.stringify(toolResult.output)})`,
-                                );
-                                void dependencies
-                                    .updateProgress(
-                                        summarizeToolResult(
-                                            toolResult.toolName,
-                                            toolResult.output as AnyType,
-                                        ),
-                                        toolResult.toolName,
-                                        toolResult.toolCallId,
-                                        'complete',
-                                    )
-                                    .catch((error) => {
-                                        Logger.debug(
-                                            '[AiAgent][On Step Finish] Failed to update tool progress:',
-                                            error,
-                                        );
-                                    });
-                                const output = normalizeToolOutput(
-                                    toolResult.output,
-                                );
-                                return {
-                                    promptUuid: args.promptUuid,
-                                    toolCallId: toolResult.toolCallId,
-                                    toolName: toolResult.toolName,
-                                    result: output.result,
-                                    metadata: output.metadata,
-                                };
-                            }),
+                        toolResults.map((toolResult) => {
+                            logger(
+                                'On Step Finish',
+                                `Storing tool result for Prompt UUID ${
+                                    args.promptUuid
+                                }: ${toolResult.toolName} (ID: ${
+                                    toolResult.toolCallId
+                                }) (RESULT: ${JSON.stringify(toolResult.output)})`,
+                            );
+                            const output = normalizeToolOutput(
+                                toolResult.output,
+                            );
+                            return {
+                                promptUuid: args.promptUuid,
+                                toolCallId: toolResult.toolCallId,
+                                toolName: toolResult.toolName,
+                                result: output.result,
+                                metadata: output.metadata,
+                            };
+                        }),
                     );
                 }
 
-                void dependencies.updatePrompt({
-                    response: step.text,
-                    promptUuid: args.promptUuid,
-                });
+                const stepTokens = stepUsage.totalTokens ?? 0;
+                generatedTokenUsage += stepTokens;
+                if (args.execution.mode === 'deep_research') {
+                    // Hidden phases (planner/investigators, persisted as
+                    // subagent children) each track their own slice; writing
+                    // their totals to the prompt would race across parallel
+                    // investigators. The executor aggregates via onStepUsage
+                    // and seeds the judge with the aggregate.
+                    if (args.execution.parentToolCallId == null) {
+                        await dependencies.updatePrompt({
+                            promptUuid: args.promptUuid,
+                            tokenUsage: { totalTokens: generatedTokenUsage },
+                        });
+                    }
+                } else {
+                    void dependencies.updatePrompt({
+                        response: step.text,
+                        promptUuid: args.promptUuid,
+                    });
+                }
             },
-            experimental_telemetry: getAgentTelemetryConfig(
-                'generateAgentResponse',
-                args,
-            ),
+            experimental_telemetry: telemetry,
         });
 
         logger(
@@ -813,17 +1516,34 @@ export const generateAgentResponse = async ({
             `Generation complete. Result text length: ${result.text.length}, finishReason: ${result.finishReason}`,
         );
 
-        if (result.steps.length >= STEP_CAP && !result.text) {
-            throw new AiAgentStepCapReachedError(result.steps.length);
+        // Invariant: a finished prompt must persist either a response or an
+        // error message. Empty (or whitespace-only) text under the step cap
+        // would otherwise be stored as a blank response with no explanation
+        // for the user. Structured deep-research phases are exempt: their
+        // deliverable is a forced submission tool call, so ending on it with
+        // no trailing text is a success, not an empty response.
+        const isStructuredResearchPhase =
+            args.execution.mode === 'deep_research' &&
+            args.execution.research !== undefined;
+        if (!result.text.trim() && !isStructuredResearchPhase) {
+            if (result.steps.length >= args.execution.maxSteps) {
+                throw new AiAgentStepCapReachedError(result.steps.length);
+            }
+            throw new AiAgentEmptyResponseError(
+                result.finishReason,
+                result.steps.length,
+            );
         }
 
-        await dependencies.updatePrompt({
-            promptUuid: args.promptUuid,
-            response: result.text,
-            tokenUsage: {
-                totalTokens: result.usage.totalTokens ?? 0,
-            },
-        });
+        if (args.execution.mode !== 'deep_research') {
+            await dependencies.updatePrompt({
+                promptUuid: args.promptUuid,
+                response: result.text,
+                tokenUsage: {
+                    totalTokens: result.usage.totalTokens ?? 0,
+                },
+            });
+        }
 
         const totalTime = Date.now() - startTime;
         dependencies.perf.measureGenerateResponseTime(totalTime);
@@ -848,10 +1568,12 @@ export const generateAgentResponse = async ({
             'Something went wrong while generating the response. Please try again.',
         );
 
-        await dependencies.updatePrompt({
-            promptUuid: args.promptUuid,
-            errorMessage: userFacingMessage,
-        });
+        if (args.execution.mode !== 'deep_research') {
+            await dependencies.updatePrompt({
+                promptUuid: args.promptUuid,
+                errorMessage: userFacingMessage,
+            });
+        }
 
         throw error;
     } finally {
@@ -883,6 +1605,10 @@ export const streamAgentResponse = async ({
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
     const modelName = getAiAgentModelName(args.model);
+    const persistPrompt = makeStreamSafePersist(
+        dependencies.updatePrompt,
+        modelName,
+    );
 
     const cleanupMcpClients = async () => {
         if (mcpClientsClosed) {
@@ -894,45 +1620,56 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const availableExplores = await dependencies.listExplores();
+        const [availableExplores, memoryBlock] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+        ]);
+        const verifiedFieldUsage = args.enableGrepFields
+            ? await dependencies
+                  .getVerifiedFieldUsage()
+                  .catch(() => new Map<string, number>())
+            : new Map<string, number>();
         const tools = getAgentTools(
             args,
             dependencies,
             availableExplores,
             mcpToolSetup,
+            verifiedFieldUsage,
         );
+        await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
             args,
             availableExplores,
             mcpToolSetup,
+            verifiedFieldUsage,
+            memoryBlock,
         );
         logger(
             'Stream Agent Response',
             `Calling streamText with model: ${modelName}`,
         );
+        const invalidToolCallIds = new Set<string>();
         const prepareStep = buildPrepareStep({
             args,
             dependencies,
             tools,
             logger,
+            invalidToolCallIds,
         });
-        const stopWhenPromptInterrupted = async () => {
-            const interrupted = await dependencies.isPromptInterrupted(
-                args.promptUuid,
-            );
-            if (interrupted) {
-                logger(
-                    'Stream Agent Response',
-                    `Stopping stream for interrupted prompt UUID: ${args.promptUuid}`,
-                );
-            }
-            return interrupted;
-        };
+        const stopWhenPromptInterrupted = buildStopWhenPromptInterrupted(
+            args,
+            dependencies,
+            logger,
+        );
+        const telemetry = getAgentTelemetryConfig('streamAgentResponse', args);
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
             prepareStep,
-            stopWhen: [stepCountIs(STEP_CAP), stopWhenPromptInterrupted],
+            stopWhen: [
+                stepCountIs(args.execution.maxSteps),
+                stopWhenPromptInterrupted,
+            ],
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
@@ -977,12 +1714,37 @@ export const streamAgentResponse = async ({
                         });
 
                         if (event.chunk.invalid) {
+                            invalidToolCallIds.add(event.chunk.toolCallId);
                             Sentry.captureException(event.chunk.error, {
                                 tags: {
                                     errorType: 'AiAgentToolCallInvalid',
                                     'ai.model': modelName,
                                 },
                             });
+
+                            // Invalid calls are excluded from
+                            // ai_agent_tool_call (those rows are replayed into
+                            // UI/history), but persist them separately so the
+                            // thread doesn't silently lose failed attempts.
+                            void dependencies
+                                .storeToolCallError({
+                                    promptUuid: args.promptUuid,
+                                    toolCallId: event.chunk.toolCallId,
+                                    toolName: event.chunk.toolName,
+                                    errorMessage:
+                                        event.chunk.error instanceof Error
+                                            ? event.chunk.error.message
+                                            : String(event.chunk.error),
+                                    rawArgs: serializeRawToolArgs(
+                                        event.chunk.input,
+                                    ),
+                                })
+                                .catch((error) => {
+                                    Logger.error(
+                                        '[AiAgent][Chunk Tool Call] Failed to store invalid tool call',
+                                        error,
+                                    );
+                                });
                             break;
                         }
 
@@ -1054,7 +1816,11 @@ export const streamAgentResponse = async ({
                                 ),
                                 event.chunk.toolName,
                                 event.chunk.toolCallId,
-                                'complete',
+                                isPendingToolResult(
+                                    event.chunk.output as AnyType,
+                                )
+                                    ? 'in_progress'
+                                    : 'complete',
                             )
                             .catch((error) => {
                                 Logger.debug(
@@ -1137,7 +1903,14 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: async ({ usage, steps, reasoning, finishReason }) => {
+            onFinish: async ({
+                usage,
+                totalUsage,
+                steps,
+                reasoning,
+                finishReason,
+            }) => {
+                emitAiUsage(telemetry, languageModelUsageToTokens(totalUsage));
                 logger(
                     'On Finish',
                     `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,
@@ -1148,20 +1921,46 @@ export const streamAgentResponse = async ({
                     .flatMap((step) => step.text || [])
                     .join('\n');
 
-                const stepCapReached = steps.length >= STEP_CAP;
+                const stepCapReached = steps.length >= args.execution.maxSteps;
 
-                if (stepCapReached && !completeResponse) {
-                    void dependencies.updatePrompt({
+                // The AI SDK holds the stream open until onFinish resolves, so
+                // the HTTP stream only closes once the response is persisted —
+                // the client's post-stream refetch then reads persisted content.
+                // Invariant: a finished prompt must persist either a response
+                // or an error message — a blank response with no error renders
+                // as an empty chat bubble with no explanation. trim() matters:
+                // steps with empty text still join into "\n" strings.
+                if (!completeResponse.trim()) {
+                    const emptyResponseError = stepCapReached
+                        ? new AiAgentStepCapReachedError(steps.length)
+                        : new AiAgentEmptyResponseError(
+                              finishReason,
+                              steps.length,
+                          );
+                    if (!stepCapReached) {
+                        // Under-cap empty finishes are unexpected — capture so
+                        // the underlying trigger stays observable in Sentry.
+                        Logger.error(
+                            `[AiAgent][Stream Agent Response] Stream finished with empty response under the step cap. finishReason: ${finishReason}, steps: ${steps.length}`,
+                        );
+                        Sentry.captureException(emptyResponseError, {
+                            tags: {
+                                errorType: 'AiAgentEmptyResponseError',
+                                'ai.model': modelName,
+                                'ai.finishReason': finishReason,
+                            },
+                        });
+                    }
+                    await persistPrompt({
                         promptUuid: args.promptUuid,
-                        errorMessage: getUserFacingErrorMessage(
-                            new AiAgentStepCapReachedError(steps.length),
-                        ),
+                        errorMessage:
+                            getUserFacingErrorMessage(emptyResponseError),
                         tokenUsage: {
                             totalTokens: usage.totalTokens ?? 0,
                         },
                     });
                 } else {
-                    void dependencies.updatePrompt({
+                    await persistPrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
                         tokenUsage: {
@@ -1182,7 +1981,7 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
-                        usageTokensCount: usage.totalTokens ?? 0,
+                        usageTokensCount: totalUsage.totalTokens ?? 0,
                         stepsCount: steps.length,
                         model:
                             typeof args.model === 'string'
@@ -1209,7 +2008,7 @@ export const streamAgentResponse = async ({
                 delayInMs: 20,
                 chunking: 'word',
             }),
-            onError: ({ error }) => {
+            onError: async ({ error }) => {
                 console.error(error);
                 const errorMessage =
                     error instanceof Error ? error.message : 'Unknown error';
@@ -1229,17 +2028,14 @@ export const streamAgentResponse = async ({
                     'Something went wrong while streaming the response. Please try again.',
                 );
 
-                void dependencies.updatePrompt({
+                await persistPrompt({
                     promptUuid: args.promptUuid,
                     errorMessage: userFacingMessage,
                 });
 
                 void cleanupMcpClients();
             },
-            experimental_telemetry: getAgentTelemetryConfig(
-                'streamAgentResponse',
-                args,
-            ),
+            experimental_telemetry: telemetry,
         });
 
         logger('Stream Agent Response', 'Returning stream result.');

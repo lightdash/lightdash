@@ -1,6 +1,7 @@
 .itemButton {
     cursor: default;
     border: none;
+    color: var(--mantine-color-dark-7);
 }
 
 .itemButton:hover {

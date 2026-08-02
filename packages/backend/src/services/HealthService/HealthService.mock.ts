@@ -7,6 +7,10 @@ import {
 
 export const BaseResponse: HealthState = {
     healthy: true,
+    license: {
+        hasLicenseKey: false,
+        valid: false,
+    },
     version: '0.1.0',
     mode: LightdashMode.DEFAULT,
     isAuthenticated: false,
@@ -17,6 +21,8 @@ export const BaseResponse: HealthState = {
     signupUrl: undefined,
     helpMenuUrl: undefined,
     hasEmailClient: false,
+    hasPlaygroundProjects: false,
+    hasEmailWhitelabel: false,
     hasExtendedUsageAnalytics: false,
     hasMicrosoftTeams: false,
     hasGithub: false,
@@ -107,6 +113,7 @@ export const BaseResponse: HealthState = {
         overrideColorPalette: undefined,
         overrideColorPaletteName: undefined,
     },
+    hasBrandfetch: false,
     isServiceAccountEnabled: false,
     isOrganizationWarehouseCredentialsEnabled: false,
     isAthenaWarehouseIamRoleAuthEnabled: false,
@@ -136,6 +143,7 @@ export const BaseResponse: HealthState = {
     },
     dataApps: {
         previewOrigin: null,
+        sampleDataEnabled: true,
     },
 };
 

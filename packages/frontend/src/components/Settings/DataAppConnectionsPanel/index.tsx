@@ -1,13 +1,16 @@
 import { type ExternalConnection } from '@lightdash/common';
-import { Button, Group, Skeleton, Stack, Text, Title } from '@mantine-8/core';
+import { Button, Skeleton, Stack } from '@mantine-8/core';
 import { IconPlug, IconPlus } from '@tabler/icons-react';
-import { type FC, useState } from 'react';
+import { useCallback, useState, type FC } from 'react';
+import { useSearchParams } from 'react-router';
 import { useExternalConnections } from '../../../features/externalConnections/hooks/useExternalConnections';
-import { EmptyState } from '../../common/EmptyState';
+import Callout from '../../common/Callout';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
+import { SettingsPage } from '../../common/Settings/SettingsPage';
+import { AddConnectionWizard } from './AddConnectionWizard';
 import { ConnectionsTable } from './ConnectionsTable';
-import { CreateConnectionModal } from './CreateConnectionModal';
 import { DeleteConnectionModal } from './DeleteConnectionModal';
 import { EditConnectionModal } from './EditConnectionModal';
 
@@ -18,75 +21,91 @@ type Props = {
 const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
     const { data: connections, isLoading } =
         useExternalConnections(projectUuid);
-    const [isCreating, setIsCreating] = useState(false);
+    // Deep-link support: the builder's connection picker links here with
+    // `?create=1` to open the wizard straight away.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [isCreating, setIsCreating] = useState(
+        () => searchParams.get('create') === '1',
+    );
+    const closeCreate = useCallback(() => {
+        setIsCreating(false);
+        if (searchParams.has('create')) {
+            searchParams.delete('create');
+            setSearchParams(searchParams, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
     const [connectionToEdit, setConnectionToEdit] = useState<
         ExternalConnection | undefined
     >(undefined);
     const [connectionToDelete, setConnectionToDelete] = useState<
         ExternalConnection | undefined
     >(undefined);
+    const addConnectionButton = (
+        <Button
+            size="xs"
+            variant="default"
+            leftSection={<MantineIcon icon={IconPlus} />}
+            onClick={() => setIsCreating(true)}
+        >
+            Add connection
+        </Button>
+    );
+    const dataWarning = (
+        <Callout variant="warning" title="Data leaves Lightdash">
+            Apps linked to a connection can send any data they can query to that
+            connection&apos;s external host. Only add connections to hosts you
+            trust with this project&apos;s data.
+        </Callout>
+    );
 
     return (
         <>
-            <Stack gap="sm">
-                <Group gap="xxs">
-                    <Title order={5}>Data app connections</Title>
-                </Group>
+            <SettingsPage
+                title="Data app connections"
+                description="Manage external connections used by this project's data apps."
+                actions={addConnectionButton}
+            >
+                <Stack gap="md">
+                    {isLoading || (connections && connections.length > 0) ? (
+                        <SettingsCard>
+                            <Stack gap="md">
+                                {dataWarning}
 
-                <SettingsCard mb="lg">
-                    <Stack gap="md">
-                        <Group justify="space-between">
-                            <Text c="ldGray.6" size="sm">
-                                External HTTP connections that data apps in this
-                                project can call. Each app must be linked to a
-                                connection under an alias.
-                            </Text>
-                            <Button
-                                size="xs"
-                                variant="default"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={() => setIsCreating(true)}
-                                style={{ alignSelf: 'flex-end' }}
-                            >
-                                Add connection
-                            </Button>
-                        </Group>
-
-                        {isLoading ? (
-                            <Stack gap="xs">
-                                <Skeleton height={48} />
-                                <Skeleton height={48} />
-                            </Stack>
-                        ) : connections && connections.length > 0 ? (
-                            <ConnectionsTable
-                                connections={connections}
-                                setConnectionToEdit={setConnectionToEdit}
-                                setConnectionToDelete={setConnectionToDelete}
-                            />
-                        ) : (
-                            <EmptyState
-                                icon={
-                                    <MantineIcon
-                                        icon={IconPlug}
-                                        color="ldGray.6"
-                                        stroke={1}
-                                        size="5xl"
+                                {isLoading ? (
+                                    <Stack gap="xs">
+                                        <Skeleton height={48} />
+                                        <Skeleton height={48} />
+                                    </Stack>
+                                ) : (
+                                    <ConnectionsTable
+                                        connections={connections}
+                                        setConnectionToEdit={
+                                            setConnectionToEdit
+                                        }
+                                        setConnectionToDelete={
+                                            setConnectionToDelete
+                                        }
                                     />
-                                }
+                                )}
+                            </Stack>
+                        </SettingsCard>
+                    ) : (
+                        <Stack gap="md">
+                            {dataWarning}
+                            <SettingsEmptyState
+                                icon={IconPlug}
                                 title="No connections"
-                                description="You haven't created any data app connections yet!"
-                                pt="xl"
-                                pb="xl"
+                                description="Create a connection to let data apps call an external HTTP service."
                             />
-                        )}
-                    </Stack>
-                </SettingsCard>
-            </Stack>
+                        </Stack>
+                    )}
+                </Stack>
+            </SettingsPage>
 
             {isCreating && (
-                <CreateConnectionModal
+                <AddConnectionWizard
                     opened={isCreating}
-                    onClose={() => setIsCreating(false)}
+                    onClose={closeCreate}
                     projectUuid={projectUuid}
                 />
             )}

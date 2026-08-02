@@ -96,7 +96,7 @@ export default defineConfig({
                         },
                         {
                             name: 'mantine',
-                            test: /node_modules[\\/]@mantine[\\/](core|dates|form|hooks|notifications|prism)/,
+                            test: /node_modules[\\/]@mantine[\\/](code-highlight|core|dates|form|hooks|modals|notifications|tiptap)/,
                             priority: 20,
                         },
                         {
@@ -148,6 +148,7 @@ export default defineConfig({
             'lightdash-dev', // for local development with docker
             'host.docker.internal', // for headless browser in docker (scheduled deliveries)
             '.lightdash.dev', // for cloudflared tunnels,
+            '.exe.xyz', // for exe.dev devboxes
             ...(FE_HOST ? [FE_HOST] : []),
         ],
         watch: {

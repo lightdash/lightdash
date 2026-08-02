@@ -13,7 +13,7 @@ const ValidationErrorNotificationDescription: FC<{
     const validationTimeAgo = useTimeAgo(lastValidatedAt);
 
     return (
-        <Text fz="xs">
+        <Text fz="sm">
             New validation completed {validationTimeAgo} with {numberOfErrors}{' '}
             errors
         </Text>

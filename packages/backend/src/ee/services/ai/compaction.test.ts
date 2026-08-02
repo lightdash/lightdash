@@ -101,6 +101,50 @@ describe('AI context compaction helpers', () => {
         expect(serialized).toContain('[truncated 500 chars]');
     });
 
+    it('does not include Deep Research report Markdown in compaction input', () => {
+        const reportSentinel = 'DEEP_RESEARCH_REPORT_SENTINEL';
+        const messages: Parameters<typeof Compaction.serializeConversation>[0] =
+            [
+                {
+                    role: 'assistant',
+                    status: 'idle',
+                    uuid: 'research-prompt',
+                    threadUuid: 'thread-1',
+                    message: null,
+                    errorMessage: null,
+                    interrupted: false,
+                    createdAt: new Date().toISOString(),
+                    humanScore: null,
+                    toolCalls: [],
+                    toolResults: [],
+                    reasoning: [],
+                    savedQueryUuid: null,
+                    artifacts: null,
+                    referencedArtifacts: null,
+                    modelConfig: null,
+                    tokenUsage: null,
+                },
+            ];
+        const serializeWithLegacyReportOption =
+            Compaction.serializeConversation as unknown as (
+                input: typeof messages,
+                legacyOptions: {
+                    deepResearchReportsByPromptUuid: ReadonlyMap<
+                        string,
+                        string
+                    >;
+                },
+            ) => string;
+
+        const serialized = serializeWithLegacyReportOption(messages, {
+            deepResearchReportsByPromptUuid: new Map([
+                ['research-prompt', reportSentinel],
+            ]),
+        });
+
+        expect(serialized).not.toContain(reportSentinel);
+    });
+
     it('serializes a same-named file and repository as distinct, unambiguous lines', () => {
         const serialized = Compaction.serializeConversation([
             {
@@ -125,6 +169,38 @@ describe('AI context compaction helpers', () => {
         expect(serialized).toContain(
             'repository hello/world (mounted at /hello/world',
         );
+    });
+
+    it('preserves the active dashboard tab in compacted context', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Summarize this dashboard',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: 'dashboard-1',
+                        dashboardSlug: 'dashboard-1',
+                        displayName: 'Executive dashboard',
+                        pinnedVersionUuid: null,
+                        runtimeOverrides: {
+                            activeTab: {
+                                uuid: 'tab-1',
+                                name: 'Customers',
+                            },
+                        },
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain('active tab "Customers"');
     });
 
     it('filters raw prompt rows after the latest compaction boundary', () => {

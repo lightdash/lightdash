@@ -25,4 +25,6 @@ export type SelectedWarehouse = (typeof WarehouseTypeLabels)[number]['key'];
 export enum ConnectMethod {
     CLI = 'cli',
     MANUAL = 'manual',
+    AGENT = 'agent',
+    WAREHOUSE = 'warehouse',
 }

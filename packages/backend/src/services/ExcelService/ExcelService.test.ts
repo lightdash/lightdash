@@ -2095,3 +2095,122 @@ describe('ExcelService conditional formatting in xlsx export (PROD-8199)', () =>
         });
     });
 });
+
+describe('ExcelService column totals row in xlsx export (PROD-9169)', () => {
+    const dimension = {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.STRING,
+        name: 'status',
+        table: 'orders',
+        tableLabel: 'Orders',
+        label: 'Status',
+        sql: '',
+        hidden: false,
+    } as ItemsMap[string];
+    const metric = {
+        fieldType: FieldType.METRIC,
+        type: MetricType.SUM,
+        name: 'revenue',
+        table: 'orders',
+        tableLabel: 'Orders',
+        label: 'Revenue',
+        sql: '',
+        hidden: false,
+        compiledSql: '',
+        tablesReferences: [],
+    } as ItemsMap[string];
+    const dimensionId = getItemId(dimension);
+    const metricId = getItemId(metric);
+
+    const { streamJsonlToExcelFile } = ExcelService as unknown as {
+        streamJsonlToExcelFile: (
+            resultsStream: Readable,
+            tempFilePath: string,
+            headers: string[],
+            fields: ItemsMap,
+            onlyRaw: boolean,
+            sortedFieldIds: string[],
+            timezone?: string,
+            conditionalFormattings?: undefined,
+            minMaxMap?: undefined,
+            columnTotals?: Record<string, number>,
+        ) => Promise<{ truncated: boolean }>;
+    };
+
+    const writeAndReadBack = async ({
+        fields,
+        sortedFieldIds,
+        rows,
+        columnTotals,
+    }: {
+        fields: ItemsMap;
+        sortedFieldIds: string[];
+        rows: Record<string, unknown>[];
+        columnTotals?: Record<string, number>;
+    }) => {
+        const tempFilePath = path.join(
+            os.tmpdir(),
+            `excel-totals-test-${process.pid}-${sortedFieldIds.length}-${
+                columnTotals ? 'totals' : 'none'
+            }.xlsx`,
+        );
+        const jsonl = rows.map((row) => JSON.stringify(row)).join('\n');
+        await streamJsonlToExcelFile(
+            Readable.from([jsonl]),
+            tempFilePath,
+            sortedFieldIds.map((id) => id),
+            fields,
+            false,
+            sortedFieldIds,
+            undefined,
+            undefined,
+            undefined,
+            columnTotals,
+        );
+
+        const workbook = new (await import('exceljs')).Workbook();
+        await workbook.xlsx.readFile(tempFilePath);
+        const worksheet = workbook.getWorksheet('Sheet1');
+        fs.unlinkSync(tempFilePath);
+        return worksheet;
+    };
+
+    it('appends a labelled totals row after the data rows', async () => {
+        const worksheet = await writeAndReadBack({
+            fields: { [dimensionId]: dimension, [metricId]: metric },
+            sortedFieldIds: [dimensionId, metricId],
+            rows: [
+                { [dimensionId]: 'placed', [metricId]: 10 },
+                { [dimensionId]: 'shipped', [metricId]: 32.5 },
+            ],
+            columnTotals: { [metricId]: 42.5 },
+        });
+
+        // Row 1 is the header, rows 2-3 the data, row 4 the totals.
+        expect(worksheet!.rowCount).toBe(4);
+        const totalsRow = worksheet!.getRow(4);
+        expect(totalsRow.getCell(1).value).toBe('Total');
+        expect(totalsRow.getCell(2).value).toBe(42.5);
+    });
+
+    it('keeps a first-column total instead of overwriting it with the label', async () => {
+        const worksheet = await writeAndReadBack({
+            fields: { [metricId]: metric },
+            sortedFieldIds: [metricId],
+            rows: [{ [metricId]: 10 }],
+            columnTotals: { [metricId]: 10 },
+        });
+
+        expect(worksheet!.getRow(2).getCell(1).value).toBe(10);
+    });
+
+    it('does not append a row when there are no totals', async () => {
+        const worksheet = await writeAndReadBack({
+            fields: { [dimensionId]: dimension, [metricId]: metric },
+            sortedFieldIds: [dimensionId, metricId],
+            rows: [{ [dimensionId]: 'placed', [metricId]: 10 }],
+        });
+
+        expect(worksheet!.rowCount).toBe(2);
+    });
+});

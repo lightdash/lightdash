@@ -26,6 +26,10 @@ export const projectAdapterFromConfig = async (
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
     analytics?: LightdashAnalytics,
+    // MANIFEST-only: dbt project dir to read lightdash.config.yml /
+    // project_context.yml from (the multiple-dbt-sources merge passes the
+    // primary source's checkout here). Ignored by every other adapter type.
+    manifestProjectDir?: string,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -63,6 +67,7 @@ export const projectAdapterFromConfig = async (
                 dbtVersion,
                 analytics,
                 manifest: config.manifest,
+                dbtProjectDir: manifestProjectDir,
             });
 
         case DbtProjectType.DBT_CLOUD_IDE:

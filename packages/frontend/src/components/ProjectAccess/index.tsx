@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Anchor, Stack, Tabs, Text } from '@mantine-8/core';
+import { Stack, Tabs } from '@mantine-8/core';
 import { IconUser, IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { ProjectGroupAccess } from '../../features/projectGroupAccess';
@@ -26,18 +26,6 @@ const ProjectUserAccess: FC<ProjectUserAccessProps> = ({ projectUuid }) => {
 
     return (
         <Stack gap="md">
-            <Text c="dimmed" fz="sm">
-                Learn more about permissions in our{' '}
-                <Anchor
-                    href="https://docs.lightdash.com/references/roles"
-                    target="_blank"
-                    rel="noreferrer"
-                    fz="sm"
-                >
-                    docs
-                </Anchor>
-            </Text>
-
             <Tabs
                 keepMounted={false}
                 defaultValue="users"

@@ -2,6 +2,7 @@ import {
     ChartKind,
     getFirstIndexColumns,
     getParameterReferences,
+    isVizBigNumberConfig,
     isVizTableConfig,
     MAX_SAFE_INTEGER,
     type VizTableConfig,
@@ -9,20 +10,20 @@ import {
     formatSql,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Group,
-    Indicator,
-    LoadingOverlay,
     Paper,
-    SegmentedControl,
     Stack,
     Text,
-    Tooltip,
+    ActionIcon,
+    Indicator,
+    LoadingOverlay,
+    SegmentedControl,
     Transition,
-} from '@mantine/core';
-import { useElementSize, useHotkeys } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
+    Tooltip,
+} from '@mantine-8/core';
+import { useElementSize, useHotkeys } from '@mantine-8/hooks';
+import { notifications } from '@mantine-8/notifications';
 import {
     IconAlertCircle,
     IconChartHistogram,
@@ -52,7 +53,6 @@ import {
     selectPivotChartDataByKind,
 } from '../../../components/DataViz/store/selectors';
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
-import ChartView from '../../../components/DataViz/visualizations/ChartView';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
@@ -87,9 +87,11 @@ import {
 import { prepareAndFetchChartData, runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
+import styles from './ResizeHandle.module.css';
 import { SqlEditor } from './SqlEditor';
 import { SqlEditorPreferencesPopover } from './SqlEditorPreferencesPopover';
 import { SqlQueryHistory } from './SqlQueryHistory';
+import { SqlRunnerChart } from './SqlRunnerChart';
 
 export const ContentPanel: FC = () => {
     // State we need from redux
@@ -415,15 +417,14 @@ export const ContentPanel: FC = () => {
                     downloadLimit === null
                         ? MAX_SAFE_INTEGER
                         : (downloadLimit ?? limit),
-                    // TODO: pass parameterValues (same as handleRunQuery)
-                    undefined,
+                    parameterValues,
                     true,
                 );
                 return newQuery.queryUuid;
             }
             return queryUuid;
         },
-        [sql, projectUuid, limit, queryUuid],
+        [sql, projectUuid, limit, queryUuid, parameterValues],
     );
 
     const getDownloadPivotQueryUuid = useCallback(async () => {
@@ -440,21 +441,18 @@ export const ContentPanel: FC = () => {
     } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
 
     return (
-        <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
+        <Stack gap="none" style={{ flex: 1, overflow: 'hidden' }}>
             <Tooltip.Group>
                 <Paper
                     shadow="none"
                     radius={0}
+                    withBorder={false}
                     px="md"
                     py={6}
-                    sx={(theme) => ({
-                        borderWidth: '0 0 1px 1px',
-                        borderStyle: 'solid',
-                        borderColor: theme.colors.ldGray[3],
-                    })}
+                    className={styles.toolbarPaper}
                 >
-                    <Group position="apart">
-                        <Group position="apart">
+                    <Group justify="space-between">
+                        <Group justify="space-between">
                             <Indicator
                                 color="red.6"
                                 offset={10}
@@ -474,14 +472,16 @@ export const ContentPanel: FC = () => {
                                             label: (
                                                 <Tooltip
                                                     disabled={!hasUnrunChanges}
-                                                    variant="xs"
                                                     withinPortal
                                                     label="You haven't run this query yet."
                                                 >
-                                                    <Group spacing={4} noWrap>
+                                                    <Group
+                                                        gap={4}
+                                                        wrap="nowrap"
+                                                    >
                                                         <SqlEditorPreferencesPopover />
 
-                                                        <Text>SQL</Text>
+                                                        <Text fz="sm">SQL</Text>
                                                     </Group>
                                                 </Tooltip>
                                             ),
@@ -494,43 +494,49 @@ export const ContentPanel: FC = () => {
                                                     disabled={
                                                         !!queryResults?.results
                                                     }
-                                                    variant="xs"
                                                     withinPortal
                                                     label="Run a query to see the chart"
                                                 >
-                                                    <Group spacing={4} noWrap>
+                                                    <Group
+                                                        gap={4}
+                                                        wrap="nowrap"
+                                                    >
                                                         <MantineIcon
                                                             color="ldGray.6"
                                                             icon={
                                                                 IconChartHistogram
                                                             }
                                                         />
-                                                        <Text>Chart</Text>
+                                                        <Text fz="sm">
+                                                            Chart
+                                                        </Text>
                                                     </Group>
                                                 </Tooltip>
                                             ),
                                         },
                                     ]}
                                     value={activeEditorTab}
-                                    onChange={(value: EditorTabs) => {
+                                    onChange={(value) => {
+                                        const editorTab = value as EditorTabs;
+
                                         if (isLoadingSqlQuery) {
                                             return;
                                         }
 
                                         if (
-                                            value ===
+                                            editorTab ===
                                                 EditorTabs.VISUALIZATION &&
                                             !queryResults?.results
                                         ) {
                                             return;
                                         }
 
-                                        dispatch(setActiveEditorTab(value));
+                                        dispatch(setActiveEditorTab(editorTab));
                                     }}
                                 />
                             </Indicator>
                         </Group>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Parameters
                                 isEditMode={false}
                                 parameters={projectParameters}
@@ -557,7 +563,6 @@ export const ContentPanel: FC = () => {
                             />
                             {activeEditorTab === EditorTabs.SQL && (
                                 <Tooltip
-                                    variant="xs"
                                     label="Format SQL"
                                     withArrow
                                     position="bottom"
@@ -573,6 +578,7 @@ export const ContentPanel: FC = () => {
                             )}
                             {activeEditorTab === EditorTabs.VISUALIZATION &&
                             !isVizTableConfig(currentVizConfig) &&
+                            !isVizBigNumberConfig(currentVizConfig) &&
                             selectedChartType ? (
                                 <ChartDownload
                                     chartName={savedSqlChart?.name}
@@ -631,34 +637,20 @@ export const ContentPanel: FC = () => {
                             ref={inputSectionRef}
                             shadow="none"
                             radius={0}
-                            style={{ flex: 1 }}
-                            sx={(theme) => ({
-                                borderWidth: '0 0 0 1px',
-                                borderStyle: 'solid',
-                                borderColor: theme.colors.ldGray[3],
-                                overflow: 'auto',
-                                backgroundColor:
-                                    theme.colorScheme === 'dark'
-                                        ? theme.colors.dark[6]
-                                        : 'white',
-                            })}
+                            withBorder={false}
+                            style={{ flex: 1, position: 'relative' }}
+                            className={styles.inputPaper}
                         >
                             <Box
-                                style={{ flex: 1 }}
-                                pt={
-                                    activeEditorTab === EditorTabs.SQL
-                                        ? 'md'
-                                        : 0
-                                }
-                                sx={{
+                                style={{
+                                    flex: 1,
                                     position: 'absolute',
+                                    inset: 0,
                                     overflowY: isVizTableConfig(
                                         currentVizConfig,
                                     )
                                         ? 'auto'
                                         : 'hidden',
-                                    height: inputSectionHeight,
-                                    width: inputSectionWidth,
                                 }}
                             >
                                 <ConditionalVisibility
@@ -712,7 +704,6 @@ export const ContentPanel: FC = () => {
                                                             style={styles}
                                                         >
                                                             {activeConfigs.chartConfigs.map(
-                                                                // TODO: are we rendering all charts here?
                                                                 (c) => (
                                                                     <ConditionalVisibility
                                                                         key={
@@ -723,7 +714,7 @@ export const ContentPanel: FC = () => {
                                                                             c.type
                                                                         }
                                                                     >
-                                                                        <ChartView
+                                                                        <SqlRunnerChart
                                                                             config={
                                                                                 c
                                                                             }
@@ -736,11 +727,13 @@ export const ContentPanel: FC = () => {
                                                                             error={
                                                                                 pivotedChartInfo?.error
                                                                             }
-                                                                            style={{
-                                                                                height: inputSectionHeight,
-                                                                                flex: inputSectionWidth,
-                                                                            }}
-                                                                            onChartReady={(
+                                                                            height={
+                                                                                inputSectionHeight
+                                                                            }
+                                                                            width={
+                                                                                inputSectionWidth
+                                                                            }
+                                                                            onEchartsReady={(
                                                                                 instance,
                                                                             ) => {
                                                                                 if (
@@ -809,21 +802,7 @@ export const ContentPanel: FC = () => {
                         hidden={hideResultsPanel}
                         component={PanelResizeHandle}
                         h={15}
-                        sx={(theme) => ({
-                            transition: 'background-color 0.2s ease-in-out',
-                            cursor: 'row-resize',
-                            display: hideResultsPanel ? 'none' : 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            '&:hover': {
-                                backgroundColor: theme.colors.ldGray[2],
-                            },
-                            '&[data-resize-handle-state="drag"]': {
-                                backgroundColor: theme.colors.ldGray[3],
-                            },
-                            borderLeft: `1px solid ${theme.colors.ldGray[3]}`,
-                            gap: 5,
-                        })}
+                        className={styles.resultsResizeHandle}
                     >
                         <MantineIcon
                             color="gray"
@@ -860,7 +839,7 @@ export const ContentPanel: FC = () => {
                         <Box
                             h="100%"
                             pos="relative"
-                            sx={{
+                            style={{
                                 overflow: 'auto',
                             }}
                         >
@@ -899,8 +878,8 @@ export const ContentPanel: FC = () => {
                                                     {hasReachedPivotColumnLimit &&
                                                         maxColumnLimit && (
                                                             <Group
-                                                                position="center"
-                                                                spacing="xs"
+                                                                justify="center"
+                                                                gap="xs"
                                                             >
                                                                 <MantineIcon
                                                                     color="gray"

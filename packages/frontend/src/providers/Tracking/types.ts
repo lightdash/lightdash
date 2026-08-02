@@ -1,10 +1,14 @@
 import {
+    type AiDeepResearchTerminalStatus,
     type CustomFormatType,
+    type HomepageRecommendedActionKey,
     type SearchItemType,
     type TableCalculationType,
     type TimeFrames,
+    type WarehouseTypes,
 } from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
+import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
 import {
     type CategoryName,
     type EventName,
@@ -23,7 +27,6 @@ type GenericEvent = {
         | EventName.CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED
         | EventName.DELETE_TABLE_CALCULATION_BUTTON_CLICKED
         | EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED
-        | EventName.CREATE_PROJECT_BUTTON_CLICKED
         | EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED
         | EventName.UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED
         | EventName.UPDATE_PROJECT_BUTTON_CLICKED
@@ -39,6 +42,9 @@ type GenericEvent = {
         | EventName.CREATE_PROJECT_ACCESS_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_CLI_BUTTON_CLICKED
         | EventName.CREATE_PROJECT_MANUALLY_BUTTON_CLICKED
+        | EventName.CREATE_PROJECT_AGENT_BUTTON_CLICKED
+        | EventName.CREATE_PROJECT_WAREHOUSE_BUTTON_CLICKED
+        | EventName.CREATE_PROJECT_CLI_SSO_OPTION_CLICKED
         | EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED
         | EventName.TRY_DEMO_CLICKED
         | EventName.GO_TO_LINK_CLICKED
@@ -70,8 +76,32 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_SEARCH_APPLIED
         | EventName.METRICS_CATALOG_TREES_EDGE_CREATED
         | EventName.METRICS_CATALOG_TREES_EDGE_REMOVED
-        | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED;
+        | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED
+        | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
+        | EventName.AGENT_SETUP_PROMPT_COPIED;
     properties?: {};
+};
+
+type SetupInviteSentEvent = {
+    name: EventName.SETUP_INVITE_SENT;
+    properties: {
+        organizationId: string;
+    };
+};
+
+type PlaygroundProjectEnteredEvent = {
+    name: EventName.PLAYGROUND_PROJECT_ENTERED;
+    properties: {
+        organizationId: string;
+    };
+};
+
+type PlaygroundProjectSetupFailedEvent = {
+    name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED;
+    properties: {
+        organizationId: string;
+        failureType: PlaygroundSetupFailure;
+    };
 };
 
 type DocumentationClickedEvent = {
@@ -104,6 +134,28 @@ export type LandingRunQueryClickedEvent = {
     properties: {
         organizationId: string;
         projectId: string;
+    };
+};
+
+export type HomepageQuickActionClickedEvent = {
+    name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED;
+    properties: {
+        actionType: string;
+    };
+};
+
+export type HomepageRecommendedActionClickedEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_CLICKED;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
+        destination: string;
+    };
+};
+
+export type HomepageRecommendedActionSkippedEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
     };
 };
 
@@ -469,12 +521,28 @@ type AiAgentChatMinimizedEvent = {
     };
 };
 
+type AiDeepResearchReportEngagedEvent = {
+    name: EventName.AI_DEEP_RESEARCH_REPORT_ENGAGED;
+    properties: {
+        action: 'opened' | 'copied' | 'shared' | 'follow_up';
+        organizationId: string;
+        projectId: string;
+        userId: string;
+        runUuid: string;
+        threadId: string;
+        aiAgentId: string;
+        runStatus: AiDeepResearchTerminalStatus;
+        timeSinceCompletedMs: number;
+    };
+};
+
 type AiAgentSuggestionImpressionEvent = {
     name: EventName.AI_AGENT_SUGGESTION_IMPRESSION;
     properties: {
         projectId: string;
         agentId: string;
         chipCount: number;
+        placement: 'agent_chat' | 'homepage_hero';
     };
 };
 
@@ -491,6 +559,7 @@ type AiAgentSuggestionClickEvent = {
         chipTool?: string;
         chipIndex: number;
         mode: 'empty-state' | 'post-response';
+        placement: 'agent_chat' | 'homepage_hero';
     };
 };
 
@@ -549,8 +618,216 @@ type DashboardFilterLockToggledEvent = {
     };
 };
 
+type DashboardFilterRequirementsSavedEvent = {
+    name: EventName.DASHBOARD_FILTER_REQUIREMENTS_SAVED;
+    properties: {
+        dashboardUuid: string | undefined;
+        ruleCount: number;
+        memberCount: number;
+        hasNote: boolean;
+    };
+};
+
+type CreateProjectButtonClickedEvent = {
+    name: EventName.CREATE_PROJECT_BUTTON_CLICKED;
+    properties: {
+        warehouse: WarehouseTypes;
+        authenticationType?: string;
+        warehouseOnly?: boolean;
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type CreateProjectFailedEvent = {
+    name: EventName.CREATE_PROJECT_FAILED;
+    properties: {
+        warehouse: WarehouseTypes;
+        errorType: string;
+        warehouseOnly?: boolean;
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type SignupFormSubmittedEvent = {
+    name: EventName.SIGNUP_FORM_SUBMITTED;
+    properties: {
+        variant: 'email_only' | 'password';
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type OtpResendClickedEvent = {
+    name: EventName.OTP_RESEND_CLICKED;
+    properties: {
+        purpose: 'signup_verification' | 'login';
+    };
+};
+
+type LoginFlowMethodSelectedEvent = {
+    name: EventName.LOGIN_FLOW_METHOD_SELECTED;
+    properties: {
+        method: 'password' | 'email_otp' | 'sso_redirect';
+    };
+};
+
+type OrganizationSetupStepCompletedEvent = {
+    name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED;
+    properties: {
+        step: 'workspace' | 'about_you';
+    };
+};
+
+type OrganizationBrandDetectedEvent = {
+    name: EventName.ORGANIZATION_BRAND_DETECTED;
+    properties: {
+        found: boolean;
+        autoApplied: boolean;
+    };
+};
+
+type OnboardingWarehouseSelectedEvent = {
+    name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
+    properties: {
+        organizationId: string;
+        warehouse: string;
+        tier: 'popular' | 'all' | 'other';
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type BigquerySsoSigninCompletedEvent = {
+    name: EventName.BIGQUERY_SSO_SIGNIN_COMPLETED;
+    properties: {
+        success: boolean;
+    };
+};
+
+type SnowflakeCliSsoCommandCopiedEvent = {
+    name: EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED;
+    properties: {
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type SnowflakeCliSsoConnectCompletedEvent = {
+    name: EventName.SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED;
+    properties: {
+        success: boolean;
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type OnboardingProjectReadyStartExploringClickedEvent = {
+    name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED;
+    properties: {
+        projectId: string;
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type HomepageAskSubmittedEvent = {
+    name: EventName.HOMEPAGE_ASK_SUBMITTED;
+    properties: {
+        mode: string;
+        hasProject: boolean;
+    };
+};
+
+type HomepageRecommendedActionImpressionEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
+        position: number;
+        trigger: 'initial' | 'auto_rotate' | 'manual';
+    };
+};
+
+type HomepageRecommendedActionRestoredEvent = {
+    name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED;
+    properties: {
+        actionKey: HomepageRecommendedActionKey;
+    };
+};
+
+type HomepageStarsMediaCardClickedEvent = {
+    name: EventName.HOMEPAGE_STARS_MEDIA_CARD_CLICKED;
+    properties: {
+        cardKey: string;
+        href: string;
+    };
+};
+
+type CreateProjectColumnsDefinedButtonClickedEvent = {
+    name: EventName.CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED;
+    properties: {
+        warehouse: WarehouseTypes;
+    };
+};
+
+type AgentOnboardingDemoOfferProperties = {
+    organizationId: string;
+    projectUuid: string;
+    agentOnboardingRunUuid: string;
+    offerType: 'provision_demo' | 'open_existing_demo';
+};
+
+type AgentOnboardingDemoOfferShownEvent = {
+    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_SHOWN;
+    properties: AgentOnboardingDemoOfferProperties;
+};
+
+type AgentOnboardingDemoOfferAcceptedEvent = {
+    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED;
+    properties: AgentOnboardingDemoOfferProperties & {
+        demoProjectUuid: string | null;
+    };
+};
+
+type AgentOnboardingCompletionToastProperties = {
+    organizationId: string;
+    projectUuid: string;
+    agentOnboardingRunUuid: string;
+};
+
+type AgentOnboardingCompletionToastShownEvent = {
+    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN;
+    properties: AgentOnboardingCompletionToastProperties;
+};
+
+type AgentOnboardingCompletionToastClickedEvent = {
+    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED;
+    properties: AgentOnboardingCompletionToastProperties;
+};
+
 export type EventData =
     | GenericEvent
+    | AgentOnboardingDemoOfferShownEvent
+    | AgentOnboardingDemoOfferAcceptedEvent
+    | AgentOnboardingCompletionToastShownEvent
+    | AgentOnboardingCompletionToastClickedEvent
+    | SetupInviteSentEvent
+    | PlaygroundProjectEnteredEvent
+    | PlaygroundProjectSetupFailedEvent
+    | CreateProjectButtonClickedEvent
+    | CreateProjectFailedEvent
+    | SignupFormSubmittedEvent
+    | OtpResendClickedEvent
+    | LoginFlowMethodSelectedEvent
+    | OrganizationSetupStepCompletedEvent
+    | OrganizationBrandDetectedEvent
+    | OnboardingWarehouseSelectedEvent
+    | BigquerySsoSigninCompletedEvent
+    | SnowflakeCliSsoCommandCopiedEvent
+    | SnowflakeCliSsoConnectCompletedEvent
+    | OnboardingProjectReadyStartExploringClickedEvent
+    | HomepageAskSubmittedEvent
+    | HomepageRecommendedActionImpressionEvent
+    | HomepageRecommendedActionRestoredEvent
+    | HomepageStarsMediaCardClickedEvent
+    | CreateProjectColumnsDefinedButtonClickedEvent
+    | HomepageQuickActionClickedEvent
+    | HomepageRecommendedActionClickedEvent
+    | HomepageRecommendedActionSkippedEvent
     | SetupStepClickedEvent
     | DocumentationClickedEvent
     | SearchResultClickedEvent
@@ -558,6 +835,7 @@ export type EventData =
     | GlobalSearchClosedEvent
     | OnboardingStepClickedEvent
     | CrossFilterDashboardAppliedEvent
+    | DashboardFilterRequirementsSavedEvent
     | ViewUnderlyingDataClickedEvent
     | DrillByClickedEvent
     | DashboardAutoRefreshUpdateEvent
@@ -588,6 +866,7 @@ export type EventData =
     | AiAgentChartExploredEvent
     | AiAgentAskClickedEvent
     | AiAgentChatMinimizedEvent
+    | AiDeepResearchReportEngagedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | ThemeToggledEvent

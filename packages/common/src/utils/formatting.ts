@@ -10,6 +10,7 @@ import {
 } from 'numfmt';
 import { LightdashParameters } from '../compiler/parameters';
 import {
+    Compact,
     CompactConfigMap,
     CustomFormatType,
     DimensionType,
@@ -355,6 +356,61 @@ export const parseDate = (
     timeInterval: TimeFrames | undefined = TimeFrames.DAY,
 ): Date => moment(str, getDateFormat(timeInterval)).toDate();
 
+// The canonical stored formats for calendar values — what the pickers write
+// via formatDate for each grain family (WEEK shares the DAY format).
+const calendarValueFormats = [
+    TimeFrames.DAY,
+    TimeFrames.MONTH,
+    TimeFrames.QUARTER,
+    TimeFrames.YEAR,
+].map((timeInterval) => getDateFormat(timeInterval));
+
+// Strict UTC parse of a stored calendar value (`2024-07-22`, `2024-07`,
+// `2024-Q3`, `2024`) to the start of its period, browser-independent. Unlike
+// parseDate this accepts only canonical calendar formats and does not
+// leniently coerce other inputs.
+export const parseCalendarValueUTC = (value: string): Date | undefined => {
+    const parsed = moment.utc(value, calendarValueFormats, true);
+    return parsed.isValid() ? parsed.toDate() : undefined;
+};
+
+// Datetime shapes: date + time with an optional T separator, optional seconds
+// and up to microsecond fractions. Zoned variants append moment's Z token
+// (`Z`, `±hh:mm`, `±hhmm`, `±hh`).
+const naiveTimestampFormats = ['HH:mm', 'HH:mm:ss', 'HH:mm:ss.SSSSSS'].flatMap(
+    (time) => [`YYYY-MM-DD ${time}`, `YYYY-MM-DD[T]${time}`],
+);
+const zonedTimestampFormats = naiveTimestampFormats.map(
+    (format) => `${format}Z`,
+);
+
+// Strict UTC parse of a datetime string, classifying whether it carries an
+// explicit zone. A zoned value parses to its instant; an offset-less value
+// parses naive-as-UTC. Both are browser-independent; anything outside the
+// canonical shapes is rejected instead of leniently coerced.
+export const parseTimestampValueUTC = (
+    value: string,
+): { date: Date; hasZone: boolean } | undefined => {
+    const zoned = moment.utc(value, zonedTimestampFormats, true);
+    if (zoned.isValid()) return { date: zoned.toDate(), hasZone: true };
+    const naive = moment.utc(value, naiveTimestampFormats, true);
+    if (naive.isValid()) return { date: naive.toDate(), hasZone: false };
+    return undefined;
+};
+
+// Temporal strings safe to move out of a slot that may also hold a numeric
+// value. Bare years are deliberately excluded because `2024` is equally valid
+// as a calendar year and as a numeric threshold.
+export const isUnambiguousTemporalString = (raw: unknown): raw is string => {
+    if (typeof raw !== 'string') return false;
+    const value = raw.trim();
+    if (value !== '' && Number.isFinite(Number(value))) return false;
+    return (
+        parseTimestampValueUTC(value) !== undefined ||
+        parseCalendarValueUTC(value) !== undefined
+    );
+};
+
 export const parseTimestamp = (
     str: string,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
@@ -515,6 +571,12 @@ export function getCustomFormatFromLegacy({
                 compact,
                 round,
             };
+        case Format.SI:
+            return {
+                type: CustomFormatType.NUMBER,
+                compact: Compact.AUTO,
+                round,
+            };
         case Format.PERCENT:
             return {
                 type: CustomFormatType.PERCENT,
@@ -651,6 +713,30 @@ function applyCompact(
     if (format?.compact === undefined)
         return { compactValue: Number(value), compactSuffix: '' };
 
+    if (format.compact === Compact.AUTO) {
+        const numberValue = Number(value);
+        const compactConfig = [
+            Compact.TRILLIONS,
+            Compact.BILLIONS,
+            Compact.MILLIONS,
+            Compact.THOUSANDS,
+        ]
+            .map((compact) => CompactConfigMap[compact])
+            .find(
+                ({ orderOfMagnitude }) =>
+                    Math.abs(numberValue) >= 10 ** orderOfMagnitude,
+            );
+
+        if (compactConfig) {
+            return {
+                compactValue: compactConfig.convertFn(numberValue),
+                compactSuffix: compactConfig.suffix,
+            };
+        }
+
+        return { compactValue: numberValue, compactSuffix: '' };
+    }
+
     const compactConfig = findCompactConfig(format.compact);
 
     if (compactConfig) {
@@ -726,10 +812,13 @@ export function formatValueWithExpression(
             }
             // Shift into the project tz then relabel wall-clock as UTC so
             // numfmt's `ignoreTimezone` renders it verbatim. Gated like
-            // formatTimestamp (`if (timezone)`).
+            // formatTimestamp (`if (timezone)`). The no-tz branch must also
+            // parse as UTC: `ignoreTimezone` reads the Date's UTC fields, so a
+            // local parse of an offset-less value (bare date / naive timestamp)
+            // shifts it by the viewer's offset across the month boundary.
             const dateForExpression = timezone
                 ? moment.utc(sanitizedValue).tz(timezone).utc(true).toDate()
-                : moment(sanitizedValue).toDate();
+                : moment.utc(sanitizedValue).toDate();
             return formatWithExpression(expression, dateForExpression, {
                 ignoreTimezone: true,
             });
@@ -989,6 +1078,10 @@ const customFormatConversionFnMap: Record<
     },
     compact: (formatExpression, format) => {
         if (format.compact) {
+            if (format.compact === Compact.AUTO) {
+                return formatExpression;
+            }
+
             const compactConfig = findCompactConfig(format.compact);
             if (compactConfig) {
                 // Check if this is a binary (IEC) byte unit, like KiB, MiB, etc.
@@ -1015,9 +1108,18 @@ const customFormatConversionFnMap: Record<
     },
 };
 
+const hasDynamicCompact = (format: CustomFormat) =>
+    format.compact === Compact.AUTO &&
+    (format.type === CustomFormatType.NUMBER ||
+        format.type === CustomFormatType.CURRENCY);
+
 export function convertCustomFormatToFormatExpression(
     format: CustomFormat,
 ): string | null {
+    if (hasDynamicCompact(format)) {
+        return null;
+    }
+
     // ECMA-376 format expression
     let defaultFormatExpression: string | null = null;
     let conversions: Array<string> = [];
@@ -1079,6 +1181,39 @@ export function convertCustomFormatToFormatExpression(
             customFormatConversionFnMap[fnKey](expression, format),
         defaultFormatExpression,
     );
+}
+
+/**
+ * Converts a UI format override (a metric/dimension `formatOptions`) into the
+ * field-level format props to spread onto a query result field.
+ *
+ * Formats that have an ECMA-376 representation are encoded as a `format`
+ * expression so every render and export path shares a single source of truth.
+ * When there is no expression form — notably dynamic compact (`Compact.AUTO`),
+ * where `convertCustomFormatToFormatExpression` returns null — the structured
+ * `formatOptions` is preserved and any legacy `format` expression cleared,
+ * letting the render path apply it via the structured `applyCompact` path.
+ */
+export function getFieldFormatOverrideProps(formatOptions: CustomFormat): {
+    format: string | undefined;
+    formatOptions?: CustomFormat;
+    separator: NumberSeparator | undefined;
+} {
+    const formatExpression =
+        convertCustomFormatToFormatExpression(formatOptions);
+    if (formatExpression === null) {
+        return {
+            format: undefined,
+            formatOptions,
+            separator: formatOptions.separator,
+        };
+    }
+    return {
+        // The format expression can't encode the separator, so carry it
+        // separately for the render paths (getEffectiveSeparator reads it).
+        format: formatExpression,
+        separator: formatOptions.separator,
+    };
 }
 
 export function getFormatExpression(

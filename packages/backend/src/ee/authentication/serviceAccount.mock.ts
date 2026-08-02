@@ -65,13 +65,13 @@ export const mockRequestWithValidToken = {
         authorization: 'Bearer valid_service_account_token',
     },
     services: {
-        getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateServiceAccount: jest
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateServiceAccount: vi
                 .fn()
                 .mockResolvedValue(mockServiceAccount),
         }),
-        getUserService: jest.fn().mockReturnValue({
-            getSessionUserForServiceAccount: jest
+        getUserService: vi.fn().mockReturnValue({
+            getSessionUserForServiceAccount: vi
                 .fn()
                 .mockResolvedValue(mockSaSessionUser),
         }),
@@ -84,8 +84,8 @@ export const mockRequestWithInvalidToken = {
         authorization: 'Bearer invalid_token',
     },
     services: {
-        getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateServiceAccount: jest.fn().mockResolvedValue(null),
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateServiceAccount: vi.fn().mockResolvedValue(null),
         }),
     },
 } as unknown as express.Request;
@@ -96,8 +96,8 @@ export const mockRequestWithExpiredToken = {
         authorization: 'Bearer expired_token',
     },
     services: {
-        getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateServiceAccount: jest
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateServiceAccount: vi
                 .fn()
                 .mockResolvedValue(mockExpiredServiceAccount),
         }),
@@ -107,8 +107,8 @@ export const mockRequestWithExpiredToken = {
 export const mockRequestWithNoToken = {
     headers: {},
     services: {
-        getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateServiceAccount: jest.fn().mockResolvedValue(null),
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateServiceAccount: vi.fn().mockResolvedValue(null),
         }),
     },
 } as unknown as express.Request;
@@ -118,8 +118,8 @@ export const mockRequestWithEmptyToken = {
         authorization: '',
     },
     services: {
-        getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateServiceAccount: jest.fn().mockResolvedValue(null),
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateServiceAccount: vi.fn().mockResolvedValue(null),
         }),
     },
 } as unknown as express.Request;
@@ -129,8 +129,8 @@ export const mockRequestWithMalformedToken = {
         authorization: 'Bearer',
     },
     services: {
-        getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateServiceAccount: jest.fn().mockResolvedValue(null),
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateServiceAccount: vi.fn().mockResolvedValue(null),
         }),
     },
 } as unknown as express.Request;
@@ -140,8 +140,8 @@ export const mockRequestWithNonBearerToken = {
         authorization: 'ApiKey some_api_key',
     },
     services: {
-        getServiceAccountService: jest.fn().mockReturnValue({
-            authenticateServiceAccount: jest.fn().mockResolvedValue(null),
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateServiceAccount: vi.fn().mockResolvedValue(null),
         }),
     },
 } as unknown as express.Request;

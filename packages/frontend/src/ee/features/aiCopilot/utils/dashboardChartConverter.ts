@@ -1,4 +1,5 @@
 import {
+    getGroupByDimensions,
     getWebAiChartConfig,
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
@@ -29,17 +30,23 @@ function convertAiVisualizationToCreateSavedChartVersion(
         aiVizData;
     const { metricQuery } = query;
 
+    const webAiChartConfig = getWebAiChartConfig({
+        vizConfig: dashboardVisualization,
+        metricQuery,
+        maxQueryLimit: options.maxQueryLimit,
+        fieldsMap: aiVizData.query.fields,
+        overrideChartType: selectedChartType ?? undefined,
+    });
+
     // Use expanded chart config if available (user made custom changes to the chart),
     // otherwise generate config from dashboard visualization with chart type override
     const finalChartConfig =
-        expandedChartConfig ??
-        getWebAiChartConfig({
-            vizConfig: dashboardVisualization,
-            metricQuery,
-            maxQueryLimit: options.maxQueryLimit,
-            fieldsMap: aiVizData.query.fields,
-            overrideChartType: selectedChartType ?? undefined,
-        }).echartsConfig;
+        expandedChartConfig ?? webAiChartConfig.echartsConfig;
+
+    // The artifact preview pivots results by the groupBy hint; the saved chart
+    // needs the same dimensions persisted as pivotConfig or its series can't
+    // bind to the un-pivoted results and the chart renders flat.
+    const groupByDimensions = getGroupByDimensions(webAiChartConfig);
 
     // Create table config with proper column order
     const tableConfig = {
@@ -55,6 +62,9 @@ function convertAiVisualizationToCreateSavedChartVersion(
         tableName: metricQuery.exploreName,
         metricQuery,
         chartConfig: finalChartConfig,
+        pivotConfig: groupByDimensions?.length
+            ? { columns: groupByDimensions }
+            : undefined,
         tableConfig,
         dashboardUuid: options.dashboardUuid,
         dashboardName: options.dashboardName,

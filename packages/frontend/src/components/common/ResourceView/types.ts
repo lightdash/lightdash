@@ -108,6 +108,7 @@ export enum ColumnVisibility {
     NAME = 'name',
     SPACE = 'space',
     UPDATED_AT = 'updatedAt',
+    VIEWS = 'views',
     ACCESS = 'access',
     CONTENT = 'content',
 }
@@ -116,6 +117,7 @@ export type ColumnVisibilityConfig = {
     [ColumnVisibility.NAME]?: boolean;
     [ColumnVisibility.SPACE]?: boolean;
     [ColumnVisibility.UPDATED_AT]?: boolean;
+    [ColumnVisibility.VIEWS]?: boolean;
     [ColumnVisibility.ACCESS]?: boolean;
     [ColumnVisibility.CONTENT]?: boolean;
 };

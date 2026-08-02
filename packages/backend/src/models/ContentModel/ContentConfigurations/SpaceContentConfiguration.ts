@@ -37,6 +37,11 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
             if (filters.contentTypes?.includes(ContentType.SPACE)) {
                 return true;
             }
+            // Spaces are opt-in for browse queries, but a uuid-targeted lookup
+            // names its exact items, so silently excluding a type is never right
+            if (filters.uuids?.length && !filters.contentTypes) {
+                return true;
+            }
             // Include spaces in deleted content "all" view
             if (filters.deleted && !filters.contentTypes) {
                 return true;
@@ -197,6 +202,13 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         );
                     }
 
+                    if (filters.uuids) {
+                        void builder.whereIn(
+                            `${SpaceTableName}.space_uuid`,
+                            filters.uuids,
+                        );
+                    }
+
                     if (filters.search) {
                         applyContentNameSearch(
                             builder,
@@ -241,10 +253,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                 `${SpaceTableName}.space_uuid`,
                                 filters.spaceUuids ?? [],
                             );
-                            // When searching, match spaces at any nesting level
-                            // to stay consistent with global search. The
-                            // space_uuid filter above already enforces access.
-                            if (!filters.search) {
+                            // When searching or resolving explicit uuids, match
+                            // spaces at any nesting level. The space_uuid filter
+                            // above already enforces access.
+                            if (!filters.search && !filters.uuids?.length) {
                                 void builder.andWhereRaw('nlevel(path) = 1');
                             }
                         } else {

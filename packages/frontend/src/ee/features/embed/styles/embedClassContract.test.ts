@@ -21,12 +21,15 @@ describe('embed class contract', () => {
             'ld-dashboard-header',
             'ld-dashboard-filters',
             'ld-dashboard-filter',
+            'ld-dashboard-add-filter',
             'ld-dashboard-date-zoom',
             'ld-dashboard-parameters',
             'ld-dashboard-parameter',
             'ld-dashboard-filter-dropdown',
+            'ld-dashboard-add-filter-dropdown',
             'ld-dashboard-date-zoom-dropdown',
             'ld-dashboard-parameter-dropdown',
+            'ld-dashboard-guided-setup',
         ]);
     });
 

@@ -1,6 +1,7 @@
 import {
     type AiAgentAdminSortField,
     type AiAgentAdminThreadSummary,
+    type AiThreadCreatedFrom,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -68,6 +69,13 @@ import {
     threadReviewStatusColors,
 } from './threadReviewContext';
 
+const CREATED_FROM_LABELS: Record<AiThreadCreatedFrom, string> = {
+    slack: 'Slack',
+    web_app: 'Web',
+    evals: 'Evals',
+    scheduler: 'Scheduler',
+};
+
 type AiAgentAdminThreadsTableProps = {
     onThreadSelect?: (thread: AiAgentAdminThreadSummary) => void;
     selectedThread?: AiAgentAdminThreadSummary | null;
@@ -87,6 +95,7 @@ const AiAgentAdminThreadsTable = ({
         search,
         selectedProjectUuids,
         selectedAgentUuids,
+        selectedUserUuids,
         selectedSource,
         selectedFeedback,
         sortField,
@@ -95,6 +104,7 @@ const AiAgentAdminThreadsTable = ({
         setSearch,
         setSelectedProjectUuids,
         setSelectedAgentUuids,
+        setSelectedUserUuids,
         setSelectedSource,
         setSelectedFeedback,
         setSorting,
@@ -233,7 +243,6 @@ const AiAgentAdminThreadsTable = ({
                 return (
                     <Tooltip
                         withinPortal
-                        variant="xs"
                         label={thread.title || 'Untitled Thread'}
                         disabled={!isTruncated.isTruncated}
                         multiline
@@ -303,11 +312,7 @@ const AiAgentAdminThreadsTable = ({
             Cell: ({ row }) => {
                 const thread = row.original;
                 return (
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label={thread.user.email}
-                    >
+                    <Tooltip withinPortal label={thread.user.email}>
                         <Text c="ldGray.9" fz="sm" fw={400}>
                             {thread.user.name}
                         </Text>
@@ -329,12 +334,8 @@ const AiAgentAdminThreadsTable = ({
             ),
             Cell: ({ row }) => {
                 const thread = row.original;
-                let label = thread.createdFrom;
-                if (label === 'slack') {
-                    label = 'Slack';
-                } else if (label === 'web_app') {
-                    label = 'App';
-                }
+                const isSlack = thread.createdFrom === 'slack';
+                const label = CREATED_FROM_LABELS[thread.createdFrom];
 
                 const slackUrl =
                     thread.slackChannelId &&
@@ -349,7 +350,7 @@ const AiAgentAdminThreadsTable = ({
 
                 return (
                     <Group gap="two">
-                        {label === 'Slack' ? (
+                        {isSlack ? (
                             <SlackSvg
                                 style={{
                                     width: '12px',
@@ -743,6 +744,8 @@ const AiAgentAdminThreadsTable = ({
                 setSelectedProjectUuids={setSelectedProjectUuids}
                 selectedAgentUuids={selectedAgentUuids}
                 setSelectedAgentUuids={setSelectedAgentUuids}
+                selectedUserUuids={selectedUserUuids}
+                setSelectedUserUuids={setSelectedUserUuids}
                 selectedSource={selectedSource}
                 setSelectedSource={setSelectedSource}
                 selectedFeedback={selectedFeedback}

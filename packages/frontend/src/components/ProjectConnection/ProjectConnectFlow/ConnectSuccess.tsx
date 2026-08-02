@@ -1,52 +1,36 @@
-import { Box, Button, createStyles, keyframes, Stack } from '@mantine/core';
+import { Box, Button, Stack } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { ProjectCreationCard } from '../../common/Settings/SettingsCard';
 import { OnboardingTitle } from './common/OnboardingTitle';
 import OnboardingWrapper from './common/OnboardingWrapper';
-
-const animate = keyframes({
-    '0%': { opacity: 0, transform: 'scale(.3)' },
-    '50%': { opacity: 1, transform: 'scale(1.05)' },
-    '70%': { opacity: 1, transform: 'scale(.8)' },
-    '100%': { opacity: 1, transform: 'scale(1)' },
-});
-
-const useStyles = createStyles(() => ({
-    container: {
-        opacity: 0,
-        textAlign: 'center',
-        animationName: animate,
-        animationDuration: '700ms',
-        animationDelay: '500ms',
-        animationFillMode: 'forwards',
-    },
-}));
+import styles from './ConnectSuccess.module.css';
 
 interface ConnectSuccessProps {
     projectUuid: string;
 }
 
 const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
-    const { classes } = useStyles();
+    const { track } = useTracking();
 
     return (
         <OnboardingWrapper>
             <ProjectCreationCard>
-                <Stack align="center" spacing="xl">
+                <Stack align="center" gap="xl">
                     <OnboardingTitle>
                         Your project's been created!
                     </OnboardingTitle>
 
                     <Box
                         component="div"
-                        className={classes.container}
+                        className={styles.container}
                         p="sm"
                         bg="green.6"
-                        sx={{ borderRadius: 999 }}
                         ref={(el) => {
                             if (!el) return;
 
@@ -81,6 +65,15 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                         component={Link}
                         size="md"
                         to={`/projects/${projectUuid}/home`}
+                        onClick={() => {
+                            track({
+                                name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED,
+                                properties: {
+                                    projectId: projectUuid,
+                                    onboardingFlow: 'legacy',
+                                },
+                            });
+                        }}
                     >
                         Let's do some data!
                     </Button>

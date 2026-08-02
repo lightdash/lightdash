@@ -11,16 +11,19 @@ import {
     type RepoFsTimingCallback,
 } from './githubRepoSource';
 
-jest.mock('../../../../clients/github/Github');
+vi.mock('../../../../clients/github/Github');
 
-const mockGetFileContent = getFileContent as jest.MockedFunction<
+const mockGetFileContent = getFileContent as import('vitest').MockedFunction<
     typeof getFileContent
 >;
-const mockGetRepoTree = getRepoTree as jest.MockedFunction<typeof getRepoTree>;
-const mockIsRateLimit = isGithubRateLimitError as jest.MockedFunction<
-    typeof isGithubRateLimitError
+const mockGetRepoTree = getRepoTree as import('vitest').MockedFunction<
+    typeof getRepoTree
 >;
-const mockSearchRepoCode = searchRepoCode as jest.MockedFunction<
+const mockIsRateLimit =
+    isGithubRateLimitError as import('vitest').MockedFunction<
+        typeof isGithubRateLimitError
+    >;
+const mockSearchRepoCode = searchRepoCode as import('vitest').MockedFunction<
     typeof searchRepoCode
 >;
 
@@ -216,7 +219,7 @@ describe('githubRepoSource onTiming (metrics hook)', () => {
     });
 
     it('reports outcome=found for a successful read', async () => {
-        const onTiming = jest.fn();
+        const onTiming = vi.fn();
         mockGetFileContent.mockResolvedValue({ content: 'x', sha: 'abc' });
         await source(onTiming).readFile('models/x.sql');
         expect(onTiming).toHaveBeenCalledWith(
@@ -225,7 +228,7 @@ describe('githubRepoSource onTiming (metrics hook)', () => {
     });
 
     it('reports outcome=missing for a NotFoundError', async () => {
-        const onTiming = jest.fn();
+        const onTiming = vi.fn();
         mockGetFileContent.mockRejectedValue(new NotFoundError('nope'));
         await source(onTiming).readFile('models/x.sql');
         expect(onTiming).toHaveBeenCalledWith(
@@ -234,7 +237,7 @@ describe('githubRepoSource onTiming (metrics hook)', () => {
     });
 
     it('reports outcome=error for an unexpected failure', async () => {
-        const onTiming = jest.fn();
+        const onTiming = vi.fn();
         mockGetFileContent.mockRejectedValue(
             new UnexpectedGitError('API rate limit exceeded'),
         );

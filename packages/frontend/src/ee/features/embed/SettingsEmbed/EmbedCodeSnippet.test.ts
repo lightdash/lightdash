@@ -172,4 +172,21 @@ describe('EmbedCodeSnippet Language Helpers', () => {
             expect(languageUndefined(SnippetLanguage.GO)).toBe('None');
         });
     });
+
+    // dashboardFiltersInteractivity.canAddFilters is substituted into the
+    // generated snippets via languageBoolean, same as the `hidden` field.
+    describe('languageBoolean for canAddFilters', () => {
+        it('formats true/false per language', () => {
+            expect(languageBoolean(SnippetLanguage.NODE, true)).toBe('true');
+            expect(languageBoolean(SnippetLanguage.PYTHON, true)).toBe('True');
+            expect(languageBoolean(SnippetLanguage.GO, false)).toBe('false');
+        });
+
+        it('defaults to false when canAddFilters is not set', () => {
+            const canAddFilters: boolean | undefined = undefined;
+            expect(
+                languageBoolean(SnippetLanguage.NODE, canAddFilters ?? false),
+            ).toBe('false');
+        });
+    });
 });

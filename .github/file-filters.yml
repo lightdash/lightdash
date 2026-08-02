@@ -6,6 +6,13 @@ preview:
   - "docker/**/*"
   - "okteto.preview.yaml"
 
+# Previews divert their database from a pre-seeded snapshot of main; PRs that
+# change the seed data itself must migrate and seed from scratch instead
+preview_db_full:
+  - "examples/full-jaffle-shop-demo/**"
+  - "packages/backend/src/database/seeds/**"
+  - "packages/backend/src/ee/database/seeds/**"
+
 cli:
   - "packages/cli/**/*"
   - "packages/e2e/cypress/cli/**/*"
@@ -21,6 +28,25 @@ backend:
   - "packages/warehouses/**/*"
   - "packages/api-tests/**/*"
   - "packages/common/**/*"
+
+# TSOA derives the OpenAPI spec from the controllers and every type they reach,
+# so any backend or common change can move the API surface
+openapi_surface: &openapi_surface
+  - "packages/backend/**/*"
+  - "packages/common/**/*"
+
+api_schema:
+  - ".github/workflows/pr.yml"
+  - *openapi_surface
+
+# Gates OpenAPI spec generation in release-safety-pr.yml: the surface itself, plus
+# the wiring that decides how the two specs are generated and diffed
+release_safety_api:
+  - ".github/file-filters.yml"
+  - ".github/workflows/release-safety-pr.yml"
+  - "scripts/gen-release-safety.ts"
+  - "scripts/rest-api-diff.ts"
+  - *openapi_surface
 
 timezone:
   - "packages/frontend/src/components/common/TimeZonePicker/index.tsx"

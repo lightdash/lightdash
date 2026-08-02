@@ -4,6 +4,7 @@ import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AiPromptTableName } from '../database/entities/ai';
 import {
     AiAgentReviewClassifierRunTableName,
+    AiAgentReviewItemEventsTableName,
     AiAgentReviewItemTableName,
     AiAgentReviewRemediationEventsTableName,
     AiAgentReviewRemediationTableName,
@@ -38,6 +39,7 @@ const snapshot = {
     instructionHash: 'hash',
     instructionSummary: 'Use finance definitions.',
     knowledgeDocuments: [],
+    mcpServers: [],
 };
 
 const makeRunRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
@@ -375,6 +377,78 @@ describe('AiAgentReviewClassifierModel', () => {
         });
     });
 
+    describe('review item events', () => {
+        it('inserts an issue event with the mapped columns', async () => {
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
+            const occurredAt = new Date('2026-06-24T10:00:00.000Z');
+
+            await model.createReviewItemEvent({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+                event: {
+                    eventType: 'status_changed',
+                    payload: {
+                        from: 'open',
+                        to: 'in_progress',
+                        dismissedReason: null,
+                    },
+                },
+                occurredAt,
+                createdByUserUuid: USER_UUID,
+            });
+
+            const [insert] = tracker.history.insert;
+            expect(insert.sql).toContain(AiAgentReviewItemEventsTableName);
+            expect(insert.bindings).toContain(FINGERPRINT);
+            expect(insert.bindings).toContain('status_changed');
+            expect(insert.bindings).toContain(USER_UUID);
+            expect(insert.bindings).toContainEqual(occurredAt);
+        });
+
+        it('lists issue events ordered by occurrence', async () => {
+            tracker.on.select(AiAgentReviewItemEventsTableName).responseOnce([
+                {
+                    ai_agent_review_item_event_uuid: 'event-1',
+                    fingerprint: FINGERPRINT,
+                    organization_uuid: ORGANIZATION_UUID,
+                    event_type: 'status_changed',
+                    occurred_at: SEEN_AT,
+                    payload: {
+                        from: 'open',
+                        to: 'in_progress',
+                        dismissedReason: null,
+                    },
+                    created_by_user_uuid: USER_UUID,
+                    created_at: SEEN_AT,
+                },
+            ]);
+
+            const events = await model.listReviewItemEvents({
+                fingerprint: FINGERPRINT,
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [query] = tracker.history.select;
+            expect(query.sql).toContain('occurred_at');
+            expect(events).toEqual([
+                {
+                    uuid: 'event-1',
+                    fingerprint: FINGERPRINT,
+                    eventType: 'status_changed',
+                    occurredAt: SEEN_AT,
+                    payload: {
+                        from: 'open',
+                        to: 'in_progress',
+                        dismissedReason: null,
+                    },
+                    createdByUserUuid: USER_UUID,
+                },
+            ]);
+        });
+    });
+
     describe('createRun', () => {
         it('creates a review agent run with run-level config snapshot', async () => {
             tracker.on
@@ -450,7 +524,8 @@ describe('AiAgentReviewClassifierModel', () => {
                 agent_uuid: AGENT_UUID,
                 created_from: 'web_app',
                 prompt: 'Show airport volume by country',
-                response: 'Country is not available.',
+                response:
+                    'Country is not available. <ld-mem-cite id="airport-country"></ld-mem-cite>',
                 error_message: null,
                 human_score: null,
                 human_feedback: null,
@@ -469,7 +544,7 @@ describe('AiAgentReviewClassifierModel', () => {
                         promptUuid: '00000000-0000-0000-0000-000000000012',
                         userPrompt: 'Show total airport volume',
                         assistantResponse:
-                            'Airport volume is calculated from scheduled flights.',
+                            'Airport volume is calculated from scheduled flights. <ld-mem-cite id="airport-volume"/>',
                         errorMessage: null,
                         createdAt: SEEN_AT.toISOString(),
                         respondedAt: SEEN_AT.toISOString(),
@@ -480,11 +555,34 @@ describe('AiAgentReviewClassifierModel', () => {
                 prompt_slack_ts: null,
                 query_history_summaries: [],
                 supporting_evidence_summaries: [],
+                tool_outcomes: [
+                    {
+                        toolCallId: 'tool-call-1',
+                        toolName: 'proposeWriteback',
+                        status: 'success',
+                    },
+                ],
+                pending_approval_timeout: true,
             });
 
             expect(result.subject.assistantPromptUuid).toBe(PROMPT_UUID);
             expect(result.interactionSource).toBe('app');
+            expect(result.assistantResponse).toBe('Country is not available. ');
+            expect(result.targetTurn.assistantResponse).toBe(
+                'Country is not available. ',
+            );
+            expect(result.contextTurns[0]?.assistantResponse).toBe(
+                'Airport volume is calculated from scheduled flights. ',
+            );
             expect(result.tokenUsageTotal).toBe(123);
+            expect(result.toolOutcomes).toEqual([
+                {
+                    toolCallId: 'tool-call-1',
+                    toolName: 'proposeWriteback',
+                    status: 'success',
+                },
+            ]);
+            expect(result.pendingApprovalTimeout).toBe(true);
         });
     });
 
@@ -501,6 +599,7 @@ describe('AiAgentReviewClassifierModel', () => {
             tracker.on
                 .select(AiAgentTurnSignalTableName)
                 .responseOnce([makeTurnSignalRow()]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on
                 .select(AiAgentReviewRemediationTableName)
@@ -572,6 +671,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     updated_at_age_ms: 0,
                 },
             ]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on
                 .select(AiAgentReviewRemediationTableName)
                 .responseOnce([]);
@@ -603,6 +703,7 @@ describe('AiAgentReviewClassifierModel', () => {
                 .select(AiAgentTurnSignalTableName)
                 .responseOnce([makeTurnSignalRow()]);
             tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on
                 .select(AiAgentReviewRemediationTableName)
                 .responseOnce([makeRemediationRow()]);
@@ -628,6 +729,7 @@ describe('AiAgentReviewClassifierModel', () => {
 
         it('filters by overlaid status', async () => {
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
 
             const result = await model.listReviewItems({
                 organizationUuid: ORGANIZATION_UUID,
@@ -679,6 +781,8 @@ describe('AiAgentReviewClassifierModel', () => {
             tracker.on
                 .select(AiAgentReviewItemTableName)
                 .responseOnce(itemRows);
+            // listReviewItems also queries source='manual' rows; none here.
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on
                 .select(AiAgentReviewRemediationTableName)
                 .responseOnce(remediationRows);
@@ -995,7 +1099,8 @@ describe('AiAgentReviewClassifierModel', () => {
                         agentUuid: AGENT_UUID,
                     },
                     prompt: 'Show revenue',
-                    response: 'Revenue is order count.',
+                    response:
+                        'Revenue is order count. <ld-mem-cite id="revenue-definition"></ld-mem-cite>',
                     error_message: null,
                 },
             ]);
@@ -1013,7 +1118,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     signal: 'implicit_correction',
                     promotedToFinding: true,
                     prompt: 'Show revenue',
-                    responsePreview: 'Revenue is order count.',
+                    responsePreview: 'Revenue is order count. ',
                     finding: expect.objectContaining({
                         uuid: TURN_SIGNAL_UUID,
                         reviewItemUuid: FINGERPRINT,
@@ -1025,6 +1130,85 @@ describe('AiAgentReviewClassifierModel', () => {
     });
 
     describe('createTurnSignal', () => {
+        const promotedFinding = {
+            primaryRootCause: 'semantic_layer' as const,
+            secondaryRootCauses: [],
+            subcategories: [],
+            fixTargets: [],
+            targetRefs: [],
+            evidenceExcerpts: [],
+            recommendation: null,
+            projectContextEntry: null,
+            reviewItem: {
+                fingerprint: FINGERPRINT,
+                title: 'Review airports.country',
+                description: 'Country needs semantic clarification.',
+                ownerType: 'semantic_layer_owner' as const,
+            },
+        };
+
+        it('records a created issue event on first promotion of a fingerprint', async () => {
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
+            tracker.on
+                .insert(AiAgentTurnSignalTableName)
+                .responseOnce([
+                    { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
+                ]);
+            // No existing item for this fingerprint → first promotion.
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
+
+            const result = await model.createTurnSignal({
+                runUuid: RUN_UUID,
+                turnSignal,
+                finding: promotedFinding,
+            });
+
+            expect(result.reviewItemOutcome).toBe('created');
+            const eventInserts = tracker.history.insert.filter((q) =>
+                q.sql.includes(AiAgentReviewItemEventsTableName),
+            );
+            expect(eventInserts).toHaveLength(1);
+            expect(eventInserts[0].bindings).toContain('created');
+        });
+
+        it('records a recurred issue event when the fingerprint already exists', async () => {
+            tracker.on.any(/pg_advisory_xact_lock/).response([]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.delete(AiAgentTurnSignalTableName).responseOnce(0);
+            tracker.on
+                .insert(AiAgentTurnSignalTableName)
+                .responseOnce([
+                    { ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID },
+                ]);
+            // Existing open item for this fingerprint → recurrence.
+            tracker.on
+                .select(AiAgentReviewItemTableName)
+                .responseOnce([{ status: 'open', dismissed_reason: null }]);
+            tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
+
+            const result = await model.createTurnSignal({
+                runUuid: RUN_UUID,
+                turnSignal,
+                finding: promotedFinding,
+            });
+
+            expect(result.reviewItemOutcome).toBe('recurred');
+            const eventInserts = tracker.history.insert.filter((q) =>
+                q.sql.includes(AiAgentReviewItemEventsTableName),
+            );
+            expect(eventInserts).toHaveLength(1);
+            expect(eventInserts[0].bindings).toContain('recurred');
+        });
+
         it('persists a classified signal with inline finding fields', async () => {
             tracker.on.any(/pg_advisory_xact_lock/).response([]);
             tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
@@ -1037,6 +1221,9 @@ describe('AiAgentReviewClassifierModel', () => {
             // No existing item for this fingerprint → nothing to reopen.
             tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
 
             const result = await model.createTurnSignal({
                 runUuid: RUN_UUID,
@@ -1071,16 +1258,19 @@ describe('AiAgentReviewClassifierModel', () => {
                 },
             });
 
-            expect(result).toBe(TURN_SIGNAL_UUID);
+            expect(result.turnSignalUuid).toBe(TURN_SIGNAL_UUID);
             // Supersede: the turn's prior signal is deleted before the new one
             // is inserted (one current signal per turn).
             expect(tracker.history.delete).toHaveLength(1);
             expect(tracker.history.delete[0].sql).toContain(
                 AiAgentTurnSignalTableName,
             );
-            expect(tracker.history.insert).toHaveLength(2);
+            expect(tracker.history.insert).toHaveLength(3);
             expect(tracker.history.insert[1].sql).toContain(
                 AiAgentReviewItemTableName,
+            );
+            expect(tracker.history.insert[2].sql).toContain(
+                AiAgentReviewItemEventsTableName,
             );
             // The supersede + item write are serialized behind a per-turn
             // advisory lock so concurrent re-reviews cannot clobber each other.
@@ -1102,12 +1292,13 @@ describe('AiAgentReviewClassifierModel', () => {
                 },
             ]);
 
-            await model.createTurnSignal({
+            const result = await model.createTurnSignal({
                 runUuid: RUN_UUID,
                 turnSignal: { ...turnSignal, promotedToFinding: false },
                 finding: null,
             });
 
+            expect(result.reviewItemOutcome).toBeNull();
             expect(tracker.history.insert).toHaveLength(1);
             expect(tracker.history.insert[0].sql).toContain(
                 AiAgentTurnSignalTableName,
@@ -1169,8 +1360,11 @@ describe('AiAgentReviewClassifierModel', () => {
                 .select(AiAgentReviewItemTableName)
                 .responseOnce([{ status: 'open', dismissed_reason: null }]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
 
-            await model.createTurnSignal({
+            const result = await model.createTurnSignal({
                 runUuid: RUN_UUID,
                 turnSignal,
                 finding: {
@@ -1191,6 +1385,9 @@ describe('AiAgentReviewClassifierModel', () => {
                 },
             });
 
+            // Same-turn re-review (supersede path) is neither created nor
+            // recurred — no ping.
+            expect(result.reviewItemOutcome).toBeNull();
             // The item is re-touched (upsert), never deleted, since the
             // fingerprint is stable across the re-review.
             expect(
@@ -1213,6 +1410,9 @@ describe('AiAgentReviewClassifierModel', () => {
                 .select(AiAgentReviewItemTableName)
                 .responseOnce([{ status: 'resolved', dismissed_reason: null }]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
             tracker.on.update(AiAgentReviewItemTableName).responseOnce(1);
 
             await model.createTurnSignal({
@@ -1260,6 +1460,9 @@ describe('AiAgentReviewClassifierModel', () => {
                 },
             ]);
             tracker.on.insert(AiAgentReviewItemTableName).responseOnce([]);
+            tracker.on
+                .insert(AiAgentReviewItemEventsTableName)
+                .responseOnce([]);
 
             await model.createTurnSignal({
                 runUuid: RUN_UUID,
@@ -1287,6 +1490,100 @@ describe('AiAgentReviewClassifierModel', () => {
                     q.sql.includes(AiAgentReviewItemTableName),
                 ),
             ).toHaveLength(0);
+        });
+    });
+
+    describe('findReviewItemDedupCandidates', () => {
+        it('joins candidate items to their latest signal and excludes duplicates', async () => {
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([
+                {
+                    fingerprint: FINGERPRINT,
+                    status: 'open',
+                    dismissed_reason: null,
+                },
+                {
+                    fingerprint: 'ai_agent_review_item:second',
+                    status: 'dismissed',
+                    dismissed_reason: 'expected_behavior',
+                },
+            ]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                makeTurnSignalRow({
+                    fingerprint: FINGERPRINT,
+                    review_item_title: 'Revenue metric mismatch',
+                    primary_root_cause: 'semantic_layer',
+                    target_refs: [
+                        {
+                            type: 'metric',
+                            modelName: 'orders',
+                            metricName: 'revenue',
+                        },
+                    ],
+                }),
+            ]);
+
+            const result = await model.findReviewItemDedupCandidates({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                limit: 30,
+            });
+
+            // Item order preserved; latest signal fields joined by fingerprint;
+            // an item without a signal falls back to null fields.
+            expect(result).toEqual([
+                {
+                    fingerprint: FINGERPRINT,
+                    title: 'Revenue metric mismatch',
+                    status: 'open',
+                    dismissedReason: null,
+                    primaryRootCause: 'semantic_layer',
+                    targetRefs: [
+                        {
+                            type: 'metric',
+                            modelName: 'orders',
+                            metricName: 'revenue',
+                        },
+                    ],
+                },
+                {
+                    fingerprint: 'ai_agent_review_item:second',
+                    title: null,
+                    status: 'dismissed',
+                    dismissedReason: 'expected_behavior',
+                    primaryRootCause: null,
+                    targetRefs: null,
+                },
+            ]);
+
+            const [itemQuery] = tracker.history.select;
+            expect(itemQuery.bindings).toEqual(
+                expect.arrayContaining([
+                    'triage',
+                    'open',
+                    'in_progress',
+                    'resolved',
+                    'dismissed',
+                ]),
+            );
+            expect(itemQuery.bindings).not.toContain('duplicate');
+            expect(itemQuery.sql).toContain('order by');
+            expect(itemQuery.bindings).toContain(30);
+        });
+
+        it('skips the signal lookup when no candidate items exist', async () => {
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+
+            const result = await model.findReviewItemDedupCandidates({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                limit: 30,
+            });
+
+            expect(result).toEqual([]);
+            const signalQueries = tracker.history.select.filter((q) =>
+                q.sql.includes(AiAgentTurnSignalTableName),
+            );
+            expect(signalQueries).toHaveLength(0);
         });
     });
 

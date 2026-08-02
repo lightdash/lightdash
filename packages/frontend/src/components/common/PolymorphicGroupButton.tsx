@@ -4,6 +4,7 @@ import {
     type GroupProps,
 } from '@mantine-8/core';
 import { forwardRef, type Ref } from 'react';
+import classes from './PolymorphicGroupButton.module.css';
 
 /**
  * A polymorphic component that renders a group button.
@@ -14,8 +15,12 @@ export const PolymorphicGroupButton = createPolymorphicComponent<
     GroupProps
 >(
     forwardRef<HTMLDivElement, GroupProps>(
-        (props: GroupProps, ref: Ref<HTMLDivElement>) => (
-            <Group ref={ref} {...props} style={{ cursor: 'pointer' }} />
+        ({ className, ...props }: GroupProps, ref: Ref<HTMLDivElement>) => (
+            <Group
+                ref={ref}
+                {...props}
+                className={`${classes.reset} ${className ?? ''}`}
+            />
         ),
     ),
 );

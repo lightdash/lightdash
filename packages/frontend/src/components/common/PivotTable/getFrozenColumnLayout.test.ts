@@ -133,7 +133,9 @@ describe('getFrozenColumnLayout', () => {
         });
     });
 
-    it('uses underlyingId/baseId as the freeze key for data columns', () => {
+    it('never freezes data columns, even when their base field is frozen', () => {
+        // All data columns share the same base field — freezing them would pin
+        // the entire data area and break horizontal scrolling.
         const layout = getFrozenColumnLayout({
             pivotColumnInfo: [
                 indexCol('orders_category'),
@@ -141,21 +143,18 @@ describe('getFrozenColumnLayout', () => {
                 dataCol('total_count__pivot_1', 'total_count'),
             ],
             columnProperties: {
+                orders_category: { frozen: true, width: 120 },
                 total_count: { frozen: true, width: 90 },
             },
             rowNumberWidth: 0,
             defaultColumnWidth: 100,
         });
-        // Both pivot slices of the same metric become sticky because the freeze
-        // key resolves to the metric's baseId.
-        expect(layout.get('total_count__pivot_0')).toEqual({
+        expect(layout.get('orders_category')).toEqual({
             left: 0,
-            isLast: false,
-        });
-        expect(layout.get('total_count__pivot_1')).toEqual({
-            left: 90,
             isLast: true,
         });
+        expect(layout.has('total_count__pivot_0')).toBe(false);
+        expect(layout.has('total_count__pivot_1')).toBe(false);
     });
 
     it('freezes the label column when labelColumnFrozen is true', () => {
@@ -190,7 +189,9 @@ describe('getFrozenColumnLayout', () => {
         expect(layout.size).toBe(0);
     });
 
-    it('prefers underlyingId over baseId as the freeze key for data columns', () => {
+    it('ignores frozen underlyingId and baseId fields on data columns', () => {
+        // A stale frozen flag on the pivoted dimension (baseId) or the metric
+        // (underlyingId) must not freeze the pivoted data columns.
         const layout = getFrozenColumnLayout({
             pivotColumnInfo: [
                 {
@@ -202,16 +203,37 @@ describe('getFrozenColumnLayout', () => {
             ],
             columnProperties: {
                 orders_total_count: { frozen: true, width: 90 },
-                // baseId match would also resolve to frozen, but underlyingId
-                // takes priority — this property has frozen: false to prove it.
-                orders_shipping_method: { frozen: false },
+                orders_shipping_method: { frozen: true },
             },
             rowNumberWidth: 0,
             defaultColumnWidth: 100,
         });
-        expect(layout.get('orders_total_count__pivot_0')).toEqual({
-            left: 0,
-            isLast: true,
+        expect(layout.size).toBe(0);
+    });
+
+    it('does not freeze rowTotal or passthrough columns', () => {
+        const layout = getFrozenColumnLayout({
+            pivotColumnInfo: [
+                {
+                    fieldId: 'row-total-0',
+                    baseId: 'orders_total_count',
+                    underlyingId: undefined,
+                    columnType: 'rowTotal',
+                },
+                {
+                    fieldId: 'orders_status',
+                    baseId: 'orders_status',
+                    underlyingId: undefined,
+                    columnType: 'passthrough',
+                },
+            ],
+            columnProperties: {
+                orders_total_count: { frozen: true },
+                orders_status: { frozen: true },
+            },
+            rowNumberWidth: 0,
+            defaultColumnWidth: 100,
         });
+        expect(layout.size).toBe(0);
     });
 });

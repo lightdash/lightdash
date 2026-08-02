@@ -57,6 +57,7 @@ export * from './authorization/roleToScopeMapping';
 export * from './authorization/scopeAbilityBuilder';
 export * from './authorization/scopes';
 export * from './authorization/serviceAccountAbility';
+export * from './authorization/space/customRoleProjectRole';
 export * from './authorization/space/spaceAccessResolver';
 export * from './authorization/types';
 export * from './compiler/compilationReport';
@@ -71,6 +72,8 @@ export * from './constants/sessionStorageKeys';
 export * from './constants/spaces';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
+export * from './dbt/manifest';
+export * from './dbt/metricFlow';
 export * from './dbt/validation';
 export * from './ee';
 export * from './preAggregates';
@@ -81,7 +84,7 @@ export * from './pivot/utils';
 export { default as chartAsCodeSchema } from './schemas/json/chart-as-code-1.0.json';
 export { default as dashboardAsCodeSchema } from './schemas/json/dashboard-as-code-1.0.json';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
-export { default as lightdashProjectContextSchema } from './schemas/json/lightdash-project-context-1.0.json';
+export { default as lightdashProjectContextSchema } from './schemas/json/lightdash-project-context-2.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export { default as modelAsCodeSchema } from './schemas/json/model-as-code-1.0.json';
 export * from './templating/liquidSql';
@@ -104,21 +107,23 @@ export * from './types/api/uuid';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
-export * from './types/changeset';
 export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/content';
 export * from './types/contentVerification';
 export * from './types/dashboard';
+export * from './types/emailWhitelabel';
 export * from './types/dataTimezonePreview';
 export * from './types/fieldImpact';
 export * from './types/dbt';
+export * from './types/dbtSemanticLayer';
 export * from './types/downloadFile';
 export * from './types/email';
 export * from './types/errors';
 export * from './types/explore';
 export * from './types/favorites';
+export * from './featureFlags/previewFeatureFlags';
 export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';
@@ -142,6 +147,7 @@ export * from './types/oauth';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationAccess';
+export * from './types/organizationBrand';
 export * from './types/organizationDomainVerification';
 export * from './types/organizationMemberProfile';
 export * from './types/organizationSettings';
@@ -163,6 +169,7 @@ export {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
+    DBT_VERSION_SUPPORTED_WAREHOUSES,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
@@ -171,11 +178,14 @@ export {
     DucklakeDataPathType,
     getColumnTimezone,
     getDbtEnvironmentVariableKeyError,
+    getDbtVersionSupportedWarehouses,
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
     isDbtVersion110OrHigher,
     isGitProjectType,
     isSafeDbtEnvironmentVariableKey,
+    isWarehouseSupportedByDbtVersion,
+    LATEST_SUPPORTED_DBT_VERSION,
     LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
@@ -184,6 +194,7 @@ export {
     ProjectType,
     RedshiftAuthenticationType,
     resolveDbtVersion,
+    playgroundProjectTriggers,
     sensitiveCredentialsFieldNames,
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,
@@ -191,8 +202,12 @@ export {
     WarehouseTypes,
 } from './types/projects';
 export type {
+    ApiEnsurePlaygroundProjectResponse,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
+    EnsurePlaygroundProjectRequest,
+    EnsurePlaygroundProjectResults,
+    PlaygroundProjectTrigger,
     AthenaCredentials,
     BigqueryCredentials,
     ClickhouseCredentials,
@@ -202,6 +217,7 @@ export type {
     CreateDatabricksCredentials,
     CreateDuckdbCredentials,
     CreateDuckdbDucklakeCredentials,
+    CreateDuckdbEmbeddedCredentials,
     CreateDuckdbMotherduckCredentials,
     CreateDucklakeCatalog,
     CreateDucklakeCatalogDuckdb,
@@ -214,6 +230,7 @@ export type {
     CreateDucklakeDataPathS3,
     CreatePostgresCredentials,
     CreatePostgresLikeCredentials,
+    CreateProjectDbtSource,
     CreateRedshiftCredentials,
     CreateSnowflakeCredentials,
     CreateTrinoCredentials,
@@ -234,6 +251,7 @@ export type {
     DbtVersionOption,
     DuckdbCredentials,
     DuckdbDucklakeCredentials,
+    DuckdbEmbeddedCredentials,
     DuckdbMotherduckCredentials,
     DucklakeCatalog,
     DucklakeCatalogDuckdb,
@@ -248,6 +266,14 @@ export type {
     PostgresCredentials,
     PreviewContentMapping,
     Project,
+    ApiCreateProjectDbtSource,
+    ApiProjectDbtSourceResponse,
+    ApiProjectDbtSourcesResponse,
+    ApiProjectDbtSourceWithConnectionResponse,
+    ApiUpdateProjectDbtSource,
+    ProjectDbtSource,
+    ProjectDbtSourceSummary,
+    ProjectDbtSourceWithConnection,
     ProjectSummary,
     RedshiftCredentials,
     SensitiveCredentialsFieldNames,
@@ -255,6 +281,8 @@ export type {
     SshTunnelConfiguration,
     SslConfiguration,
     TrinoCredentials,
+    UpdateProjectDbtSource,
+    UpdateProjectDetails,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     WarehouseCredentials,
@@ -264,6 +292,7 @@ export * from './types/queryHistory';
 export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
+export * from './types/roadmap';
 export * from './types/roles';
 export * from './types/savedCharts';
 export * from './types/scheduler';
@@ -284,17 +313,18 @@ export * from './types/tags';
 export * from './types/timeFrames';
 export * from './types/timezone';
 export * from './types/user';
+export * from './types/userAvatars';
 export * from './types/userAttributes';
 export * from './types/userWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';
+export * from './types/warehouseConnectCode';
 export * from './types/yamlSchema';
 export * from './utils/accessors';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
-export * from './utils/changeset';
 export * from './utils/charts';
 export * from './utils/chartValidation';
 export * from './utils/colors';
@@ -308,6 +338,7 @@ export * from './utils/dashboard';
 export * from './utils/dbt';
 export * from './utils/dependencyGraph';
 export * from './utils/email';
+export * from './utils/exportTabs';
 export * from './utils/fields';
 export * from './utils/filters';
 export * from './utils/formatting';
@@ -341,8 +372,10 @@ export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
+export * from './visualizations/BigNumberDataModel';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
+export * from './visualizations/helpers/seriesZOrder';
 export * from './visualizations/helpers/styles/axisStyles';
 export * from './visualizations/helpers/styles/barChartStyles';
 export * from './visualizations/helpers/styles/gridStyles';
@@ -575,6 +608,11 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
     jobTitle: z.string().min(0),
+    howDidYouHearAboutUs: z
+        .string()
+        .trim()
+        .min(1, 'Please let us know how you heard about Lightdash')
+        .max(1000),
     enableEmailDomainAccess: z.boolean().default(false),
     isMarketingOptedIn: z.boolean().default(true),
     isTrackingAnonymized: z.boolean().default(false),

@@ -11,6 +11,7 @@ import {
     UnexpectedServerError,
     UPLOAD_GSHEET_FROM_ROWS_MAX_BYTES,
 } from '@lightdash/common';
+import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -28,6 +29,11 @@ import path from 'path';
 import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
+import { registerAiUsageTracker } from './analytics/aiUsage';
+import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
+import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
+import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
+import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
@@ -62,6 +68,7 @@ import {
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
+import { flush as flushFeatureFlagChecks } from './models/FeatureFlagModel/flagCheckAggregator';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
@@ -86,9 +93,11 @@ import { VERSION } from './version';
 
 // Express Request/User type augmentations live in src/@types/express.d.ts
 // so they're picked up as ambient declarations regardless of which file is
-// the compilation entry point (e.g. knex seed/migrate via ts-node).
+// the compilation entry point (e.g. knex seed/migrate via sucrase).
 
 initOtelTracing();
+
+const FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS = 15 * 60 * 1000;
 
 const schedulerWorkerFactory = (context: {
     lightdashConfig: LightdashConfig;
@@ -99,6 +108,7 @@ const schedulerWorkerFactory = (context: {
     utils: UtilRepository;
     // Optional only so the EE factory override (which reads context.workerHealth) typechecks against this shape.
     workerHealth?: SchedulerWorkerHealth;
+    prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
@@ -131,10 +141,26 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getPreAggregateMaterializationService(),
         organizationSettingsModel:
             context.models.getOrganizationSettingsModel(),
+        emailWhitelabelService:
+            context.serviceRepository.getEmailWhitelabelService(),
+        warehouseConnectCodeModel:
+            context.models.getWarehouseConnectCodeModel(),
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
+        prometheusMetrics: context.prometheusMetrics,
     });
+
+/**
+ * Minimal lifecycle contract for a TCP server the App can start/stop without
+ * importing its implementation. The Postgres wire protocol server (EE-only) is
+ * supplied via `pgWireServerFactory` so the semantic-layer endpoint stays in
+ * the enterprise codebase and is only wired up under a valid license.
+ */
+export interface PgWireServerInstance {
+    listen(port: number, host?: string): Promise<void>;
+    close(): Promise<void>;
+}
 
 export type AppArguments = {
     lightdashConfig: LightdashConfig;
@@ -150,6 +176,9 @@ export type AppArguments = {
     utilProviders?: UtilProviderMap;
     schedulerWorkerFactory?: typeof schedulerWorkerFactory;
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
+    pgWireServerFactory?: (
+        serviceRepository: ServiceRepository,
+    ) => PgWireServerInstance;
 };
 
 export default class App {
@@ -165,6 +194,12 @@ export default class App {
 
     private schedulerWorker: SchedulerWorker | undefined;
 
+    private pgWireServer: PgWireServerInstance | undefined;
+
+    private readonly pgWireServerFactory:
+        | ((serviceRepository: ServiceRepository) => PgWireServerInstance)
+        | undefined;
+
     private readonly clients: ClientRepository;
 
     private readonly utils: UtilRepository;
@@ -177,15 +212,26 @@ export default class App {
 
     private readonly prometheusMetrics: PrometheusMetrics;
 
+    private readonly eventStreamWriter: BufferedEventStreamWriter | null;
+
     private readonly customExpressMiddlewares: Array<(app: Express) => void>;
 
     private readonly analyticsEventEmitter: EventEmitter;
+
+    private featureFlagCheckFlushInterval: NodeJS.Timeout | undefined;
 
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
         this.environment = args.environment || 'production';
         this.analyticsEventEmitter = new EventEmitter();
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
+        this.eventStreamWriter = createEventStreamWriter(
+            this.lightdashConfig,
+            this.prometheusMetrics,
+        );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
@@ -198,7 +244,14 @@ export default class App {
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
             eventEmitter: this.analyticsEventEmitter,
+            eventStreamSink: this.eventStreamWriter
+                ? new EventStreamSink(
+                      eventStreamRegistry,
+                      this.eventStreamWriter,
+                  )
+                : undefined,
         });
+        registerAiUsageTracker((event) => this.analytics.track(event));
         this.database = knex(
             this.environment === 'production'
                 ? args.knexConfig.production
@@ -223,10 +276,6 @@ export default class App {
             }),
             models: this.models,
         });
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
-
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -242,9 +291,22 @@ export default class App {
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.customExpressMiddlewares = args.customExpressMiddlewares || [];
+        this.pgWireServerFactory = args.pgWireServerFactory;
     }
 
     async start() {
+        this.featureFlagCheckFlushInterval = setInterval(() => {
+            try {
+                this.analytics.trackFeatureFlagChecks(
+                    flushFeatureFlagChecks(),
+                    'api',
+                );
+            } catch {
+                // telemetry must never break the app
+            }
+        }, FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS);
+        this.featureFlagCheckFlushInterval.unref();
+
         this.prometheusMetrics.start();
         setGithubRateLimitObserver((rl) =>
             this.prometheusMetrics.observeGithubRateLimit(rl),
@@ -284,6 +346,24 @@ export default class App {
 
         // Load Lightdash middleware/routes last
         await this.initExpress(expressApp);
+
+        // Postgres wire protocol endpoint for the semantic layer (experimental,
+        // enterprise-only). The factory is supplied by the EE bootstrap under a
+        // valid license; without it the endpoint stays disabled.
+        const pgWirePort = this.lightdashConfig.pgWire.port;
+        if (pgWirePort && this.pgWireServerFactory) {
+            this.pgWireServer = this.pgWireServerFactory(
+                this.serviceRepository,
+            );
+            await this.pgWireServer.listen(pgWirePort);
+            Logger.info(
+                `Postgres wire protocol server listening on port ${pgWirePort}`,
+            );
+        } else if (pgWirePort) {
+            Logger.warn(
+                'PGWIRE_PORT is set but the Postgres wire protocol server is an enterprise feature; set a valid license key to enable it.',
+            );
+        }
 
         if (this.lightdashConfig.scheduler?.enabled) {
             this.initSchedulerWorker();
@@ -675,6 +755,17 @@ export default class App {
                         req.user.organizationName,
                     );
                 }
+                // Sentry tags are error-scope only; stamp the same attribution
+                // on the request span so it's queryable in the trace backend.
+                trace.getActiveSpan()?.setAttributes({
+                    'user.uuid': req.user.userUuid,
+                    ...(req.user.organizationUuid && {
+                        'organization.uuid': req.user.organizationUuid,
+                    }),
+                    ...(req.user.organizationName && {
+                        'organization.name': req.user.organizationName,
+                    }),
+                });
             }
             next();
         });
@@ -965,6 +1056,7 @@ export default class App {
             models: this.models,
             clients: this.clients,
             utils: this.utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
 
         this.schedulerWorker.run().catch((e) => {
@@ -973,6 +1065,27 @@ export default class App {
     }
 
     async stop() {
+        if (this.featureFlagCheckFlushInterval) {
+            clearInterval(this.featureFlagCheckFlushInterval);
+            this.featureFlagCheckFlushInterval = undefined;
+        }
+        try {
+            this.analytics.trackFeatureFlagChecks(
+                flushFeatureFlagChecks(),
+                'api',
+            );
+            await this.analytics.flushEvents();
+        } catch {
+            // telemetry must never break shutdown
+        }
+        if (this.pgWireServer) {
+            await this.pgWireServer.close();
+            Logger.info('Stopped Postgres wire protocol server');
+        }
+        if (this.eventStreamWriter) {
+            await this.eventStreamWriter.close();
+            Logger.info('Flushed usage event stream writer');
+        }
         await this.prometheusMetrics.stop();
         await shutdownOtelTracing();
         if (this.schedulerWorker && this.schedulerWorker.runner) {
@@ -999,5 +1112,9 @@ export default class App {
 
     getDatabase() {
         return this.database;
+    }
+
+    getEventStreamWriter() {
+        return this.eventStreamWriter;
     }
 }

@@ -12,7 +12,7 @@ import {
     DBPinnedSpace,
 } from './database/entities/pinnedList';
 import Logger from './logging/logger';
-import { traceSpan } from './tracing/tracing';
+import { traceSpan, type TraceSpan } from './tracing/tracing';
 
 export const isDbPinnedChart = (data: DbPinnedItem): data is DbPinnedChart =>
     'saved_chart_uuid' in data && !!data.saved_chart_uuid;
@@ -31,7 +31,7 @@ export const isDbPinnedApp = (data: DbPinnedItem): data is DbPinnedApp =>
 export const wrapSentryTransaction = <T>(
     name: string,
     context: CustomSamplingContext,
-    funct: (span: Sentry.Span) => Promise<T>,
+    funct: (span: TraceSpan) => Promise<T>,
 ): Promise<T> => {
     const startTime = Date.now();
     return traceSpan(
@@ -77,7 +77,7 @@ export const wrapSentryTransaction = <T>(
 export function wrapSentryTransactionSync<T>(
     name: string,
     context: CustomSamplingContext,
-    funct: (span: Sentry.Span) => T,
+    funct: (span: TraceSpan) => T,
 ): T {
     const startTime = Date.now();
 

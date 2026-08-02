@@ -5,12 +5,21 @@ declare module 'express-session' {
         oauth: {
             inviteCode?: string | undefined;
             returnTo?: string | undefined;
+            intent?: 'link' | undefined;
             githubFlow?: 'installation' | 'user_link' | undefined;
             codeVerifier?: string | undefined;
             state?: string | undefined;
             isPopup?: boolean | undefined;
             databricks?: {
                 projectUuid?: string | undefined;
+            };
+            redshiftAwsSso?: {
+                clientId: string;
+                clientSecret: string;
+                deviceCode: string;
+                region: string;
+                startUrl: string;
+                expiresAt: number;
             };
             azureAdStrategyName?: string | undefined;
             oktaOrganizationUuid?: string | undefined;

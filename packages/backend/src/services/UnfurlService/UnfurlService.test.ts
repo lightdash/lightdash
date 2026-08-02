@@ -1,7 +1,11 @@
 import {
+    DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     LightdashPage,
     NotFoundError,
+    SCREENSHOT_SELECTORS,
+    UnexpectedServerError,
+    type DeliveryCaptureManifest,
 } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -19,36 +23,47 @@ import { type SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UnfurlService } from './UnfurlService';
 
+const playwrightMocks = vi.hoisted(() => ({
+    connectOverCDP: vi.fn(),
+}));
+
+vi.mock('playwright', () => ({
+    default: { chromium: { connectOverCDP: playwrightMocks.connectOverCDP } },
+    chromium: { connectOverCDP: playwrightMocks.connectOverCDP },
+}));
+
 const mockFileStorageClient = {
-    isEnabled: jest.fn(),
-    uploadImage: jest.fn(),
-    getFileUrl: jest.fn(),
-    objectExists: jest.fn(),
-    uploadPdf: jest.fn(),
-    uploadTxt: jest.fn(),
-    uploadCsv: jest.fn(),
-    uploadZip: jest.fn(),
-    uploadExcel: jest.fn(),
-    streamResults: jest.fn(),
-    getFileStream: jest.fn(),
-    createUploadStream: jest.fn(),
+    isEnabled: vi.fn(),
+    uploadImage: vi.fn(),
+    getFileUrl: vi.fn(),
+    objectExists: vi.fn(),
+    uploadPdf: vi.fn(),
+    uploadTxt: vi.fn(),
+    uploadCsv: vi.fn(),
+    uploadZip: vi.fn(),
+    uploadExcel: vi.fn(),
+    streamResults: vi.fn(),
+    getFileStream: vi.fn(),
+    createUploadStream: vi.fn(),
     expirationDays: undefined,
 };
 
 const mockSlackUnfurlImageModel = {
-    create: jest.fn(),
-    get: jest.fn(),
-    delete: jest.fn().mockResolvedValue(undefined),
+    create: vi.fn(),
+    get: vi.fn(),
+    delete: vi.fn().mockResolvedValue(undefined),
 };
 
 const mockDownloadFileModel = {
-    createDownloadFile: jest.fn(),
-    getDownloadFile: jest.fn(),
+    createDownloadFile: vi.fn(),
+    getDownloadFile: vi.fn(),
 };
 
 function createService(
     overrides: Partial<{
         savedSqlModel: Partial<SavedSqlModel>;
+        savedChartModel: Partial<SavedChartModel>;
+        headlessBrowser: Record<string, unknown>;
     }> = {},
 ) {
     return new UnfurlService({
@@ -56,10 +71,12 @@ function createService(
             siteUrl: 'https://app.lightdash.cloud',
             headlessBrowser: {
                 internalLightdashHost: 'http://headless-browser:8080',
+                ...(overrides.headlessBrowser ?? {}),
             },
         } as unknown as LightdashConfig,
         dashboardModel: {} as unknown as DashboardModel,
-        savedChartModel: {} as unknown as SavedChartModel,
+        savedChartModel: (overrides.savedChartModel ??
+            {}) as unknown as SavedChartModel,
         savedSqlModel: (overrides.savedSqlModel ??
             {}) as unknown as SavedSqlModel,
         appModel: {} as unknown as AppModel,
@@ -80,7 +97,56 @@ function createService(
 
 describe('UnfurlService', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
+    });
+
+    describe('exportChart', () => {
+        it('keeps legacy slug export compatible without a project', async () => {
+            const get = vi.fn().mockRejectedValue(new Error('stop'));
+            const service = createService({ savedChartModel: { get } });
+
+            await expect(
+                service.exportChart('shared-slug', {} as never),
+            ).rejects.toThrow('stop');
+            expect(get).toHaveBeenCalledWith(
+                'shared-slug',
+                undefined,
+                undefined,
+            );
+        });
+
+        it('scopes slug resolution to the requested project', async () => {
+            const get = vi.fn().mockRejectedValue(new Error('stop'));
+            const service = createService({ savedChartModel: { get } });
+
+            await expect(
+                service.exportChart(
+                    'shared-slug',
+                    {} as never,
+                    '22222222-2222-4222-8222-222222222222',
+                ),
+            ).rejects.toThrow('stop');
+            expect(get).toHaveBeenCalledWith('shared-slug', undefined, {
+                projectUuid: '22222222-2222-4222-8222-222222222222',
+            });
+        });
+
+        it('keeps globally unique UUID export compatible without a project', async () => {
+            const get = vi.fn().mockRejectedValue(new Error('stop'));
+            const service = createService({ savedChartModel: { get } });
+
+            await expect(
+                service.exportChart(
+                    '11111111-1111-4111-8111-111111111111',
+                    {} as never,
+                ),
+            ).rejects.toThrow('stop');
+            expect(get).toHaveBeenCalledWith(
+                '11111111-1111-4111-8111-111111111111',
+                undefined,
+                undefined,
+            );
+        });
     });
 
     describe('getPreviewSignedUrl', () => {
@@ -136,11 +202,11 @@ describe('UnfurlService', () => {
 
         beforeEach(() => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            jest.spyOn(service as any, 'getUserCookie').mockResolvedValue(
+            vi.spyOn(service as any, 'getUserCookie').mockResolvedValue(
                 'mock-cookie',
             );
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            jest.spyOn(service as any, 'saveScreenshot').mockResolvedValue({
+            vi.spyOn(service as any, 'saveScreenshot').mockResolvedValue({
                 imageBuffer,
                 pdfBuffer: undefined,
             });
@@ -148,7 +214,7 @@ describe('UnfurlService', () => {
 
         const callUnfurlImage = (orgUuid: string | undefined) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            jest.spyOn(service as any, 'unfurlDetails').mockResolvedValue(
+            vi.spyOn(service as any, 'unfurlDetails').mockResolvedValue(
                 orgUuid
                     ? {
                           title: 'Test',
@@ -229,7 +295,7 @@ describe('UnfurlService', () => {
         const SQL_CHART_UUID = '11111111-2222-3333-4444-555555555555';
 
         it('recognizes a saved SQL Runner URL and rewrites to a minimal URL', async () => {
-            const getBySlug = jest.fn().mockResolvedValue({
+            const getBySlug = vi.fn().mockResolvedValue({
                 savedSqlUuid: SQL_CHART_UUID,
                 name: 'my chart',
                 description: null,
@@ -256,7 +322,7 @@ describe('UnfurlService', () => {
         });
 
         it('also recognizes `/sql-runner/<slug>/edit` and resolves to the same minimal URL', async () => {
-            const getBySlug = jest.fn().mockResolvedValue({
+            const getBySlug = vi.fn().mockResolvedValue({
                 savedSqlUuid: SQL_CHART_UUID,
                 name: 'my chart',
                 description: null,
@@ -278,9 +344,7 @@ describe('UnfurlService', () => {
         });
 
         it('returns isValid: false when the slug does not resolve to a saved chart', async () => {
-            const getBySlug = jest
-                .fn()
-                .mockRejectedValue(new Error('not found'));
+            const getBySlug = vi.fn().mockRejectedValue(new Error('not found'));
             const service = createService({
                 savedSqlModel: { getBySlug } as Partial<SavedSqlModel>,
             });
@@ -293,7 +357,7 @@ describe('UnfurlService', () => {
         });
 
         it('returns isValid: false for `/sql-runner` with no slug (unsaved chart)', async () => {
-            const getBySlug = jest.fn();
+            const getBySlug = vi.fn();
             const service = createService({
                 savedSqlModel: { getBySlug } as Partial<SavedSqlModel>,
             });
@@ -307,12 +371,172 @@ describe('UnfurlService', () => {
         });
     });
 
+    describe('captureAppDeliveryManifest', () => {
+        const APP_URL =
+            'http://headless-browser:8080/minimal/projects/p1/apps/a1?captureMode=delivery';
+        const validManifest: DeliveryCaptureManifest = {
+            version: 1,
+            items: [
+                {
+                    status: 'ready',
+                    captureKey: 'v1:abc',
+                    label: 'Revenue by month',
+                    exploreName: 'orders',
+                    queryUuid: '11111111-1111-4111-8111-111111111111',
+                    order: 0,
+                    rowCount: 12,
+                    limitReached: false,
+                },
+            ],
+            overflowCount: 0,
+        };
+
+        const createMockPage = () => {
+            const cdpSession = { send: vi.fn().mockResolvedValue(undefined) };
+            const pageContext = {
+                addCookies: vi.fn().mockResolvedValue(undefined),
+                newCDPSession: vi.fn().mockResolvedValue(cdpSession),
+            };
+            return {
+                cdpSession,
+                pageContext,
+                route: vi.fn().mockResolvedValue(undefined),
+                addInitScript: vi.fn().mockResolvedValue(undefined),
+                context: vi.fn().mockReturnValue(pageContext),
+                on: vi.fn(),
+                goto: vi.fn().mockResolvedValue(undefined),
+                waitForSelector: vi.fn().mockResolvedValue(undefined),
+                evaluate: vi.fn().mockResolvedValue(undefined),
+                screenshot: vi.fn().mockResolvedValue(Buffer.from('nope')),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+        };
+
+        const setup = () => {
+            const page = createMockPage();
+            const browser = {
+                newPage: vi.fn().mockResolvedValue(page),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+            playwrightMocks.connectOverCDP.mockResolvedValue(browser);
+            const service = createService({
+                headlessBrowser: {
+                    host: 'headless-browser',
+                    browserEndpoint: 'ws://headless-browser:3000',
+                },
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            vi.spyOn(service as any, 'getUserCookie').mockResolvedValue(
+                'connect.sid=session-value; Path=/; HttpOnly',
+            );
+            return { service, browser, page };
+        };
+
+        it('returns the validated manifest published on the window global', async () => {
+            const { service, browser, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            const result = await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+                contextId: 'job-1',
+            });
+
+            expect(result).toEqual(validManifest);
+            expect(page.goto).toHaveBeenCalledWith(
+                APP_URL,
+                expect.objectContaining({ timeout: expect.any(Number) }),
+            );
+            expect(page.waitForSelector).toHaveBeenCalledWith(
+                SCREENSHOT_SELECTORS.READY_INDICATOR,
+                { state: 'attached', timeout: 60_000 },
+            );
+            expect(page.evaluate).toHaveBeenCalledWith(
+                expect.any(Function),
+                DELIVERY_CAPTURE_GLOBAL,
+            );
+            expect(page.screenshot).not.toHaveBeenCalled();
+            expect(page.close).toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
+        });
+
+        it('renders with the same window geometry as the app screenshot path', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            expect(playwrightMocks.connectOverCDP).toHaveBeenCalledWith(
+                expect.stringContaining('--window-size%3D1400%2C4000'),
+                expect.anything(),
+            );
+            expect(page.cdpSession.send).toHaveBeenCalledWith(
+                'Emulation.setDeviceMetricsOverride',
+                expect.objectContaining({ width: 1400, height: 4000 }),
+            );
+        });
+
+        it('throws when the window global is missing', async () => {
+            const { service, browser, page } = setup();
+            page.evaluate.mockResolvedValue(undefined);
+
+            await expect(
+                service.captureAppDeliveryManifest({
+                    url: APP_URL,
+                    authUserUuid: 'user-uuid-1',
+                    contextId: 'job-1',
+                }),
+            ).rejects.toThrow(UnexpectedServerError);
+            expect(page.close).toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
+        });
+
+        it('throws when the window global is malformed', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue({
+                version: 1,
+                items: [{ status: 'ready', captureKey: 'v1:abc' }],
+                overflowCount: 0,
+            });
+
+            await expect(
+                service.captureAppDeliveryManifest({
+                    url: APP_URL,
+                    authUserUuid: 'user-uuid-1',
+                    contextId: 'job-1',
+                }),
+            ).rejects.toThrow(/malformed/);
+        });
+
+        it('rethrows the ready-indicator timeout without falling back to a screenshot', async () => {
+            const { service, browser, page } = setup();
+            const timeoutError = new Error('Timeout 60000ms exceeded');
+            timeoutError.name = 'TimeoutError';
+            page.waitForSelector.mockRejectedValue(timeoutError);
+
+            await expect(
+                service.captureAppDeliveryManifest({
+                    url: APP_URL,
+                    authUserUuid: 'user-uuid-1',
+                    contextId: 'job-1',
+                }),
+            ).rejects.toThrow('Timeout 60000ms exceeded');
+            expect(page.evaluate).not.toHaveBeenCalled();
+            expect(page.screenshot).not.toHaveBeenCalled();
+            expect(page.close).toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
+        });
+    });
+
     describe('getTitleAndDescription - SQL_CHART', () => {
         const PROJECT_UUID = '21eef0b9-5bae-40f3-851e-9554588e71a6';
         const SQL_CHART_UUID = '11111111-2222-3333-4444-555555555555';
 
         it('returns chart name + description + organizationUuid from saved_sql', async () => {
-            const getByUuid = jest.fn().mockResolvedValue({
+            const getByUuid = vi.fn().mockResolvedValue({
                 savedSqlUuid: SQL_CHART_UUID,
                 name: 'Prompts created over time',
                 description: 'A monthly trend of AI prompts',

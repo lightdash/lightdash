@@ -12,6 +12,7 @@
  * The builder is immutable -- each method returns a new instance.
  */
 
+import { toInternalFilters } from './filterConversion';
 import type {
     AdditionalMetric,
     CustomDimension,
@@ -70,8 +71,22 @@ export class QueryBuilder {
                 parameters: {},
                 label: undefined,
             };
-        } else {
+        } else if (
+            exploreOrState !== null &&
+            typeof exploreOrState === 'object' &&
+            Array.isArray(exploreOrState.dimensions)
+        ) {
             this._state = exploreOrState;
+        } else {
+            // Fail here, at the call site, instead of on a later chained call.
+            // The most common cause is a circular import: a model-name
+            // constant read before its module initialized is undefined.
+            throw new Error(
+                `query() expects a model name string, got ${
+                    exploreOrState === null ? 'null' : typeof exploreOrState
+                }. If the model name is a shared constant, make sure it is not ` +
+                    'exported from a file that imports this one (circular import).',
+            );
         }
     }
 
@@ -100,33 +115,8 @@ export class QueryBuilder {
 
     /** Add filters */
     filters(filters: Filter[]): QueryBuilder {
-        const converted: InternalFilterDefinition[] = filters.map((f) => {
-            const values: (string | number | boolean)[] = [];
-            if (f.value !== undefined) {
-                if (Array.isArray(f.value)) {
-                    values.push(...f.value);
-                } else {
-                    values.push(f.value);
-                }
-            }
-
-            return {
-                fieldId: f.field,
-                operator: f.operator,
-                values,
-                settings: f.unit
-                    ? {
-                          unitOfTime: f.unit,
-                          ...(f.completed !== undefined && {
-                              completed: f.completed,
-                          }),
-                      }
-                    : null,
-            };
-        });
-
         return this._clone({
-            filters: [...this._state.filters, ...converted],
+            filters: [...this._state.filters, ...toInternalFilters(filters)],
         });
     }
 

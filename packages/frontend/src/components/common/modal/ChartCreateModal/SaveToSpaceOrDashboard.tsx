@@ -69,6 +69,9 @@ const saveToSpaceOrDashboardSchema = z
     .merge(saveToDashboardSchema)
     // for saving to the space
     .merge(saveToSpaceSchema);
+const saveToSpaceOrDashboardResolver = zodResolver(
+    saveToSpaceOrDashboardSchema,
+);
 
 type FormValues = z.infer<typeof saveToSpaceOrDashboardSchema>;
 
@@ -95,11 +98,14 @@ type Props = {
     chartMetadata?: ChartMetadata;
     redirectOnSuccess?: boolean;
     showViewChartAction?: boolean;
+    /** Chart-level palette chosen before the first save. */
+    colorPaletteUuid?: string | null;
 };
 
 export const SaveToSpaceOrDashboard: FC<Props> = ({
     projectUuid,
     savedData,
+    colorPaletteUuid,
     defaultSpaceUuid,
     onConfirm,
     onClose,
@@ -148,7 +154,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     } = spaceManagement;
 
     const form = useForm<FormValues>({
-        validate: zodResolver(saveToSpaceOrDashboardSchema),
+        validate: saveToSpaceOrDashboardResolver,
     });
 
     // Check if the chart has unused dimensions that may cause incorrect results
@@ -351,6 +357,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     ...savedData,
                     name: values.name,
                     description: values.description ?? undefined,
+                    colorPaletteUuid,
                     spaceUuid: forcedSpaceUuid,
                     dashboardUuid: undefined,
                 });
@@ -372,6 +379,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     ...savedData,
                     name: values.name,
                     description: values.description ?? undefined,
+                    colorPaletteUuid,
                     dashboardUuid: originatingDashboard.dashboardUuid,
                 };
                 savedQuery = await createChart(newChartInDashboard);
@@ -456,6 +464,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     ...savedData,
                     name: values.name,
                     description: values.description ?? undefined,
+                    colorPaletteUuid,
                     dashboardUuid: destinationDashboard.uuid,
                 });
                 const firstTab = destinationDashboard.tabs?.[0];
@@ -519,6 +528,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     ...savedData,
                     name: values.name,
                     description: values.description ?? undefined,
+                    colorPaletteUuid,
                     spaceUuid,
                     dashboardUuid: undefined,
                 });
@@ -542,6 +552,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             selectedDashboard,
             createChart,
             savedData,
+            colorPaletteUuid,
             updateDashboard,
             handleCreateNewSpace,
             onConfirm,

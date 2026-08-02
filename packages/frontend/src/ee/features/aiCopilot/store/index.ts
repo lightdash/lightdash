@@ -3,6 +3,7 @@ import { aiAgentLauncherSlice } from './aiAgentLauncherSlice';
 import { aiAgentThreadModeSlice } from './aiAgentThreadModeSlice';
 import { aiAgentThreadStreamSlice } from './aiAgentThreadStreamSlice';
 import { aiArtifactSlice } from './aiArtifactSlice';
+import { createIssueSlice } from './createIssueSlice';
 
 export const store = configureStore({
     reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
         aiAgentThreadMode: aiAgentThreadModeSlice.reducer,
         aiArtifact: aiArtifactSlice.reducer,
         aiAgentLauncher: aiAgentLauncherSlice.reducer,
+        createIssue: createIssueSlice.reducer,
     },
 });
 

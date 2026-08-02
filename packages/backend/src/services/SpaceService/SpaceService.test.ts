@@ -1,5 +1,6 @@
 import {
     AbilityAction,
+    NotFoundError,
     OrganizationMemberRole,
     ProjectMemberRole,
     SpaceMemberRole,
@@ -23,7 +24,7 @@ import {
 
 describe('SpaceService', () => {
     let service: SpaceService;
-    const mockGetSpaceAccessContext = jest.fn();
+    const mockGetSpaceAccessContext = vi.fn();
 
     beforeEach(() => {
         mockGetSpaceAccessContext.mockReset();
@@ -45,22 +46,22 @@ describe('SpaceService', () => {
     });
 
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('moveToSpace', () => {
         it('loads the source space scoped to the requested project', async () => {
             const spaceModel = {
-                getSpaceSummary: jest.fn(async () => ({
+                getSpaceSummary: vi.fn(async () => ({
                     uuid: 'spaceUuid',
                     name: 'Space',
                     projectUuid: 'projectUuid',
                     parentSpaceUuid: 'parentSpaceUuid',
                 })),
-                moveToSpace: jest.fn(async () => undefined),
+                moveToSpace: vi.fn(async () => undefined),
             };
             const spacePermissionService = {
-                can: jest.fn(async () => true),
+                can: vi.fn(async () => true),
             };
             const moveService = new SpaceService({
                 analytics: analyticsMock,
@@ -882,6 +883,7 @@ describe('SpaceService', () => {
     // These tests should pass but they don't - could be a mock problem.
     // It could also be because in the app we actually build project abilities for every group membership before
     // we build the space abilities (here we only test space access for a single project).
+    // oxlint-disable-next-line vitest-js/no-commented-out-tests -- kept as documentation of the untested group-role cases above
     // it.each([
     //     {
     //         name: 'user with multiple project group roles gets highest role (admin over viewer)',
@@ -923,25 +925,25 @@ describe('SpaceService', () => {
 
 describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
     const mockSpaceModel = {
-        getSpaceSummary: jest.fn(),
-        isRootSpace: jest.fn(),
-        update: jest.fn(),
-        updateWithCopiedPermissions: jest.fn(),
-        addSpaceAccess: jest.fn(),
-        get: jest.fn(),
-        getSpaceBreadcrumbs: jest.fn(),
-        getSpaceQueries: jest.fn(),
-        getSpaceDashboards: jest.fn(),
-        find: jest.fn(),
+        getSpaceSummary: vi.fn(),
+        isRootSpace: vi.fn(),
+        update: vi.fn(),
+        updateWithCopiedPermissions: vi.fn(),
+        addSpaceAccess: vi.fn(),
+        get: vi.fn(),
+        getSpaceBreadcrumbs: vi.fn(),
+        getSpaceQueries: vi.fn(),
+        getSpaceDashboards: vi.fn(),
+        find: vi.fn(),
     };
     const mockSpacePermissionService = {
-        can: jest.fn(),
-        getAccessibleSpaceUuids: jest.fn(),
-        getSpaceAccessContext: jest.fn(),
-        getAllSpaceAccessContext: jest.fn(),
-        getGroupAccess: jest.fn(),
-        getUserMetadataByUuids: jest.fn(),
-        getInheritedPermissionsToCopy: jest.fn(),
+        can: vi.fn(),
+        getAccessibleSpaceUuids: vi.fn(),
+        getSpaceAccessContext: vi.fn(),
+        getAllSpaceAccessContext: vi.fn(),
+        getGroupAccess: vi.fn(),
+        getUserMetadataByUuids: vi.fn(),
+        getInheritedPermissionsToCopy: vi.fn(),
     };
     const mockUser = createTestUser({
         organizationRole: OrganizationMemberRole.ADMIN,
@@ -950,7 +952,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
     let service: SpaceService;
 
     beforeEach(() => {
-        jest.resetAllMocks();
+        vi.resetAllMocks();
 
         service = new SpaceService({
             analytics: analyticsMock,
@@ -1011,6 +1013,22 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
         });
         mockSpacePermissionService.getGroupAccess.mockResolvedValue([]);
         mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({});
+    });
+
+    test('getSpace returns not found when the space is missing', async () => {
+        mockSpaceModel.get.mockRejectedValueOnce(
+            new NotFoundError('Space not found'),
+        );
+
+        await expect(
+            service.getSpace(
+                'project-uuid',
+                mockUser as unknown as SessionUser,
+                'deleted-space-uuid',
+            ),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(mockSpaceModel.get).toHaveBeenCalledOnce();
+        expect(mockSpacePermissionService.can).not.toHaveBeenCalled();
     });
 
     test('copies permissions when transitioning inheritParentPermissions true → false with flag enabled', async () => {

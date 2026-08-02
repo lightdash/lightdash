@@ -1,5 +1,6 @@
 import { NotFoundError } from '@lightdash/common';
 import { Readable } from 'stream';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -7,10 +8,10 @@ import type { DbPersistentDownloadFile } from '../../database/entities/persisten
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
 import { PersistentDownloadFileService } from './PersistentDownloadFileService';
 
-const mockS3GetFileUrl = jest.fn();
-const mockS3GetFileStream = jest.fn();
-const mockModelCreate = jest.fn();
-const mockModelGet = jest.fn();
+const mockS3GetFileUrl = vi.fn();
+const mockS3GetFileStream = vi.fn();
+const mockModelCreate = vi.fn();
+const mockModelGet = vi.fn();
 
 const baseData = {
     s3Key: 'exports/test-file.csv',
@@ -24,6 +25,9 @@ const createService = (
     configOverrides: Partial<LightdashConfig['persistentDownloadUrls']> = {},
 ) =>
     new PersistentDownloadFileService({
+        analytics: {
+            track: vi.fn(),
+        } as unknown as LightdashAnalytics,
         lightdashConfig: {
             ...lightdashConfigMock,
             persistentDownloadUrls: {
@@ -43,7 +47,7 @@ const createService = (
 
 describe('PersistentDownloadFileService', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('createPersistentUrl', () => {
@@ -112,7 +116,7 @@ describe('PersistentDownloadFileService', () => {
         it('should set expiresAt based on configured expirationSeconds', async () => {
             mockModelCreate.mockResolvedValue(undefined);
             const now = Date.now();
-            jest.spyOn(Date, 'now').mockReturnValue(now);
+            vi.spyOn(Date, 'now').mockReturnValue(now);
 
             const service = createService({
                 enabled: true,
@@ -124,13 +128,13 @@ describe('PersistentDownloadFileService', () => {
             const createCall = mockModelCreate.mock.calls[0][0];
             expect(createCall.expiresAt.getTime()).toBe(now + 7200 * 1000);
 
-            jest.restoreAllMocks();
+            vi.restoreAllMocks();
         });
 
         it('should use expirationSeconds override when provided', async () => {
             mockModelCreate.mockResolvedValue(undefined);
             const now = Date.now();
-            jest.spyOn(Date, 'now').mockReturnValue(now);
+            vi.spyOn(Date, 'now').mockReturnValue(now);
 
             const service = createService({
                 enabled: true,
@@ -145,13 +149,13 @@ describe('PersistentDownloadFileService', () => {
             const createCall = mockModelCreate.mock.calls[0][0];
             expect(createCall.expiresAt.getTime()).toBe(now + 86400 * 1000);
 
-            jest.restoreAllMocks();
+            vi.restoreAllMocks();
         });
 
         it('should fall back to config expirationSeconds when override is undefined', async () => {
             mockModelCreate.mockResolvedValue(undefined);
             const now = Date.now();
-            jest.spyOn(Date, 'now').mockReturnValue(now);
+            vi.spyOn(Date, 'now').mockReturnValue(now);
 
             const service = createService({
                 enabled: true,
@@ -166,7 +170,7 @@ describe('PersistentDownloadFileService', () => {
             const createCall = mockModelCreate.mock.calls[0][0];
             expect(createCall.expiresAt.getTime()).toBe(now + 259200 * 1000);
 
-            jest.restoreAllMocks();
+            vi.restoreAllMocks();
         });
     });
 

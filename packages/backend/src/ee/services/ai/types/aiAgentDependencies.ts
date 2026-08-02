@@ -14,6 +14,7 @@ import {
     CacheMetadata,
     CatalogField,
     ChartAsCode,
+    CreateSchedulerAndTargetsWithoutIds,
     DashboardAsCode,
     DashboardSearchResult,
     DbtProjectType,
@@ -26,6 +27,7 @@ import {
     PreviewDeploySetupResult,
     ProjectType,
     SavedChart,
+    SchedulerAndTargets,
     SlackPrompt,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
@@ -85,16 +87,45 @@ export type FindExploresFn = (args: {
     }>;
 }>;
 
+// Project-wide verified-chart usage per field, keyed `table_field::fieldType`.
+// Used to rank verified/governed fields first in grep discovery.
+export type GetVerifiedFieldUsageFn = () => Promise<Map<string, number>>;
+
+export type FindFieldResult = {
+    fields: CatalogField[];
+    pagination: Pagination | undefined;
+};
+
 export type FindFieldFn = (
     args: KnexPaginateArgs & {
         table: ToolFindFieldsArgs['table'];
         fieldSearchQuery: ToolFindFieldsArgs['fieldSearchQueries'][number];
         explore: Explore;
     },
-) => Promise<{
-    fields: CatalogField[];
-    pagination: Pagination | undefined;
-}>;
+) => Promise<FindFieldResult>;
+
+export type FindFieldsSearchQuerySuccess = FindFieldResult & {
+    status: 'success';
+    searchQuery: string;
+};
+
+export type FindFieldsSearchQueryError = {
+    status: 'error';
+    searchQuery: string;
+    error: string;
+};
+
+export type FindFieldsSearchQueryResult =
+    | FindFieldsSearchQuerySuccess
+    | FindFieldsSearchQueryError;
+
+export type FindFieldsFn = (
+    args: KnexPaginateArgs & {
+        table: ToolFindFieldsArgs['table'];
+        fieldSearchQueries: ToolFindFieldsArgs['fieldSearchQueries'];
+        explore: Explore;
+    },
+) => Promise<FindFieldsSearchQueryResult[]>;
 
 export type SearchSemanticLayerFn = (args: {
     searchQuery: string | null;
@@ -190,11 +221,13 @@ export type ListContentFn = (args: {
               contentType: 'chart' | 'dashboard' | 'data_app';
               name: string;
               slug: string;
+              href: string;
           }
         | {
               contentType: 'space';
               name: string;
               slug: string;
+              href: string;
               chartCount: number;
               dashboardCount: number;
               childSpaceCount: number;
@@ -242,6 +275,10 @@ export type ReadContentFn = (args: {
           href: string;
       }
 >;
+
+export type ResolveUrlFn = (args: {
+    url: string;
+}) => Promise<{ isShareLink: true; url: string } | { isShareLink: false }>;
 
 export type EditContentFn = (args: {
     slug: string;
@@ -296,6 +333,24 @@ export type CreateContentFn = (args: CreateContentArgs) => Promise<
 >;
 
 export type ValidateContentFn = (args: CreateContentArgs) => void;
+
+export type CreateScheduledDeliveryFn = (args: {
+    resourceType: 'chart' | 'dashboard';
+    resourceUuidOrSlug: string;
+    scheduler: CreateSchedulerAndTargetsWithoutIds;
+    aiAugmentationPrompt: string | null;
+}) => Promise<{
+    scheduler: SchedulerAndTargets;
+    resourceUuid: string;
+    href: string;
+    aiAugmentationAttached: boolean;
+    warnings: string[];
+}>;
+
+export type UpdateUserNameFn = (args: {
+    firstName: string;
+    lastName: string;
+}) => Promise<void>;
 
 export type UpdateProgressFn = (
     progress: string,
@@ -364,6 +419,16 @@ export type StoreToolCallFn = (data: {
     parentToolCallId: string | null;
 }) => Promise<void>;
 
+// Persists tool-call attempts the AI SDK rejected before execution
+// (schema-invalid args, unparsable JSON) — debugging aid, not shown in UI.
+export type StoreToolCallErrorFn = (data: {
+    promptUuid: string;
+    toolCallId: string;
+    toolName: string;
+    errorMessage: string;
+    rawArgs: string | null;
+}) => Promise<void>;
+
 export type StoreToolResultsFn = (
     data: Array<{
         promptUuid: string;
@@ -401,7 +466,7 @@ export type SearchFieldValuesFn = (args: {
     fieldId: string;
     query: string;
     filters?: Filters;
-}) => Promise<string[]>;
+}) => Promise<Array<string | number | boolean>>;
 
 export type CreateOrUpdateArtifactFn = (data: {
     threadUuid: string;
@@ -419,6 +484,7 @@ export type CheckUserPermissionFn = (args: {
 }) => Promise<boolean>;
 
 export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
+    queryUuid: string;
     rows: Record<string, AnyType>[];
     columns: string[];
     rowCount: number;
@@ -459,28 +525,44 @@ export type RecordSqlApprovalFn = (
     decidedByUserUuid: string | null,
 ) => Promise<boolean>;
 
+export type IsThreadSqlAutoApprovedFn = (
+    threadUuid: string,
+) => Promise<boolean>;
+
 export type LoadAgentSkillFn = (
     name: string,
 ) => Promise<AiAgentSkill | undefined>;
 
 export type EditDbtProjectFn = (args: {
-    prompt: string | null;
+    prompt: string;
     prUrl: string | null;
-    fromActiveChangeset: boolean;
+    /** Open a new PR instead of continuing the thread's existing one. */
+    startNewPullRequest: boolean | null;
     progressId?: string;
-}) => Promise<
-    AiWritebackRunResult & {
-        previewDeployConfigured: boolean | null;
-        /** Server-side preview built from the PR's head branch; null when unsupported or failed. */
-        previewUrl: string | null;
-    }
->;
+}) => Promise<{
+    aiWritebackRunUuid: string;
+}>;
 
 // Applies a structured project-context entry to lightdash.project_context.yml
 // via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.
 export type EditProjectContextFn = (
     entry: AiAgentJudgeProjectContextEntry,
 ) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;
+
+/**
+ * Make a code change to a writable repository and open/update a pull request,
+ * via the general coding agent. The counterpart to {@link EditDbtProjectFn} for
+ * non-dbt repos: no compile/preview step (verification lives in the PR's CI), so
+ * it returns the base writeback result without the preview fields.
+ */
+export type EditRepoFn = (args: {
+    repoTarget: string;
+    prompt: string | null;
+    prUrl: string | null;
+    /** Open a new PR instead of continuing the repo's existing one in-thread. */
+    startNewPullRequest: boolean | null;
+    progressId?: string;
+}) => Promise<AiWritebackRunResult>;
 
 export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
 
@@ -507,6 +589,35 @@ export type DiscoverReposFn = () => Promise<
         private: boolean;
     }[]
 >;
+
+/**
+ * List the pull requests (workstreams) the current chat thread has opened with
+ * {@link EditRepoFn}, so the agent can route a follow-up to the right one or
+ * decide to open a new one. Optionally scoped to a single `owner/repo`.
+ */
+export type ListWorkstreamsFn = (args: {
+    repoTarget: string | null;
+}) => Promise<
+    {
+        repository: string;
+        provider: string;
+        prUrl: string;
+        prNumber: number;
+        summary: string | null;
+    }[]
+>;
+
+/**
+ * Close (without merging) a pull request the chat thread opened with
+ * {@link EditRepoFn}. Thin wrapper over the same write-back close path the chat
+ * PR card's "Close PR" button uses; the underlying service enforces
+ * `manage:SourceCode` and that the URL targets this project's own repo.
+ */
+export type ClosePullRequestFn = (args: { prUrl: string }) => Promise<void>;
+
+export type GetPullRequestDiffFn = (args: {
+    prUrl: string;
+}) => Promise<string | null>;
 
 export type ListProjectsFn = () => Promise<
     {

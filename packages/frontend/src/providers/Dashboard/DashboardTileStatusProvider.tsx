@@ -1,6 +1,7 @@
 import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isTileInPagedExport,
     type CacheMetadata,
     type Dashboard,
 } from '@lightdash/common';
@@ -12,6 +13,7 @@ import {
     auditResponseToTileStatuses,
     useDashboardPreAggregateAudit,
 } from '../../hooks/dashboard/useDashboardPreAggregateAudit';
+import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../App/useApp';
 import DashboardTileStatusContext from './tileStatusContext';
 import {
@@ -24,7 +26,7 @@ export type DashboardTileStatusProviderProps = {
     dashboardTiles: Dashboard['tiles'] | undefined;
     dashboardTabs: Dashboard['tabs'];
     activeTab: Dashboard['tabs'][number] | undefined;
-    schedulerTabsSelected?: string[] | undefined;
+    schedulerTabsSelected?: (string | null)[] | undefined;
     defaultInvalidateCache?: boolean;
     children: React.ReactNode;
 };
@@ -39,6 +41,8 @@ const DashboardTileStatusProvider: React.FC<
     defaultInvalidateCache,
     children,
 }) => {
+    const exportPagedTabs = useSearchParams('exportPagedTabs') === 'true';
+
     const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
 
     const [oldestCacheTime, setOldestCacheTime] = useState<Date | undefined>();
@@ -120,13 +124,36 @@ const DashboardTileStatusProvider: React.FC<
 
         // When schedulerTabsSelected is provided, use it to filter tiles for screenshots
         if (schedulerTabsSelected && schedulerTabsSelected.length > 0) {
+            if (exportPagedTabs) {
+                // Paged export: mirror the backend's rendered-tile set exactly
+                // via the shared isTileInPagedExport predicate, so readiness
+                // never waits on a chart the frontend won't render. Orphans
+                // ride the first resolved tab (drop the null sentinel here).
+                const resolvedTabUuids = schedulerTabsSelected.filter(
+                    (t): t is string => t !== null,
+                );
+                return dashboardTiles
+                    .filter(
+                        (tile) =>
+                            isDashboardChartTileType(tile) ||
+                            isDashboardSqlChartTile(tile),
+                    )
+                    .filter((tile) =>
+                        isTileInPagedExport(tile, resolvedTabUuids),
+                    )
+                    .map((tile) => tile.uuid);
+            }
+            // Stacked multi-tab image: orphans ride the aggregated view (null
+            // sentinel is present in the selection). Existing behaviour.
             return dashboardTiles
                 .filter(
                     (tile) =>
                         isDashboardChartTileType(tile) ||
                         isDashboardSqlChartTile(tile),
                 )
-                .filter((tile) => schedulerTabsSelected.includes(tile.tabUuid!))
+                .filter((tile) =>
+                    schedulerTabsSelected.includes(tile.tabUuid ?? null),
+                )
                 .map((tile) => tile.uuid);
         }
 
@@ -143,7 +170,13 @@ const DashboardTileStatusProvider: React.FC<
                 return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
             })
             .map((tile) => tile.uuid);
-    }, [dashboardTiles, activeTab, dashboardTabs, schedulerTabsSelected]);
+    }, [
+        dashboardTiles,
+        activeTab,
+        dashboardTabs,
+        schedulerTabsSelected,
+        exportPagedTabs,
+    ]);
 
     const isReadyForScreenshot = useMemo(() => {
         if (expectedScreenshotTileUuids.length === 0) {

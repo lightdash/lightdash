@@ -3,7 +3,6 @@ import {
     isDashboardChartTileType,
     isDashboardFieldTarget,
     isDashboardSqlChartTile,
-    isField,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -14,20 +13,19 @@ import {
     type DashboardTile,
     type Field,
 } from '@lightdash/common';
-import { Group } from '@mantine-8/core';
 import {
-    ActionIcon,
     Box,
-    Checkbox,
     Collapse,
     Flex,
-    Select,
+    Group,
     Stack,
     Text,
+    ActionIcon,
+    Checkbox,
+    Select,
     Tooltip,
-    useMantineTheme,
-    type PopoverProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { type PopoverProps } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -36,9 +34,10 @@ import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
-import { getFilterTileRelation } from './utils';
+import { getFilterTileRelation, getValidSqlColumnReferences } from './utils';
 
 type TileWithTargetFields = {
+    targetType: 'field';
     key: string;
     label: string;
     checked: boolean;
@@ -53,6 +52,7 @@ type TileWithTargetFields = {
 };
 
 type TileWithTargetColumns = {
+    targetType: 'sqlColumn';
     key: string;
     label: string;
     checked: boolean;
@@ -91,7 +91,6 @@ const TileFilterConfiguration: FC<Props> = ({
     onChange,
     onToggleAll,
 }) => {
-    const theme = useMantineTheme();
     const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
         {},
     );
@@ -219,6 +218,7 @@ const TileFilterConfiguration: FC<Props> = ({
                         : false;
 
                     return {
+                        targetType: 'field',
                         key: tileUuid + index,
                         label: tileLabel,
                         checked: !!selectedField || !!invalidField,
@@ -242,9 +242,7 @@ const TileFilterConfiguration: FC<Props> = ({
             sqlChartTilesMetadata,
         ).reduce<TileWithTargetColumns[]>(
             (acc, [tileUuid, metadata], index) => {
-                const columns = metadata.columns.map(
-                    ({ reference }) => reference,
-                );
+                const columns = getValidSqlColumnReferences(metadata.columns);
                 const tile = tiles.find((t) => t.uuid === tileUuid);
                 if (!tile) {
                     return acc;
@@ -288,6 +286,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     tileLabel = tile.properties.title;
                 }
                 acc.push({
+                    targetType: 'sqlColumn',
                     key: tileUuid + index,
                     label: tileLabel,
                     checked: !!selectedField || !!invalidField,
@@ -361,6 +360,7 @@ const TileFilterConfiguration: FC<Props> = ({
         return (
             <Flex align="center" gap="xxs">
                 <ActionIcon
+                    color="gray"
                     size="xs"
                     variant="subtle"
                     onClick={toggleCollapse}
@@ -389,10 +389,9 @@ const TileFilterConfiguration: FC<Props> = ({
                                     )}
                                 </Group>
                             }
-                            styles={{
-                                label: {
-                                    paddingLeft: theme.spacing.xs,
-                                },
+                            classNames={{
+                                body: classes.checkboxBody,
+                                label: classes.checkboxLabel,
                             }}
                             onChange={() => {
                                 if (isIndeterminate) {
@@ -425,7 +424,7 @@ const TileFilterConfiguration: FC<Props> = ({
             return (
                 <Text
                     size="xs"
-                    color="dimmed"
+                    c="dimmed"
                     mt={isNested ? 'lg' : undefined}
                     ml={isNested ? 22 : undefined}
                 >
@@ -436,7 +435,7 @@ const TileFilterConfiguration: FC<Props> = ({
 
         return (
             <Stack
-                spacing="md"
+                gap="md"
                 mt={isNested ? 'lg' : undefined}
                 ml={isNested ? 22 : undefined}
             >
@@ -475,7 +474,9 @@ const TileFilterConfiguration: FC<Props> = ({
                                                     )}
                                                 />
                                                 <Text
-                                                    color={
+                                                    fz="sm"
+                                                    fw={500}
+                                                    c={
                                                         value.invalidField
                                                             ? 'red'
                                                             : undefined
@@ -485,10 +486,9 @@ const TileFilterConfiguration: FC<Props> = ({
                                                 </Text>
                                             </Flex>
                                         }
-                                        styles={{
-                                            label: {
-                                                paddingLeft: theme.spacing.xs,
-                                            },
+                                        classNames={{
+                                            body: classes.checkboxBody,
+                                            label: classes.checkboxLabel,
                                         }}
                                         checked={value.checked}
                                         onChange={(event) => {
@@ -520,17 +520,18 @@ const TileFilterConfiguration: FC<Props> = ({
                                     mt="sm"
                                     display={!value.checked ? 'none' : 'auto'}
                                 >
-                                    {isField(value.selectedField) ? (
+                                    {value.targetType === 'field' ? (
                                         <FieldSelect
                                             size="xs"
                                             disabled={!value.checked}
                                             item={value.selectedField}
-                                            items={
-                                                value.sortedFilters as Field[]
-                                            }
+                                            items={value.sortedFilters ?? []}
                                             comboboxProps={{
-                                                withinPortal:
-                                                    popoverProps?.withinPortal,
+                                                withinPortal: false,
+                                                classNames: {
+                                                    dropdown:
+                                                        classes.inlineDropdown,
+                                                },
                                             }}
                                             onDropdownOpen={
                                                 popoverProps?.onOpen
@@ -560,13 +561,24 @@ const TileFilterConfiguration: FC<Props> = ({
                                             w="100%"
                                             size="xs"
                                             searchable
-                                            dropdownComponent="div"
-                                            icon={undefined}
+                                            withScrollArea={false}
+                                            leftSection={undefined}
                                             allowDeselect={false}
-                                            value={value.selectedField}
-                                            data={
-                                                value.sortedFilters as string[]
+                                            comboboxProps={{
+                                                withinPortal: false,
+                                                classNames: {
+                                                    dropdown:
+                                                        classes.inlineDropdown,
+                                                },
+                                            }}
+                                            onDropdownOpen={
+                                                popoverProps?.onOpen
                                             }
+                                            onDropdownClose={
+                                                popoverProps?.onClose
+                                            }
+                                            value={value.selectedField ?? null}
+                                            data={value.sortedFilters}
                                             onChange={(newField) => {
                                                 onChange(
                                                     FilterActions.ADD,
@@ -630,13 +642,13 @@ const TileFilterConfiguration: FC<Props> = ({
         );
 
     return (
-        <Stack spacing="xl" className={classes.tileScrollArea}>
+        <Stack gap="xl" className={classes.tileScrollArea}>
             <Checkbox
                 size="xs"
                 checked={isAllChecked}
                 indeterminate={isIndeterminate}
                 label={
-                    <Text fw={500}>
+                    <Text fz="sm" fw={500}>
                         Select all{' '}
                         {isIndeterminate
                             ? ` (${
@@ -645,10 +657,9 @@ const TileFilterConfiguration: FC<Props> = ({
                             : ''}
                     </Text>
                 }
-                styles={{
-                    label: {
-                        paddingLeft: theme.spacing.xs,
-                    },
+                classNames={{
+                    body: classes.checkboxBody,
+                    label: classes.checkboxLabel,
                 }}
                 onChange={() => {
                     const tileUuids = tileTargetList.map((v) => v.tileUuid);

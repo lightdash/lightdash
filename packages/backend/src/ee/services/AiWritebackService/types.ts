@@ -1,11 +1,15 @@
 import type {
+    AiWritebackSource,
+    AiWritebackWorkstream,
+    FeatureFlags,
     PullRequestProvider,
     SessionUser,
     SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
-import type { AiWritebackThreadWithPrUrl } from '../../models/AiWritebackThreadModel';
+import type { ResumableWritebackThread } from '../../models/AiWritebackThreadModel';
+import type { SandboxHandle } from '../SandboxRuntime';
 import type { GitProvider } from './providers/GitProvider';
 
 /**
@@ -104,13 +108,120 @@ export type CloneTarget = {
 
 export type SetStage = (stage: AiWritebackFailureStage) => void;
 
+/**
+ * Per-turn agent invocation parameters produced by a {@link CodingAgentConfig}:
+ * the assembled system prompt plus the Claude Code CLI knobs that differ between
+ * the dbt-writeback specialization and the general coding agent (tool allowlist,
+ * extra `--add-dir` mounts, model).
+ */
+export type CodingAgentSetup = {
+    systemPrompt: string;
+    /** Claude Code `--allowedTools` string for this mode. */
+    allowedTools: string;
+    /**
+     * Claude Code `--disallowedTools` string — paths denied even under the
+     * allowlist (general agent: `.git` + secret files). Empty/undefined omits
+     * the flag.
+     */
+    disallowedTools?: string;
+    /** Extra `--add-dir` mounts beyond the repo CWD (e.g. /tmp, skills dirs). */
+    addDirs: string[];
+    /** Anthropic model the CLI runs with. */
+    model: string;
+};
+
+/**
+ * The injected, mode-specific half of a coding-agent run. The shared core
+ * ({@link AiWritebackService.runCodingAgent}) owns sandbox lifecycle, network
+ * lockdown, stream parsing, the signed-commit → PR pipeline, timeouts, and
+ * analytics; this config supplies only what varies between the dbt-writeback
+ * specialization and the general `editRepo` agent. dbt writeback is itself just
+ * one config, so "no in-sandbox build / no Bash" for the general agent is a
+ * property of its config, not a fork of the core.
+ */
+export type CodingAgentConfig = {
+    /** Tags logs/analytics and selects the few remaining mode branches. */
+    mode: AiWritebackWorkstream;
+    /**
+     * The rollout feature flag this mode is gated behind (CodingAgent for the
+     * general agent). Undefined for dbt writeback, which is always enabled.
+     * Asserted in `prepareTurn` for non admin/changeset sources.
+     */
+    featureFlag?: FeatureFlags;
+    /** E2B template a fresh sandbox is created from (dbt vs lean image). */
+    resolveTemplateRef: () => string;
+    /** Extra options merged into `sandbox.git.clone` (e.g. a blob filter). */
+    cloneExtraOptions: Record<string, unknown>;
+    /**
+     * Mint a short-lived, narrowly-scoped token for the clone instead of using
+     * the org-wide installation token (general agent). Returns the token plus an
+     * `onAfterClone` to revoke it once the checkout exists — the host commits via
+     * the API with the full installation token, so the sandbox never needs a
+     * usable token to outlive the clone (R2/R4). Returns null (or is undefined)
+     * to clone with the installation token, as dbt writeback does.
+     */
+    resolveCloneToken?: (args: {
+        gitConnection: GitConnection;
+        installation: GitInstallation;
+    }) => Promise<{ token: string; onAfterClone: () => Promise<void> } | null>;
+    /**
+     * Stage any sandbox prerequisites that inform the prompt (repo context,
+     * profiles, tree listing) and build the system prompt + CLI knobs for this
+     * turn. Runs after the repo is cloned/resumed and before the agent runs.
+     */
+    buildAgentSetup: (input: {
+        sandbox: SandboxHandle;
+        turn: TurnContext;
+        repository: string;
+    }) => Promise<CodingAgentSetup>;
+    /**
+     * Hook run immediately before the Claude CLI invocation — for side effects
+     * that don't belong in the prompt (dbt: install the secret-stripping compile
+     * wrapper, push warehouse skills, reset the compile-timings log).
+     */
+    beforeAgentRun: (
+        sandbox: SandboxHandle,
+        turn: TurnContext,
+    ) => Promise<void>;
+    /**
+     * Hook run immediately after the Claude CLI exits — for diagnostics that
+     * depend on what the agent did (dbt: read + report the compile timings).
+     */
+    afterAgentRun: (sandbox: SandboxHandle) => Promise<void>;
+};
+
+/**
+ * The git-target half of a {@link TurnContext}, resolved per mode before the
+ * shared resume/edit-state logic runs: dbt writeback resolves it from the
+ * project's dbt connection; the general agent resolves an arbitrary writable
+ * repo via the authz chokepoint.
+ */
+export type ResolvedTurnTarget = {
+    organizationUuid: string;
+    projectName: string;
+    /** Resolved once from the target; the service never re-branches the host. */
+    provider: GitProvider;
+    gitConnection: GitConnection;
+    /** Warehouse dialect for the skill file; null for the general agent. */
+    warehouseType: WarehouseTypes | null;
+    /** Resolved dbt version (compile-wrapper PATH); a default for the general agent. */
+    dbtVersion: SupportedDbtVersions;
+};
+
 export type TurnContext = {
     organizationUuid: string;
     projectName: string;
     /** Resolved once from the dbt connection type; the service never re-branches. */
     provider: GitProvider;
     gitConnection: GitConnection;
-    existingRow: AiWritebackThreadWithPrUrl | null;
+    /**
+     * The dbt source this turn targets: a `project_dbt_sources` row uuid for an
+     * additional source, or null for the project's primary dbt connection.
+     * Persisted on the thread row when a PR is opened so resumes stay bound to
+     * the same source (one thread, one PR).
+     */
+    projectDbtSourceUuid: string | null;
+    existingRow: ResumableWritebackThread | null;
     isResume: boolean;
     /**
      * The project's warehouse dialect, used to pick the warehouse skill file
@@ -138,13 +249,7 @@ export type AppliedChanges = {
     deletions: number | null;
 };
 
-export type AiWritebackSource =
-    | 'slack'
-    | 'web'
-    | 'mcp'
-    | 'api'
-    | 'admin_review'
-    | 'changeset';
+export type { AiWritebackSource };
 
 export type AgentToolCall = {
     name: string;
@@ -215,11 +320,36 @@ export type GithubIdentity = {
 export type AiWritebackRunArgs = {
     user: SessionUser;
     projectUuid: string;
+    /**
+     * For the general coding agent (`editRepo`): the `owner/repo` to edit,
+     * resolved + authorized via `resolveWritableRepoTarget` (user ∩ installation,
+     * denylist, manage:SourceCode). Ignored by the dbt-writeback path.
+     */
+    repoTarget?: string;
     prompt: string;
-    // Honoured only when the thread has no writeback PR yet; the PR must live
-    // in the project's own repo (validated before adoption).
+    /**
+     * Which of the project's dbt sources to target, when it has more than one:
+     * the project's own uuid (or undefined) for the primary dbt connection, or
+     * a `project_dbt_sources` row uuid for an additional source. When undefined
+     * and the project has several sources, the run infers the target from the
+     * prompt and, failing that, returns the choices for the caller to pick from.
+     * Ignored on a resumed thread — it stays bound to its original source.
+     */
+    dbtSourceUuid?: string;
+    // Target a specific pull request to update: one of the thread's own
+    // workstreams (resumed by URL), or an external PR the user pasted that lives
+    // in the project's own repo (validated before adoption). Honoured by both
+    // the general and dbt-writeback paths.
     prUrl?: string | null;
+    /**
+     * Open a NEW pull request for this turn even when the thread already has one
+     * open against the same repo, instead of continuing the existing one. Lets a
+     * single conversation drive several independent PRs per repo. Honoured by
+     * both the general coding agent and the dbt-writeback path.
+     */
+    startNewPullRequest?: boolean;
     aiThreadUuid?: string;
+    promptUuid?: string;
     /**
      * Identifies the trigger surface so logs, metrics, and analytics can
      * group runs by where they originated. Required so adding new triggers
@@ -234,4 +364,5 @@ export type AiWritebackRunArgs = {
      * progress live (the Slack agent updates its "Thinking…" message).
      */
     onProgress?: (message: string) => void;
+    aiWritebackRunUuid?: string;
 };

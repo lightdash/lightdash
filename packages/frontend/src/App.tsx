@@ -1,4 +1,4 @@
-import { ModalsProvider } from '@mantine/modals';
+import { ModalsProvider } from '@mantine-8/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { DocumentTitle } from './components/common/DocumentTitle';
@@ -7,9 +7,11 @@ import {
     CommercialMobileRoutes,
     CommercialWebAppRoutes,
 } from './ee/CommercialRoutes';
+import { AgentOnboardingCompletionWatcher } from './ee/features/agentOnboarding/AgentOnboardingCompletionWatcher';
 import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
 import { installChunkLoadErrorHandler } from './features/chunkErrorHandler';
+import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
@@ -25,6 +27,7 @@ import SchedulerJobsProvider from './providers/SchedulerJobs/SchedulerJobsProvid
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
 import Routes from './Routes';
+import { IS_MOBILE } from './utils/isMobile';
 
 installChunkLoadErrorHandler();
 
@@ -33,7 +36,7 @@ installChunkLoadErrorHandler();
 //         navigator.userAgent,
 //     ) || window.innerWidth < 768;
 
-const isMobile = window.innerWidth < 768;
+const isMobile = IS_MOBILE;
 
 const isMinimalPage = window.location.pathname.startsWith('/minimal');
 
@@ -52,6 +55,7 @@ const sentryCreateBrowserRouter =
 const router = sentryCreateBrowserRouter([
     {
         path: '/',
+        errorElement: <ChunkErrorRouteBoundary />,
         element: (
             <AppProvider>
                 <FullscreenProvider enabled={isMobile || !isMinimalPage}>
@@ -67,6 +71,9 @@ const router = sentryCreateBrowserRouter([
                                             <ChartColorMappingContextProvider>
                                                 <SourceCodeEditorProvider>
                                                     <AiAgentsGlobalProvider>
+                                                        {!isMinimalPage && (
+                                                            <AgentOnboardingCompletionWatcher />
+                                                        )}
                                                         <Outlet />
                                                     </AiAgentsGlobalProvider>
                                                 </SourceCodeEditorProvider>

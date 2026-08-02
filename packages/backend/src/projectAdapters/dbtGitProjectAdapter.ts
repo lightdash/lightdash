@@ -42,16 +42,16 @@ const stripTokensFromUrls = (raw: string) => {
     return raw.replace(pattern, '//*****@');
 };
 
-const gitErrorHandler = (e: unknown, repository: string) => {
+export const gitErrorHandler = (e: unknown, repository: string) => {
     if (!(e instanceof Error)) {
         throw new UnexpectedServerError(
-            `Unexpected git error: ${getErrorMessage(e)}`,
+            `Unexpected git error: ${stripTokensFromUrls(getErrorMessage(e))}`,
         );
     }
     if (e.message.includes('Authentication failed')) {
         throw new AuthorizationError(
             'Git credentials not recognized for this repository',
-            { message: e.message },
+            { message: stripTokensFromUrls(e.message) },
         );
     }
     if (e.message.includes('Repository not found')) {
@@ -67,7 +67,9 @@ const gitErrorHandler = (e: unknown, repository: string) => {
         );
     }
     throw new UnexpectedGitError(
-        `Unexpected error while cloning git repository: ${e}`,
+        `Unexpected error while cloning git repository: ${stripTokensFromUrls(
+            e.message,
+        )}`,
     );
 };
 
@@ -237,5 +239,10 @@ export class DbtGitProjectAdapter
     public async test() {
         await this._refreshRepo();
         await super.test();
+    }
+
+    public async getDbtManifest() {
+        await this._refreshRepo();
+        return super.getDbtManifest();
     }
 }

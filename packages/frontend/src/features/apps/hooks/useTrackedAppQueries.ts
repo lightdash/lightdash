@@ -96,20 +96,35 @@ export const useTrackedAppQueries = (): UseTrackedAppQueriesResult => {
                     ) {
                         return prev;
                     }
-                    return prev.map((q) =>
-                        q.queryUuid === event.queryUuid
-                            ? {
-                                  ...q,
-                                  label: event.label ?? q.label,
-                                  status: event.status,
-                                  rowCount: event.rowCount ?? q.rowCount,
-                                  durationMs: event.durationMs ?? q.durationMs,
-                                  error: event.error ?? q.error,
-                                  rawMetricQuery:
-                                      event.rawMetricQuery ?? q.rawMetricQuery,
-                              }
-                            : q,
-                    );
+                    return prev
+                        .map((q) =>
+                            q.queryUuid === event.queryUuid
+                                ? {
+                                      ...q,
+                                      label: event.label ?? q.label,
+                                      status: event.status,
+                                      rowCount: event.rowCount ?? q.rowCount,
+                                      durationMs:
+                                          event.durationMs ?? q.durationMs,
+                                      error: event.error ?? q.error,
+                                      rawMetricQuery:
+                                          event.rawMetricQuery ??
+                                          q.rawMetricQuery,
+                                  }
+                                : q,
+                        )
+                        .filter(
+                            // Drop this event's own now-redundant `pending`
+                            // placeholder — results-cache dedupe means a
+                            // second POST can fold into an entry it didn't
+                            // create, stranding its own placeholder row.
+                            (q) =>
+                                !(
+                                    q.id === event.id &&
+                                    q.status === 'pending' &&
+                                    q.queryUuid !== event.queryUuid
+                                ),
+                        );
                 }
             }
             // If this is a POST initiation with queryUuid, check if we
@@ -127,6 +142,18 @@ export const useTrackedAppQueries = (): UseTrackedAppQueriesResult => {
                           }
                         : q,
                 );
+            }
+            const isTerminal =
+                event.status === 'ready' || event.status === 'error';
+            // A queryUuid-less terminal for an id we already track (e.g. a
+            // displaced-lifecycle close signal) carries no new info — drop
+            // it rather than append a blank ghost row.
+            if (
+                !event.queryUuid &&
+                isTerminal &&
+                prev.some((q) => q.id === event.id)
+            ) {
+                return prev;
             }
             return [...prev, event];
         });

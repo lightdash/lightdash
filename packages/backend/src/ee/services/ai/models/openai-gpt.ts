@@ -35,6 +35,10 @@ export const getOpenaiGptmodel = (
         },
         providerOptions: {
             [PROVIDER]: {
+                // Force sequential tool execution: parallel tool calls in one
+                // step can drop some executions (no query, no result), so the
+                // agent stalls. Interim mitigation; a preset can override.
+                parallelToolCalls: false,
                 // Defaulting to Low as GPT-5 models without reasoning are not better than GPT-4.1
                 ...(reasoningEnabled && {
                     reasoningSummary: 'auto',

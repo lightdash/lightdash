@@ -179,13 +179,13 @@ export const ReviewRemediationWorkspace = () => {
                 <PageBreadcrumbs
                     items={[
                         { title: 'Ask AI', to: '/generalSettings/ai/general' },
-                        { title: 'Reviews', to: '/generalSettings/ai/reviews' },
+                        { title: 'Issues', to: '/generalSettings/ai/issues' },
                         { title: 'Workspace', active: true },
                     ]}
                 />
                 <Text c="dimmed">
-                    No remediation workspace for this finding yet. Open a pull
-                    request from the reviews board first.
+                    No remediation workspace for this issue yet. Open a pull
+                    request from the issues board first.
                 </Text>
             </Stack>
         );
@@ -357,8 +357,8 @@ export const ReviewRemediationWorkspace = () => {
                                 to: '/generalSettings/ai/general',
                             },
                             {
-                                title: 'Reviews',
-                                to: '/generalSettings/ai/reviews',
+                                title: 'Issues',
+                                to: '/generalSettings/ai/issues',
                             },
                             { title: reviewItem.title, active: true },
                         ]}

@@ -188,6 +188,13 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                         );
                     }
 
+                    if (filters.uuids) {
+                        void builder.whereIn(
+                            `${DashboardsTableName}.dashboard_uuid`,
+                            filters.uuids,
+                        );
+                    }
+
                     if (filters.spaceUuids) {
                         void builder.whereIn(
                             `${SpaceTableName}.space_uuid`,

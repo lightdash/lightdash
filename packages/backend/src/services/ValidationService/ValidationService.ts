@@ -340,7 +340,22 @@ export class ValidationService extends BaseService {
                         }));
                     return [...acc, ...exploreErrors];
                 }
-                return acc;
+
+                const warehouseColumnErrors = (explore.warnings ?? [])
+                    .filter(
+                        (warning) =>
+                            warning.type ===
+                            InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+                    )
+                    .map((warning) => ({
+                        name: explore.name,
+                        error: warning.message,
+                        errorType: ValidationErrorType.Model,
+                        modelName: explore.name,
+                        projectUuid,
+                        source: ValidationSourceType.Table,
+                    }));
+                return [...acc, ...warehouseColumnErrors];
             },
             [],
         );

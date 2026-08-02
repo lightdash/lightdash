@@ -16,7 +16,7 @@ import {
     Tooltip,
     useMantineTheme,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     IconAppWindow,
     IconCalendar,

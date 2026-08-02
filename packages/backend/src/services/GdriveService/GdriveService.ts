@@ -6,6 +6,7 @@ import {
     GoogleNotConnectedError,
     isCustomSqlDimension,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     ParameterError,
     UPLOAD_GSHEET_FROM_ROWS_MAX_ROWS,
     UploadGsheetFromRows,
@@ -18,6 +19,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { UserModel } from '../../models/UserModel';
+import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { ProjectService } from '../ProjectService/ProjectService';
@@ -28,6 +30,7 @@ type GdriveServiceArguments = {
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     userModel: UserModel;
+    userOAuthGrantsModel: UserOAuthGrantsModel;
     schedulerClient: SchedulerClient;
     projectModel: ProjectModel;
 };
@@ -43,6 +46,8 @@ export class GdriveService extends BaseService {
 
     userModel: UserModel;
 
+    userOAuthGrantsModel: UserOAuthGrantsModel;
+
     schedulerClient: SchedulerClient;
 
     projectModel: ProjectModel;
@@ -50,6 +55,7 @@ export class GdriveService extends BaseService {
     constructor({
         lightdashConfig,
         userModel,
+        userOAuthGrantsModel,
         projectService,
         savedChartModel,
         dashboardModel,
@@ -59,6 +65,7 @@ export class GdriveService extends BaseService {
         super();
         this.lightdashConfig = lightdashConfig;
         this.userModel = userModel;
+        this.userOAuthGrantsModel = userOAuthGrantsModel;
         this.projectService = projectService;
         this.savedChartModel = savedChartModel;
         this.dashboardModel = dashboardModel;
@@ -168,7 +175,10 @@ export class GdriveService extends BaseService {
         }
 
         try {
-            await this.userModel.getRefreshToken(account.user.id);
+            await this.userOAuthGrantsModel.getRefreshToken(
+                account.user.id,
+                OpenIdIdentityIssuerType.GOOGLE,
+            );
         } catch (e) {
             if (e instanceof NotFoundError) {
                 throw new GoogleNotConnectedError(

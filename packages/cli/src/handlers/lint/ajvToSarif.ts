@@ -5,7 +5,6 @@ type LocationMap = Map<string, { line: number; column: number }>;
 type FileValidationResult = {
     filePath: string;
     errors: ErrorObject[];
-    warnings?: ErrorObject[];
     fileContent: string;
     locationMap?: LocationMap;
     schemaType: 'chart' | 'dashboard' | 'model';
@@ -303,9 +302,6 @@ export function createSarifReport(results: FileValidationResult[]): SarifLog {
     for (const result of results) {
         for (const error of result.errors) {
             pushResult(result, error, 'error');
-        }
-        for (const warning of result.warnings ?? []) {
-            pushResult(result, warning, 'warning');
         }
     }
 

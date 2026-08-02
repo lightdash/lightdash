@@ -7,7 +7,6 @@ import {
 import {
     ActionIcon,
     Anchor,
-    Avatar,
     Badge,
     Box,
     Button,
@@ -44,6 +43,7 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
+import { LightdashUserAvatar } from '../../Avatar';
 import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
@@ -135,11 +135,12 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                         className={classes.auditRow}
                     >
                         <Group gap="sm" wrap="nowrap">
-                            <Avatar
+                            <LightdashUserAvatar
                                 size="sm"
-                                radius="xl"
                                 tt="uppercase"
-                                color="blue"
+                                userUuid={user.userUuid}
+                                avatarUrl={user.avatarUrl}
+                                avatarGradient={user.avatarGradient}
                             >
                                 {getInitials(
                                     user.userUuid,
@@ -148,7 +149,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                                     user.email,
                                     user.isInternal,
                                 )}
-                            </Avatar>
+                            </LightdashUserAvatar>
                             <Text fw={600} fz="sm" truncate>
                                 {getUserNameOrEmail(
                                     user.userUuid,

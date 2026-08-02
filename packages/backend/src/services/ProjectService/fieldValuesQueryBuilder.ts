@@ -66,6 +66,7 @@ export async function getFieldValuesMetricQuery({
     explore: Explore;
     field: Dimension;
     fieldId: string;
+    labelFieldId: string | null;
 }> {
     const parsedLimit = parseFieldValuesLimit(limit, maxLimit);
 
@@ -108,17 +109,63 @@ export async function getFieldValuesMetricQuery({
         );
     }
 
+    let labelFieldId: string | null = null;
+    const labelDimension = field.filterAutocomplete?.labelDimension;
+    if (labelDimension) {
+        const candidateLabelFieldId = getItemId({
+            table: field.table,
+            name: labelDimension,
+        });
+        if (candidateLabelFieldId !== getItemId(field)) {
+            const resolvedLabelField = findFieldByIdInExplore(
+                explore,
+                candidateLabelFieldId,
+            );
+            if (!resolvedLabelField) {
+                throw new NotFoundError(
+                    `Can't find label dimension '${labelDimension}' in table '${field.table}'`,
+                );
+            }
+            if (!isDimension(resolvedLabelField)) {
+                throw new ParameterError(
+                    `Label field must be a dimension, but ${candidateLabelFieldId} is a ${resolvedLabelField.type}`,
+                );
+            }
+            labelFieldId = candidateLabelFieldId;
+        }
+    }
+
+    // Autocomplete ignores the field's caseSensitive setting.
+    const searchFilter: FilterGroupItem = labelFieldId
+        ? {
+              id: uuidv4(),
+              or: [
+                  {
+                      id: uuidv4(),
+                      target: { fieldId: labelFieldId },
+                      operator: FilterOperator.INCLUDE,
+                      values: [search],
+                      caseSensitive: false,
+                  },
+                  {
+                      id: uuidv4(),
+                      target: { fieldId },
+                      operator: FilterOperator.INCLUDE,
+                      values: [search],
+                      caseSensitive: false,
+                  },
+              ],
+          }
+        : {
+              id: uuidv4(),
+              target: { fieldId },
+              operator: FilterOperator.INCLUDE,
+              values: [search],
+              caseSensitive: false,
+          };
+    const sortFieldId = labelFieldId ?? getItemId(field);
     const autocompleteDimensionFilters: FilterGroupItem[] = [
-        {
-            id: uuidv4(),
-            target: {
-                fieldId,
-            },
-            operator: FilterOperator.INCLUDE,
-            values: [search],
-            // Autocomplete ignores the field's caseSensitive setting.
-            caseSensitive: false,
-        },
+        searchFilter,
         {
             id: uuidv4(),
             target: {
@@ -147,7 +194,9 @@ export async function getFieldValuesMetricQuery({
 
     const metricQuery: MetricQuery = {
         exploreName: explore.name,
-        dimensions: [getItemId(field)],
+        dimensions: labelFieldId
+            ? [getItemId(field), labelFieldId]
+            : [getItemId(field)],
         metrics: [],
         filters: {
             dimensions: {
@@ -158,12 +207,12 @@ export async function getFieldValuesMetricQuery({
         tableCalculations: [],
         sorts: [
             {
-                fieldId: getItemId(field),
+                fieldId: sortFieldId,
                 descending: false,
             },
         ],
         limit: parsedLimit,
     };
 
-    return { metricQuery, explore, field, fieldId };
+    return { metricQuery, explore, field, fieldId, labelFieldId };
 }

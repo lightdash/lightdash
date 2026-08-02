@@ -221,9 +221,15 @@ Pivoting transforms dimension values into column headers. For example, instead o
 
 ### Pivot Configuration
 
-| Property              | Type     | Description                                      |
-| --------------------- | -------- | ------------------------------------------------ |
-| `pivotConfig.columns` | string[] | Dimension field IDs to pivot into column headers |
+| Property              | Type     | Description                                                         |
+| --------------------- | -------- | ------------------------------------------------------------------- |
+| `pivotConfig.columns` | string[] | Dimension field IDs to pivot into column headers                    |
+| `pivotConfig.rows`    | string[] | Ordered dimensions, metrics, and table calculations on the row axis |
+
+Use `pivotConfig.rows` to place query-time metrics or table calculations
+alongside the unpivoted row dimensions. The listed order is the displayed
+row-column order; values omitted from this list remain repeated under each
+pivot group.
 
 ### Example: Pivoted Table
 

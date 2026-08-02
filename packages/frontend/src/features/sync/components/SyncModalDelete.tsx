@@ -41,6 +41,7 @@ export const SyncModalDelete = () => {
         <MantineModal
             opened
             onClose={() => setAction(SyncModalAction.VIEW)}
+            role="alertdialog"
             title="Delete"
             icon={IconTrash}
             size="lg"

@@ -1,12 +1,24 @@
 const CHUNK_ERROR_RELOAD_KEY = 'lightdash-chunk-error-reload';
 const RELOAD_COOLDOWN_MS = 60_000; // 60 seconds before allowing another auto-reload
 
+export class RouteChunkLoadError extends Error {
+    routeModule: string;
+
+    constructor(routeModule: string) {
+        super(`Route chunk failed to load: ${routeModule}`);
+        this.name = 'RouteChunkLoadError';
+        this.routeModule = routeModule;
+    }
+}
+
 const CHUNK_ERROR_MESSAGES = [
     'Failed to fetch dynamically imported module',
     'error loading dynamically imported module',
     'Importing a module script failed',
     'Failed to load module script',
     'Unable to preload CSS',
+    // Route lazy imports can surface a failed preload as destructuring undefined.
+    "Cannot destructure property 'default' of '(intermediate value)' as it is undefined",
 ];
 
 let isChunkLoadErrorHandlerInstalled = false;
@@ -19,6 +31,9 @@ export const isChunkLoadError = (message: string): boolean => {
 };
 
 export const isChunkLoadErrorObject = (error: unknown): boolean => {
+    if (error instanceof RouteChunkLoadError) {
+        return true;
+    }
     if (error instanceof Error) {
         return isChunkLoadError(error.message);
     }

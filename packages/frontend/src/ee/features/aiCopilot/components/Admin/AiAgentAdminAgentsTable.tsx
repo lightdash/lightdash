@@ -315,7 +315,6 @@ const AiAgentAdminAgentsTable = () => {
                                         <Box key={idx}>
                                             <Tooltip
                                                 withinPortal
-                                                variant="xs"
                                                 label={
                                                     isResolved
                                                         ? channelName

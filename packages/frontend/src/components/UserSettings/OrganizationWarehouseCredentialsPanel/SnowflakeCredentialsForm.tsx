@@ -1,6 +1,5 @@
 import {
     Anchor,
-    NumberInput,
     Select,
     Stack,
     Switch,
@@ -11,6 +10,7 @@ import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import { SnowflakeOAuthInput } from '../../common/Authentication/SnowflakeOAuthInput';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../../ProjectConnection/FormCollapseButton';
 import FormSection from '../../ProjectConnection/Inputs/FormSection';
 

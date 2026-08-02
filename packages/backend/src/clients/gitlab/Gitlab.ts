@@ -5,7 +5,6 @@ import {
     getErrorMessage,
     LightdashError,
     NotFoundError,
-    ParameterError,
     PullRequestState,
     UnexpectedGitError,
 } from '@lightdash/common';
@@ -504,6 +503,46 @@ const GITLAB_BRANCHES_PER_PAGE = 100;
 // forever. Real repos are well under this; same defensive pattern as the tree.
 const MAX_BRANCH_PAGES = 100;
 
+/**
+ * Repository size in MB for the pre-clone size guard (R9), from the project's
+ * `statistics.repository_size` (bytes). Returns null when statistics aren't
+ * exposed (the token lacks the needed access, or the field is absent) — the
+ * caller then can't enforce the guard and falls back to the clone timeout.
+ */
+export const getRepositorySizeMb = async ({
+    owner,
+    repo,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams): Promise<number | null> => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(hostDomain, `/projects/${projectId}?statistics=true`);
+    const project = await makeGitlabRequest(url, token);
+    const bytes = project?.statistics?.repository_size;
+    return typeof bytes === 'number' ? Math.round(bytes / (1024 * 1024)) : null;
+};
+
+export const closeMergeRequest = async ({
+    owner,
+    repo,
+    iid,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & {
+    iid: number;
+}): Promise<{ state: 'open' | 'closed' }> => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/merge_requests/${iid}`,
+    );
+    const mr = await makeGitlabRequest(url, token, {
+        method: 'PUT',
+        body: JSON.stringify({ state_event: 'close' }),
+    });
+    return { state: mr.state === 'closed' ? 'closed' : 'open' };
+};
+
 export const getBranches = async ({
     owner,
     repo,
@@ -877,199 +916,6 @@ export const getGitlabProjects = async (
             visibility: project.visibility,
         }));
     } catch (error) {
-        throw new UnexpectedGitError(getErrorMessage(error));
-    }
-};
-
-// Additional functions for file operations (for future use in write-back functionality)
-export const getGitlabFileContent = async ({
-    projectId,
-    filePath,
-    ref = 'main',
-    token,
-    gitlabInstanceUrl = 'https://gitlab.com',
-}: {
-    projectId: number;
-    filePath: string;
-    ref?: string;
-    token: string;
-    gitlabInstanceUrl?: string;
-}) => {
-    const baseURL =
-        gitlabInstanceUrl === 'https://gitlab.com'
-            ? 'https://gitlab.com/api/v4'
-            : `${gitlabInstanceUrl}/api/v4`;
-
-    try {
-        const encodedFilePath = encodeURIComponent(filePath);
-        const response = await gitlabFetch(
-            `${baseURL}/projects/${projectId}/repository/files/${encodedFilePath}?ref=${ref}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            },
-        );
-
-        if (response.content) {
-            const content = Buffer.from(response.content, 'base64').toString(
-                'utf-8',
-            );
-            return {
-                content,
-                sha: response.blob_id,
-                filePath: response.file_path,
-            };
-        }
-
-        throw new NotFoundError('File not found');
-    } catch (error: AnyType) {
-        if (error.message.includes('404')) {
-            throw new NotFoundError(
-                `File ${filePath} not found in GitLab project`,
-            );
-        }
-        throw new UnexpectedGitError(getErrorMessage(error));
-    }
-};
-
-export const createGitlabFile = async ({
-    projectId,
-    filePath,
-    content,
-    branch,
-    commitMessage,
-    token,
-    gitlabInstanceUrl = 'https://gitlab.com',
-}: {
-    projectId: number;
-    filePath: string;
-    content: string;
-    branch: string;
-    commitMessage: string;
-    token: string;
-    gitlabInstanceUrl?: string;
-}) => {
-    const baseURL =
-        gitlabInstanceUrl === 'https://gitlab.com'
-            ? 'https://gitlab.com/api/v4'
-            : `${gitlabInstanceUrl}/api/v4`;
-
-    try {
-        const encodedFilePath = encodeURIComponent(filePath);
-        const response = await gitlabFetch(
-            `${baseURL}/projects/${projectId}/repository/files/${encodedFilePath}`,
-            {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    branch,
-                    content: Buffer.from(content, 'utf-8').toString('base64'),
-                    commit_message: commitMessage,
-                    encoding: 'base64',
-                }),
-            },
-        );
-
-        return response;
-    } catch (error: AnyType) {
-        if (error.message.includes('400')) {
-            throw new AlreadyExistsError(
-                `File "${filePath}" already exists in GitLab project`,
-            );
-        }
-        throw new UnexpectedGitError(getErrorMessage(error));
-    }
-};
-
-export const createGitlabBranch = async ({
-    projectId,
-    branchName,
-    ref,
-    token,
-    gitlabInstanceUrl = 'https://gitlab.com',
-}: {
-    projectId: number;
-    branchName: string;
-    ref: string;
-    token: string;
-    gitlabInstanceUrl?: string;
-}) => {
-    const baseURL =
-        gitlabInstanceUrl === 'https://gitlab.com'
-            ? 'https://gitlab.com/api/v4'
-            : `${gitlabInstanceUrl}/api/v4`;
-
-    try {
-        const response = await gitlabFetch(
-            `${baseURL}/projects/${projectId}/repository/branches`,
-            {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    branch: branchName,
-                    ref,
-                }),
-            },
-        );
-
-        return response;
-    } catch (error: AnyType) {
-        throw new UnexpectedGitError(getErrorMessage(error));
-    }
-};
-
-export const createGitlabMergeRequest = async ({
-    projectId,
-    title,
-    description,
-    sourceBranch,
-    targetBranch,
-    token,
-    gitlabInstanceUrl = 'https://gitlab.com',
-}: {
-    projectId: number;
-    title: string;
-    description: string;
-    sourceBranch: string;
-    targetBranch: string;
-    token: string;
-    gitlabInstanceUrl?: string;
-}) => {
-    const baseURL =
-        gitlabInstanceUrl === 'https://gitlab.com'
-            ? 'https://gitlab.com/api/v4'
-            : `${gitlabInstanceUrl}/api/v4`;
-
-    try {
-        const response = await gitlabFetch(
-            `${baseURL}/projects/${projectId}/merge_requests`,
-            {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    title,
-                    description,
-                    source_branch: sourceBranch,
-                    target_branch: targetBranch,
-                }),
-            },
-        );
-
-        return {
-            id: response.id,
-            iid: response.iid,
-            title: response.title,
-            webUrl: response.web_url,
-            state: response.state,
-        };
-    } catch (error: AnyType) {
         throw new UnexpectedGitError(getErrorMessage(error));
     }
 };

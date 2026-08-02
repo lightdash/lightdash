@@ -11,6 +11,10 @@
                     "$ref": "#/$defs/FieldId",
                     "description": "For PoP-generated metrics, the base metric id that this metric is derived from."
                 },
+                "baseMetricName": {
+                    "description": "Name of the explore metric this metric was cloned from",
+                    "type": "string"
+                },
                 "compact": {
                     "$ref": "#/$defs/CompactOrAlias",
                     "description": "Compact format for large numbers"
@@ -401,6 +405,9 @@
                     "$ref": "#/$defs/GaugeChartConfig"
                 },
                 {
+                    "$ref": "#/$defs/DataAppVizChartConfig"
+                },
+                {
                     "$ref": "#/$defs/MapChartConfig"
                 },
                 {
@@ -418,6 +425,10 @@
         },
         "ChartType.CUSTOM": {
             "enum": ["custom"],
+            "type": "string"
+        },
+        "ChartType.DATA_APP_VIZ": {
+            "enum": ["data_app_viz"],
             "type": "string"
         },
         "ChartType.FUNNEL": {
@@ -467,6 +478,10 @@
                     "description": "Custom display name for the column",
                     "type": "string"
                 },
+                "negativeColor": {
+                    "description": "Color for negative bars in diverging bar display (hex code). Falls back to `color` when unset.",
+                    "type": "string"
+                },
                 "visible": {
                     "description": "Whether the column is visible",
                     "type": "boolean"
@@ -480,6 +495,7 @@
         },
         "Compact": {
             "enum": [
+                "auto",
                 "thousands",
                 "millions",
                 "billions",
@@ -1044,6 +1060,60 @@
             "required": ["type"],
             "type": "object"
         },
+        "DataAppVizChart": {
+            "properties": {
+                "dataAppVizUuid": {
+                    "description": "The reusable data app viz this chart renders with (by reference).",
+                    "type": "string"
+                },
+                "fieldMapping": {
+                    "$ref": "#/$defs/DataAppVizFieldMapping"
+                },
+                "optionValues": {
+                    "$ref": "#/$defs/DataAppVizOptionValues",
+                    "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
+                }
+            },
+            "required": ["fieldMapping", "dataAppVizUuid"],
+            "type": "object"
+        },
+        "DataAppVizChartConfig": {
+            "properties": {
+                "config": {
+                    "$ref": "#/$defs/DataAppVizChart",
+                    "description": "Reference to a data app viz plus its field mapping."
+                },
+                "type": {
+                    "$ref": "#/$defs/ChartType.DATA_APP_VIZ",
+                    "description": "Type of chart visualization"
+                }
+            },
+            "required": ["type"],
+            "type": "object"
+        },
+        "DataAppVizFieldMapping": {
+            "$ref": "#/$defs/Record_string.string_",
+            "description": "Maps a data app viz's field name → the host query field id bound to it."
+        },
+        "DataAppVizOptionValue": {
+            "anyOf": [
+                {
+                    "type": "boolean"
+                },
+                {
+                    "format": "double",
+                    "type": "number"
+                },
+                {
+                    "type": "string"
+                }
+            ],
+            "description": "A persisted config value; its shape is set by the option's declared `type`."
+        },
+        "DataAppVizOptionValues": {
+            "$ref": "#/$defs/Record_string.DataAppVizOptionValue_",
+            "description": "Maps a declared config option's name → the value the user chose for it."
+        },
         "DimensionOverrides": {
             "additionalProperties": {
                 "$ref": "#/$defs/Pick_Dimension.formatOptions_"
@@ -1136,6 +1206,10 @@
                 "right": {
                     "description": "Right position",
                     "type": "string"
+                },
+                "selected": {
+                    "$ref": "#/$defs/Record_string.boolean_",
+                    "description": "Legend entries toggled off by name. Missing entries default to visible."
                 },
                 "show": {
                     "description": "Show the legend",
@@ -1333,6 +1407,7 @@
             "enum": [
                 "km",
                 "mi",
+                "si",
                 "usd",
                 "gbp",
                 "eur",
@@ -2358,11 +2433,11 @@
                 }
             },
             "required": [
-                "limit",
                 "exploreName",
                 "dimensions",
                 "metrics",
                 "sorts",
+                "limit",
                 "tableCalculations"
             ],
             "type": "object"
@@ -2518,9 +2593,25 @@
             "required": ["value", "field"],
             "type": "object"
         },
+        "Record_string.boolean_": {
+            "additionalProperties": {
+                "type": "boolean"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
         "Record_string.ColumnProperties_": {
             "additionalProperties": {
                 "$ref": "#/$defs/ColumnProperties"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
+        "Record_string.DataAppVizOptionValue_": {
+            "additionalProperties": {
+                "$ref": "#/$defs/DataAppVizOptionValue"
             },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
@@ -2559,9 +2650,6 @@
             "type": "object"
         },
         "Record_string.string_": {
-            "additionalProperties": {
-                "type": "string"
-            },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
             "type": "object"
@@ -2848,6 +2936,10 @@
                     "description": "Internal name of the table calculation",
                     "type": "string"
                 },
+                "totalMode": {
+                    "$ref": "#/$defs/TableCalculationTotalMode",
+                    "description": "How column totals are computed for this calculation"
+                },
                 "type": {
                     "$ref": "#/$defs/TableCalculationType",
                     "description": "Data type of the calculation result"
@@ -3057,6 +3149,10 @@
         },
         "TableCalculationTemplateType.WINDOW_FUNCTION": {
             "enum": ["window_function"],
+            "type": "string"
+        },
+        "TableCalculationTotalMode": {
+            "enum": ["formula", "sum_of_rows", "none"],
             "type": "string"
         },
         "TableCalculationType": {
@@ -3427,6 +3523,20 @@
                 {
                     "properties": {
                         "config": {
+                            "$ref": "#/$defs/DataAppVizChart",
+                            "description": "Reference to a data app viz plus its field mapping."
+                        },
+                        "type": {
+                            "const": "data_app_viz",
+                            "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": ["type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
                             "$ref": "#/$defs/MapChart",
                             "description": "Chart-type-specific configuration"
                         },
@@ -3513,6 +3623,13 @@
                         "type": "string"
                     },
                     "type": "array"
+                },
+                "rows": {
+                    "description": "Ordered fields to render on the pivot row axis",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
                 }
             },
             "required": ["columns"],
@@ -3577,9 +3694,9 @@
     },
     "required": [
         "name",
-        "slug",
-        "chartConfig",
         "tableName",
+        "chartConfig",
+        "slug",
         "spaceSlug",
         "version",
         "metricQuery"

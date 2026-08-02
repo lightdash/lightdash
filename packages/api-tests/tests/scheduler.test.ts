@@ -24,10 +24,7 @@ import { login, loginAsEditor, loginAsViewer } from '../helpers/auth';
 const apiUrl = '/api/v1';
 
 const cron = '59 23 * * *';
-const createSchedulerBody: Omit<
-    CreateSchedulerAndTargetsWithoutIds,
-    'enabled' | 'includeLinks'
-> = {
+const createSchedulerBody: CreateSchedulerAndTargetsWithoutIds = {
     name: 'test',
     cron,
     targets: [{ channel: 'C1' }, { channel: 'C2' }],
@@ -36,6 +33,8 @@ const createSchedulerBody: Omit<
     timezone: 'UTC', // Explicitly set the timezone to be UTC since the project default might have been changed which will make the tests fail
     appUuid: null,
     appName: null,
+    enabled: true,
+    includeLinks: true,
 };
 
 const getUpdateSchedulerBody = (

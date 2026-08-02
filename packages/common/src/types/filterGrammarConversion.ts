@@ -82,9 +82,17 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
                 `No function implemented to convert date custom metric filter to dbt: ${operator}`,
             );
         case FilterOperator.IN_THE_CURRENT:
+        case FilterOperator.NOT_IN_THE_CURRENT:
+            if (isDateFilterRule(filter)) {
+                const settings = filter.settings as DateFilterSettings;
+                const unitOfTime = settings.unitOfTime || UnitOfTime.days;
+                return [`${operator} ${unitOfTime}`];
+            }
+            throw new NotImplementedError(
+                `No function implemented to convert date custom metric filter to dbt: ${operator}`,
+            );
         case FilterOperator.IN_BETWEEN:
         case FilterOperator.NOT_IN_THE_PAST:
-        case FilterOperator.NOT_IN_THE_CURRENT:
         case FilterOperator.NOT_IN_BETWEEN:
         case FilterOperator.IN_PERIOD_TO_DATE:
             throw new NotImplementedError(

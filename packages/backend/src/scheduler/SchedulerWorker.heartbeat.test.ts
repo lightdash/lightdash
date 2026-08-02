@@ -43,11 +43,11 @@ const makeConfig = (): LightdashConfig =>
     }) as unknown as LightdashConfig;
 
 const makeWorkerArgs = (
-    withPgClient: jest.Mock,
+    withPgClient: import('vitest').Mock,
     workerHealth?: SchedulerWorkerHealth,
 ): SchedulerWorkerArguments => {
     const graphileUtils = Promise.resolve({
-        addJob: jest.fn(),
+        addJob: vi.fn(),
         withPgClient,
     });
     return {
@@ -67,7 +67,7 @@ describe('SchedulerWorker — task list no longer carries heartbeat plumbing', (
         // graphile-routed heartbeat path.
         const health = new SchedulerWorkerHealth('pod-abc-123');
         const worker = new TestableSchedulerWorker(
-            makeWorkerArgs(jest.fn(), health),
+            makeWorkerArgs(vi.fn(), health),
         );
 
         const taskNames = Object.keys(worker.exposeTaskList());
@@ -82,7 +82,7 @@ describe('SchedulerWorker — task list no longer carries heartbeat plumbing', (
 
     it('does not register any heartbeat tasks when workerHealth is omitted', () => {
         const worker = new TestableSchedulerWorker(
-            makeWorkerArgs(jest.fn(), undefined),
+            makeWorkerArgs(vi.fn(), undefined),
         );
 
         const taskNames = Object.keys(worker.exposeTaskList());
@@ -96,12 +96,12 @@ describe('SchedulerWorker — task list no longer carries heartbeat plumbing', (
 describe('SchedulerWorker — pingPgOnce', () => {
     it('runs SELECT 1 through withPgClient and marks pg reachable on success', async () => {
         const health = new SchedulerWorkerHealth('pod-xyz');
-        const markPgReachableSpy = jest.spyOn(health, 'markPgReachable');
+        const markPgReachableSpy = vi.spyOn(health, 'markPgReachable');
 
         const pgClient = {
-            query: jest.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }),
+            query: vi.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }),
         };
-        const withPgClient = jest
+        const withPgClient = vi
             .fn()
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .mockImplementation(async (fn: any) => fn(pgClient));
@@ -119,9 +119,9 @@ describe('SchedulerWorker — pingPgOnce', () => {
 
     it('does NOT mark pg reachable when the query rejects', async () => {
         const health = new SchedulerWorkerHealth('pod-down');
-        const markPgReachableSpy = jest.spyOn(health, 'markPgReachable');
+        const markPgReachableSpy = vi.spyOn(health, 'markPgReachable');
 
-        const withPgClient = jest
+        const withPgClient = vi
             .fn()
             .mockRejectedValue(new Error('connection refused'));
 
@@ -138,12 +138,12 @@ describe('SchedulerWorker — pingPgOnce', () => {
     it('continues running after a failure (no exception escapes the ping)', async () => {
         const health = new SchedulerWorkerHealth('pod-flapping');
         const pgClient = {
-            query: jest
+            query: vi
                 .fn()
                 .mockRejectedValueOnce(new Error('pg blip'))
                 .mockResolvedValueOnce({ rows: [] }),
         };
-        const withPgClient = jest
+        const withPgClient = vi
             .fn()
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .mockImplementation(async (fn: any) => fn(pgClient));
@@ -158,11 +158,11 @@ describe('SchedulerWorker — pingPgOnce', () => {
     });
 
     it('does not hang when withPgClient never resolves (wedged backend)', async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         try {
             const health = new SchedulerWorkerHealth('pod-wedged');
-            const markPgReachableSpy = jest.spyOn(health, 'markPgReachable');
-            const withPgClient = jest.fn().mockImplementation(
+            const markPgReachableSpy = vi.spyOn(health, 'markPgReachable');
+            const withPgClient = vi.fn().mockImplementation(
                 () =>
                     new Promise(() => {
                         // intentionally pending forever
@@ -176,14 +176,14 @@ describe('SchedulerWorker — pingPgOnce', () => {
             const ping = worker.pingPgOnceExposed(health);
 
             // Advance past the 5s ping timeout.
-            await jest.advanceTimersByTimeAsync(6_000);
+            await vi.advanceTimersByTimeAsync(6_000);
 
             await expect(ping).resolves.toBeUndefined();
             expect(withPgClient).toHaveBeenCalledTimes(1);
             // Timeout path must NOT mark reachable — that's the whole point.
             expect(markPgReachableSpy).not.toHaveBeenCalled();
         } finally {
-            jest.useRealTimers();
+            vi.useRealTimers();
         }
     });
 });

@@ -108,8 +108,9 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
     describe('specialized agent tests', () => {
         testCases.forEach((testCase) => {
+            const testName = testCase.name ?? testCase.prompt;
             it.concurrent(
-                testCase.name ?? testCase.prompt,
+                testName,
                 async (test) => {
                     const services = getServices(context.app);
                     if (!specializedAgent) {
@@ -289,8 +290,9 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
     describe('generic agent tests', () => {
         genericTestCases.forEach((testCase) => {
+            const testName = testCase.name ?? testCase.prompt;
             it.concurrent(
-                testCase.name ?? testCase.prompt,
+                testName,
                 async (test) => {
                     const services = getServices(context.app);
                     if (!genericAgent) {

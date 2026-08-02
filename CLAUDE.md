@@ -2,9 +2,30 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Opt-in Agent Okteto Development Environment
 
-Lightdash is an open-source business intelligence tool (Looker alternative) that connects to dbt projects to enable self-service analytics. It's a TypeScript monorepo built with modern web technologies.
+This workflow is enabled only when
+`LIGHTDASH_OKTETO_TOKEN` is set. If it is not set, skip this section and
+follow the normal development workflow.
+
+When it is set, the Okteto development environment is started automatically by
+the `SessionStart` hook (`agent-okteto-dev.sh hook-start`). The hook captures
+the session ID, starts synchronization, and waits for the environment to become
+healthy before the first prompt reaches Claude. Do not start it yourself or
+replace it with a local Docker environment.
+
+If setup fails, do not make code changes. Follow the reported error and
+`docs/agent-okteto.md`, then resume the session after fixing the setup.
+The prompt guard reports whether setup is still running or the specific startup
+failure recorded by the SessionStart gate.
+
+After making and validating code changes, run
+`./scripts/agent-okteto-dev.sh wait` before the final response. Include the URL
+from its `READY:` line in the final response. The `Stop` hook verifies readiness
+again and prevents a final response that omits the URL.
+
+Leave the Okteto namespace and sync process running so the user can test the
+changes.
 
 ## Formula Package Development
 
@@ -13,7 +34,7 @@ The `packages/formula/` package contains a Peggy-based parser that compiles Goog
 **Never read files in `packages/formula-tests/`.** This package contains black-box integration tests. Use the following commands for feedback:
 
 ```bash
-pnpm formula:test:fast     # DuckDB only — sub-second feedback loop
+pnpm formula:test:duckdb   # DuckDB only — sub-second feedback loop
 pnpm formula:test:tier1    # DuckDB + Postgres
 pnpm formula:test:tier2    # BigQuery + Snowflake
 pnpm formula:test:all      # Everything
@@ -22,27 +43,12 @@ pnpm formula:test:all      # Everything
 The development loop is:
 1. Edit code in `packages/formula/`
 2. `pnpm formula:build`
-3. `pnpm formula:test:fast` (or tier1/tier2) — read the feedback output
+3. `pnpm formula:test:duckdb` (or tier1/tier2) — read the feedback output
 4. Fix issues and repeat
 
 Unit tests in `packages/formula/tests/` CAN be read and edited (grammar and AST tests).
 
 ## Architecture
-
-### Monorepo Structure (pnpm workspaces)
-
--   `packages/common/` - Shared utilities, types, and business logic
--   `packages/backend/` - Node.js/Express API server, scheduler worker, and all backend services
--   `packages/frontend/` - React web application with Vite build system
--   `packages/warehouses/` - Data warehouse client adapters (BigQuery, Snowflake, Postgres, etc.)
--   `packages/cli/` - Command-line interface for dbt project management
--   `packages/e2e/` - Cypress end-to-end tests
-
-### Key Technologies
-
--   Backend: Express.js, Knex.js ORM, PostgreSQL, TSOA (OpenAPI generation)
--   Frontend: React 19, Mantine v8 UI, Emotion styling, TanStack Query
--   Build: pnpm workspaces, TypeScript project references, Vite
 
 ### Runtime Services
 
@@ -81,12 +87,9 @@ pnpm -F common lint
 pnpm -F backend lint
 pnpm -F frontend lint
 pnpm -F common typecheck
-pnpm -F common typecheck:fast # common is heavy; use this faster typecheck there
 pnpm -F backend typecheck
-pnpm -F backend typecheck:fast
 pnpm -F frontend typecheck
-pnpm -F frontend typecheck:fast
-pnpm -F warehouses typecheck:fast
+pnpm -F warehouses typecheck
 ```
 
 **Testing:**
@@ -98,7 +101,14 @@ pnpm -F backend test:dev:nowatch # runs only tests for modified files
 
 **API Generation:**
 
-Generate OpenAPI specs from TSOA controllers. Always run this when:
+OpenAPI artifacts are generated from TSOA controllers in PR CI for compatibility
+checks and again by the release workflow. Feature PRs must not commit changes to
+`packages/backend/src/generated/routes.ts` or
+`packages/backend/src/generated/swagger.json`; the pre-commit hook unstages them
+and the release workflow commits the generated artifacts.
+
+Run generation locally when validating changes to any of the following, or when
+local generated routes are stale:
 
 - controllers change
 - return signatures of service functions called by controllers change
@@ -106,6 +116,14 @@ Generate OpenAPI specs from TSOA controllers. Always run this when:
 
 ```bash
 pnpm generate-api
+```
+
+The generated files (`packages/backend/src/generated/*`) are regenerated on main per build, so the committed `routes.ts` may be stale after you pull or rebase main — it can still import controllers that main has already deleted. If the backend crash-loops with `MODULE_NOT_FOUND` pointing at `generated/routes.ts`, regenerate and restart:
+
+```bash
+pnpm generate-api
+# processes are named <LD_INSTANCE_ID>-api / -scheduler (LD_INSTANCE_ID defaults to "lightdash")
+pm2 restart "${LD_INSTANCE_ID:-lightdash}-api" "${LD_INSTANCE_ID:-lightdash}-scheduler"
 ```
 
 Chart-as-code JSON schema is generated from backend OpenAPI:
@@ -130,13 +148,10 @@ pnpm -F backend rollback-last
 
 ## Development Workflow
 
-1. **Package Management**: Use `pnpm` (v9.15.5+) - never use npm or yarn
-2. **TypeScript**: All packages use TypeScript with project references for type checking
-3. **Linting**: ESLint with Airbnb config, enforces `no-floating-promises`
-4. **Pre-commit**: Husky + lint-staged runs linting/formatting on staged files
-5. **Database**: Uses Knex.js for migrations and query building
-6. **API**: TSOA generates OpenAPI specs from TypeScript controllers
-7. **Authentication**: CASL-based authorization with multiple auth providers
+1. **Package Management**: Use `pnpm` (v11.17.0+, pinned via `packageManager` in the root `package.json` — let Corepack pick it up) - never use npm or yarn
+2. **Database**: Uses Knex.js for migrations and query building
+3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
+4. **Authentication**: CASL-based authorization with multiple auth providers
 
 ## Package-Specific Notes
 
@@ -164,29 +179,12 @@ pnpm -F backend rollback-last
 
 ## Authorization & Custom Roles
 
-**When adding a new permission scope**, you must update all the relevant ability layers:
-
-1. **`packages/common/src/authorization/types.ts`** - Add the new CASL subject name to `CaslSubjectNames`
-2. **`packages/common/src/authorization/scopes.ts`** - Define the scope (name, description, group, conditions)
-3. **`packages/common/src/authorization/projectMemberAbility.ts`** - Add to the appropriate system role function (e.g., `developer`, `admin`)
-4. **`packages/common/src/authorization/organizationMemberAbility.ts`** - Add to org-level roles if needed (note: org-level abilities are additive and **cannot** be restricted by project-level custom roles)
-5. **`packages/common/src/authorization/roleToScopeMapping.ts`** - Add to the appropriate system role in `BASE_ROLE_SCOPES` (must stay in sync with `projectMemberAbility.ts`)
-6. **`packages/common/src/authorization/serviceAccountAbility.ts`** - Add to `ORG_ADMIN` (or other service account scopes) if service accounts need this permission. **Forgetting this breaks CI/CD pipelines.**
-
-**Key files:**
-
--   `projectMemberAbility.ts` - System role abilities at project level
--   `organizationMemberAbility.ts` - System role abilities at org level
--   `serviceAccountAbility.ts` - Service account abilities (enterprise, used for CI/CD)
--   `roleToScopeMapping.ts` - Maps system roles to scopes (used by custom roles system and parity tests)
--   `scopeAbilityBuilder.ts` - Builds CASL abilities from scope lists (custom roles path)
--   `index.ts` - Main ability builder that chooses between system role vs custom role path
+**When adding or changing a permission scope, use the `ld-permissions` skill** — it has the full checklist of ability layers to update (forgetting `serviceAccountAbility.ts` breaks CI/CD pipelines).
 
 **Important behavior:**
 
 -   CASL abilities are **additive** - org-level permissions cannot be revoked by project-level custom roles
 -   If a permission should be restrictable via custom roles, do NOT add it to org-level developer/editor abilities
--   The parity test (`roleToScopeParity.test.ts`) ensures `projectMemberAbility.ts` and `roleToScopeMapping.ts` stay in sync
 -   **Changing the scope vocabulary (rename / split / merge / remove) requires a Knex migration against `scoped_roles`** — custom roles persist scope names as strings and do not auto-update. See the `ld-permissions` skill for the migration checklist and patterns.
 
 ## TypeScript Project References
@@ -197,14 +195,6 @@ pnpm -F backend rollback-last
 -   Frontend and backend reference common package via `"references"` in tsconfig.json
 -   Common package builds to multiple targets: ESM (`dist/esm`), CJS (`dist/cjs`), Types (`dist/types`)
 -   Web workers importing from common should use built ESM paths: `@lightdash/common/dist/esm/[module]`
-
-## Key Configuration Files
-
--   `/tsconfig.json` - TypeScript project references
--   `/pnpm-workspace.yaml` - Workspace configuration
--   `/.eslintrc.js` - Global linting rules
--   `/package.json` - Root scripts and dependency management
--   `.env.development.local` - Local development environment variables
 
 ## dbt YAML Validation Schemas
 
@@ -273,12 +263,12 @@ This applies to any install Claude runs in this repo — lockfile regeneration, 
 
 ### Dependency Install Scripts — Blocked by Default
 
-Dependency lifecycle scripts (`preinstall`/`install`/`postinstall`) are blocked by pnpm and enforced in CI via `strictDepBuilds: true` in `pnpm-workspace.yaml`. With it set, `pnpm install` (which every CI job runs) **fails** if any dependency has a build script that isn't reviewed in one of two lists in `pnpm-workspace.yaml`:
+Dependency lifecycle scripts (`preinstall`/`install`/`postinstall`) are blocked by pnpm and enforced in CI via `strictDepBuilds: true` in `pnpm-workspace.yaml`. With it set, `pnpm install` (which every CI job runs) **fails** if any dependency has a build script that isn't reviewed in the `allowBuilds` map in `pnpm-workspace.yaml`:
 
-- `onlyBuiltDependencies` — packages allowed to run their build scripts (native addons we depend on).
-- `ignoredBuiltDependencies` — packages whose build scripts we intentionally do NOT run (each entry documents why).
+- `allowBuilds: { <package>: true }` — allowed to run its build script (native addons we depend on).
+- `allowBuilds: { <package>: false }` — build script we intentionally do NOT run (each entry documents why).
 
-This matters because these scripts also run on `npm install` for downstream consumers of our published packages (e.g. `@lightdash/cli`). When CI fails with `ERR_PNPM_IGNORED_BUILDS`, either remove/replace the dependency, add it to `ignoredBuiltDependencies` (with a reason) if its script is safe to skip, or `onlyBuiltDependencies` if the script must run. (pnpm 11 replaces these three settings with a single `allowBuilds` map.)
+This matters because these scripts also run on `npm install` for downstream consumers of our published packages (e.g. `@lightdash/cli`). When CI fails on an unreviewed build script, either remove/replace the dependency, add it as `false` (with a reason) if its script is safe to skip, or `true` if the script must run.
 
 ### Warehouse Credentials Protection
 
@@ -331,34 +321,15 @@ export const sensitiveCredentialsFieldNames = [
 -   `ProjectModel.get()` filters credentials using this array before returning to API controllers
 -   `ProjectModel.getWithSensitiveFields()` returns unfiltered data for internal use only
 
-## Slugs — Not Unique Identifiers
+## Slugs — Project-Scoped Portable Identifiers
 
-**WARNING: Slugs are NOT guaranteed to be unique.** Do not treat them as reliable identifiers for lookups, deduplication, or foreign key relationships. Always use UUIDs for uniqueness guarantees.
+Slugs are unique per project and resource type for charts, dashboards, SQL Runner charts, spaces, and data apps. Database constraints are authoritative and include soft-deleted rows, so a deleted resource reserves its slug for a safe restore. The same slug may be used in a different project.
 
-Slugs are human-readable URL identifiers for charts, dashboards, and spaces (e.g., `weekly-sales-report`). They are generated from the entity name via `generateSlug()` (`packages/common/src/utils/slugs.ts`), and uniqueness is enforced at creation time by `generateUniqueSlug*` functions (`packages/backend/src/utils/SlugUtils.ts`). However, **multiple code paths bypass these uniqueness checks**, resulting in duplicate slugs in production.
+Use `generateUniqueSlugScopedToProject()` (`packages/backend/src/utils/SlugUtils.ts`) for normal creation. It derives the base with `generateSlug()`, probes exact indexed candidates, and appends `-1`, `-2`, and so on for conflicts. Explicit slugs used by content-as-code and promotion must be inserted exactly; same-project conflicts return an actionable conflict or resolve the intended active upsert, never overwrite another resource.
 
-**How slugs get duplicated:**
+UUIDs remain the canonical internal identity. Use them for foreign keys, durable relationships, and references without an explicit project scope. Slugs are appropriate for project-scoped URLs and portable content-as-code selectors.
 
-1. **Content-as-code (`lightdash upload`)**: The `CoderService` uses `forceSlug: true` when creating charts and dashboards, which skips the `generateUniqueSlug` call entirely and inserts the slug from the YAML file as-is. If two YAML files with the same slug are uploaded, or a slug already exists in the target project, duplicates are created.
-
-2. **Promotion**: The `PromoteService` also uses `forceSlug: true` when creating content in the upstream project. Promoting the same content from multiple downstream projects, or re-promoting after manual creation in upstream, can create duplicates.
-
-3. **Lossy slug generation**: `generateSlug()` strips all non-alphanumeric characters to hyphens, so different names produce identical slugs. Examples:
-   - `"Sales Report (2024)"` and `"Sales Report 2024"` → `sales-report-2024`
-   - `"Q1 / Q2 Summary"` and `"Q1 - Q2 Summary"` → `q1-q2-summary`
-
-   The uniqueness check at creation time handles this by appending `-1`, `-2`, etc., but `forceSlug: true` paths bypass this.
-
-4. **Ltree path conversion is also lossy**: `getLtreePathFromSlug` converts hyphens to underscores, so `"my-space"` and `"my_space"` map to the same ltree path. This can cause space resolution collisions.
-
-**No database-level uniqueness constraint** exists for slugs on `saved_queries`, `dashboards`, or `spaces` tables. Only `saved_sql` has a `UNIQUE(project_uuid, slug)` DB constraint. All other uniqueness enforcement is application-level only.
-
-**What this means in practice:**
-
-- **API resolution picks first match**: `getByIdOrSlug()` queries use `LIMIT 1` — when duplicates exist, the result is non-deterministic. No error is thrown.
-- **Promotion fails on duplicates**: `PromoteService` throws an explicit error (`"There are multiple charts with the same identifier {slug}"`) when it finds duplicate slugs in the upstream project.
-- **Never use slugs as unique keys** in new code. Use UUIDs for any operation that requires uniqueness. Slugs are for URL display only.
-- **A REPL script exists** to fix duplicates: `packages/backend/src/ee/repl/scripts/fixDuplicateSlugs.ts`
+`getLtreePathFromSlug` is lossy: hyphens and underscores map to the same ltree label. Space hierarchy and access logic must use `parent_space_uuid`; path-based resolution must reject ambiguity rather than selecting an arbitrary row.
 
 ### Make uuid vs uuid-or-slug explicit (endpoints & service args)
 

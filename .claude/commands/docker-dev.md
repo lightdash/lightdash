@@ -1,4 +1,4 @@
-Manage Docker dev environment. Args: (none) = show status & help, `start` = auto-detect and setup, `stop` = stop this instance, `stop-all` = stop everything, `reset` = reset db from snapshot, `rebuild` = full db rebuild, `snapshot [name]` = save db snapshot, `list-snapshots` = list snapshots, `restore <name>` = restore named snapshot, `list-instances` = show all instances.
+Manage Docker dev environment. Args: (none) = show status & help, `start` = auto-detect and setup, `stop` = stop this instance, `destroy` = permanently remove this instance, `stop-all` = stop everything, `reset` = reset db from snapshot, `rebuild` = full db rebuild, `snapshot [name]` = save db snapshot, `list-snapshots` = list snapshots, `restore <name>` = restore named snapshot, `list-instances` = show all instances.
 
 **NEVER use `scripts/reset-db.sh`** — it requires a local `psql` client which is not available. Instead, use `docker exec` to run psql inside the container, then run migrate/seed via pnpm.
 
@@ -9,6 +9,7 @@ Manage Docker dev environment. Args: (none) = show status & help, `start` = auto
 - **`start <profiles>`**: Provision for named capabilities, comma-separated — e.g. `start ee` (turnkey EE: all AI + GitHub), `start github` (Core + dbt-over-GitHub, no AI), `start ee,slack`. Skips the menu. The AI tier is just **Core vs EE** — all AI features (agents, writeback, reviews classifier) are bundled into `ee`. See `scripts/dev-profiles.json`. `ee` requires `github` so writeback opens PRs out of the box; profiles run their GitHub/dbt-repo + classifier reconcile + verify automatically.
 - **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): The EE profile — provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`), runs the EE migration/seed pass, and **bundles all AI features** (Copilot/agents, AI writeback, reviews classifier) plus the GitHub integration so writeback is turnkey. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`. EE instances bootstrap from a dedicated EE base snapshot (`ld-shared_postgres_base_ee`) so they skip the slow EE migrate pass.
 - **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
+- **`destroy`**: Permanently remove this instance's PM2 processes, PostgreSQL containers, volumes, and port slot. Use when removing a worktree.
 - **`stop-all`**: Stop ALL instances — all PM2 processes, all per-instance PostgreSQL containers, shared services, and release all port slots. Use when shutting down for the day.
 - **`reset`**: Restore database from this instance's volume snapshot (fast, ~3 seconds). Fails if no snapshot exists.
 - **`rebuild`**: Full database reset from scratch (drop schema, migrate, seed, dbt). Takes a new snapshot when done.
@@ -54,6 +55,7 @@ Then run the **State Detection** checks below and present the results as a statu
 Available commands:
   /docker-dev start          Auto-detect and start what's needed
   /docker-dev stop           Stop this instance (preserves data)
+  /docker-dev destroy        Permanently remove this instance
   /docker-dev stop-all       Stop ALL instances and shared services
   /docker-dev reset          Restore db from snapshot (~3s)
   /docker-dev rebuild        Full db rebuild from scratch
@@ -290,17 +292,22 @@ template, so Docker is the working local path anyway. Public docs:
 
 ### Setup (one-time per machine)
 
-1. **Build the two local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
-   `lightdash-ai-writeback:local` ~5GB for writeback; rebuild only when the toolchain changes):
+1. **Build the three local images** (heavy — `lightdash-sandbox:local` ~2.3GB for data apps,
+   `lightdash-ai-writeback:local` ~5GB for writeback, `lightdash-agent-onboarding:local`
+   ~2.2GB for managed onboarding runs; rebuild only when the toolchain changes).
+   `dev-fast-start.sh` builds any that are missing whenever the env file has
+   `SANDBOX_PROVIDER=docker`, so normally there is nothing to do by hand:
    ```bash
    ./sandboxes/data-apps/build-local-image.sh        # -> lightdash-sandbox:local
    ./sandboxes/ai-writeback/build-local-image.sh     # -> lightdash-ai-writeback:local
+   ./sandboxes/agent-onboarding/build-local-image.sh # -> lightdash-agent-onboarding:local
    ```
 2. **Env** (the `ee` profile writes `SANDBOX_PROVIDER=docker`; the image vars default, set only to override):
    ```bash
    SANDBOX_PROVIDER=docker
    # SANDBOX_DOCKER_IMAGE=lightdash-sandbox:local
    # SANDBOX_AI_WRITEBACK_DOCKER_IMAGE=lightdash-ai-writeback:local
+   # SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE=lightdash-agent-onboarding:local
    ```
    Requires `ANTHROPIC_API_KEY` (agent) and MinIO up (snapshots tar to object storage).
 
@@ -313,6 +320,12 @@ template, so Docker is the working local path anyway. Public docs:
   show `SANDBOX_PROVIDER=docker`.
 - **After an OrbStack/Docker restart**, MinIO + NATS may not come back (gen needs MinIO) and
   the graphile worker can zombie — re-run shared compose up and restart the scheduler.
+- **A sandbox feature failing with `(HTTP code 404) ... No such image: lightdash-<name>:local`**
+  means that local image was never built on this machine (each new sandbox type ships its own
+  image — agent-onboarding arrived with #25902). Run the matching
+  `./sandboxes/<dir>/build-local-image.sh`, or re-run `./scripts/dev-fast-start.sh`, which
+  builds missing sandbox images automatically. No PM2 restart needed — the image is resolved
+  at container launch.
 
 ### Verify
 
@@ -525,6 +538,10 @@ EMAIL_SMTP_SENDER_EMAIL=noreply@lightdash.local
 # Dev API access (auto-provisioned PAT from seed data)
 LIGHTDASH_API_URL=http://localhost:${PORT}
 LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
+
+# Allow registering fresh users/orgs (signup flow testing). Always on by default
+# in dev — without it, POST /api/v1/user 403s once the seed org exists.
+ALLOW_MULTIPLE_ORGS=true
 EOF
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
@@ -558,6 +575,20 @@ pm2 restart ${LD_INSTANCE_ID}-api       # Restart only the API server
 pm2 restart ${LD_INSTANCE_ID}-scheduler # Restart only the scheduler
 pm2 restart ${LD_INSTANCE_ID}-frontend  # Restart only the frontend
 \`\`\`
+
+### SDK test app is opt-in
+
+The `<instanceId>-sdk-test` process (a second full Vite dev server, ~1.5GB RSS) does NOT start by default. Enable it only when working on the embedded SDK:
+
+```bash
+scripts/dev-fast-start.sh --sdk-test        # one-off at instance start
+# or persist it for this instance:
+echo 'LD_ENABLE_SDK_TEST=true' >> .env.development.local && pnpm pm2:start
+# or ephemeral without touching the env file:
+LD_ENABLE_SDK_TEST=true pnpm pm2:start
+```
+
+When the flag is off the process is absent from `pm2 status` entirely (not "stopped" — the ecosystem config omits it).
 
 ### Picking up new env vars
 
@@ -750,7 +781,12 @@ fi
 If PM2 shows `MISMATCH`, delete this instance's processes first:
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+# One name per call — `pm2 delete a b c` aborts at the first name it cannot
+# find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
+# every later name running.
+for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
+done
 ```
 
 Then start:
@@ -792,7 +828,7 @@ pm2 logs "${LD_INSTANCE_ID}-frontend" --raw 2>/dev/null | grep --line-buffered -
 **Launch both monitors in parallel** (two Monitor tool calls in a single message). They filter for actionable signals only — not raw log streams — so you won't be overwhelmed.
 
 If a monitor fires, investigate the error. Common responses:
-- **EADDRINUSE**: Port conflict — run `./scripts/dev-ports.sh gc` then restart the process
+- **EADDRINUSE**: Port conflict — run `./scripts/dev-ports.sh gc` (or `gc --dry-run` to preview; both sweep orphaned instance volumes) then restart the process
 - **Cannot find module**: Missing build — run `pnpm -F common build`
 - **ECONNREFUSED on 5432**: PostgreSQL container down — restart with `docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml up -d`
 - **TypeErrors/build failures**: Code issue — read the full log with `pm2 logs ${LD_INSTANCE_ID}-api --lines 50 --nostream`
@@ -884,13 +920,44 @@ Restart Claude Code to load the new `statusLine` command. If there's no command-
 ## `stop`: Stop This Instance
 
 Stop this instance's services. Shared services and other instances are not affected.
+For permanent worktree removal, use `destroy` instead.
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+# One name per call — `pm2 delete a b c` aborts at the first name it cannot
+# find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
+# every later name running.
+for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
+done
 
 docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
 
 ./scripts/dev-ports.sh release
+```
+
+---
+
+## `destroy`: Permanently Remove This Instance
+
+Permanently remove this instance's services, PostgreSQL volumes, and port slot. Shared services and other instances are not affected.
+
+```bash
+# One name per call — see the note under `stop`.
+for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
+done
+
+# Volumes are removed by name, not with `down -v`: the compose file names the
+# data volume `${LD_VOLUME_PREFIX:-docker}_postgres_data`, so `-v` targets the
+# wrong volume unless LD_VOLUME_PREFIX is exported — and the snapshot volume is
+# created outside compose, so no `-v` invocation ever removes it.
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
+
+for volume in "${LD_VOLUME_PREFIX}_postgres_data" "${LD_VOLUME_PREFIX}_postgres_data_snapshot"; do
+  docker volume rm "$volume" 2>/dev/null || true
+done
+
+./scripts/dev-ports.sh release --instance-id "$LD_INSTANCE_ID"
 ```
 
 ---
@@ -904,7 +971,10 @@ Stop ALL instances, shared services, and release all port slots.
 for f in ~/.lightdash/dev-instances/*.json; do
   [ -f "$f" ] || continue
   INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
-  pm2 delete "${INST_ID}-api" "${INST_ID}-scheduler" "${INST_ID}-frontend" "${INST_ID}-common-watch" "${INST_ID}-formula-watch" "${INST_ID}-warehouses-watch" "${INST_ID}-sdk-test" "${INST_ID}-spotlight" 2>/dev/null || true
+  # One name per call — see the note under `stop`.
+  for suffix in api scheduler frontend common-watch formula-watch warehouses-watch sdk-test spotlight; do
+    pm2 delete "${INST_ID}-${suffix}" 2>/dev/null || true
+  done
 done
 
 for f in ~/.lightdash/dev-instances/*.json; do
@@ -1057,6 +1127,17 @@ docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" pg_isready -U postgres
 
 ## Troubleshooting
 
+### Backend Crash-Loops with MODULE_NOT_FOUND on `generated/routes.ts`
+
+`Cannot find module './../ee/controllers/...'` — the generated files are regenerated on main per build, so the committed `routes.ts` can be stale after pulling or rebasing main and still import controllers main has deleted. `dev-fast-start.sh` checks this before starting PM2, but if you pull after the stack is already up:
+
+```bash
+pnpm generate-api
+pm2 restart "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler"
+```
+
+The backend does not hot-reload, so the restart is required — regenerating alone won't clear the crash-loop.
+
 ### PostgreSQL Connection Refused
 
 ```bash
@@ -1072,6 +1153,8 @@ docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml --env-file .
 ```
 
 ### Port Conflicts
+
+`gc` also sweeps orphaned per-instance PostgreSQL data and snapshot volumes; use `gc --dry-run` to preview its changes.
 
 ```bash
 ./scripts/dev-ports.sh list

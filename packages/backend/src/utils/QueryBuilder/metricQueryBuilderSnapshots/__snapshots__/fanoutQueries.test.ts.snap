@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a cross-table metric query 1`] = `
+exports[`MetricQueryBuilder snapshot: fanout queries > matches snapshot for a cross-table metric query 1`] = `
 "WITH
   cte_keys_customers AS (
     SELECT DISTINCT
@@ -33,7 +33,7 @@ LIMIT
   100"
 `;
 
-exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a fanout-protected metric query 1`] = `
+exports[`MetricQueryBuilder snapshot: fanout queries > matches snapshot for a fanout-protected metric query 1`] = `
 "WITH
   cte_keys_table2 AS (
     SELECT DISTINCT
@@ -88,7 +88,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a fanout-protected metric query without dimensions 1`] = `
+exports[`MetricQueryBuilder snapshot: fanout queries > matches snapshot for a fanout-protected metric query without dimensions 1`] = `
 "WITH
   cte_keys_table2 AS (
     SELECT DISTINCT
@@ -130,7 +130,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a filter-only fanout metric query 1`] = `
+exports[`MetricQueryBuilder snapshot: fanout queries > matches snapshot for a filter-only fanout metric query 1`] = `
 "WITH
   cte_keys_table2 AS (
     SELECT DISTINCT
@@ -187,7 +187,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a filter-only fanout query without selected dimensions 1`] = `
+exports[`MetricQueryBuilder snapshot: fanout queries > matches snapshot for a filter-only fanout query without selected dimensions 1`] = `
 "WITH
   cte_keys_table2 AS (
     SELECT DISTINCT

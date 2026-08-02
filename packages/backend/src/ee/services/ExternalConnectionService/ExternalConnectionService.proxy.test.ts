@@ -8,9 +8,17 @@ import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { ExternalConnectionService } from './ExternalConnectionService';
 
-jest.mock('../../../utils/secureFetch/secureFetch');
+// Keep SecureFetchError real: auto-mocking the class would stub its
+// constructor and drop the reason/message the service forwards.
+vi.mock('../../../utils/secureFetch/secureFetch', async (importOriginal) => {
+    const actual =
+        await importOriginal<
+            typeof import('../../../utils/secureFetch/secureFetch')
+        >();
+    return { ...actual, secureFetch: vi.fn() };
+});
 
-const mockSecureFetch = jest.mocked(secureFetchModule.secureFetch);
+const mockSecureFetch = vi.mocked(secureFetchModule.secureFetch);
 
 const baseConnection = (
     overrides: Partial<ExternalConnection> = {},
@@ -19,8 +27,10 @@ const baseConnection = (
     projectUuid: 'proj-1',
     organizationUuid: 'org-1',
     name: 'Weather API',
+    slug: 'weather-api',
     type: 'none',
     origin: 'https://api.example.com',
+    instructions: null,
     allowedPathPrefixes: ['/v1/'],
     allowedMethods: ['GET', 'POST'],
     allowedContentTypes: ['application/json'],
@@ -30,6 +40,8 @@ const baseConnection = (
     rateLimitPerMinute: null,
     apiKeyName: null,
     apiKeyLocation: null,
+    oauthScopes: null,
+    customHeaders: null,
     hasSecret: false,
     createdByUserUuid: 'user-1',
     updatedByUserUuid: 'user-1',
@@ -57,22 +69,28 @@ function buildService(opts: {
     secret?: string | null;
     canView?: boolean;
     rateCount?: number;
+    googleToken?: string;
 }) {
     const externalConnectionModel = {
-        resolveAppAlias: jest.fn().mockResolvedValue(opts.connection),
-        getDecryptedSecret: jest.fn().mockResolvedValue(opts.secret ?? null),
-        incrementRateCounter: jest.fn().mockResolvedValue(opts.rateCount ?? 1),
+        resolveAppAlias: vi.fn().mockResolvedValue(opts.connection),
+        getDecryptedSecret: vi.fn().mockResolvedValue(opts.secret ?? null),
+        incrementRateCounter: vi.fn().mockResolvedValue(opts.rateCount ?? 1),
+    };
+    const googleTokenProvider = {
+        getAccessToken: vi
+            .fn()
+            .mockResolvedValue(opts.googleToken ?? 'test-access-token'),
     };
     const appModel = {
-        getApp: jest.fn().mockResolvedValue(baseApp()),
+        getApp: vi.fn().mockResolvedValue(baseApp()),
     };
     const projectModel = {
-        getSummary: jest.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
+        getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
     };
     const spacePermissionService = {
-        getSpaceAccessContext: jest.fn().mockResolvedValue({}),
+        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
     };
-    const analytics = { track: jest.fn() };
+    const analytics = { track: vi.fn() };
 
     const service = new ExternalConnectionService({
         externalConnectionModel,
@@ -80,10 +98,11 @@ function buildService(opts: {
         projectModel,
         spacePermissionService,
         analytics,
+        googleTokenProvider,
     } as never);
 
     // Force the CASL view decision deterministically.
-    jest.spyOn(
+    vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
     ).mockReturnValue({
@@ -96,6 +115,7 @@ function buildService(opts: {
         externalConnectionModel,
         appModel,
         analytics,
+        googleTokenProvider,
     };
 }
 
@@ -251,6 +271,27 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(opts.headers!['Content-Type']).toBe('application/json');
     });
 
+    it.each(['PUT', 'PATCH', 'DELETE'] as const)(
+        'happy %s: forwards the method and serializes the body when allowed',
+        async (method) => {
+            const { service } = buildService({
+                connection: baseConnection({
+                    allowedMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+                }),
+            });
+            await service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                method,
+                path: '/v1/echo',
+                body: { hello: 'world' },
+            });
+            const [, opts] = mockSecureFetch.mock.calls[0];
+            expect(opts.method).toBe(method);
+            expect(opts.body).toBe('{"hello":"world"}');
+            expect(opts.headers!['Content-Type']).toBe('application/json');
+        },
+    );
+
     it('POST over requestMaxBytes is rejected', async () => {
         const { service } = buildService({
             connection: baseConnection({ requestMaxBytes: 5 }),
@@ -348,6 +389,107 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(mockSecureFetch).not.toHaveBeenCalled();
     });
 
+    const KEYFILE_SECRET =
+        '{"type":"service_account","client_email":"a@b.iam.gserviceaccount.com","private_key":"k"}';
+
+    it('mints and injects a Google service account access token as a bearer token', async () => {
+        const { service, googleTokenProvider } = buildService({
+            connection: baseConnection({
+                type: 'google_service_account',
+                oauthScopes: ['https://www.googleapis.com/auth/bigquery'],
+            }),
+            secret: KEYFILE_SECRET,
+            googleToken: 'minted-access-token',
+        });
+        await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+        expect(googleTokenProvider.getAccessToken).toHaveBeenCalledWith(
+            KEYFILE_SECRET,
+            ['https://www.googleapis.com/auth/bigquery'],
+        );
+        const [, opts] = mockSecureFetch.mock.calls[0];
+        expect(opts.headers!.Authorization).toBe('Bearer minted-access-token');
+    });
+
+    it('fails closed when a google_service_account connection has no stored secret', async () => {
+        const { service } = buildService({
+            connection: baseConnection({
+                type: 'google_service_account',
+                oauthScopes: ['https://www.googleapis.com/auth/bigquery'],
+            }),
+            secret: null,
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when Google token minting fails', async () => {
+        const { service, googleTokenProvider } = buildService({
+            connection: baseConnection({
+                type: 'google_service_account',
+                oauthScopes: ['https://www.googleapis.com/auth/bigquery'],
+            }),
+            secret: KEYFILE_SECRET,
+        });
+        googleTokenProvider.getAccessToken.mockRejectedValueOnce(
+            new Error('token endpoint unreachable'),
+        );
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('sends the connection custom headers alongside the injected auth', async () => {
+        const { service } = buildService({
+            connection: baseConnection({
+                type: 'bearer_token',
+                customHeaders: {
+                    'anthropic-version': '2023-06-01',
+                    Accept: 'application/json',
+                },
+            }),
+            secret: 'tok_abc',
+        });
+        await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+        const [, opts] = mockSecureFetch.mock.calls[0];
+        expect(opts.headers!['anthropic-version']).toBe('2023-06-01');
+        expect(opts.headers!.Accept).toBe('application/json');
+        expect(opts.headers!.Authorization).toBe('Bearer tok_abc');
+    });
+
+    it('fails closed on a stored forbidden custom header (Content-Type)', async () => {
+        // Belt-and-braces: content-type is rejected at write time, but even a
+        // row that bypassed validation must fail closed rather than override.
+        const { service } = buildService({
+            connection: baseConnection({
+                customHeaders: { 'Content-Type': 'text/evil' },
+            }),
+        });
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                method: 'POST',
+                path: '/v1/echo',
+                body: {},
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
     it('rejects an api_key configured to inject a forbidden header (Host)', async () => {
         const { service } = buildService({
             connection: baseConnection({
@@ -382,9 +524,39 @@ describe('ExternalConnectionService.proxyFetch', () => {
             });
             await expect(promise).rejects.toBeInstanceOf(ParameterError);
             const err = await promise.catch((e) => e);
-            expect(err.message).not.toMatch(/10\.0\.0\.1/);
+            expect(err.message).toBe(
+                `Upstream request was blocked (${reason})`,
+            );
         },
     );
+
+    it('forwards an upstream error response (status + body) instead of throwing', async () => {
+        mockSecureFetch.mockResolvedValueOnce({
+            status: 400,
+            contentType: 'application/json',
+            bodyText: '{"error":"anthropic-version header is required"}',
+            truncated: false,
+        });
+        const { service, analytics } = buildService({
+            connection: baseConnection(),
+        });
+        const res = await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+        expect(res.status).toBe(400);
+        expect(res.body).toEqual({
+            error: 'anthropic-version header is required',
+        });
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    status: 400,
+                    outcome: 'upstream_error',
+                }),
+            }),
+        );
+    });
 
     it('rate-limits the 2nd POST over the limit with a 429-class error', async () => {
         const { service } = buildService({

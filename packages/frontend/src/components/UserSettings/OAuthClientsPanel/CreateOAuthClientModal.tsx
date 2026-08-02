@@ -64,6 +64,7 @@ export const CreateOAuthClientModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
+            role="alertdialog"
             title={
                 isSuccess
                     ? 'Application registered'

@@ -1,13 +1,15 @@
 import { type EmailStatusExpiring } from '@lightdash/common';
 import { Anchor, Button, PinInput, Stack, Text, Title } from '@mantine-8/core';
 import { isNotEmpty, useForm } from '@mantine/form';
-import { useEffect, type FC } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import {
     useOneTimePassword,
     useVerifyEmail,
 } from '../../hooks/useEmailVerification';
 import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import Callout from '../common/Callout';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 
@@ -15,8 +17,11 @@ const VerifyEmailForm: FC<{
     isLoading?: boolean;
     emailStatusData?: EmailStatusExpiring;
     statusLoading?: boolean;
-}> = ({ isLoading, emailStatusData, statusLoading }) => {
+    align?: 'center' | 'left';
+}> = ({ isLoading, emailStatusData, statusLoading, align = 'center' }) => {
+    const isLeftAligned = align === 'left';
     const { health } = useApp();
+    const { track } = useTracking();
     const { mutate: verifyCode, isLoading: verificationLoading } =
         useVerifyEmail();
     const data = emailStatusData;
@@ -31,6 +36,18 @@ const VerifyEmailForm: FC<{
         },
     });
     const { setFieldError, clearFieldError } = form;
+    const submitInFlightRef = useRef(false);
+    const submitCode = (code: string) => {
+        if (submitInFlightRef.current || verificationLoading) {
+            return;
+        }
+        submitInFlightRef.current = true;
+        verifyCode(code, {
+            onSettled: () => {
+                submitInFlightRef.current = false;
+            },
+        });
+    };
     const errorMessage = form.errors.code;
     const expirationTime = data?.otp?.expiresAt || new Date();
     const loadingState =
@@ -57,9 +74,15 @@ const VerifyEmailForm: FC<{
     }
 
     return (
-        <Stack gap="md" justify="center" align="center" w="100%" mx="auto">
+        <Stack
+            gap="md"
+            justify="center"
+            align={isLeftAligned ? 'stretch' : 'center'}
+            w="100%"
+            mx="auto"
+        >
             <Title order={3}>Check your inbox!</Title>
-            <Text c="ldGray.8" ta="center" fz="sm">
+            <Text c="ldGray.8" ta={align} fz="sm">
                 Verify your email address by entering the code we've just sent
                 to{' '}
                 <Text span fw={500} fz="sm" c="ldGray.8">
@@ -70,23 +93,30 @@ const VerifyEmailForm: FC<{
             <form
                 name="verifyEmail"
                 onSubmit={form.onSubmit((values: { code: string }) =>
-                    verifyCode(values.code),
+                    submitCode(values.code),
                 )}
             >
-                <Stack gap="xs" justify="center" align="center">
+                <Stack
+                    gap="xs"
+                    justify="center"
+                    align={isLeftAligned ? 'flex-start' : 'center'}
+                >
                     <PinInput
                         aria-label="One-time password"
                         name="code"
                         length={6}
                         oneTimeCode
                         disabled={
-                            data?.otp?.isMaxAttempts || data?.otp?.isExpired
+                            data?.otp?.isMaxAttempts ||
+                            data?.otp?.isExpired ||
+                            verificationLoading
                         }
                         {...form.getInputProps('code')}
+                        onComplete={submitCode}
                         data-testid="pin-input"
                         autoFocus
                     />
-                    <Text ta="center" c="red.7">
+                    <Text ta={align} c="red.7">
                         {errorMessage?.toString()}
                     </Text>
                 </Stack>
@@ -115,10 +145,10 @@ const VerifyEmailForm: FC<{
                             <Stack
                                 gap="xs"
                                 mt="md"
-                                w="200"
-                                align="center"
-                                ml="auto"
-                                mr="auto"
+                                w={isLeftAligned ? '100%' : '200'}
+                                align={isLeftAligned ? 'stretch' : 'center'}
+                                ml={isLeftAligned ? undefined : 'auto'}
+                                mr={isLeftAligned ? undefined : 'auto'}
                             >
                                 <Button
                                     fullWidth
@@ -127,7 +157,7 @@ const VerifyEmailForm: FC<{
                                 >
                                     Submit
                                 </Button>
-                                <Text c="ldGray.6" ta="center" fz="sm" fw={500}>
+                                <Text c="ldGray.6" ta={align} fz="sm" fw={500}>
                                     Your one-time password expires in{' '}
                                     <Text span fw={500} fz="sm" c="ldGray.7">
                                         {zeroPad(minutes)}:{zeroPad(seconds)}
@@ -140,8 +170,13 @@ const VerifyEmailForm: FC<{
             </form>
             <Anchor
                 fz="sm"
+                ta={isLeftAligned ? 'left' : undefined}
                 component="button"
                 onClick={() => {
+                    track({
+                        name: EventName.OTP_RESEND_CLICKED,
+                        properties: { purpose: 'signup_verification' },
+                    });
                     form.reset();
                     sendVerificationEmail();
                 }}

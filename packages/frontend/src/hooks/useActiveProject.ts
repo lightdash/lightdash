@@ -10,14 +10,35 @@ import { useParams } from 'react-router';
 import { useOrganization } from './organization/useOrganization';
 import { useProject } from './useProject';
 import { useProjects } from './useProjects';
+import { useAccount } from './user/useAccount';
 
-const LAST_PROJECT_KEY = 'lastProject';
+export const LAST_PROJECT_KEY = 'lastProject';
+export const LAST_USER_KEY = 'lastAuthenticatedUserUuid';
 
 export const useActiveProject = () => {
+    const { data: account } = useAccount();
+    const userUuid =
+        account && 'userUuid' in account.user ? account.user.userUuid : null;
+
     return useQuery<string | null>(
-        ['activeProject'],
-        () => Promise.resolve(localStorage.getItem(LAST_PROJECT_KEY) || null),
+        ['activeProject', userUuid],
+        () => {
+            // lastProject persists across full-page reloads, so it may belong
+            // to a previously signed-in user. Only hand it out once it
+            // provably belongs to the current user (a missing marker means a
+            // browser from before the marker existed and is trusted).
+            if (userUuid) {
+                const storedIdentity = localStorage.getItem(LAST_USER_KEY);
+                if (storedIdentity !== null && storedIdentity !== userUuid) {
+                    return Promise.resolve(null);
+                }
+            }
+            return Promise.resolve(
+                localStorage.getItem(LAST_PROJECT_KEY) || null,
+            );
+        },
         {
+            enabled: account !== undefined,
             cacheTime: 0,
             refetchOnWindowFocus: false,
             refetchOnMount: false,
@@ -26,10 +47,31 @@ export const useActiveProject = () => {
     );
 };
 
-const clearProjectCache = async (queryClient: QueryClient) => {
-    queryClient.removeQueries(['project']);
-    queryClient.removeQueries(['projects']);
-    await queryClient.invalidateQueries();
+// Project-scoped queries keyed by projectUuid need nothing here — a switch
+// changes their key. These don't: the pointer query reads localStorage, and
+// useValidation keys on ['validation', fromSettings] — scoped to where it is
+// read from, but not to the project, so its key survives a switch.
+const ACTIVE_PROJECT_DEPENDENT_KEYS = [
+    ['activeProject'],
+    ['validation'],
+    ['project'],
+];
+
+const clearProjectCache = (queryClient: QueryClient) =>
+    Promise.all(
+        ACTIVE_PROJECT_DEPENDENT_KEYS.map((queryKey) =>
+            queryClient.invalidateQueries(queryKey),
+        ),
+    );
+
+// Shared by every useActiveProjectUuid instance: the project a persist is
+// already in flight for. localStorage is global, so this guard has to be too.
+let persistingProjectUuid: string | undefined;
+
+// Module state outlives a test, so a spec that leaves a mutation unsettled
+// would hand its guard to the next one.
+export const resetPersistingProjectUuidForTests = () => {
+    persistingProjectUuid = undefined;
 };
 
 export const useUpdateActiveProjectMutation = () => {
@@ -42,8 +84,14 @@ export const useUpdateActiveProjectMutation = () => {
             ),
         onSuccess: async () => {
             await clearProjectCache(queryClient);
-            await queryClient.invalidateQueries(['validations']);
-            await queryClient.invalidateQueries(['activeProject']);
+        },
+        // Every mutate() builds its own Mutation but they all share the one
+        // guard, so an earlier settle must not release a later project's
+        // persist: clear only the value this settle was for.
+        onSettled: (_data, _error, projectUuid) => {
+            if (persistingProjectUuid === projectUuid) {
+                persistingProjectUuid = undefined;
+            }
         },
     });
 };
@@ -124,9 +172,15 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         },
     );
 
-    // Find fallback project: first try ProjectType.DEFAULT, then first available
+    // Find fallback project: first try a non-playground ProjectType.DEFAULT,
+    // then any DEFAULT, then first available
     const fallbackProject = shouldFetchFallbackProjects
-        ? projects?.find(({ type }) => type === ProjectType.DEFAULT) ||
+        ? projects?.find(
+              ({ type, provisioningSource }) =>
+                  type === ProjectType.DEFAULT &&
+                  provisioningSource !== 'playground',
+          ) ||
+          projects?.find(({ type }) => type === ProjectType.DEFAULT) ||
           projects?.[0]
         : undefined;
 
@@ -161,8 +215,10 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
             !isLoading &&
             shouldPersistProject &&
             newValue &&
-            newValue !== lastProjectUuid
+            newValue !== lastProjectUuid &&
+            persistingProjectUuid !== newValue
         ) {
+            persistingProjectUuid = newValue;
             mutate(newValue);
         }
     }, [

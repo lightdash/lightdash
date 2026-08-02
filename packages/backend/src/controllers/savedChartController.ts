@@ -11,12 +11,14 @@ import {
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     assertRegisteredAccount,
+    CreateSchedulerAndTargetsWithoutIds,
     DateZoom,
     QueryExecutionContext,
     SortField,
     type ApiCreateSavedChartSchedulerResponse,
     type ApiSavedChartSchedulersResponse,
     type ParametersValuesMap,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -462,6 +464,7 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
     @OperationId('createSavedChartScheduler')
     async createSavedChartScheduler(
         @Path() chartUuid: string,
+        @Body() body: CreateSchedulerAndTargetsWithoutIds,
         @Request() req: express.Request,
     ): Promise<ApiCreateSavedChartSchedulerResponse> {
         assertRegisteredAccount(req.account);
@@ -470,11 +473,7 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
             status: 'ok',
             results: await this.services
                 .getSavedChartService()
-                .createScheduler(
-                    toSessionUser(req.account),
-                    chartUuid,
-                    req.body,
-                ),
+                .createScheduler(toSessionUser(req.account), chartUuid, body),
         };
     }
 
@@ -491,6 +490,7 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
     async exportSavedChartImage(
         @Path() chartUuid: string,
         @Request() req: express.Request,
+        @Query() projectUuid?: UUID,
     ): Promise<ApiExportChartImageResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -498,7 +498,11 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
             status: 'ok',
             results: await this.services
                 .getUnfurlService()
-                .exportChart(chartUuid, toSessionUser(req.account)),
+                .exportChart(
+                    chartUuid,
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
         };
     }
 

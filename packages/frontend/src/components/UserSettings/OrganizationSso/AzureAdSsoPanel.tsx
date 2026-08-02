@@ -336,6 +336,7 @@ const AzureAdSsoPanel: FC = () => {
                 <MantineModal
                     opened
                     onClose={() => setDeleteOpen(false)}
+                    role="alertdialog"
                     title="Remove Azure AD configuration"
                     icon={IconShieldCheck}
                     cancelLabel="Cancel"

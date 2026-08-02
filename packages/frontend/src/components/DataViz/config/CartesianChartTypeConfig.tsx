@@ -3,10 +3,11 @@ import {
     ChartKind,
     type CartesianChartDisplay,
 } from '@lightdash/common';
-import { Box, Group, Select, Text } from '@mantine/core';
+import { Box, Group, Text, Select } from '@mantine-8/core';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon/utils';
+import classes from './SelectConfig.module.css';
 
 type Props = {
     type: CartesianSeriesType | undefined;
@@ -33,7 +34,7 @@ const ChartTypeItem = forwardRef<
     }
 >(({ value, label, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Group noWrap spacing="xs">
+        <Group wrap="nowrap" gap="xs">
             <ChartTypeIcon type={value} />
             <Text>{label}</Text>
         </Group>
@@ -54,42 +55,30 @@ export const CartesianChartTypeConfig: FC<Props> = ({ onChangeType, type }) => {
 
     return (
         <Select
+            allowDeselect={false}
             radius="md"
             data={options.map((option) => ({
                 value: option.value,
                 label: option.label,
             }))}
-            itemComponent={ChartTypeItem}
-            icon={type && <ChartTypeIcon type={type} />}
+            renderOption={({ option }) => (
+                <ChartTypeItem
+                    value={option.value as CartesianSeriesType}
+                    label={option.label}
+                />
+            )}
+            leftSection={type && <ChartTypeIcon type={type} />}
             value={type}
-            onChange={(
-                value: Extract<
-                    CartesianSeriesType,
-                    CartesianSeriesType.LINE | CartesianSeriesType.BAR
-                >,
-            ) => value && onChangeType(value)}
-            styles={(theme) => ({
-                root: {
-                    flex: 1,
-                },
-                input: {
-                    fontWeight: 500,
-                    border: `1px solid ${theme.colors.ldGray[2]}`,
-                },
-                item: {
-                    '&[data-selected="true"]': {
-                        color: theme.colors.ldGray[7],
-                        fontWeight: 500,
-                        backgroundColor: theme.colors.ldGray[2],
-                    },
-                    '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.ldGray[3],
-                    },
-                    '&:hover': {
-                        backgroundColor: theme.colors.ldGray[1],
-                    },
-                },
-            })}
+            onChange={(value) =>
+                value &&
+                onChangeType(
+                    value as Extract<
+                        CartesianSeriesType,
+                        CartesianSeriesType.LINE | CartesianSeriesType.BAR
+                    >,
+                )
+            }
+            classNames={classes}
         />
     );
 };

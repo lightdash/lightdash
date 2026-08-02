@@ -5,6 +5,8 @@ import {
     ForbiddenError,
     loadProjectContextFile,
     NotFoundError,
+    ParseError,
+    persistedAiAgentJudgeProjectContextEntrySchema,
     type AiAgentJudgeProjectContextEntry,
     type DbtProjectConfig,
     type SessionUser,
@@ -65,6 +67,17 @@ type ProjectContextServiceDeps = {
     projectModel: ProjectModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     projectContextModel: ProjectContextModel;
+};
+
+const parseWritebackEntry = (entry: AiAgentJudgeProjectContextEntry) => {
+    const result =
+        persistedAiAgentJudgeProjectContextEntrySchema.safeParse(entry);
+    if (!result.success) {
+        throw new ParseError(
+            `Invalid project context writeback entry: ${result.error.message}`,
+        );
+    }
+    return result.data;
 };
 
 export class ProjectContextService extends BaseService {
@@ -217,7 +230,9 @@ export class ProjectContextService extends BaseService {
         after: string;
         op: 'create' | 'update';
         entryId: string;
+        upgradesFileToV2: boolean;
     }> {
+        const entry = parseWritebackEntry(args.entry);
         const access = await this.resolveGithubAccess(args.projectUuid);
         if (!access) {
             throw new NotFoundError(
@@ -247,8 +262,9 @@ export class ProjectContextService extends BaseService {
             content: after,
             entryId,
             op,
-        } = applyProjectContextWriteback(before, args.entry);
-        return { fileName, before, after, op, entryId };
+            upgradesFileToV2,
+        } = applyProjectContextWriteback(before, entry);
+        return { fileName, before, after, op, entryId, upgradesFileToV2 };
     }
 
     async writebackEntry(args: {
@@ -263,6 +279,7 @@ export class ProjectContextService extends BaseService {
             threadUuid: string;
         } | null;
     }): Promise<ProjectContextWritebackResult> {
+        const entry = parseWritebackEntry(args.entry);
         const access = await this.resolveGithubAccess(args.projectUuid);
         if (!access) {
             throw new NotFoundError(
@@ -293,7 +310,7 @@ export class ProjectContextService extends BaseService {
             content: serialized,
             entryId,
             op,
-        } = applyProjectContextWriteback(existingContent, args.entry);
+        } = applyProjectContextWriteback(existingContent, entry);
 
         const lastCommit = await getLastCommit({
             owner,
@@ -346,9 +363,9 @@ export class ProjectContextService extends BaseService {
                 op === 'create' ? 'adds a new' : 'updates an'
             } project context entry from an AI agent review finding.`,
             `- id: \`${entryId}\``,
-            `- kind: \`${args.entry.kind}\``,
+            `- kind: \`${entry.kind}\``,
             '',
-            args.entry.content,
+            entry.content,
         ];
         if (args.sourceThread) {
             bodyLines.push(

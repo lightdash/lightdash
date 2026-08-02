@@ -1,6 +1,15 @@
 import {
     type AiAgentModelConfig,
     type AiChartRuntimeOverrides,
+    type AiDashboardRuntimeOverrides,
+    type AiDeepResearchLimits,
+    type AiOrgModelVisibility,
+    type AiProviderApiKeyHints,
+    type AiThreadCreatedFrom,
+    type AiWritebackRunStatus,
+    type AiWritebackSource,
+    type AiWritebackWorkstream,
+    type DataAppModelVisibility,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -11,11 +20,15 @@ export type DbAiThread = {
     ai_thread_uuid: string;
     share_source_thread_share_uuid: string | null;
     created_at: Date;
+    // Last prompt activity only; don't bump on other thread updates.
+    // Regenerating a response on an existing prompt must bump it.
+    updated_at: Date | null;
     organization_uuid: string;
     project_uuid: string;
-    created_from: 'slack' | 'web_app' | 'evals'; // slack, web_app, evals etc
+    created_from: AiThreadCreatedFrom;
     title: string | null;
     title_generated_at: Date | null;
+    sql_auto_approved_at: Date | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -32,7 +45,8 @@ export type AiThreadTable = Knex.CompositeTableType<
             | 'title_generated_at'
             | 'project_uuid'
             | 'share_source_thread_share_uuid'
-        >
+            | 'sql_auto_approved_at'
+        > & { updated_at: Date | Knex.Raw }
     >
 >;
 
@@ -46,7 +60,7 @@ export type DbAiThreadShare = {
     project_uuid: string;
     organization_uuid: string;
     snapshot_prompt_uuid: string;
-    created_by_user_uuid: string;
+    created_by_user_uuid: string | null;
     created_at: Date;
     revoked_at: Date | null;
 };
@@ -61,8 +75,7 @@ export type AiThreadShareTable = Knex.CompositeTableType<
         | 'project_uuid'
         | 'organization_uuid'
         | 'snapshot_prompt_uuid'
-        | 'created_by_user_uuid'
-    >,
+    > & { created_by_user_uuid: string },
     Pick<DbAiThreadShare, 'revoked_at'>
 >;
 
@@ -109,8 +122,26 @@ export const AiWritebackThreadTableName = 'ai_writeback_thread';
 export type DbAiWritebackThread = {
     ai_writeback_thread_uuid: string;
     ai_thread_uuid: string;
-    sandbox_id: string;
+    /**
+     * The registry-owned, turn-stable sandbox id (see sandbox_registry).
+     * Backfilled for pre-registry rows by the registry migration. Null only for
+     * a row an old pod inserts mid-rollout (it sets the legacy `sandbox_id`
+     * column instead); such a thread is treated as unresumable and cleared on
+     * its next turn.
+     */
+    sandbox_uuid: string | null;
     pull_request_uuid: string | null;
+    /**
+     * The dbt source this thread (and its single PR) is bound to: a
+     * `project_dbt_sources` row uuid for an additional source, or null for the
+     * project's primary dbt connection. Every resumed turn re-resolves to this
+     * source so the thread keeps editing the same repo. FK is ON DELETE SET
+     * NULL — deleting the source degrades a resume back to the primary.
+     */
+    project_dbt_source_uuid: string | null;
+    workstream: AiWritebackWorkstream;
+    /** "owner/repo" this row's sandbox + PR target; null only on legacy rows. */
+    target_repo: string | null;
     created_at: Date;
 };
 
@@ -118,9 +149,54 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
     DbAiWritebackThread,
     Pick<
         DbAiWritebackThread,
-        'ai_thread_uuid' | 'sandbox_id' | 'pull_request_uuid'
-    >,
-    Pick<DbAiWritebackThread, 'sandbox_id' | 'pull_request_uuid'>
+        | 'ai_thread_uuid'
+        | 'sandbox_uuid'
+        | 'pull_request_uuid'
+        | 'target_repo'
+        | 'workstream'
+    > &
+        Partial<Pick<DbAiWritebackThread, 'project_dbt_source_uuid'>>,
+    Partial<Pick<DbAiWritebackThread, 'sandbox_uuid' | 'pull_request_uuid'>>
+>;
+
+export const AiWritebackRunTableName = 'ai_writeback_run';
+
+export type DbAiWritebackRun = {
+    ai_writeback_run_uuid: string;
+    organization_uuid: string;
+    project_uuid: string;
+    ai_thread_uuid: string | null;
+    created_by_user_uuid: string;
+    source: AiWritebackSource;
+    status: AiWritebackRunStatus;
+    branch_name: string | null;
+    pr_url: string | null;
+    error_message: string | null;
+    prompt_uuid: string | null;
+    tool_call_id: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiWritebackRunTable = Knex.CompositeTableType<
+    DbAiWritebackRun,
+    Pick<
+        DbAiWritebackRun,
+        | 'organization_uuid'
+        | 'project_uuid'
+        | 'ai_thread_uuid'
+        | 'created_by_user_uuid'
+        | 'source'
+    > &
+        Partial<
+            Pick<DbAiWritebackRun, 'status' | 'prompt_uuid' | 'tool_call_id'>
+        >,
+    Partial<
+        Pick<
+            DbAiWritebackRun,
+            'status' | 'branch_name' | 'pr_url' | 'error_message' | 'updated_at'
+        >
+    >
 >;
 
 export const AiPromptTableName = 'ai_prompt';
@@ -178,13 +254,15 @@ export const AiPromptInterruptTableName = 'ai_prompt_interrupt';
 export type DbAiPromptInterrupt = {
     ai_prompt_interrupt_uuid: string;
     ai_prompt_uuid: string;
-    created_by_user_uuid: string;
+    created_by_user_uuid: string | null;
     created_at: Date;
 };
 
 export type AiPromptInterruptTable = Knex.CompositeTableType<
     DbAiPromptInterrupt,
-    Pick<DbAiPromptInterrupt, 'ai_prompt_uuid' | 'created_by_user_uuid'>,
+    Pick<DbAiPromptInterrupt, 'ai_prompt_uuid'> & {
+        created_by_user_uuid: string;
+    },
     never
 >;
 
@@ -299,6 +377,34 @@ export type AiAgentToolCallTable = Knex.CompositeTableType<
     never
 >;
 
+export const AiAgentToolCallErrorTableName = 'ai_agent_tool_call_error';
+
+// Debugging aid: schema-invalid tool-call attempts dropped by the AI SDK before
+// execution. Kept separate from ai_agent_tool_call, whose rows are replayed
+// into UI/history reconstruction.
+export type DbAiAgentToolCallError = {
+    ai_agent_tool_call_error_uuid: string;
+    ai_prompt_uuid: string;
+    tool_call_id: string;
+    tool_name: string;
+    error_message: string;
+    raw_args: string | null;
+    created_at: Date;
+};
+
+export type AiAgentToolCallErrorTable = Knex.CompositeTableType<
+    DbAiAgentToolCallError,
+    Pick<
+        DbAiAgentToolCallError,
+        | 'ai_prompt_uuid'
+        | 'tool_call_id'
+        | 'tool_name'
+        | 'error_message'
+        | 'raw_args'
+    >,
+    never
+>;
+
 export const AiAgentToolResultTableName = 'ai_agent_tool_result';
 
 export type DbAiAgentToolResult = {
@@ -319,7 +425,7 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
         'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'result'
     > &
         Partial<Pick<DbAiAgentToolResult, 'metadata'>>,
-    Partial<Pick<DbAiAgentToolResult, 'metadata'>>
+    Partial<Pick<DbAiAgentToolResult, 'metadata' | 'result'>>
 >;
 
 export const AiPromptContextTableName = 'ai_prompt_context';
@@ -347,7 +453,10 @@ export type DbAiPromptContext = {
     entity_ref: string | null;
     pinned_version_uuid: string | null;
     display_name: string | null;
-    runtime_overrides: AiChartRuntimeOverrides | null;
+    runtime_overrides:
+        | AiChartRuntimeOverrides
+        | AiDashboardRuntimeOverrides
+        | null;
     created_at: Date;
 };
 
@@ -373,8 +482,14 @@ export type DbAiOrganizationSettings = {
     organization_uuid: string;
     ai_agents_visible: boolean;
     ai_agent_reviews_enabled: boolean;
+    deep_research_limits: AiDeepResearchLimits;
     mcp_content_writes_enabled: boolean;
+    require_explicit_slack_channel_linking: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
+    model_visibility: AiOrgModelVisibility | null;
+    data_app_model_visibility: DataAppModelVisibility | null;
+    encrypted_provider_api_keys: Buffer | null;
+    provider_api_key_hints: AiProviderApiKeyHints | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -386,8 +501,14 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             Pick<
                 DbAiOrganizationSettings,
                 | 'ai_agent_reviews_enabled'
+                | 'deep_research_limits'
                 | 'mcp_content_writes_enabled'
+                | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
+                | 'model_visibility'
+                | 'data_app_model_visibility'
+                | 'encrypted_provider_api_keys'
+                | 'provider_api_key_hints'
             >
         >,
     Partial<
@@ -395,8 +516,14 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             DbAiOrganizationSettings,
             | 'ai_agents_visible'
             | 'ai_agent_reviews_enabled'
+            | 'deep_research_limits'
             | 'mcp_content_writes_enabled'
+            | 'require_explicit_slack_channel_linking'
             | 'default_ai_agent_model_config'
+            | 'model_visibility'
+            | 'data_app_model_visibility'
+            | 'encrypted_provider_api_keys'
+            | 'provider_api_key_hints'
         >
     >
 >;

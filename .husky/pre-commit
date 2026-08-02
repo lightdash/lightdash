@@ -1,5 +1,11 @@
 #!/bin/sh
 
+GENERATED_API_FILES="packages/backend/src/generated/routes.ts packages/backend/src/generated/swagger.json"
+if git diff --cached --name-only -- $GENERATED_API_FILES | grep -q .; then
+  git restore --staged -- $GENERATED_API_FILES
+  echo "Unstaged generated API artifacts; they are committed by the release workflow."
+fi
+
 bash "$(dirname "$0")/runGitSecrets.sh"
 
 # Check if profiles.yml has been modified

@@ -23,6 +23,8 @@ export const mockAccount = {
         role: OrganizationMemberRole.ADMIN,
         ability: new Ability<PossibleAbilities>([
             { subject: 'Organization', action: ['manage'] },
+            { subject: 'OrganizationMemberProfile', action: ['manage'] },
+            { subject: 'InviteLink', action: ['manage'] },
             { subject: 'Project', action: ['manage'] },
         ]),
         abilityRules: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -105,75 +107,132 @@ export const mockNewRole: Role = {
     updatedAt: new Date('2024-01-02'),
 };
 
-export const mockRolesModel = {
-    getRoleByUuid: jest.fn(),
-    getRoleWithScopesByUuid: jest.fn(),
-    createRole: jest.fn(),
-    addScopesToRole: jest.fn(),
-    getRolesByOrganizationUuid: jest.fn(),
-    getRolesWithScopesByOrganizationUuid: jest.fn(),
-    updateRole: jest.fn(),
-    deleteRole: jest.fn(),
-    removeScopeFromRole: jest.fn(),
-    getOrganizationRoleAssignments: jest.fn(),
-    getOrganizationAdmins: jest.fn(),
-    upsertOrganizationUserRoleAssignment: jest.fn(),
-    upsertSystemRoleProjectAccess: jest.fn(),
-    upsertCustomRoleProjectAccess: jest.fn(),
-    upsertSystemRoleGroupAccess: jest.fn(),
-    upsertCustomRoleGroupAccess: jest.fn(),
-    unassignCustomRoleFromUser: jest.fn(),
-    assignRoleToGroup: jest.fn(),
-    unassignRoleFromGroup: jest.fn(),
-    getProjectAccess: jest.fn(),
-    getProjectAccessByUserUuid: jest.fn(),
-    getGroupProjectAccess: jest.fn(),
-    removeUserProjectAccess: jest.fn(),
+type MockFn = import('vitest').Mock<(...args: unknown[]) => unknown>;
+
+type MockRolesModel = {
+    getRoleByUuid: MockFn;
+    getRoleWithScopesByUuid: MockFn;
+    createRole: MockFn;
+    addScopesToRole: MockFn;
+    getRolesByOrganizationUuid: MockFn;
+    getRolesWithScopesByOrganizationUuid: MockFn;
+    updateRole: MockFn;
+    deleteRole: MockFn;
+    removeScopeFromRole: MockFn;
+    removeScopesFromRole: MockFn;
+    getOrganizationRoleAssignments: MockFn;
+    getOrganizationAdmins: MockFn;
+    upsertOrganizationUserRoleAssignment: MockFn;
+    upsertSystemRoleProjectAccess: MockFn;
+    upsertCustomRoleProjectAccess: MockFn;
+    upsertSystemRoleGroupAccess: MockFn;
+    upsertCustomRoleGroupAccess: MockFn;
+    unassignCustomRoleFromUser: MockFn;
+    assignRoleToGroup: MockFn;
+    unassignRoleFromGroup: MockFn;
+    getProjectAccess: MockFn;
+    getProjectAccessByUserUuid: MockFn;
+    getGroupProjectAccess: MockFn;
+    removeUserProjectAccess: MockFn;
+    db: { transaction: MockFn };
+};
+
+export const mockRolesModel: MockRolesModel = {
+    getRoleByUuid: vi.fn(),
+    getRoleWithScopesByUuid: vi.fn(),
+    createRole: vi.fn(),
+    addScopesToRole: vi.fn(),
+    getRolesByOrganizationUuid: vi.fn(),
+    getRolesWithScopesByOrganizationUuid: vi.fn(),
+    updateRole: vi.fn(),
+    deleteRole: vi.fn(),
+    removeScopeFromRole: vi.fn(),
+    removeScopesFromRole: vi.fn(),
+    getOrganizationRoleAssignments: vi.fn(),
+    getOrganizationAdmins: vi.fn(),
+    upsertOrganizationUserRoleAssignment: vi.fn(),
+    upsertSystemRoleProjectAccess: vi.fn(),
+    upsertCustomRoleProjectAccess: vi.fn(),
+    upsertSystemRoleGroupAccess: vi.fn(),
+    upsertCustomRoleGroupAccess: vi.fn(),
+    unassignCustomRoleFromUser: vi.fn(),
+    assignRoleToGroup: vi.fn(),
+    unassignRoleFromGroup: vi.fn(),
+    getProjectAccess: vi.fn(),
+    getProjectAccessByUserUuid: vi.fn(),
+    getGroupProjectAccess: vi.fn(),
+    removeUserProjectAccess: vi.fn(),
     db: {
-        transaction: jest.fn().mockImplementation(async (callback) =>
-            // Mock transaction by just calling the callback with a mock transaction object
-            callback({}),
-        ),
+        transaction: vi
+            .fn()
+            .mockImplementation(
+                async (
+                    callback: (trx: unknown) => unknown | Promise<unknown>,
+                ) =>
+                    // Mock transaction by just calling the callback with a mock transaction object
+                    callback({}),
+            ),
     },
 };
 
-export const mockAnalytics = {
-    track: jest.fn(),
+export const mockAnalytics: Record<string, MockFn> = {
+    track: vi.fn(),
 };
 
-export const mockUserModel = {
-    getUserDetailsByUuid: jest.fn().mockResolvedValue({
+export const mockEmailClient: Record<string, MockFn> = {
+    sendInviteEmail: vi.fn(),
+};
+
+export const mockUserModel: Record<string, MockFn> = {
+    findUserByEmail: vi.fn(),
+    createPendingUser: vi.fn(),
+    joinOrg: vi.fn(),
+    updateUser: vi.fn(),
+    getUserDetailsByUuid: vi.fn().mockResolvedValue({
         firstName: 'Test',
         lastName: 'User',
+        organizationUuid: 'test-org-uuid',
     }),
 };
 
-export const mockOrganizationModel = {
-    get: jest.fn().mockResolvedValue({
+export const mockOrganizationModel: Record<string, MockFn> = {
+    get: vi.fn().mockResolvedValue({
         organizationUuid: 'test-org-uuid',
         name: 'Test Organization',
     }),
 };
 
-export const mockProjectModel = {
-    getSummary: jest.fn().mockResolvedValue({
+export const mockProjectModel: Record<string, MockFn> = {
+    getSummary: vi.fn().mockResolvedValue({
         projectUuid: 'test-project-uuid',
         organizationUuid: 'test-org-uuid',
     }),
-    getAllByOrganizationUuid: jest.fn().mockResolvedValue([
+    getAllByOrganizationUuid: vi.fn().mockResolvedValue([
         { projectUuid: 'proj-1', organizationUuid: 'test-org-uuid' },
         { projectUuid: 'proj-2', organizationUuid: 'test-org-uuid' },
     ]),
 };
 
-export const mockGroupsModel = {
-    getGroup: jest.fn().mockResolvedValue({
+export const mockGroupsModel: Record<string, MockFn> = {
+    getGroup: vi.fn().mockResolvedValue({
         groupUuid: 'test-group-uuid',
         name: 'Test Group',
+        organizationUuid: 'test-org-uuid',
     }),
 };
 
-export const mockAdminNotificationService = {
-    notifyOrgAdminRoleChange: jest.fn().mockResolvedValue(undefined),
-    notifyProjectAdminRoleChange: jest.fn().mockResolvedValue(undefined),
+export const mockAdminNotificationService: Record<string, MockFn> = {
+    notifyOrgAdminRoleChange: vi.fn().mockResolvedValue(undefined),
+    notifyProjectAdminRoleChange: vi.fn().mockResolvedValue(undefined),
+};
+
+export const mockInviteLinkModel: Record<string, MockFn> = {
+    hasValidInviteLink: vi.fn(),
+    upsert: vi.fn(),
+    deleteByCode: vi.fn(),
+};
+
+export const mockOrganizationMemberProfileModel: Record<string, MockFn> = {
+    getAllOrganizationMembers: vi.fn(),
+    getOrganizationAdmins: vi.fn(),
 };

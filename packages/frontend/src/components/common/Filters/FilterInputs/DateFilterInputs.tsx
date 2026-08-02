@@ -10,9 +10,10 @@ import {
     type BaseFilterRule,
     type DateFilterRule,
 } from '@lightdash/common';
-import { Flex, NumberInput, Text } from '@mantine/core';
+import { Flex, Text } from '@mantine-8/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
+import { NumberInput } from '../../NumberInput';
 import useFiltersContext from '../useFiltersContext';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
@@ -67,8 +68,8 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         return (
                             <Flex align="center" gap="xs" w="100%">
                                 <Text
-                                    color="dimmed"
-                                    sx={{ whiteSpace: 'nowrap' }}
+                                    c="dimmed"
+                                    style={{ whiteSpace: 'nowrap' }}
                                     size="xs"
                                 >
                                     week commencing
@@ -266,27 +267,24 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 <Flex gap="xs" w="100%">
                     <NumberInput
                         size="xs"
-                        sx={{
-                            flexShrink: 1,
-                            flexGrow: 1,
-                            minWidth: 50,
-                        }}
+                        flex="1 1 auto"
+                        miw={50}
                         placeholder={placeholder}
                         disabled={disabled}
                         data-autofocus
                         value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
-                        onChange={(value) => {
+                        onNumberChange={(value) =>
                             onChange({
                                 ...rule,
-                                values: value === '' ? [] : [value],
-                            });
-                        }}
+                                values: value !== undefined ? [value] : [],
+                            })
+                        }
                     />
 
                     <FilterUnitOfTimeAutoComplete
                         disabled={disabled}
-                        sx={{ flexShrink: 1, flexGrow: 3 }}
+                        style={{ flexShrink: 1, flexGrow: 3 }}
                         isTimestamp={isTimestamp}
                         minUnitOfTime={
                             isDimension(field) && field.timeInterval
@@ -295,7 +293,9 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         }
                         unitOfTime={rule.settings?.unitOfTime}
                         completed={rule.settings?.completed || false}
-                        withinPortal={popoverProps?.withinPortal}
+                        comboboxProps={{
+                            withinPortal: popoverProps?.withinPortal,
+                        }}
                         onDropdownOpen={popoverProps?.onOpen}
                         onDropdownClose={popoverProps?.onClose}
                         onChange={(value) =>
@@ -327,7 +327,9 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     showCompletedOptions={false}
                     data-autofocus={!rule.settings?.unitOfTime || undefined}
                     completed={false}
-                    withinPortal={popoverProps?.withinPortal}
+                    comboboxProps={{
+                        withinPortal: popoverProps?.withinPortal,
+                    }}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     onChange={(value) =>
@@ -422,6 +424,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     disabled={disabled}
                     unitOfTime={rule.settings?.unitOfTime}
                     field={field}
+                    popoverProps={popoverProps}
                     onChange={(unitOfTime) =>
                         onChange({
                             ...rule,

@@ -531,6 +531,7 @@ const run = (): void => {
             JSON.parse(currentContent) as JsonObject,
         );
         if (normalizedCurrentContent !== nextContent) {
+            // eslint-disable-next-line no-console
             console.error(
                 'chart-as-code schema is out of date. Run `pnpm generate:chart-as-code-schema`.',
             );

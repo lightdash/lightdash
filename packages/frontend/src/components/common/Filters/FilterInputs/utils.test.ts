@@ -85,6 +85,31 @@ describe('getConditionalRuleLabel', () => {
         expect(result.value).toBe('a');
     });
 
+    it('should not show a value for is null / is not null operators even with stale values', () => {
+        const nullRule: BaseFilterRule = {
+            id: 'test-rule-id',
+            operator: FilterOperator.NULL,
+            values: ['2024-01-01'],
+        };
+        const notNullRule: BaseFilterRule = {
+            id: 'test-rule-id',
+            operator: FilterOperator.NOT_NULL,
+            values: ['2024-01-01'],
+        };
+
+        expect(
+            getConditionalRuleLabel(nullRule, FilterType.DATE, 'Created At'),
+        ).toEqual({
+            field: 'Created At',
+            operator: 'is null',
+            value: undefined,
+        });
+        expect(
+            getConditionalRuleLabel(notNullRule, FilterType.DATE, 'Created At')
+                .value,
+        ).toBeUndefined();
+    });
+
     it('should return correct labels for a number filter', () => {
         // Arrange
         const rule: BaseFilterRule = {

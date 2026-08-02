@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a dimension filter query with OR logic 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a dimension filter query with OR logic 1`] = `
 "SELECT
   "table1".dim1 AS "table1_dim1"
 FROM
@@ -19,7 +19,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a joined-dimension filter query 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a joined-dimension filter query 1`] = `
 "SELECT
   "table1".dim1 AS "table1_dim1"
 FROM
@@ -35,7 +35,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a metric-filter query 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a metric-filter query 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -58,7 +58,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a nested metric-filter query 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a nested metric-filter query 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -87,7 +87,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a nested-filter query 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a nested-filter query 1`] = `
 "SELECT
   "table1".dim1 AS "table1_dim1"
 FROM
@@ -109,7 +109,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with a SQL filter using user attributes 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a query with a SQL filter using user attributes 1`] = `
 "SELECT
   "table1".dim1 AS "table1_dim1",
   MAX("table1".number_column) AS "table1_metric1"
@@ -125,7 +125,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with a disabled dimension filter 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a query with a disabled dimension filter 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -148,7 +148,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with a disabled joined-dimension metric filter 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a query with a disabled joined-dimension metric filter 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -167,7 +167,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with an empty dimension filter 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a query with an empty dimension filter 1`] = `
 "SELECT
   "table1".dim1 AS "table1_dim1"
 FROM
@@ -180,7 +180,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with an empty metric filter 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a query with an empty metric filter 1`] = `
 "SELECT
   "table1".dim1 AS "table1_dim1",
   MAX("table1".number_column) AS "table1_metric1"
@@ -194,7 +194,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with custom user-attribute filter values 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a query with custom user-attribute filter values 1`] = `
 "SELECT
   "table1".dim1 AS "table1_dim1"
 FROM
@@ -209,7 +209,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with empty filter groups 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a query with empty filter groups 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -231,7 +231,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with enabled and disabled filters 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a query with enabled and disabled filters 1`] = `
 "SELECT
   "table1".dim1 AS "table1_dim1"
 FROM
@@ -250,7 +250,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with intrinsic user-attribute filter values 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a query with intrinsic user-attribute filter values 1`] = `
 "SELECT
   "table1".dim1 AS "table1_dim1"
 FROM
@@ -265,7 +265,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a required-filter query 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a required-filter query 1`] = `
 "WITH
   metrics AS (
     SELECT
@@ -290,7 +290,7 @@ LIMIT
   10"
 `;
 
-exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a table-calculation filter query 1`] = `
+exports[`MetricQueryBuilder snapshot: filter queries > matches snapshot for a table-calculation filter query 1`] = `
 "WITH
   metrics AS (
     SELECT

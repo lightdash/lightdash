@@ -78,6 +78,7 @@ const AiSavedChartVisualizationContent: FC<Props> = ({
                 minimal
                 chartConfig={savedChart.chartConfig}
                 initialPivotDimensions={savedChart.pivotConfig?.columns}
+                initialPivotRows={savedChart.pivotConfig?.rows}
                 resultsData={resultsData}
                 isLoading={isLoading}
                 columnOrder={savedChart.tableConfig.columnOrder}

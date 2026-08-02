@@ -1,5 +1,6 @@
 import {
     type ApiBigqueryDatasets,
+    type ApiBigqueryProjectRecommendation,
     type ApiBigqueryProjects,
     type ApiError,
     type ApiSuccessEmpty,
@@ -33,6 +34,21 @@ export const useBigqueryProjects = (isAuthenticated: boolean) => {
         queryKey: ['bigquery-projects'],
         queryFn: getProjects,
         enabled: isAuthenticated,
+    });
+};
+
+const getProjectRecommendation = async () =>
+    lightdashApi<ApiBigqueryProjectRecommendation['results']>({
+        url: `/bigquery/sso/projects/recommendation`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useBigqueryProjectRecommendation = (enabled: boolean) => {
+    return useQuery<ApiBigqueryProjectRecommendation['results'], ApiError>({
+        queryKey: ['bigquery-project-recommendation'],
+        queryFn: getProjectRecommendation,
+        enabled,
     });
 };
 

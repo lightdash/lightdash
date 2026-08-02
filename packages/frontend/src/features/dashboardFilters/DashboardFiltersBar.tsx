@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Button,
     Divider,
     Group,
@@ -26,6 +27,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import FilterGroupSeparator from './FilterGroupSeparator';
+import FilterRequirementsButton from './FilterRequirements/FilterRequirementsButton';
 import DashboardFilters from './index';
 
 type Props = {
@@ -84,7 +86,7 @@ export const DashboardFiltersBar: FC<Props> = ({
         <FilterGroupSeparator
             icon={IconAdjustmentsHorizontal}
             tooltipLabel={
-                <div>
+                <Box>
                     <Text fw={500} fz="xs">
                         Parameters
                     </Text>
@@ -92,7 +94,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                         Adjust preset inputs that change how the dashboard's
                         numbers are calculated.
                     </Text>
-                </div>
+                </Box>
             }
         />
     );
@@ -102,21 +104,26 @@ export const DashboardFiltersBar: FC<Props> = ({
     return (
         <div>
             <Group
-                justify="apart"
+                justify="space-between"
                 align="flex-start"
                 wrap="nowrap"
                 px="lg"
                 py="xxs"
             >
                 {/* Left section - filters and parameters */}
-                <Group justify="apart" align="flex-start" wrap="nowrap" grow>
+                <Group
+                    justify="space-between"
+                    align="flex-start"
+                    wrap="nowrap"
+                    grow
+                >
                     {hasTilesThatSupportFilters && (
                         <Group align="flex-start" gap="xs" wrap="wrap">
                             {renderFilters && (
                                 <FilterGroupSeparator
                                     icon={IconFilter}
                                     tooltipLabel={
-                                        <div>
+                                        <Box>
                                             <Text fw={500} fz="xs">
                                                 Filters
                                             </Text>
@@ -124,7 +131,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                                 Refine your dashboard by
                                                 choosing which data to see.
                                             </Text>
-                                        </div>
+                                        </Box>
                                     }
                                 />
                             )}
@@ -132,6 +139,8 @@ export const DashboardFiltersBar: FC<Props> = ({
                                 isEditMode={isEditMode}
                                 activeTabUuid={activeTabUuid}
                             />
+
+                            {isEditMode && <FilterRequirementsButton />}
 
                             {hasDashboardTiles && hasParameters && (
                                 <>
@@ -175,7 +184,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                 <FilterGroupSeparator
                                     icon={IconCalendar}
                                     tooltipLabel={
-                                        <div>
+                                        <Box>
                                             <Text fw={500} fz="xs">
                                                 Date Zoom
                                             </Text>
@@ -183,7 +192,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                                 Quickly change the date
                                                 granularity of charts.
                                             </Text>
-                                        </div>
+                                        </Box>
                                     }
                                 />
                                 {isEditMode && (

@@ -393,6 +393,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             <MantineModal
                 opened={unverifyModalOpened}
                 onClose={closeUnverifyModal}
+                role="alertdialog"
                 title="Remove from verified answers?"
                 description="This answer will no longer be used as a reference in future conversations. You can verify it again later."
                 actions={

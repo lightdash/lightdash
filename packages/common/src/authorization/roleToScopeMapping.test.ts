@@ -51,7 +51,9 @@ describe('roleToScopeMapping', () => {
                 expect(typeof roleUuid).toBe('string');
                 expect(roleUuid).toBe('developer');
             } else {
-                fail('isSystemRole should return true for "developer"');
+                throw new Error(
+                    'isSystemRole should return true for "developer"',
+                );
             }
         });
     });
@@ -113,8 +115,6 @@ describe('roleToScopeMapping', () => {
             }).not.toThrow();
         });
     });
-
-    describe('AbilityBuilderCompatibility', () => {});
 
     describe('Ability builder compatibility', () => {
         it('should build equivalent abilities using scopes vs role-based builder', () => {

@@ -311,6 +311,45 @@ type CliContentAsCode = BaseTrack &
                   error: string;
               };
           }
+        | {
+              event: 'download.started' | 'upload.started';
+              properties: {
+                  userId?: string;
+                  organizationId: string;
+                  scope: 'organization';
+              };
+          }
+        | {
+              event: 'download.completed';
+              properties: {
+                  userId?: string;
+                  organizationId: string;
+                  scope: 'organization';
+                  customRolesNum: number;
+                  timeToCompleted: number;
+              };
+          }
+        | {
+              event: 'upload.completed';
+              properties: {
+                  userId?: string;
+                  organizationId: string;
+                  scope: 'organization';
+                  customRolesCreated: number;
+                  customRolesUpdated: number;
+                  customRolesUnchanged: number;
+                  timeToCompleted: number;
+              };
+          }
+        | {
+              event: 'download.error' | 'upload.error';
+              properties: {
+                  userId?: string;
+                  organizationId: string;
+                  scope: 'organization';
+                  error: string;
+              };
+          }
     );
 
 type CliLightdashConfigLoaded = BaseTrack & {
@@ -331,6 +370,9 @@ type CliValidateStarted = BaseTrack & {
         projectId: string;
         isPreview: boolean;
         validationTargets: string[];
+        validateWarehouseColumns: boolean;
+        includedSpacesCount: number;
+        excludedSpacesCount: number;
     };
 };
 /** `success` indicates whether 0 validation errors were found, not whether the process ran without crashing (crashes fire `validate.error` instead). */
@@ -341,6 +383,9 @@ type CliValidateCompleted = BaseTrack & {
         projectId: string;
         isPreview: boolean;
         validationTargets: string[];
+        validateWarehouseColumns: boolean;
+        includedSpacesCount: number;
+        excludedSpacesCount: number;
         durationMs: number;
         success: boolean;
         totalErrors: number;
@@ -419,6 +464,7 @@ type CliRenameCompleted = BaseTrack & {
         chartsUpdated: number;
         dashboardsUpdated: number;
         durationMs: number;
+        validationStatus: 'skipped' | 'passed' | 'failed';
     };
 };
 type CliRenameError = BaseTrack & {
@@ -438,6 +484,22 @@ type CliCommandExecuted = BaseTrack & {
         success: boolean;
     };
 };
+
+type CliConnectSnowflake = BaseTrack &
+    (
+        | {
+              event: 'connect_snowflake.started';
+              properties: Record<string, never>;
+          }
+        | {
+              event: 'connect_snowflake.completed';
+              properties: { method: 'key_pair' | 'pat' };
+          }
+        | {
+              event: 'connect_snowflake.error';
+              properties: { error: string; errorCategory: string };
+          }
+    );
 
 type Track =
     | CliGenerateStarted
@@ -478,7 +540,8 @@ type Track =
     | CliLintError
     | CliRenameCompleted
     | CliRenameError
-    | CliCommandExecuted;
+    | CliCommandExecuted
+    | CliConnectSnowflake;
 
 const ERROR_NAME_TO_CATEGORY: Record<string, string> = {
     ForbiddenError: 'forbidden',
@@ -575,5 +638,3 @@ export class LightdashAnalytics {
         }
     }
 }
-
-export const analytics: LightdashAnalytics = new LightdashAnalytics();

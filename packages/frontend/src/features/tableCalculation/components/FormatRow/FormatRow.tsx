@@ -1,4 +1,6 @@
 import {
+    applyCustomFormat,
+    Compact,
     assertUnreachable,
     CompactConfigMap,
     convertCustomFormatToFormatExpression,
@@ -27,7 +29,6 @@ import {
     Tooltip,
     type ComboboxItem,
 } from '@mantine-8/core';
-import { NumberInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import {
     Icon123,
@@ -42,6 +43,8 @@ import {
 import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { NumberInput } from '../../../../components/common/NumberInput';
+import { optionalNumber } from '../../../../utils/numberInputUtils';
 import classes from './FormatRow.module.css';
 
 type Props = {
@@ -211,6 +214,14 @@ const getPreviewValue = (
             return dataType === TableCalculationType.TIMESTAMP
                 ? formatTimestamp(sample)
                 : formatDate(sample);
+        }
+
+        if (
+            format.compact === Compact.AUTO &&
+            (format.type === CustomFormatType.NUMBER ||
+                format.type === CustomFormatType.CURRENCY)
+        ) {
+            return applyCustomFormat(NUMERIC_SAMPLE, format);
         }
 
         const expression = convertCustomFormatToFormatExpression(format);
@@ -470,7 +481,7 @@ export const FormatRow: FC<Props> = ({
                                     onChange: (value) =>
                                         setFormatFieldValue(
                                             'round',
-                                            value === '' ? undefined : value,
+                                            optionalNumber(value),
                                         ),
                                 }}
                             />
@@ -538,7 +549,7 @@ export const FormatRow: FC<Props> = ({
                                     onChange: (value) =>
                                         setFormatFieldValue(
                                             'round',
-                                            value === '' ? undefined : value,
+                                            optionalNumber(value),
                                         ),
                                 }}
                             />
@@ -575,7 +586,7 @@ export const FormatRow: FC<Props> = ({
                                 onChange: (value) =>
                                     setFormatFieldValue(
                                         'round',
-                                        value === '' ? undefined : value,
+                                        optionalNumber(value),
                                     ),
                             }}
                         />

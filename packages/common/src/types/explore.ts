@@ -74,6 +74,7 @@ export enum InlineErrorType {
     SET_VALIDATION_ERROR = 'SET_VALIDATION_ERROR',
     INVALID_PARAMETER = 'INVALID_PARAMETER',
     DUPLICATE_FIELD_NAME = 'DUPLICATE_FIELD_NAME',
+    WAREHOUSE_COLUMN_ERROR = 'WAREHOUSE_COLUMN_ERROR',
 }
 
 export type InlineError = {
@@ -125,9 +126,8 @@ export type Explore = {
     preAggregates?: PreAggregateDef[];
     preAggregateSource?: PreAggregateSource;
     /**
-     * Non-fatal warnings from partial compilation.
-     * Present when some joins or fields failed to compile but the explore is still usable.
-     * Only populated when PARTIAL_COMPILATION_ENABLED=true.
+     * Non-fatal compilation or validation warnings (e.g. fields that failed to
+     * compile, warehouse-rejected column references). The explore is still usable.
      */
     warnings?: InlineError[];
 };

@@ -21,7 +21,7 @@ const organizationUuid = 'org-uuid';
 const projectName = 'Test Project';
 
 const projectModel = {
-    get: jest.fn(async () => ({
+    get: vi.fn(async () => ({
         organizationUuid,
         name: projectName,
         projectUuid,
@@ -56,7 +56,7 @@ const makeDownloadAuditModel = (
     pagination = makePagination(),
 ) =>
     ({
-        getDownloads: jest.fn(async () => ({ data, pagination })),
+        getDownloads: vi.fn(async () => ({ data, pagination })),
     }) as unknown as DownloadAuditModel;
 
 const makeAccount = (canViewAnalytics: boolean): Account =>
@@ -93,7 +93,7 @@ const forbiddenAccount = makeAccount(false);
 
 describe('AnalyticsService.getDownloadActivity', () => {
     afterEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('throws ForbiddenError when account lacks Analytics view permission', async () => {

@@ -22,7 +22,9 @@ import {
     type UserAccessControls,
     type UserAttributeValueMap,
 } from '@lightdash/common';
+import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
+import type { TotalConfiguration } from '../../utils/QueryBuilder/QueryComposer';
 
 export type CommonAsyncQueryArgs = {
     account: Account;
@@ -58,6 +60,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     attachmentDownloadName?: string;
     expirationSecondsOverride?: number;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
 };
 
 export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
@@ -81,6 +84,11 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
     dashboardFilters?: DashboardFilters;
+    /**
+     * Collapse the query into a totals grain (calculate-total path only).
+     * Mutually exclusive with `dashboardFilters`.
+     */
+    totalConfiguration?: TotalConfiguration;
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
@@ -89,6 +97,9 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     limit?: number | null | undefined;
     pivotResults?: boolean;
     filterOverrides?: Filters;
+    // Silent-drop semantics for fields outside the chart's explore — unlike
+    // filterOverrides, which fails the run on unknown fields.
+    dashboardFilters?: DashboardFilters;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
@@ -197,9 +208,11 @@ export type RunAsyncWarehouseQueryArgs = {
     projectUuid: string;
     userUuid: string;
     organizationUuid: string;
+    isPreviewProject: boolean;
     queryUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount?: boolean;
+    onboardingFlow: OnboardingFlow;
     queryTags: RunQueryTags;
     fieldsMap: ItemsMap;
     cacheKey: string;

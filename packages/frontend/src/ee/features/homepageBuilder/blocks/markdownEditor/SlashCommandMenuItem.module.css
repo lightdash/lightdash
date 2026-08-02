@@ -1,0 +1,18 @@
+.item {
+    padding: 4px 8px;
+}
+
+.icon {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mantine-color-ldDark-9);
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-8);
+    }
+}

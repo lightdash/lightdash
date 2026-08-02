@@ -129,6 +129,36 @@ describe('Saved chart space selection', () => {
         expect(spaceUuids).toContain(fetchedChart.spaceUuid);
     });
 
+    it('Should persist ordered pivot rows when the chart is reloaded', async () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        const body: CreateChartInSpace = {
+            ...chartMock,
+            name: uniqueName('Chart with ordered pivot rows'),
+            pivotConfig: {
+                columns: ['orders_status'],
+                rows: ['orders_average_order_size'],
+            },
+            spaceUuid: undefined,
+            dashboardUuid: null,
+        };
+
+        const response = await admin.post<{ results: SavedChart }>(
+            `${apiUrl}/projects/${projectUuid}/saved`,
+            body,
+        );
+        expect(response.status).toBe(200);
+        createdChartUuids.push(response.body.results.uuid);
+
+        const getResponse = await admin.get<{ results: SavedChart }>(
+            `${apiUrl}/saved/${response.body.results.uuid}`,
+        );
+        expect(getResponse.status).toBe(200);
+        expect(getResponse.body.results.pivotConfig).toEqual({
+            columns: ['orders_status'],
+            rows: ['orders_average_order_size'],
+        });
+    });
+
     it('Should create a chart belonging to a dashboard', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
 
@@ -163,6 +193,133 @@ describe('Saved chart space selection', () => {
         const fetchedChart = getResponse.body.results;
         expect(fetchedChart.dashboardUuid).toBe(dashboard.uuid);
         expect(fetchedChart.spaceUuid).toBe(dashboard.spaceUuid);
+    });
+});
+
+describe('Saved chart color palette on create', () => {
+    const projectUuid = SEED_PROJECT.project_uuid;
+
+    let admin: Awaited<ReturnType<typeof login>>;
+    let colorPaletteUuid: string;
+    const createdChartUuids: string[] = [];
+    const createdDashboardUuids: string[] = [];
+
+    beforeAll(async () => {
+        admin = await login();
+
+        const paletteResp = await admin.post<{
+            results: { colorPaletteUuid: string };
+        }>(`${apiUrl}/org/color-palettes`, {
+            name: uniqueName('Palette for chart create'),
+            // The API requires exactly 20 colors
+            colors: Array.from({ length: 20 }, () => '#112233'),
+        });
+        colorPaletteUuid = paletteResp.body.results.colorPaletteUuid;
+    });
+
+    afterAll(async () => {
+        for (const uuid of createdChartUuids) {
+            await admin
+                .delete(`${apiUrl}/saved/${uuid}`, { failOnStatusCode: false })
+                .catch(() => {});
+        }
+        for (const uuid of createdDashboardUuids) {
+            await admin
+                .delete(`${apiUrl}/dashboards/${uuid}`, {
+                    failOnStatusCode: false,
+                })
+                .catch(() => {});
+        }
+        if (colorPaletteUuid) {
+            await admin
+                .delete(`${apiUrl}/org/color-palettes/${colorPaletteUuid}`, {
+                    failOnStatusCode: false,
+                })
+                .catch(() => {});
+        }
+    });
+
+    it('Should persist the chart-level palette when a chart is first saved to a space', async () => {
+        const body: CreateChartInSpace = {
+            ...chartMock,
+            name: uniqueName('Chart with palette in space'),
+            spaceUuid: undefined,
+            dashboardUuid: null,
+            colorPaletteUuid,
+        };
+
+        const response = await admin.post<{ results: SavedChart }>(
+            `${apiUrl}/projects/${projectUuid}/saved`,
+            body,
+        );
+        expect(response.status).toBe(200);
+        createdChartUuids.push(response.body.results.uuid);
+
+        const getResponse = await admin.get<{ results: SavedChart }>(
+            `${apiUrl}/saved/${response.body.results.uuid}`,
+        );
+        expect(getResponse.status).toBe(200);
+        const fetchedChart = getResponse.body.results;
+        expect(fetchedChart.colorPaletteUuid).toBe(colorPaletteUuid);
+        // Resolving from the chart means the cascade did not override it
+        expect(fetchedChart.resolvedColorPalette.source.type).toBe('chart');
+    });
+
+    it('Should persist the chart-level palette when a chart is first saved to a dashboard', async () => {
+        const dashResp = await admin.post<{ results: Dashboard }>(
+            `${apiUrl}/projects/${projectUuid}/dashboards`,
+            { ...dashboardMock, name: uniqueName('Dashboard for palette') },
+        );
+        const dashboard = dashResp.body.results;
+        createdDashboardUuids.push(dashboard.uuid);
+
+        const body: CreateChartInDashboard = {
+            ...chartMock,
+            name: uniqueName('Chart with palette in dashboard'),
+            dashboardUuid: dashboard.uuid,
+            spaceUuid: null,
+            colorPaletteUuid,
+        };
+
+        const response = await admin.post<{ results: SavedChart }>(
+            `${apiUrl}/projects/${projectUuid}/saved`,
+            body,
+        );
+        expect(response.status).toBe(200);
+        createdChartUuids.push(response.body.results.uuid);
+
+        const getResponse = await admin.get<{ results: SavedChart }>(
+            `${apiUrl}/saved/${response.body.results.uuid}`,
+        );
+        expect(getResponse.status).toBe(200);
+        const fetchedChart = getResponse.body.results;
+        expect(fetchedChart.dashboardUuid).toBe(dashboard.uuid);
+        expect(fetchedChart.colorPaletteUuid).toBe(colorPaletteUuid);
+        expect(fetchedChart.resolvedColorPalette.source.type).toBe('chart');
+    });
+
+    it('Should inherit from the cascade when no palette is given on create', async () => {
+        const body: CreateChartInSpace = {
+            ...chartMock,
+            name: uniqueName('Chart without palette'),
+            spaceUuid: undefined,
+            dashboardUuid: null,
+        };
+
+        const response = await admin.post<{ results: SavedChart }>(
+            `${apiUrl}/projects/${projectUuid}/saved`,
+            body,
+        );
+        expect(response.status).toBe(200);
+        createdChartUuids.push(response.body.results.uuid);
+
+        const getResponse = await admin.get<{ results: SavedChart }>(
+            `${apiUrl}/saved/${response.body.results.uuid}`,
+        );
+        expect(getResponse.status).toBe(200);
+        const fetchedChart = getResponse.body.results;
+        expect(fetchedChart.colorPaletteUuid).toBeNull();
+        expect(fetchedChart.resolvedColorPalette.source.type).not.toBe('chart');
     });
 });
 

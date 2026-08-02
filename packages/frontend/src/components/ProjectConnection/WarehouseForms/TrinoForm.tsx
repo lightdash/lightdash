@@ -1,14 +1,14 @@
 import { WarehouseTypes } from '@lightdash/common';
 import {
-    Anchor,
-    NumberInput,
-    PasswordInput,
-    Select,
-    Stack,
     TextInput,
-} from '@mantine/core';
-import React, { type FC } from 'react';
+    Stack,
+    Anchor,
+    Select,
+    PasswordInput,
+} from '@mantine-8/core';
+import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
+import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -20,14 +20,15 @@ import { TrinoDefaultValues } from './defaultValues';
 
 export const TrinoSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="This is the schema name."
+            description={description ?? 'This is the schema name.'}
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -116,6 +117,7 @@ const TrinoForm: FC<{
                         />
 
                         <Select
+                            allowDeselect={false}
                             name="warehouse.http_scheme"
                             {...form.getInputProps('warehouse.http_scheme')}
                             defaultValue={TrinoDefaultValues.http_scheme}
@@ -126,6 +128,7 @@ const TrinoForm: FC<{
                                     database using SSL. You can see more details
                                     in
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
                                         rel="noreferrer"

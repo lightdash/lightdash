@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -15,6 +16,7 @@ import { useCallback, useRef, useState, type FC } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
@@ -27,9 +29,12 @@ import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultA
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
+import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
+import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
+import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
@@ -61,7 +66,8 @@ const AiAgentNewThreadPage: FC = () => {
     });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const [sqlMode, setSqlMode] = useState(false);
+    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
+    const [sqlMode, setSqlMode] = useState(true);
     const dispatch = useAiAgentStoreDispatch();
     const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();
@@ -98,6 +104,13 @@ const AiAgentNewThreadPage: FC = () => {
                     uuid: thread.uuid,
                     title: thread.firstMessage.message,
                 };
+                if (isEmbed && projectUuid && agentUuid) {
+                    emitEmbedAiAgentThreadChange({
+                        projectUuid,
+                        agentUuid,
+                        threadUuid: thread.uuid,
+                    });
+                }
                 dispatch(
                     setThreadSqlMode({
                         threadUuid: thread.uuid,
@@ -110,6 +123,9 @@ const AiAgentNewThreadPage: FC = () => {
     const { data: verifiedQuestions } = useVerifiedQuestions(
         projectUuid,
         agentUuid,
+    );
+    const startDeepResearch = useStartDeepResearchForThreadMutation(
+        projectUuid!,
     );
 
     const {
@@ -180,6 +196,39 @@ const AiAgentNewThreadPage: FC = () => {
             sqlMode,
             modelConfig,
             isPinnedContextReady,
+        ],
+    );
+
+    const onStartDeepResearch = useCallback(
+        async ({ question }: StartDeepResearchArgs) => {
+            if (!agentUuid || !isPinnedContextReady) {
+                return;
+            }
+            setPendingPrompt('');
+            const thread = await createAgentThread({
+                agentUuid,
+                prompt: question,
+                context: contextInput,
+                optimisticContext: previewItems,
+                modelConfig,
+                skipAgentResponse: true,
+            });
+            await startDeepResearch.mutateAsync({
+                question,
+                agentUuid,
+                threadUuid: thread.uuid,
+                promptUuid: thread.firstMessage.uuid,
+            });
+        },
+        [
+            agentUuid,
+            contextInput,
+            createAgentThread,
+            isPinnedContextReady,
+            modelConfig,
+            previewItems,
+            setPendingPrompt,
+            startDeepResearch,
         ],
     );
 
@@ -303,6 +352,11 @@ const AiAgentNewThreadPage: FC = () => {
                     <AgentChatInput
                         key={composerSeedKey}
                         onSubmit={onSubmit}
+                        onStartDeepResearch={
+                            deepResearchFlag.data?.enabled
+                                ? onStartDeepResearch
+                                : undefined
+                        }
                         loading={isCreatingThread}
                         disabled={!isPinnedContextReady}
                         placeholder={`Ask ${agent.name} anything about your data...`}

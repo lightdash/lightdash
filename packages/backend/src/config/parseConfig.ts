@@ -18,6 +18,7 @@ import {
     isLightdashMode,
     isOrganizationMemberRole,
     isSchedulerTaskName,
+    isWeekDay,
     LightdashMode,
     OrganizationMemberRole,
     ParameterError,
@@ -35,6 +36,7 @@ import { type ClientAuthMethod } from 'openid-client';
 import { z } from 'zod';
 import { VERSION } from '../version';
 import {
+    AI_PROVIDER_KEYS,
     aiCopilotConfigSchema,
     AiCopilotConfigSchemaType,
     DEFAULT_AI_TOOL_DESCRIPTION_MAX_CHARS,
@@ -350,6 +352,41 @@ const parseEnum = <T>(
     return value as T;
 };
 
+// WeekDay is a numeric enum, so a generic Object.values check would accept the
+// day names as-is and never convert them to the numeric value the app expects.
+const parseWeekDay = (value: unknown): WeekDay => {
+    if (isWeekDay(value)) return value;
+    if (typeof value === 'string' && value.trim() !== '') {
+        const numeric = Number(value);
+        if (isWeekDay(numeric)) return numeric;
+        const day = WeekDay[value.toUpperCase() as keyof typeof WeekDay];
+        if (isWeekDay(day)) return day;
+    }
+    throw new ParameterError(
+        `Invalid start of week value "${value}". Must be one of ${Object.values(
+            WeekDay,
+        )
+            .filter((day): day is string => typeof day === 'string')
+            .join(', ')} or a number from 0 (Monday) to 6 (Sunday)`,
+    );
+};
+
+const startOfWeekSchema = z
+    .union([z.number(), z.string()])
+    .nullish()
+    .transform((value, ctx) => {
+        if (value === null || value === undefined) return value;
+        try {
+            return parseWeekDay(value);
+        } catch (e) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: getErrorMessage(e),
+            });
+            return z.NEVER;
+        }
+    });
+
 const multiProjectSetupEntrySchema = z.object({
     name: z.string().min(1, 'Project name cannot be empty'),
     warehouseConnection: z
@@ -359,6 +396,7 @@ const multiProjectSetupEntrySchema = z.object({
                     message: `Invalid warehouse type. Must be one of: ${Object.values(WarehouseTypes).join(', ')}`,
                 }),
             }),
+            startOfWeek: startOfWeekSchema,
         })
         .passthrough(),
     dbtConnection: z
@@ -460,8 +498,9 @@ export const getMultiProjectSetupConfig = ():
         );
     }
 
-    // Zod validates structure; the full type comes from the original parsed JSON
-    return parsed as MultiProjectSetupEntry[];
+    // Both connection objects are passthrough schemas, so unvalidated fields
+    // survive; returning the zod output applies transforms like startOfWeek.
+    return result.data as unknown as MultiProjectSetupEntry[];
 };
 
 const userAttributeSetupEntrySchema = z.object({
@@ -655,10 +694,9 @@ const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
                         httpPath: process.env.LD_SETUP_PROJECT_HTTP_PATH!,
                         personalAccessToken: projectPat,
                         requireUserCredentials: undefined,
-                        startOfWeek: parseEnum<WeekDay>(
-                            process.env.LD_SETUP_START_OF_WEEK,
-                            WeekDay,
-                        ),
+                        startOfWeek: process.env.LD_SETUP_START_OF_WEEK
+                            ? parseWeekDay(process.env.LD_SETUP_START_OF_WEEK)
+                            : undefined,
                         compute: parseCompute(),
                     },
                     dbtConnection: {
@@ -940,6 +978,37 @@ export const parsePreAggregateResultsS3Config = ():
     };
 };
 
+export const parseUsageEventsS3Config = (): Omit<
+    S3Config,
+    'expirationTime'
+> | null => {
+    const baseS3Config = parseBaseS3Config();
+
+    if (!baseS3Config) {
+        return null;
+    }
+
+    const {
+        endpoint,
+        forcePathStyle,
+        useCredentialsFrom,
+        bucket: baseBucket,
+        region: baseRegion,
+        accessKey: baseAccessKey,
+        secretKey: baseSecretKey,
+    } = baseS3Config;
+
+    return {
+        endpoint,
+        forcePathStyle,
+        bucket: process.env.USAGE_EVENTS_S3_BUCKET || baseBucket,
+        region: process.env.USAGE_EVENTS_S3_REGION || baseRegion,
+        accessKey: process.env.USAGE_EVENTS_S3_ACCESS_KEY || baseAccessKey,
+        secretKey: process.env.USAGE_EVENTS_S3_SECRET_KEY || baseSecretKey,
+        useCredentialsFrom,
+    };
+};
+
 const validateTaskList = (tasks: string[], envVarName: string) => {
     const validTasks: SchedulerTaskName[] = [];
     const invalidTasks: string[] = [];
@@ -1088,6 +1157,19 @@ export const getAiConfig = () => ({
     defaultEmbeddingModelProvider:
         process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
         DEFAULT_DEFAULT_AI_PROVIDER,
+    // Unknown names are dropped (with a log) rather than passed through so a
+    // typo can't fail schema validation and discard the whole parsed config.
+    selfManagedProviders: getArrayFromCommaSeparatedList(
+        'AI_COPILOT_SELF_MANAGED_PROVIDERS',
+    ).filter((provider): provider is (typeof AI_PROVIDER_KEYS)[number] => {
+        if ((AI_PROVIDER_KEYS as readonly string[]).includes(provider)) {
+            return true;
+        }
+        console.error(
+            `Ignoring unknown provider "${provider}" in AI_COPILOT_SELF_MANAGED_PROVIDERS`,
+        );
+        return false;
+    }),
     providers: {
         azure: process.env.AZURE_AI_API_KEY
             ? {
@@ -1204,6 +1286,7 @@ export type LoggingConfig = {
     fileFormat: LoggingFormat | undefined;
     fileLevel: LoggingLevel | undefined;
     filePath: string;
+    auditActorAsString: boolean;
 };
 
 export type MultiProjectSetupEntry = {
@@ -1237,6 +1320,7 @@ export type LightdashConfig = {
     trustProxy: boolean;
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
+    postmark: PostmarkConfig;
     rudder: RudderConfig;
     mode: LightdashMode;
     license: {
@@ -1319,6 +1403,9 @@ export type LightdashConfig = {
         queueTimeoutMs: number;
     };
     slack?: SlackConfig;
+    brandfetch?: {
+        apiKey: string;
+    };
     scheduler: {
         enabled: boolean;
         concurrency: number;
@@ -1411,6 +1498,14 @@ export type LightdashConfig = {
     };
     aiWriteback: {
         anthropicApiKey: string | null;
+        /**
+         * Pre-clone size ceiling (MB) for the general coding agent. A repo whose
+         * GitHub-reported size exceeds this is rejected with an actionable error
+         * before any sandbox/clone (fail closed, never deadline_exceeded). With
+         * --depth 1 --filter=blob:none the API size over-counts the real fetch,
+         * so the guard is conservative by design.
+         */
+        codingAgentMaxRepoSizeMb: number;
     };
 
     initialSetup?: {
@@ -1479,20 +1574,32 @@ export type LightdashConfig = {
     editYamlInUi: {
         enabled: boolean;
     };
-    /**
-     * When enabled, fields that fail to compile will be marked with a
-     * compilationError instead of causing the entire explore to fail.
-     * This allows users to still access other fields in the explore.
-     */
-    partialCompilation: {
-        enabled: boolean;
-    };
     funnelBuilder: {
         enabled: boolean;
     };
     softDelete: {
         enabled: boolean;
         retentionDays: number;
+    };
+    pgWire: {
+        /** TCP port the Postgres wire protocol server listens on. `undefined`
+         * disables the feature. */
+        port: number | undefined;
+        /** Hostname clients should use to reach the pgwire server. Display-only
+         * override; falls back to the site URL hostname. */
+        host: string | undefined;
+        ssl: {
+            /** `require` (default): the server terminates TLS itself and
+             * rejects plaintext connections before ever requesting a password.
+             * `disabled`: explicit opt-out for local dev or behind a pg-aware
+             * TLS-terminating proxy — credentials cross the network in
+             * plaintext. */
+            mode: 'require' | 'disabled';
+            /** Path to the PEM server certificate (leaf first, then chain). */
+            certPath: string | undefined;
+            /** Path to the PEM private key. */
+            keyPath: string | undefined;
+        };
     };
     dashboardComments: {
         enabled: boolean;
@@ -1505,9 +1612,24 @@ export type LightdashConfig = {
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    usageEvents: {
+        enabled: boolean;
+        flushIntervalMs: number;
+        flushBatchSize: number;
+        bufferMaxSize: number;
+        s3: Omit<S3Config, 'expirationTime'> | null;
+    };
     appRuntime: AppRuntimeConfig;
     enabledFeatureFlags: Set<string>;
     disabledFeatureFlags: Set<string>;
+    previewFeatureFlags: {
+        /**
+         * Preview/Okteto environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
+         * by default and exposes the feature-flag management API so QA can toggle
+         * flags at runtime. Defaults on in PR mode.
+         */
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1534,6 +1656,10 @@ export type HeadlessBrowserConfig = {
     browserEndpoint: string;
     maxScreenshotRetries: number;
     retryBaseDelayMs: number;
+    // How long to wait for page content (tiles/charts) to be ready before
+    // screenshotting. The browser container's own session timeout (browserless
+    // TIMEOUT env) must be >= this value or it becomes the binding limit.
+    screenshotTimeoutMs: number;
 };
 export type S3Config = {
     region: string;
@@ -1596,10 +1722,13 @@ export type AppRuntimeConfig = {
     /**
      * Which sandbox backend the data-app pipeline launches sandboxes on.
      * `e2b` keeps today's hosted path; `docker` runs a plain local container
-     * (dev / self-host testbed — see SandboxRuntime/DESIGN.md). Later:
-     * kubernetes | ecs | microsandbox.
+     * (dev / self-host testbed — see docs/sandbox-runtime.md);
+     * `lambda-microvm` runs AWS Lambda MicroVMs (native suspend/resume);
+     * `azure-sandboxes` runs Azure Container Apps Sandboxes (native
+     * suspend/resume — the Azure analog of E2B / Lambda MicroVMs).
+     * Later: kubernetes | ecs | microsandbox.
      */
-    sandboxProvider: 'e2b' | 'docker';
+    sandboxProvider: 'e2b' | 'docker' | 'lambda-microvm' | 'azure-sandboxes';
     /**
      * OCI image the `docker` sandbox provider launches data-app containers
      * from. Built locally from sandboxes/data-apps (e.g. `lightdash-sandbox:local`).
@@ -1613,7 +1742,174 @@ export type AppRuntimeConfig = {
      * `lightdash-ai-writeback:local`).
      */
     sandboxAiWritebackDockerImage: string;
+    /** OCI image used by managed project onboarding with the Docker provider. */
+    sandboxAgentOnboardingDockerImage: string;
+    /**
+     * How long a *running* sandbox can be idle before the backend suspends it.
+     * Feeds the native-pause provider's own idle policy (Lambda MicroVMs'
+     * AWS-side auto-suspend); ignored by E2B (which has its own timeout) and
+     * Docker. Defaults to 30 minutes.
+     */
+    sandboxIdleTimeoutMs: number;
+    /**
+     * How long a *suspended* sandbox snapshot is kept (resumable) before it is
+     * reclaimed. Feeds the native-pause provider's idle policy (Lambda MicroVMs'
+     * AWS-side auto-terminate). Defaults to 7 days.
+     */
+    sandboxSnapshotRetentionMs: number;
+    /**
+     * Static config the `lambda-microvm` sandbox provider needs (region, IAM
+     * execution role, network connectors, idle policy). Idle/suspended durations
+     * are derived from `sandboxIdleTimeoutMs`/`sandboxSnapshotRetentionMs` so the
+     * AWS-side `idlePolicy` (auto-suspend / auto-terminate) governs idle expiry.
+     * Always populated (with defaults); only read when the provider is
+     * `lambda-microvm`.
+     */
+    lambdaMicroVm: {
+        region: string;
+        executionRoleArn: string | null;
+        ingressConnectorArn: string;
+        egressConnectorArn: string;
+        maxIdleDurationSeconds: number;
+        suspendedDurationSeconds: number;
+    };
+    /**
+     * Lambda MicroVM image ARN the data-app pipeline runs from (the
+     * `lambda-microvm` analog of the Docker data-app image).
+     * Built out-of-band by the image pipeline (see sandboxes/). Required only
+     * when `sandboxProvider === 'lambda-microvm'`.
+     */
+    lambdaMicroVmDataAppImageArn: string | null;
+    /**
+     * Lambda MicroVM image ARN the AI writeback pipeline runs from (decoupled
+     * from the data-app image, mirroring the split Docker images).
+     * Required only when `sandboxProvider === 'lambda-microvm'`.
+     */
+    lambdaMicroVmAiWritebackImageArn: string | null;
+    /**
+     * Shared config for the `azure-sandboxes` provider (subscription / resource
+     * group / region + ADC data-plane API version, Entra token scope, and sandbox
+     * resource tier). The per-feature sandbox group + disk image are separate
+     * fields below. Always populated (with defaults); `subscriptionId`/`resourceGroup`
+     * are only required when the provider is `azure-sandboxes`.
+     */
+    azureSandboxes: {
+        subscriptionId: string | null;
+        resourceGroup: string | null;
+        region: string;
+        apiVersion: string;
+        tokenScope: string;
+        resourceTier: string;
+    };
+    /**
+     * Sandbox group the data-app pipeline runs sandboxes in (one group + disk
+     * image per feature, mirroring the split Docker images / Lambda ARNs).
+     * Required only when `sandboxProvider === 'azure-sandboxes'`.
+     */
+    azureSandboxesDataAppGroup: string | null;
+    /** Disk image **id** (UUID assigned at registration) the data-app pipeline
+     * launches from — passed as `sourcesRef.diskImage.id`. Required only when
+     * `azure-sandboxes`. */
+    azureSandboxesDataAppDiskImage: string | null;
+    /**
+     * Sandbox group the AI writeback pipeline runs sandboxes in (decoupled from
+     * the data-app group). Required only when `sandboxProvider === 'azure-sandboxes'`.
+     */
+    azureSandboxesAiWritebackGroup: string | null;
+    /** Disk image the AI writeback pipeline launches (decoupled from the data-app
+     * image). Required only when `azure-sandboxes`. */
+    azureSandboxesAiWritebackDiskImage: string | null;
+    /** E2B template used by managed project onboarding. */
+    e2bAgentOnboardingTemplateName: string;
+    e2bAgentOnboardingTemplateTag: string;
+    /**
+     * Lean template name+tag for the general-purpose coding agent (`editRepo`):
+     * git + Claude CLI + the generic skill only — no dbt venvs, no compile
+     * wrapper, no profiles. Defaults to the `lightdash-ai-coding-agent` image at
+     * the running version's tag, published per release by the post-release
+     * workflow; override the name/tag to pin, roll back, or point at another
+     * image for local dev.
+     */
+    e2bCodingAgentTemplateName: string;
+    e2bCodingAgentTemplateTag: string;
+    /**
+     * Claude Code OpenTelemetry tracing for data-app builds. When enabled, the
+     * `claude` CLI in the sandbox exports OTLP traces (a span per LLM request /
+     * tool call) to `endpoint`, nested under the backend's `DataApp.generate`
+     * parent span. The endpoint/protocol/interval are generic OTLP settings;
+     * `auth` selects how export headers are minted (see `gcpOtelAuth.ts`).
+     */
+    otel: DataAppOtelConfig;
+    /**
+     * NPM registry hosts added to the sandbox egress allowlist when a version
+     * has a custom dependency set (`app_versions.dependencies` non-null).
+     * Template-only builds never gain these hosts. Comma-separated env var
+     * `LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS`; defaults to the public npm
+     * registry.
+     */
+    dependencyRegistryHosts: string[];
+    /**
+     * Timeout in milliseconds for the `pnpm install` step that runs before the
+     * Vite build when a version has custom dependencies. Defaults to 2 minutes.
+     */
+    dependencyInstallTimeoutMs: number;
+    /**
+     * Minimum age (in days) a declared custom dependency's resolved version
+     * must have since publication, checked against npm registry metadata at
+     * upload time. Guards against freshly-published (potentially compromised)
+     * versions. Env var `LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS`.
+     *
+     * `0` (default) disables the check — deliberately off, matching the rest
+     * of the custom-dependencies feature, since enabling it adds registry
+     * round-trips and can block legitimate recent releases. When you do turn
+     * it on, `3` is a sensible starting point: it mirrors this repo's own
+     * `minimum-release-age=3d` npm policy.
+     */
+    dependencyMinReleaseAgeDays: number;
+    /**
+     * When true, every resolved package in a custom-dependency upload's
+     * lockfile (direct + transitive) is checked against the OSV
+     * malicious-packages feed at upload time; known-malicious versions are
+     * rejected. Only runs for uploads that already passed the custom-deps
+     * gates, so orgs not using custom deps are unaffected.
+     *
+     * Env var `LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED`; defaults to
+     * `true`. It is precise (matches only OSV `MAL-` advisories, so
+     * near-zero false positives), which is why it is the one dependency guard
+     * that defaults on. The check FAILS CLOSED — if OSV can't be reached the
+     * upload is rejected — so an instance whose backend has no egress to
+     * `api.osv.dev` (air-gapped, or during an OSV outage) must set this to
+     * `false` to keep uploading custom-dependency apps.
+     */
+    dependencyMalwareCheckEnabled: boolean;
+    /**
+     * When false, app generation never runs chart sample queries, so no
+     * warehouse row values are sent to the sandbox or the LLM — the per-chart
+     * "include sample data" opt-in is disabled instance-wide and hidden in
+     * the UI. Env var `LIGHTDASH_APP_SAMPLE_DATA_ENABLED`; defaults to `true`.
+     */
+    sampleDataEnabled: boolean;
 };
+
+export type DataAppOtelConfig = {
+    enabled: boolean;
+    /** OTLP collector endpoint the sandbox exports traces to. */
+    endpoint: string;
+    /** OTEL_EXPORTER_OTLP_PROTOCOL value (e.g. `http/protobuf`, `grpc`). */
+    protocol: string;
+    /** OTEL_TRACES_EXPORT_INTERVAL (ms) — short so spans flush before teardown. */
+    exportIntervalMs: number;
+    /**
+     * How OTLP export auth headers are resolved per build. `none` exports with
+     * no auth headers; `gcp` mints a fresh bearer token at execute time. Keep
+     * provider-specific behaviour out of this config — it only selects a path.
+     */
+    auth: DataAppOtelAuthConfig;
+};
+
+export type DataAppOtelAuthConfig =
+    | { type: 'none' }
+    | { type: 'gcp'; quotaProjectId: string | null };
 
 export type IntercomConfig = {
     appId: string;
@@ -1775,7 +2071,59 @@ export type SmtpConfig = {
     inlineImageCid: boolean;
 };
 
+/**
+ * Cloud-only email whitelabelling (see FeatureFlags.EmailWhitelabel).
+ *
+ * `accountToken` is the Postmark *account*-level API token used to drive the
+ * Domains API (create a sender domain, fetch its DKIM + return-path DNS
+ * records, trigger verification). Sending itself stays over SMTP; this token is
+ * only for provisioning. When it is undefined the feature is unavailable
+ * (self-hosted instances that don't own a Postmark account can't self-serve).
+ */
+export type PostmarkConfig = {
+    accountToken: string | undefined;
+    /**
+     * The default return-path subdomain label Postmark uses for custom
+     * return-paths (its CNAME points at `pm.mtasv.net`). Configurable so a
+     * customer with an existing `pm-bounces` record can be given a different
+     * label.
+     */
+    returnPathSubdomain: string;
+};
+
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+
+const parseSandboxProvider = (
+    value: string | undefined,
+): AppRuntimeConfig['sandboxProvider'] => {
+    if (value === 'docker') return 'docker';
+    if (value === 'lambda-microvm') return 'lambda-microvm';
+    if (value === 'azure-sandboxes') return 'azure-sandboxes';
+    return 'e2b';
+};
+
+const parseDataAppOtelConfig = (): DataAppOtelConfig => {
+    const exportIntervalMs = Number(
+        process.env.DATA_APP_OTEL_EXPORT_INTERVAL_MS || '1000',
+    );
+    return {
+        enabled: process.env.DATA_APP_OTEL_TRACES_ENABLED === 'true',
+        endpoint: process.env.DATA_APP_OTEL_EXPORTER_ENDPOINT || '',
+        protocol:
+            process.env.DATA_APP_OTEL_EXPORTER_PROTOCOL || 'http/protobuf',
+        exportIntervalMs: Number.isFinite(exportIntervalMs)
+            ? exportIntervalMs
+            : 1000,
+        auth:
+            process.env.DATA_APP_OTEL_AUTH === 'gcp'
+                ? {
+                      type: 'gcp',
+                      quotaProjectId:
+                          process.env.DATA_APP_OTEL_GCP_QUOTA_PROJECT || null,
+                  }
+                : { type: 'none' },
+    };
+};
 
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
@@ -1814,6 +2162,16 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         };
     }
 
+    const sandboxIdleTimeoutMs = process.env.SANDBOX_IDLE_TIMEOUT_MS
+        ? parseInt(process.env.SANDBOX_IDLE_TIMEOUT_MS, 10)
+        : 30 * 60 * 1000;
+    const sandboxSnapshotRetentionMs = process.env.SANDBOX_SNAPSHOT_RETENTION_MS
+        ? parseInt(process.env.SANDBOX_SNAPSHOT_RETENTION_MS, 10)
+        : 7 * 24 * 60 * 60 * 1000;
+    // Lambda MicroVMs run in eu-west-1 (Ireland) — the EU launch region.
+    const lambdaMicroVmRegion =
+        process.env.LAMBDA_MICROVM_REGION || 'eu-west-1';
+
     return {
         enabled,
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
@@ -1837,13 +2195,106 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'lightdash-ai-writeback',
         e2bAiWritebackTemplateTag:
             process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ?? (VERSION as string),
-        sandboxProvider:
-            process.env.SANDBOX_PROVIDER === 'docker' ? 'docker' : 'e2b',
+        sandboxProvider: parseSandboxProvider(process.env.SANDBOX_PROVIDER),
         sandboxDockerImage:
             process.env.SANDBOX_DOCKER_IMAGE || 'lightdash-sandbox:local',
         sandboxAiWritebackDockerImage:
             process.env.SANDBOX_AI_WRITEBACK_DOCKER_IMAGE ||
             'lightdash-ai-writeback:local',
+        sandboxAgentOnboardingDockerImage:
+            process.env.SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE ||
+            'lightdash-agent-onboarding:local',
+        sandboxIdleTimeoutMs,
+        sandboxSnapshotRetentionMs,
+        lambdaMicroVm: {
+            region: lambdaMicroVmRegion,
+            executionRoleArn:
+                process.env.LAMBDA_MICROVM_EXECUTION_ROLE_ARN || null,
+            // Managed connectors are fixed, region-scoped ARNs (no list op). The
+            // open `INTERNET_EGRESS` connector is the MVP egress; a custom VPC
+            // connector (egress allowlist) is a later hardening.
+            ingressConnectorArn:
+                process.env.LAMBDA_MICROVM_INGRESS_CONNECTOR_ARN ||
+                `arn:aws:lambda:${lambdaMicroVmRegion}:aws:network-connector:aws-network-connector:ALL_INGRESS`,
+            egressConnectorArn:
+                process.env.LAMBDA_MICROVM_EGRESS_CONNECTOR_ARN ||
+                `arn:aws:lambda:${lambdaMicroVmRegion}:aws:network-connector:aws-network-connector:INTERNET_EGRESS`,
+            maxIdleDurationSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+            suspendedDurationSeconds: Math.floor(
+                sandboxSnapshotRetentionMs / 1000,
+            ),
+        },
+        lambdaMicroVmDataAppImageArn:
+            process.env.LAMBDA_MICROVM_DATA_APP_IMAGE_ARN || null,
+        lambdaMicroVmAiWritebackImageArn:
+            process.env.LAMBDA_MICROVM_AI_WRITEBACK_IMAGE_ARN || null,
+        azureSandboxes: {
+            subscriptionId: process.env.AZURE_SANDBOXES_SUBSCRIPTION_ID || null,
+            resourceGroup: process.env.AZURE_SANDBOXES_RESOURCE_GROUP || null,
+            region: process.env.AZURE_SANDBOXES_REGION || 'eastus2',
+            apiVersion:
+                process.env.AZURE_SANDBOXES_API_VERSION || '2026-02-01-preview',
+            // AAD resource for the Sandboxes ADC data plane.
+            tokenScope:
+                process.env.AZURE_SANDBOXES_TOKEN_SCOPE ||
+                'https://management.azuredevcompute.io/.default',
+            resourceTier: process.env.AZURE_SANDBOXES_RESOURCE_TIER || 'M',
+        },
+        azureSandboxesDataAppGroup:
+            process.env.AZURE_SANDBOXES_DATA_APP_GROUP || null,
+        azureSandboxesDataAppDiskImage:
+            process.env.AZURE_SANDBOXES_DATA_APP_DISK_IMAGE || null,
+        azureSandboxesAiWritebackGroup:
+            process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,
+        azureSandboxesAiWritebackDiskImage:
+            process.env.AZURE_SANDBOXES_AI_WRITEBACK_DISK_IMAGE || null,
+        e2bAgentOnboardingTemplateName:
+            process.env.E2B_AGENT_ONBOARDING_TEMPLATE_NAME ||
+            'lightdash-agent-onboarding',
+        e2bAgentOnboardingTemplateTag:
+            process.env.E2B_AGENT_ONBOARDING_TEMPLATE_TAG ??
+            (VERSION as string),
+        // The lean coding-agent image (sandboxes/ai-coding-agent), published per
+        // release by the post-release workflow at the running version's tag —
+        // same pattern as the other templates. Operators can override the
+        // name/tag (e.g. to pin, roll back, or point at the writeback image for
+        // local dev before the lean image is built).
+        e2bCodingAgentTemplateName:
+            process.env.E2B_CODING_AGENT_TEMPLATE_NAME ||
+            'lightdash-ai-coding-agent',
+        e2bCodingAgentTemplateTag:
+            process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
+        otel: parseDataAppOtelConfig(),
+        dependencyRegistryHosts: (
+            process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||
+            'registry.npmjs.org'
+        )
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((host) => {
+                // These feed the sandbox egress allowlist — fail loudly on
+                // anything that isn't a plain hostname.
+                if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(host)) {
+                    throw new ParseError(
+                        `Cannot parse environment variable "LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS". "${host}" is not a valid hostname`,
+                    );
+                }
+                return host;
+            }),
+        dependencyInstallTimeoutMs:
+            getIntegerFromEnvironmentVariable(
+                'LIGHTDASH_APP_DEPENDENCY_INSTALL_TIMEOUT_MS',
+            ) ?? 120_000,
+        dependencyMinReleaseAgeDays:
+            getIntegerFromEnvironmentVariable(
+                'LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS',
+            ) ?? 0,
+        dependencyMalwareCheckEnabled:
+            process.env.LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED !==
+            'false',
+        sampleDataEnabled:
+            process.env.LIGHTDASH_APP_SAMPLE_DATA_ENABLED !== 'false',
     };
 };
 
@@ -1944,6 +2395,27 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    const pgWirePort = getIntegerFromEnvironmentVariable('PGWIRE_PORT');
+    const pgWireSslMode = process.env.PGWIRE_SSL_MODE ?? 'require';
+    if (pgWireSslMode !== 'require' && pgWireSslMode !== 'disabled') {
+        throw new ParseError(
+            `PGWIRE_SSL_MODE must be "require" or "disabled", got "${pgWireSslMode}"`,
+            {},
+        );
+    }
+    const pgWireSslCertPath = process.env.PGWIRE_SSL_CERT_PATH;
+    const pgWireSslKeyPath = process.env.PGWIRE_SSL_KEY_PATH;
+    if (
+        pgWirePort !== undefined &&
+        pgWireSslMode === 'require' &&
+        (!pgWireSslCertPath || !pgWireSslKeyPath)
+    ) {
+        throw new ParseError(
+            'PGWIRE_PORT is set but TLS is not configured. Set PGWIRE_SSL_CERT_PATH and PGWIRE_SSL_KEY_PATH (PEM files), or explicitly opt out with PGWIRE_SSL_MODE=disabled (credentials will cross the network in plaintext).',
+            {},
+        );
+    }
+
     const rawCopilotConfig = getAiConfig();
     const copilotConfigParse =
         aiCopilotConfigSchema.safeParse(rawCopilotConfig);
@@ -1963,6 +2435,9 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
+    const usageEventsEnabled =
+        licenseKey !== null && process.env.USAGE_EVENTS_ENABLED === 'true';
+    const usageEventsS3 = parseUsageEventsS3Config();
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
@@ -1972,6 +2447,9 @@ export const parseConfig = (): LightdashConfig => {
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
+    }
+    if (usageEventsEnabled && !usageEventsS3) {
+        throw new ParseError('Usage events require S3 configuration', {});
     }
     if (natsWorkerEnabled && !natsWorkerUrl) {
         throw new ParseError('NATS_URL is required when NATS_ENABLED=true', {});
@@ -2032,6 +2510,11 @@ export const parseConfig = (): LightdashConfig => {
                       process.env.EMAIL_SMTP_IMAGE_INLINE_CID === 'true',
               }
             : undefined,
+        postmark: {
+            accountToken: process.env.POSTMARK_ACCOUNT_TOKEN || undefined,
+            returnPathSubdomain:
+                process.env.POSTMARK_RETURN_PATH_SUBDOMAIN || 'pm-bounces',
+        },
         rudder: {
             writeKey:
                 process.env.RUDDERSTACK_ANALYTICS_DISABLED === 'true'
@@ -2335,6 +2818,10 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.HEADLESS_BROWSER_MAX_SCREENSHOT_RETRIES || '5',
                 10,
             ),
+            screenshotTimeoutMs: parseInt(
+                process.env.HEADLESS_BROWSER_SCREENSHOT_TIMEOUT_MS || '180000',
+                10,
+            ),
             retryBaseDelayMs: parseInt(
                 process.env.HEADLESS_BROWSER_RETRY_BASE_DELAY_MS || '3000',
                 10,
@@ -2361,7 +2848,7 @@ export const parseConfig = (): LightdashConfig => {
             signingSecret: process.env.SLACK_SIGNING_SECRET,
             clientId: process.env.SLACK_CLIENT_ID,
             clientSecret: process.env.SLACK_CLIENT_SECRET,
-            stateSecret: process.env.SLACK_STATE_SECRET || 'slack-state-secret',
+            stateSecret: process.env.SLACK_STATE_SECRET || lightdashSecret,
             appToken: process.env.SLACK_APP_TOKEN,
             port: parseInt(process.env.SLACK_PORT || '4351', 10),
             socketMode: process.env.SLACK_SOCKET_MODE === 'true',
@@ -2373,6 +2860,11 @@ export const parseConfig = (): LightdashConfig => {
             linkShareImagePreviewEnabled:
                 process.env.SLACK_LINK_SHARE_IMAGE_PREVIEW_ENABLED !== 'false',
         },
+        brandfetch: process.env.BRANDFETCH_API_KEY
+            ? {
+                  apiKey: process.env.BRANDFETCH_API_KEY,
+              }
+            : undefined,
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
             concurrency: parseInt(process.env.SCHEDULER_CONCURRENCY || '3', 10),
@@ -2474,6 +2966,8 @@ export const parseConfig = (): LightdashConfig => {
                     ? undefined
                     : parseLoggingLevel(process.env.LIGHTDASH_LOG_FILE_LEVEL),
             filePath: process.env.LIGHTDASH_LOG_FILE_PATH || './logs/all.log',
+            auditActorAsString:
+                process.env.LIGHTDASH_LOG_AUDIT_ACTOR_AS_STRING === 'true',
         },
         ai: {
             copilot: copilotConfig,
@@ -2570,6 +3064,10 @@ export const parseConfig = (): LightdashConfig => {
         },
         aiWriteback: {
             anthropicApiKey: process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
+            codingAgentMaxRepoSizeMb: parseInt(
+                process.env.AI_CODING_AGENT_MAX_REPO_SIZE_MB || '500',
+                10,
+            ),
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
@@ -2586,9 +3084,6 @@ export const parseConfig = (): LightdashConfig => {
         editYamlInUi: {
             enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
         },
-        partialCompilation: {
-            enabled: process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
-        },
         funnelBuilder: {
             enabled:
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
@@ -2604,6 +3099,15 @@ export const parseConfig = (): LightdashConfig => {
                     'SOFT_DELETE_RETENTION_DAYS',
                 ) ?? 30,
         },
+        pgWire: {
+            port: pgWirePort,
+            host: process.env.PGWIRE_HOST,
+            ssl: {
+                mode: pgWireSslMode,
+                certPath: pgWireSslCertPath,
+                keyPath: pgWireSslKeyPath,
+            },
+        },
         preAggregates: {
             enabled: preAggregatesEnabled,
             parquetEnabled:
@@ -2614,6 +3118,22 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
+        },
+        usageEvents: {
+            enabled: usageEventsEnabled,
+            flushIntervalMs:
+                getIntegerFromEnvironmentVariable(
+                    'USAGE_EVENTS_FLUSH_INTERVAL_MS',
+                ) ?? 60000,
+            flushBatchSize:
+                getIntegerFromEnvironmentVariable(
+                    'USAGE_EVENTS_FLUSH_BATCH_SIZE',
+                ) ?? 1000,
+            bufferMaxSize:
+                getIntegerFromEnvironmentVariable(
+                    'USAGE_EVENTS_BUFFER_MAX_SIZE',
+                ) ?? 10000,
+            s3: usageEventsS3,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
         enabledFeatureFlags: new Set([
@@ -2634,5 +3154,13 @@ export const parseConfig = (): LightdashConfig => {
                 ([envVar]) => process.env[envVar] === 'true',
             ).map(([, flagId]) => flagId),
         ]),
+        previewFeatureFlags: {
+            enabled:
+                process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED ===
+                    'true' ||
+                (process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED !==
+                    'false' &&
+                    lightdashMode === LightdashMode.PR),
+        },
     };
 };

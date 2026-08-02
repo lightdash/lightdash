@@ -1,26 +1,25 @@
 import { OrganizationProject, ProjectType } from '@lightdash/common';
 import inquirer from 'inquirer';
+import type { Mocked, MockedFunction } from 'vitest';
 import { setProject as setProjectConfig } from '../config';
 import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
 import { setProjectCommand } from './setProject';
 
-jest.mock('inquirer');
-jest.mock('../analytics/analytics');
-jest.mock('./dbt/apiClient', () => ({
-    lightdashApi: jest.fn(),
+vi.mock('inquirer');
+vi.mock('../analytics/analytics');
+vi.mock('./dbt/apiClient', () => ({
+    lightdashApi: vi.fn(),
 }));
-jest.mock('../config', () => ({
-    getConfig: jest.fn().mockResolvedValue({ context: {} }),
-    setProject: jest.fn().mockResolvedValue(undefined),
-    unsetProject: jest.fn().mockResolvedValue(undefined),
+vi.mock('../config', () => ({
+    getConfig: vi.fn().mockResolvedValue({ context: {} }),
+    setProject: vi.fn().mockResolvedValue(undefined),
+    unsetProject: vi.fn().mockResolvedValue(undefined),
 }));
 
-const mockLightdashApi = lightdashApi as jest.MockedFunction<
-    typeof lightdashApi
->;
-const mockInquirer = inquirer as jest.Mocked<typeof inquirer>;
-const mockSetProjectConfig = setProjectConfig as jest.MockedFunction<
+const mockLightdashApi = lightdashApi as MockedFunction<typeof lightdashApi>;
+const mockInquirer = inquirer as Mocked<typeof inquirer>;
+const mockSetProjectConfig = setProjectConfig as MockedFunction<
     typeof setProjectConfig
 >;
 
@@ -45,8 +44,8 @@ describe('setProjectCommand', () => {
     const originalIsNonInteractive = GlobalState.isNonInteractive;
 
     beforeEach(() => {
-        jest.clearAllMocks();
-        GlobalState.isNonInteractive = jest.fn().mockReturnValue(false);
+        vi.clearAllMocks();
+        GlobalState.isNonInteractive = vi.fn().mockReturnValue(false);
     });
 
     afterAll(() => {
@@ -55,7 +54,7 @@ describe('setProjectCommand', () => {
 
     it('does not offer preview projects in the interactive list', async () => {
         mockLightdashApi.mockResolvedValueOnce(buildProjects() as never);
-        const promptMock = jest
+        const promptMock = vi
             .fn()
             .mockResolvedValueOnce({ project: MAIN_UUID });
         mockInquirer.prompt = promptMock as never;

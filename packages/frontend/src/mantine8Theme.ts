@@ -4,6 +4,7 @@ import {
     Button,
     Card,
     Loader,
+    Menu,
     Modal,
     MultiSelect,
     NumberInput,
@@ -59,7 +60,12 @@ declare module '@mantine-8/core' {
     }
 }
 
-type ExtendedCustomColors = 'ldGray' | 'ldDark' | DefaultMantineColor;
+type ExtendedCustomColors =
+    | 'ldGray'
+    | 'ldDark'
+    | 'ldBrandGray'
+    | 'ldBrandViolet'
+    | DefaultMantineColor;
 
 const subtleInputStyles = (theme: MantineTheme) => ({
     input: {
@@ -112,11 +118,7 @@ export const getMantine8ThemeOverride = (
     const { colors, components, ...legacyTheme } =
         getMantine6ThemeOverride(colorScheme);
 
-    const {
-        Button: _Button,
-        ScrollArea: _ScrollArea,
-        ...legacyComponentsTheme
-    } = components;
+    const { Button: _Button, ...legacyComponentsTheme } = components;
 
     return {
         ...legacyTheme,
@@ -266,10 +268,22 @@ export const getMantine8ThemeOverride = (
                 },
             }),
 
+            Menu: Menu.extend({
+                styles: (theme) => ({
+                    dropdown: { fontFamily: theme.fontFamily },
+                    item: { fontFamily: theme.fontFamily },
+                }),
+            }),
+
             Select: Select.extend({
                 defaultProps: {
                     radius: 'md',
                 },
+                styles: (theme) => ({
+                    input: { fontFamily: theme.fontFamily },
+                    option: { fontFamily: theme.fontFamily },
+                    groupLabel: { fontFamily: theme.fontFamily },
+                }),
                 vars: (theme, props) => {
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);

@@ -13,7 +13,9 @@ const flattenItems = (
 
 /**
  * Filters the settings nav model by a free-text query using fuzzy matching
- * (Fuse.js, mirroring the explores search). A matching parent keeps all its
+ * (Fuse.js, mirroring the explores search). Matches the label, hidden keywords,
+ * and each entry's in-page sub-section titles/keywords — so page content (e.g.
+ * "impersonation") surfaces the parent page. A matching parent keeps all its
  * children; an unmatched parent is kept only for its matching descendants.
  * Sections with no surviving items are dropped. An empty query returns the
  * model unchanged.
@@ -31,6 +33,8 @@ export const filterSettingsNavigation = (
         keys: [
             { name: 'label', weight: 2 },
             { name: 'keywords', weight: 1 },
+            { name: 'pageSections.title', weight: 1 },
+            { name: 'pageSections.keywords', weight: 1 },
         ],
         ignoreLocation: true,
         threshold: FUSE_THRESHOLD,
@@ -94,8 +98,9 @@ const flattenWithAncestors = (
 
 /**
  * Flat fuzzy match across every nav destination, each carrying its breadcrumb.
- * Matches label, keywords, ancestor labels, and section title — so "ask ai" or
- * "current project" surface the relevant pages.
+ * Matches label, keywords, in-page sub-sections, ancestor labels, and section
+ * title — so "ask ai", "current project", or "impersonation" surface the
+ * relevant pages.
  */
 export const searchSettingsNavigationItemsWithPath = (
     sections: SettingsNavigationSection[],
@@ -113,6 +118,8 @@ export const searchSettingsNavigationItemsWithPath = (
         keys: [
             { name: 'item.label', weight: 2 },
             { name: 'item.keywords', weight: 1 },
+            { name: 'item.pageSections.title', weight: 1 },
+            { name: 'item.pageSections.keywords', weight: 1 },
             { name: 'ancestors', weight: 1 },
             { name: 'sectionTitle', weight: 1 },
         ],

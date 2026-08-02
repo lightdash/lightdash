@@ -9,6 +9,7 @@ import {
     LoadingOverlay,
     Stack,
     Text,
+    Textarea,
     Title,
     Tooltip,
     UnstyledButton,
@@ -20,6 +21,7 @@ import {
     IconChevronRight,
     IconExternalLink,
     IconGitPullRequest,
+    IconSend,
     IconSettings,
     IconX,
 } from '@tabler/icons-react';
@@ -29,6 +31,7 @@ import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useProjects } from '../../../../../hooks/useProjects';
 import {
+    useAddAiAgentReviewItemComment,
     useAiAgentAdminAgents,
     useAiAgentAdminReviewItems,
 } from '../../hooks/useAiAgentAdmin';
@@ -44,6 +47,7 @@ import {
     getReviewReasoningText,
     getReviewSecondaryDetail,
 } from './reviewItemDetails';
+import { ReviewPriorityMenu } from './ReviewPriorityMenu';
 import { ReviewValidationList } from './ReviewValidationList';
 import styles from './ThreadPreviewSidebar.module.css';
 import {
@@ -141,6 +145,8 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
 }) => {
     const theme = useMantineTheme();
     const navigate = useNavigate();
+    const addComment = useAddAiAgentReviewItemComment();
+    const [commentBody, setCommentBody] = useState('');
     const { data: threadData, isLoading: isLoadingThread } = useAiAgentThread(
         projectUuid,
         agentUuid,
@@ -229,7 +235,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                             ? 'Review details'
                             : 'Thread preview'}
                     </Title>
-                    <Tooltip label="Open Thread" variant="xs" position="right">
+                    <Tooltip label="Open Thread" position="right">
                         <ActionIcon
                             variant="subtle"
                             color="gray"
@@ -250,11 +256,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                             variant="pill"
                         />
                     )}
-                    <Tooltip
-                        label="Open Agent Settings"
-                        variant="xs"
-                        position="right"
-                    >
+                    <Tooltip label="Open Agent Settings" position="right">
                         <ActionIcon
                             variant="subtle"
                             color="gray"
@@ -313,6 +315,14 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                             selectedReviewItem
                                                                 .primaryRootCause
                                                         ]
+                                                    }
+                                                />
+                                                <ReviewPriorityMenu
+                                                    fingerprint={
+                                                        selectedReviewItem.fingerprint
+                                                    }
+                                                    priority={
+                                                        selectedReviewItem.priority
                                                     }
                                                 />
                                             </Group>
@@ -477,22 +487,62 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         </Collapse>
                                     )}
 
-                                    {selectedReviewItem.remediation && (
-                                        <Stack gap={6} pt="xs">
-                                            <Text
-                                                size="10px"
-                                                fw={700}
-                                                tt="uppercase"
-                                                lts={0.4}
-                                                c="ldGray.7"
+                                    <Stack gap={6} pt="xs">
+                                        <Text
+                                            size="10px"
+                                            fw={700}
+                                            tt="uppercase"
+                                            lts={0.4}
+                                            c="ldGray.7"
+                                        >
+                                            Activity
+                                        </Text>
+                                        <RemediationActivityTimeline
+                                            reviewItem={selectedReviewItem}
+                                        />
+                                        <Textarea
+                                            value={commentBody}
+                                            onChange={(event) =>
+                                                setCommentBody(
+                                                    event.currentTarget.value,
+                                                )
+                                            }
+                                            minRows={2}
+                                            placeholder="Add a comment"
+                                        />
+                                        <Group justify="flex-end">
+                                            <Button
+                                                size="compact-xs"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconSend}
+                                                    />
+                                                }
+                                                loading={addComment.isLoading}
+                                                disabled={!commentBody.trim()}
+                                                onClick={() => {
+                                                    const body =
+                                                        commentBody.trim();
+                                                    if (!body) return;
+                                                    addComment.mutate(
+                                                        {
+                                                            fingerprint:
+                                                                selectedReviewItem.fingerprint,
+                                                            body,
+                                                        },
+                                                        {
+                                                            onSuccess: () =>
+                                                                setCommentBody(
+                                                                    '',
+                                                                ),
+                                                        },
+                                                    );
+                                                }}
                                             >
-                                                Activity
-                                            </Text>
-                                            <RemediationActivityTimeline
-                                                reviewItem={selectedReviewItem}
-                                            />
-                                        </Stack>
-                                    )}
+                                                Comment
+                                            </Button>
+                                        </Group>
+                                    </Stack>
                                 </Stack>
                             </Stack>
 
@@ -507,7 +557,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         align="center"
                                     >
                                         <Title order={6} fw={600}>
-                                            Review findings
+                                            Issues
                                         </Title>
                                         <Badge variant="light" color="violet">
                                             {reviewSummary.findingCount}
@@ -639,11 +689,11 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                                 reviewItem.uuid,
                                                             );
                                                             void navigate(
-                                                                `/generalSettings/ai/reviews?${params.toString()}`,
+                                                                `/generalSettings/ai/issues?${params.toString()}`,
                                                             );
                                                         }}
                                                     >
-                                                        View review
+                                                        View issue
                                                     </Button>
 
                                                     {reviewItem.linkedPrUrl && (

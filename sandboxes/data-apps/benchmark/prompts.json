@@ -1,0 +1,59 @@
+{
+    "prompts": [
+        {
+            "id": "kpi-dashboard",
+            "prompt": "Build a revenue dashboard: a KPI row with total revenue, order count, and average order value, a revenue-by-month line chart, and a revenue-by-customer-segment bar chart. Use the orders model.",
+            "mustRead": [],
+            "mustNotRead": [
+                "/app/references/sheets-export.md",
+                "/app/references/pdf-downloads.md",
+                "/app/references/chart-references.md",
+                "/app/references/external-apis.md"
+            ]
+        },
+        {
+            "id": "chart-heavy",
+            "prompt": "Build an operations overview app: order status breakdown, payment failure rate by processor, revenue by region, and completion rate over time. Clicking a bar or slice should filter the other charts.",
+            "mustRead": [],
+            "mustNotRead": [
+                "/app/references/sheets-export.md",
+                "/app/references/pdf-downloads.md",
+                "/app/references/chart-references.md"
+            ]
+        },
+        {
+            "id": "table-export",
+            "prompt": "Build a customer explorer: a searchable table of customers with lifetime value and churn risk, export controls, and a KPI header with customer count and average lifetime value.",
+            "mustRead": [],
+            "mustNotRead": [
+                "/app/references/sheets-export.md",
+                "/app/references/pdf-downloads.md"
+            ]
+        },
+        {
+            "id": "pdf-report",
+            "prompt": "Build a monthly business review as a downloadable PDF report: revenue trend, order volume, payment health, and a short narrative summary per section.",
+            "mustRead": ["/app/references/pdf-downloads.md"],
+            "mustNotRead": ["/app/references/sheets-export.md"]
+        },
+        {
+            "id": "sheets-export",
+            "prompt": "Build a revenue-by-segment table with an 'Open in Google Sheets' button so the team can share the numbers in a spreadsheet.",
+            "mustRead": ["/app/references/sheets-export.md"],
+            "mustNotRead": ["/app/references/pdf-downloads.md"]
+        },
+        {
+            "id": "chart-reference",
+            "prompt": "Recreate this chart and add a companion table showing the same data.",
+            "prepend": "[Referenced saved charts — metric queries available at /tmp/metric-queries/. Read /app/references/chart-references.md before using them.]\n- revenue-by-month.json (\"Revenue by month\", explore: orders)\n\n",
+            "sandboxFiles": {
+                "/tmp/metric-queries/revenue-by-month.json": "fixtures/metric-query-revenue-by-month.json"
+            },
+            "mustRead": ["/app/references/chart-references.md"],
+            "mustNotRead": [
+                "/app/references/sheets-export.md",
+                "/app/references/pdf-downloads.md"
+            ]
+        }
+    ]
+}

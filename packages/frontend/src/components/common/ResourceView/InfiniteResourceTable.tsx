@@ -13,20 +13,19 @@ import {
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
-import { useDebouncedCallback } from '@mantine-8/hooks';
 import {
-    ActionIcon,
-    Anchor,
+    TextInput,
     Box,
-    Button,
     Divider,
     Group,
     Text,
-    TextInput,
+    Button,
+    ActionIcon,
+    Anchor,
     Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+} from '@mantine-8/core';
+import { useDebouncedCallback, useDisclosure } from '@mantine-8/hooks';
+import { useMantineTheme } from '@mantine/core';
 import {
     IconAppWindow,
     IconArrowDown,
@@ -70,6 +69,7 @@ import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import AdminContentViewFilter from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
+import classes from './InfiniteResourceTable.module.css';
 import InfiniteResourceTableColumnName from './InfiniteResourceTableColumnName';
 import ResourceAccessInfo from './ResourceAccessInfo';
 import ResourceActionHandlers from './ResourceActionHandlers';
@@ -124,15 +124,15 @@ const DebouncedSearchInput = memo(
         );
 
         return (
-            <Tooltip withinPortal variant="xs" label="Search by name">
+            <Tooltip withinPortal label="Search by name">
                 <TextInput
                     size="xs"
                     radius="md"
+                    classNames={{ input: classes.searchInput }}
                     styles={(inputTheme) => ({
                         input: {
                             height: 32,
                             width: 309,
-                            padding: `${inputTheme.spacing.xs} ${inputTheme.spacing.sm}`,
                             textOverflow: 'ellipsis',
                             fontSize: inputTheme.fontSizes.sm,
                             fontWeight: 400,
@@ -140,20 +140,13 @@ const DebouncedSearchInput = memo(
                                 ? inputTheme.colors.ldGray[8]
                                 : inputTheme.colors.ldGray[5],
                             boxShadow: inputTheme.shadows.subtle,
-                            border: `1px solid ${inputTheme.colors.ldGray[3]}`,
-                            '&:hover': {
-                                border: `1px solid ${inputTheme.colors.ldGray[4]}`,
-                            },
-                            '&:focus': {
-                                border: `1px solid ${inputTheme.colors.blue[5]}`,
-                            },
                         },
                     })}
                     type="search"
                     variant="default"
                     placeholder="Search by name"
                     value={value}
-                    icon={
+                    leftSection={
                         <MantineIcon
                             size="md"
                             color="ldGray.6"
@@ -161,9 +154,12 @@ const DebouncedSearchInput = memo(
                         />
                     }
                     onChange={(e) => handleChange(e.target.value)}
+                    rightSectionPointerEvents="all"
                     rightSection={
                         value && (
                             <ActionIcon
+                                aria-label="Clear search"
+                                onMouseDown={(event) => event.preventDefault()}
                                 onClick={() => handleChange('')}
                                 variant="transparent"
                                 size="xs"
@@ -262,7 +258,7 @@ const InfiniteResourceTable = ({
                 if (space) {
                     return (
                         <Anchor
-                            color="ldGray.7"
+                            c="ldGray.7"
                             component={Link}
                             to={`/projects/${space.projectUuid}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
@@ -279,7 +275,7 @@ const InfiniteResourceTable = ({
                 // Personal (space-less) data apps have no space to link to.
                 if (isResourceViewDataAppItem(item) && !item.data.spaceUuid) {
                     return (
-                        <Text fz={12} fw={500} color="dimmed">
+                        <Text fz={12} fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -296,11 +292,31 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} color="ldGray.7">
+                        <Text fz={12} fw={500} c="ldGray.7">
                             -
                         </Text>
                     );
                 return <ResourceLastEdited item={row.original} />;
+            },
+        },
+        {
+            accessorKey: ColumnVisibility.VIEWS,
+            enableSorting: true,
+            enableEditing: false,
+            header: 'Views',
+            size: 100,
+            Cell: ({ row }) => {
+                if (isResourceViewSpaceItem(row.original))
+                    return (
+                        <Text fz={12} fw={500} c="ldGray.7">
+                            -
+                        </Text>
+                    );
+                return (
+                    <Text fz={12} fw={500} c="ldGray.7">
+                        {row.original.data.views}
+                    </Text>
+                );
             },
         },
         {
@@ -367,7 +383,7 @@ const InfiniteResourceTable = ({
     ];
     const initialSorting: ContentTableSortingState = [
         {
-            id: ContentSortByColumns.LAST_UPDATED_AT,
+            id: ColumnVisibility.UPDATED_AT,
             desc: true,
         },
     ];
@@ -391,18 +407,23 @@ const InfiniteResourceTable = ({
         | undefined = useMemo(() => {
         if (sorting.length === 0) return undefined;
 
+        // Sorting ids are column accessorKeys (ColumnVisibility values)
         const firstSorting = sorting[0].id;
 
         let sortByColumn: ContentSortByColumns =
             ContentSortByColumns.LAST_UPDATED_AT;
         const sortDirection: 'asc' | 'desc' = sorting[0].desc ? 'desc' : 'asc';
 
-        if (firstSorting === ContentSortByColumns.NAME) {
+        if (firstSorting === ColumnVisibility.NAME) {
             sortByColumn = ContentSortByColumns.NAME;
         }
 
-        if (firstSorting === ContentSortByColumns.SPACE_NAME) {
+        if (firstSorting === ColumnVisibility.SPACE) {
             sortByColumn = ContentSortByColumns.SPACE_NAME;
+        }
+
+        if (firstSorting === ColumnVisibility.VIEWS) {
+            sortByColumn = ContentSortByColumns.VIEWS;
         }
 
         return {
@@ -498,6 +519,7 @@ const InfiniteResourceTable = ({
             [ColumnVisibility.NAME]: true,
             [ColumnVisibility.SPACE]: true,
             [ColumnVisibility.UPDATED_AT]: true,
+            [ColumnVisibility.VIEWS]: true,
             [ColumnVisibility.ACCESS]: false,
             [ColumnVisibility.CONTENT]: false,
             ...columnVisibility,
@@ -508,6 +530,7 @@ const InfiniteResourceTable = ({
     const table = useContentTable({
         columns: ResourceColumns,
         data: tableData,
+        getRowId: (item) => `${item.type}-${item.data.uuid}`,
         enableColumnResizing: true,
         enableRowNumbers: false,
         positionActionsColumn: 'last',
@@ -672,7 +695,7 @@ const InfiniteResourceTable = ({
             return (
                 <Box>
                     <Group p={`${theme.spacing.lg} ${theme.spacing.xl}`}>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <DebouncedSearchInput onSearch={setSearch} />
 
                             {contentTypeFilter &&
@@ -682,9 +705,9 @@ const InfiniteResourceTable = ({
                                         orientation="vertical"
                                         w={1}
                                         h={20}
-                                        sx={{
+                                        color="#DEE2E6"
+                                        style={{
                                             alignSelf: 'center',
-                                            borderColor: '#DEE2E6',
                                         }}
                                     />
                                     <ContentTypeFilter
@@ -709,7 +732,7 @@ const InfiniteResourceTable = ({
                                 variant="filled"
                                 size="xs"
                                 color="blue"
-                                leftIcon={
+                                leftSection={
                                     <MantineIcon icon={IconFolderSymlink} />
                                 }
                                 onClick={openTransferItemsModal}
@@ -727,21 +750,21 @@ const InfiniteResourceTable = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                color="ldGray.8"
-                sx={{
+                c="ldGray.8"
+                style={{
                     borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
                 {isFetching ? (
-                    <Text>Loading more...</Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
-                    <Group spacing="two">
-                        <Text>
+                    <Group gap="two">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fw={400} color="ldGray.6">
+                        <Text fz="xs" fw={400} c="ldGray.6">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}
@@ -831,6 +854,11 @@ const InfiniteResourceTable = ({
             size: 'sm',
         },
     });
+
+    const spaceUuidsKey = (filters.spaceUuids ?? []).join(',');
+    useEffect(() => {
+        table.resetRowSelection();
+    }, [spaceUuidsKey, table]);
 
     const {
         mutateAsync: contentBulkAction,

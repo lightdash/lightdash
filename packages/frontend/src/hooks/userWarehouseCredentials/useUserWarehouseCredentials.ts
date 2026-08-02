@@ -13,7 +13,7 @@ import {
 import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
-const getUserWarehouseCredentials = async () =>
+export const getUserWarehouseCredentials = async () =>
     lightdashApi<UserWarehouseCredentials[]>({
         url: `/user/warehouseCredentials`,
         method: 'GET',
@@ -56,6 +56,7 @@ const createUserWarehouseCredentials = async (
         url: `/user/warehouseCredentials`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 export const useUserWarehouseCredentialsCreateMutation = (
@@ -101,6 +102,7 @@ const updateUserWarehouseCredentials = async (
         url: `/user/warehouseCredentials/${uuid}`,
         method: 'PATCH',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 export const useUserWarehouseCredentialsUpdateMutation = (uuid: string) => {

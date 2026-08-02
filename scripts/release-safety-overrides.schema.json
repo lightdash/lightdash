@@ -1,0 +1,37 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://lightdash.com/schemas/release-safety-overrides/v1.json",
+    "title": "Lightdash release-safety upgrade overrides",
+    "description": "Maintainer-authored, committed upgrade-path overrides consumed by scripts/gen-release-safety.ts to populate the marker's `upgrade` block (PROD-8359, P4). Version-keyed: an entry is inert for every release except the one it names. See docs/superpowers/specs/2026-06-29-prod-8359-release-safety-marker-design.md",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "$schema": { "type": "string" },
+        "default": { "$ref": "#/definitions/upgradeBlock" },
+        "versions": {
+            "type": "object",
+            "description": "Per-release overrides keyed by exact release version (e.g. \"0.3300.0\"). A version-specific field wins over `default`.",
+            "additionalProperties": { "$ref": "#/definitions/upgradeBlock" }
+        }
+    },
+    "definitions": {
+        "upgradeBlock": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "minPreviousVersion": {
+                    "type": ["string", "null"],
+                    "description": "Oldest previous version that may upgrade directly to this release; null = no floor."
+                },
+                "requiredStop": {
+                    "type": "boolean",
+                    "description": "True if operators MUST land on this release before upgrading further (a required stop)."
+                },
+                "note": {
+                    "type": ["string", "null"],
+                    "description": "Operator-facing explanation; set this whenever requiredStop is true."
+                }
+            }
+        }
+    }
+}

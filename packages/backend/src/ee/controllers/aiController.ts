@@ -1,6 +1,7 @@
 import {
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
+    ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateCustomVizResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
@@ -10,6 +11,7 @@ import {
     assertRegisteredAccount,
     DashboardSummary,
     GenerateChartMetadataRequest,
+    GenerateCustomDimensionRequest,
     GenerateFormulaTableCalculationRequest,
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
@@ -149,6 +151,27 @@ export class AiController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiService().generateTableCalculation(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/custom-dimension/generate')
+    @OperationId('generateCustomDimension')
+    async generateCustomDimension(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: GenerateCustomDimensionRequest,
+    ): Promise<ApiAiGenerateCustomDimensionResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiService().generateCustomDimension(
                 toSessionUser(req.account),
                 projectUuid,
                 body,

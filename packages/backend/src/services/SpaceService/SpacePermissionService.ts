@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     getHighestSpaceRole,
+    getOrganizationRoleForSpaceAccess,
+    getProjectRoleForSpaceAccess,
     NotFoundError,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -13,8 +15,13 @@ import {
     type SpaceAccessUserMetadata,
     type SpaceGroup,
 } from '@lightdash/common';
+import { Knex } from 'knex';
 import { SpaceModel } from '../../models/SpaceModel';
-import { SpacePermissionModel } from '../../models/SpacePermissionModel';
+import {
+    SpacePermissionModel,
+    type OrganizationSpaceAccessWithCustomRole,
+    type ProjectSpaceAccessWithCustomRole,
+} from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
 
 export type SpaceAdmin = {
@@ -51,18 +58,35 @@ export class SpacePermissionService extends BaseService {
         action: AbilityAction,
         user: SessionUser,
         spaceUuids: string[] | string,
+        { trx }: { trx?: Knex } = {},
     ): Promise<boolean> {
         const spaceUuidsArray = Array.isArray(spaceUuids)
             ? spaceUuids
             : [spaceUuids];
 
-        const accessContext = await this.getSpacesCaslContext(spaceUuidsArray, {
-            userUuid: user.userUuid,
-        });
+        const accessContext = await this.getSpacesCaslContext(
+            spaceUuidsArray,
+            {
+                userUuid: user.userUuid,
+            },
+            { trx },
+        );
+
+        const uniqueSpaceUuids = [...new Set(spaceUuidsArray)];
+        if (
+            uniqueSpaceUuids.some(
+                (spaceUuid) => accessContext[spaceUuid] === undefined,
+            )
+        ) {
+            return false;
+        }
 
         const auditedAbility = this.createAuditedAbility(user);
-        return Object.values(accessContext).every((access) =>
-            auditedAbility.can(action, subject('Space', access)),
+        return uniqueSpaceUuids.every((spaceUuid) =>
+            auditedAbility.can(
+                action,
+                subject('Space', accessContext[spaceUuid]),
+            ),
         );
     }
 
@@ -90,6 +114,11 @@ export class SpacePermissionService extends BaseService {
             .map(([spaceUuid]) => spaceUuid);
     }
 
+    /** Returns persisted direct grants without inherited or expanded access. */
+    async getRawDirectAccess(spaceUuids: string[]) {
+        return this.spacePermissionModel.getRawDirectAccess(spaceUuids);
+    }
+
     /**
      * Returns the CASL context for a space (organizationUuid, projectUuid, inheritsFromOrgOrProject, access)
      * without performing any permission checks. Callers use this to build their own
@@ -98,10 +127,15 @@ export class SpacePermissionService extends BaseService {
     async getSpaceAccessContext(
         userUuid: string,
         spaceUuid: string,
+        { trx }: { trx?: Knex } = {},
     ): Promise<SpaceAccessContextForCasl> {
-        const accessContext = await this.getSpacesCaslContext([spaceUuid], {
-            userUuid,
-        });
+        const accessContext = await this.getSpacesCaslContext(
+            [spaceUuid],
+            {
+                userUuid,
+            },
+            { trx },
+        );
         const ctx = accessContext[spaceUuid];
         if (!ctx) {
             throw new NotFoundError(
@@ -120,8 +154,9 @@ export class SpacePermissionService extends BaseService {
     async getSpacesAccessContext(
         userUuid: string,
         spaceUuids: string[],
+        { trx }: { trx?: Knex } = {},
     ): Promise<Record<string, SpaceAccessContextForCasl>> {
-        return this.getSpacesCaslContext(spaceUuids, { userUuid });
+        return this.getSpacesCaslContext(spaceUuids, { userUuid }, { trx });
     }
 
     /**
@@ -143,6 +178,81 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
+     * Custom-role assignments persist a placeholder in the legacy `role`
+     * column (`viewer` on project/group access, `member` on org memberships)
+     * with the real role in `role_uuid`. Replace the placeholder with the
+     * role derived from the custom role's scopes so inherited space access
+     * reflects what the role actually grants.
+     */
+    private async resolveCustomRoleAccess(
+        projectAccessMap: Record<string, ProjectSpaceAccessWithCustomRole[]>,
+        organizationAccessMap: Record<
+            string,
+            OrganizationSpaceAccessWithCustomRole[]
+        >,
+        { trx }: { trx?: Knex } = {},
+    ): Promise<{
+        projectAccessMap: Record<string, ProjectSpaceAccess[]>;
+        organizationAccessMap: Record<string, OrganizationSpaceAccess[]>;
+    }> {
+        const customRoleUuids = [
+            ...new Set(
+                [
+                    ...Object.values(projectAccessMap).flat(),
+                    ...Object.values(organizationAccessMap).flat(),
+                ].flatMap((access) =>
+                    access.roleUuid ? [access.roleUuid] : [],
+                ),
+            ),
+        ];
+        if (customRoleUuids.length === 0) {
+            return { projectAccessMap, organizationAccessMap };
+        }
+
+        const scopesByRole = await this.spacePermissionModel.getRoleScopes(
+            customRoleUuids,
+            { trx },
+        );
+
+        return {
+            projectAccessMap: Object.fromEntries(
+                Object.entries(projectAccessMap).map(
+                    ([spaceUuid, accessList]) => [
+                        spaceUuid,
+                        accessList.map(({ roleUuid, ...access }) =>
+                            roleUuid
+                                ? {
+                                      ...access,
+                                      role: getProjectRoleForSpaceAccess(
+                                          scopesByRole[roleUuid] ?? [],
+                                      ),
+                                  }
+                                : access,
+                        ),
+                    ],
+                ),
+            ),
+            organizationAccessMap: Object.fromEntries(
+                Object.entries(organizationAccessMap).map(
+                    ([spaceUuid, accessList]) => [
+                        spaceUuid,
+                        accessList.map(({ roleUuid, ...access }) =>
+                            roleUuid
+                                ? {
+                                      ...access,
+                                      role: getOrganizationRoleForSpaceAccess(
+                                          scopesByRole[roleUuid] ?? [],
+                                      ),
+                                  }
+                                : access,
+                        ),
+                    ],
+                ),
+            ),
+        };
+    }
+
+    /**
      * Gets the access context for a list of space uuids so we can check against CASL.
      *
      * Chain-aware resolution: walks each space's inheritance chain (up to the
@@ -156,14 +266,15 @@ export class SpacePermissionService extends BaseService {
     private async getSpacesCaslContext(
         spaceUuidsArg: string[],
         filters?: { userUuid?: string },
+        { trx }: { trx?: Knex } = {},
     ): Promise<Record<string, SpaceAccessContextForCasl>> {
         const uniqueSpaceUuids = [...new Set(spaceUuidsArg)];
 
         // Get inheritance chains for all spaces in a single batched query
-        const chainMap =
-            await this.spacePermissionModel.getInheritanceChains(
-                uniqueSpaceUuids,
-            );
+        const chainMap = await this.spacePermissionModel.getInheritanceChains(
+            uniqueSpaceUuids,
+            { trx },
+        );
         const chains = uniqueSpaceUuids
             .filter((uuid) => chainMap[uuid] !== undefined)
             .map((uuid) => ({
@@ -191,30 +302,50 @@ export class SpacePermissionService extends BaseService {
         ];
 
         // Batch-fetch access data
-        const [directAccessMap, projectAccessMap, orgAccessMap, spaceInfo] =
-            await Promise.all([
-                this.spacePermissionModel.getDirectSpaceAccess(
-                    allChainSpaceUuids,
-                    filters,
-                ),
-                allChainsRootSpaceUuids.length > 0
-                    ? this.spacePermissionModel.getProjectSpaceAccess(
-                          allChainsRootSpaceUuids,
-                          filters,
-                      )
-                    : Promise.resolve(
-                          {} as Record<string, ProjectSpaceAccess[]>,
-                      ),
-                allChainsRootSpaceUuids.length > 0
-                    ? this.spacePermissionModel.getOrganizationSpaceAccess(
-                          allChainsRootSpaceUuids,
-                          filters,
-                      )
-                    : Promise.resolve(
-                          {} as Record<string, OrganizationSpaceAccess[]>,
-                      ),
-                this.spacePermissionModel.getSpaceInfo(uniqueSpaceUuids),
-            ]);
+        const [
+            directAccessMap,
+            rawProjectAccessMap,
+            rawOrgAccessMap,
+            spaceInfo,
+        ] = await Promise.all([
+            this.spacePermissionModel.getDirectSpaceAccess(
+                allChainSpaceUuids,
+                filters,
+                { trx },
+            ),
+            allChainsRootSpaceUuids.length > 0
+                ? this.spacePermissionModel.getProjectSpaceAccess(
+                      allChainsRootSpaceUuids,
+                      filters,
+                      { trx },
+                  )
+                : Promise.resolve(
+                      {} as Record<string, ProjectSpaceAccessWithCustomRole[]>,
+                  ),
+            allChainsRootSpaceUuids.length > 0
+                ? this.spacePermissionModel.getOrganizationSpaceAccess(
+                      allChainsRootSpaceUuids,
+                      filters,
+                      { trx },
+                  )
+                : Promise.resolve(
+                      {} as Record<
+                          string,
+                          OrganizationSpaceAccessWithCustomRole[]
+                      >,
+                  ),
+            this.spacePermissionModel.getSpaceInfo(uniqueSpaceUuids, {
+                trx,
+            }),
+        ]);
+
+        // Substitute scope-derived roles for custom-role placeholder rows
+        const { projectAccessMap, organizationAccessMap: orgAccessMap } =
+            await this.resolveCustomRoleAccess(
+                rawProjectAccessMap,
+                rawOrgAccessMap,
+                { trx },
+            );
 
         // For each requested space, aggregate access from its chain
         const result: Record<string, SpaceAccessContextForCasl> = {};

@@ -38,7 +38,7 @@ export default defineConfig({
             // Count dbt models and read thread count so CLI tests can
             // scale timeouts dynamically based on parallel execution.
             const demoDir = join(
-                __dirname,
+                config.projectRoot,
                 '../../examples/full-jaffle-shop-demo',
             );
             const modelsDir = join(demoDir, 'dbt/models');

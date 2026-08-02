@@ -181,15 +181,33 @@ export const isDashboardFieldTarget = (
 
 export type DashboardTileTarget = DashboardFieldTarget | false;
 
+/**
+ * Deliberately an index-signature literal, not `Record<string, ...>`. When
+ * TSOA first resolves `Record<string, DashboardTileTarget>` inside a mapped
+ * type (e.g. `Omit<DashboardFilterRule, 'id'>` in content-as-code types), it
+ * caches an EMPTY model under the shared `Record_string.DashboardTileTarget_`
+ * name, and request validation then strips every tileTargets entry from
+ * bodies — silently breaking dashboard filters on SQL chart tiles. The
+ * index-signature form resolves correctly in every context.
+ */
+export type DashboardTileTargets = {
+    [tileUuid: string]: DashboardTileTarget;
+};
+
 export type DashboardFilterRule<
     O = FilterOperator,
     T extends DashboardFieldTarget = DashboardFieldTarget,
     V = AnyType,
     S = AnyType,
 > = FilterRule<O, T, V, S> & {
-    tileTargets?: Record<string, DashboardTileTarget>;
+    tileTargets?: DashboardTileTargets;
     label: undefined | string;
     singleValue?: boolean;
+    /**
+     * Dashboard filters sharing a requiredGroupId form an "any-one required"
+     * group: the dashboard is locked until at least one member has a value.
+     */
+    requiredGroupId?: string;
     /**
      * Tab UUIDs where this filter is locked. When the active tab is in this
      * list, viewers see the filter but cannot change it, and URL / embed
@@ -207,7 +225,7 @@ export type FilterDashboardToRule = DashboardFilterRule & {
 
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
-    'tileTargets' | 'lockedTabUuids'
+    'tileTargets' | 'lockedTabUuids' | 'required' | 'requiredGroupId'
 >;
 
 export type DateFilterSettings = {
@@ -265,13 +283,13 @@ export type DashboardFilters = {
 
 export type DashboardFiltersFromSearchParam = {
     dimensions: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
+        tileTargets?: (string | DashboardTileTargets)[];
     })[];
     metrics: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
+        tileTargets?: (string | DashboardTileTargets)[];
     })[];
     tableCalculations: (Omit<DashboardFilterRule, 'tileTargets'> & {
-        tileTargets?: (string | Record<string, DashboardTileTarget>)[];
+        tileTargets?: (string | DashboardTileTargets)[];
     })[];
 };
 
@@ -439,25 +457,61 @@ export const applyDimensionOverrides = (
                 appliedOverrideIds.add(override.id);
                 return {
                     ...override,
-                    // The saved dashboard owns identity, tile targeting and lock
-                    // state; the override only carries value/operator. Forcing the
-                    // id re-homes a field-matched override onto the saved filter.
+                    // The saved dashboard owns identity, tile targeting, lock
+                    // state and requirement flags; the override only carries
+                    // value/operator. Forcing the id re-homes a field-matched
+                    // override onto the saved filter.
                     id: dimension.id,
                     tileTargets: dimension.tileTargets,
                     lockedTabUuids: dimension.lockedTabUuids,
+                    required: dimension.required,
+                    requiredGroupId: dimension.requiredGroupId,
                 };
             }
             return dimension;
         },
     );
 
-    // Append overrides that matched no saved filter by id or field.
-    const newDimensions = overrideArray.filter(
-        (o) => !savedIds.has(o.id) && !appliedOverrideIds.has(o.id),
-    );
+    // Append overrides that matched no saved filter by id or field. Strip
+    // requirement flags: like the matched branch above, overrides cannot
+    // assert requirement metadata, so a stale or crafted rule can't inject
+    // a required filter or satisfy a group.
+    const newDimensions = overrideArray
+        .filter((o) => !savedIds.has(o.id) && !appliedOverrideIds.has(o.id))
+        .map((o) => ({
+            ...o,
+            required: undefined,
+            requiredGroupId: undefined,
+        }));
     overriddenDimensions.push(...newDimensions);
 
     return overriddenDimensions;
+};
+
+export const applyMetricOverrides = (
+    dashboardFilters: DashboardFilters,
+    overrides: DashboardFilters | DashboardFilterRule[],
+) => {
+    const overrideArray =
+        overrides instanceof Array ? overrides : overrides.metrics;
+
+    // Match by id only; unmatched metric overrides are never appended.
+    return dashboardFilters.metrics.map((metric) => {
+        const override = overrideArray.find((o) => o.id === metric.id);
+        if (override) {
+            return {
+                ...override,
+                // Same ownership contract as applyDimensionOverrides: the
+                // saved dashboard owns tile targeting, lock state and
+                // requirement flags; the override only carries value/operator.
+                tileTargets: metric.tileTargets,
+                lockedTabUuids: metric.lockedTabUuids,
+                required: metric.required,
+                requiredGroupId: metric.requiredGroupId,
+            };
+        }
+        return metric;
+    });
 };
 
 export const isDashboardFilterRule = (

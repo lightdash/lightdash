@@ -3,6 +3,11 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
+import { registerAiUsageTracker } from './analytics/aiUsage';
+import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
+import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
+import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
+import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { registerOAuthRefreshStrategies } from './auth/registerOAuthRefreshStrategies';
 import {
@@ -15,9 +20,12 @@ import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { STREAM_CONFIGS, type NatsWorkerStream } from './nats/natsConfig';
 import { NatsWorker } from './nats/NatsWorker';
-import { initOtelHttpMetrics } from './prometheus/otelHttpMetrics';
+import {
+    initOtelHttpMetrics,
+    shouldSelfRegisterHttpInstrumentation,
+} from './prometheus/otelHttpMetrics';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
-import { IGNORE_ERRORS } from './sentry';
+import { errorsOnlyIntegrations, IGNORE_ERRORS } from './sentry';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
@@ -94,11 +102,20 @@ export default class NatsWorkerApp {
 
     private readonly prometheusMetrics: PrometheusMetrics;
 
+    private readonly eventStreamWriter: BufferedEventStreamWriter | null;
+
     constructor(args: NatsWorkerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
         this.environment = args.environment || 'production';
 
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
+        this.eventStreamWriter = createEventStreamWriter(
+            this.lightdashConfig,
+            this.prometheusMetrics,
+        );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
@@ -108,7 +125,14 @@ export default class NatsWorkerApp {
                     !!this.lightdashConfig.rudder.writeKey &&
                     !!this.lightdashConfig.rudder.dataPlaneUrl,
             },
+            eventStreamSink: this.eventStreamWriter
+                ? new EventStreamSink(
+                      eventStreamRegistry,
+                      this.eventStreamWriter,
+                  )
+                : undefined,
         });
+        registerAiUsageTracker((event) => this.analytics.track(event));
 
         this.database = knex(
             this.environment === 'production'
@@ -136,10 +160,6 @@ export default class NatsWorkerApp {
             }),
             models,
         });
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
-
         this.clients = clients;
         this.modelRepository = models;
         this.serviceRepository = new ServiceRepository({
@@ -173,7 +193,12 @@ export default class NatsWorkerApp {
     }
 
     private async initSentry() {
-        initOtelHttpMetrics(this.lightdashConfig.prometheus);
+        initOtelHttpMetrics(this.lightdashConfig.prometheus, {
+            registerHttpInstrumentation: shouldSelfRegisterHttpInstrumentation({
+                hasSentryDsn: !!this.lightdashConfig.sentry.backend.dsn,
+                isOtelTracingEnabled: otelTracingEnabled(),
+            }),
+        });
         Sentry.init({
             release: VERSION,
             dsn: this.lightdashConfig.sentry.backend.dsn,
@@ -183,11 +208,17 @@ export default class NatsWorkerApp {
                     : this.lightdashConfig.mode,
             skipOpenTelemetrySetup: otelTracingEnabled(),
             registerEsmLoaderHooks: !otelTracingEnabled(),
-            integrations: [],
+            // OTel mode owns traces; strip Sentry's span-emitting default
+            // integrations (postgres etc.) so the worker is errors-only.
+            integrations: otelTracingEnabled() ? errorsOnlyIntegrations : [],
             ignoreErrors: IGNORE_ERRORS,
-            tracesSampleRate:
-                this.lightdashConfig.sentry.queryTracesSampleRate ??
-                this.lightdashConfig.sentry.tracesSampleRate,
+            ...(otelTracingEnabled()
+                ? {}
+                : {
+                      tracesSampleRate:
+                          this.lightdashConfig.sentry.queryTracesSampleRate ??
+                          this.lightdashConfig.sentry.tracesSampleRate,
+                  }),
         });
         initOtelTracing();
     }
@@ -241,6 +272,10 @@ export default class NatsWorkerApp {
                 Logger.info('Shutting down NATS worker gracefully');
             },
             onSignal: async () => {
+                if (this.eventStreamWriter) {
+                    Logger.info('Flushing usage event stream writer');
+                    await this.eventStreamWriter.close();
+                }
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
                 await shutdownOtelTracing();
@@ -260,5 +295,9 @@ export default class NatsWorkerApp {
         });
 
         server.listen(this.port);
+    }
+
+    public getEventStreamWriter() {
+        return this.eventStreamWriter;
     }
 }

@@ -20,6 +20,9 @@ SUPPORTED_DUCKDB_BINDINGS=(
 cp "$WAREHOUSES_DIR"/ca-bundle-*.crt "$BUNDLE_DIR"/
 cp "$WAREHOUSES_DIR"/ca-bundle-*.pem "$BUNDLE_DIR"/
 
+# Copy vendored data-app template and authoring skill assets
+cp -R "$CLI_DIR/dist/vendor" "$BUNDLE_DIR/vendor"
+
 mkdir -p "$DUCKDB_BUNDLE_DIR"
 
 # Resolve package directories via Node so the script works with pnpm's

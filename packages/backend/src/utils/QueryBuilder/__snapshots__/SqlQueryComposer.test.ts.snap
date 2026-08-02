@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SqlQueryComposer > wraps the base query with the pivot query when a pivot is set 1`] = `
+"WITH original_query AS (SELECT category, region, revenue FROM sales),
+group_by_query AS (SELECT "region", "category", sum("revenue") AS "revenue_sum" FROM original_query group by "region", "category"),
+pivot_query AS (SELECT g."category" AS "category", g."region" AS "region", g."revenue_sum" AS "revenue_sum", DENSE_RANK() OVER (ORDER BY g."category" ASC) AS "row_index", DENSE_RANK() OVER (ORDER BY g."region" ASC) AS "column_index" FROM group_by_query g),
+filtered_rows AS (SELECT * FROM pivot_query WHERE "row_index" <= 500)
+SELECT "category", "region", "revenue_sum", "row_index", "column_index", total_columns FROM (SELECT p.*, SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY "region" ORDER BY "region") AS "__grp_rn" FROM filtered_rows f) p) pivoted WHERE "column_index" <= 100 order by "row_index", "column_index""
+`;
+
+exports[`SqlQueryComposer > wraps the user SQL and builds the mock metric query when there is no pivot 1`] = `"SELECT category, region, revenue FROM sales LIMIT 500"`;

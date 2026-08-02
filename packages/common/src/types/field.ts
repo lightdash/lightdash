@@ -11,6 +11,7 @@ import { type MetricFilterRule } from './filter';
 import type { TimeFrames } from './timeFrames';
 
 export enum Compact {
+    AUTO = 'auto',
     THOUSANDS = 'thousands',
     MILLIONS = 'millions',
     BILLIONS = 'billions',
@@ -78,6 +79,14 @@ type CompactConfig = {
 export type CompactOrAlias = Compact | (typeof CompactAlias)[number];
 
 export const CompactConfigMap: Record<Compact, CompactConfig> = {
+    [Compact.AUTO]: {
+        compact: Compact.AUTO,
+        alias: [],
+        orderOfMagnitude: 0,
+        convertFn: (value: number) => value,
+        label: 'Auto (K, M, B, T)',
+        suffix: '',
+    },
     [Compact.THOUSANDS]: {
         compact: Compact.THOUSANDS,
         alias: ['K', 'thousand'],
@@ -502,6 +511,15 @@ export type TableCalculationTemplate =
           frame?: FrameClause;
       };
 
+export enum TableCalculationTotalMode {
+    /** Apply the calculation to the aggregated totals row (default) — right for ratios */
+    FORMULA = 'formula',
+    /** Sum the calculation's row-level values — right for row-level transformations */
+    SUM_OF_ROWS = 'sum_of_rows',
+    /** Show no total for this calculation */
+    NONE = 'none',
+}
+
 export type TableCalculationBase = {
     /** Display order index */
     index?: number;
@@ -513,6 +531,8 @@ export type TableCalculationBase = {
     format?: CustomFormat;
     /** Data type of the calculation result */
     type?: TableCalculationType;
+    /** How column totals are computed for this calculation */
+    totalMode?: TableCalculationTotalMode;
 };
 
 export type SqlTableCalculation = TableCalculationBase & {
@@ -669,6 +689,69 @@ export enum DimensionType {
     BOOLEAN = 'boolean',
 }
 
+/**
+ * Whether a TIMESTAMP column stores an instant ('aware') or a bare wall clock
+ * ('naive'). Absent means unknown — never assume 'aware' for a missing value.
+ */
+export type TimestampDomain = 'aware' | 'naive';
+
+export const isTimestampDomain = (value: unknown): value is TimestampDomain =>
+    value === 'aware' || value === 'naive';
+
+export type FilterAutocompleteValue = {
+    value: string;
+    label?: string;
+};
+
+export type FilterAutocompleteConfig = {
+    values?: FilterAutocompleteValue[];
+    fetchFromWarehouse: boolean;
+    labelDimension?: string;
+};
+
+/**
+ * Whether a dimension's curated `filter_autocomplete` values can answer a value
+ * search without querying the warehouse. Mirrors the Explore filter UI
+ * (`useFieldValues`): always use curated values when the warehouse fetch is
+ * turned off; otherwise only as the fast path for an empty ("list all") search.
+ */
+export const shouldUseStaticFilterAutocomplete = (
+    filterAutocomplete: FilterAutocompleteConfig | undefined,
+    search: string,
+): boolean => {
+    if (!filterAutocomplete) return false;
+    const hasValues = (filterAutocomplete.values?.length ?? 0) > 0;
+    return (
+        !filterAutocomplete.fetchFromWarehouse ||
+        (hasValues && search.trim().length === 0)
+    );
+};
+
+export const filterStaticFilterAutocompleteValues = (
+    values: FilterAutocompleteValue[],
+    search: string,
+): string[] => {
+    const normalizedSearch = search.trim().toLowerCase();
+    const matched =
+        normalizedSearch.length === 0
+            ? values
+            : values.filter(
+                  ({ value, label }) =>
+                      value.toLowerCase().includes(normalizedSearch) ||
+                      (label?.toLowerCase().includes(normalizedSearch) ??
+                          false),
+              );
+    const seen = new Set<string>();
+    return matched
+        .map(({ value }) => value)
+        .filter((value) => {
+            if (seen.has(value)) return false;
+            seen.add(value);
+            return true;
+        })
+        .sort((a, b) => a.localeCompare(b));
+};
+
 export interface Dimension extends Field {
     fieldType: FieldType.DIMENSION;
     type: DimensionType;
@@ -688,6 +771,7 @@ export interface Dimension extends Field {
     customTimeInterval?: string;
     isAdditionalDimension?: boolean;
     skipTimezoneConversion?: boolean;
+    timestampDomain?: TimestampDomain;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
     aiHint?: string | string[];
@@ -700,6 +784,7 @@ export interface Dimension extends Field {
         fit?: string;
     };
     richText?: string; // The markdown/HTML template with LiquidJS variables
+    filterAutocomplete?: FilterAutocompleteConfig;
     spotlight?: {
         filterBy?: boolean;
         segmentBy?: boolean;
@@ -734,6 +819,12 @@ type CompiledProperties = {
     // these boundaries at query time by swapping the stored predicate for a
     // freshly rendered one, so the window is no longer frozen to compile time.
     compiledRelativeDateFilters?: CompiledMetricRelativeDateFilter[];
+    // Metric-only: compile-time SQL for each metric filter with an absolute
+    // operator targeting a TIMESTAMP dimension. Baked without any data
+    // timezone or timestamp-domain context, so the query builder re-renders
+    // the predicate with the query-time domain context and swaps it in when
+    // the target is classified.
+    compiledTimestampFilters?: CompiledMetricTimestampFilter[];
 };
 
 export type CompiledMetricRelativeDateFilter = {
@@ -741,6 +832,8 @@ export type CompiledMetricRelativeDateFilter = {
     fieldId: string; // resolved dimension id the filter targets
     compiledSql: string; // compile-time predicate, used as the query-time swap anchor
 };
+
+export type CompiledMetricTimestampFilter = CompiledMetricRelativeDateFilter;
 export type CompiledDimension = Dimension & CompiledProperties;
 export type CompiledMetric = Metric & CompiledProperties;
 
@@ -804,6 +897,7 @@ export enum MetricType {
 export enum Format {
     KM = 'km',
     MI = 'mi',
+    SI = 'si',
     USD = 'usd',
     GBP = 'gbp',
     EUR = 'eur',
@@ -1070,10 +1164,19 @@ export function getCompactOptionsForFormatType(
 ): Compact[] {
     if (type === CustomFormatType.BYTES_IEC) return IECByteCompacts;
     if (type === CustomFormatType.BYTES_SI) return SIByteCompacts;
-    return [
+    const numericCompacts = [
         Compact.THOUSANDS,
         Compact.MILLIONS,
         Compact.BILLIONS,
         Compact.TRILLIONS,
     ];
+
+    if (
+        type === CustomFormatType.NUMBER ||
+        type === CustomFormatType.CURRENCY
+    ) {
+        return [Compact.AUTO, ...numericCompacts];
+    }
+
+    return numericCompacts;
 }

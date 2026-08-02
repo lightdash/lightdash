@@ -1,12 +1,16 @@
 import {
     BinType,
+    CompiledDimension,
     CompiledMetricQuery,
     CompileError,
     CustomDimensionType,
     DimensionType,
+    FieldType,
+    FilterOperator,
     MetricType,
     TableCalculation,
     TableCalculationTemplateType,
+    UnitOfTime,
     VizIndexType,
     WindowFunctionType,
     type FormulaTableCalculation,
@@ -1244,6 +1248,111 @@ test('Should compile a formula SUMIF as a window aggregate', () => {
     expect(formulaCalc?.compiledSql).toBe(
         'SUM(CASE WHEN ("table_3_metric_1" > 100) THEN "table_3_metric_1" END) OVER ()',
     );
+});
+
+describe('compileAdditionalMetric preserves filter metadata (GLITCH-627)', () => {
+    const exploreWithTimestampDim = {
+        ...EXPLORE,
+        tables: {
+            ...EXPLORE.tables,
+            table1: {
+                ...EXPLORE.tables.table1,
+                dimensions: {
+                    ...EXPLORE.tables.table1.dimensions,
+                    created_at: {
+                        name: 'created_at',
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.TIMESTAMP,
+                        table: 'table1',
+                        label: 'created_at',
+                        tableLabel: 'table1',
+                        hidden: false,
+                        sql: '${TABLE}.created_at',
+                        compiledSql: '`some`.`table1`.`created_at`',
+                        tablesReferences: ['table1'],
+                    } satisfies CompiledDimension,
+                },
+            },
+        },
+    };
+
+    test('an additional metric with an absolute timestamp filter carries compiledTimestampFilters', () => {
+        const result = compileMetricQuery({
+            explore: exploreWithTimestampDim,
+            metricQuery: {
+                ...METRIC_QUERY_VALID_REFERENCES,
+                metrics: ['table1_filtered_count'],
+                tableCalculations: [],
+                additionalMetrics: [
+                    {
+                        name: 'filtered_count',
+                        table: 'table1',
+                        type: MetricType.COUNT,
+                        sql: '${TABLE}.dim_1',
+                        filters: [
+                            {
+                                id: 'f1',
+                                target: { fieldRef: 'table1.created_at' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-14T17:00:00.000Z'],
+                            },
+                        ],
+                    },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        });
+
+        const compiled = result.compiledAdditionalMetrics?.find(
+            (m) => m.name === 'filtered_count',
+        );
+        expect(compiled?.compiledTimestampFilters).toHaveLength(1);
+        expect(compiled?.compiledTimestampFilters?.[0].fieldId).toBe(
+            'table1_created_at',
+        );
+        expect(compiled?.compiledSql).toContain(
+            compiled!.compiledTimestampFilters![0].compiledSql,
+        );
+    });
+
+    test('an additional metric with a relative date filter carries compiledRelativeDateFilters', () => {
+        const result = compileMetricQuery({
+            explore: exploreWithTimestampDim,
+            metricQuery: {
+                ...METRIC_QUERY_VALID_REFERENCES,
+                metrics: ['table1_recent_count'],
+                tableCalculations: [],
+                additionalMetrics: [
+                    {
+                        name: 'recent_count',
+                        table: 'table1',
+                        type: MetricType.COUNT,
+                        sql: '${TABLE}.dim_1',
+                        filters: [
+                            {
+                                id: 'f1',
+                                target: { fieldRef: 'table1.created_at' },
+                                operator: FilterOperator.IN_THE_PAST,
+                                values: [30],
+                                settings: {
+                                    unitOfTime: UnitOfTime.days,
+                                    completed: false,
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        });
+
+        const compiled = result.compiledAdditionalMetrics?.find(
+            (m) => m.name === 'recent_count',
+        );
+        expect(compiled?.compiledRelativeDateFilters).toHaveLength(1);
+    });
 });
 
 describe('compilePostCalculationMetric', () => {

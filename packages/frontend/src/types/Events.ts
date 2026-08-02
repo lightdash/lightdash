@@ -49,6 +49,13 @@ export enum PageName {
     USER_ACTIVITY = 'user_activity',
     VERIFY_EMAIL = 'verify_email',
     JOIN_ORGANIZATION = 'join_organization',
+    ORGANIZATION_SETUP = 'organization_setup',
+    ONBOARDING_DATA_SOURCE = 'onboarding_data_source',
+    ONBOARDING_DBT = 'onboarding_dbt',
+    ONBOARDING_INVITE_EXPERT = 'onboarding_invite_expert',
+    AGENT_ONBOARDING_START = 'agent_onboarding_start',
+    AGENT_ONBOARDING_RUN = 'agent_onboarding_run',
+    NO_PROJECT_HOMEPAGE = 'no_project_homepage',
     EMBED_DASHBOARD = 'embed_dashboard',
     EMBED_SAVED_CHART = 'embed_saved_chart',
     EMBED_EXPLORE = 'embed_explore',
@@ -56,6 +63,7 @@ export enum PageName {
     CATALOG = 'catalog',
     METRICS_CATALOG = 'metrics_catalog',
     FUNNEL_BUILDER = 'funnel_builder',
+    ROADMAP = 'roadmap',
 }
 
 export enum CategoryName {
@@ -73,6 +81,9 @@ export enum SectionName {
 }
 
 export enum EventName {
+    HOMEPAGE_QUICK_ACTION_CLICKED = 'homepage_quick_action.clicked',
+    HOMEPAGE_RECOMMENDED_ACTION_CLICKED = 'homepage_recommended_action.clicked',
+    HOMEPAGE_RECOMMENDED_ACTION_SKIPPED = 'homepage_recommended_action.skipped',
     REVOKE_INVITES_BUTTON_CLICKED = 'revoke_invites_button.clicked',
     INVITE_BUTTON_CLICKED = 'invite_users_to_organisation_button.clicked',
     RUN_QUERY_BUTTON_CLICKED = 'run_query_button.clicked',
@@ -87,6 +98,7 @@ export enum EventName {
     FORMULA_TABLE_CALCULATION_AI_GENERATE_CLICKED = 'formula_table_calculation_ai_generate.clicked',
     UPDATE_PROJECT_BUTTON_CLICKED = 'update_project_button.click',
     CREATE_PROJECT_BUTTON_CLICKED = 'create_project_button.click',
+    CREATE_PROJECT_FAILED = 'create_project.failed',
     REFRESH_DBT_CONNECTION_BUTTON_CLICKED = 'refresh_dbt_connection_button.click',
     UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED = 'update_project_tables_configuration.click',
     UPDATE_DASHBOARD_NAME_CLICKED = 'update_dashboard_name.click',
@@ -94,12 +106,16 @@ export enum EventName {
     TRY_DEMO_CLICKED = 'try_demo.clicked',
     CREATE_PROJECT_CLI_BUTTON_CLICKED = 'create_project_cli_button.click',
     CREATE_PROJECT_MANUALLY_BUTTON_CLICKED = 'create_project_manually_click.click',
+    CREATE_PROJECT_AGENT_BUTTON_CLICKED = 'create_project_agent_button.click',
+    CREATE_PROJECT_WAREHOUSE_BUTTON_CLICKED = 'create_project_warehouse_button.click',
+    CREATE_PROJECT_CLI_SSO_OPTION_CLICKED = 'create_project_cli_sso_option.click',
     COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED = 'copy_create_project_code_click.click',
     ONBOARDING_STEP_CLICKED = 'onboarding_step.click',
     LANDING_RUN_QUERY_CLICKED = 'landing_run_query.click',
     SETUP_STEP_CLICKED = 'setup_step.click',
     ADD_FILTER_CLICKED = 'add_filter.click',
     DASHBOARD_FILTER_LOCK_TOGGLED = 'dashboard_filter_lock.toggled',
+    DASHBOARD_FILTER_REQUIREMENTS_SAVED = 'dashboard_filter_requirements.saved',
     GO_TO_LINK_CLICKED = 'go_to_link.click',
     ADD_CUSTOM_METRIC_CLICKED = 'add_custom_metric.click',
     REMOVE_CUSTOM_METRIC_CLICKED = 'remove_custom_metric.click',
@@ -111,6 +127,7 @@ export enum EventName {
     EMBED_DOWNLOAD_CSV_CLICKED = 'embed_download_csv.clicked',
     EMBED_DOWNLOAD_IMAGE_CLICKED = 'embed_download_image.clicked',
 
+    // Misspelt since 2024; kept so the warehouse history stays in one piece.
     DOWNLOAD_IMAGE_CLICKED = 'ownload_image.clicked',
     CUSTOM_AXIS_RANGE_TOGGLE_CLICKED = 'custom_axis_range_toggle_clicked',
     CREATE_PROJECT_ACCESS_BUTTON_CLICKED = 'create_project_access.clicked',
@@ -170,10 +187,35 @@ export enum EventName {
     AI_AGENT_CHAT_MINIMIZED = 'ai_agent_chat.minimized',
     AI_AGENT_SUGGESTION_IMPRESSION = 'ai_agent.suggestion_impression',
     AI_AGENT_SUGGESTION_CLICK = 'ai_agent.suggestion_click',
+    AI_DEEP_RESEARCH_REPORT_ENGAGED = 'ai_deep_research.report_engaged',
 
     // Theme
     THEME_TOGGLED = 'theme.toggled',
 
     // Dashboard UI Version Toggle
     DASHBOARD_UI_VERSION_TOGGLED = 'dashboard_ui_version.toggled',
+    SIGNUP_FORM_SUBMITTED = 'signup_form.submitted',
+    OTP_RESEND_CLICKED = 'otp.resend_clicked',
+    LOGIN_FLOW_METHOD_SELECTED = 'login_flow.method_selected',
+    ORGANIZATION_SETUP_STEP_COMPLETED = 'organization_setup_step.completed',
+    ORGANIZATION_BRAND_DETECTED = 'organization_brand.detected',
+    ONBOARDING_WAREHOUSE_SELECTED = 'onboarding_warehouse.selected',
+    BIGQUERY_SSO_SIGNIN_CLICKED = 'bigquery_sso.signin_clicked',
+    BIGQUERY_SSO_SIGNIN_COMPLETED = 'bigquery_sso.signin_completed',
+    SNOWFLAKE_CLI_SSO_COMMAND_COPIED = 'snowflake_cli_sso.command_copied',
+    SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED = 'snowflake_cli_sso.connect_completed',
+    SETUP_INVITE_SENT = 'setup_invite.sent',
+    PLAYGROUND_PROJECT_ENTERED = 'playground_project.entered',
+    PLAYGROUND_PROJECT_SETUP_FAILED = 'playground_project.setup_failed',
+    ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED = 'onboarding_project_ready.start_exploring_clicked',
+    HOMEPAGE_ASK_SUBMITTED = 'homepage_ask.submitted',
+    HOMEPAGE_RECOMMENDED_ACTION_IMPRESSION = 'homepage_recommended_action.impression',
+    HOMEPAGE_RECOMMENDED_ACTION_RESTORED = 'homepage_recommended_action.restored',
+    HOMEPAGE_STARS_MEDIA_CARD_CLICKED = 'homepage_stars_media_card.clicked',
+    AGENT_SETUP_PROMPT_COPIED = 'agent_setup_prompt.copied',
+    AGENT_ONBOARDING_DEMO_OFFER_SHOWN = 'agent_onboarding_demo_offer.shown',
+    AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED = 'agent_onboarding_demo_offer.accepted',
+    AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN = 'agent_onboarding_completion_toast.shown',
+    AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED = 'agent_onboarding_completion_toast.clicked',
+    CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED = 'create_project_columns_defined_button.click',
 }

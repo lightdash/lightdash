@@ -37,9 +37,9 @@ type TreemapChartConfig = {
     topLevelColors?: string[];
 
     startColorThreshold?: number;
-    setStartColorThreshold: (startColorThreshold: number) => void;
+    setStartColorThreshold: (startColorThreshold: number | undefined) => void;
     endColorThreshold?: number;
-    setEndColorThreshold: (endColorThreshold: number) => void;
+    setEndColorThreshold: (endColorThreshold: number | undefined) => void;
 
     visibleMin: number;
     setVisibleMin: (visibleMin: number) => void;

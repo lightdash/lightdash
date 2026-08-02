@@ -11,6 +11,7 @@ import { FilterOperator, UnitOfTime } from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
 import {
     ExploreCompiler,
+    getTableColumnReferences,
     parseAllReferences,
     sqlAggregationWrapsReferences,
     sqlContainsAggregation,
@@ -449,11 +450,11 @@ describe('Default field labels render correctly for various input formats', () =
 
 describe('Compile metrics with filters', () => {
     beforeAll(() => {
-        jest.useFakeTimers();
-        jest.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('04 Apr 2020 00:12:00 GMT').getTime());
     });
     afterAll(() => {
-        jest.useFakeTimers();
+        vi.useRealTimers();
     });
     test('should show filters as columns metric1', () => {
         expect(
@@ -620,6 +621,33 @@ describe('Parse dimension reference', () => {
             { refName: 'TABLE', refTable: 'table' },
         ]);
     });
+    test('should parse unquoted TABLE column references', () => {
+        expect(
+            getTableColumnReferences(
+                'SUM(${TABLE}.amount) + ${TABLE}."Order Total" + ${TABLE}.`tax``rate` + ${TABLE}.some_other_name + ${TABLE}.amount',
+            ),
+        ).toStrictEqual(['amount', 'some_other_name']);
+        expect(
+            getTableColumnReferences(
+                '${TABLE}.address.city + ${amount} + ${orders.shipping_cost}',
+            ),
+        ).toStrictEqual(['address']);
+    });
+    test('should not swallow adjacent references when parsing unquoted TABLE column references', () => {
+        expect(getTableColumnReferences('${TABLE}.a${amount}')).toStrictEqual([
+            'a',
+        ]);
+    });
+    test('should parse unquoted TABLE column references with legacy \\w+ semantics', () => {
+        expect(
+            getTableColumnReferences('${TABLE}.payment_count_30d'),
+        ).toStrictEqual(['payment_count_30d']);
+        expect(getTableColumnReferences('${TABLE}.2024_revenue')).toStrictEqual(
+            ['2024_revenue'],
+        );
+        expect(getTableColumnReferences('${TABLE}.a$b')).toStrictEqual(['a']);
+        expect(getTableColumnReferences('${TABLE}."a$b"')).toStrictEqual([]);
+    });
     test('should not parse lightdash attribute', () => {
         expect(
             parseAllReferences('${lightdash.attribute.country}', 'table'),
@@ -665,6 +693,126 @@ describe('Parse dimension reference', () => {
         expect(
             parseAllReferences('${ld_table.ld_dimension} == 1', 'ld_table'),
         ).toStrictEqual([{ refName: 'ld_dimension', refTable: 'ld_table' }]);
+    });
+});
+
+describe('Hyphenated table names in references', () => {
+    const hyphenatedTable = 'some_schema-order_events';
+    const exploreWithHyphenatedJoinedTable: UncompiledExplore = {
+        ...simpleJoinedExplore,
+        joinedTables: [
+            {
+                table: hyphenatedTable,
+                sqlOn: `\${a.dim1} = \${${hyphenatedTable}.dim1}`,
+            },
+        ],
+        tables: {
+            a: simpleJoinedExplore.tables.a,
+            [hyphenatedTable]: {
+                ...simpleJoinedExplore.tables.b,
+                name: hyphenatedTable,
+                dimensions: {
+                    dim1: {
+                        ...simpleJoinedExplore.tables.b.dimensions.dim1,
+                        table: hyphenatedTable,
+                    },
+                },
+            },
+        },
+    };
+
+    test('should parse references with hyphenated table names', () => {
+        expect(
+            parseAllReferences(`\${${hyphenatedTable}.dim1}`, 'a'),
+        ).toStrictEqual([{ refName: 'dim1', refTable: hyphenatedTable }]);
+    });
+
+    test('should parse single-part references containing hyphens', () => {
+        expect(parseAllReferences('${my-field}', 'a')).toStrictEqual([
+            { refName: 'my-field', refTable: 'a' },
+        ]);
+    });
+
+    test('should compile join sql_on referencing a hyphenated table', () => {
+        const result = compiler.compileExplore(
+            exploreWithHyphenatedJoinedTable,
+        );
+
+        expect(result.joinedTables[0].compiledSqlOn).toBe(
+            '("a".dim1) = ("some_schema-order_events".dim1)',
+        );
+        expect(result.joinedTables[0].tablesReferences).toStrictEqual([
+            'a',
+            hyphenatedTable,
+        ]);
+    });
+
+    test('should compile a dimension referencing a field in a hyphenated table', () => {
+        const explore: UncompiledExplore = {
+            ...exploreWithHyphenatedJoinedTable,
+            tables: {
+                ...exploreWithHyphenatedJoinedTable.tables,
+                a: {
+                    ...exploreWithHyphenatedJoinedTable.tables.a,
+                    dimensions: {
+                        ...exploreWithHyphenatedJoinedTable.tables.a.dimensions,
+                        dim2: {
+                            ...exploreWithHyphenatedJoinedTable.tables.a
+                                .dimensions.dim1,
+                            name: 'dim2',
+                            label: 'dim2',
+                            sql: `\${${hyphenatedTable}.dim1}`,
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = compiler.compileExplore(explore);
+
+        expect(result.tables.a.dimensions.dim2.compiledSql).toBe(
+            '("some_schema-order_events".dim1)',
+        );
+        expect(result.tables.a.dimensions.dim2.tablesReferences).toEqual(
+            expect.arrayContaining([hyphenatedTable]),
+        );
+    });
+
+    test('should compile a metric referencing a dimension in a hyphenated table', () => {
+        const explore: UncompiledExplore = {
+            ...exploreWithHyphenatedJoinedTable,
+            tables: {
+                ...exploreWithHyphenatedJoinedTable.tables,
+                a: {
+                    ...exploreWithHyphenatedJoinedTable.tables.a,
+                    metrics: {
+                        m1: {
+                            fieldType: FieldType.METRIC,
+                            type: MetricType.SUM,
+                            name: 'm1',
+                            label: 'm1',
+                            table: 'a',
+                            tableLabel: 'a',
+                            sql: `\${${hyphenatedTable}.dim1}`,
+                            hidden: false,
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = compiler.compileExplore(explore);
+
+        expect(result.tables.a.metrics.m1.compiledSql).toBe(
+            'SUM(("some_schema-order_events".dim1))',
+        );
+    });
+
+    test('should still not parse lightdash/ld prefixed references with hyphenated names', () => {
+        expect(
+            parseAllReferences('${lightdash.attributes.my-attr}', 'a'),
+        ).toStrictEqual([]);
+        expect(parseAllReferences('${ld.attr.my-attr}', 'a')).toStrictEqual([]);
     });
 });
 
@@ -1689,7 +1837,7 @@ describe('relative date metric filters are baked at compile time', () => {
     };
 
     const compileAt = (isoNow: string) => {
-        jest.setSystemTime(new Date(isoNow).getTime());
+        vi.setSystemTime(new Date(isoNow).getTime());
         return compiler.compileMetric(
             tableWithRelativeDateMetricFilter.table1.metrics
                 .bettor_in_last_30_days,
@@ -1698,8 +1846,8 @@ describe('relative date metric filters are baked at compile time', () => {
         );
     };
 
-    beforeAll(() => jest.useFakeTimers());
-    afterAll(() => jest.useRealTimers());
+    beforeAll(() => vi.useFakeTimers());
+    afterAll(() => vi.useRealTimers());
 
     test('the window is anchored to compile time and moves on recompile', () => {
         const compiledInMay = compileAt('2026-05-04T04:12:11Z').compiledSql;
@@ -1726,5 +1874,162 @@ describe('relative date metric filters are baked at compile time', () => {
         expect(stored.id).toBe('f1');
         expect(compiled.compiledSql).toContain(stored.compiledSql);
         expect(stored.compiledSql).toContain("'2026-05-05");
+    });
+});
+
+describe('absolute timestamp metric filters are recorded for query-time re-rendering', () => {
+    const buildTable = (
+        dimensionType: DimensionType,
+        filter: Record<string, unknown>,
+    ): Record<string, Table> => ({
+        table1: {
+            name: 'table1',
+            label: 'table1',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."table1"',
+            sqlWhere: undefined,
+            dimensions: {
+                created_at: {
+                    type: dimensionType,
+                    name: 'created_at',
+                    label: 'created_at',
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.created_at',
+                    hidden: false,
+                },
+            },
+            metrics: {
+                filtered_count: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    name: 'filtered_count',
+                    label: 'filtered_count',
+                    sql: '${TABLE}.created_at',
+                    hidden: false,
+                    filters: [filter as never],
+                },
+            },
+            lineageGraph: {},
+            groupLabel: undefined,
+        },
+    });
+
+    const compileFor = (
+        dimensionType: DimensionType,
+        filter: Record<string, unknown>,
+    ) => {
+        const tables = buildTable(dimensionType, filter);
+        return compiler.compileMetric(
+            tables.table1.metrics.filtered_count,
+            tables,
+            [],
+        );
+    };
+
+    test('an absolute TIMESTAMP predicate is recorded with its swap anchor', () => {
+        const compiled = compileFor(DimensionType.TIMESTAMP, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.EQUALS,
+            values: ['2024-01-14T17:00:00.000Z'],
+        });
+        expect(compiled.compiledTimestampFilters).toHaveLength(1);
+        const [stored] = compiled.compiledTimestampFilters!;
+        expect(stored.id).toBe('f1');
+        expect(stored.fieldId).toBe('table1_created_at');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+        expect(compiled.compiledRelativeDateFilters).toBeUndefined();
+    });
+
+    test('a relative operator stays in the relative list only', () => {
+        const compiled = compileFor(DimensionType.TIMESTAMP, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.IN_THE_PAST,
+            values: [30],
+            settings: { unitOfTime: UnitOfTime.days, completed: false },
+        });
+        expect(compiled.compiledRelativeDateFilters).toHaveLength(1);
+        expect(compiled.compiledTimestampFilters).toBeUndefined();
+    });
+
+    const withDerivedMetric = (tables: Record<string, Table>) => {
+        // eslint-disable-next-line no-param-reassign
+        tables.table1.metrics.derived = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'table1',
+            tableLabel: 'table1',
+            name: 'derived',
+            label: 'derived',
+            sql: '${table1.filtered_count}',
+            hidden: false,
+        };
+        return tables;
+    };
+
+    test('a derived metric carries the referenced metric recorded timestamp filters', () => {
+        const tables = withDerivedMetric(
+            buildTable(DimensionType.TIMESTAMP, {
+                id: 'f1',
+                target: { fieldRef: 'created_at' },
+                operator: FilterOperator.EQUALS,
+                values: ['2024-01-14T17:00:00.000Z'],
+            }),
+        );
+        const compiled = compiler.compileMetric(
+            tables.table1.metrics.derived,
+            tables,
+            [],
+        );
+        expect(compiled.compiledTimestampFilters).toHaveLength(1);
+        const [stored] = compiled.compiledTimestampFilters!;
+        expect(stored.id).toBe('f1');
+        expect(stored.fieldId).toBe('table1_created_at');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+    });
+
+    test('a derived metric carries the referenced metric recorded relative date filters', () => {
+        const tables = withDerivedMetric(
+            buildTable(DimensionType.TIMESTAMP, {
+                id: 'f1',
+                target: { fieldRef: 'created_at' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [30],
+                settings: { unitOfTime: UnitOfTime.days, completed: false },
+            }),
+        );
+        const compiled = compiler.compileMetric(
+            tables.table1.metrics.derived,
+            tables,
+            [],
+        );
+        expect(compiled.compiledRelativeDateFilters).toHaveLength(1);
+        const [stored] = compiled.compiledRelativeDateFilters!;
+        expect(stored.fieldId).toBe('table1_created_at');
+        expect(compiled.compiledSql).toContain(stored.compiledSql);
+    });
+
+    test('DATE targets and value-less operators are not recorded', () => {
+        const onDate = compileFor(DimensionType.DATE, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.EQUALS,
+            values: ['2024-01-14'],
+        });
+        expect(onDate.compiledTimestampFilters).toBeUndefined();
+
+        const nullCheck = compileFor(DimensionType.TIMESTAMP, {
+            id: 'f1',
+            target: { fieldRef: 'created_at' },
+            operator: FilterOperator.NOT_NULL,
+            values: [],
+        });
+        expect(nullCheck.compiledTimestampFilters).toBeUndefined();
     });
 });
