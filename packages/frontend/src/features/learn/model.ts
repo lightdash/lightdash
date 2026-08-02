@@ -248,3 +248,82 @@ export function resumeTarget(
     if (!hasProgress) return null;
     return entries.find((e) => cardState(rollups.get(e.id)) === 'open') ?? null;
 }
+
+// Graph layout: rank-per-column — the root foundation sits alone in column 0,
+// remaining foundations fill the next column(s), then path courses pack up to
+// MAX_ROWS per column, so prerequisite depth reads strictly left → right on a
+// short canvas that scrolls horizontally. Short columns centre vertically.
+export const CARD_W = 230;
+export const CARD_H = 96;
+const ROW_H = 150;
+const COL_PITCH = 300;
+const MAX_ROWS = 3;
+const HEADER_H = 44;
+export const PAD = 24;
+
+export type GraphNode = {
+    entry: LearnCatalogueEntry;
+    x: number;
+    y: number;
+};
+
+export type GraphEdge = {
+    from: string;
+    to: string;
+};
+
+function chunk<T>(items: T[], size: number): T[][] {
+    const out: T[][] = [];
+    for (let i = 0; i < items.length; i += size)
+        out.push(items.slice(i, i + size));
+    return out;
+}
+
+export function graphLayout(path: PathModel): {
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+    width: number;
+    height: number;
+    pathLeft: number;
+} {
+    const F = path.foundations;
+    const P = path.courses;
+    const columns: LearnCatalogueEntry[][] = [];
+    if (F.length > 0) {
+        columns.push([F[0]]);
+        if (F.length > 1) columns.push(...chunk(F.slice(1), MAX_ROWS));
+    }
+    const firstPathCol = columns.length;
+    columns.push(...chunk(P, MAX_ROWS));
+    const rows = Math.max(1, ...columns.map((c) => c.length));
+    const nodes: GraphNode[] = [];
+    columns.forEach((col, c) => {
+        const top = HEADER_H + Math.round(((rows - col.length) * ROW_H) / 2);
+        col.forEach((entry, r) =>
+            nodes.push({ entry, x: PAD + c * COL_PITCH, y: top + r * ROW_H }),
+        );
+    });
+    // Card i in a column hangs off card min(i, last) of the previous column:
+    // every card gets exactly one incoming edge and no edge ever points left.
+    const edges: GraphEdge[] = [];
+    for (let c = 0; c + 1 < columns.length; c += 1) {
+        const a = columns[c];
+        const b = columns[c + 1];
+        b.forEach((entry, i) =>
+            edges.push({
+                from: a[Math.min(i, a.length - 1)].id,
+                to: entry.id,
+            }),
+        );
+    }
+    const cols = Math.max(1, columns.length);
+    const width = PAD + (cols - 1) * COL_PITCH + CARD_W + PAD;
+    const height = HEADER_H + (rows - 1) * ROW_H + CARD_H + PAD;
+    return {
+        nodes,
+        edges,
+        width,
+        height,
+        pathLeft: PAD + firstPathCol * COL_PITCH,
+    };
+}

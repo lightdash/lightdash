@@ -26,6 +26,7 @@ import {
     resumeTarget,
     type PathName,
 } from '../model';
+import { LearnGraph } from './LearnGraph';
 
 const PATH_KEY = 'lightdash.learn.path.v1';
 
@@ -253,6 +254,40 @@ export const LearnCataloguePanel: FC = () => {
                         )}
                     </Text>
                 )}
+            </Paper>
+
+            <Paper withBorder radius="md">
+                <Group justify="space-between" p="md">
+                    <Group gap="xs">
+                        <Text fw={600}>{meta.title} learning graph</Text>
+                        <Text size="sm" c="dimmed">
+                            {meta.blurb}
+                        </Text>
+                    </Group>
+                    <Group gap="md">
+                        {(
+                            [
+                                ['green', 'Complete'],
+                                ['violet', 'In progress'],
+                                ['gray', 'Not started'],
+                            ] as const
+                        ).map(([color, label]) => (
+                            <Group key={label} gap={6}>
+                                <Badge size="xs" circle color={color} />
+                                <Text size="xs" c="dimmed">
+                                    {label}
+                                </Text>
+                            </Group>
+                        ))}
+                    </Group>
+                </Group>
+                <LearnGraph
+                    path={path}
+                    rollups={rollups}
+                    pathColor={meta.color}
+                    pathTitle={meta.title}
+                    onOpenCourse={openCourse}
+                />
             </Paper>
         </Stack>
     );
