@@ -322,6 +322,7 @@ export * from './types/queryHistoryList';
 export * from './types/querySources';
 export * from './types/rename';
 export * from './types/resourceViewItem';
+export * from './types/learn';
 export * from './types/results';
 export * from './types/roadmap';
 export * from './types/roles';

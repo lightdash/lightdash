@@ -229,6 +229,7 @@ import {
     type MergeQuery,
     type MergeQueryError,
 } from './mergeQuery';
+import { type ApiLearnCatalogueResponse } from './learn';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -1305,6 +1306,7 @@ type ApiResults =
     | ApiPaginatedValidateResponse['results']
     | ApiValidationSummaryResponse['results']
     | ApiRoadmapResponse['results']
+    | ApiLearnCatalogueResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

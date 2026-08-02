@@ -1,0 +1,14 @@
+/* The navbar search is absolutely centered from 75em up, so the left button
+   group must not grow past the search's left edge. Below this width the Learn
+   entry lives in the Browse menu instead of the top-level group. */
+.topLevel {
+    @media (max-width: 1550px) {
+        display: none;
+    }
+}
+
+.menuItem {
+    @media (min-width: 1551px) {
+        display: none;
+    }
+}
