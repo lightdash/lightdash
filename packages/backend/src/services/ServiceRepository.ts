@@ -41,6 +41,7 @@ import { GitIntegrationService } from './GitIntegrationService/GitIntegrationSer
 import { GitlabAppService } from './GitlabAppService/GitlabAppService';
 import { GroupsService } from './GroupService';
 import { HealthService } from './HealthService/HealthService';
+import { LearnService } from './LearnService/LearnService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
@@ -122,6 +123,7 @@ interface ServiceManifest {
     pivotTableService: PivotTableService;
     projectService: ProjectService;
     promptService: PromptService;
+    learnService: LearnService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
     searchService: SearchService;
@@ -1007,6 +1009,17 @@ export class ServiceRepository
                     appGenerateService: this.providers.appGenerateService
                         ? this.getAppGenerateService<AppGenerateService>()
                         : undefined,
+                }),
+        );
+    }
+
+    public getLearnService(): LearnService {
+        return this.getService(
+            'learnService',
+            () =>
+                new LearnService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

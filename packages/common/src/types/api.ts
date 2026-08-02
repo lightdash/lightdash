@@ -197,6 +197,7 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import { type ApiLearnCatalogueResponse } from './learn';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -1143,6 +1144,7 @@ type ApiResults =
     | ValidationResponse[]
     | ApiPaginatedValidateResponse['results']
     | ApiRoadmapResponse['results']
+    | ApiLearnCatalogueResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

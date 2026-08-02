@@ -10,6 +10,7 @@ import BrowseMenu from './BrowseMenu';
 import ExploreMenu from './ExploreMenu';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
+import { LearnLink } from './LearnLink';
 import classes from './MainNavBarContent.module.css';
 import { MetricsLink } from './MetricsLink';
 import { NotificationsMenu } from './NotificationsMenu';
@@ -62,6 +63,7 @@ export const MainNavBarContent: FC<Props> = ({
                             {hasMetrics && (
                                 <MetricsLink projectUuid={activeProjectUuid} />
                             )}
+                            <LearnLink projectUuid={activeProjectUuid} />
                             <Suspense fallback={null}>
                                 <AiAgentsButton
                                     projectUuid={activeProjectUuid}
