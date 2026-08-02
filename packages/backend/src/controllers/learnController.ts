@@ -2,12 +2,14 @@ import {
     assertRegisteredAccount,
     type ApiErrorPayload,
     type ApiLearnCatalogueResponse,
+    type ApiLearnCourseResponse,
 } from '@lightdash/common';
 import {
     Get,
     Hidden,
     Middlewares,
     OperationId,
+    Path,
     Request,
     Response,
     Route,
@@ -41,6 +43,28 @@ export class LearnController extends BaseController {
             results: await this.services
                 .getLearnService()
                 .getCatalogue(req.account),
+        };
+    }
+
+    /**
+     * Get a published course payload (lessons and quiz) by course id.
+     * @summary Get a Learn course
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/courses/{courseId}')
+    @OperationId('getLearnCourse')
+    async getLearnCourse(
+        @Request() req: express.Request,
+        @Path() courseId: string,
+    ): Promise<ApiLearnCourseResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getLearnService()
+                .getCourse(req.account, courseId),
         };
     }
 }
