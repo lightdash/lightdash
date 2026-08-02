@@ -1,3 +1,15 @@
+# [1.59.0](https://github.com/lightdash/lightdash/compare/1.58.1...1.59.0) (2026-08-02)
+
+
+### Bug Fixes
+
+* **auth:** record last-used SSO method on success, not on click ([#26657](https://github.com/lightdash/lightdash/issues/26657)) ([7aaf2d5](https://github.com/lightdash/lightdash/commit/7aaf2d5e7ab3918b0ec8365f49349586498519e3))
+
+
+### Features
+
+* **auth:** redesign pre-auth screens with split-screen brand panel ([#26656](https://github.com/lightdash/lightdash/issues/26656)) ([0365f56](https://github.com/lightdash/lightdash/commit/0365f565b81a455f1731f51bec1d0f498b987931))
+
 ## [1.58.1](https://github.com/lightdash/lightdash/compare/1.58.0...1.58.1) (2026-08-01)
 
 
