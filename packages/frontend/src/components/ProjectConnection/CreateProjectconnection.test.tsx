@@ -160,7 +160,7 @@ describe('CreateProjectConnection in-flight job recovery', () => {
                     error: {
                         name: 'ConflictError',
                         statusCode: 409,
-                        message: 'A project is already being created',
+                        message: 'A project creation is already in progress',
                         data: { jobUuid: IN_FLIGHT_JOB_UUID },
                     },
                 }),

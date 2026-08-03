@@ -394,7 +394,9 @@ const isValidDbtCloudWebhookSignature = (
 };
 
 export class ProjectService extends BaseService {
-    static ACTIVE_CREATE_PROJECT_JOB_MAX_AGE_MS = 60 * 60 * 1000;
+    static RECENT_COMPLETED_CREATE_PROJECT_JOB_MAX_AGE_MS = 60 * 60 * 1000;
+
+    static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
 
     lightdashConfig: LightdashConfig;
 
@@ -2782,13 +2784,10 @@ export class ProjectService extends BaseService {
         if (data.type === ProjectType.PREVIEW) {
             await this.jobModel.create(job, true);
         } else {
+            await this.reapStaleCreateProjectJobs(user.organizationUuid);
             const result = await this.jobModel.createProjectJobIfNoActive({
                 job,
                 organizationUuid: user.organizationUuid,
-                createdAfter: new Date(
-                    Date.now() -
-                        ProjectService.ACTIVE_CREATE_PROJECT_JOB_MAX_AGE_MS,
-                ),
             });
             if (!result.isCreated) {
                 if (result.activeJob.userUuid !== user.userUuid) {
@@ -2802,18 +2801,45 @@ export class ProjectService extends BaseService {
                 );
             }
         }
-        // schedule job
-        await this.schedulerClient.createProjectWithCompile({
-            createdByUserUuid: user.userUuid,
-            isPreview: data.type === ProjectType.PREVIEW,
-            organizationUuid: user.organizationUuid,
-            requestMethod: method,
-            jobUuid: job.jobUuid,
-            data: encryptedData,
-            userUuid: user.userUuid,
-            projectUuid: undefined,
-        });
+        try {
+            await this.schedulerClient.createProjectWithCompile({
+                createdByUserUuid: user.userUuid,
+                isPreview: data.type === ProjectType.PREVIEW,
+                organizationUuid: user.organizationUuid,
+                requestMethod: method,
+                jobUuid: job.jobUuid,
+                data: encryptedData,
+                userUuid: user.userUuid,
+                projectUuid: undefined,
+            });
+        } catch (error) {
+            await this.jobModel.update(job.jobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+            throw error;
+        }
         return { jobUuid: job.jobUuid };
+    }
+
+    private async reapStaleCreateProjectJobs(
+        organizationUuid: string,
+    ): Promise<void> {
+        const staleJobUuids =
+            await this.jobModel.findStaleCreateProjectJobUuids({
+                organizationUuid,
+                updatedBefore: new Date(
+                    Date.now() -
+                        ProjectService.CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS,
+                ),
+            });
+        const schedulerJobExists = await Promise.all(
+            staleJobUuids.map((jobUuid) =>
+                this.schedulerClient.hasCreateProjectWithCompileJob(jobUuid),
+            ),
+        );
+        await this.jobModel.markCreateProjectJobsAsError(
+            staleJobUuids.filter((_, index) => !schedulerJobExists[index]),
+        );
     }
 
     async getActiveCreateProjectJob(user: SessionUser): Promise<Job | null> {
@@ -2821,12 +2847,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
+        await this.reapStaleCreateProjectJobs(user.organizationUuid);
         return this.jobModel.findActiveCreateProjectJob({
             organizationUuid: user.organizationUuid,
             userUuid: user.userUuid,
-            createdAfter: new Date(
+            completedAfter: new Date(
                 Date.now() -
-                    ProjectService.ACTIVE_CREATE_PROJECT_JOB_MAX_AGE_MS,
+                    ProjectService.RECENT_COMPLETED_CREATE_PROJECT_JOB_MAX_AGE_MS,
             ),
         });
     }

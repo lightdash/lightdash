@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ConflictError,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
@@ -12,6 +13,7 @@ import {
     ForbiddenError,
     JobStatusType,
     JobStepType,
+    JobType,
     MetricType,
     NotFoundError,
     OrganizationMemberRole,
@@ -29,6 +31,7 @@ import {
     type CreateWarehouseCredentials,
     type DownloadFile,
     type Explore,
+    type Job,
     type PossibleAbilities,
     type RegisteredAccount,
     type UpdateProject,
@@ -246,6 +249,12 @@ const savedChartModel = {
 const jobModel = {
     get: vi.fn(async () => job),
     findActiveCreateProjectJob: vi.fn<JobModel['findActiveCreateProjectJob']>(),
+    findStaleCreateProjectJobUuids: vi.fn<
+        JobModel['findStaleCreateProjectJobUuids']
+    >(async () => []),
+    markCreateProjectJobsAsError: vi.fn<
+        JobModel['markCreateProjectJobsAsError']
+    >(async () => undefined),
     create: vi.fn<JobModel['create']>(async () => job),
     createProjectJobIfNoActive: vi.fn<JobModel['createProjectJobIfNoActive']>(
         async () => ({ isCreated: true, job }),
@@ -279,6 +288,9 @@ const emailModel = {
 const schedulerClient = {
     createProjectWithCompile:
         vi.fn<SchedulerClient['createProjectWithCompile']>(),
+    hasCreateProjectWithCompileJob: vi.fn<
+        SchedulerClient['hasCreateProjectWithCompileJob']
+    >(async () => false),
     deleteScheduledPreAggregateCronJobsForProject: vi.fn(async () => undefined),
     indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
     materializePreAggregate: vi.fn(async () => ({ jobId: 'job-1' })),
@@ -355,7 +367,9 @@ const getMockedProjectService = (
         tagsModel: tagsModel as unknown as TagsModel,
         catalogModel: catalogModel as unknown as CatalogModel,
         contentModel: {} as ContentModel,
-        encryptionUtil: {} as EncryptionUtil,
+        encryptionUtil: {
+            encrypt: vi.fn(() => Buffer.from('encrypted-project-data')),
+        } as unknown as EncryptionUtil,
         userModel: {} as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
         featureFlagModel: {
@@ -522,51 +536,36 @@ describe('ProjectService', () => {
                     jobType: JobType.CREATE_PROJECT,
                 }),
                 organizationUuid,
-                createdAfter: expect.any(Date),
             });
             expect(
                 schedulerClient.createProjectWithCompile,
             ).toHaveBeenCalledOnce();
         });
 
-        test('allows a create when an active job is older than the cutoff', async () => {
-            const now = new Date('2026-08-03T09:00:00.000Z');
+        test('rejects a create when the active job is older than an hour', async () => {
             const oldJob: Job = {
                 ...activeCreateJob,
                 createdAt: new Date('2026-08-03T07:59:59.999Z'),
             };
-            vi.useFakeTimers();
-            vi.setSystemTime(now);
             vi.mocked(
                 jobModel.createProjectJobIfNoActive,
-            ).mockImplementationOnce(async ({ createdAfter }) =>
-                oldJob.createdAt >= createdAfter
-                    ? { isCreated: false, activeJob: oldJob }
-                    : { isCreated: true, job },
-            );
+            ).mockResolvedValueOnce({ isCreated: false, activeJob: oldJob });
 
-            try {
-                await service.scheduleCreate(
+            const error = await service
+                .scheduleCreate(
                     projectCreator,
                     createProject,
                     RequestMethod.WEB_APP,
-                );
+                )
+                .catch((caughtError) => caughtError);
 
-                expect(
-                    jobModel.createProjectJobIfNoActive,
-                ).toHaveBeenCalledWith({
-                    job: expect.objectContaining({
-                        jobType: JobType.CREATE_PROJECT,
-                    }),
-                    organizationUuid,
-                    createdAfter: new Date('2026-08-03T08:00:00.000Z'),
-                });
-                expect(
-                    schedulerClient.createProjectWithCompile,
-                ).toHaveBeenCalledOnce();
-            } finally {
-                vi.useRealTimers();
-            }
+            expect(error).toMatchObject({
+                statusCode: 409,
+                data: { jobUuid: oldJob.jobUuid },
+            });
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).not.toHaveBeenCalled();
         });
 
         test('allows preview creates while a non-preview create is active', async () => {
@@ -646,7 +645,7 @@ describe('ProjectService', () => {
             expect(jobModel.findActiveCreateProjectJob).toHaveBeenCalledWith({
                 organizationUuid,
                 userUuid: projectCreator.userUuid,
-                createdAfter: expect.any(Date),
+                completedAfter: expect.any(Date),
             });
         });
 
@@ -661,11 +660,10 @@ describe('ProjectService', () => {
             expect(jobModel.findActiveCreateProjectJob).toHaveBeenCalledWith({
                 organizationUuid,
                 userUuid: projectCreator.userUuid,
-                createdAfter: expect.any(Date),
+                completedAfter: expect.any(Date),
             });
         });
     });
-
 
     describe('organization warehouse credential authorization', () => {
         const organizationWarehouseCredentialsUuid =
