@@ -99,6 +99,11 @@ const buildArguments = () => {
         >();
     const track =
         vi.fn<ProvisionOnboardingHomepageArguments['analytics']['track']>();
+    const findOrgHomepageSettings = vi
+        .fn<
+            ProvisionOnboardingHomepageArguments['projectHomepageModel']['findOrgHomepageSettings']
+        >()
+        .mockResolvedValue(null);
 
     const featureFlagService = {
         get: getFeatureFlag,
@@ -109,6 +114,7 @@ const buildArguments = () => {
         list: listHomepages,
         create: createHomepage,
         publish: publishHomepage,
+        findOrgHomepageSettings,
     };
     const analytics = { track };
 
@@ -142,6 +148,7 @@ const buildArguments = () => {
         listHomepages: vi.mocked(listHomepages),
         createHomepage: vi.mocked(createHomepage),
         publishHomepage: vi.mocked(publishHomepage),
+        findOrgHomepageSettings: vi.mocked(findOrgHomepageSettings),
         track: vi.mocked(track),
     };
 };
@@ -435,6 +442,24 @@ describe('provisionOnboardingHomepage', () => {
                 homepageBuilderEnablement: 'enabled',
                 codingAgentOnboardingEnablement: 'enabled',
             },
+        });
+    });
+
+    it('provisions the content-first homepage when the org chose that opening', async () => {
+        const mocks = buildArguments();
+        mocks.findOrgHomepageSettings.mockResolvedValue({
+            organizationUuid: ORGANIZATION_UUID,
+            enabled: true,
+            opening: 'content-first',
+        });
+
+        await provisionOnboardingHomepage(mocks.args);
+
+        expect(mocks.createHomepage).toHaveBeenCalledWith({
+            projectUuid: PROJECT_UUID,
+            name: 'Getting started',
+            draftConfig: buildOnboardingHomepageConfig('content-first'),
+            createdByUserUuid: USER_UUID,
         });
     });
 

@@ -30,7 +30,7 @@ export type ProvisionOnboardingHomepageArguments = {
     projectModel: Pick<ProjectModel, 'getAllByOrganizationUuid'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
-        'list' | 'create' | 'publish'
+        'list' | 'create' | 'publish' | 'findOrgHomepageSettings'
     >;
     analytics: Pick<LightdashAnalytics, 'track'>;
 };
@@ -139,10 +139,20 @@ export const provisionOnboardingHomepage = async ({
             return;
         }
 
+        // An org that already chose a content-first opening shouldn't get an
+        // AI-first homepage minted for its new projects.
+        const orgHomepageSettings =
+            await projectHomepageModel.findOrgHomepageSettings(
+                organizationUuid,
+            );
         const homepage = await projectHomepageModel.create({
             projectUuid,
             name: 'Getting started',
-            draftConfig: buildOnboardingHomepageConfig(),
+            draftConfig: buildOnboardingHomepageConfig(
+                orgHomepageSettings?.opening === 'content-first'
+                    ? 'content-first'
+                    : 'ask-first',
+            ),
             createdByUserUuid: user.userUuid,
         });
         await projectHomepageModel.publish(homepage.homepageUuid, {
