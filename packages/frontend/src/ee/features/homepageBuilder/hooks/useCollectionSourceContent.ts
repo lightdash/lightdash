@@ -99,11 +99,20 @@ export const useCollectionSourceContent = (
     }, [source, manual.data, recent.contents, derived.data]);
 
     const items = useMemo(() => {
-        const filtered = config.verifiedOnly
-            ? resolved.filter(isVerified)
+        // Manual collections are already hand-filtered by picking; the type
+        // filter only narrows live rules.
+        const typeFilter =
+            source !== 'manual' && (config.contentTypes?.length ?? 0) > 0
+                ? new Set<string>(config.contentTypes)
+                : null;
+        const byType = typeFilter
+            ? resolved.filter((content) => typeFilter.has(content.contentType))
             : resolved;
+        const filtered = config.verifiedOnly
+            ? byType.filter(isVerified)
+            : byType;
         return filtered.slice(0, limit);
-    }, [resolved, config.verifiedOnly, limit]);
+    }, [resolved, source, config.contentTypes, config.verifiedOnly, limit]);
 
     const isLoading =
         source === 'manual'

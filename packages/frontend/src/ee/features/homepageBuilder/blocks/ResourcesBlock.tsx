@@ -5,9 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Box,
     Group,
-    SegmentedControl,
     Select,
     Stack,
     Switch,
@@ -20,8 +18,6 @@ import {
     IconBook,
     IconBrandYoutube,
     IconExternalLink,
-    IconLayoutGrid,
-    IconLayoutList,
     IconLink,
     IconPlus,
     IconSparkles,
@@ -41,6 +37,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppThumbnailUrl } from '../../../../features/apps/hooks/useAppThumbnail';
 import { BlockHeader, IconSquare, MiniPill } from './BlockShell';
 import classes from './blockStyles.module.css';
+import { ContentLayoutControl } from './ContentLayoutControl';
 import { DataAppPickerModal } from './DataAppPickerModal';
 import { PageGrid, PageGridItem } from './PageGrid';
 import {
@@ -646,42 +643,11 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                         patchConfig({ title: e.currentTarget.value })
                     }
                 />
-                <SegmentedControl
-                    size="xs"
+                <ContentLayoutControl
                     value={layout}
-                    onChange={(v) =>
-                        patchConfig({ layout: v as HomepageResourcesLayout })
+                    onChange={(nextLayout) =>
+                        patchConfig({ layout: nextLayout })
                     }
-                    data={[
-                        {
-                            value: 'card',
-                            label: (
-                                <Tooltip label="Cards" openDelay={200}>
-                                    <Box
-                                        component="span"
-                                        lh={0}
-                                        display="inline-block"
-                                    >
-                                        <MantineIcon icon={IconLayoutGrid} />
-                                    </Box>
-                                </Tooltip>
-                            ),
-                        },
-                        {
-                            value: 'list',
-                            label: (
-                                <Tooltip label="Compact" openDelay={200}>
-                                    <Box
-                                        component="span"
-                                        lh={0}
-                                        display="inline-block"
-                                    >
-                                        <MantineIcon icon={IconLayoutList} />
-                                    </Box>
-                                </Tooltip>
-                            ),
-                        },
-                    ]}
                 />
             </Group>
             <Switch

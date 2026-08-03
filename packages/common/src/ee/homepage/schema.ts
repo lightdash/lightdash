@@ -37,6 +37,8 @@ const collectionItemRefSchema = z.object({
     uuid: z.string(),
 });
 
+const contentLayoutSchema = z.enum(['card', 'list']);
+
 const collectionBlockSchema = z.object({
     id: z.string(),
     type: z.literal('collection'),
@@ -55,6 +57,10 @@ const collectionBlockSchema = z.object({
             .optional(),
         verifiedOnly: z.boolean().optional(),
         limit: z.number().int().positive().optional(),
+        layout: contentLayoutSchema.optional(),
+        contentTypes: z
+            .array(z.enum(['chart', 'dashboard', 'space', 'data_app']))
+            .optional(),
     }),
 });
 
@@ -73,7 +79,7 @@ const resourcesBlockSchema = z.object({
     config: z.object({
         title: z.string(),
         items: z.array(resourceItemSchema),
-        layout: z.enum(['card', 'list']).optional(),
+        layout: contentLayoutSchema.optional(),
         showDescriptions: z.boolean().optional(),
     }),
 });

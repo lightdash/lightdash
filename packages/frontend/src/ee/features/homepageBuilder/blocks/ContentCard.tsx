@@ -1,4 +1,5 @@
 import {
+    ContentType,
     contentToResourceViewItem,
     type SummaryContent,
 } from '@lightdash/common';
@@ -23,7 +24,9 @@ type Props = {
     projectUuid: string;
     onRemove?: () => void;
     star?: { isFavorite: boolean; onToggle: () => void };
-    variant?: 'row' | 'tile';
+    /** `row`/`tile` are card-chrome variants; `compact` is a slim
+     * single-line tile for dense grids. */
+    variant?: 'row' | 'tile' | 'compact';
 };
 
 const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) =>
@@ -55,10 +58,17 @@ const TileExtra: FC<{ content: SummaryContent }> = ({ content }) => {
     );
 };
 
+const CONTENT_KIND_LABEL: Record<SummaryContent['contentType'], string> = {
+    [ContentType.CHART]: 'Chart',
+    [ContentType.DASHBOARD]: 'Dashboard',
+    [ContentType.SPACE]: 'Space',
+    [ContentType.DATA_APP]: 'App',
+};
+
 const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
     <Group gap={5} wrap="nowrap" className={classes.rowMeta}>
-        <Text size="xs" c="dimmed" tt="capitalize" span>
-            {content.contentType}
+        <Text size="xs" c="dimmed" span>
+            {CONTENT_KIND_LABEL[content.contentType]}
         </Text>
         <Text size="xs" c="dimmed" span>
             ·
@@ -135,6 +145,37 @@ export const ContentCard: FC<Props> = ({
         ? null
         : getResourceUrl(projectUuid, contentToResourceViewItem(content));
     const cardClass = `${classes.hoverCard}${to ? ` ${classes.clickable}` : ''}`;
+
+    // A single dense line — visibly lighter than the two-line card variant.
+    if (variant === 'compact') {
+        return (
+            <MaybeLink
+                to={to}
+                className={`${classes.resTile}${to ? ` ${classes.clickable}` : ''}`}
+            >
+                <ResourceIcon item={contentToResourceViewItem(content)} />
+                <Group gap={5} wrap="nowrap" className={classes.resTileBody}>
+                    <Text size="sm" fw={600} truncate>
+                        {content.name}
+                    </Text>
+                    <VerifiedBadge content={content} />
+                </Group>
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon icon={IconEye} size={12} color="ldGray.6" />
+                    <Text size="xs" c="dimmed" span>
+                        {content.views}
+                    </Text>
+                </Group>
+                <Box className={classes.tileActions}>
+                    <CardActions
+                        content={content}
+                        onRemove={onRemove}
+                        star={star}
+                    />
+                </Box>
+            </MaybeLink>
+        );
+    }
 
     if (variant === 'tile') {
         // Horizontal at half a card unit: two content tiles stack to exactly
