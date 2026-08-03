@@ -210,6 +210,11 @@ mcpRouter.all(
             );
 
             const mcpService = getMcpService(req);
+            const { account } = req;
+            if (!account) {
+                throw new ForbiddenError('MCP request is missing an account');
+            }
+            mcpService.canAccessMcp(account);
 
             // Check if MCP is enabled (either via config or AI Copilot flag)
             const isEnabled = await mcpService.isEnabled(req.user!);

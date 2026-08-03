@@ -57,7 +57,6 @@ import {
     McpGetTaskResult,
     mcpListProjectsToolDefinition,
     MetricQuery,
-    MissingConfigError,
     NotFoundError,
     OauthAccount,
     ParameterError,
@@ -122,6 +121,7 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { ContentVerificationService } from '../../../services/ContentVerificationService';
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { OAuthScope } from '../../../services/OAuthService/OAuthService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -3742,29 +3742,15 @@ export class McpService extends BaseService {
         return { user, account, organizationUuid: user.organizationUuid };
     }
 
-    public canAccessMcp(context: McpProtocolContext): boolean {
-        if (!context.authInfo) {
-            throw new ForbiddenError('Invalid authInfo context');
-        }
-
-        const user = context.authInfo.extra?.user;
-        const account = context.authInfo.extra?.account;
-
-        // TODO replace with CASL ability check
-        // Do not enforce client scopes for now until more MCP clients support this
-        /*
-        //const { scopes } = account.authentication;
-
-        if (
-            !scopes.includes(OAuthScope.MCP_READ) &&
-            !scopes.includes(OAuthScope.MCP_WRITE)
-        ) {
-            throw new ForbiddenError('You are not allowed to access MCP');
-        }
-        */
-
-        if (!this.lightdashConfig.mcp.enabled) {
-            throw new MissingConfigError('MCP is not enabled');
+    public canAccessMcp(account: Account): boolean {
+        if (account.authentication.type === 'oauth') {
+            const { scopes } = account.authentication;
+            if (
+                !scopes.includes(OAuthScope.MCP_READ) &&
+                !scopes.includes(OAuthScope.MCP_WRITE)
+            ) {
+                throw new ForbiddenError('You are not allowed to access MCP');
+            }
         }
 
         return true;
@@ -3884,7 +3870,8 @@ export class McpService extends BaseService {
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {
-        this.canAccessMcp(context);
+        const { account } = McpService.getAccount(context);
+        this.canAccessMcp(account);
         return VERSION;
     }
 
