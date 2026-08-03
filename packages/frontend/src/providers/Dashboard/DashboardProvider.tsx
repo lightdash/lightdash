@@ -1,5 +1,6 @@
 import {
     applyDimensionOverrides,
+    applyDefaultTimeDimensionTileTargets,
     applyMetricOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
@@ -1337,7 +1338,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     }, [dashboardAvailableFiltersData]);
 
     const allFilters = useMemo(() => {
-        return {
+        const filters = {
             dimensions: [
                 ...dashboardFilters.dimensions,
                 ...safeTemporaryFilters?.dimensions,
@@ -1351,7 +1352,19 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 ...safeTemporaryFilters?.tableCalculations,
             ],
         };
-    }, [dashboardFilters, safeTemporaryFilters]);
+        return filterableFieldsByTileUuid && dashboardAvailableFiltersData
+            ? applyDefaultTimeDimensionTileTargets(
+                  filters,
+                  filterableFieldsByTileUuid,
+                  dashboardAvailableFiltersData.defaultTimeDimensions,
+              )
+            : filters;
+    }, [
+        dashboardFilters,
+        safeTemporaryFilters,
+        filterableFieldsByTileUuid,
+        dashboardAvailableFiltersData,
+    ]);
 
     // Watch for filter changes and emit events (skip initial render)
     useEffect(() => {

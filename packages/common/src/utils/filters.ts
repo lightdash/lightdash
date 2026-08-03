@@ -16,6 +16,7 @@ import {
     TableCalculationType,
     type CompiledField,
     type CustomSqlDimension,
+    type DashboardFilterableField,
     type Dimension,
     type Field,
     type FilterableDimension,
@@ -440,6 +441,9 @@ const getDefaultTileTargets = (
             [tileUuid]: {
                 fieldId: getItemId(filterableField),
                 tableName: filterableField.table,
+                ...(isDimension(filterableField)
+                    ? { fallbackType: filterableField.type }
+                    : {}),
             },
         };
     }, {});
@@ -492,6 +496,7 @@ export const createDashboardFilterRuleFromField = ({
                 fieldId: getItemId(field),
                 tableName: field.table,
                 fieldName: field.name,
+                ...(isDimension(field) ? { fallbackType: field.type } : {}),
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
             disabled: !isTemporary,
@@ -1364,6 +1369,85 @@ export const getAvailableFilterFieldIds = (explore: Explore): string[] => [
         .map(([fieldId]) => fieldId),
 ];
 
+export const getExploreDefaultTimeDimension = (
+    explore: Explore,
+): FilterableDimension | undefined => {
+    const baseTable = explore.tables[explore.baseTable];
+    const defaultTimeDimension = baseTable?.defaultTimeDimension;
+    if (!baseTable || !defaultTimeDimension) {
+        return undefined;
+    }
+
+    const fieldId = convertFieldRefToFieldId(
+        defaultTimeDimension.field,
+        baseTable.name,
+    );
+    const dimension = getDimensionMapFromTables(explore.tables)[fieldId];
+    return dimension && isFilterableDimension(dimension)
+        ? dimension
+        : undefined;
+};
+
+export const getDashboardFieldTarget = (
+    field: FilterableDimension,
+): DashboardFieldTarget => ({
+    fieldId: getItemId(field),
+    tableName: field.table,
+    fallbackType: field.type,
+});
+
+const isDateDimensionType = (type: DimensionType | undefined): boolean =>
+    type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
+
+export const applyDefaultTimeDimensionTileTargets = (
+    dashboardFilters: DashboardFilters,
+    filterableFieldsByTileUuid: Record<string, DashboardFilterableField[]>,
+    defaultTimeDimensions: Record<string, DashboardFieldTarget>,
+): DashboardFilters => ({
+    ...dashboardFilters,
+    dimensions: dashboardFilters.dimensions.map((filter) => {
+        const sourceField = Object.values(filterableFieldsByTileUuid)
+            .flat()
+            .find((field) => getItemId(field) === filter.target.fieldId);
+        const filterType =
+            filter.target.fallbackType ??
+            (sourceField && isDimension(sourceField)
+                ? sourceField.type
+                : undefined);
+        if (!isDateDimensionType(filterType)) {
+            return filter;
+        }
+
+        const tileTargets = Object.entries(defaultTimeDimensions).reduce(
+            (targets, [tileUuid, defaultTimeDimensionTarget]) => {
+                if (targets[tileUuid] !== undefined) {
+                    return targets;
+                }
+                const tileHasSourceField = filterableFieldsByTileUuid[
+                    tileUuid
+                ]?.some((field) => getItemId(field) === filter.target.fieldId);
+                if (tileHasSourceField) {
+                    return targets;
+                }
+                return {
+                    ...targets,
+                    [tileUuid]: defaultTimeDimensionTarget,
+                };
+            },
+            { ...filter.tileTargets },
+        );
+
+        return {
+            ...filter,
+            target: {
+                ...filter.target,
+                fallbackType: filterType,
+            },
+            tileTargets,
+        };
+    }),
+});
+
 export const applyDashboardFiltersForTile = ({
     tileUuid,
     metricQuery,
@@ -1378,10 +1462,29 @@ export const applyDashboardFiltersForTile = ({
     metricQuery: MetricQuery;
     appliedDashboardFilters: DashboardFilters;
 } => {
+    const availableFieldIds = getAvailableFilterFieldIds(explore);
+    const defaultTimeDimension = getExploreDefaultTimeDimension(explore);
+    const dimensionFilters = dashboardFilters.dimensions.map((filter) => {
+        const tileTarget = filter.tileTargets?.[tileUuid];
+        if (
+            tileTarget !== undefined ||
+            availableFieldIds.includes(filter.target.fieldId) ||
+            !isDateDimensionType(filter.target.fallbackType) ||
+            !defaultTimeDimension
+        ) {
+            return filter;
+        }
+        return {
+            ...filter,
+            target: {
+                ...getDashboardFieldTarget(defaultTimeDimension),
+            },
+        };
+    });
     const appliedDashboardFilters = getDashboardFiltersForTileAndTables(
         tileUuid,
-        getAvailableFilterFieldIds(explore),
-        dashboardFilters,
+        availableFieldIds,
+        { ...dashboardFilters, dimensions: dimensionFilters },
     );
     return {
         metricQuery: addDashboardFiltersToMetricQuery(

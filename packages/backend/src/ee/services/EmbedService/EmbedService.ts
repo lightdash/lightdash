@@ -15,6 +15,7 @@ import {
     CreateEmbedRequestBody,
     DashboardAvailableFilters,
     DashboardDAO,
+    DashboardFieldTarget,
     DashboardFilters,
     DateGranularity,
     DateZoom,
@@ -33,9 +34,11 @@ import {
     formatRows,
     getAvailableFilterFieldIds,
     getColumnTimezone,
+    getDashboardFieldTarget,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
+    getExploreDefaultTimeDimension,
     getFilterInteractivityValue,
     getItemId,
     InteractivityOptions,
@@ -695,19 +698,14 @@ export class EmbedService extends BaseService {
         const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
 
-        if (!isFilterInteractivityEnabled(account.access.filtering)) {
-            // If dashboard filters interactivity is not enabled, we return an empty list
-            return {
-                savedQueryFilters: {},
-                allFilterableFields: [],
-                allFilterableMetrics: [],
-                savedQueryMetricFilters: {},
-            };
-        }
+        const hasFilterInteractivity = isFilterInteractivityEnabled(
+            account.access.filtering,
+        );
 
         let allFilters: {
             uuid: string;
             filters: CompiledDimension[];
+            defaultTimeDimension?: DashboardFieldTarget;
         }[] = [];
 
         const savedQueryUuids = savedChartUuidsAndTileUuids.map(
@@ -804,13 +802,22 @@ export class EmbedService extends BaseService {
 
         const filterPromises = savedCharts.map(async (savedChart) => {
             const explore = exploreCache[savedChart.tableName];
-            if (isExploreError(explore))
+            if (isExploreError(explore)) {
                 return { uuid: savedChart.uuid, filters: [] };
+            }
             const filters = getDimensions(explore).filter(
                 (field) => isFilterableDimension(field) && !field.hidden,
             );
+            const defaultTimeDimension =
+                getExploreDefaultTimeDimension(explore);
 
-            return { uuid: savedChart.uuid, filters };
+            return {
+                uuid: savedChart.uuid,
+                filters,
+                defaultTimeDimension: defaultTimeDimension
+                    ? getDashboardFieldTarget(defaultTimeDimension)
+                    : undefined,
+            };
         });
 
         allFilters = await Promise.all(filterPromises);
@@ -846,11 +853,30 @@ export class EmbedService extends BaseService {
             };
         }, {});
 
+        const defaultTimeDimensions = savedChartUuidsAndTileUuids.reduce<
+            DashboardAvailableFilters['defaultTimeDimensions']
+        >((acc, savedChartUuidAndTileUuid) => {
+            const filterResult = allFilters.find(
+                (result) =>
+                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+            );
+            return filterResult?.defaultTimeDimension
+                ? {
+                      ...acc,
+                      [savedChartUuidAndTileUuid.tileUuid]:
+                          filterResult.defaultTimeDimension,
+                  }
+                : acc;
+        }, {});
+
         return {
-            savedQueryFilters,
-            allFilterableFields,
+            savedQueryFilters: hasFilterInteractivity ? savedQueryFilters : {},
+            allFilterableFields: hasFilterInteractivity
+                ? allFilterableFields
+                : [],
             allFilterableMetrics: [],
             savedQueryMetricFilters: {},
+            defaultTimeDimensions,
         };
     }
 
