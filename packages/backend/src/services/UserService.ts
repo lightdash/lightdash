@@ -171,6 +171,7 @@ export type AuthAuditContext = {
 
 type LoginWithOpenIdOptions = {
     isLinkFlow?: boolean;
+    emailVerified?: boolean;
 };
 
 const emitAuthAuditEvent = ({
@@ -1008,6 +1009,12 @@ export class UserService extends BaseService {
             }`,
         );
 
+        if (options?.emailVerified === false && !openIdSession) {
+            throw new ForbiddenError(
+                'Authentication failed: email is not verified in OpenID profile.',
+            );
+        }
+
         if (
             (await this.isLoginMethodAllowed(
                 openIdUser.openId.email,
@@ -1073,15 +1080,17 @@ export class UserService extends BaseService {
                 }
             }
 
-            await this.openIdIdentityModel.updateIdentityByOpenId({
-                ...openIdUser.openId,
-                refreshToken,
-            });
-            await this.tryVerifyUserEmail(
-                loginUser,
-                openIdUser.openId.email,
-                'sso',
-            );
+            if (options?.emailVerified !== false) {
+                await this.openIdIdentityModel.updateIdentityByOpenId({
+                    ...openIdUser.openId,
+                    refreshToken,
+                });
+                await this.tryVerifyUserEmail(
+                    loginUser,
+                    openIdUser.openId.email,
+                    'sso',
+                );
+            }
             this.identifyUser(loginUser);
             this.analytics.track({
                 userId: loginUser.userUuid,

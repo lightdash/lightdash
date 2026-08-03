@@ -2758,6 +2758,61 @@ describe('UserService', () => {
             ).toHaveBeenCalledTimes(0);
         });
 
+        test('allows an unverified provider email for an existing OpenID identity without trusting the email', async () => {
+            (
+                userModel.findSessionUserByOpenId as import('vitest').Mock
+            ).mockResolvedValueOnce(sessionUser);
+            const openIdUserWithUnverifiedEmail = {
+                openId: {
+                    ...openIdUser.openId,
+                    email: 'unverified@example.com',
+                },
+            };
+
+            await userService.loginWithOpenId(
+                openIdUserWithUnverifiedEmail,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                { emailVerified: false },
+            );
+
+            expect(
+                openIdIdentityModel.updateIdentityByOpenId,
+            ).not.toHaveBeenCalled();
+            expect(emailModel.verifyUserEmailIfExists).not.toHaveBeenCalled();
+        });
+
+        test('rejects an unverified provider email before linking a new OpenID identity', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    enableOidcLinking: true,
+                    enableOidcToEmailLinking: true,
+                },
+            });
+
+            await expect(
+                service.loginWithOpenId(
+                    openIdUser,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    { emailVerified: false },
+                ),
+            ).rejects.toThrowError(
+                new ForbiddenError(
+                    'Authentication failed: email is not verified in OpenID profile.',
+                ),
+            );
+
+            expect(openIdIdentityModel.createIdentity).not.toHaveBeenCalled();
+            expect(userModel.createUser).not.toHaveBeenCalled();
+        });
+
         test('should emit allowed audit event on successful OpenID login', async () => {
             (
                 userModel.findSessionUserByOpenId as import('vitest').Mock
