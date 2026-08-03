@@ -289,6 +289,24 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
                 type: 'pdf',
             });
         }
+
+        // Dashboard-level "Export all" (bundles every tile into a CSV/XLSX ZIP).
+        // Scoped to this dashboard via metadata.dashboardUuid so the shared
+        // `manage ExportCsv` check in DashboardService.scheduleExportContent
+        // passes only for the embedded dashboard. The accompanying JobStatus
+        // grant lets the embed poll the async export job it created.
+        if (embedUser.content.canExportDashboardCsv) {
+            can('manage', 'ExportCsv', {
+                organizationUuid: organization.organizationUuid,
+                projectUuid: embed.projectUuid,
+                'metadata.dashboardUuid': content.dashboardUuid,
+            });
+            can('view', 'JobStatus', {
+                organizationUuid: organization.organizationUuid,
+                projectUuid: embed.projectUuid,
+                createdByUserUuid: externalId,
+            });
+        }
     }
 
     return { embedUser, content, embed, externalId, builder };

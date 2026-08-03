@@ -5,6 +5,8 @@ import {
     isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
+    type AnonymousAccount,
+    type ExportContentPayload,
 } from '@lightdash/common';
 import type { AddJobFunction } from 'graphile-worker';
 import Logger from '../../logging/logger';
@@ -937,6 +939,92 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     },
                 );
             },
+            [SCHEDULER_TASKS.EXPORT_CONTENT]: async (payload, helpers) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.EXPORT_CONTENT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            const { encodedJwt } = payload;
+                            if (encodedJwt) {
+                                // Embed export: rebuild the anonymous account
+                                // from the JWT so the tile queries run under the
+                                // token's access instead of a DB user.
+                                const account =
+                                    await this.resolveEmbedExportAccount(
+                                        helpers.job.id,
+                                        helpers.job.run_at,
+                                        payload,
+                                        encodedJwt,
+                                    );
+                                await this.exportContent(
+                                    helpers.job.id,
+                                    helpers.job.run_at,
+                                    payload,
+                                    account,
+                                );
+                            } else {
+                                await this.exportContent(
+                                    helpers.job.id,
+                                    helpers.job.run_at,
+                                    payload,
+                                );
+                            }
+                        },
+                    ),
+                    helpers.job,
+                    this.lightdashConfig.scheduler.jobTimeout,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.EXPORT_CONTENT,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                userUuid: payload.userUuid,
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                error: getErrorMessage(e),
+                                createdByUserUuid: payload.userUuid,
+                            },
+                        });
+                    },
+                );
+            },
         };
+    }
+
+    // Resolves the embed account before exportContent's own logWrapper runs, so
+    // a rejected token (expired, revoked, no longer authorized) writes a job
+    // ERROR row instead of leaving the embed's poller on SCHEDULED forever —
+    // tryJobOrTimeout only handles timeouts.
+    private async resolveEmbedExportAccount(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ExportContentPayload,
+        encodedJwt: string,
+    ): Promise<AnonymousAccount> {
+        try {
+            return await this.embedService.getAccountForDashboardExport(
+                payload,
+                encodedJwt,
+            );
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.EXPORT_CONTENT,
+                jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    error: getErrorMessage(e),
+                },
+            });
+            throw e;
+        }
     }
 }

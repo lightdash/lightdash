@@ -210,8 +210,12 @@ export const useDashboardVersionRefresh = (
     });
 };
 
+// projectUuid is passed as a query param, not because the endpoint needs it, but
+// because the JWT auth middleware resolves the embed secret from it — embedded
+// dashboards can't authenticate on a route without a project in the path.
 const exportDashboardContent = async (
     id: string,
+    projectUuid: string,
     data: {
         format: ExportContentFormat;
         options?: SchedulerCsvOptions | SchedulerImageOptions;
@@ -223,7 +227,7 @@ const exportDashboardContent = async (
     },
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
-        url: `/dashboards/${id}/exports`,
+        url: `/dashboards/${id}/exports?projectUuid=${projectUuid}`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(data),
@@ -259,15 +263,19 @@ export const useExportDashboardContent = () => {
         }
     >(
         (data) =>
-            exportDashboardContent(data.dashboard.uuid, {
-                format: data.format,
-                options: data.options,
-                dashboardFilters: data.dashboardFilters,
-                dateZoomGranularity: data.dateZoomGranularity,
-                customViewportWidth: data.customViewportWidth,
-                selectedTabs: data.selectedTabs,
-                parameters: data.parameters,
-            }),
+            exportDashboardContent(
+                data.dashboard.uuid,
+                data.dashboard.projectUuid,
+                {
+                    format: data.format,
+                    options: data.options,
+                    dashboardFilters: data.dashboardFilters,
+                    dateZoomGranularity: data.dateZoomGranularity,
+                    customViewportWidth: data.customViewportWidth,
+                    selectedTabs: data.selectedTabs,
+                    parameters: data.parameters,
+                },
+            ),
         {
             mutationKey: ['export_dashboard_content'],
             onMutate: (data) => {
@@ -279,7 +287,7 @@ export const useExportDashboardContent = () => {
                 });
             },
             onSuccess: async (job, data) => {
-                pollJobStatus(job.jobId)
+                pollJobStatus(job.jobId, data.dashboard.projectUuid)
                     .then((rawDetails) => {
                         const details =
                             rawDetails as DashboardContentExportDetails | null;
@@ -364,15 +372,19 @@ export const useExportDashboardContentPreview = () => {
         }
     >(
         async (data) => {
-            const job = await exportDashboardContent(data.dashboard.uuid, {
-                format: SchedulerFormat.IMAGE,
-                options: {},
-                dashboardFilters: data.dashboardFilters,
-                dateZoomGranularity: data.dateZoomGranularity,
-                customViewportWidth: data.customViewportWidth,
-                selectedTabs: data.selectedTabs,
-                parameters: data.parameters,
-            });
+            const job = await exportDashboardContent(
+                data.dashboard.uuid,
+                data.dashboard.projectUuid,
+                {
+                    format: SchedulerFormat.IMAGE,
+                    options: {},
+                    dashboardFilters: data.dashboardFilters,
+                    dateZoomGranularity: data.dateZoomGranularity,
+                    customViewportWidth: data.customViewportWidth,
+                    selectedTabs: data.selectedTabs,
+                    parameters: data.parameters,
+                },
+            );
             const details = (await pollJobStatus(
                 job.jobId,
             )) as DashboardContentExportDetails | null;

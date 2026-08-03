@@ -665,6 +665,9 @@ export default class SchedulerTask {
         // Captured once per job by captureAppDeliveryQueries — never rendered here,
         // so the per-channel fan-out can't trigger a second app render.
         appCaptureManifest?: DeliveryCaptureManifest,
+        // Embed/JWT exports pass a pre-resolved anonymous account (no DB user),
+        // used for CSV/XLSX tile queries in place of getAccountByUserUuid.
+        overrideAccount?: AccountType,
     ): Promise<
         NotificationPayloadBase['page'] & {
             deliveryQueries?: SchedulerDeliveryQuery[];
@@ -946,7 +949,8 @@ export default class SchedulerTask {
             case SchedulerFormat.CSV:
             case SchedulerFormat.XLSX:
                 const account =
-                    await this.userService.getAccountByUserUuid(userUuid);
+                    overrideAccount ??
+                    (await this.userService.getAccountByUserUuid(userUuid));
                 const csvOptions = isSchedulerCsvOptions(options)
                     ? options
                     : undefined;
@@ -5161,7 +5165,7 @@ export default class SchedulerTask {
         zipNameBase: string;
         organizationUuid: string;
         projectUuid: string;
-        createdByUserUuid: string;
+        createdByUserUuid: string | null;
         logContext?: string;
     }) {
         if (!this.fileStorageClient.isEnabled()) {
@@ -5396,6 +5400,9 @@ export default class SchedulerTask {
         jobId: string,
         scheduledTime: Date,
         payload: ExportContentPayload,
+        // Embed/JWT exports pass a pre-resolved anonymous account so the tile
+        // queries run under the token's access instead of a DB user.
+        overrideAccount?: AccountType,
     ) {
         await this.logWrapper<string | number>(
             {
@@ -5451,6 +5458,8 @@ export default class SchedulerTask {
                         dateZoomGranularity: payload.dateZoomGranularity,
                         parameters: payload.parameters,
                     },
+                    undefined,
+                    overrideAccount,
                 );
 
                 if (payload.format === SchedulerFormat.IMAGE) {
@@ -5506,7 +5515,10 @@ export default class SchedulerTask {
                         zipNameBase: page.details.name,
                         organizationUuid: payload.organizationUuid,
                         projectUuid: payload.projectUuid,
-                        createdByUserUuid: payload.userUuid,
+                        // JWT/embed callers have no DB user row to reference.
+                        createdByUserUuid: overrideAccount
+                            ? null
+                            : payload.userUuid,
                     });
 
                     return {

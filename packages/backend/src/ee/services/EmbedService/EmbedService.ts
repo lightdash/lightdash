@@ -28,6 +28,7 @@ import {
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
     ExploreError,
+    ExportContentPayload,
     FeatureFlags,
     FieldValueSearchResult,
     FilterableDimension,
@@ -617,6 +618,7 @@ export class EmbedService extends BaseService {
         const {
             isPreview,
             canExportCsv,
+            canExportDashboardCsv,
             canExportImages,
             canExportPagePdf,
             canDateZoom,
@@ -691,6 +693,7 @@ export class EmbedService extends BaseService {
             dashboardFiltersInteractivity: account.access.filtering,
             parameterInteractivity: account.access.parameters,
             canExportCsv,
+            canExportDashboardCsv,
             canExportImages,
             canExportPagePdf: canExportPagePdf ?? true, // enabled by default for backwards compatibility
             canDateZoom,
@@ -2568,6 +2571,41 @@ export class EmbedService extends BaseService {
                 });
             },
         );
+    }
+
+    /**
+     * Rebuilds the anonymous account for a queued dashboard export job,
+     * re-verifying the token (signature and expiry) and re-asserting the export
+     * ability against the job's dashboard so the worker never trusts the queue.
+     */
+    async getAccountForDashboardExport(
+        payload: Pick<
+            ExportContentPayload,
+            'projectUuid' | 'organizationUuid' | 'resourceUuid'
+        >,
+        encodedJwt: string,
+    ): Promise<AnonymousAccount> {
+        const account = await this.getAccountFromJwt(
+            payload.projectUuid,
+            encodedJwt,
+        );
+
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    metadata: { dashboardUuid: payload.resourceUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Embed token is not authorized to export this dashboard',
+            );
+        }
+
+        return account;
     }
 
     private async getEmbedWriteContext(

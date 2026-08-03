@@ -195,9 +195,14 @@ export const getSchedulerJobStatus = async <
     T = ApiJobStatusResponse['results'],
 >(
     jobId: string,
+    // Embedded callers must pass this: the JWT auth middleware resolves the embed
+    // secret from a project in the path or query, and this route has neither.
+    projectUuid?: string,
 ) =>
     lightdashApi<T extends ApiJobStatusResponse['results'] ? T : never>({
-        url: `/schedulers/job/${jobId}/status`,
+        url: `/schedulers/job/${jobId}/status${
+            projectUuid ? `?projectUuid=${projectUuid}` : ''
+        }`,
         method: 'GET',
         body: undefined,
     });
@@ -477,8 +482,9 @@ const getJobStatus = async (
     jobId: string,
     onComplete: (response: Record<string, AnyType> | null) => void,
     onError: (error: Error) => void,
+    projectUuid?: string,
 ) => {
-    getSchedulerJobStatus(jobId)
+    getSchedulerJobStatus(jobId, projectUuid)
         .then((data) => {
             if (data.status === SchedulerJobStatus.COMPLETED) {
                 return onComplete(data.details);
@@ -486,7 +492,7 @@ const getJobStatus = async (
                 onError(new Error(data.details?.error || 'Job failed'));
             } else {
                 setTimeout(
-                    () => getJobStatus(jobId, onComplete, onError),
+                    () => getJobStatus(jobId, onComplete, onError, projectUuid),
                     2000,
                 );
             }
@@ -496,7 +502,7 @@ const getJobStatus = async (
         });
 };
 
-export const pollJobStatus = async (jobId: string) => {
+export const pollJobStatus = async (jobId: string, projectUuid?: string) => {
     if (!jobId) {
         throw new Error('Cannot poll job status: jobId is required');
     }
@@ -505,6 +511,7 @@ export const pollJobStatus = async (jobId: string) => {
             jobId,
             (details) => resolve(details),
             (error) => reject(error),
+            projectUuid,
         ),
     );
 };

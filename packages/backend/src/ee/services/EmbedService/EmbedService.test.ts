@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    buildAccountHelpers,
     ForbiddenError,
     type AnonymousAccount,
     type CreateEmbedJwt,
@@ -274,6 +275,63 @@ describe('EmbedService', () => {
                 type: 'metricsCatalog',
                 explores: [],
             });
+        });
+    });
+
+    describe('getAccountForDashboardExport', () => {
+        const exportPayload = {
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            resourceUuid: 'dashboard-1',
+        };
+
+        const accountWithExportAbility = (dashboardUuid: string) => {
+            const account = {
+                organization: { organizationUuid: mockOrganizationUuid },
+                authentication: { type: 'jwt', source: 'encoded-jwt' },
+                user: {
+                    id: 'external::user-1',
+                    type: 'anonymous',
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'ExportCsv',
+                            action: 'manage',
+                            conditions: {
+                                'metadata.dashboardUuid': dashboardUuid,
+                            },
+                        },
+                    ]),
+                },
+            } as unknown as AnonymousAccount;
+            return {
+                ...account,
+                ...buildAccountHelpers(account),
+            } as AnonymousAccount;
+        };
+
+        test('returns the rebuilt account when the token can export the job dashboard', async () => {
+            const account = accountWithExportAbility('dashboard-1');
+            vi.spyOn(service, 'getAccountFromJwt').mockResolvedValue(account);
+
+            await expect(
+                service.getAccountForDashboardExport(
+                    exportPayload,
+                    'encoded-jwt',
+                ),
+            ).resolves.toBe(account);
+        });
+
+        test('rejects when the token is scoped to a different dashboard', async () => {
+            vi.spyOn(service, 'getAccountFromJwt').mockResolvedValue(
+                accountWithExportAbility('dashboard-2'),
+            );
+
+            await expect(
+                service.getAccountForDashboardExport(
+                    exportPayload,
+                    'encoded-jwt',
+                ),
+            ).rejects.toThrowError(ForbiddenError);
         });
     });
 

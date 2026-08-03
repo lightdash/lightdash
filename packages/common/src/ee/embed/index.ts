@@ -73,6 +73,11 @@ export const InteractivityOptionsSchema = z.object({
         DashboardFilterInteractivityOptionsSchema.optional(),
     parameterInteractivity: ParameterInteractivityOptionsSchema.optional(),
     canExportCsv: z.boolean().optional(),
+    // Authorizes a dashboard-level "Export all" that bundles every chart tile
+    // into a single CSV/XLSX ZIP. Off by default — independent from the
+    // per-tile canExportCsv so operators can enable bulk export without the
+    // per-tile buttons, or vice versa.
+    canExportDashboardCsv: z.boolean().optional(),
     canExportImages: z.boolean().optional(),
     canExportPagePdf: z.boolean().optional(),
     canDateZoom: z.boolean().optional(),
@@ -219,6 +224,7 @@ export type CommonEmbedJwtContent = {
         enabled: boolean;
     };
     canExportCsv?: boolean;
+    canExportDashboardCsv?: boolean;
     canExportImages?: boolean;
     canDateZoom?: boolean;
     canExportPagePdf?: boolean;

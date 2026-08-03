@@ -20,6 +20,7 @@ import {
     type UpdateDashboard,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromSession } from '../../auth/account/account';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -245,7 +246,7 @@ describe('DashboardService', () => {
     });
 
     test('should forward the applied parameter values when exporting content', async () => {
-        await service.scheduleExportContent(user, dashboard.uuid, {
+        await service.scheduleExportContent(fromSession(user), dashboard.uuid, {
             format: SchedulerFormat.IMAGE,
             parameters: { region: 'APAC' },
         });
@@ -254,6 +255,61 @@ describe('DashboardService', () => {
             SCHEDULER_TASKS.EXPORT_CONTENT,
             expect.objectContaining({ parameters: { region: 'APAC' } }),
         );
+    });
+
+    const embedExportAccount = () => {
+        const sessionAccount = fromSession(user);
+        return {
+            ...sessionAccount,
+            isJwtUser: () => true,
+            authentication: { type: 'jwt', source: 'encoded-jwt' },
+            user: {
+                ...sessionAccount.user,
+                type: 'anonymous',
+                id: 'external::user-1',
+                // Mirrors the grant embed JWTs get from canExportDashboardCsv:
+                // manage ExportCsv scoped to the token's dashboard.
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        subject: 'ExportCsv',
+                        action: 'manage',
+                        conditions: {
+                            'metadata.dashboardUuid': dashboard.uuid,
+                        },
+                    },
+                ]),
+            },
+        } as unknown as Account;
+    };
+
+    test('should carry the encoded JWT when an embed token exports content', async () => {
+        await service.scheduleExportContent(
+            embedExportAccount(),
+            dashboard.uuid,
+            {
+                format: SchedulerFormat.CSV,
+            },
+        );
+
+        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+            SCHEDULER_TASKS.EXPORT_CONTENT,
+            expect.objectContaining({
+                encodedJwt: 'encoded-jwt',
+                userUuid: 'external::user-1',
+            }),
+        );
+    });
+
+    test('should reject an embed token exporting content as an image', async () => {
+        await expect(
+            service.scheduleExportContent(
+                embedExportAccount(),
+                dashboard.uuid,
+                {
+                    format: SchedulerFormat.IMAGE,
+                },
+            ),
+        ).rejects.toThrowError(ForbiddenError);
     });
 
     test('throws when an embed write token saves a SQL chart from outside the write space', async () => {
