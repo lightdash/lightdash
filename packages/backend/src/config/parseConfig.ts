@@ -1,4 +1,5 @@
 import {
+    AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
     AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
@@ -2885,7 +2886,7 @@ export const parseConfig = (): LightdashConfig => {
                     retentionDays:
                         getIntegerFromEnvironmentVariable(
                             'QUERY_HISTORY_RETENTION_DAYS',
-                        ) || 30,
+                        ) || AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
                     batchSize:
                         getIntegerFromEnvironmentVariable(
                             'QUERY_HISTORY_CLEANUP_BATCH_SIZE',

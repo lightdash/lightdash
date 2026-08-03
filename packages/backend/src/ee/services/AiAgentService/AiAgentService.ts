@@ -4,6 +4,7 @@ import {
     AGENT_SUGGESTION_TOOLS,
     AgentSuggestion,
     AgentSummaryContext,
+    AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS,
     AiAgent,
     AiAgentEvalRunJobPayload,
     AiAgentEvaluationRun,
@@ -411,6 +412,8 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 const DEEP_RESEARCH_STEP_HEADROOM = 10;
+const DEEP_RESEARCH_QUERY_RESULTS_EXPIRATION_MS =
+    AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS * 24 * 60 * 60 * 1_000;
 
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
 
@@ -7802,6 +7805,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             suppressWritebackPreview?: boolean;
             onWarehouseQuery?: () => void | Promise<void>;
+            queryResultsExpirationMs?: number;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -7823,6 +7827,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid: runtimeAgentSettings.uuid,
             threadUuid: prompt.threadUuid,
             onWarehouseQuery: options?.onWarehouseQuery,
+            queryResultsExpirationMs: options?.queryResultsExpirationMs,
         });
 
         const getProjectContextDocument: AiAgentDependencies['getProjectContextDocument'] =
@@ -8714,6 +8719,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             onWarehouseQuery:
                 responseExecution.mode === 'deep_research'
                     ? responseExecution.onWarehouseQuery
+                    : undefined,
+            queryResultsExpirationMs:
+                responseExecution.mode === 'deep_research'
+                    ? DEEP_RESEARCH_QUERY_RESULTS_EXPIRATION_MS
                     : undefined,
         });
 
