@@ -834,6 +834,9 @@ importers:
 
   packages/common:
     dependencies:
+      '@babel/parser':
+        specifier: 7.29.0
+        version: 7.29.0
       '@casl/ability':
         specifier: 6.8.0
         version: 6.8.0
@@ -922,6 +925,9 @@ importers:
         specifier: 3.25.1
         version: 3.25.1(zod@3.25.55)
     devDependencies:
+      '@babel/types':
+        specifier: 7.29.0
+        version: 7.29.0
       '@types/handlebars':
         specifier: 4.1.0
         version: 4.1.0
@@ -9272,6 +9278,7 @@ packages:
   cron-parser@4.5.0:
     resolution: {integrity: sha512-QHdeh3zLWz6YvYTFKpRb860rJlip16pEinbxXT1i2NZB/nOxBjd2RbSv54sn5UrAj9WykiSLYWWDgo8azQK0HA==}
     engines: {node: '>=12.0.0'}
+    deprecated: v4 is no longer maintained, upgrade to v5
 
   croner@4.1.97:
     resolution: {integrity: sha512-/f6gpQuxDaqXu+1kwQYSckUglPaOrHdbIlBAu0YuW8/Cdb45XwXYNUBXg3r/9Mo6n540Kn/smKcZWko5x99KrQ==}
@@ -26665,7 +26672,7 @@ snapshots:
   data-urls@5.0.0:
     dependencies:
       whatwg-mimetype: 4.0.0
-      whatwg-url: 14.0.0
+      whatwg-url: 14.2.0
 
   data-view-buffer@1.0.2:
     dependencies:
