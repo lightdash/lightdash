@@ -1563,6 +1563,39 @@ export class ProjectService extends BaseService {
         return args;
     }
 
+    private assertCanUseOrganizationWarehouseCredentials(
+        accountOrUser: Account | SessionUser,
+        organizationUuid: string,
+        data: {
+            warehouseConnection?: CreateWarehouseCredentials;
+            organizationWarehouseCredentialsUuid?: string;
+        },
+    ): void {
+        const organizationWarehouseCredentialsUuid =
+            data.organizationWarehouseCredentialsUuid ||
+            (data.warehouseConnection?.type === WarehouseTypes.SNOWFLAKE
+                ? data.warehouseConnection.organizationWarehouseCredentialsUuid
+                : undefined);
+
+        if (!organizationWarehouseCredentialsUuid) {
+            return;
+        }
+
+        const auditedAbility = this.createAuditedAbility(accountOrUser);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('OrganizationWarehouseCredentials', {
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to use these organization warehouse credentials',
+            );
+        }
+    }
+
     // The project-update form sends masked oauthClientId / oauthClientSecret
     // (placeholder values), so merge them in from the saved project before
     // _resolveWarehouseClientCredentials runs the M2M token exchange. No-op for
@@ -2435,6 +2468,11 @@ export class ProjectService extends BaseService {
         );
 
         await this.validateProjectCreationPermissions(user, data);
+        this.assertCanUseOrganizationWarehouseCredentials(
+            user,
+            user.organizationUuid,
+            data,
+        );
 
         const newProjectData = data;
         ProjectService.validateDbtEnvironmentVariables(
@@ -2706,6 +2744,11 @@ export class ProjectService extends BaseService {
         );
 
         await this.validateProjectCreationPermissions(user, data);
+        this.assertCanUseOrganizationWarehouseCredentials(
+            user,
+            user.organizationUuid,
+            data,
+        );
         ProjectService.validateDbtEnvironmentVariables(data.dbtConnection);
 
         let encryptedData: string;
@@ -3252,6 +3295,11 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        this.assertCanUseOrganizationWarehouseCredentials(
+            account,
+            savedProject.organizationUuid,
+            data,
+        );
 
         const job: CreateJob = {
             jobUuid: uuidv4(),
@@ -3401,6 +3449,11 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        this.assertCanUseOrganizationWarehouseCredentials(
+            account,
+            savedProject.organizationUuid,
+            data,
+        );
 
         const updatedProjectData: UpdateProject = {
             name: savedProject.name,
@@ -8853,8 +8906,6 @@ export class ProjectService extends BaseService {
             ),
             upstreamProjectUuid: projectUuid,
             copyContent: data.copyContent,
-            organizationWarehouseCredentialsUuid:
-                project.organizationWarehouseCredentialsUuid,
             dbtVersion: project.dbtVersion,
         };
 
