@@ -114,10 +114,16 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
     const track = useCallback(
         ({ name, properties = {} }: EventData): void => {
             const sendTrack: PendingTrack = (analytics) =>
-                analytics.track(`${LIGHTDASH_APP_NAME}.${name}`, properties, {
-                    ...lightdashContext,
-                    section: sectionContext,
-                } as rudderSDK.apiOptions);
+                analytics.track(
+                    `${LIGHTDASH_APP_NAME}.${name}`,
+                    // The SDK's apiObject rejects null, but explicit nulls are
+                    // meaningful in event payloads
+                    properties as rudderSDK.apiObject,
+                    {
+                        ...lightdashContext,
+                        section: sectionContext,
+                    } as rudderSDK.apiOptions,
+                );
 
             if (rudderAnalytics) {
                 sendTrack(rudderAnalytics);

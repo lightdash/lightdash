@@ -12,6 +12,7 @@ import {
     getItemId,
     getItemMap,
     getPivotConfig,
+    getShowColumnTotalsFromChartConfig,
     getTotalFilterRules,
     getVisibleFields,
     isCartesianChartConfig,
@@ -918,19 +919,29 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     chart.metricQuery.customDimensions,
                 );
 
-                // Filter dimensions from explore that match dimensionNames
-                // Only dimensions should be available for dashboard filtering - metrics are not supported
+                // Filter dimensions from explore that match the clicked item's
+                // columns. Stacked bar tuples only expose the plotted columns
+                // via dimensionNames, so include the resolved dataset row's
+                // columns too. Only dimensions should be available for
+                // dashboard filtering - metrics are not supported
+                const clickedColumnNames = new Set([
+                    ...e.dimensionNames,
+                    ...Object.keys(e.datasetRow ?? {}),
+                ]);
                 const exploreDimensions = allDimensions.filter((dimension) =>
-                    e.dimensionNames.includes(getItemId(dimension)),
+                    clickedColumnNames.has(getItemId(dimension)),
                 );
 
                 // Helper to extract value from click event data
-                // For stacked bars: e.value is an array, e.dimensionNames maps indices to field names
+                // For stacked bars: e.value is an array, e.dimensionNames maps
+                // indices to field names, and the dataset row carries the
+                // non-plotted columns
                 // For other charts: e.data is an object with field names as keys
                 const getValueFromClickData = (fieldId: string) => {
                     if (Array.isArray(e.value) && e.dimensionNames) {
                         const index = e.dimensionNames.indexOf(fieldId);
-                        return index >= 0 ? e.value[index] : undefined;
+                        if (index >= 0) return e.value[index];
+                        return e.datasetRow?.[fieldId];
                     }
                     return (e.data as Record<string, unknown>)[fieldId];
                 };
@@ -1842,6 +1853,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
+                    showColumnTotals={getShowColumnTotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                 />
                 <ExportImageModal
                     echartRef={echartRef}
@@ -2135,6 +2149,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
+                    showColumnTotals={getShowColumnTotalsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                 />
             )}
             {canExportImages && (

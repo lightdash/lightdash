@@ -2,6 +2,7 @@ import {
     AnyType,
     assertUnreachable,
     friendlyName,
+    MAX_DELIVERY_QUERIES,
     MissingConfigError,
     MsTeamsError,
     operatorActionValue,
@@ -13,7 +14,17 @@ import {
 import { createHash } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
+
+// Adaptive Card TextBlocks render a markdown subset (links, emphasis, code) and
+// ignore HTML, and app delivery labels/errors are authored by app code — strip
+// tags, then escape the metacharacters that could still form live markup.
+const stripMarkup = (text: string): string =>
+    sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} }).replace(
+        /[\\`*_[\]~]/g,
+        (character) => `\\${character}`,
+    );
 
 export const redactWebhookIdentity = (webhookUrl: string) => {
     try {
@@ -394,6 +405,35 @@ export class MicrosoftTeamsClient {
                                             wrap: true,
                                             spacing: 'None',
                                         };
+                                    case PartialFailureType.APP_QUERY:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **${stripMarkup(
+                                                f.label,
+                                            )}:** ${stripMarkup(f.error)}`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
+                                    case PartialFailureType.APP_QUERY_MISSING:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **${stripMarkup(
+                                                f.label,
+                                            )}:** did not run in this delivery${
+                                                f.identityChanged
+                                                    ? ' (query changed since it was selected)'
+                                                    : ''
+                                            }`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
+                                    case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                                        return {
+                                            type: 'TextBlock',
+                                            text: `- **${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})**`,
+                                            wrap: true,
+                                            spacing: 'None',
+                                        };
                                     default:
                                         return assertUnreachable(
                                             f,
@@ -413,7 +453,9 @@ export class MicrosoftTeamsClient {
                     items: [
                         {
                             type: 'TextBlock',
-                            text: `⚠️ **Warning:** ${failures.length} chart(s) failed to export`,
+                            text: `⚠️ **Warning:** ${buildFailureCountPhrase(
+                                failures,
+                            )} failed to export`,
                             weight: 'Bolder',
                             color: 'Warning',
                             wrap: true,
@@ -439,6 +481,35 @@ export class MicrosoftTeamsClient {
                                     return {
                                         type: 'TextBlock',
                                         text: `- **AI summary could not be generated**`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
+                                case PartialFailureType.APP_QUERY:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **${stripMarkup(
+                                            f.label,
+                                        )}:** ${stripMarkup(f.error)}`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
+                                case PartialFailureType.APP_QUERY_MISSING:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **${stripMarkup(
+                                            f.label,
+                                        )}:** did not run in this delivery${
+                                            f.identityChanged
+                                                ? ' (query changed since it was selected)'
+                                                : ''
+                                        }`,
+                                        wrap: true,
+                                        spacing: 'None',
+                                    };
+                                case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                                    return {
+                                        type: 'TextBlock',
+                                        text: `- **${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})**`,
                                         wrap: true,
                                         spacing: 'None',
                                     };

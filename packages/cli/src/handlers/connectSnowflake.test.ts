@@ -347,7 +347,7 @@ describe('connectSnowflakeHandler', () => {
         expect(createProgrammaticAccessToken).toHaveBeenCalledWith(
             expect.stringMatching(/^LIGHTDASH_ONBOARDING_\d+$/),
             365,
-            1440,
+            60,
         );
         const request: DepositWarehouseConnectionRequest = {
             code: options.code,
@@ -400,10 +400,15 @@ describe('connectSnowflakeHandler', () => {
         expect(createProgrammaticAccessToken).toHaveBeenCalledWith(
             expect.stringMatching(/^LIGHTDASH_ONBOARDING_\d+$/),
             365,
-            1440,
+            60,
         );
         expect(write).toHaveBeenCalledWith(
             'Secured with a programmatic access token (expires 2027-07-14)',
+        );
+        expect(write).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'bypasses your Snowflake network policy for the next 60 minutes',
+            ),
         );
     });
 

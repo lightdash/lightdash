@@ -198,10 +198,6 @@ const testCompile = (): Cypress.Chainable<string> => {
     // Configure
     cy.contains('button', 'Save changes').click();
     cy.url({ timeout: 30000 }).should('include', '/home');
-    cy.contains('Welcome, David');
-    cy.findByText('Charts and Dashboards');
-    cy.findByText('get started by creating some charts');
-    cy.wait(1000);
     return cy.url().then(
         (url) =>
             // get new project uuid

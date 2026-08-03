@@ -25,6 +25,13 @@ type GuidedTourProps = {
 };
 
 const SPOTLIGHT_PADDING = 6;
+const VIEWPORT_MARGIN = 12;
+/** Space between the spotlight and the card, enough to fit the caret. */
+const CARD_GAP = 14;
+const CARD_MIN_WIDTH = 340;
+const CARD_MAX_WIDTH = 480;
+/** Used until the card has been measured. */
+const CARD_FALLBACK_HEIGHT = 220;
 
 /** Track a target element's viewport rect while the tour is open. */
 const useTargetRect = (
@@ -67,25 +74,70 @@ const useTargetRect = (
     return rect;
 };
 
-/** Position the card below the target, flipping above when it would overflow. */
-const cardPosition = (rect: DOMRect): { top: number; left: number } => {
-    const margin = 12;
-    const cardWidth = 340;
-    const estHeight = 200;
-    const below = rect.bottom + margin;
-    const top =
-        below + estHeight > window.innerHeight
-            ? Math.max(margin, rect.top - estHeight - margin)
-            : below;
-    const left = Math.min(
-        Math.max(margin, rect.left),
-        window.innerWidth - cardWidth - margin,
+/** Keep the rendered card's height so it can be flipped without guessing. */
+const useCardHeight = (): [number, (el: HTMLDivElement | null) => void] => {
+    const [height, setHeight] = useState(CARD_FALLBACK_HEIGHT);
+    const [el, setEl] = useState<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!el) return;
+        const observer = new ResizeObserver(() => {
+            setHeight(el.getBoundingClientRect().height);
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [el]);
+
+    return [height, setEl];
+};
+
+type CardLayout = {
+    top: number;
+    left: number;
+    width: number;
+    placement: 'below' | 'above';
+    /** Caret offset from the card's left edge, aimed at the target's centre. */
+    caretLeft: number;
+};
+
+/**
+ * Sit the card under the target, spanning as much of the target's width as it
+ * can so a wide banner doesn't get a lone card tucked in its corner. Flips
+ * above only when the card genuinely doesn't fit below.
+ */
+const cardLayout = (rect: DOMRect, cardHeight: number): CardLayout => {
+    const available = window.innerWidth - VIEWPORT_MARGIN * 2;
+    const width = Math.min(
+        Math.max(CARD_MIN_WIDTH, rect.width),
+        CARD_MAX_WIDTH,
+        available,
     );
-    return { top, left };
+    const fitsBelow =
+        rect.bottom + CARD_GAP + cardHeight + VIEWPORT_MARGIN <=
+        window.innerHeight;
+    const fitsAbove = rect.top - CARD_GAP - cardHeight >= VIEWPORT_MARGIN;
+    const placement = fitsBelow || !fitsAbove ? 'below' : 'above';
+    const top =
+        placement === 'below'
+            ? rect.bottom + CARD_GAP
+            : rect.top - CARD_GAP - cardHeight;
+    const targetCentre = rect.left + rect.width / 2;
+    const left = Math.min(
+        Math.max(VIEWPORT_MARGIN, targetCentre - width / 2),
+        window.innerWidth - width - VIEWPORT_MARGIN,
+    );
+    return {
+        top,
+        left,
+        width,
+        placement,
+        caretLeft: Math.min(Math.max(20, targetCentre - left), width - 20),
+    };
 };
 
 export const GuidedTour: FC<GuidedTourProps> = ({ steps, opened, onClose }) => {
     const [stepIndex, setStepIndex] = useState(0);
+    const [cardHeight, cardRef] = useCardHeight();
 
     const step = steps[stepIndex];
     // Each step resolves its own target when reached (rows may load late), so a
@@ -97,6 +149,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({ steps, opened, onClose }) => {
 
     const isFirst = stepIndex === 0;
     const isLast = stepIndex === steps.length - 1;
+    const layout = rect ? cardLayout(rect, cardHeight) : null;
 
     const handleClose = () => {
         setStepIndex(0);
@@ -107,10 +160,30 @@ export const GuidedTour: FC<GuidedTourProps> = ({ steps, opened, onClose }) => {
     const handleBack = () => setStepIndex((i) => Math.max(0, i - 1));
 
     const cardBody = (
-        <Paper withBorder shadow="lg" radius="md" p="md">
+        <Paper
+            ref={cardRef}
+            radius="md"
+            p="md"
+            withBorder={false}
+            className={styles.paper}
+        >
+            {layout && (
+                <Box
+                    className={clsx(
+                        styles.caret,
+                        layout.placement === 'below'
+                            ? styles.caretTop
+                            : styles.caretBottom,
+                    )}
+                    __vars={{ '--tour-caret-left': `${layout.caretLeft}px` }}
+                />
+            )}
             <Stack gap="sm">
-                <Stack gap={4}>
-                    <Text fw={600} fz="sm">
+                <Stack gap={6}>
+                    <Text className={styles.eyebrow}>
+                        Step {stepIndex + 1} of {steps.length}
+                    </Text>
+                    <Text fw={600} fz="md" lh={1.3}>
                         {step.title}
                     </Text>
                     <Box fz="sm" c="dimmed">
@@ -121,7 +194,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({ steps, opened, onClose }) => {
                     <Button
                         variant="subtle"
                         color="gray"
-                        size="compact-xs"
+                        size="compact-sm"
                         onClick={handleClose}
                     >
                         Skip
@@ -141,13 +214,13 @@ export const GuidedTour: FC<GuidedTourProps> = ({ steps, opened, onClose }) => {
                         {!isFirst && (
                             <Button
                                 variant="default"
-                                size="compact-xs"
+                                size="compact-sm"
                                 onClick={handleBack}
                             >
                                 Back
                             </Button>
                         )}
-                        <Button size="compact-xs" onClick={handleNext}>
+                        <Button size="compact-sm" onClick={handleNext}>
                             {isLast ? 'Got it' : 'Next'}
                         </Button>
                     </Group>
@@ -177,12 +250,13 @@ export const GuidedTour: FC<GuidedTourProps> = ({ steps, opened, onClose }) => {
                 ) : (
                     <Box className={styles.dim} />
                 )}
-                {rect ? (
+                {layout ? (
                     <Box
                         className={styles.card}
                         __vars={{
-                            '--tour-card-top': `${cardPosition(rect).top}px`,
-                            '--tour-card-left': `${cardPosition(rect).left}px`,
+                            '--tour-card-top': `${layout.top}px`,
+                            '--tour-card-left': `${layout.left}px`,
+                            '--tour-card-width': `${layout.width}px`,
                         }}
                     >
                         {cardBody}

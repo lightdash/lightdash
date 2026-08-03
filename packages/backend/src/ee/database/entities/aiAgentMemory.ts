@@ -1,4 +1,7 @@
 import type {
+    AiAgentMemoryConsolidationOperation,
+    AiAgentMemoryConsolidationRejection,
+    AiAgentMemoryConsolidationRunStatus,
     AiAgentMemoryScope,
     AiAgentMemoryStatus,
     AiProjectContextTypedObjectRef,
@@ -7,6 +10,8 @@ import { Knex } from 'knex';
 
 export const AiAgentMemoryTableName = 'ai_agent_memory';
 export const AiAgentThreadDistillTableName = 'ai_agent_thread_distill';
+export const AiAgentMemoryConsolidationRunTableName =
+    'ai_agent_memory_consolidation_run';
 
 export type AiAgentThreadDistillOutcome =
     | 'memory'
@@ -61,6 +66,7 @@ export type AiAgentMemoryTable = Knex.CompositeTableType<
         | 'created_at'
         | 'updated_at'
     > &
+        AiAgentMemoryJsonbWrite &
         Partial<
             Pick<
                 DbAiAgentMemory,
@@ -108,4 +114,40 @@ export type AiAgentThreadDistillTable = Knex.CompositeTableType<
             'ai_agent_thread_distill_uuid' | 'ai_thread_uuid' | 'created_at'
         >
     > & { updated_at: Knex.Raw }
+>;
+
+export type DbAiAgentMemoryConsolidationRun = {
+    ai_agent_memory_consolidation_run_uuid: string;
+    organization_uuid: string;
+    project_uuid: string;
+    user_uuid: string;
+    status: AiAgentMemoryConsolidationRunStatus;
+    prompt_hash: string;
+    input_hash: string;
+    input_count: number;
+    applied_count: number;
+    rejected_count: number;
+    applied_operations: AiAgentMemoryConsolidationOperation[];
+    rejected_operations: AiAgentMemoryConsolidationRejection[];
+    error_message: string | null;
+    consolidated_up_to: Date | null;
+    created_at: Date;
+};
+
+type AiAgentMemoryConsolidationRunJsonbWrite = {
+    applied_operations: string;
+    rejected_operations: string;
+};
+
+// Append-only: a run row is never updated after it commits.
+export type AiAgentMemoryConsolidationRunTable = Knex.CompositeTableType<
+    DbAiAgentMemoryConsolidationRun,
+    Omit<
+        DbAiAgentMemoryConsolidationRun,
+        | keyof AiAgentMemoryConsolidationRunJsonbWrite
+        | 'ai_agent_memory_consolidation_run_uuid'
+        | 'created_at'
+    > &
+        AiAgentMemoryConsolidationRunJsonbWrite,
+    never
 >;

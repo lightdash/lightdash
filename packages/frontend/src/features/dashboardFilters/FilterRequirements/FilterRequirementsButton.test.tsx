@@ -87,7 +87,6 @@ describe('FilterRequirementsButton explicit save', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockDashboardContext.current = {
-            isFilterRequirementsEnabled: true,
             dashboardFilters: {
                 dimensions: [requiredRule],
                 metrics: [],

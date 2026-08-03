@@ -216,6 +216,34 @@ describe('DashboardModel', () => {
         expect(tracker.history.select).toHaveLength(2);
     });
 
+    test('should get dashboard parameters using the dashboard project uuid', async () => {
+        const dashboardUuid = '11111111-1111-4111-8111-111111111111';
+        const parameters = {
+            test_parameter: 'test value',
+        };
+        tracker.on.select(DashboardsTableName).response([{ parameters }]);
+
+        const result = await model.getDashboardParametersByIdOrSlug(
+            dashboardUuid,
+            projectUuid,
+        );
+
+        expect(result).toEqual(parameters);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).toContain(
+            '"dashboards"."project_uuid"',
+        );
+        expect(tracker.history.select[0].sql).not.toContain(
+            'inner join "spaces"',
+        );
+        expect(tracker.history.select[0].sql).not.toContain(
+            'inner join "projects"',
+        );
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining([projectUuid, dashboardUuid]),
+        );
+    });
+
     test('should check if saved chart exists in dashboard', async () => {
         const testProjectUuid = 'test-project-uuid';
         const testDashboardUuid = 'test-dashboard-uuid';
@@ -273,6 +301,7 @@ describe('DashboardModel', () => {
     });
 
     test('should create dashboard with tile ids', async () => {
+        tracker.on.select('pg_advisory_xact_lock').response({});
         tracker.on.select(SpaceTableName).responseOnce([spaceEntry]);
         tracker.on.insert(DashboardsTableName).responseOnce([dashboardEntry]);
         tracker.on
@@ -298,8 +327,12 @@ describe('DashboardModel', () => {
 
         await model.create('spaceUuid', createDashboard, user, projectUuid);
 
-        expect(tracker.history.select).toHaveLength(2);
-        expect(tracker.history.select[0].bindings).toEqual(
+        expect(tracker.history.select).toHaveLength(3);
+        expect(tracker.history.select[0].bindings).toEqual([
+            2,
+            `${projectUuid}:${createDashboard.slug}`,
+        ]);
+        expect(tracker.history.select[1].bindings).toEqual(
             expect.arrayContaining(['spaceUuid', projectUuid]),
         );
         expect(tracker.history.insert).toHaveLength(5);
@@ -355,6 +388,28 @@ describe('DashboardModel', () => {
                 dashboardVersionEntry.dashboard_version_id,
             ]),
         });
+    });
+
+    test('rejects an exact slug owned by a deleted dashboard', async () => {
+        tracker.on.select('pg_advisory_xact_lock').response({});
+        tracker.on.select(DashboardsTableName).responseOnce([
+            {
+                dashboard_uuid: 'deleted-dashboard-uuid',
+                deleted_at: new Date(),
+            },
+        ]);
+
+        await expect(
+            model.create(
+                'spaceUuid',
+                { ...createDashboard, forceSlug: true },
+                user,
+                projectUuid,
+            ),
+        ).rejects.toThrow(
+            `Dashboard slug "${createDashboard.slug}" is already used by a deleted dashboard`,
+        );
+        expect(tracker.history.insert).toHaveLength(0);
     });
 
     test('should update dashboard', async () => {

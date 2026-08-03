@@ -9,8 +9,9 @@ import {
     type DataAppVizSchema,
     type Explore,
     type Item,
+    type ResultRow,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -22,10 +23,45 @@ const { fieldSelectItems } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../components/common/FieldSelect', () => ({
-    default: ({ items }: { items: Item[] }) => {
+    default: ({
+        items,
+        onChange,
+        placeholder,
+    }: {
+        items: Item[];
+        onChange: (item: Item | undefined) => void;
+        placeholder: string;
+    }) => {
         fieldSelectItems.push(items);
-        return <div data-testid="field-select" />;
+        return (
+            <button
+                type="button"
+                data-testid="field-select"
+                onClick={() => onChange(items[0])}
+            >
+                {placeholder}
+            </button>
+        );
     },
+}));
+vi.mock('../../../components/common/PalettePicker/PalettePicker', () => ({
+    PalettePicker: ({
+        label,
+        onChange,
+    }: {
+        label: string;
+        onChange: (value: string | null) => void;
+    }) => (
+        <button type="button" onClick={() => onChange('ocean-palette')}>
+            {label}
+        </button>
+    ),
+}));
+vi.mock('../../../hooks/appearance/useOrganizationAppearance', () => ({
+    useColorPalettes: vi.fn(),
+}));
+vi.mock('../../../hooks/appearance/useProjectColorPalette', () => ({
+    useProjectColorPalette: vi.fn(),
 }));
 vi.mock('../../../hooks/useExplores', () => ({
     useExplores: vi.fn(),
@@ -37,6 +73,8 @@ vi.mock('../../../providers/Explorer/useQueryExecutor', () => ({
     useQueryExecutor: vi.fn(),
 }));
 
+import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { useExploreByProjectUuid } from '../../../hooks/useExplore';
 import { useExplores } from '../../../hooks/useExplores';
 import { useQueryExecutor } from '../../../providers/Explorer/useQueryExecutor';
@@ -48,6 +86,7 @@ const schema: DataAppVizSchema = {
         { name: 'value', label: 'Value', type: 'metric', required: true },
     ],
     configOptions: [],
+    colorPalette: null,
 };
 
 const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({
@@ -102,6 +141,35 @@ const exploreWithHiddenFields: Explore = {
     },
     targetDatabase: SupportedDbtAdapter.POSTGRES,
 };
+
+const configurableSchema: DataAppVizSchema = {
+    fields: [
+        {
+            name: 'source',
+            label: 'Source',
+            type: 'dimension',
+            required: true,
+        },
+    ],
+    configOptions: [
+        {
+            type: 'boolean',
+            name: 'showLegend',
+            label: 'Show legend',
+            group: 'Style',
+            default: true,
+        },
+    ],
+    colorPalette: { group: 'Style' },
+};
+
+const resultRows: ResultRow[] = [
+    {
+        orders_visible: {
+            value: { raw: 'Retail', formatted: 'Retail' },
+        },
+    },
+];
 
 describe('isMappingComplete', () => {
     it('is false until every required field is mapped', () => {
@@ -164,6 +232,28 @@ describe('DataAppVizTestPanel', () => {
         vi.mocked(useExploreByProjectUuid).mockReturnValue({
             data: undefined,
         } as unknown as ReturnType<typeof useExploreByProjectUuid>);
+        vi.mocked(useColorPalettes).mockReturnValue({
+            data: [
+                {
+                    colorPaletteUuid: 'ocean-palette',
+                    organizationUuid: 'org-1',
+                    name: 'Ocean',
+                    colors: ['#123456', '#abcdef'],
+                    darkColors: null,
+                    createdAt: new Date('2026-01-01T00:00:00Z'),
+                    isActive: false,
+                },
+            ],
+        } as unknown as ReturnType<typeof useColorPalettes>);
+        vi.mocked(useProjectColorPalette).mockReturnValue({
+            data: {
+                colors: ['#111111'],
+                darkColors: null,
+                paletteUuid: null,
+                paletteName: null,
+                source: { type: 'default' },
+            },
+        } as unknown as ReturnType<typeof useProjectColorPalette>);
         vi.mocked(useQueryExecutor).mockReturnValue([
             {
                 query: { isFetching: false, error: null },
@@ -177,6 +267,38 @@ describe('DataAppVizTestPanel', () => {
         ] as unknown as ReturnType<typeof useQueryExecutor>);
     });
 
+    const runSuccessfulPreviewQuery = async () => {
+        const user = userEvent.setup();
+        vi.mocked(useExploreByProjectUuid).mockReturnValue({
+            data: exploreWithHiddenFields,
+        } as unknown as ReturnType<typeof useExploreByProjectUuid>);
+        vi.mocked(useQueryExecutor).mockReturnValue([
+            {
+                query: {
+                    data: { queryUuid: 'query-1' },
+                    isFetching: false,
+                    error: null,
+                },
+                queryResults: {
+                    rows: resultRows,
+                    queryUuid: 'query-1',
+                    isFetchingFirstPage: false,
+                    error: null,
+                },
+            },
+            vi.fn(),
+        ] as unknown as ReturnType<typeof useQueryExecutor>);
+
+        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(await screen.findByText('Orders'));
+        await user.click(screen.getByRole('button', { name: 'Select source' }));
+        await user.click(
+            screen.getByRole('button', { name: /run test query/i }),
+        );
+
+        return user;
+    };
+
     it('lists the declared fields and the explore picker up-front', () => {
         renderWithProviders(
             <DataAppVizTestPanel
@@ -186,8 +308,6 @@ describe('DataAppVizTestPanel', () => {
             />,
         );
 
-        expect(screen.getByText('Visualization ready')).toBeInTheDocument();
-        expect(screen.getByText('Test with data')).toBeInTheDocument();
         expect(
             screen.getByPlaceholderText('Select an explore'),
         ).toBeInTheDocument();
@@ -208,7 +328,8 @@ describe('DataAppVizTestPanel', () => {
         expect(useExplores).toHaveBeenCalledWith('p1', true);
     });
 
-    it('hides the run action until an explore is selected', () => {
+    it('hides the run action until an explore is selected', async () => {
+        const user = userEvent.setup();
         renderWithProviders(
             <DataAppVizTestPanel
                 projectUuid="p1"
@@ -220,6 +341,80 @@ describe('DataAppVizTestPanel', () => {
         expect(
             screen.queryByRole('button', { name: /run test query/i }),
         ).not.toBeInTheDocument();
+
+        await user.click(screen.getByPlaceholderText('Select an explore'));
+        await user.click(await screen.findByText('Orders'));
+
+        // Still disabled — no field is mapped yet.
+        expect(
+            screen.getByRole('button', { name: /run test query/i }),
+        ).toBeDisabled();
+    });
+
+    it('republishes option edits after a successful query', async () => {
+        const onContextChange = vi.fn();
+        renderWithProviders(
+            <DataAppVizTestPanel
+                projectUuid="p1"
+                schema={configurableSchema}
+                onContextChange={onContextChange}
+            />,
+        );
+
+        const user = await runSuccessfulPreviewQuery();
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith({
+                fieldMapping: { source: 'orders_visible' },
+                rows: resultRows,
+                options: { showLegend: true },
+                colorPalette: ['#111111'],
+            }),
+        );
+
+        await user.click(screen.getByRole('tab', { name: 'Style' }));
+        await user.click(screen.getByLabelText('Show legend'));
+
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith({
+                fieldMapping: { source: 'orders_visible' },
+                rows: resultRows,
+                options: { showLegend: false },
+                colorPalette: ['#111111'],
+            }),
+        );
+    });
+
+    it('republishes palette edits after a successful query', async () => {
+        const onContextChange = vi.fn();
+        renderWithProviders(
+            <DataAppVizTestPanel
+                projectUuid="p1"
+                schema={configurableSchema}
+                onContextChange={onContextChange}
+            />,
+        );
+
+        const user = await runSuccessfulPreviewQuery();
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith({
+                fieldMapping: { source: 'orders_visible' },
+                rows: resultRows,
+                options: { showLegend: true },
+                colorPalette: ['#111111'],
+            }),
+        );
+
+        await user.click(screen.getByRole('tab', { name: 'Style' }));
+        await user.click(screen.getByRole('button', { name: 'Color palette' }));
+
+        await waitFor(() =>
+            expect(onContextChange).toHaveBeenLastCalledWith({
+                fieldMapping: { source: 'orders_visible' },
+                rows: resultRows,
+                options: { showLegend: true },
+                colorPalette: ['#123456', '#abcdef'],
+            }),
+        );
     });
 
     it('matches Explorer field visibility', async () => {
@@ -247,6 +442,7 @@ describe('DataAppVizTestPanel', () => {
                         },
                     ],
                     configOptions: [],
+                    colorPalette: null,
                 }}
                 onContextChange={vi.fn()}
             />,

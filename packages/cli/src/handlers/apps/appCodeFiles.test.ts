@@ -1,16 +1,28 @@
-import { type DataAppCode, type DataAppDependencies } from '@lightdash/common';
-import { promises as fs } from 'fs';
+import {
+    type AnyType,
+    type DataAppCode,
+    type DataAppDependencies,
+} from '@lightdash/common';
+import {
+    promises as fs,
+    mkdirSync,
+    mkdtempSync,
+    utimesSync,
+    writeFileSync,
+} from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
     appFolderName,
+    appFolderNeedsUpdating,
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
     buildImportBody,
     readBundleFromDir,
     readDependenciesFromDir,
-    retargetManifest,
+    readManifestFromDir,
+    resolveAppFolderName,
     writeBundleToDir,
     writeContextToDir,
 } from './appCodeFiles';
@@ -92,6 +104,19 @@ describe('buildImportBody', () => {
         });
         expect(body.targetAppUuid).toBeUndefined();
     });
+
+    it('includes createNew: true in the body when the flag is set', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        const body = buildImportBody(code, 'proj-uuid-1', { createNew: true });
+        expect(body.createNew).toBe(true);
+        expect(body.targetAppUuid).toBeUndefined();
+    });
+
+    it('omits the createNew key entirely when the flag is not set', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        const body = buildImportBody(code, 'proj-uuid-1', {});
+        expect('createNew' in body).toBe(false);
+    });
 });
 
 const bundle = {
@@ -116,6 +141,13 @@ const bundle = {
         },
     ],
 };
+
+it('readManifestFromDir returns just the manifest', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
+    await writeBundleToDir(dir, bundle);
+    const manifest = await readManifestFromDir(dir);
+    expect(manifest).toEqual(bundle.manifest);
+});
 
 it('writes then reads back an identical bundle', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
@@ -161,29 +193,16 @@ it('upload reads back only src/ files, ignoring scaffolding and context', async 
         'models: []',
     );
     await fs.writeFile(path.join(dir, '.claude/skills/x/SKILL.md'), '# skill');
+    await fs.writeFile(
+        path.join(dir, '.env.local'),
+        'VITE_LIGHTDASH_API_KEY=secret',
+    );
     const read = await readBundleFromDir(dir);
     expect(read.files.every((f) => f.path.startsWith('src/'))).toBe(true);
+    expect(read.files.map((f) => f.path)).not.toContain('.env.local');
     expect(read.files.map((f) => f.path).sort()).toEqual(
         bundle.files.map((f) => f.path).sort(),
     );
-});
-
-describe('retargetManifest', () => {
-    it('rewrites appUuid, projectUuid and version, preserving other fields', async () => {
-        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-app-'));
-        await writeBundleToDir(dir, bundle);
-        await retargetManifest(dir, {
-            appUuid: 'new-app-uuid',
-            projectUuid: 'new-proj-uuid',
-            version: 1,
-        });
-        const read = await readBundleFromDir(dir);
-        expect(read.manifest.appUuid).toBe('new-app-uuid');
-        expect(read.manifest.projectUuid).toBe('new-proj-uuid');
-        expect(read.manifest.version).toBe(1);
-        expect(read.manifest.name).toBe('N');
-        expect(read.manifest.downloadedAt).toBe('2026-06-30T00:00:00.000Z');
-    });
 });
 
 it('throws a clear error when the manifest is not valid YAML', async () => {
@@ -301,6 +320,59 @@ describe('appFolderName', () => {
                 new Set(),
             ),
         ).toBe('untitled-app-abcd1234');
+    });
+});
+
+describe('resolveAppFolderName', () => {
+    it('uses the manifest slug when present', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: 'sales-app' },
+                new Set(),
+            ),
+        ).toBe('sales-app');
+    });
+
+    it('falls back to appFolderName when the manifest has no slug', () => {
+        const uuid = 'abcd1234-ef56-7890-ab12-cdef01234567';
+        const code = makeCode(uuid, 'proj-uuid-1');
+        expect(resolveAppFolderName(code.manifest, new Set())).toBe(
+            appFolderName(code.manifest.name, uuid, new Set()),
+        );
+    });
+
+    it('uses the slug for uuid-free manifests (slug-aware servers)', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, appUuid: undefined, slug: 'sales-app' },
+                new Set(),
+            ),
+        ).toBe('sales-app');
+    });
+
+    // Defense-in-depth: a tampered manifest (or a server of unknown version)
+    // must not be able to steer the write path via an invalid slug.
+    it('falls back to appFolderName when the slug is a path-traversal attempt', () => {
+        const uuid = 'abcd1234-ef56-7890-ab12-cdef01234567';
+        const code = makeCode(uuid, 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: '../../../../tmp/evil' },
+                new Set(),
+            ),
+        ).toBe(appFolderName(code.manifest.name, uuid, new Set()));
+    });
+
+    it('still uses a valid manifest slug (unaffected by the new validation)', () => {
+        const code = makeCode('app-uuid-1', 'proj-uuid-1');
+        expect(
+            resolveAppFolderName(
+                { ...code.manifest, slug: 'sales-app-2' },
+                new Set(),
+            ),
+        ).toBe('sales-app-2');
     });
 });
 
@@ -452,5 +524,90 @@ describe('applySdkMirrorToTemplateDeps', () => {
         expect(applySdkMirrorToTemplateDeps(template, 'not-json')).toEqual(
             template,
         );
+    });
+});
+
+// ─── appFolderNeedsUpdating ────────────────────────────────────────────────────
+
+describe('appFolderNeedsUpdating', () => {
+    const DOWNLOADED_AT = '2026-07-30T12:00:00.000Z';
+    const manifest = { downloadedAt: DOWNLOADED_AT } as AnyType;
+
+    const buildFolder = () => {
+        const dir = mkdtempSync(path.join(os.tmpdir(), 'ld-app-folder-'));
+        mkdirSync(path.join(dir, 'src'), { recursive: true });
+        writeFileSync(path.join(dir, 'src', 'App.tsx'), 'x');
+        writeFileSync(path.join(dir, 'lightdash-app.yml'), 'slug: x');
+        mkdirSync(path.join(dir, '.lightdash', 'context'), {
+            recursive: true,
+        });
+        writeFileSync(
+            path.join(dir, '.lightdash', 'context', 'semantic-layer.yml'),
+            'models: []',
+        );
+        const at = new Date(DOWNLOADED_AT);
+        [
+            path.join(dir, 'src', 'App.tsx'),
+            path.join(dir, 'lightdash-app.yml'),
+            path.join(dir, '.lightdash', 'context', 'semantic-layer.yml'),
+        ].forEach((file) => utimesSync(file, at, at));
+        return dir;
+    };
+
+    it('is false for a freshly downloaded folder', async () => {
+        await expect(
+            appFolderNeedsUpdating(buildFolder(), manifest),
+        ).resolves.toBe(false);
+    });
+
+    it('is true when a src file was edited', async () => {
+        const dir = buildFolder();
+        const later = new Date('2026-07-30T13:00:00.000Z');
+        utimesSync(path.join(dir, 'src', 'App.tsx'), later, later);
+        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
+    });
+
+    it('is true when the manifest was edited', async () => {
+        const dir = buildFolder();
+        const later = new Date('2026-07-30T13:00:00.000Z');
+        utimesSync(path.join(dir, 'lightdash-app.yml'), later, later);
+        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
+    });
+
+    it('ignores regenerated context files', async () => {
+        const dir = buildFolder();
+        const later = new Date('2026-07-30T13:00:00.000Z');
+        utimesSync(
+            path.join(dir, '.lightdash', 'context', 'semantic-layer.yml'),
+            later,
+            later,
+        );
+        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(
+            false,
+        );
+    });
+
+    it('is true when downloadedAt is missing', async () => {
+        await expect(
+            appFolderNeedsUpdating(buildFolder(), {} as AnyType),
+        ).resolves.toBe(true);
+    });
+
+    it('is true when downloadedAt is unparseable', async () => {
+        await expect(
+            appFolderNeedsUpdating(buildFolder(), {
+                downloadedAt: 'not-a-date',
+            } as AnyType),
+        ).resolves.toBe(true);
+    });
+
+    it('is true when a nested src file was edited', async () => {
+        const dir = buildFolder();
+        mkdirSync(path.join(dir, 'src', 'components'), { recursive: true });
+        const nested = path.join(dir, 'src', 'components', 'Chart.tsx');
+        writeFileSync(nested, 'x');
+        const later = new Date('2026-07-30T13:00:00.000Z');
+        utimesSync(nested, later, later);
+        await expect(appFolderNeedsUpdating(dir, manifest)).resolves.toBe(true);
     });
 });

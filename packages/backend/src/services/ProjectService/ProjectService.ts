@@ -47,6 +47,7 @@ import {
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
+    DashboardFieldTarget,
     DashboardFilters,
     DatabricksAuthenticationType,
     DatabricksTokenError,
@@ -78,10 +79,12 @@ import {
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
+    getDashboardFieldTarget,
     getDashboardFilterRulesForTables,
     getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
+    getExploreDefaultTimeDimension,
     getFieldFormatOverrideProps,
     getFields,
     getIntrinsicUserAttributes,
@@ -129,6 +132,7 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    PlaygroundProjectTrigger,
     PreAggregateCheckResult,
     PreAggregateMatchMiss,
     PreAggregateMissReason,
@@ -364,11 +368,13 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectUuid: string;
         projectType: ProjectType;
+        provisioningSource?: 'playground';
     }) => Promise<void>;
     provisionPlaygroundProject?: (args: {
         user: SessionUser;
         projectService: ProjectService;
         canViewProject: (project: OrganizationProject) => boolean;
+        trigger: PlaygroundProjectTrigger;
     }) => Promise<EnsurePlaygroundProjectResults>;
 };
 
@@ -583,6 +589,7 @@ export class ProjectService extends BaseService {
 
     async ensurePlaygroundProject(
         user: SessionUser,
+        trigger: PlaygroundProjectTrigger = 'invite_expert',
     ): Promise<EnsurePlaygroundProjectResults> {
         if (!this.provisionPlaygroundProject) {
             throw new NotFoundError('Playground projects are not available');
@@ -617,6 +624,7 @@ export class ProjectService extends BaseService {
                         createdByUserUuid: project.createdByUserUuid,
                     }),
                 ),
+            trigger,
         });
     }
 
@@ -634,6 +642,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
+        provisioningSource?: 'playground',
     ): Promise<void> {
         if (projectType === ProjectType.PREVIEW) {
             return;
@@ -645,18 +654,22 @@ export class ProjectService extends BaseService {
         }
 
         try {
-            const projects =
-                await this.projectModel.getAllByOrganizationUuid(
-                    organizationUuid,
+            // Playgrounds are provisioned alongside a user's own project, so
+            // they never pass the first-project check but still need an agent
+            if (provisioningSource !== 'playground') {
+                const projects =
+                    await this.projectModel.getAllByOrganizationUuid(
+                        organizationUuid,
+                    );
+                const nonPreviewProjects = projects.filter(
+                    (project) => project.type !== ProjectType.PREVIEW,
                 );
-            const nonPreviewProjects = projects.filter(
-                (project) => project.type !== ProjectType.PREVIEW,
-            );
-            if (
-                nonPreviewProjects.length !== 1 ||
-                nonPreviewProjects[0].projectUuid !== projectUuid
-            ) {
-                return;
+                if (
+                    nonPreviewProjects.length !== 1 ||
+                    nonPreviewProjects[0].projectUuid !== projectUuid
+                ) {
+                    return;
+                }
             }
 
             await this.getAiAgentService?.()?.provisionDefaultAgent(
@@ -685,11 +698,22 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
+        provisioningSource?: 'playground',
     ): Promise<void> {
-        await this.provisionDefaultAiAgent(user, projectUuid, projectType);
+        await this.provisionDefaultAiAgent(
+            user,
+            projectUuid,
+            projectType,
+            provisioningSource,
+        );
 
         try {
-            await this.onProjectCreated?.({ user, projectUuid, projectType });
+            await this.onProjectCreated?.({
+                user,
+                projectUuid,
+                projectType,
+                provisioningSource,
+            });
         } catch (error) {
             // Provisioning failures must not fail project creation
             Sentry.captureException(error);
@@ -1539,6 +1563,39 @@ export class ProjectService extends BaseService {
         return args;
     }
 
+    private assertCanUseOrganizationWarehouseCredentials(
+        accountOrUser: Account | SessionUser,
+        organizationUuid: string,
+        data: {
+            warehouseConnection?: CreateWarehouseCredentials;
+            organizationWarehouseCredentialsUuid?: string;
+        },
+    ): void {
+        const organizationWarehouseCredentialsUuid =
+            data.organizationWarehouseCredentialsUuid ||
+            (data.warehouseConnection?.type === WarehouseTypes.SNOWFLAKE
+                ? data.warehouseConnection.organizationWarehouseCredentialsUuid
+                : undefined);
+
+        if (!organizationWarehouseCredentialsUuid) {
+            return;
+        }
+
+        const auditedAbility = this.createAuditedAbility(accountOrUser);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('OrganizationWarehouseCredentials', {
+                    organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to use these organization warehouse credentials',
+            );
+        }
+    }
+
     // The project-update form sends masked oauthClientId / oauthClientSecret
     // (placeholder values), so merge them in from the saved project before
     // _resolveWarehouseClientCredentials runs the M2M token exchange. No-op for
@@ -1794,6 +1851,9 @@ export class ProjectService extends BaseService {
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
+                this.logger.warn(
+                    `No ${credentials.type} user warehouse credentials found for user ${userId} on project ${projectUuid} (requireUserCredentials enabled, host mismatch: ${!!hostMismatch})`,
+                );
                 if (credentials.type === WarehouseTypes.DATABRICKS) {
                     throw new DatabricksTokenError(
                         'Please authenticate to access Databricks',
@@ -2403,8 +2463,16 @@ export class ProjectService extends BaseService {
             data.warehouseConnection,
             internalProvisioning,
         );
+        ProjectService.assertPersistableSnowflakeAuthentication(
+            data.warehouseConnection,
+        );
 
         await this.validateProjectCreationPermissions(user, data);
+        this.assertCanUseOrganizationWarehouseCredentials(
+            user,
+            user.organizationUuid,
+            data,
+        );
 
         const newProjectData = data;
         ProjectService.validateDbtEnvironmentVariables(
@@ -2501,6 +2569,7 @@ export class ProjectService extends BaseService {
             user,
             projectUuid,
             createProject.type,
+            internalProvisioning?.source,
         );
 
         // For preview projects: if the upstream requires user warehouse credentials
@@ -2670,8 +2739,16 @@ export class ProjectService extends BaseService {
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
         );
+        ProjectService.assertPersistableSnowflakeAuthentication(
+            data.warehouseConnection,
+        );
 
         await this.validateProjectCreationPermissions(user, data);
+        this.assertCanUseOrganizationWarehouseCredentials(
+            user,
+            user.organizationUuid,
+            data,
+        );
         ProjectService.validateDbtEnvironmentVariables(data.dbtConnection);
 
         let encryptedData: string;
@@ -3091,8 +3168,45 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /*
+    Interactive Snowflake authentication types need a browser on every
+    connect, so they cannot be used from headless backend/scheduler runs.
+    External browser is still allowed when `requireUserCredentials` is set,
+    since each user then connects with their own credentials and the
+    project-level authentication type is never used to connect.
+    */
+    private static assertPersistableSnowflakeAuthentication(
+        credentials: CreateWarehouseCredentials | undefined,
+    ): void {
+        if (credentials?.type !== WarehouseTypes.SNOWFLAKE) {
+            return;
+        }
+        if (
+            credentials.authenticationType ===
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE
+        ) {
+            throw new ParameterError(
+                'Snowflake OAuth authorization code authentication is only supported in the CLI and cannot be saved on a project',
+            );
+        }
+        if (
+            credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER &&
+            !credentials.requireUserCredentials
+        ) {
+            throw new ParameterError(
+                'Snowflake external browser authentication is only supported in the CLI and cannot be saved on a project',
+            );
+        }
+    }
+
     validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
+            case WarehouseTypes.SNOWFLAKE:
+                ProjectService.assertPersistableSnowflakeAuthentication(
+                    project.warehouseConnection,
+                );
+                break;
             case WarehouseTypes.BIGQUERY:
                 const keyFileContents =
                     project.warehouseConnection?.keyfileContents;
@@ -3181,6 +3295,11 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        this.assertCanUseOrganizationWarehouseCredentials(
+            account,
+            savedProject.organizationUuid,
+            data,
+        );
 
         const job: CreateJob = {
             jobUuid: uuidv4(),
@@ -3330,6 +3449,11 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        this.assertCanUseOrganizationWarehouseCredentials(
+            account,
+            savedProject.organizationUuid,
+            data,
+        );
 
         const updatedProjectData: UpdateProject = {
             name: savedProject.name,
@@ -5008,6 +5132,7 @@ export class ProjectService extends BaseService {
         await this.analyticsModel.addChartViewEvent(
             savedChart.uuid,
             account.user.id,
+            dashboardUuid ? { source: 'dashboard', dashboardUuid } : undefined,
         );
 
         const availableFieldIds = getAvailableFilterFieldIds(explore);
@@ -5847,6 +5972,7 @@ export class ProjectService extends BaseService {
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.fileStorageClient,
+            projectUuid,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -5870,7 +5996,6 @@ export class ProjectService extends BaseService {
                     },
                 );
             },
-            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -5958,6 +6083,7 @@ export class ProjectService extends BaseService {
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.fileStorageClient,
+            projectUuid,
         )(
             `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
             async (writer) => {
@@ -6051,7 +6177,6 @@ export class ProjectService extends BaseService {
                     writer(currentTransformedRow);
                 }
             },
-            this.fileStorageClient,
         );
 
         await sshTunnel.disconnect();
@@ -6099,6 +6224,9 @@ export class ProjectService extends BaseService {
 
         const downloadFile =
             await this.downloadFileModel.getDownloadFile(fileId);
+        if (downloadFile.projectUuid !== projectUuid) {
+            throw new NotFoundError('Cannot find file');
+        }
         switch (downloadFile.type) {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
@@ -7872,6 +8000,7 @@ export class ProjectService extends BaseService {
             uuid: string;
             filters: CompiledDimension[];
             metricFilters: Metric[];
+            defaultTimeDimension?: DashboardFieldTarget;
         };
 
         let allFilters: ChartFilters[] = [];
@@ -7938,6 +8067,7 @@ export class ProjectService extends BaseService {
                             uuid: savedChart.uuid,
                             filters: [],
                             metricFilters: [],
+                            defaultTimeDimension: undefined,
                         };
                     }
 
@@ -7954,11 +8084,18 @@ export class ProjectService extends BaseService {
                             (field) => !field.hidden,
                         );
                     }
+                    const defaultTimeDimension =
+                        explore && !isExploreError(explore)
+                            ? getExploreDefaultTimeDimension(explore)
+                            : undefined;
 
                     return {
                         uuid: savedChart.uuid,
                         filters,
                         metricFilters,
+                        defaultTimeDimension: defaultTimeDimension
+                            ? getDashboardFieldTarget(defaultTimeDimension)
+                            : undefined,
                     };
                 });
             },
@@ -8026,11 +8163,28 @@ export class ProjectService extends BaseService {
             };
         }, {});
 
+        const defaultTimeDimensions = savedChartUuidsAndTileUuids.reduce<
+            DashboardAvailableFilters['defaultTimeDimensions']
+        >((acc, savedChartUuidAndTileUuid) => {
+            const filterResult = allFilters.find(
+                (result) =>
+                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+            );
+            return filterResult?.defaultTimeDimension
+                ? {
+                      ...acc,
+                      [savedChartUuidAndTileUuid.tileUuid]:
+                          filterResult.defaultTimeDimension,
+                  }
+                : acc;
+        }, {});
+
         return {
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics,
             savedQueryMetricFilters,
+            defaultTimeDimensions,
         };
     }
 
@@ -8752,8 +8906,6 @@ export class ProjectService extends BaseService {
             ),
             upstreamProjectUuid: projectUuid,
             copyContent: data.copyContent,
-            organizationWarehouseCredentialsUuid:
-                project.organizationWarehouseCredentialsUuid,
             dbtVersion: project.dbtVersion,
         };
 
@@ -9094,7 +9246,19 @@ export class ProjectService extends BaseService {
             chartUrl: string;
         }[]
     > {
-        // TODO implement permissions
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const chartSummaries = await this.savedChartModel.find({
             projectUuid,
         });

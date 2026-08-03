@@ -1,4 +1,5 @@
 import {
+    calculateComparisonValue,
     applyCustomFormat,
     ComparisonFormatTypes,
     CustomFormatType,
@@ -43,7 +44,6 @@ import {
     useRunMetricSeries,
     useRunMetricTotal,
 } from '../../../../features/metricsCatalog/hooks/useRunMetricExplorerQuery';
-import { calculateComparisonValue } from '../../../../hooks/useBigNumberConfig';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import MetricSparkline from './MetricSparkline';
@@ -202,16 +202,20 @@ const MetricsPickerModal: FC<{
         sortDirection: 'desc',
         pageSize: 25,
     });
-    const results = (data?.pages ?? [])
-        .flatMap((page) => page.data)
-        .filter(
-            (metric) =>
-                !selected.some(
-                    (ref) =>
-                        ref.tableName === metric.tableName &&
-                        ref.metricName === metric.name,
+    const results = useMemo(
+        () =>
+            (data?.pages ?? [])
+                .flatMap((page) => page.data)
+                .filter(
+                    (metric) =>
+                        !selected.some(
+                            (ref) =>
+                                ref.tableName === metric.tableName &&
+                                ref.metricName === metric.name,
+                        ),
                 ),
-        );
+        [data, selected],
+    );
 
     const scrollRef = useRef<HTMLDivElement>(null);
 

@@ -26,7 +26,7 @@ GLOBAL SAFETY, SCOPE, AND HYGIENE (STRICT)
 
 MCP boundary:
 
-- Tool records carry `source: "lightdash"` or `source: "mcp"`.
+- Tool records omit `source` for Lightdash tools. Only MCP tools carry `source: "mcp"`.
 - MCP tool calls/results may help reconstruct `thread_summary` when a memory is retained.
 - MCP-derived content is never evidence for `raw_memory`, `terms`, or `objects`.
 - A user statement remains user evidence even when it discusses MCP content; preserve its attribution and do not promote the MCP claim it repeats as verified project fact.
@@ -211,6 +211,9 @@ Read evidence in this order:
 
 Explicit feedback and direct tool validation outrank heuristics. Assistant confidence is not validation. Reasoning traces are absent because reasoning is not evidence.
 
+- A downvote means the task did not succeed. A downvote with a comment is correction-class evidence.
+- An upvote validates the assistant claim for this turn, but does not broaden it beyond the evidence shown.
+
 Thread end, user silence, or lack of rejection is not acceptance or adoption. A later unrelated request may support completion of the prior task, but never turns an assistant explanation into an adopted project convention.
 
 When interpreting evidence:
@@ -266,7 +269,7 @@ Allowed object values:
 - explore: `{ "type": "explore", "name": "exact_explore_name" }`,
 - field: `{ "type": "field", "explore": "exact_explore_name", "fieldId": "exact_field_id" }`.
 
-Both the explore and field id must be visible in tool records with `source: "lightdash"`.
+Both the explore and field id must be visible in Lightdash tool records, identified by an absent `source`.
 
 Object rules:
 
@@ -275,6 +278,7 @@ Object rules:
 - A field label is not a fieldId. A table label is not an explore name.
 - Do not put chart/dashboard ids, UUIDs, user names, organizations, customers, business phrases, SQL columns without a Lightdash fieldId, or MCP entities in `objects[]`.
 - Put non-catalog retrieval language in `terms[]` when it is supported by raw-memory evidence.
+- Never put individual people, accounts, or row-level values from query results in `raw_memory` or `terms[]`. Business vocabulary remains eligible.
 - If no exact catalog id is visible in non-MCP Lightdash evidence, use `objects: []`.
 - Unknown ids are flagged after parsing and do not block the write; this is not permission to guess.
 - `objects[]` validation does not affect the no-op gate. Decide whether memory exists before considering unresolved ids.

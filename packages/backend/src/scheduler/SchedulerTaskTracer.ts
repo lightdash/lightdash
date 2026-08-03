@@ -240,6 +240,7 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: () => ({}),
     [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: (payload) => ({
         'project.uuid': payload.projectUuid,
         'managed_agent.triggered_by': payload.triggeredBy ?? 'cron',
@@ -263,7 +264,14 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
         'ai_agent_memory.thread_uuid': payload.threadUuid,
     }),
+    [SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORIES]: () => ({}),
+    [SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'ai_agent_memory.owner_user_uuid': payload.ownerUserUuid,
+    }),
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: () => ({}),
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

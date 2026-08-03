@@ -28,7 +28,7 @@
     display: none;
 }
 
-.agentSelectorReveal {
+.controlsReveal {
     transition:
         opacity 160ms ease,
         transform 160ms ease;
@@ -41,7 +41,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .agentSelectorReveal {
+    .controlsReveal {
         transition: none;
     }
 }
@@ -133,7 +133,7 @@
     margin-bottom: rem(8px);
 }
 
-.threadBelowControls {
+.belowComposerControls {
     display: flex;
     justify-content: flex-end;
     min-height: rem(30px);
@@ -144,22 +144,6 @@
     .chipReveal {
         transition: none;
     }
-}
-
-.minimalResearchIndicator {
-    display: flex;
-    flex: 0 0 rem(26px);
-    align-items: center;
-    justify-content: center;
-    width: rem(26px);
-    height: rem(26px);
-    color: var(--mantine-color-indigo-6);
-    background-color: var(--mantine-color-indigo-light);
-    border-radius: var(--mantine-radius-xl);
-}
-
-.minimalResearchBeta {
-    flex-shrink: 0;
 }
 
 .sqlModeButton {

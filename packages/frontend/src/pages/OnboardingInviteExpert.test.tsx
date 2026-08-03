@@ -190,6 +190,7 @@ describe('OnboardingInviteExpert', () => {
         });
         expect(mocks.track).toHaveBeenCalledWith({
             name: EventName.PLAYGROUND_PROJECT_ENTERED,
+            properties: { organizationId: 'org-1' },
         });
     });
 
@@ -252,17 +253,12 @@ describe('OnboardingInviteExpert', () => {
         });
     });
 
-    it('explains an unavailable instance and keeps the invite as a fallback', async () => {
+    it('explains an unavailable instance and stays on the page', async () => {
         mocks.ensurePlayground.mockRejectedValue(
             apiError('NotFoundError', 'Playground projects are not available'),
         );
-        const { rerenderPage } = renderPage();
+        renderPage();
         await submitInvite();
-        mocks.inviteLink = {
-            email: 'expert@example.com',
-            inviteUrl: 'https://lightdash.test/invite/abc',
-        };
-        rerenderPage();
 
         expect(
             await screen.findByText(/couldn't set up a sample project/i),
@@ -270,28 +266,41 @@ describe('OnboardingInviteExpert', () => {
         expect(
             screen.getByText(/aren't available on this instance/i),
         ).toBeInTheDocument();
-        expect(screen.getByText('Invite ready')).toBeInTheDocument();
         expect(currentPath).toBe('/onboarding/invite-expert');
         expect(
             screen.queryByRole('button', { name: /try again/i }),
         ).not.toBeInTheDocument();
+        expect(mocks.track).toHaveBeenCalledWith({
+            name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED,
+            properties: {
+                organizationId: 'org-1',
+                failureType: 'unavailable',
+            },
+        });
+        expect(mocks.track).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: EventName.PLAYGROUND_PROJECT_ENTERED,
+            }),
+        );
     });
 
     it('offers a retry for unrecognised failures', async () => {
         mocks.ensurePlayground.mockRejectedValue(
             apiError('UnexpectedServerError', 'boom'),
         );
-        const { rerenderPage } = renderPage();
+        renderPage();
         await submitInvite();
-        mocks.inviteLink = {
-            email: 'expert@example.com',
-            inviteUrl: 'https://lightdash.test/invite/abc',
-        };
-        rerenderPage();
 
         expect(
             await screen.findByText(/something went wrong while preparing/i),
         ).toBeInTheDocument();
+        expect(mocks.track).toHaveBeenCalledWith({
+            name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED,
+            properties: {
+                organizationId: 'org-1',
+                failureType: 'unknown',
+            },
+        });
 
         mocks.ensurePlayground.mockResolvedValue({ projectUuid: 'p1' });
         await userEvent.click(
@@ -303,7 +312,7 @@ describe('OnboardingInviteExpert', () => {
         });
     });
 
-    it('skips provisioning when the organization already has a project', async () => {
+    it('skips provisioning and leaves the page when the organization already has a project', async () => {
         mocks.needsProject = false;
         renderPage();
         await submitInvite();
@@ -312,12 +321,14 @@ describe('OnboardingInviteExpert', () => {
             expect(mocks.createInvite).toHaveBeenCalled();
         });
         expect(mocks.ensurePlayground).not.toHaveBeenCalled();
-        expect(currentPath).toBe('/onboarding/invite-expert');
+        await waitFor(() => {
+            expect(currentPath).toBe('/onboarding/data-source');
+        });
     });
 
-    it('skips provisioning when the instance has no playground projects', async () => {
+    it('skips provisioning and leaves the page when the instance has no playground projects', async () => {
         mocks.hasPlaygroundProjects = false;
-        const { rerenderPage } = renderPage();
+        renderPage();
         await submitInvite();
 
         await waitFor(() => {
@@ -325,18 +336,9 @@ describe('OnboardingInviteExpert', () => {
         });
         expect(mocks.ensurePlayground).not.toHaveBeenCalled();
         expect(screen.queryByText(/Preparing your playground/)).toBeNull();
-
-        mocks.inviteLink = {
-            email: 'expert@example.com',
-            inviteUrl: 'https://lightdash.test/invite/abc',
-        };
-        rerenderPage();
-
-        expect(await screen.findByText('Invite ready')).toBeInTheDocument();
-        expect(
-            screen.queryByText(/couldn't set up a sample project/i),
-        ).toBeNull();
-        expect(currentPath).toBe('/onboarding/invite-expert');
+        await waitFor(() => {
+            expect(currentPath).toBe('/onboarding/data-source');
+        });
     });
 
     it('Cancel returns to the page the CTA linked from', async () => {

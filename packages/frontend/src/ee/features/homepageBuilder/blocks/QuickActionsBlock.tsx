@@ -10,6 +10,7 @@ import {
     Stack,
     Text,
     TextInput,
+    Tooltip,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import {
@@ -19,6 +20,8 @@ import {
     IconLayoutDashboard,
     IconPlus,
     IconSparkles,
+    IconStar,
+    IconStarFilled,
     IconTable,
     IconX,
     type Icon,
@@ -30,7 +33,7 @@ import MantineModal from '../../../../components/common/MantineModal';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
-import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -71,6 +74,11 @@ const STATIC_ACTIONS: Record<
     },
 };
 
+const actionKey = (action: HomepageQuickAction): string =>
+    action.type === 'dashboard'
+        ? `dashboard-${action.dashboardUuid}`
+        : action.type;
+
 const actionPresentation = (
     action: HomepageQuickAction,
     projectUuid: string,
@@ -90,36 +98,42 @@ const actionPresentation = (
 export const QuickActionCards: FC<{
     actions: HomepageQuickAction[];
     projectUuid: string;
-}> = ({ actions, projectUuid }) => {
+    // Centred under the composer; left-aligned when it follows a page heading
+    justify?: 'center' | 'flex-start';
+}> = ({ actions, projectUuid, justify = 'center' }) => {
     const { track } = useTracking();
-    const isAiEnabled = useAiAgentButtonVisibility();
+    const { canAskAi } = useHomepageAiState(projectUuid);
     const visibleActions = actions.filter(
-        (action) => action.type !== 'ask-ai' || isAiEnabled,
+        (action) => action.type !== 'ask-ai' || canAskAi,
     );
     if (visibleActions.length === 0) return null;
     return (
-        <Group gap={8} justify="center">
-            {visibleActions.map((action, index) => {
+        <Group gap={8} justify={justify}>
+            {visibleActions.map((action) => {
                 const presentation = actionPresentation(action, projectUuid);
+                const trackClick = () =>
+                    track({
+                        name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED,
+                        properties: { actionType: action.type },
+                    });
+                // The primary action is the same chip, inverted.
                 return (
                     <Anchor
-                        key={`${action.type}-${index}`}
+                        key={actionKey(action)}
                         component={Link}
                         to={presentation.url}
                         underline="never"
-                        c="inherit"
-                        className={classes.quickActionChip}
-                        onClick={() =>
-                            track({
-                                name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED,
-                                properties: { actionType: action.type },
-                            })
-                        }
+                        className={`${classes.quickActionChip}${
+                            action.primary
+                                ? ` ${classes.quickActionChipPrimary}`
+                                : ''
+                        }`}
+                        onClick={trackClick}
                     >
                         <MantineIcon
                             icon={presentation.icon}
                             size={14}
-                            color="ldGray.6"
+                            color={action.primary ? 'inherit' : 'ldGray.6'}
                         />
                         {presentation.title}
                     </Anchor>
@@ -209,6 +223,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
     projectUuid,
     onChange,
 }) => {
+    const { canAskAi } = useHomepageAiState(projectUuid);
     const [isDashboardPickerOpen, setIsDashboardPickerOpen] = useState(false);
     if (block.type !== 'quick-actions') return null;
 
@@ -226,7 +241,9 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
     const missingStatics = (
         Object.keys(STATIC_ACTIONS) as Array<keyof typeof STATIC_ACTIONS>
     ).filter(
-        (type) => !block.config.actions.some((action) => action.type === type),
+        (type) =>
+            !block.config.actions.some((action) => action.type === type) &&
+            (type !== 'ask-ai' || canAskAi),
     );
 
     return (
@@ -237,9 +254,11 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                         action,
                         projectUuid,
                     );
+                    // Matches the view: no agent, no Ask AI row
+                    if (action.type === 'ask-ai' && !canAskAi) return null;
                     return (
                         <Group
-                            key={`${action.type}-${index}`}
+                            key={actionKey(action)}
                             gap="xs"
                             wrap="nowrap"
                             p="xs"
@@ -252,6 +271,46 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                             <Text size="sm" fw={500} flex={1}>
                                 {presentation.title}
                             </Text>
+                            <Tooltip
+                                label={
+                                    action.primary
+                                        ? 'Primary action'
+                                        : 'Make primary'
+                                }
+                                withinPortal
+                            >
+                                <ActionIcon
+                                    variant="subtle"
+                                    color={
+                                        action.primary ? 'yellow' : 'ldGray.6'
+                                    }
+                                    size="sm"
+                                    aria-label={`Make ${presentation.title} the primary action`}
+                                    aria-pressed={action.primary === true}
+                                    onClick={() =>
+                                        // Only one primary per row
+                                        setActions(
+                                            block.config.actions.map(
+                                                (item, i) => ({
+                                                    ...item,
+                                                    primary:
+                                                        i === index
+                                                            ? !action.primary
+                                                            : false,
+                                                }),
+                                            ),
+                                        )
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            action.primary
+                                                ? IconStarFilled
+                                                : IconStar
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
                             <ActionIcon
                                 variant="subtle"
                                 color="ldGray.6"
@@ -345,10 +404,17 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                 onClose={() => setIsDashboardPickerOpen(false)}
                 projectUuid={projectUuid}
                 onPick={(dashboardUuid, label) => {
-                    setActions([
-                        ...block.config.actions,
-                        { type: 'dashboard', dashboardUuid, label },
-                    ]);
+                    const alreadyAdded = block.config.actions.some(
+                        (action) =>
+                            action.type === 'dashboard' &&
+                            action.dashboardUuid === dashboardUuid,
+                    );
+                    if (!alreadyAdded) {
+                        setActions([
+                            ...block.config.actions,
+                            { type: 'dashboard', dashboardUuid, label },
+                        ]);
+                    }
                     setIsDashboardPickerOpen(false);
                 }}
             />

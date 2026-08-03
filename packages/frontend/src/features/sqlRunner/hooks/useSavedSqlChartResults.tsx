@@ -198,10 +198,11 @@ export const useSavedSqlChartResults = (
                 const chartUnderlyingData = vizDataModel.getPivotedTableData();
                 return {
                     queryUuid: pivotChartData.queryUuid,
-                    chartSpec: vizDataModel.getSpec(
-                        chart.config.display,
-                        resolvedPalette?.colors,
-                    ),
+                    chartSpec:
+                        vizDataModel.getSpec(
+                            chart.config.display,
+                            resolvedPalette?.colors,
+                        ) ?? {},
                     fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?
                     resultsRunner,
                     chartUnderlyingData,
@@ -281,6 +282,7 @@ export const useSavedSqlChartResults = (
                         savedSqlUuid: chartQuery.data.savedSqlUuid,
                         context: context as QueryExecutionContext,
                         limit: limit ?? MAX_SAFE_INTEGER,
+                        parameters,
                     });
                 }
                 queryUuidToDownload = queryForDownload.queryUuid;

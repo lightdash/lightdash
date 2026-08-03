@@ -14,6 +14,14 @@
     height: calc(100vh - 50px - 35px);
 }
 
+/* Presentation mode: the navbar hides itself, so reclaim the full viewport.
+   Repeats the banner selectors above to out-rank their id-based specificity. */
+.previewContainerFullscreen,
+:global(body:has(#preview-banner)) .previewContainerFullscreen,
+:global(body:has(#impersonation-banner)) .previewContainerFullscreen {
+    height: 100vh;
+}
+
 .previewBody {
     flex: 1;
     min-height: 0;

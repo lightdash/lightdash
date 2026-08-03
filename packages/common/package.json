@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "1.8.0",
+  "version": "1.65.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,13 +13,10 @@
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
   "scripts": {
-    "dev": "tsc6 --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
-    "dev:fast": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.fast.json",
-    "build": "tsc6 --build ./tsconfig.build.json",
-    "build:fast": "tsc --build ./tsconfig.build.fast.json",
-    "typecheck": "tsc6 --project tsconfig.json --noEmit",
-    "typecheck:fast": "tsc --project tsconfig.fast.json --noEmit",
-    "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+    "dev": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.json",
+    "build": "tsc --build ./tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit --composite false",
+    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
     "fix-lint": "pnpm run linter ./src --fix",
@@ -40,12 +37,12 @@
   "dependencies": {
     "@casl/ability": "6.8.0",
     "@mastra/schema-compat": "0.11.2",
+    "@sidvind/better-ajv-errors": "7.0.0",
     "@types/lodash": "4.14.202",
     "ai": "6.0.205",
     "ajv": "8.18.0",
     "ajv-errors": "3.0.0",
     "ajv-formats": "2.1.1",
-    "better-ajv-errors": "1.2.0",
     "colorjs.io": "0.5.2",
     "company-email-validator": "1.2.4",
     "cronstrue": "2.23.0",
@@ -74,8 +71,9 @@
     "@types/pegjs": "0.10.3",
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
-    "typescript": "npm:@typescript/typescript6@6.0.1",
-    "typescript-7": "npm:typescript@7.0.1-rc",
+    "oxlint": "1.75.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "typescript": "7.0.2",
     "vitest": "4.1.6"
   }
 }

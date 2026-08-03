@@ -4,6 +4,8 @@ import {
     DimensionType,
     FeatureFlags,
     FieldType,
+    ForbiddenError,
+    NotFoundError,
     ProjectType,
     SupportedDbtAdapter,
     type AnyType,
@@ -39,6 +41,8 @@ const distillableThread = (
             errorMessage: null,
             respondedAt: activity,
             interrupted: false,
+            feedback: null,
+            steers: [],
             tools: [],
         },
     ],
@@ -159,8 +163,30 @@ describe('AiAgentMemoryService', () => {
         const upsertThreadDistill = vi.fn();
         const findActiveForProject = vi.fn().mockResolvedValue([]);
         const findActiveBySourceThread = vi.fn().mockResolvedValue(undefined);
+        const resolveSourceThreadMemoryState = vi
+            .fn()
+            .mockResolvedValue('none');
         const updateStatus = vi.fn().mockResolvedValue(true);
+        const findUserMemoriesPaginated = vi.fn().mockResolvedValue({
+            data: { memories: [] },
+            pagination: {
+                page: 1,
+                pageSize: 50,
+                totalPageCount: 0,
+                totalResults: 0,
+            },
+        });
+        const findConsolidationCandidates = vi.fn().mockResolvedValue([]);
+        const findLatestConsolidationRun = vi.fn().mockResolvedValue(undefined);
+        const recordConsolidationRun = vi.fn().mockResolvedValue({});
+        const applyConsolidation = vi.fn().mockResolvedValue({
+            run: {},
+            applied: [],
+            rejected: [],
+        });
+        const findExploresFromCache = vi.fn().mockResolvedValue({});
         const aiAgentMemoryDistill = vi.fn();
+        const aiAgentMemoryConsolidatePartition = vi.fn();
         const getAgent = vi.fn().mockResolvedValue({
             uuid: 'agent-1',
             name: 'Agent',
@@ -182,9 +208,18 @@ describe('AiAgentMemoryService', () => {
                 projectUuid === 'project-other' ? 'org-other' : 'org-enabled',
         }));
         const distillCall = vi.fn();
+        const consolidateCall = vi.fn().mockResolvedValue({ operations: [] });
         const track = vi.fn();
+        const prometheusMetrics = {
+            trackAiAgentMemoryDistill: vi.fn(),
+            incrementAiAgentMemorySweepEnqueued: vi.fn(),
+            trackAiAgentMemoryConsolidate: vi.fn(),
+            trackAiAgentMemoryConsolidateOperations: vi.fn(),
+            incrementAiAgentMemoryEligiblePartitions: vi.fn(),
+        };
         const service = new AiAgentMemoryService({
             analytics: { track } as AnyType,
+            prometheusMetrics: prometheusMetrics as AnyType,
             aiAgentMemoryModel: {
                 findByProjectAndSlug,
                 findByProjectAndUuid,
@@ -194,17 +229,27 @@ describe('AiAgentMemoryService', () => {
                 upsertThreadDistill,
                 findActiveForProject,
                 findActiveBySourceThread,
+                resolveSourceThreadMemoryState,
                 updateStatus,
+                findUserMemoriesPaginated,
+                findConsolidationCandidates,
+                findLatestConsolidationRun,
+                recordConsolidationRun,
+                applyConsolidation,
             } as AnyType,
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
             groupsModel: { findUserInGroups } as AnyType,
             projectModel: {
                 getSummary: getProjectSummary,
-                findExploresFromCache: vi.fn().mockResolvedValue({}),
+                findExploresFromCache,
             } as AnyType,
             featureFlagService: { get: getFlag } as AnyType,
-            schedulerClient: { aiAgentMemoryDistill },
+            schedulerClient: {
+                aiAgentMemoryDistill,
+                aiAgentMemoryConsolidatePartition,
+            },
             distillCall,
+            consolidateCall,
         });
         return {
             service,
@@ -217,12 +262,22 @@ describe('AiAgentMemoryService', () => {
             upsertThreadDistill,
             findActiveForProject,
             findActiveBySourceThread,
+            resolveSourceThreadMemoryState,
             updateStatus,
+            findUserMemoriesPaginated,
+            findConsolidationCandidates,
+            findLatestConsolidationRun,
+            recordConsolidationRun,
+            applyConsolidation,
+            findExploresFromCache,
             aiAgentMemoryDistill,
+            aiAgentMemoryConsolidatePartition,
             getAgent,
             findThreadOwnership,
             distillCall,
+            consolidateCall,
             track,
+            prometheusMetrics,
         };
     };
 
@@ -577,6 +632,8 @@ describe('AiAgentMemoryService', () => {
                     errorMessage: null,
                     respondedAt: new Date('2026-07-22T04:01:00.000Z'),
                     interrupted: false,
+                    feedback: null,
+                    steers: [],
                     tools: [],
                 },
                 {
@@ -587,6 +644,8 @@ describe('AiAgentMemoryService', () => {
                     errorMessage: null,
                     respondedAt: activity,
                     interrupted: false,
+                    feedback: null,
+                    steers: [],
                     tools: [],
                 },
             ],
@@ -657,6 +716,8 @@ describe('AiAgentMemoryService', () => {
                     errorMessage: null,
                     respondedAt: activity,
                     interrupted: false,
+                    feedback: null,
+                    steers: [],
                     tools: [],
                 },
             ],
@@ -779,6 +840,620 @@ describe('AiAgentMemoryService', () => {
         ]);
     });
 
+    it('skips a thread whose memory is no longer active without an LLM call', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const payload = {
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'system',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: activity.toISOString(),
+        };
+
+        const {
+            service,
+            findThreadForDistill,
+            resolveSourceThreadMemoryState,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(distillableThread(activity));
+        resolveSourceThreadMemoryState.mockResolvedValue('inactive');
+
+        await expect(service.distillThread(payload)).resolves.toBe('skipped');
+
+        expect(distillCall).not.toHaveBeenCalled();
+        expect(upsertThreadDistill).toHaveBeenCalledExactlyOnceWith({
+            aiThreadUuid: 'thread-enabled',
+            outcome: 'skipped',
+            distillPromptHash: null,
+            distilledUpTo: activity,
+        });
+    });
+
+    it('distills a thread whose memory is still active or absent', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const payload = {
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'system',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: activity.toISOString(),
+        };
+        const distillOutput = {
+            result: {
+                type: 'no_op',
+                reason: 'no_positive_evidence',
+            },
+        };
+
+        const active = build();
+        active.findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: null }),
+        );
+        active.resolveSourceThreadMemoryState.mockResolvedValue('active');
+        active.distillCall.mockResolvedValue(distillOutput);
+        await expect(active.service.distillThread(payload)).resolves.toBe(
+            'no_op',
+        );
+        expect(active.distillCall).toHaveBeenCalledOnce();
+
+        const none = build();
+        none.findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: null }),
+        );
+        none.resolveSourceThreadMemoryState.mockResolvedValue('none');
+        none.distillCall.mockResolvedValue(distillOutput);
+        await expect(none.service.distillThread(payload)).resolves.toBe(
+            'no_op',
+        );
+        expect(none.distillCall).toHaveBeenCalledOnce();
+    });
+
+    it('re-distills an up-to-date thread only when the trigger forces it', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const payload = {
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'current-user',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: activity.toISOString(),
+        };
+        const distillOutput = {
+            result: { type: 'no_op', reason: 'no_positive_evidence' },
+        };
+
+        const swept = build();
+        swept.findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: activity }),
+        );
+        await expect(swept.service.distillThread(payload)).resolves.toBe(
+            'skipped',
+        );
+        expect(swept.distillCall).not.toHaveBeenCalled();
+
+        const forced = build();
+        forced.findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: activity }),
+        );
+        forced.distillCall.mockResolvedValue(distillOutput);
+        await expect(
+            forced.service.distillThread({ ...payload, force: true }),
+        ).resolves.toBe('no_op');
+        expect(forced.distillCall).toHaveBeenCalledOnce();
+    });
+
+    it('forcing does not override the inactive-memory guard', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const {
+            service,
+            findThreadForDistill,
+            resolveSourceThreadMemoryState,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: activity }),
+        );
+        resolveSourceThreadMemoryState.mockResolvedValue('inactive');
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'current-user',
+                threadUuid: 'thread-enabled',
+                sweptUpdatedAt: activity.toISOString(),
+                force: true,
+            }),
+        ).resolves.toBe('skipped');
+        expect(distillCall).not.toHaveBeenCalled();
+    });
+
+    it('enqueues a forced distill carrying the thread’s own watermark', async () => {
+        const activity = new Date('2026-07-22T05:00:00.123Z');
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+        // Distinct from latestActivity so the assertion below can only pass on
+        // the thread's current activity, never on its watermark.
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, {
+                distilledUpTo: new Date('2026-07-21T00:00:00.000Z'),
+            }),
+        );
+        aiAgentMemoryDistill.mockResolvedValue({ jobId: 'job-1' });
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).resolves.toEqual({ jobId: 'job-1' });
+
+        expect(aiAgentMemoryDistill).toHaveBeenCalledWith({
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'current-user',
+            threadUuid: 'thread-enabled',
+            sweptUpdatedAt: '2026-07-22T05:00:00.123Z',
+            force: true,
+        });
+    });
+
+    it('refuses a manual distill from a project viewer who cannot manage agents', async () => {
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(findThreadForDistill).not.toHaveBeenCalled();
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
+    });
+
+    it('does not enqueue a manual distill for a thread outside the project', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { projectUuid: 'project-other' }),
+        );
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
+    });
+
+    it('does not enqueue a manual distill for a thread in another organization', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { organizationUuid: 'org-other' }),
+        );
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-enabled',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
+    });
+
+    it('reports a thread the distill query rejects as ineligible rather than crashing', async () => {
+        const { service, findThreadForDistill, aiAgentMemoryDistill } = build();
+        // Preview projects, eval/scheduler threads and unknown uuids all land here.
+        findThreadForDistill.mockResolvedValue(undefined);
+
+        await expect(
+            service.triggerThreadDistill(
+                buildUser(true, { canManageAgents: true }),
+                'project-enabled',
+                'thread-missing',
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(aiAgentMemoryDistill).not.toHaveBeenCalled();
+    });
+
+    it('skips without writing when the memory stops being active mid-distill', async () => {
+        const activity = new Date('2026-07-22T05:00:00.000Z');
+        const {
+            service,
+            findThreadForDistill,
+            resolveSourceThreadMemoryState,
+            upsertSourceThreadMemory,
+            upsertThreadDistill,
+            distillCall,
+        } = build();
+        findThreadForDistill.mockResolvedValue(
+            distillableThread(activity, { distilledUpTo: null }),
+        );
+        resolveSourceThreadMemoryState
+            .mockResolvedValueOnce('active')
+            .mockResolvedValueOnce('inactive');
+        distillCall.mockResolvedValue({
+            result: {
+                type: 'memory',
+                thread_summary: 'The users agreed a convention.',
+                slug: 'net-revenue',
+                title: 'Net revenue convention',
+                raw_memory: 'Use net revenue.',
+                terms: ['net revenue'],
+                objects: [],
+                scope: 'user',
+            },
+        });
+
+        await expect(
+            service.distillThread({
+                organizationUuid: 'org-enabled',
+                projectUuid: 'project-enabled',
+                userUuid: 'system',
+                threadUuid: 'thread-enabled',
+                sweptUpdatedAt: activity.toISOString(),
+            }),
+        ).resolves.toBe('skipped');
+
+        expect(upsertSourceThreadMemory).not.toHaveBeenCalled();
+        expect(upsertThreadDistill).toHaveBeenCalledExactlyOnceWith({
+            aiThreadUuid: 'thread-enabled',
+            outcome: 'skipped',
+            distillPromptHash: null,
+            distilledUpTo: activity,
+        });
+    });
+
+    const consolidationCandidate = {
+        organizationUuid: 'org-enabled',
+        projectUuid: 'project-enabled',
+        ownerUserUuid: 'owner-1',
+        activeCount: 30,
+    };
+
+    const partitionPayload = {
+        organizationUuid: 'org-enabled',
+        projectUuid: 'project-enabled',
+        userUuid: 'system',
+        ownerUserUuid: 'owner-1',
+    };
+
+    const activeMemory = (
+        overrides: Record<string, unknown> = {},
+    ): Record<string, unknown> => ({
+        ai_agent_memory_uuid: 'memory-1',
+        slug: 'net-revenue-ab12cd34',
+        title: 'Net revenue convention',
+        raw_memory: 'Use net revenue.',
+        thread_summary: 'Summary the curator must never see.',
+        terms: [],
+        objects: [],
+        scope: 'user',
+        generated_at: new Date('2026-07-20T10:00:00Z'),
+        cited_count: 4,
+        ...overrides,
+    });
+
+    /** A partition at the row floor, so the child's recheck lets it through. */
+    const activeMemories = (
+        overrides: Record<string, unknown> = {},
+    ): Record<string, unknown>[] =>
+        Array.from({ length: 30 }, (_, index) =>
+            activeMemory({
+                ai_agent_memory_uuid: `uuid-${index}`,
+                slug: `net-revenue-${index}`,
+                ...overrides,
+            }),
+        );
+
+    // An empty catalog is treated as an unreadable one, so a partition that is
+    // meant to be consolidated needs a catalog with something in it.
+    const buildConsolidation = (options?: { enabledOrganization: string }) => {
+        const context = build(options);
+        context.findExploresFromCache.mockResolvedValue({
+            orders: { name: 'orders', tables: {}, joinedTables: [] },
+        });
+        context.findActiveForProject.mockResolvedValue(activeMemories());
+        return context;
+    };
+
+    it('asks only for partitions at or above the row floor', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            aiAgentMemoryConsolidatePartition,
+        } = build();
+
+        await expect(service.sweepConsolidationPartitions()).resolves.toBe(0);
+
+        expect(findConsolidationCandidates).toHaveBeenCalledExactlyOnceWith(30);
+        expect(aiAgentMemoryConsolidatePartition).not.toHaveBeenCalled();
+    });
+
+    it('enqueues one partition job per eligible partition', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            aiAgentMemoryConsolidatePartition,
+        } = build();
+        findConsolidationCandidates.mockResolvedValue([
+            consolidationCandidate,
+            { ...consolidationCandidate, ownerUserUuid: 'owner-2' },
+        ]);
+
+        await expect(service.sweepConsolidationPartitions()).resolves.toBe(2);
+
+        expect(aiAgentMemoryConsolidatePartition).toHaveBeenCalledTimes(2);
+        expect(aiAgentMemoryConsolidatePartition).toHaveBeenCalledWith(
+            partitionPayload,
+        );
+        expect(aiAgentMemoryConsolidatePartition).toHaveBeenCalledWith({
+            ...partitionPayload,
+            ownerUserUuid: 'owner-2',
+        });
+    });
+
+    it('enqueues nothing for an organization whose flag is off', async () => {
+        const {
+            service,
+            findConsolidationCandidates,
+            aiAgentMemoryConsolidatePartition,
+            findActiveForProject,
+        } = build({ enabledOrganization: 'none' });
+        findConsolidationCandidates.mockResolvedValue([consolidationCandidate]);
+
+        await expect(service.sweepConsolidationPartitions()).resolves.toBe(0);
+
+        expect(aiAgentMemoryConsolidatePartition).not.toHaveBeenCalled();
+        expect(findActiveForProject).not.toHaveBeenCalled();
+    });
+
+    it('skips the partition job quietly when the flag turned off after the sweep', async () => {
+        const {
+            service,
+            findActiveForProject,
+            consolidateCall,
+            applyConsolidation,
+            recordConsolidationRun,
+        } = buildConsolidation({ enabledOrganization: 'none' });
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('skipped');
+
+        expect(findActiveForProject).not.toHaveBeenCalled();
+        expect(consolidateCall).not.toHaveBeenCalled();
+        expect(applyConsolidation).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('skips a partition that fell below the row floor before the job ran', async () => {
+        const {
+            service,
+            findActiveForProject,
+            findLatestConsolidationRun,
+            consolidateCall,
+            recordConsolidationRun,
+        } = buildConsolidation();
+        findActiveForProject.mockResolvedValue([activeMemory()]);
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('skipped');
+
+        expect(findLatestConsolidationRun).not.toHaveBeenCalled();
+        expect(consolidateCall).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('skips a project whose catalog cannot be read', async () => {
+        const {
+            service,
+            findExploresFromCache,
+            consolidateCall,
+            recordConsolidationRun,
+        } = buildConsolidation();
+        findExploresFromCache.mockRejectedValue(new Error('catalog gone'));
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('skipped');
+
+        // Every object would read as unresolved, which is exactly the evidence
+        // the retire licence rests on.
+        expect(consolidateCall).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('skips a project whose catalog is empty', async () => {
+        const {
+            service,
+            findActiveForProject,
+            consolidateCall,
+            recordConsolidationRun,
+        } = build();
+        findActiveForProject.mockResolvedValue(activeMemories());
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('skipped');
+
+        expect(consolidateCall).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('skips a partition in which nothing resolves at all', async () => {
+        const {
+            service,
+            findActiveForProject,
+            consolidateCall,
+            recordConsolidationRun,
+        } = buildConsolidation();
+        findActiveForProject.mockResolvedValue(
+            activeMemories({
+                objects: [{ type: 'explore', name: 'no_such_explore' }],
+            }),
+        );
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('skipped');
+
+        expect(consolidateCall).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('records no run for a partition the job was aborted out of', async () => {
+        const { service, consolidateCall, recordConsolidationRun } =
+            buildConsolidation();
+        const controller = new AbortController();
+        consolidateCall.mockImplementation(async () => {
+            controller.abort(new Error('Job timed out'));
+            throw new Error('Job timed out');
+        });
+
+        await expect(
+            service.consolidateScheduledPartition(
+                partitionPayload,
+                controller.signal,
+            ),
+        ).resolves.toBe('aborted');
+
+        // A partition that never really attempted anything must not be stamped
+        // with a hash that would suppress it until its corpus changes.
+        expect(consolidateCall).toHaveBeenCalledOnce();
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('returns failed without a run row when a read throws before the attempt', async () => {
+        const { service, findActiveForProject, recordConsolidationRun } =
+            buildConsolidation();
+        findActiveForProject.mockRejectedValue(new Error('database gone'));
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('failed');
+
+        expect(recordConsolidationRun).not.toHaveBeenCalled();
+    });
+
+    it('keeps the rejection audit on a run that fails during apply', async () => {
+        const {
+            service,
+            consolidateCall,
+            applyConsolidation,
+            recordConsolidationRun,
+        } = buildConsolidation();
+        consolidateCall.mockResolvedValue({
+            operations: [
+                {
+                    type: 'retire',
+                    slug: 'never-seen',
+                    reason: 'Its explore no longer resolves.',
+                },
+                {
+                    type: 'retire',
+                    slug: 'net-revenue-0',
+                    reason: 'Its explore no longer resolves.',
+                },
+            ],
+        });
+        applyConsolidation.mockRejectedValue(new Error('database exploded'));
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('failed');
+
+        expect(recordConsolidationRun).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                status: 'failed',
+                errorMessage: 'database exploded',
+                rejectedOperations: [
+                    {
+                        operation: expect.objectContaining({
+                            slug: 'never-seen',
+                        }),
+                        reason: 'unknown_slug',
+                    },
+                ],
+            }),
+        );
+    });
+
+    it('skips a partition whose corpus has not changed since the last run', async () => {
+        const { service, findLatestConsolidationRun, applyConsolidation } =
+            buildConsolidation();
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('consolidated');
+        const { inputHash } = applyConsolidation.mock.calls[0][0].run;
+        expect(findLatestConsolidationRun).toHaveBeenCalledWith({
+            projectUuid: 'project-enabled',
+            ownerUserUuid: 'owner-1',
+        });
+
+        const second = buildConsolidation();
+        second.findLatestConsolidationRun.mockResolvedValue({
+            input_hash: inputHash,
+            status: 'failed',
+        });
+
+        await expect(
+            second.service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('skipped');
+        expect(second.consolidateCall).not.toHaveBeenCalled();
+        expect(second.applyConsolidation).not.toHaveBeenCalled();
+        // The catalog is read only for a partition that will be attempted.
+        expect(second.findExploresFromCache).not.toHaveBeenCalled();
+    });
+
+    it('records a failed run carrying the input hash when the call throws', async () => {
+        const {
+            service,
+            consolidateCall,
+            applyConsolidation,
+            recordConsolidationRun,
+        } = buildConsolidation();
+        consolidateCall.mockRejectedValue(new Error('model exploded'));
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('failed');
+
+        expect(applyConsolidation).not.toHaveBeenCalled();
+        expect(recordConsolidationRun).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                status: 'failed',
+                errorMessage: 'model exploded',
+                inputHash: expect.any(String),
+                appliedOperations: [],
+                rejectedOperations: [],
+            }),
+        );
+    });
+
+    it('never shows the curator a thread summary or a database uuid', async () => {
+        const { service, consolidateCall } = buildConsolidation();
+
+        await service.consolidateScheduledPartition(partitionPayload);
+
+        const [{ input, partition }] = consolidateCall.mock.calls[0];
+        expect(partition).toEqual({
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            ownerUserUuid: 'owner-1',
+        });
+        expect(JSON.stringify(input)).not.toContain('Summary the curator');
+        expect(JSON.stringify(input)).not.toContain('uuid-');
+    });
+
     it('returns not found without reading rows when the flag is off', async () => {
         const { service, findByProjectAndSlug } = build({
             enabledOrganization: 'none',
@@ -810,5 +1485,64 @@ describe('AiAgentMemoryService', () => {
         ).rejects.toThrow('Cannot view project');
         expect(getFlag).not.toHaveBeenCalled();
         expect(findByProjectAndSlug).not.toHaveBeenCalled();
+    });
+
+    // status scoping is a model predicate, covered in AiAgentMemoryModel.integration.test.ts
+    it('scopes the memory list to the session user and the requested project', async () => {
+        const { service, findUserMemoriesPaginated } = build();
+        const user = buildUser(true);
+        findUserMemoriesPaginated.mockResolvedValue({
+            data: { memories: [{ uuid: 'memory-1', slug: 'net-revenue' }] },
+            pagination: {
+                page: 1,
+                pageSize: 50,
+                totalPageCount: 1,
+                totalResults: 1,
+            },
+        });
+
+        const result = await service.listMyMemories(user, 'project-enabled', {
+            page: 1,
+            pageSize: 50,
+        });
+
+        expect(findUserMemoriesPaginated).toHaveBeenCalledWith({
+            organizationUuid: 'org-enabled',
+            projectUuid: 'project-enabled',
+            userUuid: 'current-user',
+            paginateArgs: { page: 1, pageSize: 50 },
+        });
+        expect(result.data.memories).toEqual([
+            { uuid: 'memory-1', slug: 'net-revenue' },
+        ]);
+    });
+
+    it('returns not found for the memory list when the flag is off', async () => {
+        const { service, findUserMemoriesPaginated } = build({
+            enabledOrganization: 'none',
+        });
+        const user = buildUser(true);
+
+        await expect(
+            service.listMyMemories(user, 'project-enabled', {
+                page: 1,
+                pageSize: 50,
+            }),
+        ).rejects.toThrow('Memories not found for project: project-enabled');
+        expect(findUserMemoriesPaginated).not.toHaveBeenCalled();
+    });
+
+    it('rejects a memory list request from a non project member', async () => {
+        const { service, getFlag, findUserMemoriesPaginated } = build();
+        const user = buildUser(false);
+
+        await expect(
+            service.listMyMemories(user, 'project-enabled', {
+                page: 1,
+                pageSize: 50,
+            }),
+        ).rejects.toThrow('Cannot view project');
+        expect(getFlag).not.toHaveBeenCalled();
+        expect(findUserMemoriesPaginated).not.toHaveBeenCalled();
     });
 });

@@ -1,4 +1,8 @@
-import { InviteLinkPurpose } from '@lightdash/common';
+import {
+    InviteLinkPurpose,
+    PartialFailureType,
+    SchedulerFormat,
+} from '@lightdash/common';
 import * as nodemailer from 'nodemailer';
 import type SMTPConnection from 'nodemailer/lib/smtp-connection';
 import EmailClient from './EmailClient';
@@ -87,6 +91,170 @@ describe('EmailClient', () => {
             });
             await client.sendPasswordRecoveryEmail(passwordResetLinkMock);
             expect(client.transporter?.sendMail).toHaveBeenCalledTimes(1);
+        });
+
+        test('should sanitize scheduler name in delivery failure emails', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            await client.sendScheduledDeliveryFailureEmail(
+                'recipient@example.com',
+                'daily <img src=x onerror=alert(1)>',
+                'https://example.com/scheduler',
+                'something went wrong',
+            );
+            expect(
+                vi.mocked(client.transporter!.sendMail),
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    context: expect.objectContaining({
+                        message: expect.not.stringContaining('<img'),
+                    }),
+                }),
+            );
+        });
+
+        test('should sanitize markdown message in notification emails', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+            await client.sendChartCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'title',
+                'description',
+                'Hello **world** <script>alert(1)</script>',
+                'date',
+                'frequency',
+                {
+                    path: 'https://example.com/file.csv',
+                    filename: 'file.csv',
+                    localPath: '',
+                    truncated: false,
+                },
+                'https://example.com/chart',
+                'https://example.com/scheduler',
+                true,
+            );
+            const sentOptions = vi.mocked(client.transporter!.sendMail).mock
+                .calls[0][0] as unknown as { context?: { message?: string } };
+            const sentMessage = sentOptions.context?.message ?? '';
+            expect(sentMessage).not.toContain('<script>');
+            expect(sentMessage).toContain('<strong>world</strong>');
+        });
+
+        test('should render app delivery failures with a name the template can print', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+
+            await client.sendDashboardCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'title',
+                'description',
+                undefined,
+                'date',
+                'frequency',
+                [
+                    {
+                        path: 'https://example.com/file.csv',
+                        filename: 'file.csv',
+                        localPath: '',
+                        truncated: false,
+                    },
+                ],
+                'https://example.com/app',
+                'https://example.com/scheduler',
+                true,
+                7,
+                false,
+                SchedulerFormat.CSV,
+                [
+                    {
+                        type: PartialFailureType.APP_QUERY,
+                        stage: 'download',
+                        captureKey: 'v1:a',
+                        label: 'Revenue by month',
+                        error: 'storage unavailable',
+                    },
+                    {
+                        type: PartialFailureType.APP_CAPTURE_OVERFLOW,
+                        droppedCount: 3,
+                    },
+                ],
+                [{ type: 'limit_reached', label: 'Sessions', rowCount: 5000 }],
+            );
+
+            const sentContext = (
+                vi.mocked(client.transporter!.sendMail).mock
+                    .calls[0][0] as unknown as {
+                    context: {
+                        failures: { chartName?: string; error: string }[];
+                        failureCountPhrase: string;
+                        notices: { label: string; rowCount: number }[];
+                        hasNotices: boolean;
+                    };
+                }
+            ).context;
+
+            expect(sentContext.failures).toEqual([
+                {
+                    chartName: 'Revenue by month',
+                    error: 'storage unavailable',
+                },
+                {
+                    chartName: undefined,
+                    error: '3 queries were dropped from capture (limit 50)',
+                },
+            ]);
+            expect(sentContext.failureCountPhrase).toBe('1 query and 1 issue');
+            // Notices ride their own context key so the template can render them
+            // outside the failure block.
+            expect(sentContext.hasNotices).toBe(true);
+            expect(sentContext.notices).toEqual([
+                { type: 'limit_reached', label: 'Sessions', rowCount: 5000 },
+            ]);
+        });
+
+        test('should not flag notices when an app delivery had none', async () => {
+            const client = new EmailClient({
+                lightdashConfig: lightdashConfigWithBasicSMTP,
+            });
+
+            await client.sendDashboardCsvNotificationEmail(
+                'recipient@example.com',
+                'subject',
+                'title',
+                'description',
+                undefined,
+                'date',
+                'frequency',
+                [
+                    {
+                        path: 'https://example.com/file.csv',
+                        filename: 'file.csv',
+                        localPath: '',
+                        truncated: false,
+                    },
+                ],
+                'https://example.com/app',
+                'https://example.com/scheduler',
+                true,
+                7,
+                false,
+                SchedulerFormat.CSV,
+            );
+
+            const sentContext = (
+                vi.mocked(client.transporter!.sendMail).mock
+                    .calls[0][0] as unknown as {
+                    context: { hasNotices?: boolean; notices?: unknown };
+                }
+            ).context;
+
+            expect(sentContext.hasNotices).toBeUndefined();
+            expect(sentContext.notices).toBeUndefined();
         });
 
         test('should use the setup invitation template for setup invites', async () => {

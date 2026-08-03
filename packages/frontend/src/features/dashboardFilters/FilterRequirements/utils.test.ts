@@ -11,7 +11,6 @@ import {
     getFilterRequirementRules,
     getRequirementIneligibilityReason,
     isRequirementRuleSatisfied,
-    shouldShowLegacyLockedState,
 } from './utils';
 
 const createRule = (
@@ -184,40 +183,5 @@ describe('isRequirementRuleSatisfied', () => {
                 ],
             }),
         ).toBe(true);
-    });
-});
-
-describe('shouldShowLegacyLockedState', () => {
-    it('never shows while the flag query is unresolved', () => {
-        expect(
-            shouldShowLegacyLockedState({
-                isFlagResolved: false,
-                isFilterRequirementsEnabled: false,
-            }),
-        ).toBe(false);
-        expect(
-            shouldShowLegacyLockedState({
-                isFlagResolved: false,
-                isFilterRequirementsEnabled: true,
-            }),
-        ).toBe(false);
-    });
-
-    it('shows once the flag resolves disabled', () => {
-        expect(
-            shouldShowLegacyLockedState({
-                isFlagResolved: true,
-                isFilterRequirementsEnabled: false,
-            }),
-        ).toBe(true);
-    });
-
-    it('does not show when the flag resolves enabled', () => {
-        expect(
-            shouldShowLegacyLockedState({
-                isFlagResolved: true,
-                isFilterRequirementsEnabled: true,
-            }),
-        ).toBe(false);
     });
 });

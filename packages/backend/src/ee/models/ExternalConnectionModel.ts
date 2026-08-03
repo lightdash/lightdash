@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { AppsTableName } from '../../database/entities/apps';
+import { normalizeCredentialUrlOrigin } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AppExternalConnectionsTableName,
@@ -532,17 +533,19 @@ export class ExternalConnectionModel {
                 .update(updatePayload);
 
             // Secret tri-state: `null` clears it, a non-empty string sets it,
-            // and undefined/blank leaves it unchanged. Switching to type
-            // 'none', or changing the auth type without supplying a new secret,
-            // also clears any stored secret so an old credential can never be
-            // reused by (or leaked through) the new auth method.
+            // and undefined/blank leaves it unchanged unless the credential's
+            // auth type or origin changes.
             const resultingType = data.type ?? existing.type;
             const typeChanged =
                 data.type !== undefined && data.type !== existing.type;
+            const originChanged =
+                data.origin !== undefined &&
+                normalizeCredentialUrlOrigin(data.origin) !==
+                    normalizeCredentialUrlOrigin(existing.origin);
             if (
                 resultingType === 'none' ||
                 data.secret === null ||
-                (typeChanged && !data.secret)
+                ((typeChanged || originChanged) && !data.secret)
             ) {
                 await ExternalConnectionModel.deleteSecret(trx, uuid);
             } else if (data.secret) {

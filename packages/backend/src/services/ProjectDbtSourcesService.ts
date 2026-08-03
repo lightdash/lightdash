@@ -5,6 +5,7 @@ import {
     DbtProjectConfig,
     DbtProjectType,
     ForbiddenError,
+    getDbtEnvironmentVariableKeyError,
     ParameterError,
     ProjectDbtSource,
     ProjectDbtSourceSummary,
@@ -106,6 +107,21 @@ export class ProjectDbtSourcesService extends BaseService {
         };
     }
 
+    private static validateDbtEnvironmentVariables(
+        dbtConnection: DbtProjectConfig,
+    ): void {
+        if (!('environment' in dbtConnection) || !dbtConnection.environment) {
+            return;
+        }
+
+        dbtConnection.environment.forEach(({ key }) => {
+            const error = getDbtEnvironmentVariableKeyError(key);
+            if (error) {
+                throw new ParameterError(error);
+            }
+        });
+    }
+
     private async checkProjectAccess(
         account: Account,
         projectUuid: string,
@@ -168,6 +184,9 @@ export class ProjectDbtSourcesService extends BaseService {
                 'Additional dbt sources currently support GitHub connections only',
             );
         }
+        ProjectDbtSourcesService.validateDbtEnvironmentVariables(
+            data.dbtConnection,
+        );
         const existing =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         // Append after the highest existing precedence (primary is 0).
@@ -248,6 +267,11 @@ export class ProjectDbtSourcesService extends BaseService {
         ) {
             throw new ParameterError(
                 'Additional dbt sources currently support GitHub connections only',
+            );
+        }
+        if (data.dbtConnection) {
+            ProjectDbtSourcesService.validateDbtEnvironmentVariables(
+                data.dbtConnection,
             );
         }
         // The edit form receives the connection with secrets stripped; restore

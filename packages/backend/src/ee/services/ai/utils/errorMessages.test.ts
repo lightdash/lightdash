@@ -1,5 +1,9 @@
 import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
-import { getUserFacingErrorMessage } from './errorMessages';
+import {
+    AiAgentEmptyResponseError,
+    EMPTY_RESPONSE_MESSAGE,
+    getUserFacingErrorMessage,
+} from './errorMessages';
 
 const CONTEXT_LIMIT_MESSAGE =
     "This request exceeded the AI model's context limit, usually because the conversation or tool results became too large. Please start a new thread or break the request into smaller steps.";
@@ -11,6 +15,17 @@ const TIMEOUT_MESSAGE =
     'This request took too long to process. Try breaking it into smaller questions or start a new thread.';
 
 describe('getUserFacingErrorMessage', () => {
+    describe('empty response invariant', () => {
+        it('maps AiAgentEmptyResponseError to the user-facing empty-response message', () => {
+            const error = new AiAgentEmptyResponseError('stop', 3);
+            expect(getUserFacingErrorMessage(error)).toBe(
+                EMPTY_RESPONSE_MESSAGE,
+            );
+            expect(error.finishReason).toBe('stop');
+            expect(error.stepsCount).toBe(3);
+        });
+    });
+
     describe('context/token limit errors', () => {
         it.each([
             // OpenAI error code

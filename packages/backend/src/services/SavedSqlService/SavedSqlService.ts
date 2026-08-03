@@ -9,6 +9,7 @@ import {
     isValidFrequency,
     isValidTimezone,
     isVizBarChartConfig,
+    isVizBigNumberConfig,
     isVizLineChartConfig,
     isVizPieChartConfig,
     NotFoundError,
@@ -94,7 +95,7 @@ export class SavedSqlService
         config: SqlChart['config'],
     ): Pick<
         CreateSqlChartVersionEvent['properties'],
-        'chartKind' | 'barChart' | 'lineChart' | 'pieChart'
+        'chartKind' | 'barChart' | 'lineChart' | 'pieChart' | 'bigNumber'
     > {
         return {
             chartKind: config.type,
@@ -123,6 +124,16 @@ export class SavedSqlService
             pieChart: isVizPieChartConfig(config)
                 ? {
                       groupByCount: config.fieldConfig?.x ? 1 : 0,
+                  }
+                : undefined,
+            bigNumber: isVizBigNumberConfig(config)
+                ? {
+                      hasComparison: !!config.display?.showComparison,
+                      aggregationTypes: uniq(
+                          (config.fieldConfig?.y ?? []).map(
+                              (y) => y.aggregation ?? VIZ_DEFAULT_AGGREGATION,
+                          ),
+                      ),
                   }
                 : undefined,
         };

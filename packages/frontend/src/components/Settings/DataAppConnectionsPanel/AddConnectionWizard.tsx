@@ -1,12 +1,12 @@
 import {
-    type ApiKeyLocation,
     type CreateExternalConnection,
     type ExternalConnectionAuthType,
-    type ExternalConnectionMethod,
+    type ExternalConnectionConfigProposal,
     type ExternalConnectionSampleRequest,
     type ExternalFetchResponse,
 } from '@lightdash/common';
 import {
+    Anchor,
     JsonInput,
     PasswordInput,
     SegmentedControl,
@@ -15,10 +15,12 @@ import {
     Stepper,
     TagsInput,
     Text,
+    Textarea,
     TextInput,
 } from '@mantine-8/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconPlugConnected } from '@tabler/icons-react';
+import MarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC, useState } from 'react';
 import { CustomHeadersField } from '../../../features/externalConnections/components/CustomHeadersField';
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
@@ -28,21 +30,24 @@ import {
     SUGGESTED_GOOGLE_SCOPES,
 } from '../../../features/externalConnections/constants';
 import { useCreateExternalConnection } from '../../../features/externalConnections/hooks/useCreateExternalConnection';
+import { useProposeConnectionConfig } from '../../../features/externalConnections/hooks/useProposeConnectionConfig';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import {
     customHeaderRowsToRecord,
     validateCustomHeaderRows,
-    type CustomHeaderRow,
 } from '../../../features/externalConnections/utils/customHeaders';
-import {
-    resolvePathPrefixes,
-    type PathMode,
-    type PathPrefix,
-} from '../../../features/externalConnections/utils/pathRules';
+import { resolvePathPrefixes } from '../../../features/externalConnections/utils/pathRules';
+import Callout from '../../common/Callout';
 import MantineModal, {
     type MantineModalProps,
 } from '../../common/MantineModal';
+import { AutomaticSetupStep } from './AutomaticSetupStep';
+import {
+    ConnectionModeChooser,
+    type ConnectionWizardMode,
+} from './ConnectionModeChooser';
 import { WizardTestStep } from './WizardTestStep';
+import { applyProposalToWizardValues, type WizardValues } from './wizardValues';
 
 // Content types stay hidden in the onboarding wizard and the optional numeric
 // limits fall back to server defaults. Power users tune them in the Edit form.
@@ -52,20 +57,6 @@ const DEFAULT_ALLOWED_CONTENT_TYPES = ['application/json'];
 const HTTP_TOKEN = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
 
 const TEST_STEP = 3;
-
-type WizardValues = {
-    name: string;
-    origin: string;
-    type: ExternalConnectionAuthType;
-    secret: string;
-    apiKeyName: string;
-    apiKeyLocation: ApiKeyLocation;
-    oauthScopes: string[];
-    customHeaders: CustomHeaderRow[];
-    allowedMethods: ExternalConnectionMethod[];
-    pathMode: PathMode;
-    allowedPathPrefixes: PathPrefix[];
-};
 
 export type ConnectionTestResult = {
     request: ExternalConnectionSampleRequest;
@@ -104,6 +95,7 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
         values.allowedPathPrefixes,
     ),
     allowedContentTypes: DEFAULT_ALLOWED_CONTENT_TYPES,
+    instructions: values.instructions.trim() || null,
 });
 
 const ConnectStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
@@ -131,7 +123,10 @@ const ConnectStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
     </Stack>
 );
 
-const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
+const AuthStep: FC<{
+    form: UseFormReturnType<WizardValues>;
+    proposal: ExternalConnectionConfigProposal | null;
+}> = ({ form, proposal }) => {
     const { type } = form.values;
     return (
         <Stack gap="sm" mt="xl">
@@ -156,6 +151,37 @@ const AuthStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({ form }) => {
                     }
                 />
             </Stack>
+
+            {proposal?.credentialGuide && (
+                <Callout variant="info" title="How to get your credential">
+                    <Stack gap="xs" align="flex-start">
+                        <MarkdownPreview
+                            source={proposal.credentialGuide}
+                            style={{
+                                backgroundColor: 'transparent',
+                                color: 'inherit',
+                                fontSize: 'var(--mantine-font-size-sm)',
+                            }}
+                        />
+                        {proposal.docsUrl && (
+                            <Anchor
+                                href={proposal.docsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                fz="sm"
+                            >
+                                Open the provider's docs
+                            </Anchor>
+                        )}
+                    </Stack>
+                </Callout>
+            )}
+
+            {proposal?.notes && (
+                <Callout variant="warning" title="Double-check">
+                    {proposal.notes}
+                </Callout>
+            )}
 
             {type !== 'none' && type !== 'google_service_account' && (
                 <PasswordInput
@@ -244,6 +270,14 @@ const AccessStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
             }
             error={form.errors.allowedPathPrefixes}
         />
+        <Textarea
+            label="Usage notes for app generation (optional)"
+            description="Helps the AI use this API correctly when building apps: key endpoints, pagination, quirks"
+            autosize
+            minRows={2}
+            maxRows={6}
+            {...form.getInputProps('instructions')}
+        />
     </Stack>
 );
 
@@ -256,6 +290,10 @@ export const AddConnectionWizard: FC<Props> = ({
     onClose,
     projectUuid,
 }) => {
+    const [mode, setMode] = useState<'choose' | ConnectionWizardMode>('choose');
+    const [description, setDescription] = useState('');
+    const [proposal, setProposal] =
+        useState<ExternalConnectionConfigProposal | null>(null);
     const [active, setActive] = useState(0);
     // The last successful test on the current visit to the test step. Captured
     // verbatim so it can be saved as a sample after the connection is created.
@@ -268,6 +306,7 @@ export const AddConnectionWizard: FC<Props> = ({
         useCreateExternalConnection();
     const { mutateAsync: saveConnectionSample, isLoading: isSavingSample } =
         useSaveConnectionSample();
+    const proposeMutation = useProposeConnectionConfig();
 
     const form = useForm<WizardValues>({
         initialValues: {
@@ -282,6 +321,7 @@ export const AddConnectionWizard: FC<Props> = ({
             allowedMethods: ['GET'],
             pathMode: 'all',
             allowedPathPrefixes: [],
+            instructions: '',
         },
         validate: {
             name: (value) =>
@@ -341,6 +381,29 @@ export const AddConnectionWizard: FC<Props> = ({
             setTestResult(null);
         }
     };
+
+    const handleGenerate = () => {
+        const trimmed = description.trim();
+        if (trimmed.length === 0 || proposeMutation.isLoading) return;
+        proposeMutation.mutate(
+            { projectUuid, description: trimmed },
+            {
+                onSuccess: (result) => {
+                    form.setValues(applyProposalToWizardValues(result));
+                    form.clearErrors();
+                    setProposal(result);
+                    setTestResult(null);
+                    setMode('manual');
+                    // Land on Auth so the user pastes the credential first;
+                    // Basics and Rules stay reviewable by stepping back.
+                    setActive(1);
+                },
+            },
+        );
+    };
+
+    const aiUnavailable =
+        proposeMutation.error?.error.name === 'MissingConfigError';
 
     const goToAuth = () => {
         const name = form.validateField('name');
@@ -414,12 +477,28 @@ export const AddConnectionWizard: FC<Props> = ({
         | 'cancelDisabled'
         | 'onCancel'
     > = (() => {
+        if (mode === 'choose') {
+            return { cancelLabel: 'Cancel' };
+        }
+        if (mode === 'automatic') {
+            return {
+                onConfirm: handleGenerate,
+                confirmLabel: proposeMutation.isLoading
+                    ? 'Generating…'
+                    : 'Generate',
+                confirmLoading: proposeMutation.isLoading,
+                cancelLabel: 'Back',
+                cancelDisabled: proposeMutation.isLoading,
+                onCancel: () => setMode('choose'),
+            };
+        }
         switch (active) {
             case 0:
                 return {
                     onConfirm: goToAuth,
                     confirmLabel: 'Next',
-                    cancelLabel: 'Cancel',
+                    cancelLabel: 'Back',
+                    onCancel: () => setMode('choose'),
                 };
             case 1:
                 return {
@@ -457,33 +536,51 @@ export const AddConnectionWizard: FC<Props> = ({
             modalRootProps={{ closeOnClickOutside: false }}
             {...footerProps}
         >
-            <Stepper
-                active={active}
-                onStepClick={handleStepClick}
-                allowNextStepsSelect={false}
-                wrap={false}
-                size="sm"
-            >
-                <Stepper.Step label="Basics">
-                    <ConnectStep form={form} />
-                </Stepper.Step>
-                <Stepper.Step label="Auth">
-                    <AuthStep form={form} />
-                </Stepper.Step>
-                <Stepper.Step label="Rules">
-                    <AccessStep form={form} />
-                </Stepper.Step>
-                <Stepper.Step label="Test">
-                    <WizardTestStep
-                        projectUuid={projectUuid}
-                        config={config}
-                        allowedMethods={config.allowedMethods}
-                        onTestResult={setTestResult}
-                        saveSample={saveSample}
-                        onSaveSampleChange={setSaveSample}
-                    />
-                </Stepper.Step>
-            </Stepper>
+            {mode === 'choose' && (
+                <ConnectionModeChooser
+                    onChoose={setMode}
+                    aiUnavailable={aiUnavailable}
+                />
+            )}
+            {mode === 'automatic' && (
+                <AutomaticSetupStep
+                    description={description}
+                    onDescriptionChange={setDescription}
+                    onSubmit={handleGenerate}
+                    isLoading={proposeMutation.isLoading}
+                    error={proposeMutation.error}
+                    onSwitchToManual={() => setMode('manual')}
+                />
+            )}
+            {mode === 'manual' && (
+                <Stepper
+                    active={active}
+                    onStepClick={handleStepClick}
+                    allowNextStepsSelect={false}
+                    wrap={false}
+                    size="sm"
+                >
+                    <Stepper.Step label="Basics">
+                        <ConnectStep form={form} />
+                    </Stepper.Step>
+                    <Stepper.Step label="Auth">
+                        <AuthStep form={form} proposal={proposal} />
+                    </Stepper.Step>
+                    <Stepper.Step label="Rules">
+                        <AccessStep form={form} />
+                    </Stepper.Step>
+                    <Stepper.Step label="Test">
+                        <WizardTestStep
+                            projectUuid={projectUuid}
+                            config={config}
+                            allowedMethods={config.allowedMethods}
+                            onTestResult={setTestResult}
+                            saveSample={saveSample}
+                            onSaveSampleChange={setSaveSample}
+                        />
+                    </Stepper.Step>
+                </Stepper>
+            )}
         </MantineModal>
     );
 };

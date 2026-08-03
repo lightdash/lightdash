@@ -1,12 +1,12 @@
 import {
     applyDimensionOverrides,
+    applyDefaultTimeDimensionTileTargets,
     applyMetricOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     DashboardTileTypes,
     DateGranularity,
     EMPTY_DATE_ZOOM_CONFIG,
-    FeatureFlags,
     FilterInteractivityValues,
     getFilterInteractivityValue,
     getItemId,
@@ -34,7 +34,6 @@ import {
     type ParameterValue,
     type SavedChartsInfoForDashboardAvailableFilters,
     type SortField,
-    type UnmetFilterRequirement,
 } from '@lightdash/common';
 import clone from 'lodash/clone';
 import isEqual from 'lodash/isEqual';
@@ -72,7 +71,6 @@ import {
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import DashboardContext from './context';
 import DashboardTileStatusProvider from './DashboardTileStatusProvider';
 import { getActiveTabForTabs } from './getActiveTabForTabs';
@@ -1340,7 +1338,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     }, [dashboardAvailableFiltersData]);
 
     const allFilters = useMemo(() => {
-        return {
+        const filters = {
             dimensions: [
                 ...dashboardFilters.dimensions,
                 ...safeTemporaryFilters?.dimensions,
@@ -1354,7 +1352,19 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 ...safeTemporaryFilters?.tableCalculations,
             ],
         };
-    }, [dashboardFilters, safeTemporaryFilters]);
+        return filterableFieldsByTileUuid && dashboardAvailableFiltersData
+            ? applyDefaultTimeDimensionTileTargets(
+                  filters,
+                  filterableFieldsByTileUuid,
+                  dashboardAvailableFiltersData.defaultTimeDimensions,
+              )
+            : filters;
+    }, [
+        dashboardFilters,
+        safeTemporaryFilters,
+        filterableFieldsByTileUuid,
+        dashboardAvailableFiltersData,
+    ]);
 
     // Watch for filter changes and emit events (skip initial render)
     useEffect(() => {
@@ -1651,41 +1661,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setSavedParameters,
     ]);
 
-    // Unmet filter requirements. Flag off = main parity: `requiredGroupId`
-    // is ignored and the legacy disabled-only test applies.
-    const {
-        data: filterRequirementsFlag,
-        isSuccess: isFilterFlagResolved,
-        isError: isFilterFlagErrored,
-    } = useServerFeatureFlag(FeatureFlags.DashboardFilterRequirements);
-    const isFilterRequirementsEnabled =
-        filterRequirementsFlag?.enabled === true;
-    // Settled either way; consumers hold locked-state UI back until then
-    const isFilterRequirementsFlagResolved =
-        isFilterFlagResolved || isFilterFlagErrored;
-    const unmetFilterRequirements = useMemo(() => {
-        const allFilterRules = [
-            ...dashboardFilters.dimensions,
-            ...dashboardFilters.metrics,
-        ];
-        // A `requiredGroupId` can only come from a flag-on editor, so while
-        // the flag query is unresolved (loading or failed) group dashboards
-        // fail closed: lock rather than fire unfiltered queries.
-        const failClosed =
-            !isFilterFlagResolved &&
-            allFilterRules.some((rule) => rule.requiredGroupId);
-        if (isFilterRequirementsEnabled || failClosed) {
-            return getUnmetFilterRequirements(dashboardFilters);
-        }
-        return allFilterRules
-            .filter((rule) => rule.required && rule.disabled)
-            .map(
-                (filter): UnmetFilterRequirement => ({
-                    type: 'single',
-                    filter,
-                }),
-            );
-    }, [dashboardFilters, isFilterRequirementsEnabled, isFilterFlagResolved]);
+    const unmetFilterRequirements = useMemo(
+        () => getUnmetFilterRequirements(dashboardFilters),
+        [dashboardFilters],
+    );
 
     const value = {
         projectUuid,
@@ -1746,8 +1725,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         dashboardComments,
         hasTileComments,
         unmetFilterRequirements,
-        isFilterRequirementsEnabled,
-        isFilterRequirementsFlagResolved,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
         isAddFilterDisabled,

@@ -1,6 +1,6 @@
 {
     "name": "e2e",
-    "version": "1.8.0",
+    "version": "1.65.0",
     "private": true,
     "license": "MIT",
     "main": "index.js",
@@ -8,7 +8,7 @@
         "cypress:open": "cypress open --e2e",
         "cypress:open:native": "RUNTIME=native cypress open --e2e",
         "cypress:run": "cypress run",
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./cypress",
         "fix-lint": "pnpm run linter ./cypress --fix",
@@ -24,7 +24,8 @@
         "js-yaml": "4.3.0"
     },
     "devDependencies": {
-        "typescript": "npm:@typescript/typescript6@6.0.1",
-        "typescript-7": "npm:typescript@7.0.1-rc"
+        "oxlint": "1.75.0",
+        "oxlint-tsgolint": "7.0.2001",
+        "typescript": "npm:@typescript/typescript6@6.0.2"
     }
 }

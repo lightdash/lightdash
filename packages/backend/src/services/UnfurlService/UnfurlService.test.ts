@@ -1,7 +1,11 @@
 import {
+    DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     LightdashPage,
     NotFoundError,
+    SCREENSHOT_SELECTORS,
+    UnexpectedServerError,
+    type DeliveryCaptureManifest,
 } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -18,6 +22,15 @@ import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationM
 import { type SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UnfurlService } from './UnfurlService';
+
+const playwrightMocks = vi.hoisted(() => ({
+    connectOverCDP: vi.fn(),
+}));
+
+vi.mock('playwright', () => ({
+    default: { chromium: { connectOverCDP: playwrightMocks.connectOverCDP } },
+    chromium: { connectOverCDP: playwrightMocks.connectOverCDP },
+}));
 
 const mockFileStorageClient = {
     isEnabled: vi.fn(),
@@ -50,6 +63,7 @@ function createService(
     overrides: Partial<{
         savedSqlModel: Partial<SavedSqlModel>;
         savedChartModel: Partial<SavedChartModel>;
+        headlessBrowser: Record<string, unknown>;
     }> = {},
 ) {
     return new UnfurlService({
@@ -57,6 +71,7 @@ function createService(
             siteUrl: 'https://app.lightdash.cloud',
             headlessBrowser: {
                 internalLightdashHost: 'http://headless-browser:8080',
+                ...(overrides.headlessBrowser ?? {}),
             },
         } as unknown as LightdashConfig,
         dashboardModel: {} as unknown as DashboardModel,
@@ -353,6 +368,166 @@ describe('UnfurlService', () => {
 
             expect(result.isValid).toBe(false);
             expect(getBySlug).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('captureAppDeliveryManifest', () => {
+        const APP_URL =
+            'http://headless-browser:8080/minimal/projects/p1/apps/a1?captureMode=delivery';
+        const validManifest: DeliveryCaptureManifest = {
+            version: 1,
+            items: [
+                {
+                    status: 'ready',
+                    captureKey: 'v1:abc',
+                    label: 'Revenue by month',
+                    exploreName: 'orders',
+                    queryUuid: '11111111-1111-4111-8111-111111111111',
+                    order: 0,
+                    rowCount: 12,
+                    limitReached: false,
+                },
+            ],
+            overflowCount: 0,
+        };
+
+        const createMockPage = () => {
+            const cdpSession = { send: vi.fn().mockResolvedValue(undefined) };
+            const pageContext = {
+                addCookies: vi.fn().mockResolvedValue(undefined),
+                newCDPSession: vi.fn().mockResolvedValue(cdpSession),
+            };
+            return {
+                cdpSession,
+                pageContext,
+                route: vi.fn().mockResolvedValue(undefined),
+                addInitScript: vi.fn().mockResolvedValue(undefined),
+                context: vi.fn().mockReturnValue(pageContext),
+                on: vi.fn(),
+                goto: vi.fn().mockResolvedValue(undefined),
+                waitForSelector: vi.fn().mockResolvedValue(undefined),
+                evaluate: vi.fn().mockResolvedValue(undefined),
+                screenshot: vi.fn().mockResolvedValue(Buffer.from('nope')),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+        };
+
+        const setup = () => {
+            const page = createMockPage();
+            const browser = {
+                newPage: vi.fn().mockResolvedValue(page),
+                close: vi.fn().mockResolvedValue(undefined),
+            };
+            playwrightMocks.connectOverCDP.mockResolvedValue(browser);
+            const service = createService({
+                headlessBrowser: {
+                    host: 'headless-browser',
+                    browserEndpoint: 'ws://headless-browser:3000',
+                },
+            });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            vi.spyOn(service as any, 'getUserCookie').mockResolvedValue(
+                'connect.sid=session-value; Path=/; HttpOnly',
+            );
+            return { service, browser, page };
+        };
+
+        it('returns the validated manifest published on the window global', async () => {
+            const { service, browser, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            const result = await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+                contextId: 'job-1',
+            });
+
+            expect(result).toEqual(validManifest);
+            expect(page.goto).toHaveBeenCalledWith(
+                APP_URL,
+                expect.objectContaining({ timeout: expect.any(Number) }),
+            );
+            expect(page.waitForSelector).toHaveBeenCalledWith(
+                SCREENSHOT_SELECTORS.READY_INDICATOR,
+                { state: 'attached', timeout: 60_000 },
+            );
+            expect(page.evaluate).toHaveBeenCalledWith(
+                expect.any(Function),
+                DELIVERY_CAPTURE_GLOBAL,
+            );
+            expect(page.screenshot).not.toHaveBeenCalled();
+            expect(page.close).toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
+        });
+
+        it('renders with the same window geometry as the app screenshot path', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue(validManifest);
+
+            await service.captureAppDeliveryManifest({
+                url: APP_URL,
+                authUserUuid: 'user-uuid-1',
+            });
+
+            expect(playwrightMocks.connectOverCDP).toHaveBeenCalledWith(
+                expect.stringContaining('--window-size%3D1400%2C4000'),
+                expect.anything(),
+            );
+            expect(page.cdpSession.send).toHaveBeenCalledWith(
+                'Emulation.setDeviceMetricsOverride',
+                expect.objectContaining({ width: 1400, height: 4000 }),
+            );
+        });
+
+        it('throws when the window global is missing', async () => {
+            const { service, browser, page } = setup();
+            page.evaluate.mockResolvedValue(undefined);
+
+            await expect(
+                service.captureAppDeliveryManifest({
+                    url: APP_URL,
+                    authUserUuid: 'user-uuid-1',
+                    contextId: 'job-1',
+                }),
+            ).rejects.toThrow(UnexpectedServerError);
+            expect(page.close).toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
+        });
+
+        it('throws when the window global is malformed', async () => {
+            const { service, page } = setup();
+            page.evaluate.mockResolvedValue({
+                version: 1,
+                items: [{ status: 'ready', captureKey: 'v1:abc' }],
+                overflowCount: 0,
+            });
+
+            await expect(
+                service.captureAppDeliveryManifest({
+                    url: APP_URL,
+                    authUserUuid: 'user-uuid-1',
+                    contextId: 'job-1',
+                }),
+            ).rejects.toThrow(/malformed/);
+        });
+
+        it('rethrows the ready-indicator timeout without falling back to a screenshot', async () => {
+            const { service, browser, page } = setup();
+            const timeoutError = new Error('Timeout 60000ms exceeded');
+            timeoutError.name = 'TimeoutError';
+            page.waitForSelector.mockRejectedValue(timeoutError);
+
+            await expect(
+                service.captureAppDeliveryManifest({
+                    url: APP_URL,
+                    authUserUuid: 'user-uuid-1',
+                    contextId: 'job-1',
+                }),
+            ).rejects.toThrow('Timeout 60000ms exceeded');
+            expect(page.evaluate).not.toHaveBeenCalled();
+            expect(page.screenshot).not.toHaveBeenCalled();
+            expect(page.close).toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
         });
     });
 

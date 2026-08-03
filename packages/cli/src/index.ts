@@ -16,6 +16,8 @@ import {
 } from './env';
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
+import { createAppHandler } from './handlers/apps/createApp';
+import { appsPreviewHandler } from './handlers/apps/preview';
 import { compileHandler } from './handlers/compile';
 import { connectSnowflakeHandler } from './handlers/connectSnowflake';
 import { refreshHandler } from './handlers/dbt/refresh';
@@ -925,7 +927,7 @@ const downloadCommand = program
     )
     .option(
         '--apps <appReferences...>',
-        'Download only specified data apps by UUID or URL (enterprise). Works for apps not added to a space.',
+        'Download only the specified data apps, by UUID, slug, or app URL (enterprise). Works for apps not added to a space.',
     )
     .option(
         '--include-apps',
@@ -1047,7 +1049,7 @@ const uploadCommand = program
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
         '--apps <appReferences...>',
-        'Upload only specified data apps by UUID or URL (enterprise).',
+        'Upload only the specified data apps, by UUID, slug, or app URL (enterprise).',
     )
     .option(
         '--include-apps',
@@ -1056,7 +1058,7 @@ const uploadCommand = program
     )
     .option(
         '--create-new',
-        'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml.',
+        'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml. The new app gets a fresh slug.',
         false,
     )
     .option(
@@ -1071,6 +1073,54 @@ const uploadCommand = program
     );
 
 uploadCommand.action(withOrganizationMode(uploadHandler));
+
+const appsProgram = program
+    .command('apps')
+    .description('Work with data apps (enterprise)');
+appsProgram
+    .command('create <name>')
+    .description('Creates a new data app locally')
+    .option('--description <text>', 'Set the app description', '')
+    .option('--slug <slug>', 'Override the app slug')
+    .option(
+        '-p, --path <path>',
+        'Specify the Lightdash content root (default: ./lightdash)',
+    )
+    .option(
+        '--project <project uuid>',
+        'Specify the project the app will use',
+        parseProjectArgument,
+        undefined,
+    )
+    .option('-y, --assume-yes', 'approve npm package installation', false)
+    .option('--verbose', undefined, false)
+    .addHelpText(
+        'after',
+        `\n${styles.bold('Example:')}\n  ${styles.title(
+            '⚡',
+        )}️lightdash ${styles.bold(
+            'apps create "Revenue explorer"',
+        )} ${styles.secondary(
+            '-- creates ./lightdash/apps/revenue-explorer',
+        )}\n`,
+    )
+    .action(createAppHandler);
+appsProgram
+    .command('preview [path]')
+    .description(
+        'Preview a downloaded data app locally against a real Lightdash instance, authenticated as you. Your credential stays in the CLI, behind a local proxy limited to data-app SDK routes.',
+    )
+    .option(
+        '--project <project uuid>',
+        'preview against a specific project (default: the projectUuid in lightdash-app.yml)',
+    )
+    .option('--url <url>', 'Lightdash server URL (default: your login config)')
+    .option(
+        '--token <token>',
+        'API key / personal access token (default: your login config)',
+    )
+    .option('--verbose', undefined, false)
+    .action(appsPreviewHandler);
 
 program
     .command('deploy')

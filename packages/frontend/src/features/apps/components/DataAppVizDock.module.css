@@ -1,0 +1,123 @@
+/* Sits on the panel's bottom edge. Collapsed it takes one line; expanded it
+   takes only what its versions need, and scrolls past three of them. */
+.dock {
+    /* One log row: the prompt line, the receipt line, and the row's padding. */
+    --dock-log-row: 3rem;
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: var(--mantine-spacing-xs);
+    padding-top: var(--mantine-spacing-xs);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.dockExpanded {
+    /* Grows with its versions rather than claiming the settings' room. */
+    flex: 0 1 auto;
+}
+
+/* No versions to divide the composer from, so no rule — and the dock hugs
+   what it has rather than claiming half the panel. */
+.dockBare {
+    flex: 0 0 auto;
+    padding-top: 0;
+    border-top: none;
+}
+
+.sheetHeader {
+    flex: 0 0 auto;
+}
+
+.log {
+    flex: 0 1 auto;
+    min-height: 0;
+    /* Three rows, then scroll — clipping the fourth mid-row is what says
+       there are more. */
+    max-height: calc(3 * var(--dock-log-row));
+    overflow-y: auto;
+}
+
+/* Whatever the caller docks under the log keeps its own height. */
+.footer {
+    flex: 0 0 auto;
+}
+
+.bar {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+    min-height: 22px;
+}
+
+/* Rides the dock's top edge while a build runs, so a collapsed dock still
+   reports it. Indeterminate: a build's length is not knowable up front. */
+.progress {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    overflow: hidden;
+}
+
+.progressBar {
+    width: 40%;
+    height: 100%;
+    background-color: var(--mantine-color-violet-5);
+    animation: dockProgress 1.6s ease-in-out infinite;
+}
+
+@keyframes dockProgress {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(350%);
+    }
+}
+
+/* The whole status line opens the dock, so the target is the sentence rather
+   than the chevron alone. */
+.barTrigger {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+.fixedChrome {
+    flex: 0 0 auto;
+}
+
+.provenance {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.toggle {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: var(--mantine-radius-sm);
+    background: none;
+    color: var(--mantine-color-dimmed);
+    cursor: pointer;
+}
+
+.toggle:hover {
+    background-color: var(--mantine-color-default-hover);
+}

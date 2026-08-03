@@ -4,7 +4,7 @@
 # =============================================================================
 #
 # Provisions a bare VPS (Hetzner, DigitalOcean, Vultr, etc.) with everything
-# needed to run the agent harness: Docker, Node.js 20.x, pnpm, PM2, dbt,
+# needed to run the agent harness: Docker, Node.js 24.x, pnpm, PM2, dbt,
 # just, and the Lightdash repo itself.
 #
 # Usage:
@@ -136,23 +136,23 @@ runcmd:
   - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
   - systemctl enable --now docker
 
-  # -- Install fnm (Fast Node Manager) and Node.js 20.19 ----------------------
+  # -- Install fnm (Fast Node Manager) and Node.js 24.18 ---------------------
   - |
     su - lightdash -c '
       curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir /home/lightdash/.local/share/fnm --skip-shell
       export PATH="/home/lightdash/.local/share/fnm:$PATH"
       eval "$(fnm env --shell bash)"
-      fnm install 20.19
-      fnm default 20.19
+      fnm install 24.18
+      fnm default 24.18
     '
 
-  # -- Install pnpm 10.33.0 ---------------------------------------------------
+  # -- Install pnpm 11.17.0 ---------------------------------------------------
   - |
     su - lightdash -c '
       export PATH="/home/lightdash/.local/share/fnm:$PATH"
       eval "$(fnm env --shell bash)"
       corepack enable
-      corepack prepare pnpm@10.33.0 --activate
+      corepack prepare pnpm@11.17.0 --activate
     '
 
   # -- Install PM2 globally ----------------------------------------------------

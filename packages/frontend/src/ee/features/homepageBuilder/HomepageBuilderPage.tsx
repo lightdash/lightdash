@@ -2,26 +2,27 @@ import { subject } from '@casl/ability';
 import { type ProjectHomepage } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import {
-    Navigate,
-    useNavigate,
-    useParams,
-    useSearchParams,
-} from 'react-router';
-import { v4 as uuidv4 } from 'uuid';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import PageSpinner from '../../../components/PageSpinner';
+import { usePinnedItems } from '../../../hooks/pinning/usePinnedItems';
+import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
-import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
+import { useHomepageAiState } from './hooks/useHomepageAiState';
+import { useKeySpaces } from './hooks/useKeySpaces';
 import {
     useCreateHomepageWithDraft,
     useHomepageBuilderFlag,
     useHomepageForBuilder,
     useProjectHomepages,
 } from './hooks/useProjectHomepage';
+import { buildStarterHomepage } from './starterHomepage';
+
+// Matches day-0's cap so the first draft is the page people were looking at.
+const MAX_STARTER_SPACES = 4;
 
 // ts-unused-exports:disable-next-line
 export const HomepageBuilderPage: FC = () => {
@@ -37,8 +38,16 @@ export const HomepageBuilderPage: FC = () => {
     const { user } = useApp();
     const { isEnabled: isFlagEnabled, isLoading: isFlagLoading } =
         useHomepageBuilderFlag();
-    const { isCopilotEnabled, isLoading: isCopilotLoading } =
-        useIsCopilotEnabled();
+    const { canAskAi, isLoading: isAiStateLoading } =
+        useHomepageAiState(projectUuid);
+    // The starter homepage mirrors day-0: the project's pins and the same key
+    // spaces day-0 leads its body with.
+    const { data: project } = useProject(projectUuid);
+    const { data: pinnedItems } = usePinnedItems(
+        projectUuid,
+        project?.pinnedListUuid,
+    );
+    const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_STARTER_SPACES);
     const homepage = useHomepageForBuilder(projectUuid, {
         enabled: isFlagEnabled,
         homepageUuid: selectedHomepageUuid,
@@ -72,7 +81,7 @@ export const HomepageBuilderPage: FC = () => {
     const didAutoCreate = useRef(false);
     const shouldAutoCreate =
         isFlagEnabled &&
-        isCopilotEnabled &&
+        !isAiStateLoading &&
         canManage &&
         !!projectUuid &&
         homepage.isFetchedAfterMount &&
@@ -85,38 +94,28 @@ export const HomepageBuilderPage: FC = () => {
         createFirstHomepage.mutate(
             {
                 name: 'Homepage',
-                draftConfig: {
-                    version: 1,
-                    rows: [
-                        {
-                            id: uuidv4(),
-                            blocks: [
-                                {
-                                    id: uuidv4(),
-                                    type: 'ask-ai-hero',
-                                    config: { showGreeting: true },
-                                },
-                            ],
-                        },
-                    ],
-                },
+                draftConfig: buildStarterHomepage(
+                    canAskAi,
+                    (pinnedItems ?? []).map((item) => ({
+                        contentType: item.type,
+                        uuid: item.data.uuid,
+                    })),
+                    keySpaces.map((space) => space.uuid),
+                ),
             },
             { onSuccess: openHomepage },
         );
-    }, [shouldAutoCreate, createFirstHomepage, openHomepage]);
+    }, [
+        shouldAutoCreate,
+        createFirstHomepage,
+        openHomepage,
+        canAskAi,
+        pinnedItems,
+        keySpaces,
+    ]);
 
-    if (isFlagLoading || isCopilotLoading) {
+    if (isFlagLoading || isAiStateLoading) {
         return <PageSpinner />;
-    }
-
-    // Without copilot the builder is disabled (see Home.tsx) — send anyone who
-    // reaches this route directly back to the classic homepage.
-    if (isFlagEnabled && !isCopilotEnabled) {
-        return projectUuid ? (
-            <Navigate to={`/projects/${projectUuid}/home`} replace />
-        ) : (
-            <ForbiddenPanel />
-        );
     }
 
     // Wait for a fresh fetch: the editor snapshots the draft on mount, so

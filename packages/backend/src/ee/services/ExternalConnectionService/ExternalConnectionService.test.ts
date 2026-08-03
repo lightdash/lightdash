@@ -1,14 +1,31 @@
 import {
     ForbiddenError,
+    MissingConfigError,
     NotFoundError,
     ParameterError,
     type ExternalConnection,
+    type ExternalConnectionConfigProposal,
     type ExternalConnectionSample,
     type ExternalFetchResponse,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { SecureFetchError } from '../../../utils/secureFetch/secureFetch';
+import { generateExternalConnectionConfigProposal } from '../ai/agents/externalConnectionConfigGenerator';
+import { getModel } from '../ai/models';
 import { ExternalConnectionService } from './ExternalConnectionService';
+
+vi.mock('../ai/models', () => ({
+    getModel: vi.fn().mockReturnValue({
+        model: { modelId: 'claude-sonnet-4-5', provider: 'anthropic' },
+        callOptions: {},
+        providerOptions: undefined,
+        keyManagement: 'lightdash-managed',
+    }),
+}));
+
+vi.mock('../ai/agents/externalConnectionConfigGenerator', () => ({
+    generateExternalConnectionConfigProposal: vi.fn(),
+}));
 
 // -------------------------------------------------------------------
 // Shared fixtures
@@ -89,6 +106,7 @@ function buildService(opts: {
     getSampleConnectionUuidFn?: import('vitest').Mock;
     linkToAppFn?: import('vitest').Mock;
     findAppFn?: import('vitest').Mock;
+    getCopilotConfigFn?: import('vitest').Mock;
 }) {
     const model = {
         findByUuid: vi
@@ -126,6 +144,14 @@ function buildService(opts: {
                 organization_uuid: orgUuid,
             }),
     };
+    const orgAiCopilotConfigResolver = {
+        getCopilotConfig:
+            opts.getCopilotConfigFn ??
+            vi.fn().mockResolvedValue({
+                defaultProvider: 'anthropic',
+                providers: {},
+            }),
+    };
     const service = new ExternalConnectionService({
         externalConnectionModel: model as never,
         appModel: {} as never,
@@ -136,8 +162,9 @@ function buildService(opts: {
         googleTokenProvider: {
             getAccessToken: vi.fn().mockResolvedValue('test-access-token'),
         } as never,
+        orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
     });
-    return { service, model };
+    return { service, model, orgAiCopilotConfigResolver };
 }
 
 // Spy on createAuditedAbility to control the CASL decision
@@ -324,6 +351,29 @@ describe('ExternalConnectionService.update type switches', () => {
                 oauthScopes: ['https://www.googleapis.com/auth/bigquery'],
             }),
         );
+    });
+
+    it('rejects changing the origin without a new secret', async () => {
+        const { service, model } = buildService({});
+        mockAbility(service, true);
+
+        await expect(
+            service.update(adminAccount, projectUuid, connectionUuid, {
+                origin: 'https://attacker.example.com',
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(model.update).not.toHaveBeenCalled();
+    });
+
+    it('keeps the stored secret for a normalized-equivalent origin', async () => {
+        const { service, model } = buildService({});
+        mockAbility(service, true);
+
+        await service.update(adminAccount, projectUuid, connectionUuid, {
+            origin: 'https://API.EXAMPLE.COM./',
+        });
+
+        expect(model.update).toHaveBeenCalled();
     });
 });
 
@@ -938,5 +988,120 @@ describe('ExternalConnectionService.linkToApp alias validation', () => {
             ),
         ).resolves.toBeUndefined();
         expect(linkToAppFn).toHaveBeenCalled();
+    });
+});
+
+// -------------------------------------------------------------------
+// proposeConfig — AI proposal for the create wizard
+// -------------------------------------------------------------------
+describe('ExternalConnectionService proposeConfig', () => {
+    const proposal: ExternalConnectionConfigProposal = {
+        name: 'Example API',
+        origin: 'https://api.example.com',
+        type: 'bearer_token',
+        apiKeyName: null,
+        apiKeyLocation: null,
+        oauthScopes: null,
+        customHeaders: null,
+        allowedMethods: ['GET'],
+        allowedPathPrefixes: ['/v1'],
+        instructions: null,
+        credentialGuide: '1. Get a token',
+        docsUrl: null,
+        notes: null,
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(getModel).mockReturnValue({
+            model: {
+                modelId: 'claude-sonnet-4-5',
+                provider: 'anthropic',
+            },
+            callOptions: {},
+            providerOptions: undefined,
+            keyManagement: 'lightdash-managed',
+        } as never);
+        vi.mocked(generateExternalConnectionConfigProposal).mockResolvedValue(
+            proposal,
+        );
+    });
+
+    it('rejects callers without manage permission before any AI work', async () => {
+        const { service, orgAiCopilotConfigResolver } = buildService({});
+        mockAbility(service, false);
+
+        await expect(
+            service.proposeConfig(viewerAccount, projectUuid, 'connect to X'),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            orgAiCopilotConfigResolver.getCopilotConfig,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('rejects a blank description', async () => {
+        const { service } = buildService({});
+        mockAbility(service, true);
+
+        await expect(
+            service.proposeConfig(adminAccount, projectUuid, '   '),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('rejects an oversized description', async () => {
+        const { service } = buildService({});
+        mockAbility(service, true);
+
+        await expect(
+            service.proposeConfig(adminAccount, projectUuid, 'x'.repeat(2001)),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('maps an unconfigured provider to MissingConfigError', async () => {
+        const { service } = buildService({});
+        mockAbility(service, true);
+        vi.mocked(getModel).mockImplementationOnce(() => {
+            throw new Error('anthropic api key is not configured');
+        });
+
+        await expect(
+            service.proposeConfig(adminAccount, projectUuid, 'connect to X'),
+        ).rejects.toThrow(MissingConfigError);
+        expect(generateExternalConnectionConfigProposal).not.toHaveBeenCalled();
+    });
+
+    it('generates from the trimmed description', async () => {
+        const { service } = buildService({});
+        mockAbility(service, true);
+
+        const result = await service.proposeConfig(
+            adminAccount,
+            projectUuid,
+            '  connect to Example  ',
+        );
+
+        expect(result).toEqual(proposal);
+        expect(generateExternalConnectionConfigProposal).toHaveBeenCalledWith(
+            expect.anything(),
+            'connect to Example',
+        );
+    });
+
+    it('pins the org-configured provider on bedrock', async () => {
+        const { service } = buildService({
+            getCopilotConfigFn: vi.fn().mockResolvedValue({
+                defaultProvider: 'bedrock',
+                providers: {},
+            }),
+        });
+        mockAbility(service, true);
+
+        await service.proposeConfig(adminAccount, projectUuid, 'connect to X');
+
+        expect(getModel).toHaveBeenCalledWith(expect.anything(), {
+            provider: 'bedrock',
+            modelName: 'claude-sonnet-4-5',
+            enableReasoning: false,
+        });
     });
 });

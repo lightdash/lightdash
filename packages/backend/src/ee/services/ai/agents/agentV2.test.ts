@@ -1,14 +1,196 @@
 import type { ModelMessage } from 'ai';
+import {
+    registerAiUsageTracker,
+    type AiUsageEvent,
+} from '../../../../analytics/aiUsage';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import {
+    buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
     buildForcedFirstStep,
-    buildMessagesWithMemoryBlock,
     getAgentTools,
+    getDeepResearchBudgetInstruction,
+    getPromptMcpServers,
     normalizeToolOutput,
+    recordAgentStepUsage,
+    storeInvalidAgentToolCall,
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
+
+describe('recordAgentStepUsage', () => {
+    const usage = {
+        inputTokens: 16,
+        outputTokens: 7,
+        totalTokens: 23,
+        inputTokenDetails: {
+            noCacheTokens: 10,
+            cacheReadTokens: 4,
+            cacheWriteTokens: 2,
+        },
+        outputTokenDetails: {
+            reasoningTokens: 3,
+        },
+    } as never;
+
+    afterEach(() => {
+        registerAiUsageTracker(() => undefined);
+    });
+
+    it('emits one attributed event for every standard agent step', async () => {
+        const events: AiUsageEvent[] = [];
+        registerAiUsageTracker((event) => events.push(event));
+        const telemetry = {
+            functionId: 'generateAgentResponse',
+            metadata: {
+                feature: 'agent',
+                organizationUuid: 'organization-1',
+                projectUuid: 'project-1',
+            },
+        } as never;
+
+        await recordAgentStepUsage({
+            usage,
+            telemetry,
+            execution: { mode: 'standard', maxSteps: 10 },
+        });
+        await recordAgentStepUsage({
+            usage,
+            telemetry,
+            execution: { mode: 'standard', maxSteps: 10 },
+        });
+
+        expect(events).toHaveLength(2);
+        expect(events[0]).toMatchObject({
+            event: 'ai.usage',
+            properties: {
+                feature: 'agent',
+                inputTokens: 10,
+                outputTokens: 7,
+                cacheReadTokens: 4,
+                cacheWriteTokens: 2,
+                reasoningTokens: 3,
+                totalTokens: 23,
+                deepResearchRunId: null,
+                deepResearchPhase: null,
+            },
+        });
+    });
+
+    it('attributes Deep Research steps and awaits normalized usage persistence', async () => {
+        const events: AiUsageEvent[] = [];
+        const onStepUsage = vi.fn().mockResolvedValue(undefined);
+        registerAiUsageTracker((event) => events.push(event));
+
+        await recordAgentStepUsage({
+            usage,
+            telemetry: {
+                functionId: 'generateAgentResponse',
+                metadata: {
+                    feature: 'deep-research',
+                    deepResearchRunUuid: 'run-1',
+                    deepResearchPhase: 'investigating',
+                },
+            } as never,
+            execution: {
+                mode: 'deep_research',
+                runUuid: 'run-1',
+                phase: 'investigating',
+                maxSteps: 10,
+                budget: {
+                    maxTokens: 1_000,
+                    maxToolCalls: 10,
+                    maxWarehouseQueries: 5,
+                    maxResultRows: 500,
+                    maxHypotheses: 2,
+                },
+                initialTokenUsage: 0,
+                onStepUsage,
+                research: {
+                    role: 'judge',
+                    investigations: [],
+                },
+            },
+        });
+
+        expect(events).toHaveLength(1);
+        expect(events[0]?.properties).toMatchObject({
+            feature: 'deep-research',
+            deepResearchRunId: 'run-1',
+            deepResearchPhase: 'investigating',
+        });
+        expect(onStepUsage).toHaveBeenCalledWith({
+            runUuid: 'run-1',
+            phase: 'investigating',
+            tokens: {
+                inputTokens: 10,
+                outputTokens: 7,
+                cacheReadTokens: 4,
+                cacheWriteTokens: 2,
+                reasoningTokens: 3,
+                totalTokens: 23,
+            },
+        });
+    });
+});
+
+describe('storeInvalidAgentToolCall', () => {
+    it('waits for Deep Research error persistence before finishing the step', async () => {
+        let resolveStore: () => void = () => undefined;
+        const storeToolCallError = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveStore = resolve;
+                }),
+        );
+        let finished = false;
+
+        const persistence = storeInvalidAgentToolCall({
+            storeToolCallError,
+            promptUuid: 'prompt-1',
+            toolCall: {
+                toolCallId: 'invalid-call-1',
+                toolName: 'searchContent',
+                input: '{not-json',
+                error: new Error('invalid arguments'),
+            },
+            executionMode: 'deep_research',
+        }).then(() => {
+            finished = true;
+        });
+
+        await Promise.resolve();
+        expect(finished).toBe(false);
+        expect(storeToolCallError).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            toolCallId: 'invalid-call-1',
+            toolName: 'searchContent',
+            errorMessage: 'invalid arguments',
+            rawArgs: '{not-json',
+        });
+
+        resolveStore();
+        await persistence;
+        expect(finished).toBe(true);
+    });
+});
+
+describe('getDeepResearchBudgetInstruction', () => {
+    it('advertises only enforceable Deep Research limits', () => {
+        const instruction = getDeepResearchBudgetInstruction({
+            maxTokens: 10_000,
+            maxToolCalls: 20,
+            maxWarehouseQueries: 10,
+            maxResultRows: 1_000,
+            maxHypotheses: 2,
+        });
+
+        expect(instruction).toContain('20 tool calls');
+        expect(instruction).toContain('10 warehouse queries');
+        expect(instruction).toContain('1000 rows per query result');
+        expect(instruction).toContain('10000 total model tokens');
+    });
+});
 
 describe('buildForcedFirstStep', () => {
     it('forces the hinted report tool on only the opening step', () => {
@@ -120,7 +302,7 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                     'generateVisualization',
                     'mcp_github__search_issues',
                 ],
-                selectedMcpServers: [
+                attachedMcpServers: [
                     {
                         uuid: 'mcp-1',
                         name: 'GitHub',
@@ -331,6 +513,63 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toContain('loadProjectContext');
     });
 
+    it('does not expose loadMcpTools when there are no MCP tools', () => {
+        expect(
+            toolNames({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+            }),
+        ).not.toContain('loadMcpTools');
+    });
+
+    it('exposes loadMcpTools when live MCP tools are registered', () => {
+        const tools = getAgentTools(
+            buildArgs({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+            }),
+            depsStub(),
+            [],
+            {
+                ...mcpStub,
+                tools: { mcp_linear__search_issues: {} as never },
+            },
+            new Map(),
+        );
+
+        expect(Object.keys(tools)).toEqual(
+            expect.arrayContaining([
+                'loadMcpTools',
+                'mcp_linear__search_issues',
+            ]),
+        );
+    });
+
+    it('limits prompt MCP inventory to the final runtime tool set', () => {
+        const setup: AgentMcpToolSetup = {
+            ...mcpStub,
+            tools: { mcp_linear__get_issue: {} as never },
+            mcpToolNameToServerUuid: {
+                mcp_linear__get_issue: 'linear-server',
+            },
+        };
+        const servers = [
+            { uuid: 'linear-server', name: 'Linear' },
+        ] as AiAgentArgs['mcpServers'];
+
+        expect(
+            getPromptMcpServers(servers, setup, {
+                submitResearchHypotheses: {} as never,
+            }),
+        ).toEqual([{ name: 'Linear', toolNames: [] }]);
+        expect(
+            getPromptMcpServers(servers, setup, {
+                loadMcpTools: {} as never,
+                mcp_linear__get_issue: {} as never,
+            }),
+        ).toEqual([{ name: 'Linear', toolNames: ['mcp_linear__get_issue'] }]);
+    });
+
     it('still exposes them for the general coding agent (writeback off) — unchanged', () => {
         const names = toolNames({
             enableCodingAgent: true,
@@ -359,14 +598,28 @@ describe('getAgentTools workstream tool gate', () => {
         });
         args.execution = {
             mode: 'deep_research',
+            runUuid: 'run-1',
+            phase: 'investigating',
             maxSteps: 30,
             budget: {
                 maxTokens: 10_000,
                 maxToolCalls: 20,
                 maxWarehouseQueries: 10,
                 maxResultRows: 1_000,
+                maxHypotheses: 2,
             },
             initialTokenUsage: 0,
+            research: {
+                role: 'investigator',
+                hypothesis: {
+                    id: 'hypothesis-1',
+                    claim: 'The data supports the hypothesis',
+                    rationale: 'Test rationale',
+                    supportingEvidence: 'A matching trend',
+                    falsifyingEvidence: 'No matching trend',
+                },
+                onReport: vi.fn(),
+            },
         };
         const tools = getAgentTools(
             args,
@@ -383,16 +636,17 @@ describe('getAgentTools workstream tool gate', () => {
 
         expect(Object.keys(tools)).toEqual(
             expect.arrayContaining([
-                'submitResearchReport',
+                'submitInvestigationReport',
                 'editDbtProject',
                 'generateVisualization',
+                'loadMcpTools',
                 'mcp_github__create_issue',
             ]),
         );
     });
 });
 
-describe('getAgentMessages memory injection', () => {
+describe('buildAgentMessages', () => {
     const systemPrompt: ModelMessage = {
         role: 'system',
         content: 'Cached system prompt',
@@ -405,16 +659,16 @@ describe('getAgentMessages memory injection', () => {
     ];
 
     it('injects an uncached user message immediately after the system prompt', () => {
-        const withoutBlock = buildMessagesWithMemoryBlock({
+        const withoutBlock = buildAgentMessages({
             systemPrompt,
+            compactionSummary: null,
             messageHistory,
-            memoryEnabled: true,
             memoryBlock: null,
         });
-        const withBlock = buildMessagesWithMemoryBlock({
+        const withBlock = buildAgentMessages({
             systemPrompt,
+            compactionSummary: null,
             messageHistory,
-            memoryEnabled: true,
             memoryBlock: '<ld-memories></ld-memories>',
         });
 
@@ -428,21 +682,15 @@ describe('getAgentMessages memory injection', () => {
         expect(withBlock[2]).toEqual({ role: 'user', content: 'Question' });
     });
 
-    it.each([
-        { memoryEnabled: false, block: '<ld-memories></ld-memories>' },
-        { memoryEnabled: true, block: null },
-    ])(
-        'does not inject for disabled or empty memory',
-        ({ memoryEnabled, block }) => {
-            const messages = buildMessagesWithMemoryBlock({
-                systemPrompt,
-                messageHistory,
-                memoryEnabled,
-                memoryBlock: block,
-            });
+    it('does not inject memory without a block', () => {
+        const messages = buildAgentMessages({
+            systemPrompt,
+            compactionSummary: null,
+            messageHistory,
+            memoryBlock: null,
+        });
 
-            expect(messages).toHaveLength(2);
-            expect(messages[1]).toEqual({ role: 'user', content: 'Question' });
-        },
-    );
+        expect(messages).toHaveLength(2);
+        expect(messages[1]).toEqual({ role: 'user', content: 'Question' });
+    });
 });

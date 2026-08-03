@@ -1,6 +1,6 @@
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
-import { type DashboardFilters } from './filter';
+import { type DashboardFieldTarget, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type DashboardParameters } from './parameters';
 import {
@@ -93,6 +93,9 @@ export type DashboardDataAppTileProperties = {
         title: string;
         hideTitle?: boolean;
         appUuid: string;
+        // Portable project-scoped identity, set by the backend on read.
+        // Mirrors `chartSlug` on chart tiles.
+        appSlug?: string | null;
         // Set by the backend when the referenced app has been soft-deleted,
         // so the frontend can render a placeholder instead of trying to load
         // a missing iframe.
@@ -350,6 +353,7 @@ export type DashboardAvailableFilters = {
     allFilterableFields: FilterableDimension[];
     allFilterableMetrics: Metric[];
     savedQueryMetricFilters: Record<string, number[]>;
+    defaultTimeDimensions: Record<string, DashboardFieldTarget>;
 };
 
 export type SavedChartsInfoForDashboardAvailableFilters = {

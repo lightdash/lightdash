@@ -458,6 +458,10 @@ export class SchedulerClient {
             ? {
                   schedulerUuid,
                   ...traceProperties,
+                  ...('executionUserUuid' in scheduler &&
+                      scheduler.executionUserUuid && {
+                          executionUserUuid: scheduler.executionUserUuid,
+                      }),
               }
             : scheduler;
 

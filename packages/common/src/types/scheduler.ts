@@ -628,7 +628,12 @@ export type QueueTraceProperties = {
 
 // Scheduler task types
 export type ScheduledDeliveryPayload = TraceTaskBase &
-    (CreateSchedulerAndTargets | Pick<Scheduler, 'schedulerUuid'>);
+    (
+        | CreateSchedulerAndTargets
+        | (Pick<Scheduler, 'schedulerUuid'> & {
+              executionUserUuid?: string;
+          })
+    );
 
 export const isCreateScheduler = (
     data: ScheduledDeliveryPayload,
@@ -654,6 +659,13 @@ export enum LightdashPage {
     SQL_CHART = 'sql_chart',
     APP = 'app',
 }
+
+// Info-only delivery notice — never a failure, must not affect run status.
+export type DeliveryNotice = {
+    type: 'limit_reached';
+    label: string;
+    rowCount: number;
+};
 
 export type NotificationPayloadBase = {
     schedulerUuid?: string;
@@ -688,6 +700,7 @@ export type NotificationPayloadBase = {
         };
         pdfPageCount?: number;
         failures?: PartialFailure[];
+        notices?: DeliveryNotice[];
     };
     scheduler: CreateSchedulerAndTargets;
 };
@@ -856,6 +869,7 @@ export type ExportContentPayload = TraceTaskBase & {
     dateZoomGranularity?: DateGranularity | string;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    parameters?: ParametersValuesMap;
 };
 
 export type ExportContentRequest = {
@@ -865,6 +879,7 @@ export type ExportContentRequest = {
     dateZoomGranularity?: DateGranularity | string;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
+    parameters?: ParametersValuesMap;
 };
 
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
@@ -879,6 +894,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     conditionalFormattings?: ConditionalFormattingConfig[];
+    showColumnTotals?: boolean;
     encodedJwt?: string;
 };
 

@@ -1,4 +1,4 @@
-// eslint-disable-next-line max-classes-per-file
+/* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
 
@@ -390,12 +390,12 @@ export class AlreadyExistsError extends LightdashError {
 }
 
 export class ConflictError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
             message,
             name: 'ConflictError',
             statusCode: 409,
-            data: {},
+            data,
         });
     }
 }

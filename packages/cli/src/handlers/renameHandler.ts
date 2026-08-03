@@ -5,7 +5,7 @@ import {
     LightdashError,
     RenameChange,
     RenameType,
-    SchedulerJobStatus,
+    UnexpectedServerError,
 } from '@lightdash/common';
 import fs from 'fs';
 import inquirer from 'inquirer';
@@ -18,10 +18,10 @@ import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProject } from './dbt/refresh';
 import {
-    delay,
     getJobState,
     getValidation,
     requestValidation,
+    waitUntilFinished,
 } from './validate';
 
 type RenameHandlerOptions = {
@@ -38,19 +38,21 @@ type RenameHandlerOptions = {
 };
 
 const REFETCH_JOB_INTERVAL = 2000;
-const waitUntilFinished = async (jobUuid: string): Promise<string> => {
-    const job = await getJobState(jobUuid);
-    if (job.status === SchedulerJobStatus.COMPLETED) {
-        return job.status;
-    }
-    if (job.status === SchedulerJobStatus.ERROR) {
-        throw new Error(
-            `\nRename failed: ${job.details?.error || 'unknown error'}`,
-        );
-    }
 
-    return delay(REFETCH_JOB_INTERVAL).then(() => waitUntilFinished(jobUuid));
-};
+const waitUntilRenameFinished = (jobUuid: string): Promise<string> =>
+    waitUntilFinished({
+        jobUuid,
+        refetchIntervalMs: REFETCH_JOB_INTERVAL,
+        createError: (jobError) => new Error(`\nRename failed: ${jobError}`),
+    });
+
+const waitUntilValidationFinished = (jobUuid: string): Promise<string> =>
+    waitUntilFinished({
+        jobUuid,
+        refetchIntervalMs: REFETCH_JOB_INTERVAL,
+        createError: (jobError) =>
+            new UnexpectedServerError(`\nValidation failed: ${jobError}`),
+    });
 
 const listResources = (
     resources: RenameChange[],
@@ -150,7 +152,7 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
             body: JSON.stringify(options),
         });
         GlobalState.debug(`Rename job scheduled with id: ${jobResponse.jobId}`);
-        const status = await waitUntilFinished(jobResponse.jobId);
+        const status = await waitUntilRenameFinished(jobResponse.jobId);
         GlobalState.debug(`Rename job finished with status: ${status}`);
         const job = await getJobState(jobResponse.jobId);
 
@@ -221,15 +223,31 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
             );
         }
 
+        let validationStatus: 'skipped' | 'passed' | 'failed' = 'skipped';
+
         if (options.validate && !options.dryRun) {
-            const validationJob = await requestValidation(projectUuid, [], []);
+            try {
+                const validationJob = await requestValidation(
+                    projectUuid,
+                    [],
+                    [],
+                );
 
-            const { jobId } = validationJob;
+                const { jobId } = validationJob;
 
-            await waitUntilFinished(jobId);
+                await waitUntilValidationFinished(jobId);
 
-            const validation = await getValidation(projectUuid, jobId);
-            console.info(validation);
+                const validation = await getValidation(projectUuid, jobId);
+                console.info(validation);
+                validationStatus = 'passed';
+            } catch (e: unknown) {
+                validationStatus = 'failed';
+                console.error(
+                    `Rename completed, but the follow-up validation failed: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
         }
 
         await LightdashAnalytics.track({
@@ -242,6 +260,7 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
                 chartsUpdated: results.charts.length,
                 dashboardsUpdated: results.dashboards.length,
                 durationMs: Date.now() - startTime,
+                validationStatus,
             },
         });
     } catch (e: unknown) {

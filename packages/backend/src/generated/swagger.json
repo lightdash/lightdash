@@ -1676,8 +1676,39 @@
                 "$ref": "#/components/schemas/Record_string.string_",
                 "description": "Maps a data app viz's field name → the host query field id bound to it."
             },
+            "DataAppVizOptionValue": {
+                "anyOf": [
+                    {
+                        "type": "boolean"
+                    },
+                    {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    {
+                        "type": "string"
+                    }
+                ],
+                "description": "A persisted config value; its shape is set by the option's declared `type`."
+            },
+            "Record_string.DataAppVizOptionValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DataAppVizOptionValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DataAppVizOptionValues": {
+                "$ref": "#/components/schemas/Record_string.DataAppVizOptionValue_",
+                "description": "Maps a declared config option's name → the value the user chose for it."
+            },
             "DataAppVizChart": {
                 "properties": {
+                    "optionValues": {
+                        "$ref": "#/components/schemas/DataAppVizOptionValues",
+                        "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
+                    },
                     "fieldMapping": {
                         "$ref": "#/components/schemas/DataAppVizFieldMapping"
                     },
@@ -4179,6 +4210,19 @@
                 "enum": ["data_app"],
                 "type": "string"
             },
+            "Pick_DashboardDataAppTileProperties-at-properties.title-or-hideTitle_": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "hideTitle": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["title"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "DashboardDataAppTileAsCode": {
                 "allOf": [
                     {
@@ -4187,23 +4231,30 @@
                     {
                         "properties": {
                             "properties": {
-                                "properties": {
-                                    "appDeletedAt": {
-                                        "type": "string",
-                                        "nullable": true
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/Pick_DashboardDataAppTileProperties-at-properties.title-or-hideTitle_"
                                     },
-                                    "appUuid": {
-                                        "type": "string"
-                                    },
-                                    "hideTitle": {
-                                        "type": "boolean"
-                                    },
-                                    "title": {
-                                        "type": "string"
+                                    {
+                                        "properties": {
+                                            "appDeletedAt": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Legacy read-only deletion marker. Ignored on upload, never written by download."
+                                            },
+                                            "appUuid": {
+                                                "type": "string",
+                                                "description": "Legacy project-local reference. Accepted on upload, never written by download."
+                                            },
+                                            "appSlug": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "description": "Portable project-scoped reference written by download."
+                                            }
+                                        },
+                                        "type": "object"
                                     }
-                                },
-                                "required": ["appUuid", "title"],
-                                "type": "object"
+                                ]
                             },
                             "type": {
                                 "$ref": "#/components/schemas/DashboardTileTypes.DATA_APP"
@@ -4513,22 +4564,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -4628,10 +4679,6 @@
             },
             "ChartKind.VERTICAL_BAR": {
                 "enum": ["vertical_bar"],
-                "type": "string"
-            },
-            "ChartKind.LINE": {
-                "enum": ["line"],
                 "type": "string"
             },
             "VizIndexType": {
@@ -4847,7 +4894,7 @@
                 },
                 "type": "object"
             },
-            "VizCartesianChartConfig": {
+            "VizBarChartConfig": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/VizBaseConfig"
@@ -4861,14 +4908,33 @@
                                 "$ref": "#/components/schemas/PivotChartLayout"
                             },
                             "type": {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/ChartKind.LINE"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ChartKind.LINE": {
+                "enum": ["line"],
+                "type": "string"
+            },
+            "VizLineChartConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/CartesianChartDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/PivotChartLayout"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.LINE"
                             }
                         },
                         "required": ["type"],
@@ -4903,6 +4969,137 @@
                             },
                             "type": {
                                 "$ref": "#/components/schemas/ChartKind.PIE"
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ChartKind.BIG_NUMBER": {
+                "enum": ["big_number"],
+                "type": "string"
+            },
+            "FilterOperator.EQUALS": {
+                "enum": ["equals"],
+                "type": "string"
+            },
+            "FilterOperator.NOT_EQUALS": {
+                "enum": ["notEquals"],
+                "type": "string"
+            },
+            "FilterOperator.LESS_THAN": {
+                "enum": ["lessThan"],
+                "type": "string"
+            },
+            "FilterOperator.LESS_THAN_OR_EQUAL": {
+                "enum": ["lessThanOrEqual"],
+                "type": "string"
+            },
+            "FilterOperator.GREATER_THAN": {
+                "enum": ["greaterThan"],
+                "type": "string"
+            },
+            "FilterOperator.GREATER_THAN_OR_EQUAL": {
+                "enum": ["greaterThanOrEqual"],
+                "type": "string"
+            },
+            "VizBigNumberConditionalOperator": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.EQUALS"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.NOT_EQUALS"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.LESS_THAN"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.LESS_THAN_OR_EQUAL"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.GREATER_THAN"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.GREATER_THAN_OR_EQUAL"
+                    }
+                ],
+                "description": "Operators a big number threshold can be expressed with."
+            },
+            "VizBigNumberConditionalRule": {
+                "properties": {
+                    "darkColor": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string",
+                        "description": "Applied in the light colour scheme, and in dark when darkColor is unset."
+                    },
+                    "value": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/VizBigNumberConditionalOperator"
+                    }
+                },
+                "required": ["color", "value", "operator"],
+                "type": "object"
+            },
+            "VizBigNumberDisplay": {
+                "properties": {
+                    "conditionalFormatting": {
+                        "items": {
+                            "$ref": "#/components/schemas/VizBigNumberConditionalRule"
+                        },
+                        "type": "array",
+                        "description": "Colours the value; the first matching rule wins."
+                    },
+                    "flipColors": {
+                        "type": "boolean",
+                        "description": "Colours an increase red and a decrease green."
+                    },
+                    "comparisonLabel": {
+                        "type": "string"
+                    },
+                    "comparisonFormat": {
+                        "$ref": "#/components/schemas/ComparisonFormatTypes"
+                    },
+                    "showComparison": {
+                        "type": "boolean",
+                        "description": "Compares the value against the second selected field."
+                    },
+                    "style": {
+                        "$ref": "#/components/schemas/CompactOrAlias",
+                        "description": "Compact notation applied to the value (K/M/B/T)."
+                    },
+                    "showLabel": {
+                        "type": "boolean"
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Custom label rendered under the value. Falls back to the field name."
+                    }
+                },
+                "type": "object"
+            },
+            "VizBigNumberConfig": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBaseConfig"
+                    },
+                    {
+                        "properties": {
+                            "display": {
+                                "$ref": "#/components/schemas/VizBigNumberDisplay"
+                            },
+                            "fieldConfig": {
+                                "$ref": "#/components/schemas/PivotChartLayout",
+                                "description": "Big numbers aggregate every row, so `x` is always undefined and `y`\nholds the value field followed by the optional comparison field."
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/ChartKind.BIG_NUMBER"
                             }
                         },
                         "required": ["type"],
@@ -4992,6 +5189,25 @@
                     }
                 ]
             },
+            "AllVizChartConfig": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/VizBarChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizLineChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizPieChartConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizBigNumberConfig"
+                    },
+                    {
+                        "$ref": "#/components/schemas/VizTableConfig"
+                    }
+                ]
+            },
             "Pick_SqlChart.name-or-description-or-slug-or-sql-or-limit-or-config-or-chartKind_": {
                 "properties": {
                     "name": {
@@ -5009,24 +5225,7 @@
                         "format": "double"
                     },
                     "config": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/VizBaseConfig"
-                            },
-                            {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizPieChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizTableConfig"
-                                    }
-                                ]
-                            }
-                        ]
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "sql": {
                         "type": "string"
@@ -6959,6 +7158,10 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "appUuid": {
                                 "type": "string"
                             },
@@ -8111,10 +8314,29 @@
                 "$ref": "#/components/schemas/Pick_SqlChartAsCode.Exclude_keyofSqlChartAsCode.config-or-description__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
+            "DashboardAsCodeUpsertResult": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/PromotionChanges"
+                    },
+                    {
+                        "properties": {
+                            "warnings": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "description": "Non-fatal issues, e.g. a data app tile whose app is not in this project."
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiDashboardAsCodeUpsertResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/PromotionChanges"
+                        "$ref": "#/components/schemas/DashboardAsCodeUpsertResult"
                     },
                     "status": {
                         "type": "string",
@@ -9733,10 +9955,18 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageHeroDensity": {
+                "type": "string",
+                "enum": ["full", "compact"],
+                "description": "How much of the opening view the hero claims. `full` centres it in the\nviewport; `compact` gives it only the height of its own content. Absent in\nstored configs means \"let the layout decide\" — see resolveHeroDensity."
+            },
             "HomepageAskAiHeroBlock": {
                 "properties": {
                     "config": {
                         "properties": {
+                            "density": {
+                                "$ref": "#/components/schemas/HomepageHeroDensity"
+                            },
                             "showRecommendedActions": {
                                 "type": "boolean",
                                 "description": "Replaces the prompt suggestions with the setup checklist.\nOptional for configs persisted before this field existed."
@@ -9760,6 +9990,33 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageGreetingBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "density": {
+                                "$ref": "#/components/schemas/HomepageHeroDensity"
+                            },
+                            "subtitle": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["subtitle"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["greeting"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object",
+                "description": "Day-part greeting (\"Good afternoon, Ada\") with an optional line under it.\nThe AI hero has its own built-in greeting; this is the standalone one for\npages that don't lead with a composer."
+            },
             "HomepageCollectionItemRef": {
                 "properties": {
                     "uuid": {
@@ -9773,15 +10030,40 @@
                 "required": ["uuid", "contentType"],
                 "type": "object"
             },
+            "HomepageCollectionSource": {
+                "type": "string",
+                "enum": [
+                    "manual",
+                    "most-viewed",
+                    "recently-updated",
+                    "pinned",
+                    "favorites",
+                    "recently-viewed"
+                ],
+                "description": "Where a collection block's items come from.\n\n`manual` reads the block's own `items`. Every other source is a live rule\nresolved per viewer at render time — which is the point: a snapshot of\n\"most viewed\" is stale the week after it's taken, and a frozen copy of the\npin list stops tracking pins the moment it's published.\n\n`favorites` and `recently-viewed` are per-viewer; the rest are project-wide."
+            },
             "HomepageCollectionBlock": {
                 "properties": {
                     "config": {
                         "properties": {
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "How many items to show. Absent means DEFAULT_COLLECTION_LIMIT."
+                            },
+                            "verifiedOnly": {
+                                "type": "boolean",
+                                "description": "Applies to every source, including manual."
+                            },
+                            "source": {
+                                "$ref": "#/components/schemas/HomepageCollectionSource"
+                            },
                             "items": {
                                 "items": {
                                     "$ref": "#/components/schemas/HomepageCollectionItemRef"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "The hand-picked items. Read only when `source` is `manual`, which\nis what an absent `source` means — every config stored before\nsources existed is a manual collection."
                             },
                             "title": {
                                 "type": "string"
@@ -9941,7 +10223,7 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
-            "HomepageQuickAction": {
+            "HomepageQuickActionTarget": {
                 "anyOf": [
                     {
                         "properties": {
@@ -10005,6 +10287,22 @@
                         "type": "object"
                     }
                 ]
+            },
+            "HomepageQuickAction": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/HomepageQuickActionTarget"
+                    },
+                    {
+                        "properties": {
+                            "primary": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ],
+                "description": "Any quick action can be promoted to the row's primary one, which renders\nas the same chip inverted. Optional so older configs still load."
             },
             "HomepageQuickActionsBlock": {
                 "properties": {
@@ -10085,6 +10383,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageAskAiHeroBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageGreetingBlock"
                     },
                     {
                         "$ref": "#/components/schemas/HomepageCollectionBlock"
@@ -11603,6 +11904,116 @@
                 "required": ["config", "path"],
                 "type": "object",
                 "description": "Test an unsaved connection config (incl. plaintext secret) before creating\nit. Runs through the same SSRF-guarded proxy core, persisting nothing.\nDeliberately a flat object, NOT `ApiTestExternalConnectionRequest & {...}`:\nTSOA validates intersection bodies in remove-extras mode, which empties\nRecord<string, string> fields (query, config.customHeaders)."
+            },
+            "ExternalConnectionConfigProposal": {
+                "properties": {
+                    "notes": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Caveats the user should double-check before saving."
+                    },
+                    "docsUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "credentialGuide": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Markdown steps for obtaining the credential; null when type is 'none'."
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "allowedPathPrefixes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "allowedMethods": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExternalConnectionMethod"
+                        },
+                        "type": "array"
+                    },
+                    "customHeaders": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.string_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "oauthScopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "apiKeyLocation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyLocation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "apiKeyName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ExternalConnectionAuthType"
+                    },
+                    "origin": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "notes",
+                    "docsUrl",
+                    "credentialGuide",
+                    "instructions",
+                    "allowedPathPrefixes",
+                    "allowedMethods",
+                    "customHeaders",
+                    "oauthScopes",
+                    "apiKeyLocation",
+                    "apiKeyName",
+                    "type",
+                    "origin",
+                    "name"
+                ],
+                "type": "object",
+                "description": "AI-proposed connection config, shaped to prefill the create wizard. Never\ncarries a secret — the user pastes the credential themselves on the Auth\nstep. Kept flat for the same TSOA reason as\nApiTestExternalConnectionConfigRequest."
+            },
+            "ApiProposeExternalConnectionConfigResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExternalConnectionConfigProposal"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiProposeExternalConnectionConfigRequest": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description"],
+                "type": "object"
             },
             "ExternalConnectionSampleRequest": {
                 "properties": {
@@ -13133,8 +13544,19 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "Record_string.DashboardFieldTarget_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardFieldTarget"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "DashboardAvailableFilters": {
                 "properties": {
+                    "defaultTimeDimensions": {
+                        "$ref": "#/components/schemas/Record_string.DashboardFieldTarget_"
+                    },
                     "savedQueryMetricFilters": {
                         "$ref": "#/components/schemas/Record_string.number-Array_"
                     },
@@ -13155,6 +13577,7 @@
                     }
                 },
                 "required": [
+                    "defaultTimeDimensions",
                     "savedQueryMetricFilters",
                     "allFilterableMetrics",
                     "allFilterableFields",
@@ -15279,24 +15702,7 @@
                         "$ref": "#/components/schemas/ChartKind"
                     },
                     "config": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/VizBaseConfig"
-                            },
-                            {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/VizCartesianChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizPieChartConfig"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/VizTableConfig"
-                                    }
-                                ]
-                            }
-                        ]
+                        "$ref": "#/components/schemas/AllVizChartConfig"
                     },
                     "limit": {
                         "type": "number",
@@ -15663,6 +16069,10 @@
                     "data_app_viz"
                 ]
             },
+            "DataAppCreationExperience": {
+                "type": "string",
+                "enum": ["app_builder", "explorer_chart_config"]
+            },
             "AppChartReference": {
                 "properties": {
                     "linkLive": {
@@ -15759,11 +16169,21 @@
                     "appUuid": {
                         "type": "string"
                     },
-                    "imageIds": {
+                    "fileIds": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "imageIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "deprecated": true
+                    },
+                    "creationExperience": {
+                        "$ref": "#/components/schemas/DataAppCreationExperience"
                     },
                     "template": {
                         "$ref": "#/components/schemas/DataAppTemplate"
@@ -15777,6 +16197,9 @@
             },
             "EmbedProjectApp": {
                 "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -15784,7 +16207,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["name", "appUuid"],
+                "required": ["slug", "name", "appUuid"],
                 "type": "object",
                 "description": "Minimal app shape for the embed config's standalone-app allowlist picker."
             },
@@ -15976,37 +16399,30 @@
                         },
                         "required": ["default", "label", "name", "type"],
                         "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "default": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "group": {
-                                "type": "string"
-                            },
-                            "label": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["palette"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["default", "label", "name", "type"],
-                        "type": "object"
                     }
                 ]
             },
+            "DataAppVizPaletteDeclaration": {
+                "properties": {
+                    "group": {
+                        "type": "string",
+                        "description": "Tab to place the picker in, matching a config option `group`."
+                    }
+                },
+                "type": "object",
+                "description": "Declared by a viz that colours from the resolved Lightdash palette. Not a\nconfig option: it carries no value of its own, it only asks the config panel\nfor the standard palette picker, whose choice is stored as the chart's\npalette and delivered on `colorPalette`. There is one palette per chart, so\na viz either declares this or it does not."
+            },
             "DataAppVizSchema": {
                 "properties": {
+                    "colorPalette": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppVizPaletteDeclaration"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null when the viz colours nothing from the resolved palette."
+                    },
                     "configOptions": {
                         "items": {
                             "$ref": "#/components/schemas/DataAppVizConfigOption"
@@ -16020,7 +16436,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["configOptions", "fields"],
+                "required": ["colorPalette", "configOptions", "fields"],
                 "type": "object",
                 "description": "The full declaration a data app viz emits: data-binding fields + config form."
             },
@@ -16179,11 +16595,18 @@
             },
             "ApiClarifyAppRequest": {
                 "properties": {
-                    "imageIds": {
+                    "fileIds": {
                         "items": {
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "imageIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "deprecated": true
                     },
                     "dashboard": {
                         "$ref": "#/components/schemas/AppDashboardReference"
@@ -16204,15 +16627,32 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "ApiSuccess__imageId-string__": {
+            "ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "mimeType": {
+                                "type": "string",
+                                "description": "Normalized MIME type as stored on the staged S3 object."
+                            },
+                            "filename": {
+                                "type": "string",
+                                "description": "Sanitized original filename, canonicalized server-side."
+                            },
                             "imageId": {
+                                "type": "string",
+                                "deprecated": true
+                            },
+                            "fileId": {
                                 "type": "string"
                             }
                         },
-                        "required": ["imageId"],
+                        "required": [
+                            "mimeType",
+                            "filename",
+                            "imageId",
+                            "fileId"
+                        ],
                         "type": "object"
                     },
                     "status": {
@@ -16224,8 +16664,89 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiAppImageUploadResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__imageId-string__"
+            "ApiAppFileUploadResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__fileId-string--imageId_deprecated-true_-string--filename_description-Sanitizedoriginalfilename.canonicalizedserver-side._-string--mimeType_description-NormalizedMIMEtypeasstoredonthestagedS3object._-string__"
+            },
+            "DataAppContextFile": {
+                "properties": {
+                    "contentBase64": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["contentBase64", "path"],
+                "type": "object"
+            },
+            "DataAppThemeContext": {
+                "properties": {
+                    "skippedAssetCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/DataAppContextFile"
+                        },
+                        "type": "array"
+                    },
+                    "instructions": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppContextFile"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["skippedAssetCount", "assets", "instructions"],
+                "type": "object"
+            },
+            "DataAppContext": {
+                "properties": {
+                    "theme": {
+                        "$ref": "#/components/schemas/DataAppThemeContext"
+                    },
+                    "promptHistory": {
+                        "$ref": "#/components/schemas/DataAppContextFile"
+                    },
+                    "parameters": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppContextFile"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "semanticLayer": {
+                        "$ref": "#/components/schemas/DataAppContextFile"
+                    }
+                },
+                "required": [
+                    "theme",
+                    "promptHistory",
+                    "parameters",
+                    "semanticLayer"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_DataAppContext_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DataAppContext"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGetDataAppAuthoringContextResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DataAppContext_"
             },
             "Exclude_DataAppTemplate.custom_": {
                 "type": "string",
@@ -16272,6 +16793,22 @@
                 },
                 "required": ["imageId"],
                 "type": "object"
+            },
+            "AppVersionFileResource": {
+                "properties": {
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "filename": {
+                        "type": "string"
+                    },
+                    "fileId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["mimeType", "filename", "fileId"],
+                "type": "object",
+                "description": "A non-image file attached to a generation request (JSON, Tableau workbook,\nmarkdown, code, PDF…). Filename and MIME type are canonicalized server-side\nfrom the staged S3 object at version creation, so the chat can render a\nnamed chip without touching S3."
             },
             "AppVersionChartResource": {
                 "properties": {
@@ -16370,6 +16907,15 @@
                             "$ref": "#/components/schemas/AppVersionChartResource"
                         },
                         "type": "array"
+                    },
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppVersionFileResource"
+                        },
+                        "type": "array"
+                    },
+                    "creationExperience": {
+                        "$ref": "#/components/schemas/DataAppCreationExperience"
                     },
                     "images": {
                         "items": {
@@ -16484,7 +17030,7 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -16501,6 +17047,13 @@
                                     "$ref": "#/components/schemas/ApiAppVersionSummary"
                                 },
                                 "type": "array"
+                            },
+                            "views": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "slug": {
+                                "type": "string"
                             },
                             "pinnedListOrder": {
                                 "type": "number",
@@ -16544,6 +17097,8 @@
                             "latestReadyVersion",
                             "hasMore",
                             "versions",
+                            "views",
+                            "slug",
                             "pinnedListOrder",
                             "pinnedListUuid",
                             "template",
@@ -16566,7 +17121,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__"
             },
             "ApiCancelAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
@@ -16869,6 +17424,9 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "slug": {
+                        "type": "string"
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -16888,7 +17446,6 @@
                     "name",
                     "version",
                     "projectUuid",
-                    "appUuid",
                     "codeVersion"
                 ],
                 "type": "object"
@@ -16935,70 +17492,6 @@
                 "required": ["files", "manifest"],
                 "type": "object"
             },
-            "DataAppContextFile": {
-                "properties": {
-                    "contentBase64": {
-                        "type": "string"
-                    },
-                    "path": {
-                        "type": "string"
-                    }
-                },
-                "required": ["contentBase64", "path"],
-                "type": "object"
-            },
-            "DataAppThemeContext": {
-                "properties": {
-                    "skippedAssetCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "assets": {
-                        "items": {
-                            "$ref": "#/components/schemas/DataAppContextFile"
-                        },
-                        "type": "array"
-                    },
-                    "instructions": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DataAppContextFile"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": ["skippedAssetCount", "assets", "instructions"],
-                "type": "object"
-            },
-            "DataAppContext": {
-                "properties": {
-                    "theme": {
-                        "$ref": "#/components/schemas/DataAppThemeContext"
-                    },
-                    "promptHistory": {
-                        "$ref": "#/components/schemas/DataAppContextFile"
-                    },
-                    "parameters": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DataAppContextFile"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "semanticLayer": {
-                        "$ref": "#/components/schemas/DataAppContextFile"
-                    }
-                },
-                "required": [
-                    "theme",
-                    "promptHistory",
-                    "parameters",
-                    "semanticLayer"
-                ],
-                "type": "object"
-            },
             "DataAppCodeDownload": {
                 "allOf": [
                     {
@@ -17032,7 +17525,11 @@
             "ApiGetAppCodeResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppCodeDownload_"
             },
-            "ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__": {
+            "UuidOrSlug": {
+                "type": "string",
+                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
+            },
+            "ApiSuccess__appUuid-string--version-number--action-create-or-append-or-unchanged--slug-string--warnings_63_-string-Array__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -17042,9 +17539,12 @@
                                 },
                                 "type": "array"
                             },
+                            "slug": {
+                                "type": "string"
+                            },
                             "action": {
                                 "type": "string",
-                                "enum": ["create", "append"]
+                                "enum": ["create", "append", "unchanged"]
                             },
                             "version": {
                                 "type": "number",
@@ -17054,7 +17554,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["action", "version", "appUuid"],
+                        "required": ["slug", "action", "version", "appUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -17067,10 +17567,16 @@
                 "type": "object"
             },
             "ApiImportAppCodeResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append--warnings_63_-string-Array__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--action-create-or-append-or-unchanged--slug-string--warnings_63_-string-Array__"
             },
             "ImportAppCodeRequestBody": {
                 "properties": {
+                    "force": {
+                        "type": "boolean"
+                    },
+                    "createNew": {
+                        "type": "boolean"
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -17920,6 +18426,175 @@
             },
             "ApiMyAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__data-ApiAppSummary-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
+            },
+            "DataAppGenerationUsage": {
+                "properties": {
+                    "costUsd": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "durationApiMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "numTurns": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "cacheCreationInputTokens": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "cacheReadInputTokens": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "outputTokens": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "inputTokens": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "costUsd",
+                    "durationApiMs",
+                    "numTurns",
+                    "cacheCreationInputTokens",
+                    "cacheReadInputTokens",
+                    "outputTokens",
+                    "inputTokens"
+                ],
+                "type": "object",
+                "description": "What one generation cost, aggregated across every `claude` CLI invocation in\nthat version's pipeline — including build-fix retries.\n\nThis is spend attributable to a generation, not all data-app AI spend: the\nshort prompt-clarification and app-naming calls happen outside any version.\n\n`costUsd` is the CLI's own figure, computed from public list prices, so treat\nit as an estimate rather than an invoice."
+            },
+            "DataAppActivityEvent": {
+                "properties": {
+                    "usage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DataAppGenerationUsage"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "user": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "claudeModel": {
+                        "$ref": "#/components/schemas/DataAppClaudeModel"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AppVersionStatus"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "appDeleted": {
+                        "type": "boolean"
+                    },
+                    "appName": {
+                        "type": "string"
+                    },
+                    "appUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "usage",
+                    "user",
+                    "projectName",
+                    "projectUuid",
+                    "createdAt",
+                    "claudeModel",
+                    "prompt",
+                    "status",
+                    "version",
+                    "appDeleted",
+                    "appName",
+                    "appUuid"
+                ],
+                "type": "object",
+                "description": "One data app generation event — a row of the org-wide activity log. Backed by\nan `app_versions` row, so it covers both new apps and iterations, and both\nsuccessful and failed generations."
+            },
+            "ApiSuccess__data-DataAppActivityEvent-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "pagination": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/KnexPaginateArgs"
+                                    },
+                                    {
+                                        "properties": {
+                                            "totalResults": {
+                                                "type": "number",
+                                                "format": "double"
+                                            },
+                                            "totalPageCount": {
+                                                "type": "number",
+                                                "format": "double"
+                                            }
+                                        },
+                                        "required": [
+                                            "totalResults",
+                                            "totalPageCount"
+                                        ],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "data": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DataAppActivityEvent"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["data"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDataAppActivityResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__data-DataAppActivityEvent-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
             },
             "AiRouter": {
                 "properties": {
@@ -19207,7 +19882,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["url", "upload", null],
+                        "enum": ["upload", "url", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -19851,7 +20526,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["url", "upload", null],
+                        "enum": ["upload", "url", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -22032,6 +22707,7 @@
                     "getProjectInfo",
                     "loadSkill",
                     "loadProjectContext",
+                    "loadMcpTools",
                     "editDbtProject",
                     "editProjectContext",
                     "editRepo",
@@ -22049,7 +22725,9 @@
                     "listKnowledgeDocuments",
                     "getKnowledgeDocumentContent",
                     "readPinnedThread",
-                    "submitResearchReport"
+                    "submitResearchReport",
+                    "submitResearchHypotheses",
+                    "submitInvestigationReport"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -22125,41 +22803,36 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "requiredFilters": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "required": {
+                                                                                        "type": "boolean"
+                                                                                    },
                                                                                     "settings": {},
                                                                                     "values": {
                                                                                         "items": {},
                                                                                         "type": "array"
+                                                                                    },
+                                                                                    "operator": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "tableName": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "fieldRef": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "fieldId": {
                                                                                         "type": "string"
-                                                                                    },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "operator": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "required": {
-                                                                                        "type": "boolean"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldRef",
-                                                                                    "fieldId",
-                                                                                    "tableName",
+                                                                                    "required",
                                                                                     "operator",
-                                                                                    "required"
+                                                                                    "tableName",
+                                                                                    "fieldRef",
+                                                                                    "fieldId"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -22170,6 +22843,11 @@
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -22241,16 +22919,6 @@
                                                                             ],
                                                                             "type": "object"
                                                                         },
-                                                                        "status": {
-                                                                            "type": "string",
-                                                                            "enum": [
-                                                                                "error",
-                                                                                "success"
-                                                                            ]
-                                                                        },
-                                                                        "error": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
@@ -22292,8 +22960,18 @@
                                                                             },
                                                                             "type": "array"
                                                                         },
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "label": {
                                                                             "type": "string"
+                                                                        },
+                                                                        "status": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                                "error",
+                                                                                "success"
+                                                                            ]
                                                                         }
                                                                     },
                                                                     "required": [
@@ -22327,19 +23005,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "status",
-                                                    "name"
+                                                    "name",
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
@@ -22360,8 +23038,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "success",
-                                                            "not_found"
+                                                            "not_found",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -22387,41 +23065,42 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
                                                                                 "isFromJoinedTable": {
                                                                                     "type": "boolean"
                                                                                 },
                                                                                 "caseSensitiveFilters": {
                                                                                     "type": "string",
                                                                                     "enum": [
-                                                                                        "true",
                                                                                         "false",
-                                                                                        "not_applicable"
+                                                                                        "not_applicable",
+                                                                                        "true"
                                                                                     ]
-                                                                                },
-                                                                                "fieldValueType": {
-                                                                                    "type": "string"
                                                                                 },
                                                                                 "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
                                                                                 },
                                                                                 "fieldType": {
                                                                                     "type": "string",
                                                                                     "enum": [
-                                                                                        "metric",
-                                                                                        "dimension"
+                                                                                        "dimension",
+                                                                                        "metric"
                                                                                     ]
                                                                                 },
                                                                                 "table": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldId": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "label": {
@@ -22429,67 +23108,59 @@
                                                                                 },
                                                                                 "name": {
                                                                                     "type": "string"
+                                                                                },
+                                                                                "fieldId": {
+                                                                                    "type": "string"
                                                                                 }
                                                                             },
                                                                             "required": [
+                                                                                "description",
                                                                                 "isFromJoinedTable",
                                                                                 "caseSensitiveFilters",
-                                                                                "fieldValueType",
                                                                                 "fieldFilterType",
-                                                                                "description",
+                                                                                "fieldValueType",
                                                                                 "fieldType",
                                                                                 "table",
-                                                                                "fieldId",
                                                                                 "label",
-                                                                                "name"
+                                                                                "name",
+                                                                                "fieldId"
                                                                             ],
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    },
-                                                                    "status": {
-                                                                        "type": "string",
-                                                                        "enum": [
-                                                                            "resolved"
-                                                                        ],
-                                                                        "nullable": false
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "requiredFilters": {
                                                                                 "items": {
                                                                                     "properties": {
+                                                                                        "required": {
+                                                                                            "type": "boolean"
+                                                                                        },
                                                                                         "settings": {},
                                                                                         "values": {
                                                                                             "items": {},
                                                                                             "type": "array"
+                                                                                        },
+                                                                                        "operator": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "tableName": {
+                                                                                            "type": "string"
                                                                                         },
                                                                                         "fieldRef": {
                                                                                             "type": "string"
                                                                                         },
                                                                                         "fieldId": {
                                                                                             "type": "string"
-                                                                                        },
-                                                                                        "tableName": {
-                                                                                            "type": "string"
-                                                                                        },
-                                                                                        "operator": {
-                                                                                            "type": "string"
-                                                                                        },
-                                                                                        "required": {
-                                                                                            "type": "boolean"
                                                                                         }
                                                                                     },
                                                                                     "required": [
-                                                                                        "fieldRef",
-                                                                                        "fieldId",
-                                                                                        "tableName",
+                                                                                        "required",
                                                                                         "operator",
-                                                                                        "required"
+                                                                                        "tableName",
+                                                                                        "fieldRef",
+                                                                                        "fieldId"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -22518,13 +23189,20 @@
                                                                             "name"
                                                                         ],
                                                                         "type": "object"
+                                                                    },
+                                                                    "status": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "resolved"
+                                                                        ],
+                                                                        "nullable": false
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "fields",
                                                                     "rationale",
-                                                                    "status",
-                                                                    "explore"
+                                                                    "fields",
+                                                                    "explore",
+                                                                    "status"
                                                                 ],
                                                                 "type": "object"
                                                             },
@@ -22536,10 +23214,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -22547,8 +23225,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "exploreLabel",
                                                                                 "reason",
+                                                                                "exploreLabel",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -22622,21 +23300,13 @@
                                                         ],
                                                         "type": "object"
                                                     },
-                                                    "href": {
-                                                        "type": "string"
-                                                    },
                                                     "warnings": {
                                                         "items": {
                                                             "type": "string"
                                                         },
                                                         "type": "array"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
-                                                    },
-                                                    "slug": {
+                                                    "href": {
                                                         "type": "string"
                                                     },
                                                     "uuid": {
@@ -22644,16 +23314,24 @@
                                                     },
                                                     "name": {
                                                         "type": "string"
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["success"],
+                                                        "nullable": false
                                                     }
                                                 },
                                                 "required": [
                                                     "versionUuids",
-                                                    "href",
                                                     "warnings",
-                                                    "status",
-                                                    "slug",
+                                                    "href",
                                                     "uuid",
-                                                    "name"
+                                                    "name",
+                                                    "slug",
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
@@ -22687,27 +23365,27 @@
                                                                     "type": "string",
                                                                     "nullable": true
                                                                 },
-                                                                "isPrimary": {
-                                                                    "type": "boolean"
-                                                                },
-                                                                "projectDbtSourceUuid": {
-                                                                    "type": "string"
-                                                                },
                                                                 "repository": {
                                                                     "type": "string",
                                                                     "nullable": true
                                                                 },
+                                                                "isPrimary": {
+                                                                    "type": "boolean"
+                                                                },
                                                                 "name": {
+                                                                    "type": "string"
+                                                                },
+                                                                "projectDbtSourceUuid": {
                                                                     "type": "string"
                                                                 }
                                                             },
                                                             "required": [
                                                                 "projectSubPath",
                                                                 "branch",
-                                                                "isPrimary",
-                                                                "projectDbtSourceUuid",
                                                                 "repository",
-                                                                "name"
+                                                                "isPrimary",
+                                                                "name",
+                                                                "projectDbtSourceUuid"
                                                             ],
                                                             "type": "object"
                                                         },
@@ -22716,6 +23394,32 @@
                                                     },
                                                     "needsDbtSourceSelection": {
                                                         "type": "boolean",
+                                                        "nullable": true
+                                                    },
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "label": {
+                                                                    "type": "string"
+                                                                },
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "compile",
+                                                                        "edit",
+                                                                        "read",
+                                                                        "search",
+                                                                        "stage"
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "label",
+                                                                "kind"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
                                                         "nullable": true
                                                     },
                                                     "previewUrl": {
@@ -22745,32 +23449,6 @@
                                                         ],
                                                         "nullable": true
                                                     },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "search",
-                                                                        "read",
-                                                                        "edit",
-                                                                        "compile",
-                                                                        "stage"
-                                                                    ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "kind",
-                                                                "label"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -22789,12 +23467,12 @@
                                                     "errorCode": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "unknown",
-                                                            "unsupported_source_control",
+                                                            "git_write_permission",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
                                                             "pull_request_not_open",
-                                                            "git_write_permission",
+                                                            "unknown",
+                                                            "unsupported_source_control",
                                                             null
                                                         ],
                                                         "nullable": true
@@ -22813,23 +23491,23 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
+                                                    "name": {
+                                                        "type": "string"
                                                     },
                                                     "slug": {
                                                         "type": "string"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["success"],
+                                                        "nullable": false
                                                     }
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "status",
+                                                    "name",
                                                     "slug",
-                                                    "name"
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
@@ -22869,10 +23547,6 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
-                                                            "searchQuery": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -22912,17 +23586,21 @@
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "metric",
                                                                     "dimension",
+                                                                    "metric",
                                                                     null
                                                                 ],
+                                                                "nullable": true
+                                                            },
+                                                            "searchQuery": {
+                                                                "type": "string",
                                                                 "nullable": true
                                                             }
                                                         },
                                                         "required": [
-                                                            "searchQuery",
                                                             "fields",
-                                                            "type"
+                                                            "type",
+                                                            "searchQuery"
                                                         ],
                                                         "type": "object"
                                                     },
@@ -28909,6 +29587,28 @@
             "ApiAgentOnboardingRunResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingRun_"
             },
+            "ApiSuccess_AgentOnboardingRun-or-null_": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentOnboardingRun"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAgentOnboardingActiveRunResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingRun-or-null_"
+            },
             "AgentOnboardingFileContent": {
                 "allOf": [
                     {
@@ -28945,6 +29645,52 @@
             },
             "ApiAgentOnboardingFileResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AgentOnboardingFileContent_"
+            },
+            "SkippableHomepageRecommendedActionKey": {
+                "type": "string",
+                "enum": [
+                    "add-semantic-layer",
+                    "connect-source-control",
+                    "connect-slack"
+                ]
+            },
+            "ApiSuccess_SkippableHomepageRecommendedActionKey-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SkippableHomepageRecommendedActionKey"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiHomepageRecommendedActionSkipsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SkippableHomepageRecommendedActionKey-Array_"
+            },
+            "HomepageRecommendedActionKey": {
+                "type": "string",
+                "enum": [
+                    "connect-warehouse",
+                    "add-semantic-layer",
+                    "connect-source-control",
+                    "connect-slack"
+                ]
+            },
+            "SkipHomepageRecommendedActionRequest": {
+                "properties": {
+                    "actionKey": {
+                        "$ref": "#/components/schemas/HomepageRecommendedActionKey"
+                    }
+                },
+                "required": ["actionKey"],
+                "type": "object"
             },
             "Role": {
                 "properties": {
@@ -29320,7 +30066,7 @@
                     },
                     {
                         "type": "string",
-                        "enum": ["pending", "ready", "error"]
+                        "enum": ["pending", "ready", "error", "cancelled"]
                     }
                 ]
             },
@@ -29694,6 +30440,10 @@
                 "type": "object",
                 "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. This is the same union the agent's repo VFS\nmounts (the org installation's repos plus the linked user's own), gated by the\nproject's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`\nendpoint, it never exposes repo names to users without source-code access."
             },
+            "AiDeepResearchEntryPoint": {
+                "type": "string",
+                "enum": ["homepage", "ask_ai"]
+            },
             "AiDeepResearchRunStatus": {
                 "type": "string",
                 "enum": [
@@ -29909,9 +30659,9 @@
             "AiDeepResearchChartDataMap": {
                 "$ref": "#/components/schemas/Record_string.AiDeepResearchChartData_"
             },
-            "AiDeepResearchBudget": {
+            "AiDeepResearchLimits": {
                 "properties": {
-                    "maxResultRows": {
+                    "maxHypotheses": {
                         "type": "number",
                         "format": "double"
                     },
@@ -29929,12 +30679,29 @@
                     }
                 },
                 "required": [
-                    "maxResultRows",
+                    "maxHypotheses",
                     "maxWarehouseQueries",
                     "maxToolCalls",
                     "maxTokens"
                 ],
                 "type": "object"
+            },
+            "AiDeepResearchBudget": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiDeepResearchLimits"
+                    },
+                    {
+                        "properties": {
+                            "maxResultRows": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["maxResultRows"],
+                        "type": "object"
+                    }
+                ]
             },
             "AiDeepResearchExecutionContextSnapshot": {
                 "properties": {
@@ -30046,7 +30813,7 @@
                     },
                     "tools": {
                         "properties": {
-                            "selectedMcpServers": {
+                            "attachedMcpServers": {
                                 "items": {
                                     "properties": {
                                         "enabledToolNames": {
@@ -30079,7 +30846,7 @@
                             }
                         },
                         "required": [
-                            "selectedMcpServers",
+                            "attachedMcpServers",
                             "availableToolNames"
                         ],
                         "type": "object"
@@ -30201,6 +30968,90 @@
                 ],
                 "type": "object"
             },
+            "AiDeepResearchRunMetrics": {
+                "properties": {
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "findingsCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "warehouseQueryCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "toolErrorCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "toolCallCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "tokenUsageComplete": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "totalTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "reasoningTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "cacheWriteTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "cacheReadTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "outputTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "inputTokens": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "durationMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "chartCount",
+                    "findingsCount",
+                    "warehouseQueryCount",
+                    "toolErrorCount",
+                    "toolCallCount",
+                    "tokenUsageComplete",
+                    "totalTokens",
+                    "reasoningTokens",
+                    "cacheWriteTokens",
+                    "cacheReadTokens",
+                    "outputTokens",
+                    "inputTokens",
+                    "durationMs"
+                ],
+                "type": "object"
+            },
             "AiDeepResearchRun": {
                 "properties": {
                     "completedAt": {
@@ -30225,6 +31076,9 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "metrics": {
+                        "$ref": "#/components/schemas/AiDeepResearchRunMetrics"
+                    },
                     "executionContextSnapshot": {
                         "allOf": [
                             {
@@ -30235,6 +31089,17 @@
                     },
                     "budget": {
                         "$ref": "#/components/schemas/AiDeepResearchBudget"
+                    },
+                    "isReportExpired": {
+                        "type": "boolean"
+                    },
+                    "reportExpiredAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reportExpiresAt": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "resultChartData": {
                         "allOf": [
@@ -30256,11 +31121,8 @@
                     "prompt": {
                         "type": "string"
                     },
-                    "mcpServerUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
+                    "entryPoint": {
+                        "$ref": "#/components/schemas/AiDeepResearchEntryPoint"
                     },
                     "promptUuid": {
                         "type": "string"
@@ -30285,13 +31147,17 @@
                     "createdAt",
                     "cancellationRequestedAt",
                     "errorMessage",
+                    "metrics",
                     "executionContextSnapshot",
                     "budget",
+                    "isReportExpired",
+                    "reportExpiredAt",
+                    "reportExpiresAt",
                     "resultChartData",
                     "resultMarkdown",
                     "status",
                     "prompt",
-                    "mcpServerUuids",
+                    "entryPoint",
                     "promptUuid",
                     "aiThreadUuid",
                     "agentUuid",
@@ -30317,18 +31183,11 @@
             "ApiAiDeepResearchRunResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun_"
             },
-            "AiDeepResearchEffort": {
-                "type": "string",
-                "enum": ["high", "medium", "low", "xhigh"]
-            },
             "AiDeepResearchRequestBody": {
                 "properties": {
-                    "mcpServerUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Agent-attached MCP servers enabled for this run."
+                    "entryPoint": {
+                        "$ref": "#/components/schemas/AiDeepResearchEntryPoint",
+                        "description": "Product surface that accepted the run."
                     },
                     "promptUuid": {
                         "type": "string",
@@ -30337,10 +31196,6 @@
                     "threadUuid": {
                         "type": "string",
                         "description": "Agent thread to attach the run to. Must be owned by the caller."
-                    },
-                    "effort": {
-                        "$ref": "#/components/schemas/AiDeepResearchEffort",
-                        "description": "Server-owned execution budget tier. Defaults to medium."
                     },
                     "agentUuid": {
                         "type": "string",
@@ -30351,7 +31206,7 @@
                     }
                 },
                 "required": [
-                    "mcpServerUuids",
+                    "entryPoint",
                     "promptUuid",
                     "threadUuid",
                     "agentUuid",
@@ -30378,6 +31233,23 @@
             },
             "ApiAiDeepResearchRunListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun-Array_"
+            },
+            "ApiSuccess_AiDeepResearchChartData_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiDeepResearchChartData"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiDeepResearchChartResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchChartData_"
             },
             "Record_string.never_": {
                 "properties": {},
@@ -30566,6 +31438,144 @@
             "ApiAiDeepResearchEventsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchEventsPage_"
             },
+            "AiAgentUserMemoryItem": {
+                "properties": {
+                    "generatedAt": {
+                        "type": "string"
+                    },
+                    "lastPulledAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pulledCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "lastCitedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "citedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sourceThreadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "agent": {
+                        "properties": {
+                            "imageUrl": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["imageUrl", "name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "scope": {
+                        "$ref": "#/components/schemas/AiAgentMemoryScope"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentMemoryStatus"
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "generatedAt",
+                    "lastPulledAt",
+                    "pulledCount",
+                    "lastCitedAt",
+                    "citedCount",
+                    "sourceThreadUuid",
+                    "agent",
+                    "scope",
+                    "status",
+                    "summary",
+                    "title",
+                    "slug",
+                    "uuid"
+                ],
+                "type": "object",
+                "description": "A memory list row as its owner sees it. Not shared with the admin list row."
+            },
+            "AiAgentUserMemoriesSummary": {
+                "properties": {
+                    "memories": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentUserMemoryItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["memories"],
+                "type": "object"
+            },
+            "KnexPaginatedData_AiAgentUserMemoriesSummary_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/AiAgentUserMemoriesSummary"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_AiAgentUserMemoriesSummary__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_AiAgentUserMemoriesSummary_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentUserMemoriesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentUserMemoriesSummary__"
+            },
             "ApiUpdateAiAgentMemoryStatusResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
@@ -30581,6 +31591,29 @@
                 },
                 "required": ["status"],
                 "type": "object"
+            },
+            "ApiSuccess__jobId-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["jobId"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiTriggerAiAgentMemoryDistillResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__jobId-string__"
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -33346,8 +34379,14 @@
                         ],
                         "nullable": true
                     },
+                    "requireExplicitSlackChannelLinking": {
+                        "type": "boolean"
+                    },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
+                    },
+                    "deepResearchLimits": {
+                        "$ref": "#/components/schemas/AiDeepResearchLimits"
                     },
                     "aiAgentReviewsEnabled": {
                         "type": "boolean"
@@ -33364,6 +34403,7 @@
                     "providerApiKeysSet",
                     "defaultAiAgentModelConfig",
                     "mcpContentWritesEnabled",
+                    "deepResearchLimits",
                     "aiAgentReviewsEnabled",
                     "aiAgentsVisible",
                     "organizationUuid"
@@ -33485,8 +34525,14 @@
                         ],
                         "nullable": true
                     },
+                    "requireExplicitSlackChannelLinking": {
+                        "type": "boolean"
+                    },
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
+                    },
+                    "deepResearchLimits": {
+                        "$ref": "#/components/schemas/AiDeepResearchLimits"
                     },
                     "aiAgentReviewsEnabled": {
                         "type": "boolean"
@@ -35390,7 +36436,7 @@
             },
             "url.URL": {
                 "type": "string",
-                "description": "The **`URL`** interface is used to parse, construct, normalize, and encode URL.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)\n`URL` class is a global reference for `import { URL } from 'url'`\nhttps://nodejs.org/api/url.html#the-whatwg-url-api"
+                "description": "The **`URL`** interface is used to parse, construct, normalize, and encode URL.\n\n[MDN Reference](https://developer.mozilla.org/docs/Web/API/URL)"
             },
             "OauthAuth": {
                 "properties": {
@@ -36333,66 +37379,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "VizBarChartConfig": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBaseConfig"
-                    },
-                    {
-                        "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/CartesianChartDisplay"
-                            },
-                            "fieldConfig": {
-                                "$ref": "#/components/schemas/PivotChartLayout"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/ChartKind.VERTICAL_BAR"
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "VizLineChartConfig": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBaseConfig"
-                    },
-                    {
-                        "properties": {
-                            "display": {
-                                "$ref": "#/components/schemas/CartesianChartDisplay"
-                            },
-                            "fieldConfig": {
-                                "$ref": "#/components/schemas/PivotChartLayout"
-                            },
-                            "type": {
-                                "$ref": "#/components/schemas/ChartKind.LINE"
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "AllVizChartConfig": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/VizBarChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizLineChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizPieChartConfig"
-                    },
-                    {
-                        "$ref": "#/components/schemas/VizTableConfig"
-                    }
-                ]
             },
             "CreateSqlChart": {
                 "properties": {
@@ -37842,7 +38828,10 @@
                     "sweepStaleAiDeepResearchRuns",
                     "sweepAiAgentMemoryThreads",
                     "aiAgentMemoryDistill",
+                    "consolidateAiAgentMemories",
+                    "consolidateAiAgentMemoryPartition",
                     "cleanMcpToolCalls",
+                    "cleanAiDeepResearchReports",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
@@ -37877,7 +38866,8 @@
                     "cleanExpiredPreviews",
                     "ingestProjectContext",
                     "compactUsageEvents",
-                    "pollEmailWhitelabelVerification"
+                    "pollEmailWhitelabelVerification",
+                    "cleanWarehouseConnectCodes"
                 ]
             },
             "BaseSchedulerLog": {
@@ -38004,6 +38994,72 @@
                 "required": ["error", "type"],
                 "type": "object"
             },
+            "PartialFailureType.APP_QUERY": {
+                "enum": ["app_query"],
+                "type": "string"
+            },
+            "AppQueryPartialFailure": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "captureKey": {
+                        "type": "string"
+                    },
+                    "stage": {
+                        "type": "string",
+                        "enum": ["render", "download"]
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.APP_QUERY"
+                    }
+                },
+                "required": ["error", "label", "captureKey", "stage", "type"],
+                "type": "object"
+            },
+            "PartialFailureType.APP_QUERY_MISSING": {
+                "enum": ["app_query_missing"],
+                "type": "string"
+            },
+            "AppQueryMissingPartialFailure": {
+                "properties": {
+                    "identityChanged": {
+                        "type": "boolean",
+                        "description": "True when a captured query matched this snapshot entry by\nlabel+explore but not by captureKey (identity changed)."
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "captureKey": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.APP_QUERY_MISSING"
+                    }
+                },
+                "required": ["identityChanged", "label", "captureKey", "type"],
+                "type": "object"
+            },
+            "PartialFailureType.APP_CAPTURE_OVERFLOW": {
+                "enum": ["app_capture_overflow"],
+                "type": "string"
+            },
+            "AppCaptureOverflowPartialFailure": {
+                "properties": {
+                    "droppedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.APP_CAPTURE_OVERFLOW"
+                    }
+                },
+                "required": ["droppedCount", "type"],
+                "type": "object"
+            },
             "PartialFailure": {
                 "anyOf": [
                     {
@@ -38017,6 +39073,15 @@
                     },
                     {
                         "$ref": "#/components/schemas/AiAugmentationPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AppQueryPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AppQueryMissingPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AppCaptureOverflowPartialFailure"
                     }
                 ]
             },
@@ -40735,6 +41800,10 @@
                     },
                     {
                         "properties": {
+                            "colorPaletteUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "dashboardUuid": {
                                 "type": "number",
                                 "enum": [null],
@@ -40755,6 +41824,10 @@
                     },
                     {
                         "properties": {
+                            "colorPaletteUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "spaceUuid": {
                                 "type": "number",
                                 "enum": [null],
@@ -43835,6 +44908,18 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "PlaygroundProjectTrigger": {
+                "type": "string",
+                "enum": ["invite_expert", "agent_onboarding_wait"]
+            },
+            "EnsurePlaygroundProjectRequest": {
+                "properties": {
+                    "trigger": {
+                        "$ref": "#/components/schemas/PlaygroundProjectTrigger"
+                    }
+                },
+                "type": "object"
+            },
             "ImpersonationOrganizationSettings": {
                 "properties": {
                     "impersonationEnabled": {
@@ -45847,10 +46932,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "UuidOrSlug": {
-                "type": "string",
-                "description": "A resource UUID or its URL slug. Resolve to a real UUID before using as a key."
             },
             "Pick_UpdatedByUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
@@ -48705,6 +49786,9 @@
                             "$ref": "#/components/schemas/ConditionalFormattingConfig"
                         },
                         "type": "array"
+                    },
+                    "showColumnTotals": {
+                        "type": "boolean"
                     }
                 },
                 "type": "object",
@@ -49059,6 +50143,9 @@
             },
             "ExportContentRequest": {
                 "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
                     "selectedTabs": {
                         "items": {
                             "type": "string"
@@ -50650,7 +51737,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.8.0",
+        "version": "1.65.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -61594,6 +62681,44 @@
                         }
                     }
                 ]
+            },
+            "get": {
+                "operationId": "getActiveAgentOnboardingRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentOnboardingActiveRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the agent onboarding run that is currently queued or running for a\nproject, if any.",
+                "summary": "Get active agent onboarding run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/ee/projects/{projectUuid}/agent-onboarding/{agentOnboardingRunUuid}": {
@@ -61748,6 +62873,139 @@
                 ]
             }
         },
+        "/api/v1/ee/homepage/recommended-action-skips": {
+            "get": {
+                "operationId": "listHomepageRecommendedActionSkips",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiHomepageRecommendedActionSkipsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "skipHomepageRecommendedAction",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SkipHomepageRecommendedActionRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ee/homepage/recommended-action-skips/{actionKey}": {
+            "delete": {
+                "operationId": "unskipHomepageRecommendedAction",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "actionKey",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/HomepageRecommendedActionKey"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v2/orgs/{orgUuid}/roles": {
             "post": {
                 "operationId": "CreateOrganizationRole",
@@ -61839,7 +63097,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -62000,7 +63258,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -62008,7 +63266,7 @@
                         "name": "roleUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -62191,6 +63449,16 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/ApiAiDeepResearchRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Deep Research run already active",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
                                 }
                             }
                         }
@@ -62381,6 +63649,62 @@
                 ]
             }
         },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}": {
+            "get": {
+                "operationId": "getAiDeepResearchChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Load the retained query metadata behind a report chart.",
+                "summary": "Get Deep Research chart",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/events": {
             "get": {
                 "operationId": "listAiDeepResearchEvents",
@@ -62494,6 +63818,112 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgentMemories": {
+            "get": {
+                "operationId": "getMyAiAgentMemories",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentUserMemoriesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Lists the active memories the AI agents saved from the requesting user's\nown threads in this project. The owner is always the session user.",
+                "summary": "List my memories",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgentMemories/{slug}": {
+            "get": {
+                "operationId": "getAiAgentMemoryBySlug",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentMemoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns one memory the requesting user can read, without going through an\nagent: memories consolidated across agents have no agent to route by.",
+                "summary": "Get a memory",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/aiAgentMemories/{memoryUuid}/status": {
             "patch": {
                 "operationId": "updateAiAgentMemoryStatus",
@@ -62550,6 +63980,54 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgentMemories/threads/{threadUuid}/distill": {
+            "post": {
+                "operationId": "triggerAiAgentMemoryDistill",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiTriggerAiAgentMemoryDistillResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Queues distillation for one thread immediately, skipping the 6h idle wait\nand the every-3h sweep. Re-distills a thread that is already up to date.\nRequires permission to manage AI agents in the project.",
+                "summary": "Distill thread",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/aiAgents/admin/threads": {
@@ -64189,7 +65667,7 @@
                         }
                     }
                 },
-                "description": "Retrieves credentials deposited against a connect code created by the\ncurrent user. Returns them once and deletes the code",
+                "description": "Retrieves credentials deposited against a connect code created by the\ncurrent user. Returns them until the code expires; expired codes are\ndeleted by a scheduled cleanup job",
                 "summary": "Claim connect code",
                 "tags": ["Projects"],
                 "security": [],
@@ -74938,7 +76416,17 @@
                 "summary": "Ensure playground project",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": []
+                "parameters": [],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EnsurePlaygroundProjectRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org/impersonation": {
@@ -80763,7 +82251,7 @@
                         "name": "userId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -80820,7 +82308,7 @@
                         "name": "userId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -80869,7 +82357,7 @@
                         "name": "groupId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -80926,7 +82414,7 @@
                         "name": "groupId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -80983,7 +82471,7 @@
                         "name": "groupId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -81024,7 +82512,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -81065,7 +82553,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -81073,7 +82561,7 @@
                         "name": "userId",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -81130,7 +82618,7 @@
                         "name": "orgUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     },
                     {
@@ -82830,6 +84318,52 @@
                 }
             }
         },
+        "/api/v2/feature-flag": {
+            "get": {
+                "operationId": "List feature flags",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/FeatureFlag"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List every known feature flag with its resolved value for the requesting\nuser. Preview environments only.",
+                "summary": "List feature flags",
+                "tags": ["v2", "Feature Flag"],
+                "security": [],
+                "parameters": []
+            }
+        },
         "/api/v2/feature-flag/{featureFlagId}": {
             "get": {
                 "operationId": "Get feature flag",
@@ -82868,6 +84402,122 @@
                 },
                 "description": "Get feature flag",
                 "summary": "Get feature flag",
+                "tags": ["v2", "Feature Flag"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "featureFlagId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "Set feature flag override",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/FeatureFlag"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Override a feature flag for the requesting user's organization. Preview\nenvironments only — lets QA toggle flags without a redeploy.",
+                "summary": "Set feature flag override",
+                "tags": ["v2", "Feature Flag"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "featureFlagId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "enabled": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": ["enabled"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "Delete feature flag override",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/FeatureFlag"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove the organization override for a feature flag, restoring the\nenvironment default. Preview environments only.",
+                "summary": "Delete feature flag override",
                 "tags": ["v2", "Feature Flag"],
                 "security": [],
                 "parameters": [

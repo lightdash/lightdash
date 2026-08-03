@@ -68,7 +68,10 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                         onClick={() => {
                             track({
                                 name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED,
-                                properties: { projectId: projectUuid },
+                                properties: {
+                                    projectId: projectUuid,
+                                    onboardingFlow: 'legacy',
+                                },
                             });
                         }}
                     >

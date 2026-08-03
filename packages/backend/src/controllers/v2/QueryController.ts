@@ -586,6 +586,7 @@ export class QueryController extends BaseController {
             exportPivotedData: body.exportPivotedData,
             attachmentDownloadName: body.attachmentDownloadName,
             conditionalFormattings: body.conditionalFormattings,
+            showColumnTotals: body.showColumnTotals,
         });
 
         return {
@@ -627,6 +628,7 @@ export class QueryController extends BaseController {
                 exportPivotedData: body.exportPivotedData,
                 attachmentDownloadName: body.attachmentDownloadName,
                 conditionalFormattings: body.conditionalFormattings,
+                showColumnTotals: body.showColumnTotals,
             });
 
         return {

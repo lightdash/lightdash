@@ -10,6 +10,16 @@ import {
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel';
+import { record } from './flagCheckAggregator';
+
+vi.mock('./flagCheckAggregator', async (importOriginal) => {
+    const original =
+        await importOriginal<typeof import('./flagCheckAggregator')>();
+    return {
+        ...original,
+        record: vi.fn<typeof original.record>(),
+    };
+});
 
 // Minimal stub — tests below don't exercise the database layer
 const databaseStub = {} as Knex;
@@ -85,7 +95,114 @@ const buildFakeDatabase = (rows: FakeRows): Knex => {
     return ((table: string) => makeBuilder(table)) as unknown as Knex;
 };
 
+// Fake Knex for the override-write path: serves org-override reads from a
+// queue (first read = existence check, second = post-conflict re-read) and
+// records inserts. `overrideInsertConflicts` simulates a concurrent insert by
+// making the override insert return no rows.
+const buildFakeWriteDatabase = ({
+    overrideReadResults = [],
+    overrideInsertConflicts = false,
+}: {
+    overrideReadResults?: (Partial<DbFeatureFlagOverride> | undefined)[];
+    overrideInsertConflicts?: boolean;
+}) => {
+    const flagInserts: Record<string, unknown>[] = [];
+    const overrideInserts: Record<string, unknown>[] = [];
+    let readIndex = 0;
+    const makeBuilder = (table: string) => {
+        const builder = {
+            where: () => builder,
+            whereNull: () => builder,
+            first: () => {
+                if (table === FeatureFlagOverridesTableName) {
+                    const result = overrideReadResults[readIndex];
+                    readIndex += 1;
+                    return Promise.resolve(result);
+                }
+                return Promise.resolve(undefined);
+            },
+            insert: (values: Record<string, unknown>) => {
+                if (table === FeatureFlagsTableName) {
+                    flagInserts.push(values);
+                } else {
+                    overrideInserts.push(values);
+                }
+                return builder;
+            },
+            onConflict: () => builder,
+            ignore: () => builder,
+            returning: () =>
+                Promise.resolve(
+                    overrideInsertConflicts
+                        ? []
+                        : [{ feature_flag_override_id: 1 }],
+                ),
+        };
+        return builder;
+    };
+    const database = Object.assign((table: string) => makeBuilder(table), {
+        raw: (sql: string) => sql,
+    }) as unknown as Knex;
+    return { database, flagInserts, overrideInserts };
+};
+
 describe('FeatureFlagModel', () => {
+    describe('check telemetry', () => {
+        beforeEach(() => {
+            vi.mocked(record).mockReset();
+        });
+
+        it('records the resolved value and organization', async () => {
+            const model = buildModel({
+                enabledFeatureFlags: new Set(['telemetry-flag']),
+            });
+
+            await expect(
+                model.get({
+                    featureFlagId: 'telemetry-flag',
+                    user: {
+                        userUuid: VALID_USER_UUID,
+                        organizationUuid: 'org-uuid',
+                    },
+                }),
+            ).resolves.toEqual({ id: 'telemetry-flag', enabled: true });
+
+            expect(vi.mocked(record)).toHaveBeenCalledWith(
+                'telemetry-flag',
+                'org-uuid',
+                true,
+            );
+        });
+
+        it('does not record when the caller opts out', async () => {
+            const model = buildModel({
+                enabledFeatureFlags: new Set(['telemetry-flag']),
+            });
+
+            await model.get(
+                { featureFlagId: 'telemetry-flag' },
+                { recordCheck: false },
+            );
+
+            expect(vi.mocked(record)).not.toHaveBeenCalled();
+        });
+
+        it('does not break resolution when recording throws', async () => {
+            vi.mocked(record).mockImplementationOnce(() => {
+                throw new Error('telemetry failure');
+            });
+            const model = buildModel({
+                disabledFeatureFlags: new Set(['telemetry-flag']),
+            });
+
+            await expect(
+                model.get({
+                    featureFlagId: 'telemetry-flag',
+                }),
+            ).resolves.toEqual({ id: 'telemetry-flag', enabled: false });
+        });
+    });
+
     describe('env var override', () => {
         it('returns enabled for any flag listed in LIGHTDASH_ENABLE_FEATURE_FLAGS', async () => {
             const model = buildModel({
@@ -175,6 +292,135 @@ describe('FeatureFlagModel', () => {
 
             const result = await model.get({
                 featureFlagId: FeatureFlags.UserGroupsEnabled,
+            });
+
+            expect(result.enabled).toBe(true);
+        });
+    });
+
+    describe('preview environment defaults', () => {
+        const previewConfig = { previewFeatureFlags: { enabled: true } };
+
+        it('enables flags in the preview set ahead of config handlers', async () => {
+            const model = buildModel({
+                ...previewConfig,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    enabled: false,
+                },
+            });
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableDataApps,
+            });
+
+            expect(result.enabled).toBe(true);
+        });
+
+        it('leaves excluded flags to the normal resolution order', async () => {
+            const model = buildModel(
+                previewConfig,
+                buildFakeDatabase({ flag: { default_enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.OrganizationTrialBlock,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('respects the disable-allowlist over the preview default', async () => {
+            const model = buildModel({
+                ...previewConfig,
+                disabledFeatureFlags: new Set([FeatureFlags.EnableDataApps]),
+            });
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableDataApps,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('keeps the disable-allowlist absolute against a stored override', async () => {
+            const model = buildModel(
+                {
+                    ...previewConfig,
+                    disabledFeatureFlags: new Set([
+                        FeatureFlags.EnableDataApps,
+                    ]),
+                },
+                buildFakeDatabase({ orgOverride: { enabled: true } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableDataApps,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('leaves config-derived flags to their handler', async () => {
+            // ai-copilot, results-cache-enabled and enable-timezone-support are
+            // excluded so previews never advertise unconfigured backends.
+            const model = buildModel({
+                ...previewConfig,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheEnabled: false,
+                },
+            });
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.ResultsCacheEnabled,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('lets a stored organization override win over the preview default', async () => {
+            const model = buildModel(
+                previewConfig,
+                buildFakeDatabase({ orgOverride: { enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableDataApps,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('lets a stored organization override win over the enable-allowlist', async () => {
+            const model = buildModel(
+                {
+                    ...previewConfig,
+                    enabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]),
+                },
+                buildFakeDatabase({ orgOverride: { enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EditYamlInUi,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('ignores stored overrides outside preview environments', async () => {
+            const model = buildModel(
+                { enabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]) },
+                buildFakeDatabase({ orgOverride: { enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EditYamlInUi,
+                user: dbUser,
             });
 
             expect(result.enabled).toBe(true);
@@ -331,6 +577,135 @@ describe('FeatureFlagModel', () => {
         });
     });
 
+    describe('EnableTimezoneSupport defaults to on', () => {
+        const withTimezoneSupport = (enableTimezoneSupport: boolean) => ({
+            query: { ...lightdashConfigMock.query, enableTimezoneSupport },
+        });
+
+        it('is enabled when neither config nor database has an opinion', async () => {
+            const model = buildModel({}, buildFakeDatabase({}));
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.EnableTimezoneSupport,
+                enabled: true,
+            });
+        });
+
+        it('is disabled by an organization override', async () => {
+            const model = buildModel(
+                {},
+                buildFakeDatabase({
+                    flag: { default_enabled: null },
+                    orgOverride: { enabled: false },
+                }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('is disabled by LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=false, ignoring the database', async () => {
+            const model = buildModel(
+                withTimezoneSupport(false),
+                buildFakeDatabase({ flag: { default_enabled: true } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('stays enabled when LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true, ignoring the database', async () => {
+            const model = buildModel(
+                withTimezoneSupport(true),
+                buildFakeDatabase({ orgOverride: { enabled: false } }),
+            );
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: dbUser,
+            });
+
+            expect(result.enabled).toBe(true);
+        });
+    });
+
+    describe('ensureOrganizationOverrideEnabled', () => {
+        const FLAG_ID = 'homepage-builder';
+        const ORG_UUID = 'org-uuid';
+
+        it('inserts an enabled override and the flag row when none exist', async () => {
+            const fake = buildFakeWriteDatabase({
+                overrideReadResults: [undefined],
+            });
+            const model = buildModel({}, fake.database);
+
+            await expect(
+                model.ensureOrganizationOverrideEnabled(FLAG_ID, ORG_UUID),
+            ).resolves.toBe('enabled');
+            expect(fake.flagInserts).toEqual([
+                { flag_id: FLAG_ID, default_enabled: null },
+            ]);
+            expect(fake.overrideInserts).toEqual([
+                {
+                    flag_id: FLAG_ID,
+                    organization_uuid: ORG_UUID,
+                    enabled: true,
+                },
+            ]);
+        });
+
+        it('leaves an existing enabled override untouched', async () => {
+            const fake = buildFakeWriteDatabase({
+                overrideReadResults: [{ enabled: true }],
+            });
+            const model = buildModel({}, fake.database);
+
+            await expect(
+                model.ensureOrganizationOverrideEnabled(FLAG_ID, ORG_UUID),
+            ).resolves.toBe('already_enabled');
+            expect(fake.flagInserts).toEqual([]);
+            expect(fake.overrideInserts).toEqual([]);
+        });
+
+        it('never flips an explicit disabled override back on', async () => {
+            const fake = buildFakeWriteDatabase({
+                overrideReadResults: [{ enabled: false }],
+            });
+            const model = buildModel({}, fake.database);
+
+            await expect(
+                model.ensureOrganizationOverrideEnabled(FLAG_ID, ORG_UUID),
+            ).resolves.toBe('kept_disabled');
+            expect(fake.flagInserts).toEqual([]);
+            expect(fake.overrideInserts).toEqual([]);
+        });
+
+        it('re-reads the override when a concurrent insert wins', async () => {
+            const fake = buildFakeWriteDatabase({
+                overrideReadResults: [undefined, { enabled: false }],
+                overrideInsertConflicts: true,
+            });
+            const model = buildModel({}, fake.database);
+
+            await expect(
+                model.ensureOrganizationOverrideEnabled(FLAG_ID, ORG_UUID),
+            ).resolves.toBe('kept_disabled');
+        });
+    });
+
     describe('database error resilience', () => {
         // Reproduces the embed-account regression: a non-UUID userUuid
         // (e.g. `external::…`) makes Postgres throw 22P02 on the override
@@ -348,6 +723,7 @@ describe('FeatureFlagModel', () => {
         });
 
         it('does not throw when EnableTimezoneSupport DB lookup fails', async () => {
+            // Falls back to the default (on) rather than propagating.
             const model = buildModel({}, throwingDatabase);
 
             const result = await model.get({
@@ -360,7 +736,7 @@ describe('FeatureFlagModel', () => {
 
             expect(result).toEqual({
                 id: FeatureFlags.EnableTimezoneSupport,
-                enabled: false,
+                enabled: true,
             });
             expect(warnSpy).toHaveBeenCalled();
         });

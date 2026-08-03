@@ -156,6 +156,7 @@ interface ServiceManifest {
     aiWritebackService: unknown;
     aiDeepResearchService: unknown;
     aiAgentMemoryService: unknown;
+    homepageRecommendedActionSkipsService: unknown;
     onboardingAgentService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
@@ -1195,6 +1196,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
+                    appModel: this.models.getAppModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
                     schedulerModel: this.models.getSchedulerModel(),
@@ -1452,6 +1454,12 @@ export class ServiceRepository
         return this.getService('projectHomepageService');
     }
 
+    public getHomepageRecommendedActionSkipsService<
+        HomepageRecommendedActionSkipsServiceImplT,
+    >(): HomepageRecommendedActionSkipsServiceImplT {
+        return this.getService('homepageRecommendedActionSkipsService');
+    }
+
     public getAiAgentCoderService<
         AiAgentCoderServiceImplT,
     >(): AiAgentCoderServiceImplT {
@@ -1514,6 +1522,7 @@ export class ServiceRepository
             () =>
                 new RolesService({
                     lightdashConfig: this.context.lightdashConfig,
+                    licenseService: this.getLicenseService(),
                     analytics: this.context.lightdashAnalytics,
                     rolesModel: this.models.getRolesModel(),
                     userModel: this.models.getUserModel(),

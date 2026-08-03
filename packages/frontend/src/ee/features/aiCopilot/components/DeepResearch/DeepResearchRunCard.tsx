@@ -21,17 +21,37 @@ import {
     IconPlugConnected,
     IconTelescope,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import {
+    useEffect,
+    useState,
+    type AnchorHTMLAttributes,
+    type FC,
+    type ReactNode,
+} from 'react';
+import { type StreamdownProps } from 'streamdown';
+import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
-    DEEP_RESEARCH_DEPTH_CONFIG,
     getDeepResearchReportPreview,
     isDeepResearchRunTerminal,
 } from '../../deepResearch/runProgress';
 import { type DeepResearchRunView } from '../../deepResearch/types';
-import { useCancelDeepResearchMutation } from '../../hooks/useDeepResearch';
+import {
+    useCancelDeepResearchMutation,
+    useTrackDeepResearchReportEngagement,
+} from '../../hooks/useDeepResearch';
 import { DeepResearchReport } from './DeepResearchReport';
 import styles from './DeepResearchRunCard.module.css';
+
+const PreviewLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
+    children,
+}) => <span>{children as ReactNode}</span>;
+
+const PREVIEW_MARKDOWN_COMPONENTS: StreamdownProps['components'] = {
+    a: PreviewLink as unknown as NonNullable<
+        StreamdownProps['components']
+    >['a'],
+};
 
 const STATUS_CONFIG: Record<
     DeepResearchRunView['status'],
@@ -101,6 +121,8 @@ const useElapsedMs = (run: DeepResearchRunView, isTerminal: boolean) => {
 type Props = {
     run: DeepResearchRunView;
     projectUuid: string;
+    canRunAgain?: boolean;
+    onRunAgain?: () => void;
     onReconnect?: (integrationName?: string) => void;
     onContinueWithoutSource?: (integrationName?: string) => void;
 };
@@ -108,6 +130,8 @@ type Props = {
 export const DeepResearchRunCard = ({
     run,
     projectUuid,
+    canRunAgain = false,
+    onRunAgain,
     onReconnect,
     onContinueWithoutSource,
 }: Props) => {
@@ -115,6 +139,7 @@ export const DeepResearchRunCard = ({
     const cancelMutation = useCancelDeepResearchMutation(projectUuid, run.uuid);
     const [isActivityOpen, setIsActivityOpen] = useState(false);
     const [isReportOpen, setIsReportOpen] = useState(false);
+    const trackReportEngagement = useTrackDeepResearchReportEngagement();
     const [announcedStatus, setAnnouncedStatus] = useState(run.status);
 
     useEffect(() => {
@@ -124,6 +149,7 @@ export const DeepResearchRunCard = ({
     }, [announcedStatus, run.status]);
 
     const hasReport = !!run.resultMarkdown;
+    const isReportExpired = run.isReportExpired;
     const isTerminal = isDeepResearchRunTerminal(run.status);
     const elapsedMs = useElapsedMs(run, isTerminal);
     const isActionRequired = !!run.actionRequired;
@@ -155,25 +181,14 @@ export const DeepResearchRunCard = ({
                                 >
                                     Deep research
                                 </Text>
-                                <Badge
-                                    size="xs"
-                                    variant="light"
-                                    color="gray"
-                                    tt="none"
-                                >
-                                    {
-                                        DEEP_RESEARCH_DEPTH_CONFIG[run.depth]
-                                            .label
-                                    }
-                                </Badge>
                             </Group>
                             <Text fw={600}>{run.question}</Text>
                         </Stack>
                     </Group>
                     <Badge
+                        className={styles.statusBadge}
                         color={status.color}
                         variant="light"
-                        style={{ flexShrink: 0 }}
                     >
                         {status.label}
                     </Badge>
@@ -293,11 +308,38 @@ export const DeepResearchRunCard = ({
                     </Alert>
                 )}
 
-                {run.status === 'partially_completed' && (
+                {run.status === 'partially_completed' && !isReportExpired && (
                     <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
                         The report is incomplete, but all validated findings and
                         completed queries have been preserved.
                     </Alert>
+                )}
+
+                {isReportExpired && (
+                    <Paper variant="dotted" p="md" radius="sm">
+                        <Stack gap="xs">
+                            <Text size="sm" fw={600}>
+                                This Deep research report expired after 30 days.
+                            </Text>
+                            <Text size="sm">{run.question}</Text>
+                            {run.completedAt && (
+                                <Text size="xs" c="dimmed">
+                                    Completed{' '}
+                                    {new Date(
+                                        run.completedAt,
+                                    ).toLocaleDateString()}
+                                </Text>
+                            )}
+                            <Button
+                                size="xs"
+                                w="fit-content"
+                                disabled={!canRunAgain || !onRunAgain}
+                                onClick={onRunAgain}
+                            >
+                                Run again
+                            </Button>
+                        </Stack>
+                    </Paper>
                 )}
 
                 {hasReport && (
@@ -313,18 +355,39 @@ export const DeepResearchRunCard = ({
                                     Executive answer
                                 </Text>
                             </Group>
-                            <Text size="sm" lineClamp={5}>
-                                {run.resultMarkdown
-                                    ? getDeepResearchReportPreview(
-                                          run.resultMarkdown,
-                                      )
-                                    : null}
-                            </Text>
+                            {run.resultMarkdown && (
+                                <AiMarkdown
+                                    className={styles.answerPreview}
+                                    components={PREVIEW_MARKDOWN_COMPONENTS}
+                                >
+                                    {getDeepResearchReportPreview(
+                                        run.resultMarkdown,
+                                    )}
+                                </AiMarkdown>
+                            )}
                             <Button
                                 variant="light"
                                 size="xs"
                                 w="fit-content"
-                                onClick={() => setIsReportOpen(true)}
+                                onClick={() => {
+                                    if (
+                                        run.status === 'completed' ||
+                                        run.status === 'partially_completed' ||
+                                        run.status === 'failed' ||
+                                        run.status === 'cancelled'
+                                    ) {
+                                        trackReportEngagement('opened', {
+                                            aiDeepResearchRunUuid: run.uuid,
+                                            projectUuid: run.projectUuid,
+                                            agentUuid: run.agentUuid,
+                                            aiThreadUuid: run.threadUuid,
+                                            status: run.status,
+                                            completedAt: run.completedAt,
+                                            updatedAt: run.updatedAt,
+                                        });
+                                    }
+                                    setIsReportOpen(true);
+                                }}
                             >
                                 Open full report
                             </Button>

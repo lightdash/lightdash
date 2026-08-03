@@ -128,6 +128,32 @@ describe('TrinoWarehouseClient', () => {
             );
         });
 
+        it('coerces non-string tag values instead of throwing', async () => {
+            const warehouse = new TrinoWarehouseClient(credentials);
+            queryResultMock.mockReturnValue({
+                next: vi
+                    .fn()
+                    .mockResolvedValue({ done: true, value: queryResponse }),
+            });
+
+            // graphile-worker job ids arrive as BigInt at runtime despite the
+            // Record<string, string> type (global pg INT8 parser override)
+            await warehouse.runQuery('SELECT 1', {
+                job_id: BigInt(4482031),
+                query_context:
+                    QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+            } as unknown as Record<string, string>);
+
+            expect(queryResultMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    extraHeaders: {
+                        'X-Trino-Client-Tags':
+                            'job_id=4482031,query_context=scheduledGsheetsDashboard',
+                    },
+                }),
+            );
+        });
+
         it('sends query as plain string (no extraHeaders) when no tags are provided', async () => {
             const warehouse = new TrinoWarehouseClient(credentials);
             queryResultMock.mockReturnValue({

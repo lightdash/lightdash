@@ -27,7 +27,7 @@ const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
         return (
             <ReactQueryProvider>
                 <MantineProvider>
-                    <Mantine8Provider>
+                    <Mantine8Provider env="test">
                         <AppProviderMock mocks={appMocks}>
                             <TrackingProvider>{children}</TrackingProvider>
                         </AppProviderMock>

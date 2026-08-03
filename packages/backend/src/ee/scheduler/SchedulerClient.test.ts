@@ -76,3 +76,32 @@ describe('CommercialSchedulerClient.aiAgentMemoryDistill', () => {
         );
     });
 });
+
+describe('CommercialSchedulerClient.aiAgentMemoryConsolidatePartition', () => {
+    it('enqueues one keyed attempt per partition on the project queue', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'system',
+            ownerUserUuid: 'owner-1',
+        };
+
+        await client.aiAgentMemoryConsolidatePartition(payload);
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.CONSOLIDATE_AI_AGENT_MEMORY_PARTITION,
+            payload,
+            expect.objectContaining({
+                maxAttempts: 1,
+                jobKey: 'ai-agent-memory-consolidate:project-1:owner-1',
+                queueName: 'ai-agent-memory-consolidate:project-1',
+                priority: JobPriority.LOW,
+            }),
+        );
+    });
+});

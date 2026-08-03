@@ -147,6 +147,38 @@ describe('getSystemPromptV2 knowledge documents', () => {
     });
 });
 
+describe('getSystemPromptV2 Deep Research context', () => {
+    test('includes bounded status metadata and on-demand report guidance', () => {
+        const content = promptText({
+            availableExplores: [],
+            deepResearchRuns: [
+                {
+                    uuid: 'run-1',
+                    question: 'Why did <revenue> fall?',
+                    status: 'running',
+                    phase: 'investigating',
+                    activity: 'warehouse_query',
+                    progressCurrent: 2,
+                    progressTotal: 5,
+                    startedAt: '2026-07-29T10:00:00.000Z',
+                    elapsedSeconds: 90,
+                    hasReport: false,
+                },
+            ],
+        });
+
+        expect(content).toContain('## Deep Research in this conversation');
+        expect(content).toContain('status="running"');
+        expect(content).toContain('phase="investigating"');
+        expect(content).toContain('progress_current="2"');
+        expect(content).toContain('progress_total="5"');
+        expect(content).toContain('elapsed_seconds="90"');
+        expect(content).toContain('Why did &lt;revenue&gt; fall?');
+        expect(content).toContain('getKnowledgeDocumentContent');
+        expect(content).toContain('implicitly start a duplicate run');
+    });
+});
+
 describe('getSystemPromptV2 requesting user', () => {
     test('renders identity and non-technical guidance for a viewer', () => {
         const content = promptText({
@@ -274,6 +306,48 @@ describe('getSystemPromptV2 MCP connections', () => {
         expect(content).toContain(
             'Linear MCP connection is setup, but the current user is not logged in',
         );
+    });
+
+    test('lists attached servers and live tool names without definitions', () => {
+        const content = promptText({
+            availableExplores: [],
+            mcpServers: [
+                {
+                    name: 'Linear',
+                    toolNames: [
+                        'mcp_linear__search_issues',
+                        'mcp_linear__get_issue',
+                    ],
+                },
+                { name: 'Slack', toolNames: ['mcp_slack__search'] },
+            ],
+        });
+
+        expect(content).toContain('## MCP tools');
+        expect(content).toContain(
+            '- Linear: mcp_linear__get_issue, mcp_linear__search_issues',
+        );
+        expect(content).toContain('- Slack: mcp_slack__search');
+        expect(content).toContain('loadMcpTools');
+        expect(content).not.toContain('inputSchema');
+    });
+
+    test('omits MCP tool guidance when no servers are attached', () => {
+        const content = promptText({ availableExplores: [], mcpServers: [] });
+
+        expect(content).not.toContain('## MCP tools');
+        expect(content).not.toContain('loadMcpTools');
+    });
+
+    test('lists attached servers without loader guidance when no tools are live', () => {
+        const content = promptText({
+            availableExplores: [],
+            mcpServers: [{ name: 'Linear', toolNames: [] }],
+        });
+
+        expect(content).toContain('## MCP tools');
+        expect(content).toContain('- Linear: (no tools available)');
+        expect(content).not.toContain('loadMcpTools');
     });
 });
 

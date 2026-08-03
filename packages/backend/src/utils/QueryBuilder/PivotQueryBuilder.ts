@@ -499,13 +499,19 @@ export class PivotQueryBuilder {
                   })
                 : [];
 
+        const dedupedDimensions = Array.from(new Set(groupBySelectDimensions));
+
+        // With no dimensions at all the values collapse to a single aggregate
+        // row, so there is nothing to group by (big number charts).
+        const groupBy = dedupedDimensions.length
+            ? ` group by ${dedupedDimensions.join(', ')}`
+            : '';
+
         return `SELECT ${[
-            ...new Set(groupBySelectDimensions), // Remove duplicate columns
+            ...dedupedDimensions,
             ...groupBySelectMetrics,
             ...implicitMetricSelects,
-        ].join(', ')} FROM original_query group by ${Array.from(
-            new Set(groupBySelectDimensions),
-        ).join(', ')}`;
+        ].join(', ')} FROM original_query${groupBy}`;
     }
 
     /**

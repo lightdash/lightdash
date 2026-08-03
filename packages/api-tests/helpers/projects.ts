@@ -132,14 +132,16 @@ export type WarehouseTestEntry = {
 
 /**
  * The warehouses whose credentials are currently available, ready to drive a
- * parameterized suite. Postgres is always included (seeded locally) unless
- * `includePostgres: false` — pass that when a suite already covers Postgres via
- * the seed project.
+ * parameterized suite. Postgres and Databricks are included by default and can
+ * be excluded per suite through options.
  */
 export function getAvailableWarehouseConfigs(
-    options: { includePostgres?: boolean } = {},
+    options: {
+        includePostgres?: boolean;
+        includeDatabricks?: boolean;
+    } = {},
 ): WarehouseTestEntry[] {
-    const { includePostgres = true } = options;
+    const { includePostgres = true, includeDatabricks = true } = options;
     const entries: WarehouseTestEntry[] = [];
     if (includePostgres) {
         entries.push({ name: 'postgres', config: postgresWarehouseConfig() });
@@ -150,7 +152,7 @@ export function getAvailableWarehouseConfigs(
     if (hasBigqueryCredentials()) {
         entries.push({ name: 'bigquery', config: bigqueryWarehouseConfig() });
     }
-    if (hasDatabricksCredentials()) {
+    if (includeDatabricks && hasDatabricksCredentials()) {
         entries.push({
             name: 'databricks',
             config: databricksWarehouseConfig(),

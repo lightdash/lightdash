@@ -79,7 +79,17 @@ export type DashboardHeadingTileAsCode = DashboardTileAsCodeBase & {
 
 export type DashboardDataAppTileAsCode = DashboardTileAsCodeBase & {
     type: DashboardTileTypes.DATA_APP;
-    properties: DashboardDataAppTileProperties['properties'];
+    properties: Pick<
+        DashboardDataAppTileProperties['properties'],
+        'title' | 'hideTitle'
+    > & {
+        /** Portable project-scoped reference written by download. */
+        appSlug?: string | null;
+        /** Legacy project-local reference. Accepted on upload, never written by download. */
+        appUuid?: string;
+        /** Legacy read-only deletion marker. Ignored on upload, never written by download. */
+        appDeletedAt?: string | null;
+    };
 };
 
 export type DashboardTileAsCode =
@@ -167,7 +177,12 @@ export type ApiDashboardAsCodeListResponse = {
         offset: number;
     };
 };
+export type DashboardAsCodeUpsertResult = PromotionChanges & {
+    /** Non-fatal issues, e.g. a data app tile whose app is not in this project. */
+    warnings?: string[];
+};
+
 export type ApiDashboardAsCodeUpsertResponse = {
     status: 'ok';
-    results: PromotionChanges;
+    results: DashboardAsCodeUpsertResult;
 };

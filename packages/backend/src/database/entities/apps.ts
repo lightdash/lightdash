@@ -3,6 +3,7 @@ import {
     type AppVersionResources,
     type AppVersionStatus,
     type AppVersionStatusHistoryEntry,
+    type DataAppGenerationUsage,
     type DataAppTemplate,
     type DataAppVizSchema,
 } from '@lightdash/common';
@@ -94,8 +95,34 @@ export type DbAppVersion = {
     dependencies: AppVersionDependencies | null;
     // Declared schema for data-app-viz versions; null otherwise.
     viz_schema: DataAppVizSchema | null;
+    // Token/cost spend for this version's generation. Null when the version
+    // predates spend recording or never called the model.
+    generation_usage: DataAppGenerationUsage | null;
     created_at: Date;
     created_by_user_uuid: string;
+};
+
+/**
+ * One row of the org-wide generation activity log: an `app_versions` row joined
+ * to its app and project, plus the author's name.
+ */
+export type DbAppActivityRow = Pick<
+    DbAppVersion,
+    | 'app_id'
+    | 'version'
+    | 'prompt'
+    | 'status'
+    | 'resources'
+    | 'generation_usage'
+    | 'created_at'
+    | 'created_by_user_uuid'
+> & {
+    app_name: string;
+    app_deleted_at: Date | null;
+    project_uuid: string;
+    project_name: string;
+    created_by_user_first_name: string | null;
+    created_by_user_last_name: string | null;
 };
 
 export type AppVersionsTable = Knex.CompositeTableType<
@@ -119,6 +146,7 @@ export type AppVersionsTable = Knex.CompositeTableType<
             | 'status_history'
             | 'status_updated_at'
             | 'viz_schema'
+            | 'generation_usage'
         >
     >
 >;

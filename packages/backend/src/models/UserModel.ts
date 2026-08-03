@@ -222,7 +222,7 @@ export class UserModel {
         const cacheKey = `${userUuid}::${organizationUuid}`;
         // Try to get from cache first
         const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
-        if (cachedUser) {
+        if (cachedUser?.isSetupComplete) {
             // Return cached user
             return { sessionUser: cachedUser, cacheHit: true };
         }
@@ -232,7 +232,9 @@ export class UserModel {
             organizationUuid,
         );
         // Store in cache
-        sessionUserCache?.set(cacheKey, sessionUser);
+        if (sessionUser.isSetupComplete) {
+            sessionUserCache?.set(cacheKey, sessionUser);
+        }
         return { sessionUser, cacheHit: false };
     }
 
@@ -395,6 +397,23 @@ export class UserModel {
         return results.length > 0;
     }
 
+    async getIsTrackingAnonymizedByUserUuids(
+        userUuids: string[],
+    ): Promise<Record<string, boolean>> {
+        if (userUuids.length === 0) {
+            return {};
+        }
+        const users = await this.database(UserTableName)
+            .whereIn('user_uuid', userUuids)
+            .select<Pick<DbUser, 'user_uuid' | 'is_tracking_anonymized'>[]>(
+                'user_uuid',
+                'is_tracking_anonymized',
+            );
+        return Object.fromEntries(
+            users.map((user) => [user.user_uuid, user.is_tracking_anonymized]),
+        );
+    }
+
     async getUserDetailsByUuid(userUuid: string): Promise<LightdashUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
@@ -529,6 +548,7 @@ export class UserModel {
             isActive,
             timezone,
             avatarGradient,
+            howDidYouHearAboutUs,
         }: Partial<UpdateUserArgs>,
         isEmailVerified: boolean = false,
     ): Promise<LightdashUser> {
@@ -546,6 +566,7 @@ export class UserModel {
                         : false,
                     timezone,
                     avatar_gradient: avatarGradient,
+                    how_did_you_hear_about_us: howDidYouHearAboutUs,
                     updated_at: new Date(),
                 })
                 .returning('*');

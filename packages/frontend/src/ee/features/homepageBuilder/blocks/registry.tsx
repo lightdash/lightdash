@@ -10,6 +10,7 @@ import {
     IconSpeakerphone,
     IconStar,
     type Icon,
+    IconSun,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,6 +21,7 @@ import {
 import { AskAiHeroBlockBuild, AskAiHeroBlockView } from './AskAiHeroBlock';
 import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
+import { GreetingBlockBuild, GreetingBlockView } from './GreetingBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
 import { MetricsBlockBuild, MetricsBlockView } from './MetricsBlock';
 import { getDefaultQuickActions } from './quickActionDefaults';
@@ -39,6 +41,8 @@ export type BlockDefinition = {
     requiresAi?: boolean;
     /** Can only be added once per homepage. */
     singleton?: boolean;
+    /** Renders per-viewer content, so admin previews show a placeholder. */
+    personal?: boolean;
     create: () => HomepageBlock;
     View: FC<BlockComponentProps>;
     Build: FC<BuildComponentProps>;
@@ -61,6 +65,21 @@ export const blockLibrary: BlockDefinition[] = [
         Build: AskAiHeroBlockBuild,
     },
     {
+        type: 'greeting',
+        label: 'Greeting',
+        description: 'A time-of-day welcome, personalised per viewer.',
+        icon: IconSun,
+        create: () => ({
+            id: uuidv4(),
+            type: 'greeting',
+            config: {
+                subtitle: 'Pick up where you left off, or start something new.',
+            },
+        }),
+        View: GreetingBlockView,
+        Build: GreetingBlockBuild,
+    },
+    {
         type: 'quick-actions',
         label: 'Quick actions',
         description: 'Primary CTA cards — tailor the main action per audience.',
@@ -68,7 +87,7 @@ export const blockLibrary: BlockDefinition[] = [
         create: () => ({
             id: uuidv4(),
             type: 'quick-actions',
-            config: { actions: getDefaultQuickActions(true) },
+            config: { actions: getDefaultQuickActions() },
         }),
         View: QuickActionsBlockView,
         Build: QuickActionsBlockBuild,
@@ -134,6 +153,7 @@ export const blockLibrary: BlockDefinition[] = [
         label: 'Favorites',
         description: 'Each viewer’s starred content, only visible to them.',
         icon: IconStar,
+        personal: true,
         create: () => ({
             id: uuidv4(),
             type: 'favorites',
@@ -148,6 +168,7 @@ export const blockLibrary: BlockDefinition[] = [
         description: 'Each viewer’s recently opened charts and dashboards.',
         icon: IconClock,
         singleton: true,
+        personal: true,
         create: () => ({
             id: uuidv4(),
             type: 'recent',

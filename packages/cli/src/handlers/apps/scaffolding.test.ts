@@ -3,6 +3,7 @@ import { tmpdir } from 'os';
 import {
     buildStaticAuthoringFiles,
     firstExistingDir,
+    loadVendoredStarterSource,
     rewriteWorkspaceDeps,
 } from './scaffolding';
 
@@ -65,13 +66,14 @@ describe('buildStaticAuthoringFiles', () => {
     const text = (p: string) =>
         Buffer.from(byPath(p)!.contentBase64, 'base64').toString('utf-8');
 
-    it('ships both skills', () => {
-        expect(
-            byPath('.claude/skills/lightdash-data-app/SKILL.md'),
-        ).toBeDefined();
-        expect(
-            byPath('.claude/skills/developing-data-apps-locally/SKILL.md'),
-        ).toBeDefined();
+    it.each([
+        'lightdash-data-app',
+        'developing-data-apps-locally',
+        'frontend-design',
+        'reusable-visualization',
+        'sdk-features',
+    ])('ships the %s skill', (skill) => {
+        expect(byPath(`.claude/skills/${skill}/SKILL.md`)).toBeDefined();
     });
 
     it('pins the SDK to a concrete version in package.json', () => {
@@ -86,7 +88,35 @@ describe('buildStaticAuthoringFiles', () => {
         expect(text('.gitignore')).toContain('node_modules');
     });
 
+    it('uses npm for the standard local workflow', () => {
+        expect(text('README.md')).toContain('run `npm install` first');
+        expect(text('AGENTS.md')).toContain('npm install && npm run build');
+        expect(
+            text('.claude/skills/developing-data-apps-locally/SKILL.md'),
+        ).toContain('run `npm install` first');
+        expect(text('.npmrc')).toContain('ignore-scripts=true');
+        expect(text('.npmrc')).not.toContain('shamefully-hoist');
+    });
+
     it('never writes app source (no src/ files)', () => {
         expect(files.every((f) => !f.path.startsWith('src/'))).toBe(true);
+    });
+});
+
+describe('loadVendoredStarterSource', () => {
+    const files = loadVendoredStarterSource();
+
+    it('loads the starter app source with bundle-relative paths', () => {
+        expect(files.map((file) => file.path)).toEqual(
+            expect.arrayContaining([
+                'src/App.jsx',
+                'src/main.jsx',
+                'src/index.css',
+            ]),
+        );
+        expect(files.every((file) => file.path.startsWith('src/'))).toBe(true);
+        expect(
+            files.some((file) => file.path.startsWith('src/components/ui/')),
+        ).toBe(false);
     });
 });

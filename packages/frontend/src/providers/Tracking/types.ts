@@ -1,4 +1,5 @@
 import {
+    type AiDeepResearchTerminalStatus,
     type CustomFormatType,
     type HomepageRecommendedActionKey,
     type SearchItemType,
@@ -7,6 +8,7 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
+import { type PlaygroundSetupFailure } from '../../components/ProjectConnection/ProjectConnectFlow/playgroundSetupFailure';
 import {
     type CategoryName,
     type EventName,
@@ -76,8 +78,6 @@ type GenericEvent = {
         | EventName.METRICS_CATALOG_TREES_EDGE_REMOVED
         | EventName.METRICS_CATALOG_TREES_CANVAS_MODE_CLICKED
         | EventName.BIGQUERY_SSO_SIGNIN_CLICKED
-        | EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED
-        | EventName.PLAYGROUND_PROJECT_ENTERED
         | EventName.AGENT_SETUP_PROMPT_COPIED;
     properties?: {};
 };
@@ -86,6 +86,21 @@ type SetupInviteSentEvent = {
     name: EventName.SETUP_INVITE_SENT;
     properties: {
         organizationId: string;
+    };
+};
+
+type PlaygroundProjectEnteredEvent = {
+    name: EventName.PLAYGROUND_PROJECT_ENTERED;
+    properties: {
+        organizationId: string;
+    };
+};
+
+type PlaygroundProjectSetupFailedEvent = {
+    name: EventName.PLAYGROUND_PROJECT_SETUP_FAILED;
+    properties: {
+        organizationId: string;
+        failureType: PlaygroundSetupFailure;
     };
 };
 
@@ -506,6 +521,21 @@ type AiAgentChatMinimizedEvent = {
     };
 };
 
+type AiDeepResearchReportEngagedEvent = {
+    name: EventName.AI_DEEP_RESEARCH_REPORT_ENGAGED;
+    properties: {
+        action: 'opened' | 'copied' | 'shared' | 'follow_up';
+        organizationId: string;
+        projectId: string;
+        userId: string;
+        runUuid: string;
+        threadId: string;
+        aiAgentId: string;
+        runStatus: AiDeepResearchTerminalStatus;
+        timeSinceCompletedMs: number;
+    };
+};
+
 type AiAgentSuggestionImpressionEvent = {
     name: EventName.AI_AGENT_SUGGESTION_IMPRESSION;
     properties: {
@@ -604,6 +634,7 @@ type CreateProjectButtonClickedEvent = {
         warehouse: WarehouseTypes;
         authenticationType?: string;
         warehouseOnly?: boolean;
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -613,6 +644,7 @@ type CreateProjectFailedEvent = {
         warehouse: WarehouseTypes;
         errorType: string;
         warehouseOnly?: boolean;
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -620,6 +652,7 @@ type SignupFormSubmittedEvent = {
     name: EventName.SIGNUP_FORM_SUBMITTED;
     properties: {
         variant: 'email_only' | 'password';
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -658,6 +691,7 @@ type OnboardingWarehouseSelectedEvent = {
         organizationId: string;
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -668,10 +702,26 @@ type BigquerySsoSigninCompletedEvent = {
     };
 };
 
+type SnowflakeCliSsoCommandCopiedEvent = {
+    name: EventName.SNOWFLAKE_CLI_SSO_COMMAND_COPIED;
+    properties: {
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
+type SnowflakeCliSsoConnectCompletedEvent = {
+    name: EventName.SNOWFLAKE_CLI_SSO_CONNECT_COMPLETED;
+    properties: {
+        success: boolean;
+        onboardingFlow: 'legacy' | 'new';
+    };
+};
+
 type OnboardingProjectReadyStartExploringClickedEvent = {
     name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED;
     properties: {
         projectId: string;
+        onboardingFlow: 'legacy' | 'new';
     };
 };
 
@@ -699,6 +749,14 @@ type HomepageRecommendedActionRestoredEvent = {
     };
 };
 
+type HomepageStarsMediaCardClickedEvent = {
+    name: EventName.HOMEPAGE_STARS_MEDIA_CARD_CLICKED;
+    properties: {
+        cardKey: string;
+        href: string;
+    };
+};
+
 type CreateProjectColumnsDefinedButtonClickedEvent = {
     name: EventName.CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED;
     properties: {
@@ -706,9 +764,50 @@ type CreateProjectColumnsDefinedButtonClickedEvent = {
     };
 };
 
+type AgentOnboardingDemoOfferProperties = {
+    organizationId: string;
+    projectUuid: string;
+    agentOnboardingRunUuid: string;
+    offerType: 'provision_demo' | 'open_existing_demo';
+};
+
+type AgentOnboardingDemoOfferShownEvent = {
+    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_SHOWN;
+    properties: AgentOnboardingDemoOfferProperties;
+};
+
+type AgentOnboardingDemoOfferAcceptedEvent = {
+    name: EventName.AGENT_ONBOARDING_DEMO_OFFER_ACCEPTED;
+    properties: AgentOnboardingDemoOfferProperties & {
+        demoProjectUuid: string | null;
+    };
+};
+
+type AgentOnboardingCompletionToastProperties = {
+    organizationId: string;
+    projectUuid: string;
+    agentOnboardingRunUuid: string;
+};
+
+type AgentOnboardingCompletionToastShownEvent = {
+    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN;
+    properties: AgentOnboardingCompletionToastProperties;
+};
+
+type AgentOnboardingCompletionToastClickedEvent = {
+    name: EventName.AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED;
+    properties: AgentOnboardingCompletionToastProperties;
+};
+
 export type EventData =
     | GenericEvent
+    | AgentOnboardingDemoOfferShownEvent
+    | AgentOnboardingDemoOfferAcceptedEvent
+    | AgentOnboardingCompletionToastShownEvent
+    | AgentOnboardingCompletionToastClickedEvent
     | SetupInviteSentEvent
+    | PlaygroundProjectEnteredEvent
+    | PlaygroundProjectSetupFailedEvent
     | CreateProjectButtonClickedEvent
     | CreateProjectFailedEvent
     | SignupFormSubmittedEvent
@@ -718,10 +817,13 @@ export type EventData =
     | OrganizationBrandDetectedEvent
     | OnboardingWarehouseSelectedEvent
     | BigquerySsoSigninCompletedEvent
+    | SnowflakeCliSsoCommandCopiedEvent
+    | SnowflakeCliSsoConnectCompletedEvent
     | OnboardingProjectReadyStartExploringClickedEvent
     | HomepageAskSubmittedEvent
     | HomepageRecommendedActionImpressionEvent
     | HomepageRecommendedActionRestoredEvent
+    | HomepageStarsMediaCardClickedEvent
     | CreateProjectColumnsDefinedButtonClickedEvent
     | HomepageQuickActionClickedEvent
     | HomepageRecommendedActionClickedEvent
@@ -764,6 +866,7 @@ export type EventData =
     | AiAgentChartExploredEvent
     | AiAgentAskClickedEvent
     | AiAgentChatMinimizedEvent
+    | AiDeepResearchReportEngagedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | ThemeToggledEvent

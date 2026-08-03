@@ -146,6 +146,13 @@
     }
 }
 
+/* Composes with .selectedQueryItem — only adds the anchor for the
+   submit-time LoadingOverlay and a width cap for long filenames. */
+.fileItem {
+    position: relative;
+    max-width: 220px;
+}
+
 .selectedQueryList {
     display: flex;
     flex-direction: row;

@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ChartKind,
     getParameterReferences,
+    isVizBigNumberConfig,
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     isVizTableConfig,
@@ -31,6 +32,7 @@ import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboar
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import BigNumberView from '../DataViz/visualizations/BigNumberView';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import ExportDataModal from './ExportDataModal';
@@ -297,6 +299,10 @@ const SqlChartTile: FC<Props> = ({
         );
     }
 
+    const bigNumberConfig = isVizBigNumberConfig(chartData.config)
+        ? chartData.config
+        : undefined;
+
     // Chart available & results available!
     return (
         <TileBase
@@ -343,6 +349,14 @@ const SqlChartTile: FC<Props> = ({
                         />
                     </Box>
                 )}
+            {bigNumberConfig && (
+                <BigNumberView
+                    spec={chartResultsData.chartSpec}
+                    isLoading={isChartResultsFetching}
+                    error={undefined}
+                    hasValueField={!!bigNumberConfig.fieldConfig?.y?.length}
+                />
+            )}
             {(isVizCartesianChartConfig(chartData.config) ||
                 isVizPieChartConfig(chartData.config)) && (
                 <ChartView

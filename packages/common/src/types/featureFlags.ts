@@ -109,12 +109,8 @@ export enum FeatureFlags {
 
     /**
      * Per-organization gate for declaring custom npm dependencies in data
-     * apps. Layered ON TOP of the instance-level
-     * LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED env var: both must be true to
-     * upload an app with a custom dependency set. Lets cloud enable the
-     * feature for specific orgs without instance-wide exposure. Disabled by
-     * default (self-hosted single-org can enable instance-wide via
-     * LIGHTDASH_ENABLE_FEATURE_FLAGS).
+     * apps. Disabled by default; self-hosted instances can enable it globally
+     * via LIGHTDASH_ENABLE_FEATURE_FLAGS.
      */
     EnableDataAppCustomDependencies = 'enable-data-app-custom-dependencies',
 
@@ -183,12 +179,6 @@ export enum FeatureFlags {
      * if the flag is later turned off.
      */
     LockDashboardFilters = 'lock-dashboard-filters',
-
-    /**
-     * Filter requirement groups + the guided locked-dashboard UX; off = legacy
-     * required-filter behavior and `requiredGroupId` is ignored.
-     */
-    DashboardFilterRequirements = 'dashboard-filter-requirements',
 
     /**
      * Show a persistent trial warning banner for an organization on shared

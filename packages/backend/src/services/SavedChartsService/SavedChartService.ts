@@ -399,6 +399,20 @@ export class SavedChartService
                                   : `${savedChart.chartConfig.config?.spec?.mark}`,
                       }
                     : undefined,
+            dataAppViz:
+                savedChart.chartConfig.type === ChartType.DATA_APP_VIZ &&
+                savedChart.chartConfig.config
+                    ? {
+                          dataAppVizUuid:
+                              savedChart.chartConfig.config.dataAppVizUuid,
+                          mappedFieldCount: Object.keys(
+                              savedChart.chartConfig.config.fieldMapping || {},
+                          ).length,
+                          changedOptionCount: Object.keys(
+                              savedChart.chartConfig.config.optionValues || {},
+                          ).length,
+                      }
+                    : undefined,
             parametersCount: Object.keys(savedChart.parameters || {}).length,
             ...countCustomDimensionsInMetricQuery(savedChart.metricQuery),
             ...SavedChartService.getChartConfigEventProperties(savedChart),
@@ -1553,6 +1567,40 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        if (
+            chartToSave.metricQuery.customDimensions?.some(
+                isCustomSqlDimension,
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with custom SQL dimensions',
+            );
+        }
+
+        if (
+            chartToSave.metricQuery.tableCalculations?.some(
+                isSqlTableCalculation,
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomSqlTableCalculations', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with SQL table calculations',
+            );
+        }
+
         if (!resolvedSpaceUuid && !chartToSave.dashboardUuid) {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
@@ -1711,7 +1759,7 @@ export class SavedChartService
             name: data.chartName,
             description: data.chartDesc,
             updatedByUser: user,
-            slug: generateSlug(`${data.chartName} ${Date.now()}`), // Ensure unique slug for duplicated charts
+            slug: chart.slug,
         };
         if (chart.dashboardUuid) {
             duplicatedChart = {

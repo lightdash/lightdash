@@ -29,7 +29,16 @@ A single flag gates timezone behavior:
 | ----------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `EnableTimezoneSupport` | `LIGHTDASH_ENABLE_TIMEZONE_SUPPORT`   | The whole timezone feature: data-timezone warehouse field + session-TZ setup, the "filter inputs in project TZ" toggle, the user-facing timezone pickers (Profile panel, Explorer chart-level), and per-viewer (user-profile) timezone resolution |
 
-The project timezone setting itself is always available. `resolveQueryTimezone` always honors a chart pinned to `user_timezone` — falling back to the project timezone only when the viewer has no stored profile preference. The `EnableTimezoneSupport` flag gates the surrounding pipeline (warehouse session setup, timezone-aware `DATE_TRUNC`, returning `displayTimezone`), so when the flag is off the resolved zone simply isn't applied to the query. The flag can be toggled per-organization (or per-user) via `feature_flag_overrides` in the database, which takes precedence over the env var, so we can roll out gradually without flipping the global switch.
+The project timezone setting itself is always available. `resolveQueryTimezone` always honors a chart pinned to `user_timezone` — falling back to the project timezone only when the viewer has no stored profile preference. The `EnableTimezoneSupport` flag gates the surrounding pipeline (warehouse session setup, timezone-aware `DATE_TRUNC`, returning `displayTimezone`), so when the flag is off the resolved zone simply isn't applied to the query.
+
+**The flag is on by default.** Resolution order (`FeatureFlagModel`):
+
+1. `LIGHTDASH_DISABLE_FEATURE_FLAGS=enable-timezone-support` — instance-wide kill switch.
+2. `LIGHTDASH_ENABLE_TIMEZONE_SUPPORT` — when set to `true`/`false` it pins the flag instance-wide and the database is not consulted.
+3. `feature_flag_overrides` in the database — per-user override, then per-organization override, then the `feature_flags.default_enabled` row. This is how a single organization is opted out.
+4. No opinion anywhere → **enabled**.
+
+A database lookup failure is swallowed (logged as a warning) and falls through to the default, so an outage leaves the flag on rather than silently changing query semantics for everyone.
 
 ### Data timezone (`dataTimezone`)
 

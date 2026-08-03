@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    type ApiAgentOnboardingActiveRunResponse,
     type ApiAgentOnboardingFileResponse,
     type ApiAgentOnboardingRunResponse,
     type ApiErrorPayload,
@@ -55,6 +56,30 @@ export class OnboardingAgentController extends BaseController {
                 user: toSessionUser(req.account),
                 projectUuid,
             }),
+        };
+    }
+
+    /**
+     * Get the agent onboarding run that is currently queued or running for a
+     * project, if any.
+     * @summary Get active agent onboarding run
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('getActiveAgentOnboardingRun')
+    async getActiveRun(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiAgentOnboardingActiveRunResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getOnboardingAgentService().getActiveRun(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
         };
     }
 

@@ -1,7 +1,7 @@
 import { type ProjectHomepage } from '@lightdash/common';
 import { Card, Radio, Stack, Text, TextInput } from '@mantine-8/core';
 import { IconSquareRoundedPlus } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useCreateHomepage } from './hooks/useProjectHomepage';
 
@@ -24,14 +24,17 @@ export const CreateHomepageModal: FC<Props> = ({
     const [name, setName] = useState('');
     const [startFrom, setStartFrom] = useState('blank');
 
-    // Reset the form each time the modal opens fresh, rather than carrying
-    // over the previous attempt's values.
-    useEffect(() => {
-        if (opened) {
-            setName('');
-            setStartFrom('blank');
-        }
-    }, [opened]);
+    // Reset on close (not via an opened-effect) so the next open starts fresh
+    // without a flash of the previous attempt's values.
+    const resetForm = () => {
+        setName('');
+        setStartFrom('blank');
+    };
+
+    const handleClose = () => {
+        resetForm();
+        onClose();
+    };
 
     const handleCreate = () => {
         const trimmed = name.trim();
@@ -41,14 +44,19 @@ export const CreateHomepageModal: FC<Props> = ({
                 name: trimmed,
                 duplicateFrom: startFrom === 'blank' ? undefined : startFrom,
             },
-            { onSuccess: onCreated },
+            {
+                onSuccess: (homepage) => {
+                    resetForm();
+                    onCreated(homepage);
+                },
+            },
         );
     };
 
     return (
         <MantineModal
             opened={opened}
-            onClose={onClose}
+            onClose={handleClose}
             title="Create a homepage"
             icon={IconSquareRoundedPlus}
             onConfirm={handleCreate}

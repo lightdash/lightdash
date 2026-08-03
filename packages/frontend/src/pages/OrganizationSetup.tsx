@@ -22,12 +22,13 @@ import {
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { zodResolver } from 'mantine-form-zod-resolver';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { type FC, type FormEvent, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import AboutFooter from '../components/AboutFooter';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
+import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useDetectOrganizationBrand,
     useSaveOrganizationBrand,
@@ -105,6 +106,7 @@ const buildBrandColors = (
 type OrganizationSetupFormValues = {
     organizationName: string;
     jobTitle: string;
+    howDidYouHearAboutUs: string;
     enableEmailDomainAccess: boolean;
     isMarketingOptedIn: boolean;
     isTrackingAnonymized: boolean;
@@ -114,15 +116,18 @@ type OrganizationSetupFormValues = {
 type OrganizationSetupContentProps = {
     user: UserWithAbility;
     health: HealthState;
+    organizationHasName: boolean;
     completeMutation: ReturnType<typeof useUserCompleteMutation>;
 };
 
 const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     user,
     health,
+    organizationHasName,
     completeMutation,
 }) => {
-    const canEnterOrganizationName = user.organizationName === '';
+    const canEnterOrganizationName =
+        user.organizationName === '' && !organizationHasName;
     const emailDomain = user.email ? getEmailDomain(user.email) : '';
     const isCompanyDomain =
         !!user.email && !validateOrganizationEmailDomains([emailDomain]);
@@ -136,6 +141,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                     ? inferOrganizationName(emailDomain)
                     : '',
             jobTitle: '',
+            howDidYouHearAboutUs: '',
             enableEmailDomainAccess: canEnableEmailDomainAccess,
             isMarketingOptedIn: true,
             isTrackingAnonymized: false,
@@ -226,39 +232,52 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     const stepLabel = isWorkspaceStep ? 'Set up your workspace' : 'About you';
     const displayStep = showWorkspaceStep ? step : 1;
 
-    const handleSubmit = form.onSubmit((values) => {
+    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
         if (isWorkspaceStep) {
-            if (values.organizationName.trim()) {
-                track({
-                    name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
-                    properties: { step: 'workspace' },
-                });
-                setStep(2);
-            }
+            if (!form.values.organizationName.trim()) return;
+
+            track({
+                name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
+                properties: { step: 'workspace' },
+            });
+            setStep(2);
             return;
         }
+
+        const result = form.validate();
+        if (result.hasErrors) return;
+
+        const values = form.values;
 
         track({
             name: EventName.ORGANIZATION_SETUP_STEP_COMPLETED,
             properties: { step: 'about_you' },
         });
 
-        if (user.organizationName) {
+        if (!canEnterOrganizationName) {
+            // Joining an existing org: no org name to set, and the brand
+            // belongs to the org (which a joiner — often a viewer — has no
+            // rights to change), so don't attempt to save it.
             completeMutation.mutate({
                 jobTitle: values.jobTitle,
+                howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
                 enableEmailDomainAccess: values.enableEmailDomainAccess,
                 isMarketingOptedIn: values.isMarketingOptedIn,
                 isTrackingAnonymized: values.isTrackingAnonymized,
             });
-        } else {
-            completeMutation.mutate({
-                organizationName: values.organizationName,
-                jobTitle: values.jobTitle,
-                enableEmailDomainAccess: values.enableEmailDomainAccess,
-                isMarketingOptedIn: values.isMarketingOptedIn,
-                isTrackingAnonymized: values.isTrackingAnonymized,
-            });
+            return;
         }
+
+        completeMutation.mutate({
+            organizationName: values.organizationName,
+            jobTitle: values.jobTitle,
+            howDidYouHearAboutUs: values.howDidYouHearAboutUs.trim(),
+            enableEmailDomainAccess: values.enableEmailDomainAccess,
+            isMarketingOptedIn: values.isMarketingOptedIn,
+            isTrackingAnonymized: values.isTrackingAnonymized,
+        });
 
         const brandDomain =
             detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : null);
@@ -278,7 +297,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                 fonts: detectedBrand?.fonts ?? [],
             });
         }
-    });
+    };
 
     const logoTileInitial = (form.values.organizationName || '?')
         .charAt(0)
@@ -433,6 +452,16 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
                                     {...form.getInputProps('jobTitle')}
                                 />
 
+                                <TextInput
+                                    label="How did you hear about us?"
+                                    placeholder="Google, a colleague, a podcast..."
+                                    size="md"
+                                    required
+                                    {...form.getInputProps(
+                                        'howDidYouHearAboutUs',
+                                    )}
+                                />
+
                                 <Stack gap="xs">
                                     {canEnableEmailDomainAccess && (
                                         <Checkbox
@@ -516,10 +545,14 @@ const OrganizationSetup: FC = () => {
     const redirectTo =
         redirectParam &&
         redirectParam.startsWith('/') &&
-        !redirectParam.startsWith('//')
+        !redirectParam.startsWith('//') &&
+        !redirectParam.startsWith('/organization-setup')
             ? redirectParam
             : '/';
     const orgSetupPageFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
+    const organization = useOrganization({
+        enabled: !!user.data?.organizationUuid,
+    });
     const completeMutation = useUserCompleteMutation({
         onSuccess: () => void navigate(redirectTo),
     });
@@ -547,11 +580,15 @@ const OrganizationSetup: FC = () => {
     }
 
     if (user.data.isSetupComplete && !isCompletingSetup) {
-        return <Navigate to="/" />;
+        return <Navigate to={redirectTo} />;
     }
 
     if (!orgSetupPageFlag.data?.enabled) {
         return <Navigate to="/" />;
+    }
+
+    if (organization.isInitialLoading) {
+        return <PageSpinner />;
     }
 
     return (
@@ -559,6 +596,7 @@ const OrganizationSetup: FC = () => {
             key={user.data.userUuid}
             user={user.data}
             health={health.data}
+            organizationHasName={!!organization.data?.name}
             completeMutation={completeMutation}
         />
     );

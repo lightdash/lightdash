@@ -7,9 +7,8 @@ import {
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { CachedWarehouse } from '../types';
+import { DEFAULT_GITHUB_HOST_DOMAIN } from '../utils/credentialDestination';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
-
-const DEFAULT_GITHUB_HOST_DOMAIN = 'github.com';
 
 type DbtGithubProjectAdapterArgs = {
     warehouseClient: WarehouseClient;

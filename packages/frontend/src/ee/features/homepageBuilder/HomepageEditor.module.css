@@ -534,11 +534,6 @@
     );
 }
 
-.endZoneActive {
-    border-color: var(--mantine-color-blue-5);
-    background: var(--mantine-color-blue-0);
-}
-
 .savedIndicator {
     display: inline-flex;
     align-items: center;

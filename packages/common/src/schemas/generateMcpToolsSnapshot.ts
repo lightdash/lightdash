@@ -108,6 +108,7 @@ const run = (): void => {
             JSON.parse(currentContent) as JsonObject,
         );
         if (normalizedCurrentContent !== nextContent) {
+            // eslint-disable-next-line no-console
             console.error(
                 'mcp-tools snapshot is out of date. Run `pnpm generate:mcp-tools-snapshot`.',
             );

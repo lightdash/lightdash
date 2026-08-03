@@ -123,6 +123,7 @@ export * from './types/email';
 export * from './types/errors';
 export * from './types/explore';
 export * from './types/favorites';
+export * from './featureFlags/previewFeatureFlags';
 export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';
@@ -193,6 +194,7 @@ export {
     ProjectType,
     RedshiftAuthenticationType,
     resolveDbtVersion,
+    playgroundProjectTriggers,
     sensitiveCredentialsFieldNames,
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,
@@ -203,7 +205,9 @@ export type {
     ApiEnsurePlaygroundProjectResponse,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
+    EnsurePlaygroundProjectRequest,
     EnsurePlaygroundProjectResults,
+    PlaygroundProjectTrigger,
     AthenaCredentials,
     BigqueryCredentials,
     ClickhouseCredentials,
@@ -368,6 +372,7 @@ export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
+export * from './visualizations/BigNumberDataModel';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
 export * from './visualizations/helpers/seriesZOrder';
@@ -603,6 +608,11 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
     jobTitle: z.string().min(0),
+    howDidYouHearAboutUs: z
+        .string()
+        .trim()
+        .min(1, 'Please let us know how you heard about Lightdash')
+        .max(1000),
     enableEmailDomainAccess: z.boolean().default(false),
     isMarketingOptedIn: z.boolean().default(true),
     isTrackingAnonymized: z.boolean().default(false),

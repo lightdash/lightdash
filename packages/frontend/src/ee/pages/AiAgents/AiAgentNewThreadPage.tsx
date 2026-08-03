@@ -200,7 +200,7 @@ const AiAgentNewThreadPage: FC = () => {
     );
 
     const onStartDeepResearch = useCallback(
-        async ({ question, depth, mcpServerUuids }: StartDeepResearchArgs) => {
+        async ({ question }: StartDeepResearchArgs) => {
             if (!agentUuid || !isPinnedContextReady) {
                 return;
             }
@@ -215,11 +215,9 @@ const AiAgentNewThreadPage: FC = () => {
             });
             await startDeepResearch.mutateAsync({
                 question,
-                depth,
                 agentUuid,
                 threadUuid: thread.uuid,
                 promptUuid: thread.firstMessage.uuid,
-                mcpServerUuids,
             });
         },
         [
@@ -359,7 +357,6 @@ const AiAgentNewThreadPage: FC = () => {
                                 ? onStartDeepResearch
                                 : undefined
                         }
-                        deepResearchControlPlacement="page_header"
                         loading={isCreatingThread}
                         disabled={!isPinnedContextReady}
                         placeholder={`Ask ${agent.name} anything about your data...`}

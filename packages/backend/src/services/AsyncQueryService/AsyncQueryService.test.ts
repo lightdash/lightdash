@@ -1488,6 +1488,84 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('executeMetricQueryAndGetResults', () => {
+        it('preserves the query UUID with the ready results', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.executeAsyncMetricQuery = vi.fn().mockResolvedValue({
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+            });
+            service.pollForQueryCompletion = vi.fn().mockResolvedValue({
+                status: QueryHistoryStatus.READY,
+            } as QueryHistory);
+            const getReadyQueryResults = vi.fn().mockResolvedValue({
+                rows: [{ a_dim1: 'one', a_met1: 1 }],
+                cacheMetadata: { cacheHit: false },
+                fields: {},
+                pivotDetails: null,
+                displayTimezone: null,
+            });
+            (service as AnyType).getReadyQueryResults = getReadyQueryResults;
+
+            const result = await service.executeMetricQueryAndGetResults({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.AI,
+            });
+
+            expect(result.queryUuid).toBe(
+                '11111111-1111-4111-8111-111111111111',
+            );
+            expect(getReadyQueryResults).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    queryUuid: '11111111-1111-4111-8111-111111111111',
+                }),
+            );
+        });
+
+        it('extends result availability without shortening longer retention', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const { queryHistoryModel } = service as AnyType;
+            const expiresAt = new Date('2026-09-01T00:00:00.000Z');
+            queryHistoryModel.get = vi.fn().mockResolvedValue({
+                resultsFileName: 'results.jsonl',
+                resultsExpiresAt: new Date('2026-08-01T00:00:00.000Z'),
+            });
+            queryHistoryModel.update = vi.fn().mockResolvedValue(1);
+
+            await service.extendQueryResultsExpiration({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                expiresAt,
+            });
+
+            expect(queryHistoryModel.update).toHaveBeenCalledWith(
+                '11111111-1111-4111-8111-111111111111',
+                projectUuid,
+                { results_expires_at: expiresAt },
+                sessionAccount,
+            );
+
+            queryHistoryModel.get.mockResolvedValue({
+                resultsFileName: 'results.jsonl',
+                resultsExpiresAt: new Date('2026-10-01T00:00:00.000Z'),
+            });
+            queryHistoryModel.update.mockClear();
+
+            await service.extendQueryResultsExpiration({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid: '11111111-1111-4111-8111-111111111111',
+                expiresAt,
+            });
+
+            expect(queryHistoryModel.update).not.toHaveBeenCalled();
+        });
+    });
+
     describe('executeAsyncMetricQuery', () => {
         test('tags warehouse queries with the originating data app from the request context', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);

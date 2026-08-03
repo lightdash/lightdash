@@ -389,7 +389,6 @@ export const lightdashConfigMock: LightdashConfig = {
         cspAllowedOrigins: [],
         s3: null,
         e2bApiKey: null,
-        customDependenciesEnabled: true,
         sampleDataEnabled: true,
         e2bTemplateName: 'lightdash-data-app',
         e2bTemplateTag: '',
@@ -445,4 +444,5 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
+    previewFeatureFlags: { enabled: false },
 };

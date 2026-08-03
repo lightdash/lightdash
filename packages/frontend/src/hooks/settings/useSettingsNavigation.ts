@@ -7,7 +7,6 @@ import {
     IconBrowser,
     IconBrush,
     IconBuildingSkyscraper,
-    IconBulb,
     IconCalendarStats,
     IconChecklist,
     IconClock,
@@ -25,6 +24,7 @@ import {
     IconLock,
     IconMailForward,
     IconMessageCircle,
+    IconNotebook,
     IconPalette,
     IconPlug,
     IconPlugConnected,
@@ -35,6 +35,7 @@ import {
     IconSettings,
     IconShieldCheck,
     IconTableOptions,
+    IconTelescope,
     IconTrash,
     IconUserCircle,
     IconUserCode,
@@ -48,6 +49,7 @@ import {
 import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
 import {
     type SettingsContext,
     type SettingsNavigationItem,
@@ -81,6 +83,7 @@ export const useSettingsNavigation = (
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
@@ -286,15 +289,47 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (isDataAppsEnabled && ability?.can('view', 'OrganizationDesign')) {
-            organizationItems.push({
-                label: 'Themes',
-                to: '/generalSettings/themes',
-                icon: IconBrush,
-                keywords: ['design', 'colors', 'charts'],
-                children: [],
-                exact: true,
-            });
+        if (isDataAppsEnabled) {
+            const dataAppChildren: SettingsNavigationItem[] = [];
+
+            if (ability?.can('view', 'OrganizationDesign')) {
+                dataAppChildren.push({
+                    label: 'Themes',
+                    to: '/generalSettings/dataApps/themes',
+                    icon: IconBrush,
+                    keywords: ['design', 'colors', 'charts'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (ability?.can('manage', 'Organization')) {
+                dataAppChildren.push({
+                    label: 'Activity',
+                    to: '/generalSettings/dataApps/activity',
+                    icon: IconReportAnalytics,
+                    keywords: [
+                        'usage',
+                        'audit',
+                        'log',
+                        'generations',
+                        'who built',
+                        'tokens',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (dataAppChildren.length > 0) {
+                organizationItems.push({
+                    label: 'Data apps',
+                    to: '/generalSettings/dataApps',
+                    icon: IconAppWindow,
+                    keywords: ['apps', 'data apps'],
+                    children: dataAppChildren,
+                });
+            }
         }
 
         if (ability?.can('manage', 'Organization')) {
@@ -499,8 +534,26 @@ export const useSettingsNavigation = (
                 aiChildren.push({
                     label: 'Memories',
                     to: '/generalSettings/ai/memories',
-                    icon: IconBulb,
+                    icon: IconNotebook,
                     keywords: ['memory', 'memories', 'learned', 'knowledge'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
+                canAccessDeepResearchSettings({
+                    isAiCopilotEnabledOrTrial,
+                    isDeepResearchEnabled,
+                    canManageOrgAiAgent,
+                    hasAnyAiAgentAccess,
+                })
+            ) {
+                aiChildren.push({
+                    label: 'Deep research',
+                    to: '/generalSettings/ai/deep-research',
+                    icon: IconTelescope,
+                    keywords: ['research', 'limits', 'tools', 'queries'],
                     children: [],
                     exact: true,
                 });
@@ -914,6 +967,7 @@ export const useSettingsNavigation = (
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,

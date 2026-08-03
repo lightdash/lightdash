@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AnyType,
-    ApiSqlQueryResults,
     DashboardFilters,
     DateGranularity,
     DownloadFileType,
@@ -11,7 +10,6 @@ import {
     formatItemValue,
     formatRows,
     formatTemporalCellForSpreadsheet,
-    friendlyName,
     getErrorMessage,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -62,8 +60,6 @@ import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import {
     generateGenericFileId,
-    isRowValueDate,
-    isRowValueTimestamp,
     sanitizeGenericFileName,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
@@ -86,43 +82,6 @@ type CsvServiceArguments = {
     projectModel: ProjectModel;
     pivotTableService: PivotTableService;
     persistentDownloadFileService: PersistentDownloadFileService;
-};
-
-export const convertSqlToCsv = (
-    results: Pick<ApiSqlQueryResults, 'rows' | 'fields'>,
-    customLabels: Record<string, string> = {},
-): Promise<string> => {
-    const csvHeader = Object.keys(results.rows[0]).map(
-        (id) => customLabels[id] || friendlyName(id),
-    );
-    const csvBody = results?.rows.map((row) =>
-        Object.values(results?.fields).map((field, fieldIndex) => {
-            const rowValue = Object.values(row)[fieldIndex];
-
-            if (isRowValueTimestamp(rowValue, field)) {
-                return moment(rowValue).format('YYYY-MM-DD HH:mm:ss.SSS');
-            }
-            if (isRowValueDate(rowValue, field)) {
-                return moment(rowValue).format('YYYY-MM-DD');
-            }
-
-            return Object.values(row)[fieldIndex];
-        }),
-    );
-    return new Promise((resolve, reject) => {
-        stringify(
-            [csvHeader, ...csvBody],
-            {
-                delimiter: ',',
-            },
-            (err, output) => {
-                if (err) {
-                    reject(new Error(getErrorMessage(err)));
-                }
-                resolve(output);
-            },
-        );
-    });
 };
 
 export const getSchedulerCsvLimit = (

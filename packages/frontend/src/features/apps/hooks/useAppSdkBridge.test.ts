@@ -3,6 +3,7 @@ import {
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     FilterOperator,
     LightdashAppUuidHeader,
+    QueryExecutionContext,
     type DashboardFilters,
     type DataAppVizContext,
 } from '@lightdash/common';
@@ -17,6 +18,7 @@ import {
     vi,
     type Mock,
 } from 'vitest';
+import { createDeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
 import {
     useAppSdkBridge,
     type ExternalRequestEvent,
@@ -182,6 +184,92 @@ describe('useAppSdkBridge', () => {
             queryUuid: QUERY_UUID,
             rowCount: 42,
         });
+    });
+
+    it('drains both POST ids when two POSTs resolve to the same queryUuid', async () => {
+        // Regression: when the backend's results-cache dedupe returns the
+        // SAME queryUuid for two different metric-query POSTs (e.g. two
+        // components firing identical queries), the second POST's mapping
+        // write overwrote the first's, so the first POST's pending/running
+        // entry never reached a terminal status. MinimalApp's in-flight set
+        // never drained, isReady stayed false, and the screenshot indicator
+        // never mounted even though every fetch had completed.
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        const POST_ID_B = '44444444-4444-4444-4444-444444444444';
+
+        // POST A resolves first.
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        postMetricQuery();
+        await vi.waitFor(() =>
+            expect(
+                events.some((e) => e.id === POST_ID && e.status === 'running'),
+            ).toBe(true),
+        );
+
+        // POST B — a second component's identical query — resolves to the
+        // SAME queryUuid (the backend's results-cache dedupe).
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID_B,
+            method: 'POST',
+            path: POST_PATH,
+            body: { query: METRIC_QUERY },
+        });
+        await vi.waitFor(() =>
+            expect(
+                events.some(
+                    (e) => e.id === POST_ID_B && e.status === 'running',
+                ),
+            ).toBe(true),
+        );
+
+        // A single terminal GET poll for the shared queryUuid.
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: QUERY_UUID,
+                status: 'ready',
+                totalResults: 10,
+                metadata: { performance: { initialQueryExecutionMs: 5 } },
+            },
+        });
+        pollQueryResult();
+
+        // Every id that ever entered pending/running must reach a terminal
+        // ready/error status. Wrapping the assertion itself in vi.waitFor
+        // lets it retry until either both ids drain (fixed) or it times out
+        // (bug: POST A's id is never emitted as terminal).
+        await vi.waitFor(
+            () => {
+                const terminalIds = new Set(
+                    events
+                        .filter(
+                            (e) => e.status === 'ready' || e.status === 'error',
+                        )
+                        .map((e) => e.id),
+                );
+                const initiatedIds = new Set(
+                    events
+                        .filter(
+                            (e) =>
+                                e.status === 'pending' ||
+                                e.status === 'running',
+                        )
+                        .map((e) => e.id),
+                );
+                initiatedIds.forEach((id) => expect(terminalIds).toContain(id));
+            },
+            { timeout: 500 },
+        );
     });
 
     it('attaches the app UUID header to metric-query requests for warehouse attribution', async () => {
@@ -357,6 +445,33 @@ describe('useAppSdkBridge', () => {
                 expect.objectContaining({ method: 'POST' }),
             ),
         );
+    });
+
+    it('blocks SDK routes aimed at a different project', async () => {
+        renderBridge(() => undefined);
+        const postMessageSpy = vi.spyOn(window, 'postMessage');
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: '/api/v2/projects/other-project/query/metric-query',
+            body: { query: METRIC_QUERY },
+        });
+
+        await vi.waitFor(() =>
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'lightdash:sdk:fetch-response',
+                    id: POST_ID,
+                    error: expect.stringContaining(
+                        'request targets project other-project',
+                    ),
+                }),
+                '*',
+            ),
+        );
+        expect(fetch).not.toHaveBeenCalled();
     });
 
     it('allows SDK download scheduling and job polling through the bridge', async () => {
@@ -1014,6 +1129,8 @@ describe('data-app-viz-context push', () => {
                 orders_count: { value: { raw: 42, formatted: '42' } },
             },
         ],
+        options: { showLegend: true, barColor: '#ff0000' },
+        colorPalette: ['#7162FF', '#1A1B1E'],
     };
 
     function renderWithDataAppVizContext(ctx: DataAppVizContext | undefined) {
@@ -1039,6 +1156,76 @@ describe('data-app-viz-context push', () => {
                 type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
                 fieldMapping: dataAppVizContext.fieldMapping,
                 rows: dataAppVizContext.rows,
+                options: dataAppVizContext.options,
+                colorPalette: dataAppVizContext.colorPalette,
+            }),
+            '*',
+        );
+    });
+
+    it('re-pushes the context when only the option values change', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        const { rerender } = renderHook(
+            ({ ctx }: { ctx: DataAppVizContext }) =>
+                useAppSdkBridge({
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    dataAppVizContext: ctx,
+                }),
+            { initialProps: { ctx: dataAppVizContext } },
+        );
+        // Isolate the options-change push from the on-mount push.
+        postSpy.mockClear();
+
+        rerender({
+            ctx: { ...dataAppVizContext, options: { showLegend: false } },
+        });
+
+        expect(postSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+                fieldMapping: dataAppVizContext.fieldMapping,
+                rows: dataAppVizContext.rows,
+                options: { showLegend: false },
+            }),
+            '*',
+        );
+    });
+
+    it('re-pushes the context when only the color palette changes', () => {
+        const postSpy = vi.spyOn(window, 'postMessage');
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        const { rerender } = renderHook(
+            ({ ctx }: { ctx: DataAppVizContext }) =>
+                useAppSdkBridge({
+                    iframeRef,
+                    expectedPreviewOrigin: window.location.origin,
+                    projectUuid: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    dataAppVizContext: ctx,
+                }),
+            { initialProps: { ctx: dataAppVizContext } },
+        );
+        postSpy.mockClear();
+
+        rerender({
+            ctx: { ...dataAppVizContext, colorPalette: ['#F2C94C'] },
+        });
+
+        expect(postSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+                fieldMapping: dataAppVizContext.fieldMapping,
+                rows: dataAppVizContext.rows,
+                options: dataAppVizContext.options,
+                colorPalette: ['#F2C94C'],
             }),
             '*',
         );
@@ -1082,5 +1269,201 @@ describe('data-app-viz-context push', () => {
             }),
             '*',
         );
+    });
+});
+
+describe('delivery capture accumulator integration', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    it('records a metric POST + ready poll as one ready manifest item whose captureKey ignores stamped fields', async () => {
+        const deliveryCapture = createDeliveryCaptureAccumulator();
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                dashboardFilters,
+                invalidateCache: true,
+                deliveryCapture,
+            }),
+        );
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        postMetricQuery();
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: QUERY_UUID,
+                status: 'ready',
+                totalResults: 42,
+                metadata: { performance: { initialQueryExecutionMs: 5 } },
+            },
+        });
+        pollQueryResult();
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+        // fetch having been called doesn't mean the bridge has read the body
+        // yet, so wait on the accumulator rather than on the fetch count.
+        const manifest = await vi.waitFor(async () => {
+            const current = await deliveryCapture.getManifest();
+            expect(current.items[0]?.status).toBe('ready');
+            return current;
+        });
+        expect(manifest.items).toHaveLength(1);
+        expect(manifest.items[0]).toMatchObject({
+            status: 'ready',
+            exploreName: 'orders',
+            rowCount: 42,
+        });
+
+        // dashboardFilters/invalidateCache are stamped onto the outgoing fetch
+        // body but must never reach the captureKey hash — onInitiation is
+        // given the pre-stamp body. A reference accumulator fed the same
+        // unstamped body must hash to the identical captureKey.
+        const reference = createDeliveryCaptureAccumulator();
+        reference.onInitiation({
+            requestId: 'reference',
+            method: 'POST',
+            path: POST_PATH,
+            body: { query: METRIC_QUERY },
+            label: null,
+        });
+        reference.onPostResponse('reference', { queryUuid: 'reference-uuid' });
+        reference.onTerminal('reference-uuid', {
+            status: 'ready',
+            rowCount: 1,
+        });
+        const referenceManifest = await reference.getManifest();
+        expect(manifest.items[0].captureKey).toBe(
+            referenceManifest.items[0].captureKey,
+        );
+    });
+
+    it('records a /query/chart POST, resolving exploreName/limit only from the response', async () => {
+        const deliveryCapture = createDeliveryCaptureAccumulator();
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                deliveryCapture,
+            }),
+        );
+
+        const chartPath = `/api/v2/projects/${PROJECT_UUID}/query/chart`;
+        const chartQueryUuid = 'chart-query-uuid';
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: chartQueryUuid,
+                metricQuery: { exploreName: 'customers', limit: 50 },
+            },
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: 'chart-post-id',
+            method: 'POST',
+            path: chartPath,
+            body: { chartUuid: 'chart-uuid' },
+        });
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: chartQueryUuid,
+                status: 'ready',
+                totalResults: 12,
+                metadata: { performance: { initialQueryExecutionMs: 3 } },
+            },
+        });
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: 'chart-get-id',
+            method: 'GET',
+            path: `/api/v2/projects/${PROJECT_UUID}/query/${chartQueryUuid}`,
+        });
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+        const manifest = await vi.waitFor(async () => {
+            const current = await deliveryCapture.getManifest();
+            expect(current.items[0]?.status).toBe('ready');
+            return current;
+        });
+        expect(manifest.items).toHaveLength(1);
+        expect(manifest.items[0]).toMatchObject({
+            status: 'ready',
+            exploreName: 'customers',
+            rowCount: 12,
+        });
+    });
+
+    it('stamps queryContextOverride onto the body alongside the existing invalidateCache stamp', async () => {
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                invalidateCache: true,
+                queryContextOverride: QueryExecutionContext.SCHEDULED_DELIVERY,
+            }),
+        );
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+        const [, init] = vi.mocked(fetch).mock.calls[0];
+        const sentBody = JSON.parse(String(init?.body));
+        expect(sentBody.invalidateCache).toBe(true);
+        expect(sentBody.context).toBe(QueryExecutionContext.SCHEDULED_DELIVERY);
+    });
+
+    it('does not call deliveryCapture methods when no accumulator is provided', async () => {
+        renderBridge(() => undefined);
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+        const [, init] = vi.mocked(fetch).mock.calls[0];
+        const sentBody = JSON.parse(String(init?.body));
+        // No deliveryCapture/queryContextOverride passed — body is untouched.
+        expect(sentBody).toEqual({ query: METRIC_QUERY });
     });
 });

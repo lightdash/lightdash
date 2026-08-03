@@ -26,13 +26,42 @@ import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
 import { useDatabricksLoginPopup } from '../../../hooks/useDatabricks';
 import { useProject } from '../../../hooks/useProject';
 import { useRedshiftAwsSsoLoginPopup } from '../../../hooks/useRedshiftAwsSso';
+import { getUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { useSnowflakeLoginPopup } from '../../../hooks/useSnowflake';
 import MantineIcon from '../../common/MantineIcon';
 import { getSsoLabel } from '../../ProjectConnection/WarehouseForms/util';
 import { WarehouseSsoButton } from './WarehouseSsoButton';
 
-const BigQueryFormInput: FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { mutate: openLoginPopup } = useGoogleLoginPopup('bigquery', onClose);
+const BigQueryFormInput: FC<{
+    onClose: () => void;
+    onSuccess?: (data: UserWarehouseCredentials) => void;
+}> = ({ onClose, onSuccess }) => {
+    const { mutate: openLoginPopup } = useGoogleLoginPopup(
+        'bigquery',
+        async () => {
+            // The credential is created server-side during the OAuth flow, so
+            // fetch it to save the project preference like the form-based path
+            try {
+                const credentials = await getUserWarehouseCredentials();
+                const bigqueryCredential = credentials
+                    .filter(
+                        ({ credentials: c }) =>
+                            c.type === WarehouseTypes.BIGQUERY,
+                    )
+                    .sort(
+                        (a, b) =>
+                            new Date(b.createdAt).getTime() -
+                            new Date(a.createdAt).getTime(),
+                    )[0];
+                if (bigqueryCredential) {
+                    onSuccess?.(bigqueryCredential);
+                }
+            } catch {
+                // Auth itself succeeded; preference is a best-effort extra
+            }
+            onClose();
+        },
+    );
 
     // If this popup happens, it means we don't have warehouse credentials,
     // (aka isAuthenticated is false), so we need to authenticate
@@ -432,7 +461,9 @@ export const WarehouseFormInputs: FC<{
                 </>
             );
         case WarehouseTypes.BIGQUERY:
-            return <BigQueryFormInput onClose={onClose} />;
+            return (
+                <BigQueryFormInput onClose={onClose} onSuccess={onSuccess} />
+            );
         case WarehouseTypes.DATABRICKS:
             return (
                 <DatabricksFormInput

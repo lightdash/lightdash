@@ -21,11 +21,14 @@ export const AdminHomepageControls: FC<Props> = ({
 }) => {
     const navigate = useNavigate();
     return (
-        <Can
-            I="manage"
-            this={subject('ProjectHomepage', { organizationUuid, projectUuid })}
-        >
-            <div className={classes.corner}>
+        <div className={classes.corner}>
+            <Can
+                I="manage"
+                this={subject('ProjectHomepage', {
+                    organizationUuid,
+                    projectUuid,
+                })}
+            >
                 {showNewHomepage && (
                     <button
                         type="button"
@@ -56,7 +59,7 @@ export const AdminHomepageControls: FC<Props> = ({
                         Customize homepage
                     </span>
                 </button>
-            </div>
-        </Can>
+            </Can>
+        </div>
     );
 };

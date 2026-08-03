@@ -13,6 +13,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
+    AlreadyExistsError,
     APP_VERSION_CANCELLED_BY_USER,
     assertEmbeddedAuth,
     assertUnreachable,
@@ -24,6 +25,7 @@ import {
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     extractLockfilePackages,
     FeatureFlags,
+    FilterOperator,
     ForbiddenError,
     formatPromptWithClarifications,
     getEffectiveFieldAiHints,
@@ -31,6 +33,8 @@ import {
     getVisibleDataAppClaudeModels,
     isDashboardChartTileType,
     isExploreError,
+    isValidDataAppSlug,
+    MAX_APP_FILES_PER_VERSION,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -53,6 +57,7 @@ import {
     type AppVersionDependencies,
     type AppVersionDependencyEntry,
     type AppVersionExternalConnectionResource,
+    type AppVersionFileResource,
     type AppVersionResources,
     type AppVersionStatusHistoryEntry,
     type AppVersionStatusHistoryEntryKind,
@@ -62,10 +67,14 @@ import {
     type CompiledExploreJoin,
     type CompiledTable,
     type DashboardBlueprint,
+    type DataAppActivityEvent,
+    type DataAppActivityFilters,
     type DataAppClaudeModel,
     type DataAppCode,
     type DataAppCodeDownload,
+    type DataAppCodeFile,
     type DataAppContext,
+    type DataAppCreationExperience,
     type DataAppDependencies,
     type DataAppManifestExternalConnection,
     type DataAppTemplate,
@@ -80,6 +89,7 @@ import {
     type KnexPaginatedData,
     type LightdashProjectParameter,
     type MetricQuery,
+    type ModelRequiredFilterRule,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SavedChart,
@@ -89,6 +99,7 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { Knex } from 'knex';
+import isEqual from 'lodash/isEqual';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
@@ -102,6 +113,7 @@ import {
 } from '../../../analytics/aiUsage';
 import {
     LightdashAnalytics,
+    type DataAppUploadIdentitySource,
     type DataAppUploadRejectedEvent,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
@@ -113,6 +125,7 @@ import {
     isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
+    type DbAppActivityRow,
     type DbAppVersion,
 } from '../../../database/entities/apps';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
@@ -274,6 +287,7 @@ type AppGenerateServiceDeps = {
 };
 
 type GenerateAppOptions = {
+    creationExperience?: DataAppCreationExperience;
     designUuidInput?: string | null;
     externalConnections?: AppExternalConnectionReference[];
 };
@@ -281,6 +295,55 @@ type GenerateAppOptions = {
 type GenerateAppResult = {
     appUuid: string;
     version: number;
+};
+
+/**
+ * A staged attachment resolved from its S3 object at version-creation /
+ * sandbox-write time. ContentType and metadata on the staged object are the
+ * source of truth for type and filename — the client only ever sends ids.
+ */
+type StagedAppFile = {
+    fileId: string;
+    mimeType: string;
+    filename: string;
+    isImage: boolean;
+    isScreenshot: boolean;
+};
+
+type NamedStagedFile = StagedAppFile & { sandboxFilename: string };
+
+/**
+ * A compiled table rendered as dbt-style YAML lines. Header (`- name:` through
+ * `meta:`) and column blocks stay separate so a model can be composed into one
+ * document or split across files without re-parsing.
+ */
+type RenderedModel = {
+    name: string;
+    description: string | null;
+    joinedTables: string[];
+    headerLines: string[];
+    columnBlocks: string[][];
+    dimensionCount: number;
+    metricCount: number;
+    requiredFilterCount: number;
+    defaultFilterCount: number;
+    hasSqlFilter: boolean;
+};
+
+/**
+ * Model-level filters that apply when this model is queried as an explore.
+ * They live on the base table but only take effect for queries against the
+ * explore itself, so they're passed explicitly and omitted for join-target
+ * models inlined by pass 2 of exploresToRenderedModels.
+ */
+type RenderedModelFilters = {
+    requiredFilters: ModelRequiredFilterRule[];
+    sqlFilter: string | null;
+};
+
+type ModelFile = {
+    filename: string;
+    contents: string;
 };
 
 type DataAppVersionFailureTelemetry = {
@@ -1020,11 +1083,12 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Deterministic staging path for uploaded images.
-     * No file extension — the MIME type is stored as the S3 object's ContentType.
+     * Deterministic staging path for uploaded files.
+     * No file extension — the MIME type is stored as the S3 object's
+     * ContentType and the original filename in its metadata.
      */
-    private static imageStagingKey(appUuid: string, imageId: string): string {
-        return `apps/${appUuid}/uploads/${imageId}`;
+    private static fileStagingKey(appUuid: string, fileId: string): string {
+        return `apps/${appUuid}/uploads/${fileId}`;
     }
 
     private static appThumbnailKey(appUuid: string): string {
@@ -1037,9 +1101,17 @@ export class AppGenerateService extends BaseService {
             'image/jpeg': 'jpg',
             'image/gif': 'gif',
             'image/webp': 'webp',
+            'application/pdf': 'pdf',
         };
         return extMap[mimeType] ?? 'png';
     }
+
+    private static readonly RASTER_IMAGE_TYPES = [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+    ];
 
     /**
      * Magic-byte signatures for each allowed image MIME type.
@@ -1070,21 +1142,115 @@ export class AppGenerateService extends BaseService {
 
     private static readonly SIGNATURE_PREFIX_SIZE = 12;
 
-    private static readonly MAX_IMAGES_PER_VERSION = 4;
+    private static readonly PDF_SIGNATURE = [0x25, 0x50, 0x44, 0x46]; // %PDF
 
-    private static validateImageIds(imageIds: string[]): void {
-        if (imageIds.length > AppGenerateService.MAX_IMAGES_PER_VERSION) {
+    /** Split resolved attachments into the two version-resource arrays. */
+    private static toAttachmentResources(stagedFiles: StagedAppFile[]): {
+        images: AppVersionResources['images'];
+        files: AppVersionFileResource[];
+    } {
+        return {
+            images: stagedFiles
+                .filter((f) => f.isImage)
+                .map((f) => ({ imageId: f.fileId })),
+            files: stagedFiles
+                .filter((f) => !f.isImage)
+                .map(({ fileId, filename, mimeType }) => ({
+                    fileId,
+                    filename,
+                    mimeType,
+                })),
+        };
+    }
+
+    private static validateFileIds(fileIds: string[]): void {
+        if (fileIds.length > MAX_APP_FILES_PER_VERSION) {
             throw new ParameterError(
-                `Too many images: ${imageIds.length}. Maximum: ${AppGenerateService.MAX_IMAGES_PER_VERSION}`,
+                `Too many attachments: ${fileIds.length}. Maximum: ${MAX_APP_FILES_PER_VERSION}`,
             );
         }
-        for (const id of imageIds) {
+        for (const id of fileIds) {
             if (!isValidUuid(id)) {
                 throw new ParameterError(
-                    'Invalid imageId: must be a valid UUID',
+                    'Invalid fileId: must be a valid UUID',
                 );
             }
         }
+    }
+
+    /**
+     * MIME types worth preserving as-is on text uploads. Anything else that
+     * sniffs as text (unknown extensions arrive as application/octet-stream or
+     * vendor types) is normalized to text/plain so downstream consumers never
+     * see a binary-looking ContentType on a text object.
+     */
+    private static isTextLikeMimeType(mimeType: string): boolean {
+        if (mimeType.startsWith('text/')) return true;
+        if (mimeType.endsWith('+json') || mimeType.endsWith('+xml'))
+            return true;
+        return [
+            'application/json',
+            'application/xml',
+            'application/yaml',
+            'application/x-yaml',
+            'application/toml',
+            'application/javascript',
+            'application/typescript',
+            'application/sql',
+            'application/x-ndjson',
+            'application/x-sh',
+            'image/svg+xml',
+        ].includes(mimeType);
+    }
+
+    /**
+     * A file is treated as text when its first bytes contain no NUL and decode
+     * as UTF-8. Streaming decode tolerates a multi-byte sequence cut off at
+     * the sample boundary. UTF-16 (NUL bytes in ASCII range) is deliberately
+     * rejected — the sandbox agent reads files as UTF-8.
+     */
+    private static sniffsAsText(body: Buffer): boolean {
+        const sample = body.subarray(0, 8192);
+        if (sample.includes(0)) return false;
+        try {
+            new TextDecoder('utf-8', { fatal: true }).decode(sample, {
+                stream: true,
+            });
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    private static matchesSignature(
+        body: Buffer,
+        signature: { offset: number; bytes: number[] }[],
+    ): boolean {
+        return signature.every((sig) =>
+            sig.bytes.every((byte, i) => body[sig.offset + i] === byte),
+        );
+    }
+
+    /**
+     * Sandbox- and metadata-safe version of a user filename: basename only,
+     * conservative character set, bounded length (extension preserved).
+     * Returns null when nothing usable remains — callers fall back to a
+     * generated name.
+     */
+    private static sanitizeFilename(filename: string): string | null {
+        const base = filename.split(/[/\\]/).pop() ?? '';
+        const cleaned = base
+            // eslint-disable-next-line no-control-regex
+            .replace(/[\x00-\x1f\x7f]/g, '')
+            .replace(/[^A-Za-z0-9._ -]/g, '_')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .replace(/^\.+/, '');
+        if (cleaned.length === 0) return null;
+        if (cleaned.length <= 100) return cleaned;
+        const dot = cleaned.lastIndexOf('.');
+        const ext = dot > 0 ? cleaned.slice(dot).slice(0, 20) : '';
+        return `${cleaned.slice(0, 100 - ext.length)}${ext}`;
     }
 
     /**
@@ -1144,19 +1310,12 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Read the first few bytes of a stream, validate image magic bytes,
-     * then return a new Readable that replays those bytes followed by
-     * the rest of the original stream.
+     * Buffer the full upload body (capped at maxBytes). Buffering up-front
+     * avoids stream pause/pipe state-machine pitfalls and gives us a Buffer
+     * ready for signed S3 PutObject.
      */
-    /**
-     * Buffer the full upload body (capped at maxBytes), then validate that
-     * its leading bytes match the declared MIME type. Returns the buffer.
-     * Buffering up-front avoids stream pause/pipe state-machine pitfalls
-     * and gives us a Buffer ready for signed S3 PutObject.
-     */
-    private static async bufferAndValidate(
+    private static async bufferUploadBody(
         stream: Readable,
-        mimeType: string,
         maxBytes: number,
     ): Promise<Buffer> {
         const chunks: Buffer[] = [];
@@ -1166,59 +1325,109 @@ export class AppGenerateService extends BaseService {
             total += buf.length;
             if (total > maxBytes) {
                 throw new ParameterError(
-                    `Image too large: exceeded ${maxBytes} bytes`,
+                    `File too large: exceeded ${maxBytes} bytes`,
                 );
             }
             chunks.push(buf);
         }
         const body = Buffer.concat(chunks);
-
         if (body.length === 0) {
             throw new ParameterError('Upload body is empty');
         }
-        if (body.length < AppGenerateService.SIGNATURE_PREFIX_SIZE) {
-            throw new ParameterError(
-                'Upload body too small to be a valid image',
-            );
-        }
-
-        const signatures = AppGenerateService.IMAGE_SIGNATURES[mimeType];
-        if (signatures) {
-            const matchesAll = signatures.every((sig) =>
-                sig.bytes.every((byte, i) => body[sig.offset + i] === byte),
-            );
-            if (!matchesAll) {
-                throw new ParameterError(
-                    `File content does not match declared Content-Type: ${mimeType}`,
-                );
-            }
-        }
-
         return body;
     }
 
-    async uploadImage(
+    /**
+     * Classify an upload by its declared MIME type and actual content.
+     * Raster images must match their magic bytes; PDFs must start with %PDF;
+     * everything else is accepted only when it sniffs as UTF-8 text. The
+     * returned mimeType is what gets stored as the S3 ContentType — declared
+     * type for images/PDFs and recognized text types, text/plain otherwise.
+     */
+    private static validateUploadContent(
+        body: Buffer,
+        declaredMimeType: string,
+    ): { category: 'image' | 'pdf' | 'text'; mimeType: string } {
+        if (AppGenerateService.RASTER_IMAGE_TYPES.includes(declaredMimeType)) {
+            if (body.length < AppGenerateService.SIGNATURE_PREFIX_SIZE) {
+                throw new ParameterError(
+                    'Upload body too small to be a valid image',
+                );
+            }
+            const signatures =
+                AppGenerateService.IMAGE_SIGNATURES[declaredMimeType];
+            if (
+                signatures &&
+                !AppGenerateService.matchesSignature(body, signatures)
+            ) {
+                throw new ParameterError(
+                    `File content does not match declared Content-Type: ${declaredMimeType}`,
+                );
+            }
+            return { category: 'image', mimeType: declaredMimeType };
+        }
+
+        const isPdfContent = AppGenerateService.matchesSignature(body, [
+            { offset: 0, bytes: AppGenerateService.PDF_SIGNATURE },
+        ]);
+        if (declaredMimeType === 'application/pdf') {
+            if (!isPdfContent) {
+                throw new ParameterError(
+                    'File content does not match declared Content-Type: application/pdf',
+                );
+            }
+            return { category: 'pdf', mimeType: 'application/pdf' };
+        }
+        // Browsers report an empty/generic type for unknown extensions —
+        // classify by content instead of rejecting on the declared type.
+        if (isPdfContent) {
+            return { category: 'pdf', mimeType: 'application/pdf' };
+        }
+
+        if (AppGenerateService.sniffsAsText(body)) {
+            return {
+                category: 'text',
+                mimeType: AppGenerateService.isTextLikeMimeType(
+                    declaredMimeType,
+                )
+                    ? declaredMimeType
+                    : 'text/plain',
+            };
+        }
+
+        throw new ParameterError(
+            `Unsupported file type: ${declaredMimeType}. Supported: images (PNG, JPEG, GIF, WEBP), PDF, and text-based files (JSON, CSV, Markdown, XML/TWB, YAML, code, …)`,
+        );
+    }
+
+    async uploadFile(
         user: SessionUser,
         projectUuid: string,
-        mimeType: string,
+        declaredMimeType: string,
         body: Readable,
         contentLength: number,
         appUuid: string,
+        filename?: string,
         kind?: 'screenshot',
-    ): Promise<{ imageId: string }> {
+    ): Promise<{
+        fileId: string;
+        imageId: string;
+        filename: string;
+        mimeType: string;
+    }> {
         await this.assertDataAppsEnabled(user);
 
         // For iterations the app already exists — use its space + creator
-        // context so a space editor or the creator can attach an image. For
+        // context so a space editor or the creator can attach a file. For
         // initial creation the appUuid is generated client-side and the app
         // row doesn't exist yet, so we authorize against `create:DataApp`
-        // (anyone who can create an app can stage an image for it).
+        // (anyone who can create an app can stage a file for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
         if (app) {
             await this.assertCanManageApp(
                 user,
                 app,
-                'Insufficient permissions to upload app images',
+                'Insufficient permissions to upload app files',
             );
         } else {
             const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -1227,42 +1436,62 @@ export class AppGenerateService extends BaseService {
                 'create',
                 organizationUuid,
                 projectUuid,
-                'Insufficient permissions to upload app images',
-            );
-        }
-
-        const validTypes = [
-            'image/png',
-            'image/jpeg',
-            'image/gif',
-            'image/webp',
-        ];
-        if (!validTypes.includes(mimeType)) {
-            throw new ParameterError(
-                `Invalid image type: ${mimeType}. Allowed: ${validTypes.join(', ')}`,
+                'Insufficient permissions to upload app files',
             );
         }
 
         const maxSize = 10 * 1024 * 1024; // 10 MB
         if (contentLength > maxSize) {
             throw new ParameterError(
-                `Image too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
+                `File too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
             );
         }
 
-        // Buffer the whole body and validate its MIME signature. We need the
-        // full Buffer anyway so the AWS SDK can use standard S3v4 signing —
-        // streaming bodies cause chunked signing which MinIO/GCS reject with
-        // RequestTimeout.
-        const bufferedBody = await AppGenerateService.bufferAndValidate(
+        // Declared types that can never pass content classification are
+        // rejected before the body is buffered, so a 10MB video doesn't cost
+        // memory just to fail. Everything else (incl. octet-stream) is
+        // classified by content after buffering.
+        const [declaredKind] = declaredMimeType.split('/');
+        const cannotPassClassification =
+            ['video', 'audio', 'font'].includes(declaredKind) ||
+            (declaredKind === 'image' &&
+                declaredMimeType !== 'image/svg+xml' &&
+                !AppGenerateService.RASTER_IMAGE_TYPES.includes(
+                    declaredMimeType,
+                ));
+        if (cannotPassClassification) {
+            throw new ParameterError(
+                `Unsupported file type: ${declaredMimeType}. Supported: images (PNG, JPEG, GIF, WEBP), PDF, and text-based files (JSON, CSV, Markdown, XML/TWB, YAML, code, …)`,
+            );
+        }
+
+        // Buffer the whole body, then validate content against the declared
+        // type. We need the full Buffer anyway so the AWS SDK can use standard
+        // S3v4 signing — streaming bodies cause chunked signing which
+        // MinIO/GCS reject with RequestTimeout.
+        const bufferedBody = await AppGenerateService.bufferUploadBody(
             body,
-            mimeType,
             maxSize,
         );
+        const { category, mimeType } = AppGenerateService.validateUploadContent(
+            bufferedBody,
+            declaredMimeType,
+        );
+        if (kind === 'screenshot' && category !== 'image') {
+            throw new ParameterError('Screenshots must be images');
+        }
+
+        const fileId = uuidv4();
+        const storedFilename =
+            (filename ? AppGenerateService.sanitizeFilename(filename) : null) ??
+            `file-${fileId.slice(0, 8)}.${
+                category === 'text'
+                    ? 'txt'
+                    : AppGenerateService.mimeToExt(mimeType)
+            }`;
 
         const { client: s3Client, bucket } = this.getS3Client();
-        const imageId = uuidv4();
-        const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
+        const s3Key = AppGenerateService.fileStagingKey(appUuid, fileId);
 
         await s3Client.send(
             new PutObjectCommand({
@@ -1271,27 +1500,37 @@ export class AppGenerateService extends BaseService {
                 Body: bufferedBody,
                 ContentLength: bufferedBody.length,
                 ContentType: mimeType,
-                // Persist the upload kind on the staged object so
-                // `writeImageToSandbox` can decide the filename prefix later
-                // without needing a separate DB column.
-                ...(kind ? { Metadata: { kind } } : {}),
+                // Persist upload kind + original filename on the staged object
+                // so `writeFileToSandbox` and version creation can use them
+                // later without needing a separate DB column. S3 metadata
+                // values must be ASCII, hence the URI encoding.
+                Metadata: {
+                    filename: encodeURIComponent(storedFilename),
+                    ...(kind ? { kind } : {}),
+                },
             }),
         );
 
         this.analytics.track({
-            event: 'data_app.image_uploaded',
+            event: 'data_app.file_uploaded',
             userId: user.userUuid,
             properties: {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 appUuid,
-                imageId,
+                fileId,
+                category,
                 mimeType,
                 sizeBytes: contentLength,
             },
         });
 
-        return { imageId };
+        return {
+            fileId,
+            imageId: fileId,
+            filename: storedFilename,
+            mimeType,
+        };
     }
 
     async getImageUrl(
@@ -1322,7 +1561,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const { client: s3Client, bucket } = this.getS3Client();
-        const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
+        const s3Key = AppGenerateService.fileStagingKey(appUuid, imageId);
 
         const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
         const imageUrl = await getSignedUrl(
@@ -1362,11 +1601,11 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const bufferedBody = await AppGenerateService.bufferAndValidate(
+        const bufferedBody = await AppGenerateService.bufferUploadBody(
             body,
-            mimeType,
             maxSize,
         );
+        AppGenerateService.validateUploadContent(bufferedBody, mimeType);
 
         const { client: s3Client, bucket } = this.getS3Client();
         await s3Client.send(
@@ -1479,12 +1718,12 @@ export class AppGenerateService extends BaseService {
         return Math.round(performance.now() - start);
     }
 
-    trackTimeoutFailure(
+    async trackTimeoutFailure(
         payload: AppGeneratePipelineJobPayload,
         error: unknown,
         schedulerWaitMs?: number,
-    ): void {
-        this.trackVersionFailed(payload, 'timeout', error, {}, null, 0, {
+    ): Promise<void> {
+        await this.trackVersionFailed(payload, 'timeout', error, {}, null, 0, {
             schedulerWaitMs,
         });
     }
@@ -1529,7 +1768,29 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    private trackVersionFailed(
+    /**
+     * Persist what the generation cost onto the version row, for the org-wide
+     * activity log. Bookkeeping only — a failure here must never take down a
+     * generation that otherwise succeeded, so it logs and moves on.
+     */
+    private async recordGenerationUsage(
+        payload: AppGeneratePipelineJobPayload,
+        usage: ClaudeGenerationUsage,
+    ): Promise<void> {
+        try {
+            await this.appModel.recordVersionGenerationUsage(
+                payload.appUuid,
+                payload.version,
+                usage,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${payload.appUuid}: failed to record generation usage for version ${payload.version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async trackVersionFailed(
         payload: AppGeneratePipelineJobPayload,
         failureStage:
             | 'sandbox'
@@ -1545,7 +1806,7 @@ export class AppGenerateService extends BaseService {
         overallStart: number | null,
         buildFixAttempts: number,
         telemetry: DataAppVersionFailureTelemetry = {},
-    ): void {
+    ): Promise<void> {
         const { generationUsage } = telemetry;
         const claudeModel =
             payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL;
@@ -1566,6 +1827,7 @@ export class AppGenerateService extends BaseService {
                 telemetry.keyManagement ?? 'lightdash-managed',
                 generationUsage,
             );
+            await this.recordGenerationUsage(payload, generationUsage);
         }
 
         this.analytics.track({
@@ -1578,6 +1840,7 @@ export class AppGenerateService extends BaseService {
                 version: payload.version,
                 isIteration: payload.isIteration,
                 isUpgrade: payload.isUpgrade ?? false,
+                creationExperience: payload.creationExperience ?? null,
                 claudeModel,
                 claudeProvider: telemetry.claudeProvider,
                 schedulerWaitMs: telemetry.schedulerWaitMs,
@@ -1806,14 +2069,6 @@ export class AppGenerateService extends BaseService {
         version: number,
         versionDeps: AppVersionDependencies,
     ): Promise<number> {
-        // Kill-switch: enforced at upload time too, but re-checked here so
-        // flipping it off also stops installs of previously-approved dep sets
-        // (iterations and rebuilds), not just new uploads.
-        if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-            throw new ParameterError(
-                'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED); this app version declares custom packages so it cannot be built.',
-            );
-        }
         const start = performance.now();
         const depsPrefix = `apps/${appUuid}/versions/${version}/deps/`;
 
@@ -2253,7 +2508,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         projectUuid: string,
         prompt: string,
-        imageIds: string[] | undefined,
+        fileIds: string[] | undefined,
         s3Client: S3Client,
         bucket: string,
         chartReferences: ChartReference[] | undefined,
@@ -2271,18 +2526,24 @@ export class AppGenerateService extends BaseService {
 
         // Source the synthetic schema from the compiled explore cache (not the
         // flattened catalog summary) so it carries joins, real dimension/metric
-        // types, and parameters. See exploresToYaml.
-        const exploresByUuid =
-            await this.projectModel.getAllExploresFromCache(projectUuid);
+        // types, and parameters. See exploresToModelFiles.
+        const [exploresByUuid, chartUsageByTable] = await Promise.all([
+            this.projectModel.getAllExploresFromCache(projectUuid),
+            this.catalogModel.getChartUsageByTable(projectUuid),
+        ]);
         const explores = Object.values(exploresByUuid).filter(
             (explore): explore is Explore => !isExploreError(explore),
         );
         const {
-            yaml: modelYaml,
+            files: modelFiles,
             tableCount,
             dimensionCount,
             metricCount,
-        } = AppGenerateService.exploresToYaml(explores);
+            totalBytes,
+        } = AppGenerateService.exploresToModelFiles(
+            explores,
+            chartUsageByTable,
+        );
 
         // Project-level parameters are global (not attached to any one explore)
         // and live in lightdash.config.yml — the location skill.md already tells
@@ -2296,11 +2557,20 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
+            'rm -rf /tmp/dbt-repo/models 2>/dev/null; rm -f /tmp/dbt-repo/lightdash.config.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/uploads /tmp/metric-queries /tmp/dashboard /tmp/external-data 2>/dev/null; true',
             { timeoutMs: 10_000 },
         );
 
-        await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
+        // One round trip per model file would cost minutes on a large project,
+        // so ship the whole directory as a single archive and unpack in place.
+        await sandbox.files.write(
+            '/tmp/dbt-repo/models.tar',
+            await AppGenerateService.packModelFiles(modelFiles),
+        );
+        await sandbox.commands.run(
+            'mkdir -p /tmp/dbt-repo/models && tar -xf /tmp/dbt-repo/models.tar -C /tmp/dbt-repo/models && rm -f /tmp/dbt-repo/models.tar',
+            { timeoutMs: 60_000 },
+        );
         if (configYaml) {
             await sandbox.files.write(
                 '/tmp/dbt-repo/lightdash.config.yml',
@@ -2362,14 +2632,21 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Resolve images from staging, copy to version paths, and write to sandbox
-        if (imageIds && imageIds.length > 0) {
-            const imagePaths = await Promise.all(
-                imageIds.map((id) =>
-                    this.writeImageToSandbox(
+        // Resolve attachments from staging and write them into the sandbox
+        if (fileIds && fileIds.length > 0) {
+            const staged = await AppGenerateService.resolveStagedFiles(
+                s3Client,
+                bucket,
+                appUuid,
+                fileIds,
+            );
+            const named = AppGenerateService.assignSandboxFilenames(staged);
+            const sandboxPaths = await Promise.all(
+                named.map((file) =>
+                    this.writeFileToSandbox(
                         sandbox,
                         appUuid,
-                        id,
+                        file,
                         s3Client,
                         bucket,
                     ),
@@ -2377,19 +2654,18 @@ export class AppGenerateService extends BaseService {
             );
             // Label screenshots distinctly so the agent treats them as
             // "current state of the built app" rather than design targets.
-            // Filename convention is set in `writeImageToSandbox`.
             let designIndex = 0;
-            const referenceLines = imagePaths
-                .map((p) => {
-                    const isScreenshot = p
-                        .split('/')
-                        .pop()
-                        ?.startsWith('screenshot-');
-                    if (isScreenshot) {
+            const referenceLines = named
+                .map((file, i) => {
+                    const p = sandboxPaths[i];
+                    if (file.isScreenshot) {
                         return `[Screenshot of the current app at ${p} — use the Read tool to view it. This is what the user is looking at right now, not a design to reproduce.]`;
                     }
-                    designIndex += 1;
-                    return `[Design reference image ${designIndex} at ${p} — use the Read tool to view it]`;
+                    if (file.isImage) {
+                        designIndex += 1;
+                        return `[Design reference image ${designIndex} at ${p} — use the Read tool to view it]`;
+                    }
+                    return `[Attached file "${file.filename}" at ${p} — reference material from the user; use the Read tool to view it]`;
                 })
                 .join('\n');
             finalPrompt = `${referenceLines}\n\n${finalPrompt}`;
@@ -2404,40 +2680,175 @@ export class AppGenerateService extends BaseService {
 
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
-            `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${dimensionCount}, metrics=${metricCount}, yamlBytes=${modelYaml.length}, ${durationMs}ms)`,
+            `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${dimensionCount}, metrics=${metricCount}, files=${modelFiles.length}, yamlBytes=${totalBytes}, ${durationMs}ms)`,
         );
         return {
             durationMs,
             tableCount,
             dimensionCount,
             metricCount,
-            yamlBytes: modelYaml.length,
+            yamlBytes: totalBytes,
         };
     }
 
+    private static packModelFiles(files: ModelFile[]): Promise<Buffer> {
+        return new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+
+            const addNext = (index: number): void => {
+                if (index >= files.length) {
+                    packer.finalize();
+                    return;
+                }
+                const file = files[index];
+                packer.entry(
+                    { name: file.filename },
+                    Buffer.from(file.contents, 'utf-8'),
+                    (err) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        addNext(index + 1);
+                    },
+                );
+            };
+            addNext(0);
+        });
+    }
+
     /**
-     * Reconstruct the image's staging S3 key from convention, read the object
-     * (which gives us the MIME type from ContentType), and write it into the
-     * sandbox for Claude to read. Returns the sandbox file path.
+     * HEAD each staged attachment to recover its ContentType, original
+     * filename, and screenshot flag from upload-time metadata. Order is
+     * preserved so callers can keep the user's attachment order.
+     */
+    private static async resolveStagedFiles(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        fileIds: string[],
+    ): Promise<StagedAppFile[]> {
+        return Promise.all(
+            fileIds.map(async (fileId) => {
+                let response;
+                try {
+                    response = await s3Client.send(
+                        new HeadObjectCommand({
+                            Bucket: bucket,
+                            Key: AppGenerateService.fileStagingKey(
+                                appUuid,
+                                fileId,
+                            ),
+                        }),
+                    );
+                } catch (error) {
+                    if (
+                        error instanceof S3ServiceException &&
+                        error.$metadata.httpStatusCode === 404
+                    ) {
+                        throw new ParameterError(
+                            `Attached file not found: ${fileId}`,
+                        );
+                    }
+                    throw error;
+                }
+                const mimeType =
+                    response.ContentType ?? 'application/octet-stream';
+                const rawFilename = response.Metadata?.filename;
+                let filename: string | null = null;
+                if (rawFilename) {
+                    try {
+                        filename = AppGenerateService.sanitizeFilename(
+                            decodeURIComponent(rawFilename),
+                        );
+                    } catch {
+                        filename =
+                            AppGenerateService.sanitizeFilename(rawFilename);
+                    }
+                }
+                return {
+                    fileId,
+                    mimeType,
+                    // Objects staged before filenames shipped (images only)
+                    // carry no filename metadata — synthesize one.
+                    filename:
+                        filename ??
+                        `file-${fileId.slice(0, 8)}.${AppGenerateService.mimeToExt(mimeType)}`,
+                    isImage:
+                        AppGenerateService.RASTER_IMAGE_TYPES.includes(
+                            mimeType,
+                        ),
+                    isScreenshot: response.Metadata?.kind === 'screenshot',
+                };
+            }),
+        );
+    }
+
+    /**
+     * Unique sandbox filenames for an attachment batch: images keep the
+     * uuid-based convention (`screenshot-` prefix tells the agent apart from
+     * design references); other files use their original name so the agent
+     * sees `sales.twb`, deduped with a numeric suffix on collision.
+     */
+    private static assignSandboxFilenames(
+        files: StagedAppFile[],
+    ): NamedStagedFile[] {
+        const used = new Set<string>();
+        return files.map((file) => {
+            if (file.isImage) {
+                const ext = AppGenerateService.mimeToExt(file.mimeType);
+                const sandboxFilename = file.isScreenshot
+                    ? `screenshot-${file.fileId}.${ext}`
+                    : `${file.fileId}.${ext}`;
+                return { ...file, sandboxFilename };
+            }
+            const dot = file.filename.lastIndexOf('.');
+            const stem = dot > 0 ? file.filename.slice(0, dot) : file.filename;
+            const ext = dot > 0 ? file.filename.slice(dot) : '';
+            let candidate = file.filename;
+            for (let n = 2; used.has(candidate); n += 1) {
+                candidate = `${stem}-${n}${ext}`;
+            }
+            used.add(candidate);
+            return { ...file, sandboxFilename: candidate };
+        });
+    }
+
+    /**
+     * Read a staged attachment from S3 and write it into the sandbox for
+     * Claude to read. Returns the sandbox file path.
      *
-     * Design references are dual-written: once to `/tmp/images/` (read-only
-     * inspection — picked up by the prompt prepend and the agent's Read
-     * tool), and again to `/app/src/uploads/` so the agent can `import` them
-     * as Vite assets when the image should ship inside the rendered app
+     * Design-reference images are dual-written: once to `/tmp/images/`
+     * (read-only inspection — picked up by the prompt prepend and the agent's
+     * Read tool), and again to `/app/src/uploads/` so the agent can `import`
+     * them as Vite assets when the image should ship inside the rendered app
      * (logo, hero illustration, etc). Screenshots are inspection-only and
      * never end up in the bundle — they describe current state, not target.
+     *
+     * Non-image attachments go to `/tmp/uploads/` only and are deliberately
+     * NOT copied into the app source tree: they are reference material and
+     * may embed secrets or connection details (e.g. Tableau workbooks), which
+     * must not ship to app viewers unless the agent explicitly inlines
+     * something at the user's request.
      */
-    private async writeImageToSandbox(
+    private async writeFileToSandbox(
         sandbox: SandboxHandle,
         appUuid: string,
-        imageId: string,
+        file: NamedStagedFile,
         s3Client: S3Client,
         bucket: string,
     ): Promise<string> {
-        const stagingKey = AppGenerateService.imageStagingKey(appUuid, imageId);
+        const stagingKey = AppGenerateService.fileStagingKey(
+            appUuid,
+            file.fileId,
+        );
 
         this.logger.info(
-            `App ${appUuid}: reading staged image (key=${stagingKey})`,
+            `App ${appUuid}: reading staged file (key=${stagingKey})`,
         );
 
         const response = await s3Client.send(
@@ -2447,18 +2858,9 @@ export class AppGenerateService extends BaseService {
             }),
         );
 
-        const mimeType = response.ContentType ?? 'image/png';
-        const ext = AppGenerateService.mimeToExt(mimeType);
-        // Screenshots get a filename prefix so the agent can tell them apart
-        // from user-provided design references. Stamped on the staging object
-        // at upload time via S3 metadata (see `uploadImage`).
-        const isScreenshot = response.Metadata?.kind === 'screenshot';
-        const filename = isScreenshot
-            ? `screenshot-${imageId}.${ext}`
-            : `${imageId}.${ext}`;
-        const sandboxPath = `/tmp/images/${filename}`;
+        const dir = file.isImage ? '/tmp/images' : '/tmp/uploads';
+        const sandboxPath = `${dir}/${file.sandboxFilename}`;
 
-        // Read the image bytes
         const chunks: Uint8Array[] = [];
         const body = response.Body;
         if (body && typeof (body as NodeJS.ReadableStream).on === 'function') {
@@ -2470,24 +2872,22 @@ export class AppGenerateService extends BaseService {
         }
         const buffer = Buffer.concat(chunks);
 
-        // Write to sandbox
         this.logger.info(
-            `App ${appUuid}: writing image to sandbox (${mimeType}, ${buffer.length} bytes)`,
+            `App ${appUuid}: writing file to sandbox (${file.mimeType}, ${buffer.length} bytes)`,
         );
-        await sandbox.commands.run('mkdir -p /tmp/images', {
+        await sandbox.commands.run(`mkdir -p ${dir}`, {
             timeoutMs: 10_000,
         });
         await sandbox.files.write(sandboxPath, buffer);
 
-        // Design references go into the Vite-bundled source tree so the agent
-        // can `import logo from './uploads/<file>'` and have the URL hashed,
-        // auth-gated, and CSP-clean — same path as theme images. Screenshots
-        // are explicitly inspection-only and skipped to keep the bundle lean.
-        if (!isScreenshot) {
+        if (file.isImage && !file.isScreenshot) {
             await sandbox.commands.run('mkdir -p /app/src/uploads', {
                 timeoutMs: 10_000,
             });
-            await sandbox.files.write(`/app/src/uploads/${filename}`, buffer);
+            await sandbox.files.write(
+                `/app/src/uploads/${file.sandboxFilename}`,
+                buffer,
+            );
         }
 
         return sandboxPath;
@@ -2740,7 +3140,7 @@ export class AppGenerateService extends BaseService {
                         `--model ${claudeModel} ${effortFlag}` +
                         `--thinking-display summarized ` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
-                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Read(//tmp/dashboard/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Glob(//tmp/dashboard/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/external-data/**)" ` +
+                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/uploads/**),Read(//tmp/metric-queries/**),Read(//tmp/dashboard/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/uploads/**),Glob(//tmp/metric-queries/**),Glob(//tmp/dashboard/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/uploads/**),Grep(//tmp/external-data/**)" ` +
                         `${jsonSchemaFlag}--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
                     {
                         cwd: '/app',
@@ -3455,14 +3855,10 @@ export class AppGenerateService extends BaseService {
         payload: AppGeneratePipelineJobPayload,
         schedulerWaitMs: number,
     ): Promise<void> {
-        const {
-            appUuid,
-            version,
-            projectUuid,
-            imageIds,
-            isIteration,
-            chartReferences,
-        } = payload;
+        const { appUuid, version, projectUuid, isIteration, chartReferences } =
+            payload;
+        // Jobs enqueued before the fileIds rename still carry imageIds.
+        const fileIds = payload.fileIds ?? payload.imageIds;
 
         // Check if version was cancelled while we were dead
         const currentStatus = await this.appModel.getVersionStatus(
@@ -3502,9 +3898,17 @@ export class AppGenerateService extends BaseService {
                 userMessage,
             );
             if (marked) {
-                this.trackVersionFailed(payload, 'config', error, {}, null, 0, {
-                    schedulerWaitMs,
-                });
+                await this.trackVersionFailed(
+                    payload,
+                    'config',
+                    error,
+                    {},
+                    null,
+                    0,
+                    {
+                        schedulerWaitMs,
+                    },
+                );
             }
             return;
         }
@@ -3602,7 +4006,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to set up build environment. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'sandbox',
                         error,
@@ -3628,7 +4032,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to resume build environment. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'sandbox',
                         missingSandboxError,
@@ -3659,7 +4063,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to resume build environment. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'sandbox',
                         error,
@@ -3733,7 +4137,7 @@ export class AppGenerateService extends BaseService {
                         wasResumed,
                         { ...claudeCodeEnv, ...otelEnv },
                         copilot,
-                        imageIds,
+                        fileIds,
                         chartReferences,
                         versionDeps,
                         schedulerWaitMs,
@@ -3757,7 +4161,7 @@ export class AppGenerateService extends BaseService {
         wasResumed: boolean,
         claudeCodeEnv: Record<string, string>,
         copilot: ResolvedCopilotConfig,
-        imageIds: string[] | undefined,
+        fileIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
         versionDeps: AppVersionDependencies | null,
         schedulerWaitMs: number,
@@ -3858,7 +4262,7 @@ export class AppGenerateService extends BaseService {
                     message,
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'config',
                         themeError,
@@ -3966,7 +4370,7 @@ export class AppGenerateService extends BaseService {
                     previousPromptCancelled
                         ? `${CANCELLED_PROMPT_NOTICE}\n\n${prompt}`
                         : prompt,
-                    imageIds,
+                    fileIds,
                     s3Client,
                     bucket,
                     chartReferences,
@@ -3993,7 +4397,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to load your data models. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'catalog',
                         error,
@@ -4097,7 +4501,7 @@ export class AppGenerateService extends BaseService {
                     userMessage,
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'generating',
                         error,
@@ -4166,7 +4570,7 @@ export class AppGenerateService extends BaseService {
                             'Installing dependencies',
                         );
                         if (marked) {
-                            this.trackVersionFailed(
+                            await this.trackVersionFailed(
                                 payload,
                                 'building',
                                 installError,
@@ -4236,7 +4640,7 @@ export class AppGenerateService extends BaseService {
                         : "The generated code couldn't be compiled. Try again or simplify your request.",
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'building',
                         error,
@@ -4287,7 +4691,7 @@ export class AppGenerateService extends BaseService {
                     'Failed to deploy your app. Please try again.',
                 );
                 if (marked) {
-                    this.trackVersionFailed(
+                    await this.trackVersionFailed(
                         payload,
                         'packaging',
                         error,
@@ -4334,7 +4738,7 @@ export class AppGenerateService extends BaseService {
                 'Something went wrong. Please try again.',
             );
             if (marked) {
-                this.trackVersionFailed(
+                await this.trackVersionFailed(
                     payload,
                     'db',
                     error,
@@ -4373,6 +4777,7 @@ export class AppGenerateService extends BaseService {
             claudeKeyManagement,
             generationUsage,
         );
+        await this.recordGenerationUsage(payload, generationUsage);
 
         this.analytics.track({
             event: 'data_app.version.completed',
@@ -4384,6 +4789,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 isIteration: payload.isIteration,
                 isUpgrade: payload.isUpgrade ?? false,
+                creationExperience: payload.creationExperience ?? null,
                 claudeModel,
                 claudeProvider,
                 schedulerWaitMs,
@@ -4703,7 +5109,7 @@ export class AppGenerateService extends BaseService {
         template?: DataAppTemplate,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
-        imageIds?: string[],
+        fileIds?: string[],
     ): Promise<{ questions: string[] }> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -4758,7 +5164,7 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
             ),
         ]);
-        const imageCount = imageIds?.length ?? 0;
+        const fileCount = fileIds?.length ?? 0;
 
         // No `.max()` on the array — Anthropic's structured-output mode
         // rejects `maxItems` in the schema. The prompt already pins the
@@ -4818,7 +5224,7 @@ export class AppGenerateService extends BaseService {
                             `\nResources the user attached:\n${
                                 AppGenerateService.formatAttachedResourcesForClarifier(
                                     attachedResources,
-                                    imageCount,
+                                    fileCount,
                                 ) || '(none)'
                             }`,
                             ...(isVizTemplate
@@ -4929,7 +5335,7 @@ export class AppGenerateService extends BaseService {
             charts: { name: string; exploreName: string }[];
             dashboard: { name: string; structureSummary: string } | null;
         },
-        imageCount: number,
+        fileCount: number,
     ): string {
         const lines: string[] = [];
         if (attached.dashboard) {
@@ -4944,9 +5350,11 @@ export class AppGenerateService extends BaseService {
                 `- Chart: "${chart.name}" (explore: ${chart.exploreName})`,
             );
         }
-        if (imageCount > 0) {
+        if (fileCount > 0) {
+            // The clarifier only sees ids — file types live on the staged S3
+            // objects — so keep the wording type-agnostic.
             lines.push(
-                `- ${imageCount} image${imageCount === 1 ? '' : 's'} attached as design reference`,
+                `- ${fileCount} file${fileCount === 1 ? '' : 's'} attached (design references or documents)`,
             );
         }
         return lines.join('\n');
@@ -5016,7 +5424,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         prompt: string,
-        imageIds: string[],
+        fileIds: string[],
         preGeneratedAppUuid?: string,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
@@ -5026,7 +5434,8 @@ export class AppGenerateService extends BaseService {
         claudeModelInput?: DataAppClaudeModel,
         options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
-        const { designUuidInput, externalConnections } = options;
+        const { creationExperience, designUuidInput, externalConnections } =
+            options;
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
         this.assertDataAppAbility(
@@ -5060,10 +5469,23 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        AppGenerateService.validateImageIds(imageIds);
+        AppGenerateService.validateFileIds(fileIds);
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
+
+        // Resolve attachment types/filenames from the staged S3 objects so the
+        // version resources can split image chips from file chips in the chat.
+        let stagedFiles: StagedAppFile[] = [];
+        if (fileIds.length > 0) {
+            const { client: s3Client, bucket } = this.getS3Client();
+            stagedFiles = await AppGenerateService.resolveStagedFiles(
+                s3Client,
+                bucket,
+                appUuid,
+                fileIds,
+            );
+        }
 
         // The pipeline gets the augmented prompt so Claude in the sandbox
         // sees the resolved intent. The version row keeps the original
@@ -5140,7 +5562,8 @@ export class AppGenerateService extends BaseService {
 
         // Build resources metadata to persist with the version
         const resources: AppVersionResources = {
-            images: imageIds.map((id) => ({ imageId: id })),
+            ...AppGenerateService.toAttachmentResources(stagedFiles),
+            ...(creationExperience ? { creationExperience } : {}),
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
@@ -5189,13 +5612,15 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 promptLength: prompt.length,
-                imageCount: imageIds.length,
+                imageCount: stagedFiles.filter((f) => f.isImage).length,
+                fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 template: template ?? null,
                 claudeModel,
                 claudeEffort: AppGenerateService.resolveClaudeEffort(version),
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
                 clarificationCount: clarifications?.length ?? 0,
+                creationExperience: creationExperience ?? null,
             },
         });
 
@@ -5206,8 +5631,9 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
+            ...(creationExperience ? { creationExperience } : {}),
             template,
-            imageIds: imageIds.length > 0 ? imageIds : undefined,
+            fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: false,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
@@ -5224,16 +5650,17 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
         prompt: string,
-        imageIds: string[],
+        fileIds: string[],
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         claudeModelInput?: DataAppClaudeModel,
         options: GenerateAppOptions = {},
     ): Promise<GenerateAppResult> {
-        const { designUuidInput, externalConnections } = options;
+        const { creationExperience, designUuidInput, externalConnections } =
+            options;
         await this.assertDataAppsEnabled(user);
 
-        AppGenerateService.validateImageIds(imageIds);
+        AppGenerateService.validateFileIds(fileIds);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -5241,6 +5668,19 @@ export class AppGenerateService extends BaseService {
             app,
             'Insufficient permissions to modify data apps',
         );
+
+        // Resolve attachment types/filenames from the staged S3 objects so the
+        // version resources can split image chips from file chips in the chat.
+        let stagedFiles: StagedAppFile[] = [];
+        if (fileIds.length > 0) {
+            const { client: s3Client, bucket } = this.getS3Client();
+            stagedFiles = await AppGenerateService.resolveStagedFiles(
+                s3Client,
+                bucket,
+                appUuid,
+                fileIds,
+            );
+        }
 
         // Resolved after the permission check so an unauthorized caller gets a
         // 403 rather than a model-visibility error. Scoped to the project's
@@ -5268,7 +5708,6 @@ export class AppGenerateService extends BaseService {
         }
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
-
         this.logger.info(
             `App ${appUuid}: iteration started (version=${newVersion}, model=${claudeModel}, promptLength=${prompt.length}, designUuidInput=${
                 designUuidInput === undefined
@@ -5333,7 +5772,8 @@ export class AppGenerateService extends BaseService {
             : prompt;
 
         const resources: AppVersionResources = {
-            images: imageIds.map((id) => ({ imageId: id })),
+            ...AppGenerateService.toAttachmentResources(stagedFiles),
+            ...(creationExperience ? { creationExperience } : {}),
             charts: chartResources,
             externalConnections: externalConnectionResources,
             dashboardName,
@@ -5376,7 +5816,8 @@ export class AppGenerateService extends BaseService {
                 version: newVersion,
                 iterationNumber: newVersion - 1,
                 promptLength: prompt.length,
-                imageCount: imageIds.length,
+                imageCount: stagedFiles.filter((f) => f.isImage).length,
+                fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 claudeModel,
                 claudeEffort:
                     AppGenerateService.resolveClaudeEffort(newVersion),
@@ -5388,6 +5829,7 @@ export class AppGenerateService extends BaseService {
                     : null,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
+                creationExperience: creationExperience ?? null,
             },
         });
 
@@ -5398,7 +5840,8 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
-            imageIds: imageIds.length > 0 ? imageIds : undefined,
+            ...(creationExperience ? { creationExperience } : {}),
+            fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
@@ -5423,13 +5866,6 @@ export class AppGenerateService extends BaseService {
         latestDependencies: AppVersionDependencies | null | undefined,
     ): Promise<AppVersionDependencies | undefined> {
         if (!latestDependencies) return undefined;
-        // Kill-switch: iterations restore the stored dep set, so they must
-        // stop too when custom dependencies are disabled instance-wide.
-        if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-            throw new ParameterError(
-                'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). This app declares custom packages, so it cannot be iterated until they are re-enabled.',
-            );
-        }
         const { client, bucket } = this.getS3Client();
         const toPrefix = versionPrefix(appUuid, newVersion);
         const candidates =
@@ -5730,7 +6166,14 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // 3. Insert the new version
+        // 3. Insert the new version. A restore is not an AI generation, so do
+        // not copy the source version's creation experience onto it.
+        const restoredResources = source.resources
+            ? { ...source.resources }
+            : undefined;
+        if (restoredResources) {
+            delete restoredResources.creationExperience;
+        }
         await this.appModel.createVersion(
             appUuid,
             {
@@ -5739,7 +6182,12 @@ export class AppGenerateService extends BaseService {
             },
             'ready',
             user.userUuid,
-            source.resources ?? undefined,
+            restoredResources,
+            source.dependencies ?? undefined,
+            // A data app viz is only listed while its latest ready version
+            // declares a schema, so dropping it here delists the viz and
+            // strips the contract from every chart bound to it.
+            source.viz_schema ?? undefined,
         );
         await this.appModel.updateStatusMessage(
             appUuid,
@@ -6771,6 +7219,7 @@ export class AppGenerateService extends BaseService {
                     // by their creator inside the preview.
                     created_by_user_uuid: sourceApp.created_by_user_uuid,
                     name: sourceApp.name,
+                    slug: sourceApp.slug,
                     description: sourceApp.description,
                     template: sourceApp.template,
                     space_uuid: previewSpaceUuid,
@@ -6863,6 +7312,8 @@ export class AppGenerateService extends BaseService {
                     stageAtCancellation: versionRow.status,
                     msElapsedBeforeCancel:
                         Date.now() - versionRow.created_at.getTime(),
+                    creationExperience:
+                        versionRow.resources?.creationExperience ?? null,
                 },
             });
         }
@@ -6958,6 +7409,8 @@ export class AppGenerateService extends BaseService {
         template: Exclude<DataAppTemplate, 'custom'> | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
+        slug: string;
+        views: number;
         versions: {
             version: number;
             prompt: string;
@@ -6988,6 +7441,8 @@ export class AppGenerateService extends BaseService {
             spaceUuid,
             spaceName,
             template,
+            slug,
+            viewsCount,
             pinnedListUuid,
             pinnedListOrder,
             versions,
@@ -7013,6 +7468,8 @@ export class AppGenerateService extends BaseService {
             spaceUuid,
             spaceName,
             template,
+            slug,
+            views: viewsCount,
             pinnedListUuid,
             pinnedListOrder,
             versions: versions.map((v) => ({
@@ -7034,6 +7491,9 @@ export class AppGenerateService extends BaseService {
                     v.resources || v.viz_schema
                         ? {
                               images: v.resources?.images ?? [],
+                              creationExperience:
+                                  v.resources?.creationExperience,
+                              files: v.resources?.files ?? [],
                               charts: v.resources?.charts ?? [],
                               externalConnections:
                                   v.resources?.externalConnections,
@@ -7089,7 +7549,11 @@ export class AppGenerateService extends BaseService {
             throw new ForbiddenError('Insufficient permissions');
         }
         const apps = await this.appModel.listAppsByProject(projectUuid);
-        return apps.map((app) => ({ appUuid: app.app_id, name: app.name }));
+        return apps.map((app) => ({
+            appUuid: app.app_id,
+            name: app.name,
+            slug: app.slug,
+        }));
     }
 
     // Validate the generator's declared schema. Pure (no IO); null when the
@@ -7152,10 +7616,12 @@ export class AppGenerateService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
+        // The library is offered to whoever can build a chart in an explore:
+        // picking a renderer is part of configuring a chart, not app access.
         if (
             auditedAbility.cannot(
-                'view',
-                subject('DataApp', { organizationUuid, projectUuid }),
+                'manage',
+                subject('Explore', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError('Insufficient permissions');
@@ -7247,6 +7713,75 @@ export class AppGenerateService extends BaseService {
                 lastVersionStatus: row.lastVersion?.status ?? null,
             })),
             pagination: result.pagination,
+        };
+    }
+
+    private static toActivityEvent(
+        row: DbAppActivityRow,
+    ): DataAppActivityEvent {
+        return {
+            appUuid: row.app_id,
+            appName: row.app_name,
+            appDeleted: row.app_deleted_at !== null,
+            version: row.version,
+            status: row.status,
+            prompt: row.prompt,
+            claudeModel:
+                row.resources?.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL,
+            createdAt: row.created_at,
+            projectUuid: row.project_uuid,
+            projectName: row.project_name,
+            // first_name/last_name are non-null on the user row, so a null here
+            // means the join missed entirely (hard-deleted author).
+            user:
+                row.created_by_user_first_name === null ||
+                row.created_by_user_last_name === null
+                    ? null
+                    : {
+                          userUuid: row.created_by_user_uuid,
+                          firstName: row.created_by_user_first_name,
+                          lastName: row.created_by_user_last_name,
+                      },
+            usage: row.generation_usage,
+        };
+    }
+
+    /**
+     * Org-wide log of every data app generation — who built what, when, and
+     * with which model. Org admins only.
+     */
+    async getOrganizationActivity(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        filters?: DataAppActivityFilters,
+    ): Promise<KnexPaginatedData<DataAppActivityEvent[]>> {
+        await this.assertDataAppsEnabled(user);
+
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        const { data, pagination } =
+            await this.appModel.getOrganizationActivity(
+                organizationUuid,
+                paginateArgs,
+                filters,
+            );
+
+        return {
+            data: data.map(AppGenerateService.toActivityEvent),
+            pagination,
         };
     }
 
@@ -7964,157 +8499,224 @@ export class AppGenerateService extends BaseService {
         return lines;
     }
 
-    /**
-     * Convert compiled explores into the dbt-style YAML that skill.md expects.
-     * One model per explore, keyed by the explore name (the value passed to
-     * `query()`), carrying real metric/dimension types, join relationships
-     * (`meta.joins`), AI hints, and model-level parameters. Joined tables that
-     * aren't themselves a top-level explore (seeds, aliased joins) are inlined
-     * so their dot-notation fields stay discoverable. Hidden fields are
-     * skipped; descriptions are truncated to keep the prompt bounded.
-     */
-    private static exploresToYaml(explores: Explore[]): {
-        yaml: string;
-        tableCount: number;
-        dimensionCount: number;
-        metricCount: number;
-    } {
-        const DESCRIPTION_MAX_LEN = 200;
-        const truncate = (s: string): string =>
-            s.length > DESCRIPTION_MAX_LEN
-                ? `${s.slice(0, DESCRIPTION_MAX_LEN - 1)}…`
-                : s;
+    private static readonly DESCRIPTION_MAX_LEN = 200;
 
-        const lines: string[] = ['models:'];
-        let tableCount = 0;
-        let dimensionCount = 0;
-        let metricCount = 0;
+    private static truncateDescription(s: string): string {
+        return s.length > AppGenerateService.DESCRIPTION_MAX_LEN
+            ? `${s.slice(0, AppGenerateService.DESCRIPTION_MAX_LEN - 1)}…`
+            : s;
+    }
+
+    /**
+     * Render one model-level filter in the SDK `Filter` shape (field/operator/
+     * value/unit) so the agent can pass entries into `.filters([...])` as-is.
+     */
+    private static renderModelFilterYaml(
+        filter: ModelRequiredFilterRule,
+    ): string[] {
+        const lines: string[] = [
+            `        - field: ${filter.target.fieldRef}`,
+            `          operator: ${filter.operator}`,
+        ];
+        if (
+            filter.operator !== FilterOperator.NULL &&
+            filter.operator !== FilterOperator.NOT_NULL
+        ) {
+            const values = (filter.values ?? []).map((v: unknown) =>
+                typeof v === 'number' || typeof v === 'boolean'
+                    ? String(v)
+                    : AppGenerateService.yamlQuote(v),
+            );
+            lines.push(`          value: [${values.join(', ')}]`);
+        }
+        const unitOfTime: unknown = filter.settings?.unitOfTime;
+        if (typeof unitOfTime === 'string') {
+            lines.push(`          unit: ${unitOfTime}`);
+        }
+        return lines;
+    }
+
+    /**
+     * Render one compiled table as a dbt-style model, carrying real
+     * metric/dimension types, join relationships (`meta.joins`), AI hints,
+     * model-level parameters, and model-level filters (`sql_filter`,
+     * `required_filters`, `default_filters`). Joins, parameters, and filters
+     * are explore-scoped rather than table-scoped, so they're passed in
+     * explicitly. Hidden fields are skipped; descriptions are truncated to
+     * keep the output bounded.
+     */
+    private static renderTableModel(
+        modelName: string,
+        table: CompiledTable,
+        joins: CompiledExploreJoin[],
+        parameters: Record<string, LightdashProjectParameter> | undefined,
+        modelFilters: RenderedModelFilters,
+    ): RenderedModel {
+        const truncate = AppGenerateService.truncateDescription;
+        const headerLines: string[] = [`  - name: ${modelName}`];
+        if (table.description) {
+            headerLines.push(
+                `    description: ${AppGenerateService.yamlQuote(truncate(table.description))}`,
+            );
+        }
+
+        const metrics = Object.values(table.metrics).filter((m) => !m.hidden);
+        const dimensions = Object.values(table.dimensions).filter(
+            (d) => !d.hidden,
+        );
+        const parameterEntries = parameters ? Object.entries(parameters) : [];
+        // Same predicate MetricQueryBuilder uses to decide enforcement.
+        const requiredFilters = modelFilters.requiredFilters.filter(
+            (f) => f.required !== false,
+        );
+        const defaultFilters = modelFilters.requiredFilters.filter(
+            (f) => f.required === false,
+        );
+        const { sqlFilter } = modelFilters;
+
+        if (
+            metrics.length > 0 ||
+            joins.length > 0 ||
+            parameterEntries.length > 0 ||
+            requiredFilters.length > 0 ||
+            defaultFilters.length > 0 ||
+            sqlFilter !== null
+        ) {
+            headerLines.push(`    meta:`);
+            if (metrics.length > 0) {
+                headerLines.push(`      metrics:`);
+                for (const m of metrics) {
+                    headerLines.push(`        ${m.name}:`);
+                    headerLines.push(`          type: ${m.type}`);
+                    if (m.label && m.label !== m.name) {
+                        headerLines.push(
+                            `          label: ${AppGenerateService.yamlQuote(m.label)}`,
+                        );
+                    }
+                    if (m.description) {
+                        headerLines.push(
+                            `          description: ${AppGenerateService.yamlQuote(truncate(m.description))}`,
+                        );
+                    }
+                    const aiHints = getEffectiveFieldAiHints(m, table);
+                    if (aiHints) {
+                        headerLines.push(`          ai_hints:`);
+                        for (const aiHint of aiHints) {
+                            headerLines.push(
+                                `            - ${AppGenerateService.yamlQuote(aiHint)}`,
+                            );
+                        }
+                    }
+                }
+            }
+            if (joins.length > 0) {
+                headerLines.push(`      joins:`);
+                for (const j of joins) {
+                    headerLines.push(`        - join: ${j.table}`);
+                    if (j.relationship) {
+                        headerLines.push(
+                            `          relationship: ${j.relationship}`,
+                        );
+                    }
+                    if (j.sqlOn) {
+                        headerLines.push(
+                            `          sql_on: ${AppGenerateService.yamlQuote(j.sqlOn)}`,
+                        );
+                    }
+                }
+            }
+            if (sqlFilter !== null) {
+                headerLines.push(
+                    `      sql_filter: ${AppGenerateService.yamlQuote(sqlFilter)}`,
+                );
+            }
+            if (requiredFilters.length > 0) {
+                headerLines.push(`      required_filters:`);
+                for (const filter of requiredFilters) {
+                    headerLines.push(
+                        ...AppGenerateService.renderModelFilterYaml(filter),
+                    );
+                }
+            }
+            if (defaultFilters.length > 0) {
+                headerLines.push(`      default_filters:`);
+                for (const filter of defaultFilters) {
+                    headerLines.push(
+                        ...AppGenerateService.renderModelFilterYaml(filter),
+                    );
+                }
+            }
+            if (parameterEntries.length > 0) {
+                headerLines.push(`      parameters:`);
+                for (const [key, param] of parameterEntries) {
+                    headerLines.push(
+                        ...AppGenerateService.renderParameterYaml(
+                            key,
+                            param,
+                            '        ',
+                        ),
+                    );
+                }
+            }
+        }
+
+        const columnBlocks = dimensions.map((d) => {
+            const block: string[] = [`      - name: ${d.name}`];
+            if (d.label && d.label !== d.name) {
+                block.push(
+                    `        label: ${AppGenerateService.yamlQuote(d.label)}`,
+                );
+            }
+            if (d.description) {
+                block.push(
+                    `        description: ${AppGenerateService.yamlQuote(truncate(d.description))}`,
+                );
+            }
+            const aiHints = getEffectiveFieldAiHints(d, table);
+            if (aiHints) {
+                block.push(`        ai_hints:`);
+                for (const aiHint of aiHints) {
+                    block.push(
+                        `          - ${AppGenerateService.yamlQuote(aiHint)}`,
+                    );
+                }
+            }
+            block.push(`        meta:`);
+            block.push(`          dimension:`);
+            block.push(`            type: ${d.type}`);
+            return block;
+        });
+
+        return {
+            name: modelName,
+            description: table.description ? truncate(table.description) : null,
+            joinedTables: joins.map((j) => j.table),
+            headerLines,
+            columnBlocks,
+            dimensionCount: dimensions.length,
+            metricCount: metrics.length,
+            requiredFilterCount: requiredFilters.length,
+            defaultFilterCount: defaultFilters.length,
+            hasSqlFilter: sqlFilter !== null,
+        };
+    }
+
+    /**
+     * One model per explore, keyed by the explore name (the value passed to
+     * `query()`). Joined tables that aren't themselves a top-level explore
+     * (seeds, aliased joins) are appended so their dot-notation fields stay
+     * discoverable.
+     */
+    private static exploresToRenderedModels(
+        explores: Explore[],
+    ): RenderedModel[] {
+        const models: RenderedModel[] = [];
 
         // Names already emitted as a standalone model, so the join-target
         // fallback (pass 2) only inlines tables that aren't otherwise visible.
         const emittedModelNames = new Set<string>(
             explores.map((explore) => explore.name),
         );
-
-        // Emit one model from a compiled table. Joins and parameters live on
-        // the explore (not the table), so they're passed in explicitly.
-        const emitTableModel = (
-            modelName: string,
-            table: CompiledTable,
-            joins: CompiledExploreJoin[],
-            parameters: Record<string, LightdashProjectParameter> | undefined,
-        ): void => {
-            tableCount += 1;
-            lines.push(`  - name: ${modelName}`);
-            if (table.description) {
-                lines.push(
-                    `    description: ${AppGenerateService.yamlQuote(truncate(table.description))}`,
-                );
-            }
-
-            const metrics = Object.values(table.metrics).filter(
-                (m) => !m.hidden,
-            );
-            const dimensions = Object.values(table.dimensions).filter(
-                (d) => !d.hidden,
-            );
-            const parameterEntries = parameters
-                ? Object.entries(parameters)
-                : [];
-
-            if (
-                metrics.length > 0 ||
-                joins.length > 0 ||
-                parameterEntries.length > 0
-            ) {
-                lines.push(`    meta:`);
-                if (metrics.length > 0) {
-                    lines.push(`      metrics:`);
-                    for (const m of metrics) {
-                        metricCount += 1;
-                        lines.push(`        ${m.name}:`);
-                        lines.push(`          type: ${m.type}`);
-                        if (m.label && m.label !== m.name) {
-                            lines.push(
-                                `          label: ${AppGenerateService.yamlQuote(m.label)}`,
-                            );
-                        }
-                        if (m.description) {
-                            lines.push(
-                                `          description: ${AppGenerateService.yamlQuote(truncate(m.description))}`,
-                            );
-                        }
-                        const aiHints = getEffectiveFieldAiHints(m, table);
-                        if (aiHints) {
-                            lines.push(`          ai_hints:`);
-                            for (const aiHint of aiHints) {
-                                lines.push(
-                                    `            - ${AppGenerateService.yamlQuote(aiHint)}`,
-                                );
-                            }
-                        }
-                    }
-                }
-                if (joins.length > 0) {
-                    lines.push(`      joins:`);
-                    for (const j of joins) {
-                        lines.push(`        - join: ${j.table}`);
-                        if (j.relationship) {
-                            lines.push(
-                                `          relationship: ${j.relationship}`,
-                            );
-                        }
-                        if (j.sqlOn) {
-                            lines.push(
-                                `          sql_on: ${AppGenerateService.yamlQuote(j.sqlOn)}`,
-                            );
-                        }
-                    }
-                }
-                if (parameterEntries.length > 0) {
-                    lines.push(`      parameters:`);
-                    for (const [key, param] of parameterEntries) {
-                        lines.push(
-                            ...AppGenerateService.renderParameterYaml(
-                                key,
-                                param,
-                                '        ',
-                            ),
-                        );
-                    }
-                }
-            }
-
-            if (dimensions.length > 0) {
-                lines.push(`    columns:`);
-                for (const d of dimensions) {
-                    dimensionCount += 1;
-                    lines.push(`      - name: ${d.name}`);
-                    if (d.label && d.label !== d.name) {
-                        lines.push(
-                            `        label: ${AppGenerateService.yamlQuote(d.label)}`,
-                        );
-                    }
-                    if (d.description) {
-                        lines.push(
-                            `        description: ${AppGenerateService.yamlQuote(truncate(d.description))}`,
-                        );
-                    }
-                    const aiHints = getEffectiveFieldAiHints(d, table);
-                    if (aiHints) {
-                        lines.push(`        ai_hints:`);
-                        for (const aiHint of aiHints) {
-                            lines.push(
-                                `          - ${AppGenerateService.yamlQuote(aiHint)}`,
-                            );
-                        }
-                    }
-                    lines.push(`        meta:`);
-                    lines.push(`          dimension:`);
-                    lines.push(`            type: ${d.type}`);
-                }
-            }
-        };
 
         // Pass 1: every explore becomes a model keyed by its queryable name.
         for (const explore of explores) {
@@ -8123,11 +8725,17 @@ export class AppGenerateService extends BaseService {
                 const joins = (explore.joinedTables ?? []).filter(
                     (j) => !j.hidden,
                 );
-                emitTableModel(
-                    explore.name,
-                    baseTable,
-                    joins,
-                    explore.parameters,
+                models.push(
+                    AppGenerateService.renderTableModel(
+                        explore.name,
+                        baseTable,
+                        joins,
+                        explore.parameters,
+                        {
+                            requiredFilters: baseTable.requiredFilters ?? [],
+                            sqlFilter: baseTable.sqlWhere ?? null,
+                        },
+                    ),
                 );
             }
         }
@@ -8146,16 +8754,298 @@ export class AppGenerateService extends BaseService {
                     !inlined.has(key)
                 ) {
                     inlined.add(key);
-                    emitTableModel(key, joinedTable, [], undefined);
+                    models.push(
+                        AppGenerateService.renderTableModel(
+                            key,
+                            joinedTable,
+                            [],
+                            undefined,
+                            // A join target's own filters only apply when it
+                            // is queried as its own explore, which these are
+                            // not — rendering them here would be misleading.
+                            { requiredFilters: [], sqlFilter: null },
+                        ),
+                    );
                 }
             }
         }
 
+        return models;
+    }
+
+    private static renderedModelToLines(model: RenderedModel): string[] {
+        return [
+            ...model.headerLines,
+            ...(model.columnBlocks.length > 0 ? ['    columns:'] : []),
+            ...model.columnBlocks.flat(),
+        ];
+    }
+
+    /**
+     * Convert compiled explores into a single dbt-style YAML document. Used for
+     * the app-code download bundle, where the whole semantic layer is expected
+     * in one file; the build sandbox gets the sharded layout instead.
+     */
+    private static exploresToYaml(explores: Explore[]): {
+        yaml: string;
+        tableCount: number;
+        dimensionCount: number;
+        metricCount: number;
+    } {
+        const models = AppGenerateService.exploresToRenderedModels(explores);
+        const lines = [
+            'models:',
+            ...models.flatMap(AppGenerateService.renderedModelToLines),
+        ];
+
         return {
             yaml: lines.join('\n'),
-            tableCount,
-            dimensionCount,
-            metricCount,
+            tableCount: models.length,
+            dimensionCount: models.reduce((n, m) => n + m.dimensionCount, 0),
+            metricCount: models.reduce((n, m) => n + m.metricCount, 0),
+        };
+    }
+
+    static readonly MODELS_INDEX_FILENAME = '_index.md';
+
+    // Iterations resume the previous Claude session, whose history still points
+    // at the single-file layout this replaced. Leave a signpost so a remembered
+    // read lands on instructions rather than a missing file.
+    private static readonly MODELS_LEGACY_POINTER: ModelFile = {
+        filename: 'schema.yml',
+        contents: [
+            '# This project is sharded across one YAML file per model in this directory.',
+            `# Start with ${AppGenerateService.MODELS_INDEX_FILENAME}, then read only the model files you need.`,
+            '',
+        ].join('\n'),
+    };
+
+    // The agent's Read tool refuses files over 256KB outright, so every file we
+    // write has to stay comfortably under it or it is unreadable in the sandbox.
+    private static readonly MODEL_FILE_MAX_BYTES = 200_000;
+
+    private static readonly INDEX_MAX_BYTES = 200_000;
+
+    // Below this, index entries carry joins and a description; past it they
+    // degrade to name/file/counts so every model still gets listed.
+    private static readonly INDEX_DETAIL_MAX_BYTES = 120_000;
+
+    private static readonly INDEX_DESCRIPTION_MAX_LEN = 120;
+
+    /**
+     * The index carries the resolved filename for every model, so sanitizing a
+     * name here never leaves the agent guessing at the path.
+     */
+    private static modelFilenames(models: RenderedModel[]): string[] {
+        const taken = new Set<string>([
+            AppGenerateService.MODELS_INDEX_FILENAME,
+            AppGenerateService.MODELS_LEGACY_POINTER.filename,
+        ]);
+        return models.map((model) => {
+            const safe = model.name.replace(/[^a-zA-Z0-9_-]/g, '_') || 'model';
+            let filename = `${safe}.yml`;
+            let suffix = 2;
+            while (taken.has(filename)) {
+                filename = `${safe}-${suffix}.yml`;
+                suffix += 1;
+            }
+            taken.add(filename);
+            return filename;
+        });
+    }
+
+    /**
+     * One model as one or more YAML files. A model whose columns push it past
+     * the Read ceiling is split across `<name>.yml`, `<name>.part2.yml`, … —
+     * each a standalone-parseable document for the same model.
+     */
+    private static modelToFiles(
+        model: RenderedModel,
+        filename: string,
+    ): ModelFile[] {
+        const whole = `models:\n${AppGenerateService.renderedModelToLines(
+            model,
+        ).join('\n')}\n`;
+        // Columns are the only split point, so a model with none is written
+        // whole however big its metrics make it — an oversized file is still
+        // greppable, whereas a model the index names but never writes is not.
+        if (
+            Buffer.byteLength(whole) <=
+                AppGenerateService.MODEL_FILE_MAX_BYTES ||
+            model.columnBlocks.length === 0
+        ) {
+            return [{ filename, contents: whole }];
+        }
+
+        const base = filename.replace(/\.yml$/, '');
+        const header = `models:\n${model.headerLines.join('\n')}\n    columns:\n`;
+        const files: ModelFile[] = [];
+        let current: string[] = [];
+        let currentBytes = Buffer.byteLength(header);
+
+        const flush = () => {
+            if (current.length === 0) return;
+            const part = files.length + 1;
+            files.push({
+                filename: part === 1 ? filename : `${base}.part${part}.yml`,
+                contents:
+                    part === 1
+                        ? `${header}${current.join('\n')}\n`
+                        : `models:\n  - name: ${model.name}\n    columns:\n${current.join(
+                              '\n',
+                          )}\n`,
+            });
+            current = [];
+            currentBytes = Buffer.byteLength(header);
+        };
+
+        for (const block of model.columnBlocks) {
+            const text = block.join('\n');
+            const blockBytes = Buffer.byteLength(text) + 1;
+            if (
+                current.length > 0 &&
+                currentBytes + blockBytes >
+                    AppGenerateService.MODEL_FILE_MAX_BYTES
+            ) {
+                flush();
+            }
+            current.push(text);
+            currentBytes += blockBytes;
+        }
+        flush();
+
+        return files.map((file, i) => ({
+            ...file,
+            contents:
+                i < files.length - 1
+                    ? `${file.contents}# ${model.name} continues in ${
+                          files[i + 1].filename
+                      }\n`
+                    : file.contents,
+        }));
+    }
+
+    /**
+     * Shard the compiled explores into one YAML file per model plus an index
+     * listing every model, so full fidelity stays on disk without the whole
+     * catalog having to fit in the context window. `chartUsageByTable` ranks
+     * the index, so any detail it sheds comes off the least-queried models.
+     */
+    private static exploresToModelFiles(
+        explores: Explore[],
+        chartUsageByTable: Map<string, number>,
+    ): {
+        files: ModelFile[];
+        tableCount: number;
+        dimensionCount: number;
+        metricCount: number;
+        totalBytes: number;
+    } {
+        const models = AppGenerateService.exploresToRenderedModels(explores);
+        const filenames = AppGenerateService.modelFilenames(models);
+
+        const files = models.flatMap((model, i) =>
+            AppGenerateService.modelToFiles(model, filenames[i]),
+        );
+
+        const ranked = models
+            .map((model, i) => ({
+                model,
+                filename: filenames[i],
+                chartUsage: chartUsageByTable.get(model.name) ?? 0,
+            }))
+            .sort(
+                (a, b) =>
+                    b.chartUsage - a.chartUsage ||
+                    a.model.name.localeCompare(b.model.name),
+            );
+
+        const header = [
+            `# Semantic layer — ${models.length} model${
+                models.length === 1 ? '' : 's'
+            }`,
+            '',
+            'Every model in this project is listed below, most-queried first. Read',
+            'only the model files you need — never the whole directory. To locate a',
+            'field whose model you do not know, Grep this directory for its name.',
+            'A `filters=` marker means the model declares model-level filters',
+            '(required/default/sql_filter) that affect every query against it —',
+            'read that model file before querying it.',
+            '',
+            'name  file  dims/metrics  joins  [filters]  description',
+            '',
+        ].join('\n');
+
+        const detailLine = (entry: (typeof ranked)[number]): string => {
+            const { model, filename } = entry;
+            const joins =
+                model.joinedTables.length > 0
+                    ? model.joinedTables.join(',')
+                    : '-';
+            const filterParts = [
+                model.requiredFilterCount > 0
+                    ? `required:${model.requiredFilterCount}`
+                    : null,
+                model.defaultFilterCount > 0
+                    ? `default:${model.defaultFilterCount}`
+                    : null,
+                model.hasSqlFilter ? 'sql' : null,
+            ].filter((part) => part !== null);
+            const filters =
+                filterParts.length > 0
+                    ? `  filters=${filterParts.join(',')}`
+                    : '';
+            const description = model.description
+                ? `  ${model.description
+                      .replace(/\s+/g, ' ')
+                      .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
+                : '';
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${description}`;
+        };
+
+        const compactLine = (entry: (typeof ranked)[number]): string =>
+            `${entry.model.name}  ${entry.filename}  dims=${entry.model.dimensionCount} metrics=${entry.model.metricCount}`;
+
+        const lines: string[] = [];
+        let bytes = Buffer.byteLength(header);
+        let detailed = true;
+        let omitted = 0;
+        for (const entry of ranked) {
+            if (detailed && bytes > AppGenerateService.INDEX_DETAIL_MAX_BYTES) {
+                detailed = false;
+            }
+            const line = detailed ? detailLine(entry) : compactLine(entry);
+            const lineBytes = Buffer.byteLength(line) + 1;
+            if (bytes + lineBytes > AppGenerateService.INDEX_MAX_BYTES) {
+                omitted += 1;
+            } else {
+                lines.push(line);
+                bytes += lineBytes;
+            }
+        }
+        if (omitted > 0) {
+            lines.push(
+                `\n(${omitted} rarely-queried models not listed — Glob this directory for *.yml to see them all)`,
+            );
+        }
+
+        files.push(
+            {
+                filename: AppGenerateService.MODELS_INDEX_FILENAME,
+                contents: `${header}${lines.join('\n')}\n`,
+            },
+            AppGenerateService.MODELS_LEGACY_POINTER,
+        );
+
+        return {
+            files,
+            tableCount: models.length,
+            dimensionCount: models.reduce((n, m) => n + m.dimensionCount, 0),
+            metricCount: models.reduce((n, m) => n + m.metricCount, 0),
+            totalBytes: files.reduce(
+                (n, f) => n + Buffer.byteLength(f.contents),
+                0,
+            ),
         };
     }
 
@@ -8187,72 +9077,13 @@ export class AppGenerateService extends BaseService {
      * Read all artifacts for a specific (or latest ready) built app version from
      * S3 and return them as a base64-encoded bundle together with a manifest.
      */
-    async getAppCode(
-        user: SessionUser,
-        projectUuid: string,
-        appUuid: string,
-        version?: number,
-    ): Promise<DataAppCodeDownload> {
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanViewApp(user, app);
-
-        let resolvedVersion: number;
-        let versionRow: DbAppVersion | null;
-        if (version !== undefined) {
-            resolvedVersion = version;
-            versionRow = await this.appModel.getVersion(app.app_id, version);
-        } else {
-            const latestReady = await this.appModel.getLatestReadyVersion(
-                app.app_id,
-            );
-            if (!latestReady) {
-                throw new NotFoundError(
-                    `Data app has no ready version yet: ${appUuid}`,
-                );
-            }
-            resolvedVersion = latestReady.version;
-            versionRow = latestReady;
-        }
-
-        const { client: s3Client, bucket } = this.getS3Client();
-        const sourceTarKey = `${versionPrefix(appUuid, resolvedVersion)}source.tar`;
-
-        // Download the single source archive for this version
-        let tarBuffer: Buffer;
-        try {
-            const response = await s3Client.send(
-                new GetObjectCommand({ Bucket: bucket, Key: sourceTarKey }),
-            );
-            const stream = response.Body as Readable;
-            const chunks: Buffer[] = [];
-            for await (const chunk of stream) {
-                chunks.push(
-                    Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
-                );
-            }
-            tarBuffer = Buffer.concat(chunks);
-        } catch (err: unknown) {
-            const code =
-                err instanceof Error &&
-                'Code' in err &&
-                typeof (err as { Code: unknown }).Code === 'string'
-                    ? (err as { Code: string }).Code
-                    : undefined;
-            const name = err instanceof Error ? err.name : undefined;
-            if (code === 'NoSuchKey' || name === 'NoSuchKey') {
-                throw new NotFoundError(
-                    `Source not found for app ${appUuid} version ${resolvedVersion}`,
-                );
-            }
-            throw err;
-        }
-
-        // Extract the tar in-process and collect file entries
-        const files = await new Promise<
-            { path: string; contentBase64: string }[]
-        >((resolve, reject) => {
+    /** Extracts a tar archive in-process and collects its file entries. */
+    private static extractTarFiles(
+        tarBuffer: Buffer,
+    ): Promise<DataAppCodeFile[]> {
+        return new Promise<DataAppCodeFile[]>((resolve, reject) => {
             const extractor = extract();
-            const entries: { path: string; contentBase64: string }[] = [];
+            const entries: DataAppCodeFile[] = [];
 
             extractor.on(
                 'entry',
@@ -8285,6 +9116,72 @@ export class AppGenerateService extends BaseService {
             passThrough.pipe(extractor);
             passThrough.end(tarBuffer);
         });
+    }
+
+    async getAppCode(
+        user: SessionUser,
+        projectUuid: string,
+        appUuidOrSlug: string,
+        version?: number,
+    ): Promise<DataAppCodeDownload> {
+        const app = await this.appModel.getAppByUuidOrSlug(
+            projectUuid,
+            appUuidOrSlug,
+        );
+        await this.assertCanViewApp(user, app);
+
+        let resolvedVersion: number;
+        let versionRow: DbAppVersion | null;
+        if (version !== undefined) {
+            resolvedVersion = version;
+            versionRow = await this.appModel.getVersion(app.app_id, version);
+        } else {
+            const latestReady = await this.appModel.getLatestReadyVersion(
+                app.app_id,
+            );
+            if (!latestReady) {
+                throw new NotFoundError(
+                    `Data app has no ready version yet: ${appUuidOrSlug}`,
+                );
+            }
+            resolvedVersion = latestReady.version;
+            versionRow = latestReady;
+        }
+
+        const { client: s3Client, bucket } = this.getS3Client();
+        const sourceTarKey = `${versionPrefix(app.app_id, resolvedVersion)}source.tar`;
+
+        // Download the single source archive for this version
+        let tarBuffer: Buffer;
+        try {
+            const response = await s3Client.send(
+                new GetObjectCommand({ Bucket: bucket, Key: sourceTarKey }),
+            );
+            const stream = response.Body as Readable;
+            const chunks: Buffer[] = [];
+            for await (const chunk of stream) {
+                chunks.push(
+                    Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                );
+            }
+            tarBuffer = Buffer.concat(chunks);
+        } catch (err: unknown) {
+            const code =
+                err instanceof Error &&
+                'Code' in err &&
+                typeof (err as { Code: unknown }).Code === 'string'
+                    ? (err as { Code: string }).Code
+                    : undefined;
+            const name = err instanceof Error ? err.name : undefined;
+            if (code === 'NoSuchKey' || name === 'NoSuchKey') {
+                throw new NotFoundError(
+                    `Source not found for app ${appUuidOrSlug} version ${resolvedVersion}`,
+                );
+            }
+            throw err;
+        }
+
+        const files = await AppGenerateService.extractTarFiles(tarBuffer);
 
         // Emit the app's live links so a cross-project/instance upload can
         // re-establish them by connection slug. Omit the key when there are
@@ -8294,7 +9191,8 @@ export class AppGenerateService extends BaseService {
         );
 
         const manifest = buildManifest({
-            appUuid,
+            appUuid: app.app_id,
+            slug: app.slug,
             projectUuid,
             version: resolvedVersion,
             name: app.name,
@@ -8317,7 +9215,10 @@ export class AppGenerateService extends BaseService {
         });
 
         const context = await this.assembleAppContext(
-            app,
+            {
+                appUuid: app.app_id,
+                designUuid: app.design_uuid,
+            },
             projectUuid,
             app.organization_uuid,
         );
@@ -8327,14 +9228,7 @@ export class AppGenerateService extends BaseService {
         // dropping the files would make a re-upload build with template deps.
         let dependencies: DataAppDependencies | undefined;
         if (versionRow?.dependencies) {
-            // Kill-switch: stripping deps instead would hand out a folder
-            // whose src imports packages the lockfile no longer declares.
-            if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-                throw new ParameterError(
-                    'This app declares custom dependencies, and custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED), so it cannot be downloaded.',
-                );
-            }
-            const depsPrefix = `${versionPrefix(appUuid, resolvedVersion)}deps/`;
+            const depsPrefix = `${versionPrefix(app.app_id, resolvedVersion)}deps/`;
             const [packageJsonBuffer, lockfileBuffer] = await Promise.all([
                 readS3ObjectAsBuffer(
                     s3Client,
@@ -8359,7 +9253,7 @@ export class AppGenerateService extends BaseService {
             properties: {
                 organizationId: app.organization_uuid,
                 projectId: projectUuid,
-                appUuid,
+                appUuid: app.app_id,
                 version: resolvedVersion,
                 versionPinned: version !== undefined,
                 fileCount: files.length,
@@ -8376,8 +9270,40 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    async getDataAppAuthoringContext(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        designUuid: string | null,
+    ): Promise<DataAppContext> {
+        await this.assertDataAppsEnabled(user);
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'create',
+            organizationUuid,
+            projectUuid,
+            'Insufficient permissions to create data apps',
+        );
+        if (!isValidDataAppSlug(slug)) {
+            throw new ParameterError(
+                `Invalid data app slug "${slug}". Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters.`,
+            );
+        }
+        if (await this.appModel.hasAppSlug(projectUuid, slug)) {
+            throw new AlreadyExistsError(
+                `A data app with slug "${slug}" already exists in this project. Download it with lightdash download --apps ${slug}.`,
+            );
+        }
+        return this.assembleAppContext(
+            { appUuid: null, designUuid },
+            projectUuid,
+            organizationUuid,
+        );
+    }
+
     private async assembleAppContext(
-        app: { app_id: string; design_uuid: string | null },
+        app: { appUuid: string | null; designUuid: string | null },
         projectUuid: string,
         organizationUuid: string,
     ): Promise<DataAppContext> {
@@ -8429,9 +9355,15 @@ export class AppGenerateService extends BaseService {
         })();
 
         const promptHistory = await (async () => {
+            if (app.appUuid === null) {
+                return contextFile(
+                    'prompt-history.md',
+                    '# Prompt history\n\n_No previous versions._\n',
+                );
+            }
             try {
                 const withVersions = await this.appModel.getAppWithVersions(
-                    app.app_id,
+                    app.appUuid,
                     projectUuid,
                     { limit: 100 },
                 );
@@ -8448,7 +9380,7 @@ export class AppGenerateService extends BaseService {
                 return contextFile('prompt-history.md', promptMd);
             } catch (err) {
                 this.logger.warn(
-                    `assembleAppContext: prompt history unavailable for app ${app.app_id}`,
+                    `assembleAppContext: prompt history unavailable for app ${app.appUuid}`,
                     err,
                 );
                 return contextFile(
@@ -8459,6 +9391,9 @@ export class AppGenerateService extends BaseService {
         })();
 
         const theme = await (async () => {
+            if (app.designUuid === null) {
+                return { instructions: null, assets: [], skippedAssetCount: 0 };
+            }
             try {
                 const { client: s3Client, bucket } = this.getS3Client();
                 return await readDesignForDownload({
@@ -8466,7 +9401,7 @@ export class AppGenerateService extends BaseService {
                     bucket,
                     organizationDesignModel: this.organizationDesignModel,
                     organizationUuid,
-                    designUuid: app.design_uuid,
+                    designUuid: app.designUuid,
                     logger: this.logger,
                 });
             } catch (err) {
@@ -8481,6 +9416,88 @@ export class AppGenerateService extends BaseService {
         return { semanticLayer, parameters, promptHistory, theme };
     }
 
+    /**
+     * Applies manifest name/description to the app row when they differ.
+     * App-level metadata only — never touches versions or builds.
+     */
+    private async updateAppMetadataIfChanged(
+        existingApp: Pick<DbApp, 'app_id' | 'name' | 'description'>,
+        manifest: DataAppCode['manifest'],
+        projectUuid: string,
+    ): Promise<void> {
+        const update: Partial<Pick<DbApp, 'name' | 'description'>> = {};
+        if (manifest.name !== existingApp.name) update.name = manifest.name;
+        if (manifest.description !== existingApp.description)
+            update.description = manifest.description;
+        if (Object.keys(update).length > 0) {
+            await this.appModel.updateApp(
+                existingApp.app_id,
+                projectUuid,
+                update,
+            );
+        }
+    }
+
+    /**
+     * Whether an uploaded bundle would rebuild exactly what `versionRow`
+     * already built: same src file set, same custom-dependency summary and,
+     * for viz apps, the same declared viz schema. Comparison failures (e.g.
+     * source.tar not stored yet for an in-flight generation) count as
+     * "changed" so the upload proceeds — skipping is only an optimization.
+     */
+    private async isUploadIdenticalToVersion(
+        appUuid: string,
+        versionRow: DbAppVersion,
+        sourceFiles: DataAppCodeFile[],
+        dependencySummary: AppVersionDependencies | undefined,
+        manifestVizSchema: DataAppVizSchema | undefined,
+    ): Promise<boolean> {
+        if (dependencySummary === undefined) {
+            if (versionRow.dependencies !== null) return false;
+        } else {
+            const stored = versionRow.dependencies;
+            if (stored === null) return false;
+            if (stored.lockfileHash !== dependencySummary.lockfileHash)
+                return false;
+            const storedCustom = new Map(
+                stored.custom.map((dep) => [dep.name, dep.version]),
+            );
+            if (
+                storedCustom.size !== dependencySummary.custom.length ||
+                !dependencySummary.custom.every(
+                    (dep) => storedCustom.get(dep.name) === dep.version,
+                )
+            ) {
+                return false;
+            }
+        }
+        if (!isEqual(versionRow.viz_schema ?? null, manifestVizSchema ?? null))
+            return false;
+
+        try {
+            const { client, bucket } = this.getS3Client();
+            const tarBuffer = await readS3ObjectAsBuffer(
+                client,
+                bucket,
+                `${versionPrefix(appUuid, versionRow.version)}source.tar`,
+            );
+            const storedFiles =
+                await AppGenerateService.extractTarFiles(tarBuffer);
+            if (storedFiles.length !== sourceFiles.length) return false;
+            const storedByPath = new Map(
+                storedFiles.map((file) => [file.path, file.contentBase64]),
+            );
+            return sourceFiles.every(
+                (file) => storedByPath.get(file.path) === file.contentBase64,
+            );
+        } catch (err) {
+            this.logger.warn(
+                `App ${appUuid}: unchanged-upload check failed, proceeding with a new version: ${getErrorMessage(err)}`,
+            );
+            return false;
+        }
+    }
+
     async importAppCode(
         user: SessionUser,
         projectUuid: string,
@@ -8488,7 +9505,8 @@ export class AppGenerateService extends BaseService {
     ): Promise<{
         appUuid: string;
         version: number;
-        action: 'create' | 'append';
+        action: 'create' | 'append' | 'unchanged';
+        slug: string;
         warnings: string[];
     }> {
         await this.assertDataAppsEnabled(user);
@@ -8599,7 +9617,7 @@ export class AppGenerateService extends BaseService {
                 // capability, so it requires manage:DataAppDependency (admins
                 // only by default) — a level above the create/manage:DataApp
                 // needed to upload a template-only app. Checked before the
-                // instance/org gates so an unauthorized user gets a clear 403.
+                // org gate so an unauthorized user gets a clear 403.
                 try {
                     this.assertCanManageDataAppDependencies(
                         user,
@@ -8613,22 +9631,9 @@ export class AppGenerateService extends BaseService {
                     });
                     throw err;
                 }
-                if (
-                    !this.lightdashConfig.appRuntime.customDependenciesEnabled
-                ) {
-                    trackUploadRejected(
-                        'custom_dependencies_disabled_instance',
-                        { customDependencies },
-                    );
-                    throw new ParameterError(
-                        'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). Remove the added packages or ask an admin to enable them.',
-                    );
-                }
-                // Per-org rollout gate, layered on the instance env gate: even
-                // when the instance allows custom deps, the org must be
-                // explicitly enabled. Only applies to uploading NEW custom-dep
-                // content — builds/downloads of already-approved sets stay
-                // gated by the env kill-switch alone.
+                // The per-org rollout gate applies when uploading a new custom
+                // dependency set. Once approved and stored, background builds,
+                // iterations, and downloads must continue to use that exact set.
                 const { enabled: orgAllowsCustomDeps } =
                     await this.featureFlagModel.get({
                         user,
@@ -8697,17 +9702,134 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Determine mode: append to existing app or create new one
-        const existingApp = body.targetAppUuid
-            ? await this.appModel.findApp(body.targetAppUuid, projectUuid)
-            : undefined;
-        if (body.targetAppUuid && existingApp === undefined) {
+        // Identity resolution (charts-as-code pattern): the manifest slug is
+        // matched against the TARGET project — found → append a version,
+        // missing → create with that exact slug. targetAppUuid remains as the
+        // fallback for pre-slug bundles/CLIs; createNew forces a fresh app.
+        const manifestSlug = code.manifest.slug;
+        // Reject before any lookup: the slug becomes a project-scoped index
+        // key here and a filesystem folder name on the CLI's next download —
+        // a hand-edited manifest (e.g. `slug: ../../../../tmp/evil`) must
+        // never reach either use unvalidated.
+        if (manifestSlug !== undefined && !isValidDataAppSlug(manifestSlug)) {
             throw new ParameterError(
-                `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+                `Invalid slug "${manifestSlug}" in the app manifest. Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters. Re-download the app or fix lightdash-app.yml.`,
             );
+        }
+        let existingApp: Awaited<ReturnType<AppModel['findApp']>> | undefined;
+        if (body.createNew) {
+            existingApp = undefined;
+        } else if (manifestSlug !== undefined) {
+            existingApp = await this.appModel.findAppBySlug(
+                projectUuid,
+                manifestSlug,
+            );
+        } else if (body.targetAppUuid) {
+            existingApp = await this.appModel.findApp(
+                body.targetAppUuid,
+                projectUuid,
+            );
+            if (existingApp === undefined) {
+                throw new ParameterError(
+                    `App ${body.targetAppUuid} not found in project ${projectUuid}`,
+                );
+            }
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';
+        // Mirrors the resolution precedence above. Watch 'uuid-fallback' and
+        // 'none' (both pre-slug bundles) decay to zero before removing the
+        // targetAppUuid fallback in a future codeVersion bump.
+        let identitySource: DataAppUploadIdentitySource;
+        if (body.createNew) {
+            identitySource = 'create-new';
+        } else if (manifestSlug !== undefined) {
+            identitySource = 'slug';
+        } else if (body.targetAppUuid) {
+            identitySource = 'uuid-fallback';
+        } else {
+            identitySource = 'none';
+        }
+
+        // A bundle identical to the app's latest version needs no new version
+        // and no rebuild — bulk re-uploads would otherwise burn build slots on
+        // unchanged apps and trip the per-project build cap. Checked before
+        // that cap so unchanged uploads always succeed. An 'error' latest
+        // version never skips, so re-uploading the same source retries the
+        // build. App-level metadata (name/description) and links still apply.
+        if (
+            action === 'append' &&
+            existingApp !== undefined &&
+            body.force !== true
+        ) {
+            await this.assertCanManageApp(
+                user,
+                existingApp,
+                'You do not have access to update this app',
+            );
+            const latestVersion = await this.appModel.getLatestVersion(
+                existingApp.app_id,
+            );
+            if (
+                latestVersion !== null &&
+                latestVersion.status !== 'error' &&
+                (await this.isUploadIdenticalToVersion(
+                    existingApp.app_id,
+                    latestVersion,
+                    sourceFiles,
+                    dependencySummary,
+                    existingApp.template === DATA_APP_VIZ_TEMPLATE
+                        ? manifestVizSchema
+                        : undefined,
+                ))
+            ) {
+                await this.updateAppMetadataIfChanged(
+                    existingApp,
+                    code.manifest,
+                    projectUuid,
+                );
+                if (manifestLinks !== undefined) {
+                    await this.externalConnectionModel.replaceAppLinks(
+                        existingApp.app_id,
+                        resolvedLinks,
+                    );
+                }
+                this.analytics.track({
+                    event: 'data_app.uploaded',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        appUuid: existingApp.app_id,
+                        version: latestVersion.version,
+                        action: 'unchanged',
+                        template: code.manifest.template,
+                        sourceFileCount: sourceFiles.length,
+                        sourceBytes: sourceFiles.reduce(
+                            (total, file) =>
+                                total +
+                                Buffer.byteLength(file.contentBase64, 'base64'),
+                            0,
+                        ),
+                        hasCustomDependencies: dependencySummary !== undefined,
+                        customDependencyCount:
+                            dependencySummary?.custom.length ?? 0,
+                        customDependencies: dependencySummary?.custom ?? [],
+                        identitySource,
+                        ...(dependencySummary !== undefined
+                            ? { lockfileHash: dependencySummary.lockfileHash }
+                            : {}),
+                    },
+                });
+                return {
+                    appUuid: existingApp.app_id,
+                    version: latestVersion.version,
+                    action: 'unchanged',
+                    slug: existingApp.slug,
+                    warnings: linkWarnings,
+                };
+            }
+        }
 
         const inProgressCount =
             await this.appModel.countInProgressVersionsForProject(projectUuid);
@@ -8718,6 +9840,7 @@ export class AppGenerateService extends BaseService {
         }
 
         let newAppUuid: string;
+        let newAppSlug: string;
         let newVersion: number;
 
         if (action === 'append' && existingApp !== undefined) {
@@ -8726,20 +9849,13 @@ export class AppGenerateService extends BaseService {
                 existingApp,
                 'You do not have access to update this app',
             );
-            const nameChanged = code.manifest.name !== existingApp.name;
-            const descChanged =
-                code.manifest.description !== existingApp.description;
-            if (nameChanged || descChanged) {
-                const update: Partial<Pick<DbApp, 'name' | 'description'>> = {};
-                if (nameChanged) update.name = code.manifest.name;
-                if (descChanged) update.description = code.manifest.description;
-                await this.appModel.updateApp(
-                    existingApp.app_id,
-                    projectUuid,
-                    update,
-                );
-            }
+            await this.updateAppMetadataIfChanged(
+                existingApp,
+                code.manifest,
+                projectUuid,
+            );
             newAppUuid = existingApp.app_id;
+            newAppSlug = existingApp.slug;
             const latestVersion = await this.appModel.getLatestVersion(
                 existingApp.app_id,
             );
@@ -8788,6 +9904,11 @@ export class AppGenerateService extends BaseService {
                     description: code.manifest.description,
                     template: code.manifest.template,
                     space_uuid: body.spaceUuid ?? null,
+                    // Round-trip the manifest slug exactly; createNew and
+                    // pre-slug bundles let the model generate a unique one.
+                    ...(manifestSlug !== undefined && !body.createNew
+                        ? { slug: manifestSlug }
+                        : {}),
                 },
                 { version: newVersion, prompt: '' },
                 'pending',
@@ -8796,8 +9917,12 @@ export class AppGenerateService extends BaseService {
                 code.manifest.template === DATA_APP_VIZ_TEMPLATE
                     ? manifestVizSchema
                     : undefined,
+                // Verbatim slug + loud conflict, so re-uploads stay
+                // idempotent (never silently minting suffixed duplicates).
+                { forceSlug: true },
             );
             newAppUuid = app.app_id;
+            newAppSlug = app.slug;
         }
 
         // Reconcile links only when the manifest carries the field — bundles
@@ -8901,6 +10026,7 @@ export class AppGenerateService extends BaseService {
                 hasCustomDependencies: dependencySummary !== undefined,
                 customDependencyCount: dependencySummary?.custom.length ?? 0,
                 customDependencies: dependencySummary?.custom ?? [],
+                identitySource,
                 ...(dependencySummary !== undefined
                     ? { lockfileHash: dependencySummary.lockfileHash }
                     : {}),
@@ -8911,6 +10037,7 @@ export class AppGenerateService extends BaseService {
             appUuid: newAppUuid,
             version: newVersion,
             action,
+            slug: newAppSlug,
             warnings: linkWarnings,
         };
     }

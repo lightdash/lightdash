@@ -957,6 +957,25 @@ const isStack100Normalized = (series: Series) =>
     !!series.stack &&
     (series.type === CartesianSeriesType.BAR || !!series.areaStyle);
 
+export const getCartesianLabelLayout = ({
+    isGroupedBarChart,
+    isStacked,
+    seriesType,
+    position,
+}: {
+    isGroupedBarChart: boolean;
+    isStacked: boolean;
+    seriesType: CartesianSeriesType;
+    position: NonNullable<Series['label']>['position'];
+}) => ({
+    hideOverlap: !(
+        isGroupedBarChart &&
+        !isStacked &&
+        seriesType === CartesianSeriesType.BAR &&
+        position === 'top'
+    ),
+});
+
 /**
  * Create a labelLayout configuration for stacked bar charts.
  * When showOverlappingLabels is enabled, uses smaller font for labels that don't fit
@@ -3451,6 +3470,8 @@ const useEchartsCartesianConfig = (
         const barSeries = series.filter(
             (s) => s.type === CartesianSeriesType.BAR,
         );
+        const isGroupedBarChart =
+            barSeries.filter((s) => getValidStack(s) === undefined).length > 1;
         const hasCustomColorsStacking =
             barSeries.some((s) => Boolean(s.stack)) ||
             (validCartesianConfig?.layout?.stack !== undefined &&
@@ -3494,7 +3515,12 @@ const useEchartsCartesianConfig = (
                                 computedColor,
                             ),
                         },
-                        labelLayout: { hideOverlap: true },
+                        labelLayout: getCartesianLabelLayout({
+                            isGroupedBarChart,
+                            isStacked: getValidStack(serie) !== undefined,
+                            seriesType: serie.type,
+                            position: serie.label.position,
+                        }),
                     }),
                     // Apply reference line styling with readable colors
                     ...(serie.markLine && {

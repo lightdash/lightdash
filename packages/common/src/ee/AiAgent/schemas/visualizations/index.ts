@@ -41,6 +41,7 @@ export const ToolNameSchema = z.enum([
     'getProjectInfo',
     'loadSkill',
     'loadProjectContext',
+    'loadMcpTools',
     'editDbtProject',
     'editProjectContext',
     'editRepo',
@@ -61,6 +62,8 @@ export const ToolNameSchema = z.enum([
     'getKnowledgeDocumentContent',
     'readPinnedThread',
     'submitResearchReport',
+    'submitResearchHypotheses',
+    'submitInvestigationReport',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -103,6 +106,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     getProjectInfo: 'Getting project details',
     loadSkill: 'Loading built-in skill',
     loadProjectContext: 'Loading project context',
+    loadMcpTools: 'Loading MCP tools',
     editDbtProject: 'Editing semantic layer',
     editRepo: 'Editing repository',
     syncDbtProject: 'Syncing dbt project',
@@ -122,6 +126,8 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     getKnowledgeDocumentContent: 'Reading knowledge document',
     readPinnedThread: 'Reading pinned conversation',
     submitResearchReport: 'Saving research report',
+    submitResearchHypotheses: 'Planning research hypotheses',
+    submitInvestigationReport: 'Saving investigation findings',
 });
 
 // after-tool-call messages
@@ -158,6 +164,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         getProjectInfo: 'Got project details',
         loadSkill: 'Loaded built-in skill',
         loadProjectContext: 'Loaded project context',
+        loadMcpTools: 'Loaded MCP tools',
         editDbtProject: 'Edited semantic layer',
         editRepo: 'Edited repository',
         syncDbtProject: 'Synced dbt project',
@@ -177,6 +184,8 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         getKnowledgeDocumentContent: 'Read knowledge document',
         readPinnedThread: 'Read pinned conversation',
         submitResearchReport: 'Saved research report',
+        submitResearchHypotheses: 'Planned research hypotheses',
+        submitInvestigationReport: 'Saved investigation findings',
     });
 
 export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

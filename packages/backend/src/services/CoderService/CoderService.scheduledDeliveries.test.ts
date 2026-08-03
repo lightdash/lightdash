@@ -293,6 +293,7 @@ const buildService = ({
             find: vi.fn(async () => [{ uuid: chartUuid, slug: 'orders' }]),
         } as never,
         savedSqlModel: {} as never,
+        appModel: {} as never,
         dashboardModel: {
             find: vi.fn(async () => [
                 { uuid: dashboardUuid, slug: 'orders-dashboard' },

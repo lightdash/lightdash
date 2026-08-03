@@ -1,5 +1,15 @@
-import { type HomepageRecommendedActionKey } from '@lightdash/common';
-import { ActionIcon, Box, Button, Stack, Tooltip } from '@mantine-8/core';
+import {
+    SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS,
+    type HomepageRecommendedActionKey,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Skeleton,
+    Stack,
+    Tooltip,
+} from '@mantine-8/core';
 import {
     IconActivity,
     IconArrowBackUp,
@@ -19,16 +29,19 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import classes from './blockStyles.module.css';
-import {
-    RECOMMENDED_ACTION_KEYS,
-    SKIPPABLE_ACTION_KEYS,
-    writeSkippedActions,
-} from './recommendedActionDefaults';
+import { RECOMMENDED_ACTION_KEYS } from './recommendedActionDefaults';
 import styles from './RecommendedActionsChecklist.module.css';
 import {
     type ActionStatus,
     type RecommendedActionsState,
 } from './useRecommendedActions';
+
+// Connecting a warehouse gates everything else — skipping it would strand
+// the user with nothing to query.
+const isSkippableActionKey = (key: HomepageRecommendedActionKey): boolean =>
+    (
+        SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS as readonly HomepageRecommendedActionKey[]
+    ).includes(key);
 
 type ActionDefinition = {
     icon: Icon;
@@ -52,8 +65,8 @@ const ACTION_DEFINITIONS: Record<
     },
     'connect-source-control': {
         icon: IconGitBranch,
-        title: 'Connect source control',
-        subtitle: 'Sync dbt models & version control',
+        title: 'Set up your dbt',
+        subtitle: 'Deploy with the CLI or connect your repo',
     },
     'connect-slack': {
         icon: IconBrandSlack,
@@ -180,9 +193,9 @@ const ActionRow: FC<{
                             })
                         }
                     >
-                        Set up
+                        {status.ctaLabel}
                     </Button>
-                    {SKIPPABLE_ACTION_KEYS.includes(actionKey) && (
+                    {isSkippableActionKey(actionKey) && (
                         <Tooltip label="Skip this step" withinPortal>
                             <ActionIcon
                                 className={styles.skipButton}
@@ -202,76 +215,90 @@ const ActionRow: FC<{
     );
 };
 
+// Which steps exist is known from health and the project id, long before any
+// of them can say whether they are done — so the hold can reserve the exact
+// height the resolved stack will take, and the cards fill in without shifting
+// anything above them.
+export const RecommendedActionsChecklistPlaceholder: FC<{
+    actionCount: number;
+}> = ({ actionCount }) => {
+    if (actionCount === 0) return null;
+    return (
+        <Stack gap={8} className={styles.checklistRoot}>
+            <Box className={styles.headerRow}>
+                <span className={classes.sectionTitle}>Finish setting up</span>
+            </Box>
+            <Box
+                className={`${styles.cardStack} ${stackHeightClass(
+                    actionCount,
+                )}`}
+            >
+                <Skeleton className={styles.stackCard} h={68} radius={10} />
+            </Box>
+        </Stack>
+    );
+};
+
 export const RecommendedActionsChecklist: FC<{
-    projectUuid: string | null;
     actions: RecommendedActionsState;
-}> = ({ projectUuid, actions }) => {
+}> = ({ actions }) => {
     const { track, data: trackingData } = useTracking();
     const isTrackingReady = !!trackingData.rudder;
-    const { statuses, skippedActions, setSkippedActions, visibleActions } =
-        actions;
+    const {
+        statuses,
+        skippedActions,
+        skipAction,
+        restoreAction,
+        visibleActions,
+    } = actions;
     const [carouselIndex, setCarouselIndex] = useState(0);
     const [isStackHovered, setIsStackHovered] = useState(false);
 
     const handleSkip = useCallback(
         (actionKey: HomepageRecommendedActionKey) => {
-            setSkippedActions((previous) => {
-                if (previous.includes(actionKey)) return previous;
-                const next = [...previous, actionKey];
-                writeSkippedActions(projectUuid, next);
-                // Advance to the next non-skipped card, wrapping — without
-                // this the skipped card can stay on top when the active
-                // index is past the front
-                const oldIncomplete = RECOMMENDED_ACTION_KEYS.filter(
-                    (key) =>
-                        statuses[key].isVisible &&
-                        !statuses[key].isComplete &&
-                        !previous.includes(key),
-                );
-                const skippedPosition = oldIncomplete.indexOf(actionKey);
-                const nextIncomplete = oldIncomplete.filter(
-                    (key) => key !== actionKey,
-                );
-                setCarouselIndex(
-                    nextIncomplete.length > 0 && skippedPosition >= 0
-                        ? skippedPosition % nextIncomplete.length
-                        : 0,
-                );
-                return next;
-            });
+            if (skippedActions.includes(actionKey)) return;
+            const oldIncomplete = RECOMMENDED_ACTION_KEYS.filter(
+                (key) =>
+                    statuses[key].isVisible &&
+                    !statuses[key].isComplete &&
+                    !skippedActions.includes(key),
+            );
+            const skippedPosition = oldIncomplete.indexOf(actionKey);
+            const nextIncomplete = oldIncomplete.filter(
+                (key) => key !== actionKey,
+            );
+            setCarouselIndex(
+                nextIncomplete.length > 0 && skippedPosition >= 0
+                    ? skippedPosition % nextIncomplete.length
+                    : 0,
+            );
+            skipAction(actionKey);
             track({
                 name: EventName.HOMEPAGE_RECOMMENDED_ACTION_SKIPPED,
                 properties: { actionKey },
             });
         },
-        [projectUuid, track, setSkippedActions, statuses],
+        [skipAction, skippedActions, statuses, track],
     );
 
     const handleRestore = useCallback(
         (actionKey: HomepageRecommendedActionKey) => {
-            setSkippedActions((previous) => {
-                if (!previous.includes(actionKey)) return previous;
-                const next = previous.filter((key) => key !== actionKey);
-                writeSkippedActions(projectUuid, next);
-                // Keep the restored card active — it moves groups, which
-                // would otherwise silently change what's on top
-                const nextIncomplete = RECOMMENDED_ACTION_KEYS.filter(
-                    (key) =>
-                        statuses[key].isVisible &&
-                        !statuses[key].isComplete &&
-                        !next.includes(key),
-                );
-                setCarouselIndex(
-                    Math.max(nextIncomplete.indexOf(actionKey), 0),
-                );
-                return next;
-            });
+            if (!skippedActions.includes(actionKey)) return;
+            const next = skippedActions.filter((key) => key !== actionKey);
+            const nextIncomplete = RECOMMENDED_ACTION_KEYS.filter(
+                (key) =>
+                    statuses[key].isVisible &&
+                    !statuses[key].isComplete &&
+                    !next.includes(key),
+            );
+            setCarouselIndex(Math.max(nextIncomplete.indexOf(actionKey), 0));
+            restoreAction(actionKey);
             track({
                 name: EventName.HOMEPAGE_RECOMMENDED_ACTION_RESTORED,
                 properties: { actionKey },
             });
         },
-        [projectUuid, statuses, setSkippedActions, track],
+        [restoreAction, skippedActions, statuses, track],
     );
 
     const isSkipped = (key: HomepageRecommendedActionKey) =>

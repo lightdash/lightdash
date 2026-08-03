@@ -1,4 +1,4 @@
-import { type AiAgent } from '@lightdash/common';
+import { FeatureFlags, type AiAgent } from '@lightdash/common';
 import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine-8/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
@@ -11,6 +11,7 @@ import {
 } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -20,6 +21,7 @@ import { AgentSidebar } from '../../features/aiCopilot/components/AiAgentPageLay
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { launcherSession } from '../../features/aiCopilot/components/Launcher/launcherSession';
 import { useLauncherDock } from '../../features/aiCopilot/components/Launcher/useLauncherDock';
+import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
 import {
     getAiAgentPageBase,
     isEmbedAiAgentRoute,
@@ -76,6 +78,10 @@ const AgentPage = () => {
         useCreateAgentThreadShareMutation();
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [shareUrl, setShareUrl] = useState<string | null>(null);
+    const [isMemoriesModalOpen, setIsMemoriesModalOpen] = useState(false);
+    const { data: memoryFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAgentMemory,
+    );
 
     const handleMinimize = useCallback(
         (targetUrl?: string, options?: NavigateFromAgentChatOptions) => {
@@ -234,6 +240,11 @@ const AgentPage = () => {
                                 : undefined
                         }
                         isSharing={isCreatingShare}
+                        onOpenMemories={
+                            memoryFlag?.enabled
+                                ? () => setIsMemoriesModalOpen(true)
+                                : undefined
+                        }
                         onMinimize={() => handleMinimize()}
                         settingsHref={
                             canManageAgents
@@ -285,6 +296,11 @@ const AgentPage = () => {
                     </Group>
                 </Stack>
             </MantineModal>
+            <MyMemoriesModal
+                opened={isMemoriesModalOpen}
+                onClose={() => setIsMemoriesModalOpen(false)}
+                projectUuid={projectUuid!}
+            />
             <Outlet
                 context={{
                     agent,

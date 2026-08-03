@@ -6,6 +6,7 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type DataAppClaudeModel,
+    type DataAppCreationExperience,
     type DataAppTemplate,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
@@ -15,7 +16,8 @@ type GenerateAppParams = {
     projectUuid: string;
     prompt: string;
     template?: DataAppTemplate;
-    imageIds?: string[];
+    creationExperience: DataAppCreationExperience;
+    fileIds?: string[];
     appUuid?: string; // pre-generated UUID so images are scoped to the app in S3
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
@@ -36,7 +38,8 @@ const generateApp = async ({
     projectUuid,
     prompt,
     template,
-    imageIds,
+    creationExperience,
+    fileIds,
     appUuid,
     charts,
     dashboard,
@@ -52,7 +55,8 @@ const generateApp = async ({
         body: JSON.stringify({
             prompt,
             template,
-            imageIds,
+            creationExperience,
+            fileIds,
             appUuid,
             charts,
             dashboard,

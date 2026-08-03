@@ -16,7 +16,11 @@ import {
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
 import { findRetryableDeepResearchRun } from '../../features/aiCopilot/deepResearch/deepResearchRegistry';
-import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
+import { runDeepResearchAgain } from '../../features/aiCopilot/deepResearch/runAgain';
+import {
+    type DeepResearchRunRegistration,
+    type StartDeepResearchArgs,
+} from '../../features/aiCopilot/deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import {
@@ -26,7 +30,10 @@ import {
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
-import { useStartDeepResearchMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
+import {
+    useStartDeepResearchMutation,
+    useTrackDeepResearchFollowUp,
+} from '../../features/aiCopilot/hooks/useDeepResearch';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
@@ -176,6 +183,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         agentUuid: agentUuid!,
         threadUuid: threadUuid!,
     });
+    const trackDeepResearchFollowUp = useTrackDeepResearchFollowUp({
+        projectUuid: projectUuid!,
+        threadUuid: threadUuid!,
+    });
     const sqlMode = useAiAgentStoreSelector(
         selectThreadSqlMode(threadUuid ?? ''),
     );
@@ -288,12 +299,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             ),
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
-        });
+        }).then(trackDeepResearchFollowUp);
     };
     const handleStartDeepResearch = async ({
         question,
-        depth,
-        mcpServerUuids,
     }: StartDeepResearchArgs) => {
         const retryableRun = findRetryableDeepResearchRun({
             projectUuid: projectUuid!,
@@ -315,12 +324,30 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             ).uuid;
         await startDeepResearch.mutateAsync({
             question,
-            depth,
-            mcpServerUuids,
             promptUuid,
         });
     };
-    const isBusy = Boolean(isCreatingMessage || isStreaming || isPending);
+    const handleRunDeepResearchAgain = async (
+        registration: DeepResearchRunRegistration,
+    ) =>
+        runDeepResearchAgain({
+            registration,
+            createPrompt: (question) =>
+                createAgentThreadMessage({
+                    prompt: question,
+                    modelConfig: threadModelConfig ?? undefined,
+                    context: pageContextInput,
+                    optimisticContext: pagePreviewItems,
+                    skipAgentResponse: true,
+                }),
+            startRun: startDeepResearch.mutateAsync,
+        });
+    const isBusy = Boolean(
+        isCreatingMessage ||
+        isStreaming ||
+        isPending ||
+        startDeepResearch.isLoading,
+    );
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
     const handleRetryOriginalQuestion = () => {
         if (!retryPrompt) return;
@@ -362,6 +389,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     showAddToEvalsButton={canManage}
                     onDashboardLinkClick={handleDashboardLinkClick}
                     canRetryDeepResearch={!inputDisabled && !isBusy}
+                    onRunDeepResearchAgain={(registration) => {
+                        void handleRunDeepResearchAgain(registration).catch(
+                            () => undefined,
+                        );
+                    }}
                 >
                     {workstreams && workstreams.length > 0 && (
                         <ThreadWorkstreamsPanel workstreams={workstreams} />
@@ -376,7 +408,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                                 ? handleStartDeepResearch
                                 : undefined
                         }
-                        deepResearchControlPlacement="page_header"
                         placeholder={`Ask ${agent.name} anything about your data...`}
                         messageCount={thread.messages?.length || 0}
                         projectUuid={projectUuid}

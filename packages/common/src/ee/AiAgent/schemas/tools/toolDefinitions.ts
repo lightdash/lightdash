@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+    aiDeepResearchHypothesesInputSchema,
+    aiDeepResearchInvestigationReportInputSchema,
+} from '../../../aiDeepResearch/hypotheses';
 import { aiDeepResearchReportInputSchema } from '../../../aiDeepResearch/markdown';
 import {
     MCP_TOOL_GET_AI_WRITEBACK_STATUS_DESCRIPTION,
@@ -204,6 +208,11 @@ import {
     toolListWorkstreamsArgsSchema,
     toolListWorkstreamsOutputSchema,
 } from './toolListWorkstreamsArgs';
+import {
+    TOOL_LOAD_MCP_TOOLS_DESCRIPTION,
+    toolLoadMcpToolsArgsSchema,
+    toolLoadMcpToolsOutputSchema,
+} from './toolLoadMcpToolsArgs';
 import {
     TOOL_LOAD_PROJECT_CONTEXT_DESCRIPTION,
     toolLoadProjectContextArgsSchema,
@@ -893,6 +902,20 @@ export const loadProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolLoadProjectContextOutputSchema },
 });
 
+export const loadMcpToolsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'loadMcpTools',
+    typeof toolLoadMcpToolsArgsSchema,
+    typeof toolLoadMcpToolsArgsSchema,
+    typeof toolLoadMcpToolsOutputSchema
+> = defineTool({
+    name: 'loadMcpTools',
+    title: 'Load MCP tools',
+    description: TOOL_LOAD_MCP_TOOLS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolLoadMcpToolsArgsSchema,
+    agent: { outputSchema: toolLoadMcpToolsOutputSchema },
+});
+
 export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'editDbtProject',
     typeof toolEditDbtProjectArgsSchema,
@@ -1136,6 +1159,45 @@ export const submitResearchReportToolDefinition: ToolDefinitionWithoutMcpOutput<
         'Save the best current Deep Research report. Submit once useful findings are available and again when the investigation is complete.',
     availability: ['agent'],
     inputSchema: aiDeepResearchReportInputSchema,
+    agent: {
+        outputSchema: submitResearchReportOutputSchema,
+    },
+});
+
+export const AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME = 'submitResearchHypotheses';
+
+export const submitResearchHypothesesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    typeof AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
+    typeof aiDeepResearchHypothesesInputSchema,
+    typeof aiDeepResearchHypothesesInputSchema,
+    typeof submitResearchReportOutputSchema
+> = defineTool({
+    name: AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
+    title: 'Submit research hypotheses',
+    description:
+        'Submit the distinct, falsifiable hypotheses that Deep Research will investigate in parallel.',
+    availability: ['agent'],
+    inputSchema: aiDeepResearchHypothesesInputSchema,
+    agent: {
+        outputSchema: submitResearchReportOutputSchema,
+    },
+});
+
+export const AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME =
+    'submitInvestigationReport';
+
+export const submitInvestigationReportToolDefinition: ToolDefinitionWithoutMcpOutput<
+    typeof AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    typeof aiDeepResearchInvestigationReportInputSchema,
+    typeof aiDeepResearchInvestigationReportInputSchema,
+    typeof submitResearchReportOutputSchema
+> = defineTool({
+    name: AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    title: 'Submit investigation report',
+    description:
+        'Submit the structured verdict and evidence for the single hypothesis this investigation examined.',
+    availability: ['agent'],
+    inputSchema: aiDeepResearchInvestigationReportInputSchema,
     agent: {
         outputSchema: submitResearchReportOutputSchema,
     },
@@ -1496,6 +1558,7 @@ type AgentToolDefinitionsByName = {
     improveContext: typeof improveContextToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
     loadProjectContext: typeof loadProjectContextToolDefinition;
+    loadMcpTools: typeof loadMcpToolsToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
     editRepo: typeof editRepoToolDefinition;
@@ -1513,6 +1576,8 @@ type AgentToolDefinitionsByName = {
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
     readPinnedThread: typeof readPinnedThreadToolDefinition;
     submitResearchReport: typeof submitResearchReportToolDefinition;
+    submitResearchHypotheses: typeof submitResearchHypothesesToolDefinition;
+    submitInvestigationReport: typeof submitInvestigationReportToolDefinition;
     findCharts: typeof findChartsToolDefinition;
     findDashboards: typeof findDashboardsToolDefinition;
     generateBarVizConfig: typeof generateBarVizConfigToolDefinition;
@@ -1550,6 +1615,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     improveContext: improveContextToolDefinition,
     loadSkill: loadSkillToolDefinition,
     loadProjectContext: loadProjectContextToolDefinition,
+    loadMcpTools: loadMcpToolsToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
     editRepo: editRepoToolDefinition,
@@ -1567,6 +1633,8 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
     readPinnedThread: readPinnedThreadToolDefinition,
     submitResearchReport: submitResearchReportToolDefinition,
+    submitResearchHypotheses: submitResearchHypothesesToolDefinition,
+    submitInvestigationReport: submitInvestigationReportToolDefinition,
     findCharts: findChartsToolDefinition,
     findDashboards: findDashboardsToolDefinition,
     generateBarVizConfig: generateBarVizConfigToolDefinition,
@@ -1606,6 +1674,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     improveContextToolDefinition,
     loadSkillToolDefinition,
     loadProjectContextToolDefinition,
+    loadMcpToolsToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
     editRepoToolDefinition,
@@ -1623,6 +1692,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getKnowledgeDocumentContentToolDefinition,
     readPinnedThreadToolDefinition,
     submitResearchReportToolDefinition,
+    submitResearchHypothesesToolDefinition,
+    submitInvestigationReportToolDefinition,
     findChartsToolDefinition,
     findDashboardsToolDefinition,
     generateBarVizConfigToolDefinition,

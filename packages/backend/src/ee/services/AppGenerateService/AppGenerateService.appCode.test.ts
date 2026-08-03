@@ -1,3 +1,4 @@
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import {
     FeatureFlags,
     ForbiddenError,
@@ -8,7 +9,8 @@ import {
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
-import { extract as tarExtract } from 'tar-stream';
+import { Readable } from 'node:stream';
+import { extract as tarExtract, pack as tarPack } from 'tar-stream';
 import { AppGenerateService } from './AppGenerateService';
 import { TEMPLATE_DEPENDENCIES } from './templateDependencies';
 
@@ -26,7 +28,9 @@ const PROJECT_ORG_UUID = 'org-uuid-project'; // org derived from the project
 const USER_ORG_UUID = 'org-uuid-user'; // org from the user session (different)
 const USER_UUID = 'user-uuid-1';
 const NEW_APP_UUID = 'new-app-uuid';
+const NEW_APP_SLUG = 'new-app-slug';
 const EXISTING_APP_UUID = 'existing-app-uuid';
+const EXISTING_APP_SLUG = 'existing-app-slug';
 
 const makeUser = () =>
     ({
@@ -77,6 +81,7 @@ const VIZ_SCHEMA = {
         },
     ],
     configOptions: [],
+    colorPalette: null,
 };
 
 const makeDeps = (
@@ -100,16 +105,16 @@ const s3SendSpy = vi.fn().mockResolvedValue({});
 
 function buildService(
     opts: {
-        customDependenciesEnabled?: boolean;
         customDependenciesOrgEnabled?: boolean;
         canManageDataAppDependencies?: boolean;
     } = {},
 ) {
     const appModel = {
         findApp: vi.fn(),
+        findAppBySlug: vi.fn(),
         getApp: vi.fn(),
         createWithVersion: vi.fn().mockResolvedValue({
-            app: { app_id: NEW_APP_UUID },
+            app: { app_id: NEW_APP_UUID, slug: NEW_APP_SLUG },
             version: { version: 1 },
         }),
         createVersion: vi.fn().mockResolvedValue({ version: 1 }),
@@ -148,7 +153,6 @@ function buildService(
 
     const lightdashConfig = {
         appRuntime: {
-            customDependenciesEnabled: opts.customDependenciesEnabled ?? true,
             dependencyRegistryHosts: ['registry.npmjs.org'],
             dependencyMinReleaseAgeDays: 0,
             // Off in these gate-focused tests so no upload attempts a real
@@ -249,6 +253,7 @@ describe('AppGenerateService.importAppCode', () => {
         expect(result.action).toBe('create');
         expect(result.version).toBe(1);
         expect(result.appUuid).toBe(NEW_APP_UUID);
+        expect(result.slug).toBe(NEW_APP_SLUG);
 
         // createWithVersion called with pending status
         expect(appModel.createWithVersion).toHaveBeenCalledWith(
@@ -258,6 +263,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // no viz schema
+            { forceSlug: true },
         );
 
         // S3 PutObjectCommand sent for source.tar
@@ -308,6 +314,7 @@ describe('AppGenerateService.importAppCode', () => {
             organization_uuid: PROJECT_ORG_UUID,
             name: 'Test App',
             description: 'A test app',
+            slug: EXISTING_APP_SLUG,
         };
         appModel.findApp.mockResolvedValue(existingApp);
         appModel.getLatestVersion.mockResolvedValue({ version: 4 });
@@ -320,6 +327,7 @@ describe('AppGenerateService.importAppCode', () => {
         expect(result.action).toBe('append');
         expect(result.version).toBe(5);
         expect(result.appUuid).toBe(EXISTING_APP_UUID);
+        expect(result.slug).toBe(EXISTING_APP_SLUG);
 
         // createVersion called with pending status and version 5
         expect(appModel.createVersion).toHaveBeenCalledWith(
@@ -510,6 +518,7 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+            { forceSlug: true },
         );
     });
 
@@ -600,68 +609,12 @@ describe('AppGenerateService.importAppCode', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             undefined, // vizSchema not persisted for non-viz apps
+            { forceSlug: true },
         );
     });
 
-    it('throws ParameterError when custom deps are present but customDependenciesEnabled is false', async () => {
+    it('rejects custom deps when the org flag is off', async () => {
         const { service, appModel, analytics } = buildService({
-            customDependenciesEnabled: false,
-        });
-
-        appModel.findApp.mockResolvedValue(undefined);
-
-        const codeWithCustomDep = {
-            ...makeCode(),
-            dependencies: makeDeps({ 'deck.gl': '9.3.5' }),
-        };
-
-        await expect(
-            service.importAppCode(makeUser(), PROJECT_UUID, {
-                code: codeWithCustomDep,
-            } as ImportAppCodeRequestBody),
-        ).rejects.toThrow(ParameterError);
-
-        await expect(
-            service.importAppCode(makeUser(), PROJECT_UUID, {
-                code: codeWithCustomDep,
-            } as ImportAppCodeRequestBody),
-        ).rejects.toThrow('LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED');
-
-        expect(analytics.track).toHaveBeenCalledWith({
-            event: 'data_app.upload_rejected',
-            userId: USER_UUID,
-            properties: expect.objectContaining({
-                organizationId: PROJECT_ORG_UUID,
-                projectId: PROJECT_UUID,
-                reason: 'custom_dependencies_disabled_instance',
-                customDependencyCount: 1,
-                customDependencies: [{ name: 'deck.gl', version: '9.3.5' }],
-            }),
-        });
-        expect(analytics.track).not.toHaveBeenCalledWith(
-            expect.objectContaining({ event: 'data_app.uploaded' }),
-        );
-    });
-
-    it('accepts template-only upload when customDependenciesEnabled is false', async () => {
-        const { service, appModel, schedulerClient } = buildService({
-            customDependenciesEnabled: false,
-        });
-
-        appModel.findApp.mockResolvedValue(undefined);
-
-        // Template-only = no custom deps above the baseline
-        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
-            code: { ...makeCode(), dependencies: makeDeps() },
-        } as ImportAppCodeRequestBody);
-
-        expect(result.action).toBe('create');
-        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
-    });
-
-    it('rejects custom deps when the instance allows them but the org flag is off', async () => {
-        const { service, appModel, analytics } = buildService({
-            customDependenciesEnabled: true,
             customDependenciesOrgEnabled: false,
         });
 
@@ -688,7 +641,6 @@ describe('AppGenerateService.importAppCode', () => {
 
     it('rejects custom deps for a user without manage:DataAppDependency (non-admin)', async () => {
         const { service, appModel, analytics } = buildService({
-            customDependenciesEnabled: true,
             customDependenciesOrgEnabled: true,
             canManageDataAppDependencies: false,
         });
@@ -730,9 +682,8 @@ describe('AppGenerateService.importAppCode', () => {
         expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
     });
 
-    it('accepts custom deps when both the instance and org flag allow them', async () => {
+    it('accepts custom deps when the org flag allows them', async () => {
         const { service, appModel, schedulerClient, analytics } = buildService({
-            customDependenciesEnabled: true,
             customDependenciesOrgEnabled: true,
         });
 
@@ -801,6 +752,214 @@ describe('AppGenerateService.importAppCode', () => {
         });
 
         expect(entryNames).toEqual(['src/App.jsx']);
+    });
+});
+
+describe('AppGenerateService.importAppCode unchanged skip', () => {
+    const existingApp = {
+        app_id: EXISTING_APP_UUID,
+        project_uuid: PROJECT_UUID,
+        space_uuid: null,
+        created_by_user_uuid: USER_UUID,
+        organization_uuid: PROJECT_ORG_UUID,
+        name: 'Test App',
+        description: 'A test app',
+        slug: EXISTING_APP_SLUG,
+        template: null,
+    };
+    const readyVersion = {
+        version: 4,
+        status: 'ready',
+        dependencies: null,
+        viz_schema: null,
+    };
+
+    const makeSourceTar = (files: { path: string; content: string }[]) =>
+        new Promise<Buffer>((resolve, reject) => {
+            const packer = tarPack();
+            const chunks: Buffer[] = [];
+            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+            packer.on('end', () => resolve(Buffer.concat(chunks)));
+            packer.on('error', reject);
+            files.forEach((file) =>
+                packer.entry({ name: file.path }, file.content),
+            );
+            packer.finalize();
+        });
+
+    // The tar equivalent of makeCode()'s default src files
+    const makeMatchingSourceTar = () =>
+        makeSourceTar([
+            { path: 'src/index.tsx', content: 'hello' },
+            { path: 'src/App.tsx', content: 'world' },
+        ]);
+
+    const mockStoredSourceTar = (tarBuffer: Buffer) => {
+        s3SendSpy.mockImplementation(async (command: unknown) =>
+            command instanceof GetObjectCommand
+                ? { Body: Readable.from([tarBuffer]) }
+                : {},
+        );
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        s3SendSpy.mockResolvedValue({});
+    });
+
+    it('skips the version and build for an identical bundle, even at the build cap', async () => {
+        const { service, appModel, schedulerClient, analytics } =
+            buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue(readyVersion);
+        appModel.countInProgressVersionsForProject.mockResolvedValue(5);
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result).toEqual({
+            appUuid: EXISTING_APP_UUID,
+            version: 4,
+            action: 'unchanged',
+            slug: EXISTING_APP_SLUG,
+            warnings: [],
+        });
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+        // The cap is never consulted, so unchanged uploads cannot 429
+        expect(
+            appModel.countInProgressVersionsForProject,
+        ).not.toHaveBeenCalled();
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.uploaded',
+                properties: expect.objectContaining({
+                    action: 'unchanged',
+                    version: 4,
+                }),
+            }),
+        );
+    });
+
+    it('skips when an identical build is already in flight', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({
+            ...readyVersion,
+            status: 'building',
+        });
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('unchanged');
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+    });
+
+    it('rebuilds when a src file differs', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue(readyVersion);
+        mockStoredSourceTar(
+            await makeSourceTar([
+                { path: 'src/index.tsx', content: 'hello' },
+                { path: 'src/App.tsx', content: 'changed content' },
+            ]),
+        );
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.version).toBe(5);
+        expect(appModel.createVersion).toHaveBeenCalledOnce();
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('rebuilds identical source when the latest version errored', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({
+            ...readyVersion,
+            status: 'error',
+        });
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.version).toBe(5);
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('force rebuilds an identical bundle', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue(readyVersion);
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+            force: true,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.version).toBe(5);
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('rebuilds when the stored version declared custom dependencies but the upload has none', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({
+            ...readyVersion,
+            dependencies: {
+                custom: [{ name: 'left-pad', version: '^1.3.0' }],
+                lockfileHash: 'abc123',
+            },
+        });
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('applies manifest name/description changes on an unchanged upload', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue(readyVersion);
+        mockStoredSourceTar(await makeMatchingSourceTar());
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { name: 'Renamed App' }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('unchanged');
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            EXISTING_APP_UUID,
+            PROJECT_UUID,
+            { name: 'Renamed App' },
+        );
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
     });
 });
 
@@ -956,5 +1115,203 @@ describe('AppGenerateService.importAppCode external connection links', () => {
         ).rejects.toThrow(ForbiddenError);
 
         expect(appModel.createWithVersion).not.toHaveBeenCalled();
+    });
+});
+
+describe('importAppCode slug identity', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        s3SendSpy.mockResolvedValue({});
+    });
+
+    const existingAppRow = {
+        app_id: EXISTING_APP_UUID,
+        project_uuid: PROJECT_UUID,
+        space_uuid: null,
+        created_by_user_uuid: USER_UUID,
+        organization_uuid: PROJECT_ORG_UUID,
+        name: 'Test App',
+        description: 'A test app',
+        slug: EXISTING_APP_SLUG,
+    };
+
+    it('appends when the manifest slug matches an app in the target project', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findAppBySlug.mockResolvedValue(existingAppRow);
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { slug: 'my-app' }),
+            // Slug takes precedence even when a (different) targetAppUuid is set.
+            targetAppUuid: 'some-other-app-uuid',
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.appUuid).toBe(EXISTING_APP_UUID);
+        expect(result.slug).toBe(EXISTING_APP_SLUG);
+        expect(appModel.findAppBySlug).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'my-app',
+        );
+        expect(appModel.findApp).not.toHaveBeenCalled();
+    });
+
+    it('creates with the exact manifest slug when no app has it', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findAppBySlug.mockResolvedValue(undefined);
+        // The DB row round-trips the manifest slug exactly, so the response
+        // should carry it too — not the default mock fixture's slug.
+        appModel.createWithVersion.mockResolvedValueOnce({
+            app: { app_id: NEW_APP_UUID, slug: 'my-app' },
+            version: { version: 1 },
+        });
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { slug: 'my-app' }),
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(result.slug).toBe('my-app');
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ slug: 'my-app' }),
+            { version: 1, prompt: '' },
+            'pending',
+            expect.any(Object),
+            undefined,
+            undefined,
+            // Exact round-trip: the manifest slug must be forced, never
+            // silently dedupe-suffixed.
+            { forceSlug: true },
+        );
+    });
+
+    it('createNew forces create and does not force the manifest slug', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findAppBySlug.mockResolvedValue(existingAppRow);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { slug: 'my-app' }),
+            createNew: true,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+        expect(result.action).toBe('create');
+        // The mocked createWithVersion returns NEW_APP_SLUG — distinct from
+        // the manifest's 'my-app' — so this asserts the response reflects the
+        // DB row, not (accidentally) the ignored manifest slug.
+        expect(result.slug).toBe(NEW_APP_SLUG);
+        expect(appModel.createWithVersion).toHaveBeenCalledOnce();
+        const [appArg] = appModel.createWithVersion.mock.calls[0];
+        expect(appArg).not.toHaveProperty('slug');
+    });
+
+    it('falls back to targetAppUuid append for pre-slug manifests', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(existingAppRow);
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('append');
+        expect(result.appUuid).toBe(EXISTING_APP_UUID);
+        expect(result.slug).toBe(EXISTING_APP_SLUG);
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+        expect(appModel.findApp).toHaveBeenCalledWith(
+            EXISTING_APP_UUID,
+            PROJECT_UUID,
+        );
+    });
+
+    it('still 404s a targetAppUuid missing from the project (pre-slug path)', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(),
+                targetAppUuid: EXISTING_APP_UUID,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+    });
+});
+
+describe('importAppCode slug validation', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        s3SendSpy.mockResolvedValue({});
+    });
+
+    it('rejects a path-traversal slug before any app lookup', async () => {
+        const { service, appModel } = buildService();
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { slug: '../evil' }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+        expect(appModel.findApp).not.toHaveBeenCalled();
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+    });
+
+    it('rejects an absolute-path-style slug before any app lookup', async () => {
+        const { service, appModel } = buildService();
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { slug: '/etc/passwd' }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+    });
+
+    it('rejects an over-length (300 char) slug before any app lookup', async () => {
+        const { service, appModel } = buildService();
+        const longSlug = 'a'.repeat(300);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, { slug: longSlug }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        expect(appModel.findAppBySlug).not.toHaveBeenCalled();
+    });
+
+    it('still accepts a valid slug and proceeds to create as before', async () => {
+        const { service, appModel } = buildService();
+        appModel.findAppBySlug.mockResolvedValue(undefined);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, { slug: 'my-app-2' }),
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(appModel.findAppBySlug).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            'my-app-2',
+        );
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ slug: 'my-app-2' }),
+            { version: 1, prompt: '' },
+            'pending',
+            expect.any(Object),
+            undefined,
+            undefined,
+            { forceSlug: true },
+        );
     });
 });

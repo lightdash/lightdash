@@ -16,6 +16,7 @@ import DailyInputs from './DailyInputs';
 import FrequencySelect from './FrequencySelect';
 import HourlyInputs from './HourlyInputs';
 import MonthlyInputs from './MonthlyInputs';
+import WeekdaysInputs from './WeekdaysInputs';
 import WeeklyInputs from './WeeklyInputs';
 
 type CronInternalInputsProps = {
@@ -62,6 +63,9 @@ export const CronInternalInputs: FC<
             )}
             {frequency === Frequency.DAILY && (
                 <DailyInputs cronExpression={value} onChange={onChange} />
+            )}
+            {frequency === Frequency.WEEKDAYS && (
+                <WeekdaysInputs cronExpression={value} onChange={onChange} />
             )}
             {frequency === Frequency.WEEKLY && (
                 <WeeklyInputs cronExpression={value} onChange={onChange} />

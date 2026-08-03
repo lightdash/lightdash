@@ -15,7 +15,8 @@
  * Pure `renderPrComment` (unit-tested) + a thin IO `main` that reads the JSON and
  * prints the comment body.
  *
- * CLI:  npx tsx scripts/release-safety-pr-comment.ts --marker /tmp/rs.json [--base main] [--out /tmp/body.md]
+ * CLI:  npx tsx scripts/release-safety-pr-comment.ts --marker /tmp/rs.json [--base main]
+ *         [--rest-status ran|skipped|failed] [--out /tmp/body.md]
  */
 import * as fs from 'fs';
 
@@ -60,9 +61,18 @@ export interface RenderOpts {
      * expand/contract". Falls back to inferring from the marker notes.
      */
     linterBreaking?: boolean;
+    /**
+     * Why the REST result looks the way it does. A REST check that didn't run
+     * reads as routine unless the comment says whether it was deliberately
+     * skipped (nothing on the API surface changed) or failed to produce the
+     * OpenAPI specs it needed — the second is a broken check, not a clean bill.
+     */
+    restStatus?: 'ran' | 'skipped' | 'failed';
 }
 
 const LINTER_NOTE_PREFIX = 'Migration linter detected breaking';
+
+const SAFE_HEADLINE = '✅ **Safe to upgrade normally.** No downtime needed.';
 
 /**
  * PURE. Render the sticky PR comment for a marker, in plain language aimed at the
@@ -107,24 +117,41 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         );
     } else if (rollingUpdateSafe === 'unknown') {
         head.push('❓ **Couldn’t confirm it’s safe.** Treat it as needing care on upgrade until checked.');
+        // An API break with no migration lands here too, so name what actually
+        // changed — telling the author "this changes the database" when it doesn't
+        // sends them looking for a migration that isn't there.
+        const subject = apiDriven ? 'This changes the API' : 'This changes the database';
         head.push(
             opts.draft
-                ? 'This changes the database. Mark the PR ready for review and an automated, code-aware check will look at whether the old version still uses what changed — it may clear it as safe.'
-                : 'This changes the database and we couldn’t automatically confirm the old version keeps working through the upgrade.',
+                ? `${subject}. Mark the PR ready for review and an automated, code-aware check will look at whether the old version still uses what changed — it may clear it as safe.`
+                : `${subject} and we couldn’t automatically confirm the old version keeps working through the upgrade.`,
         );
     } else if (clearedAsSafeDrop) {
-        head.push('✅ **Safe to upgrade normally.** No downtime needed.');
+        head.push(SAFE_HEADLINE);
         head.push('This removes something from the database, but the app already stopped using it in an earlier release, so the old version keeps working fine through the upgrade.');
     } else if (migrationsPresent === true) {
-        head.push('✅ **Safe to upgrade normally.** No downtime needed.');
+        head.push(SAFE_HEADLINE);
         head.push('This changes the database, and the old version keeps working with those changes through the upgrade.');
     } else {
-        head.push('✅ **Safe to upgrade normally.** No downtime needed.');
+        head.push(SAFE_HEADLINE);
         head.push('No database changes in this release.');
     }
     // External API/MCP consumers are a separate audience from the in-flight app.
     if (restBreaking) head.push('⚠️ **Also:** this makes a breaking change to the REST API — anyone running their own scripts or integrations against it may need to update.');
     if (mcpBreaking) head.push('⚠️ **Also:** this makes a breaking change to the MCP tools — AI agents or clients using them may need to update.');
+
+    // A REST check that was meant to run and didn't leaves a hole the verdict can't
+    // see past: on a PR with no migrations the marker reads "safe" purely because
+    // nothing came back. Say so instead of letting the ✅ stand for a check that
+    // never happened. (A deliberately skipped check is different — nothing on the
+    // API surface changed, so the verdict really does cover this PR.)
+    if (opts.restStatus === 'failed' && !marker.api.rest.checked) {
+        const safe = head.indexOf(SAFE_HEADLINE);
+        if (safe >= 0) {
+            head[safe] = '❓ **Couldn’t confirm it’s safe.** Part of the check didn’t run.';
+        }
+        head.push('⚠️ **The REST API check didn’t run** — its OpenAPI specs couldn’t be generated, so a change that breaks scripts or integrations wouldn’t have been spotted here.');
+    }
 
     // ---- what we looked at (plain, no internal tool names) ------------------
     const dbResult =
@@ -133,12 +160,18 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
             : migrationsPresent === false
             ? 'none'
             : 'couldn’t tell (no baseline to compare against)';
-    const apiResult = (s: ApiSurface): string => {
-        if (!s.checked) return 'not checked';
+    const apiResult = (s: ApiSurface, uncheckedReason?: string): string => {
+        if (!s.checked) return uncheckedReason ? `not checked — ${uncheckedReason}` : 'not checked';
         return s.breaking === true
             ? `${s.changes.length} breaking change${s.changes.length === 1 ? '' : 's'}`
             : 'no breaking changes';
     };
+    const restUncheckedReason =
+        opts.restStatus === 'skipped'
+            ? 'nothing on the API surface changed'
+            : opts.restStatus === 'failed'
+            ? 'the OpenAPI specs could not be generated'
+            : undefined;
     const notesResult = marker.upgrade.requiredStop
         ? 'can’t be skipped'
         : marker.upgrade.minPreviousVersion
@@ -148,7 +181,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         '| What | Result |',
         '|---|---|',
         `| Database changes | ${dbResult} |`,
-        `| REST API | ${apiResult(marker.api.rest)} |`,
+        `| REST API | ${apiResult(marker.api.rest, restUncheckedReason)} |`,
         `| MCP tools | ${apiResult(marker.api.mcp)} |`,
         `| Upgrade notes | ${notesResult} |`,
     ].join('\n');
@@ -216,8 +249,13 @@ function main(): void {
     const markerPath = arg('marker');
     if (!markerPath) throw new Error('--marker <path> is required');
     const marker = JSON.parse(fs.readFileSync(markerPath, 'utf-8')) as Marker;
+    const restStatus = arg('rest-status');
+    if (restStatus && !['ran', 'skipped', 'failed'].includes(restStatus)) {
+        throw new Error(`--rest-status must be one of ran|skipped|failed (got "${restStatus}")`);
+    }
     const body = renderPrComment(marker, {
         baseLabel: arg('base'),
+        restStatus: restStatus as RenderOpts['restStatus'],
         draft: process.argv.includes('--draft'),
         linterBreaking: process.argv.includes('--linter-breaking')
             ? true

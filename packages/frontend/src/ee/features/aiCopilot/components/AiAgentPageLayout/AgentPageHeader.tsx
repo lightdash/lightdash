@@ -1,5 +1,6 @@
 import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine-8/core';
 import {
+    IconNotebook,
     IconSettings,
     IconShare2,
     IconWindowMinimize,
@@ -13,6 +14,7 @@ type Props = {
     leftSection?: ReactNode;
     onMinimize?: () => void;
     onShare?: () => void;
+    onOpenMemories?: () => void;
     isSharing?: boolean;
     settingsHref?: string;
 };
@@ -21,6 +23,7 @@ export const AgentPageHeader: FC<Props> = ({
     leftSection,
     onMinimize,
     onShare,
+    onOpenMemories,
     isSharing,
     settingsHref,
 }) => (
@@ -39,6 +42,22 @@ export const AgentPageHeader: FC<Props> = ({
                         <MantineIcon icon={IconShare2} size={14} stroke={1.8} />
                     </ActionIcon>
                 </Tooltip>
+            )}
+            {onOpenMemories && (
+                <Button
+                    variant="default"
+                    className={styles.action}
+                    onClick={onOpenMemories}
+                    leftSection={
+                        <MantineIcon
+                            icon={IconNotebook}
+                            size={14}
+                            stroke={1.8}
+                        />
+                    }
+                >
+                    Memories
+                </Button>
             )}
             {onMinimize && (
                 <Button

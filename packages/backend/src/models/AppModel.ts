@@ -1,18 +1,22 @@
 import {
+    AlreadyExistsError,
     APP_VERSION_CANCELLED_BY_USER,
     DATA_APP_VIZ_TEMPLATE,
+    DEFAULT_DATA_APP_CLAUDE_MODEL,
     generateSlug,
     NotFoundError,
     ProjectType,
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatusHistoryEntryKind,
+    type DataAppActivityFilters,
+    type DataAppGenerationUsage,
     type DataAppVizSchema,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { v4 as uuidv4 } from 'uuid';
+import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import {
     APP_VERSION_TERMINAL_STATUSES,
     AppsTableName,
@@ -20,6 +24,7 @@ import {
     isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
+    type DbAppActivityRow,
     type DbAppVersion,
 } from '../database/entities/apps';
 import {
@@ -45,6 +50,12 @@ type AppModelArguments = {
 
 const AppSlugSequence = 'apps_slug_sequence';
 
+type AppWithOrgAndPin = DbApp & {
+    organization_uuid: string;
+    pinned_list_uuid: string | null;
+    pinned_list_order: number | null;
+};
+
 export class AppModel {
     private readonly database: Knex;
 
@@ -58,6 +69,7 @@ export class AppModel {
                 Pick<
                     DbApp,
                     | 'app_id'
+                    | 'slug'
                     | 'name'
                     | 'description'
                     | 'template'
@@ -70,27 +82,53 @@ export class AppModel {
         resources?: AppVersionResources,
         dependencies?: AppVersionDependencies,
         vizSchema?: DataAppVizSchema,
+        // forceSlug (as-code upload round-trip): use app.slug verbatim and
+        // fail loudly on a conflict, so re-uploads stay idempotent instead of
+        // silently minting suffixed duplicates. Default: app.slug is a base
+        // hint — normalized and dedupe-suffixed (duplication derives copies'
+        // slugs from the source slug this way).
+        opts?: { forceSlug?: boolean },
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
-            const appName = app.name ?? '';
-            const hasSlugName = /[a-z0-9]/i.test(appName);
-            const slugSource = hasSlugName
-                ? appName
-                : (
-                      await trx.raw<{ rows: Array<{ slug: string }> }>(
-                          `SELECT 'app-' || nextval(?)::text AS slug`,
-                          [AppSlugSequence],
-                      )
-                  ).rows[0].slug;
-            const baseSlug = generateSlug(slugSource).slice(0, 255);
-            await acquireProjectSlugLock(trx, app.project_uuid, baseSlug);
-            const slug = await generateUniqueSlugScopedToProject(
-                trx,
-                app.project_uuid,
-                AppsTableName,
-                baseSlug,
-            );
+            let slug: string;
+            if (opts?.forceSlug && app.slug !== undefined) {
+                // Serialize racing creates on the same (project, slug), then
+                // check for a holder — including soft-deleted apps, which
+                // still occupy the unique constraint.
+                await acquireProjectSlugLock(trx, app.project_uuid, app.slug);
+                const slugHolder = await trx(AppsTableName)
+                    .where({ project_uuid: app.project_uuid, slug: app.slug })
+                    .first();
+                if (slugHolder) {
+                    throw new AlreadyExistsError(
+                        `A data app with slug "${app.slug}" already exists in this project (it may be soft-deleted). Re-run the upload to append, or restore/permanently delete the conflicting app.`,
+                    );
+                }
+                slug = app.slug;
+            } else {
+                const appName = app.name ?? '';
+                const hasSlugName = /[a-z0-9]/i.test(appName);
+                const slugSource =
+                    app.slug ??
+                    (hasSlugName
+                        ? appName
+                        : (
+                              await trx.raw<{
+                                  rows: Array<{ slug: string }>;
+                              }>(`SELECT 'app-' || nextval(?)::text AS slug`, [
+                                  AppSlugSequence,
+                              ])
+                          ).rows[0].slug);
+                const baseSlug = generateSlug(slugSource).slice(0, 255);
+                await acquireProjectSlugLock(trx, app.project_uuid, baseSlug);
+                slug = await generateUniqueSlugScopedToProject(
+                    trx,
+                    app.project_uuid,
+                    AppsTableName,
+                    baseSlug,
+                );
+            }
             const [appRow] = await trx(AppsTableName)
                 .insert({
                     ...app,
@@ -154,6 +192,53 @@ export class AppModel {
                 ]),
             ],
         ) as unknown as DbAppVersion['status_history'];
+    }
+
+    /**
+     * Record what the version's generation cost. Called once the pipeline
+     * reaches a terminal state, on both the success and failure paths — a
+     * generation that failed halfway still spent what it spent.
+     *
+     * Adds to any spend already recorded rather than replacing it. A version's
+     * pipeline can run more than once: when a job is retried the resumed
+     * `--continue` leg reports only its own usage, so overwriting would leave
+     * the row showing the tail of the work instead of all of it. Accumulating
+     * in SQL keeps it a single atomic statement, with no read-modify-write race
+     * between concurrent legs.
+     */
+    async recordVersionGenerationUsage(
+        appId: string,
+        version: number,
+        usage: DataAppGenerationUsage,
+    ): Promise<void> {
+        const sum = (field: keyof DataAppGenerationUsage) =>
+            `COALESCE((generation_usage->>'${field}')::numeric, 0) + ?`;
+        await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .update({
+                generation_usage: this.database.raw(
+                    `jsonb_build_object(
+                        'inputTokens', ${sum('inputTokens')},
+                        'outputTokens', ${sum('outputTokens')},
+                        'cacheReadInputTokens', ${sum('cacheReadInputTokens')},
+                        'cacheCreationInputTokens', ${sum(
+                            'cacheCreationInputTokens',
+                        )},
+                        'numTurns', ${sum('numTurns')},
+                        'durationApiMs', ${sum('durationApiMs')},
+                        'costUsd', ${sum('costUsd')}
+                    )`,
+                    [
+                        usage.inputTokens,
+                        usage.outputTokens,
+                        usage.cacheReadInputTokens,
+                        usage.cacheCreationInputTokens,
+                        usage.numTurns,
+                        usage.durationApiMs,
+                        usage.costUsd,
+                    ],
+                ) as unknown as DataAppGenerationUsage,
+            });
     }
 
     async updateVersionStatus(
@@ -299,18 +384,42 @@ export class AppModel {
     async getApp(
         appId: string,
         projectUuid: string,
-    ): Promise<
-        DbApp & {
-            organization_uuid: string;
-            pinned_list_uuid: string | null;
-            pinned_list_order: number | null;
-        }
-    > {
+    ): Promise<AppWithOrgAndPin> {
         const row = await this.findApp(appId, projectUuid);
         if (!row) {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    /**
+     * Shared joins/select for the app + its organization + its pinned-list
+     * placement, underlying `findApp`, `findAppBySlug`, and
+     * `findAppByUuidOrSlug`. Callers add their own where-clauses.
+     */
+    private appWithOrgAndPinQuery() {
+        return this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(
+                PinnedAppTableName,
+                `${PinnedAppTableName}.app_uuid`,
+                `${AppsTableName}.app_id`,
+            )
+            .select<AppWithOrgAndPin[]>(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${PinnedAppTableName}.pinned_list_uuid`,
+                `${PinnedAppTableName}.order as pinned_list_order`,
+            );
     }
 
     async findAppByUuid(appId: string): Promise<
@@ -346,46 +455,93 @@ export class AppModel {
     async findApp(
         appId: string,
         projectUuid: string,
-    ): Promise<
-        | (DbApp & {
-              organization_uuid: string;
-              pinned_list_uuid: string | null;
-              pinned_list_order: number | null;
-          })
-        | undefined
-    > {
-        return this.database(AppsTableName)
-            .innerJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_uuid`,
-                `${AppsTableName}.project_uuid`,
-            )
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationTableName}.organization_id`,
-                `${ProjectTableName}.organization_id`,
-            )
-            .leftJoin(
-                PinnedAppTableName,
-                `${PinnedAppTableName}.app_uuid`,
-                `${AppsTableName}.app_id`,
-            )
+    ): Promise<AppWithOrgAndPin | undefined> {
+        return this.appWithOrgAndPinQuery()
             .where(`${AppsTableName}.app_id`, appId)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
-            .select<
-                (DbApp & {
-                    organization_uuid: string;
-                    pinned_list_uuid: string | null;
-                    pinned_list_order: number | null;
-                })[]
-            >(
-                `${AppsTableName}.*`,
-                `${OrganizationTableName}.organization_uuid`,
-                `${PinnedAppTableName}.pinned_list_uuid`,
-                `${PinnedAppTableName}.order as pinned_list_order`,
-            )
             .first();
+    }
+
+    async findAppBySlug(
+        projectUuid: string,
+        slug: string,
+    ): Promise<AppWithOrgAndPin | undefined> {
+        return this.appWithOrgAndPinQuery()
+            .where(`${AppsTableName}.slug`, slug)
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .first();
+    }
+
+    async hasAppSlug(projectUuid: string, slug: string): Promise<boolean> {
+        const app = await this.database(AppsTableName)
+            .select('app_id')
+            .where({ project_uuid: projectUuid, slug })
+            .first();
+        return app !== undefined;
+    }
+
+    /** Batch slug→uuid resolution for content-as-code dashboard tiles. */
+    async findAppsBySlugs(
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<Pick<DbApp, 'app_id' | 'slug'>[]> {
+        if (slugs.length === 0) return [];
+        return this.database(AppsTableName)
+            .select('app_id', 'slug')
+            .where('project_uuid', projectUuid)
+            .whereIn('slug', slugs)
+            .whereNull('deleted_at');
+    }
+
+    /** Batch uuid filter, for legacy content-as-code tiles that predate app slugs. */
+    async findAppsByUuids(
+        projectUuid: string,
+        appUuids: string[],
+    ): Promise<Pick<DbApp, 'app_id' | 'slug'>[]> {
+        if (appUuids.length === 0) return [];
+        return this.database(AppsTableName)
+            .select('app_id', 'slug')
+            .where('project_uuid', projectUuid)
+            .whereIn('app_id', appUuids)
+            .whereNull('deleted_at');
+    }
+
+    /**
+     * Resolve an app by uuid or slug. A value that parses as a UUID may
+     * still be a slug (slugs aren't guaranteed non-uuid-shaped), so
+     * uuid-shaped input matches either column; non-uuid input matches slug
+     * only. Mirrors `DashboardModel.getByIdOrSlug`'s resolution.
+     */
+    async findAppByUuidOrSlug(
+        projectUuid: string,
+        appUuidOrSlug: string,
+    ): Promise<AppWithOrgAndPin | undefined> {
+        const query = this.appWithOrgAndPinQuery()
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`);
+        if (isValidUuid(appUuidOrSlug)) {
+            void query.where((builder) => {
+                void builder
+                    .where(`${AppsTableName}.app_id`, appUuidOrSlug)
+                    .orWhere(`${AppsTableName}.slug`, appUuidOrSlug);
+            });
+        } else {
+            void query.where(`${AppsTableName}.slug`, appUuidOrSlug);
+        }
+        return query.first();
+    }
+
+    async getAppByUuidOrSlug(
+        projectUuid: string,
+        appUuidOrSlug: string,
+    ): Promise<AppWithOrgAndPin> {
+        const row = await this.findAppByUuidOrSlug(projectUuid, appUuidOrSlug);
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appUuidOrSlug}`);
+        }
+        return row;
     }
 
     /** Versions that declared custom dependencies, newest first. */
@@ -519,6 +675,8 @@ export class AppModel {
         template: DbApp['template'];
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
+        slug: string;
+        viewsCount: number;
         versions: (DbAppVersion & {
             created_by_user_first_name: string | null;
             created_by_user_last_name: string | null;
@@ -575,6 +733,8 @@ export class AppModel {
                 `${AppsTableName}.space_uuid`,
                 `${SpaceTableName}.name as space_name`,
                 `${AppsTableName}.template`,
+                `${AppsTableName}.slug`,
+                `${AppsTableName}.views_count`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${PinnedAppTableName}.pinned_list_uuid`,
                 `${PinnedAppTableName}.order as pinned_list_order`,
@@ -599,6 +759,8 @@ export class AppModel {
             space_uuid: string | null;
             space_name: string | null;
             template: DbApp['template'];
+            slug: string;
+            views_count: number;
             organization_uuid: string;
             pinned_list_uuid: string | null;
             pinned_list_order: number | null;
@@ -619,6 +781,8 @@ export class AppModel {
             space_uuid: spaceUuid,
             space_name: spaceName,
             template,
+            slug,
+            views_count: viewsCount,
             organization_uuid: organizationUuid,
             pinned_list_uuid: pinnedListUuid,
             pinned_list_order: pinnedListOrder,
@@ -635,6 +799,8 @@ export class AppModel {
                 space_uuid: string | null;
                 space_name: string | null;
                 template: DbApp['template'];
+                slug: string;
+                views_count: number;
                 organization_uuid: string;
                 pinned_list_uuid: string | null;
                 pinned_list_order: number | null;
@@ -651,6 +817,8 @@ export class AppModel {
             spaceUuid,
             spaceName,
             template,
+            slug,
+            viewsCount,
             pinnedListUuid,
             pinnedListOrder,
             versions: versions.slice(0, limit),
@@ -1082,6 +1250,121 @@ export class AppModel {
             ),
             pagination: result.pagination,
         };
+    }
+
+    /**
+     * A page of every data app generation across the organization, newest
+     * first. One row per `app_versions` row, so it covers new apps, iterations,
+     * and failed generations alike.
+     *
+     * Deliberately does NOT filter `apps.deleted_at`: this is an audit trail,
+     * and deleting an app must not erase the record of who generated what.
+     */
+    async getOrganizationActivity(
+        organizationUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        filters?: DataAppActivityFilters,
+    ): Promise<KnexPaginatedData<DbAppActivityRow[]>> {
+        const query = this.database(AppVersionsTableName)
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppVersionsTableName}.app_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            // LEFT JOIN so a hard-deleted author doesn't drop their generations
+            // from the log; the service collapses the missing row to null.
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AppVersionsTableName}.created_by_user_uuid`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .modify((queryBuilder) => {
+                if (filters?.projectUuids?.length) {
+                    void queryBuilder.whereIn(
+                        `${AppsTableName}.project_uuid`,
+                        filters.projectUuids,
+                    );
+                }
+                if (filters?.userUuids?.length) {
+                    void queryBuilder.whereIn(
+                        `${AppVersionsTableName}.created_by_user_uuid`,
+                        filters.userUuids,
+                    );
+                }
+                if (filters?.models?.length) {
+                    const { models } = filters;
+                    void queryBuilder.where((modelQueryBuilder) => {
+                        void modelQueryBuilder.whereRaw(
+                            `${AppVersionsTableName}.resources->>'claudeModel' IN (${models
+                                .map(() => '?')
+                                .join(', ')})`,
+                            models,
+                        );
+                        // A version with no stored model ran on the default, and
+                        // that is what the API reports for it — so filtering on
+                        // the default has to match those rows too, or the filter
+                        // contradicts the value shown in the row.
+                        if (models.includes(DEFAULT_DATA_APP_CLAUDE_MODEL)) {
+                            void modelQueryBuilder.orWhereRaw(
+                                `${AppVersionsTableName}.resources->>'claudeModel' IS NULL`,
+                            );
+                        }
+                    });
+                }
+                if (filters?.dateFrom) {
+                    void queryBuilder.where(
+                        `${AppVersionsTableName}.created_at`,
+                        '>=',
+                        filters.dateFrom,
+                    );
+                }
+                if (filters?.dateTo) {
+                    void queryBuilder.where(
+                        `${AppVersionsTableName}.created_at`,
+                        '<=',
+                        filters.dateTo,
+                    );
+                }
+            })
+            .select<DbAppActivityRow[]>(
+                `${AppVersionsTableName}.app_id`,
+                `${AppVersionsTableName}.version`,
+                `${AppVersionsTableName}.prompt`,
+                `${AppVersionsTableName}.status`,
+                `${AppVersionsTableName}.resources`,
+                `${AppVersionsTableName}.generation_usage`,
+                `${AppVersionsTableName}.created_at`,
+                `${AppVersionsTableName}.created_by_user_uuid`,
+                `${AppsTableName}.name as app_name`,
+                `${AppsTableName}.deleted_at as app_deleted_at`,
+                `${AppsTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${UserTableName}.first_name as created_by_user_first_name`,
+                `${UserTableName}.last_name as created_by_user_last_name`,
+            )
+            // app_id/version tie-break keeps pagination stable when two
+            // generations share a timestamp.
+            .orderBy([
+                { column: `${AppVersionsTableName}.created_at`, order: 'desc' },
+                { column: `${AppVersionsTableName}.app_id`, order: 'asc' },
+                { column: `${AppVersionsTableName}.version`, order: 'desc' },
+            ]);
+
+        return KnexPaginate.paginate(query, paginateArgs);
     }
 
     async softDelete(

@@ -1,29 +1,39 @@
 import {
     type AnyType,
+    type AiDeepResearchEntryPoint,
     type AiDeepResearchEventsPage,
+    type AiDeepResearchChartData,
     type AiDeepResearchRequestBody,
     type AiDeepResearchRun,
     type ApiAiDeepResearchEventsResponse,
     type ApiAiDeepResearchRunListResponse,
     type ApiAiDeepResearchRunResponse,
+    type ApiAiDeepResearchChartResponse,
     type ApiAiAgentThreadMessageVizQuery,
     type ApiAiAgentThreadMessageVizQueryResponse,
     type ApiError,
+    isAiDeepResearchRunTerminal,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo } from 'react';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import useUser from '../../../../hooks/user/useUser';
+import useApp from '../../../../providers/App/useApp';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../types/Events';
 import {
     registerDeepResearchRun,
     replaceDeepResearchRun,
     restoreDeepResearchComposerPrompt,
     updateDeepResearchRun,
+    useDeepResearchRunsForThread,
 } from '../deepResearch/deepResearchRegistry';
+import { getDeepResearchRunRefetchInterval } from '../deepResearch/runPolling';
 import {
     adaptDeepResearchRun,
-    DEEP_RESEARCH_DEPTH_CONFIG,
     isDeepResearchRunTerminal,
+    toDeepResearchRegistration,
 } from '../deepResearch/runProgress';
 import {
     type DeepResearchRunRegistration,
@@ -122,6 +132,18 @@ const refreshDeepResearchChart = (
         body: JSON.stringify({}),
     }) as Promise<ApiAiAgentThreadMessageVizQueryResponse['results']>;
 
+const getDeepResearchChart = (
+    projectUuid: string,
+    runUuid: string,
+    queryUuid: string,
+) =>
+    lightdashApi<AnyType>({
+        version: 'v1',
+        url: `${getBaseUrl(projectUuid)}/${runUuid}/charts/${encodeURIComponent(queryUuid)}`,
+        method: 'GET',
+        body: undefined,
+    }) as Promise<ApiAiDeepResearchChartResponse['results']>;
+
 type StartMutationVariables = StartDeepResearchArgs & {
     promptUuid: string;
 };
@@ -136,6 +158,7 @@ const useStartDeepResearchMutationBase = <
 >(
     projectUuid: string,
     getIds: (variables: Variables) => StartMutationIds,
+    entryPoint: AiDeepResearchEntryPoint,
 ) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
@@ -156,10 +179,8 @@ const useStartDeepResearchMutationBase = <
                 agentUuid,
                 threadUuid,
                 promptUuid: variables.promptUuid,
-                mcpServerUuids: variables.mcpServerUuids,
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
-                depth: variables.depth,
                 createdAt,
                 state: 'starting',
             });
@@ -170,10 +191,9 @@ const useStartDeepResearchMutationBase = <
             return startDeepResearch(projectUuid, {
                 prompt: variables.question,
                 agentUuid,
-                effort: DEEP_RESEARCH_DEPTH_CONFIG[variables.depth].effort,
                 threadUuid,
                 promptUuid: variables.promptUuid,
-                mcpServerUuids: variables.mcpServerUuids,
+                entryPoint,
             });
         },
         onSuccess: (run, variables, context) => {
@@ -184,10 +204,8 @@ const useStartDeepResearchMutationBase = <
                 agentUuid,
                 threadUuid,
                 promptUuid: variables.promptUuid,
-                mcpServerUuids: variables.mcpServerUuids,
                 userUuid: user.data?.userUuid ?? '',
                 question: variables.question,
-                depth: variables.depth,
                 createdAt: context?.createdAt ?? new Date().toISOString(),
                 state: 'started',
             });
@@ -221,34 +239,208 @@ export const useStartDeepResearchMutation = ({
     projectUuid,
     agentUuid,
     threadUuid,
+    entryPoint = 'ask_ai',
 }: {
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
+    entryPoint?: AiDeepResearchEntryPoint;
 }) =>
     useStartDeepResearchMutationBase<StartMutationVariables>(
         projectUuid,
         () => ({ agentUuid, threadUuid }),
+        entryPoint,
     );
 
 type StartForThreadMutationVariables = StartMutationVariables &
     StartMutationIds;
 
-export const useStartDeepResearchForThreadMutation = (projectUuid: string) =>
+export const useStartDeepResearchForThreadMutation = (
+    projectUuid: string,
+    entryPoint: AiDeepResearchEntryPoint = 'ask_ai',
+) =>
     useStartDeepResearchMutationBase<StartForThreadMutationVariables>(
         projectUuid,
         ({ agentUuid, threadUuid }) => ({ agentUuid, threadUuid }),
+        entryPoint,
     );
 
-export const useDeepResearchThreadRuns = (
+const useDeepResearchThreadRuns = (
     projectUuid: string | undefined,
     threadUuid: string,
 ) =>
     useQuery<AiDeepResearchRun[], ApiError>({
         queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, 'thread', threadUuid],
         queryFn: () => listDeepResearchRuns(projectUuid ?? '', threadUuid),
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && !!threadUuid,
+        refetchInterval: (runs) =>
+            runs?.some((run) => !isAiDeepResearchRunTerminal(run.status))
+                ? DEEP_RESEARCH_POLL_INTERVAL_MS
+                : false,
     });
+
+type DeepResearchEngagementRun = Pick<
+    AiDeepResearchRun,
+    | 'aiDeepResearchRunUuid'
+    | 'projectUuid'
+    | 'agentUuid'
+    | 'aiThreadUuid'
+    | 'status'
+    | 'completedAt'
+    | 'updatedAt'
+>;
+
+export const useTrackDeepResearchReportEngagement = () => {
+    const { user } = useApp();
+    const { track } = useTracking();
+
+    return useCallback(
+        (
+            action: 'opened' | 'copied' | 'shared' | 'follow_up',
+            run: DeepResearchEngagementRun,
+        ) => {
+            const userId = user?.data?.userUuid;
+            const organizationId = user?.data?.organizationUuid;
+            if (
+                !userId ||
+                !organizationId ||
+                !isAiDeepResearchRunTerminal(run.status)
+            ) {
+                return;
+            }
+
+            const completedAt = run.completedAt ?? run.updatedAt;
+            track({
+                name: EventName.AI_DEEP_RESEARCH_REPORT_ENGAGED,
+                properties: {
+                    action,
+                    organizationId,
+                    projectId: run.projectUuid,
+                    userId,
+                    runUuid: run.aiDeepResearchRunUuid,
+                    threadId: run.aiThreadUuid,
+                    aiAgentId: run.agentUuid,
+                    runStatus: run.status,
+                    timeSinceCompletedMs: Math.max(
+                        0,
+                        Date.now() - new Date(completedAt).getTime(),
+                    ),
+                },
+            });
+        },
+        [track, user?.data?.organizationUuid, user?.data?.userUuid],
+    );
+};
+
+export const useTrackDeepResearchFollowUp = ({
+    projectUuid,
+    threadUuid,
+}: {
+    projectUuid: string;
+    threadUuid: string;
+}) => {
+    const runsQuery = useDeepResearchThreadRuns(projectUuid, threadUuid);
+    const trackEngagement = useTrackDeepResearchReportEngagement();
+
+    return useCallback(() => {
+        const latestTerminalRun = runsQuery.data
+            ?.filter((run) => isAiDeepResearchRunTerminal(run.status))
+            .toSorted(
+                (left, right) =>
+                    new Date(right.completedAt ?? right.updatedAt).getTime() -
+                    new Date(left.completedAt ?? left.updatedAt).getTime(),
+            )[0];
+        if (latestTerminalRun) {
+            trackEngagement('follow_up', latestTerminalRun);
+        }
+    }, [runsQuery.data, trackEngagement]);
+};
+
+type UseDeepResearchThreadRunRegistrationsOptions = {
+    projectUuid: string | undefined;
+    threadUuid: string;
+};
+
+export const useDeepResearchThreadRunRegistrationState = ({
+    projectUuid,
+    threadUuid,
+}: UseDeepResearchThreadRunRegistrationsOptions) => {
+    const user = useUser(true);
+    const userUuid = user.data?.userUuid;
+    const serverRuns = useDeepResearchThreadRuns(projectUuid, threadUuid);
+    const localRegistrations = useDeepResearchRunsForThread(
+        projectUuid ?? '',
+        threadUuid,
+        userUuid,
+    );
+
+    const registrations = useMemo(() => {
+        const fromServer = (serverRuns.data ?? []).map((run) =>
+            toDeepResearchRegistration(run, {
+                threadUuid,
+                userUuid: userUuid ?? '',
+            }),
+        );
+        const serverRunUuids = new Set(
+            fromServer.map((registration) => registration.runUuid),
+        );
+        return [
+            ...fromServer,
+            ...localRegistrations.filter(
+                (registration) => !serverRunUuids.has(registration.runUuid),
+            ),
+        ];
+    }, [serverRuns.data, localRegistrations, threadUuid, userUuid]);
+
+    return {
+        registrations,
+        isReady: serverRuns.isSuccess && !serverRuns.isFetching,
+    };
+};
+
+export const useDeepResearchThreadRunRegistrations = (
+    options: UseDeepResearchThreadRunRegistrationsOptions,
+) => useDeepResearchThreadRunRegistrationState(options).registrations;
+
+export const useHasActiveDeepResearchRun = ({
+    projectUuid,
+    threadUuid,
+}: {
+    projectUuid: string | undefined;
+    threadUuid: string | undefined;
+}) => {
+    const user = useUser(true);
+    const userUuid = user.data?.userUuid;
+    const serverRuns = useDeepResearchThreadRuns(projectUuid, threadUuid ?? '');
+    const localRegistrations = useDeepResearchRunsForThread(
+        projectUuid ?? '',
+        threadUuid ?? '',
+        userUuid,
+    );
+
+    return useMemo(() => {
+        if (!projectUuid || !threadUuid) {
+            return false;
+        }
+
+        const serverRunUuids = new Set(
+            serverRuns.data?.map((run) => run.aiDeepResearchRunUuid),
+        );
+        const hasLocalActiveRun = localRegistrations.some(
+            (registration) =>
+                registration.state === 'starting' ||
+                (registration.state === 'started' &&
+                    !serverRunUuids.has(registration.runUuid)),
+        );
+
+        return (
+            hasLocalActiveRun ||
+            serverRuns.data?.some(
+                (run) => !isAiDeepResearchRunTerminal(run.status),
+            ) === true
+        );
+    }, [localRegistrations, projectUuid, serverRuns.data, threadUuid]);
+};
 
 export const useDeepResearchRun = (
     registration: DeepResearchRunRegistration,
@@ -263,9 +455,10 @@ export const useDeepResearchRun = (
             getDeepResearchRun(registration.projectUuid, registration.runUuid),
         enabled: registration.state === 'started',
         refetchInterval: (run) =>
-            run && isDeepResearchRunTerminal(run.status)
-                ? false
-                : DEEP_RESEARCH_POLL_INTERVAL_MS,
+            getDeepResearchRunRefetchInterval(
+                run,
+                DEEP_RESEARCH_POLL_INTERVAL_MS,
+            ),
     });
     const isRunActive = runQuery.data
         ? !isDeepResearchRunTerminal(runQuery.data.status)
@@ -348,6 +541,28 @@ export const useDeepResearchChartLiveQuery = ({
         ],
         queryFn: () => refreshDeepResearchChart(projectUuid, runUuid, chartKey),
         enabled,
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+    });
+
+export const useDeepResearchChartQuery = ({
+    projectUuid,
+    runUuid,
+    queryUuid,
+}: {
+    projectUuid: string;
+    runUuid: string;
+    queryUuid: string;
+}) =>
+    useQuery<AiDeepResearchChartData, ApiError>({
+        queryKey: [
+            DEEP_RESEARCH_QUERY_KEY,
+            projectUuid,
+            runUuid,
+            'charts',
+            queryUuid,
+        ],
+        queryFn: () => getDeepResearchChart(projectUuid, runUuid, queryUuid),
         staleTime: Infinity,
         refetchOnWindowFocus: false,
     });

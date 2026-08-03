@@ -16,7 +16,7 @@ import {
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
-import { getChartSlugForTileUuid } from './dashboardReferences';
+import { getTileSlugForTileUuid } from './dashboardReferences';
 
 export const getScheduledDeliveryTargetsAsCode = (
     scheduler: SchedulerAndTargets,
@@ -63,7 +63,7 @@ export const getDashboardScheduledDeliveryFiltersWithTileSlugs = (
         tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
             Record<string, DashboardTileTarget>
         >((result, [tileUuid, target]) => {
-            const tileSlug = getChartSlugForTileUuid(dashboard, tileUuid);
+            const tileSlug = getTileSlugForTileUuid(dashboard, tileUuid);
             return tileSlug ? { ...result, [tileSlug]: target } : result;
         }, {}),
     }));
@@ -82,7 +82,7 @@ export const getDashboardScheduledDeliveryFiltersWithTileUuids = (
         >((result, [tileSlug, target]) => {
             const tileUuid = dashboard.tiles.find(
                 (tile) =>
-                    getChartSlugForTileUuid(dashboard, tile.uuid) === tileSlug,
+                    getTileSlugForTileUuid(dashboard, tile.uuid) === tileSlug,
             )?.uuid;
             if (!tileUuid) {
                 throw new NotFoundError(

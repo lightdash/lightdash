@@ -59,6 +59,17 @@ const PG_PING_INTERVAL_MS = 60_000;
 // stack up overlapping client borrows from the pool.
 const PG_PING_TIMEOUT_MS = 5_000;
 
+// The ping doubles as a worker-pool liveness probe. The NOTIFY on graphile's
+// jobs:insert channel makes every listener in this database — including this
+// process's own — nudge its worker pool. A terminated pool fails that nudge
+// ("nudge called after worker terminated"), which surfaces via
+// pool:listen:error and trips the poolDead latch. Without this, an idle dead
+// worker looks healthy forever: nothing else generates NOTIFYs on a quiet
+// instance, and the wedged runner stops enqueueing even its own cron jobs.
+// The ping's pool (SchedulerClient's WorkerUtils) is separate from the
+// runner's, so it keeps working when the runner is wedged.
+const PG_PING_QUERY = `SELECT pg_notify('jobs:insert', '')`;
+
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
 
@@ -69,6 +80,8 @@ export class SchedulerWorker extends SchedulerTask {
     protected readonly workerHealth: SchedulerWorkerHealth | undefined;
 
     private pgPingInterval: NodeJS.Timeout | null = null;
+
+    private isStopping: boolean = false;
 
     private readonly resolveOrganizationName?: OrganizationNameResolver;
 
@@ -125,7 +138,23 @@ export class SchedulerWorker extends SchedulerTask {
         void this.runner.promise.finally(() => {
             this.isRunning = false;
             this.stopPgPing();
+            // Settling outside a graceful stop() means graphile gave up — e.g.
+            // 10 consecutive failed job acquisitions after a Postgres restart.
+            // Unrecoverable in-process in 0.13: latch so the probe goes 503
+            // and the pool-dead listeners (process exit) fire.
+            if (!this.isStopping) {
+                this.workerHealth?.markPoolDead(
+                    'graphile runner stopped unexpectedly',
+                );
+            }
         });
+    }
+
+    // Graceful stop for shutdown paths (terminus onSignal). Sets the stopping
+    // flag first so the runner promise settling is not mistaken for a crash.
+    async stop() {
+        this.isStopping = true;
+        await this.runner?.stop();
     }
 
     private startPgPing(health: SchedulerWorkerHealth) {
@@ -158,7 +187,7 @@ export class SchedulerWorker extends SchedulerTask {
             // withPgClient borrows from graphile's existing pool and releases the
             // client back when the callback resolves — no long-lived client to leak.
             const ping = graphileClient.withPgClient((pgClient) =>
-                pgClient.query('SELECT 1'),
+                pgClient.query(PG_PING_QUERY),
             );
             await Promise.race([
                 ping,
@@ -259,6 +288,14 @@ export class SchedulerWorker extends SchedulerTask {
                 options: {
                     backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
                     maxAttempts: 1,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES,
+                pattern: '41 * * * *', // Hourly, off the top of the hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 3,
                 },
             },
             // worker-process pg liveness is driven by a setInterval (see startPgPing);
@@ -1222,6 +1259,24 @@ export class SchedulerWorker extends SchedulerTask {
                 } catch (error) {
                     Logger.error(
                         'Error during deploy sessions cleanup:',
+                        error,
+                    );
+                    throw error;
+                }
+            },
+            [SCHEDULER_TASKS.CLEAN_WAREHOUSE_CONNECT_CODES]: async () => {
+                Logger.info('Starting warehouse connect codes cleanup job');
+
+                try {
+                    const deletedCount =
+                        await this.warehouseConnectCodeModel.deleteExpired();
+
+                    Logger.info(
+                        `Warehouse connect codes cleanup completed. Deleted: ${deletedCount}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        'Error during warehouse connect codes cleanup:',
                         error,
                     );
                     throw error;

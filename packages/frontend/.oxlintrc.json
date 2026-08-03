@@ -167,6 +167,33 @@
   },
   "overrides": [
     {
+      /* Date-native picker seam: features must not touch Mantine date strings.
+         Widen the files list as more features migrate to components/common/DatePickers. */
+      "files": [
+        "src/features/funnelBuilder/**",
+        "src/features/metricsCatalog/**",
+        "src/features/omnibar/**",
+        "src/features/parameters/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@mantine-8/dates",
+                  "**/mantineDateAdapter",
+                  "**/mantineDateSerialization"
+                ],
+                "message": "Use the Date-native pickers in components/common/DatePickers instead of raw Mantine date-string APIs."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["**/*.stories.tsx", "**/*.stories.ts"],
       "rules": {
         "react-hooks/rules-of-hooks": "off",

@@ -1,11 +1,8 @@
 import {
     DimensionType,
     FieldType,
-    formatDate,
     getItemId,
     isLightdashParameterOption,
-    parseDate,
-    TimeFrames,
     type FilterableItem,
     type LightdashProjectParameter,
     type ParametersValuesMap,
@@ -18,7 +15,6 @@ import {
     Select,
     type ComboboxItemGroup,
 } from '@mantine-8/core';
-import { DatePickerInput } from '@mantine/dates';
 import { IconPlus } from '@tabler/icons-react';
 import React, {
     useCallback,
@@ -34,6 +30,7 @@ import {
     MAX_AUTOCOMPLETE_RESULTS,
     useFieldValuesSafely,
 } from '../../../hooks/useFieldValues';
+import ParameterDateInput from './ParameterDateInput';
 import styles from './ParameterInput.module.css';
 
 type ParameterInputProps = {
@@ -482,47 +479,17 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         ],
     );
 
-    // Render DateInput for date type parameters (single value only - multiple dates not yet supported)
+    // Date parameters use a dedicated input (single value only - multiple dates not yet supported)
     if (parameter.type === 'date' && !parameter.multiple) {
-        // Convert current ISO string value to Date object
-        const currentDate =
-            currentDateValues.length > 0
-                ? parseDate(currentDateValues[0], TimeFrames.DAY)
-                : null;
-
-        // Reasonable date range constraints
-        const minDate = new Date(1900, 0, 1); // January 1, 1900
-        const maxDate = new Date(2100, 11, 31); // December 31, 2100
-
-        const defaultValue =
-            typeof parameter.default === 'string'
-                ? new Date(parameter.default)
-                : null;
-
         return (
-            <DatePickerInput
-                value={currentDate || defaultValue}
-                onChange={(date: Date | null) => {
-                    if (date) {
-                        // Convert Date object to ISO string (YYYY-MM-DD)
-                        const isoString = formatDate(date, TimeFrames.DAY);
-                        onParameterChange(paramKey, isoString);
-                    } else {
-                        onParameterChange(paramKey, null);
-                    }
-                }}
-                firstDayOfWeek={0}
+            <ParameterDateInput
+                paramKey={paramKey}
+                parameter={parameter}
+                currentValue={currentDateValues[0] ?? null}
+                onParameterChange={onParameterChange}
                 size={size}
-                clearable
                 disabled={disabled}
-                error={isError}
-                minDate={minDate}
-                maxDate={maxDate}
-                popoverProps={{
-                    shadow: 'sm',
-                    withinPortal: false,
-                    zIndex: 10000,
-                }}
+                isError={isError}
             />
         );
     }

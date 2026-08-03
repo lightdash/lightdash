@@ -33,13 +33,15 @@ import { useEffect, useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
 import { useAiAgentAdminAgents } from '../../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
-import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import {
+    useAiOrganizationSettings,
+    useUpdateAiOrganizationSettings,
+} from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useDeleteSlack,
     useGetSlack,
     useUpdateSlackAppCustomSettingsMutation,
 } from '../../../hooks/slack/useSlack';
-import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import slackSvg from '../../../svgs/slack.svg';
 import Callout from '../../common/Callout';
@@ -49,6 +51,10 @@ import { SlackChannelSelect } from '../../common/SlackChannelSelect';
 import { ProjectSelect } from './ProjectSelect';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
+
+type SlackSettingsFormValues = SlackAppCustomSettings & {
+    requireExplicitSlackChannelLinking: boolean;
+};
 
 const formSchema = z.object({
     notificationChannel: z.string().min(1).nullable(),
@@ -75,10 +81,10 @@ const formSchema = z.object({
     aiMultiAgentChannelId: z.string().min(1).optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
     unfurlsEnabled: z.boolean().optional(),
+    requireExplicitSlackChannelLinking: z.boolean(),
 });
 
 const SlackSettingsPanel: FC = () => {
-    const { activeProjectUuid } = useActiveProjectUuid();
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
@@ -91,14 +97,18 @@ const SlackSettingsPanel: FC = () => {
         !!aiOrganizationSettingsQuery.data?.isTrial;
 
     const { mutate: deleteSlack } = useDeleteSlack();
-    const { mutate: updateCustomSettings } =
+    const { mutate: updateCustomSettings, isLoading: isUpdatingSlackSettings } =
         useUpdateSlackAppCustomSettingsMutation();
+    const {
+        mutate: updateAiOrganizationSettings,
+        isLoading: isUpdatingAiOrganizationSettings,
+    } = useUpdateAiOrganizationSettings();
 
     const { data: aiAgents } = useAiAgentAdminAgents({
         enabled: organizationHasSlack && isAiCopilotEnabledOrTrial,
     });
 
-    const form = useForm<SlackAppCustomSettings>({
+    const form = useForm<SlackSettingsFormValues>({
         initialValues: {
             notificationChannel: null,
             appProfilePhotoUrl: null,
@@ -108,6 +118,7 @@ const SlackSettingsPanel: FC = () => {
             aiMultiAgentChannelId: undefined,
             aiMultiAgentProjectUuids: null,
             unfurlsEnabled: true,
+            requireExplicitSlackChannelLinking: false,
         },
         validate: zodResolver(formSchema),
     });
@@ -130,6 +141,9 @@ const SlackSettingsPanel: FC = () => {
             aiMultiAgentProjectUuids:
                 slackInstallation.aiMultiAgentProjectUuids ?? null,
             unfurlsEnabled: slackInstallation.unfurlsEnabled ?? true,
+            requireExplicitSlackChannelLinking:
+                aiOrganizationSettingsQuery.data
+                    ?.requireExplicitSlackChannelLinking ?? false,
         };
 
         if (form.initialized) {
@@ -139,7 +153,7 @@ const SlackSettingsPanel: FC = () => {
             form.initialize(initialValues);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [slackInstallation]);
+    }, [slackInstallation, aiOrganizationSettingsQuery.data]);
 
     const conflictingAgents = useMemo(() => {
         const channelId = form.values.aiMultiAgentChannelId;
@@ -153,13 +167,30 @@ const SlackSettingsPanel: FC = () => {
         );
     }, [form.values.aiMultiAgentChannelId, aiAgents]);
 
-    if (isInitialLoading || (organizationHasSlack && !form.initialized)) {
+    if (
+        isInitialLoading ||
+        aiOrganizationSettingsQuery.isInitialLoading ||
+        (organizationHasSlack && !form.initialized)
+    ) {
         return <Loader />;
     }
 
     const handleSubmit = onSubmit((args) => {
         if (organizationHasSlack) {
-            updateCustomSettings(args);
+            const { requireExplicitSlackChannelLinking, ...slackSettings } =
+                args;
+
+            updateCustomSettings(slackSettings);
+
+            if (
+                requireExplicitSlackChannelLinking !==
+                (aiOrganizationSettingsQuery.data
+                    ?.requireExplicitSlackChannelLinking ?? false)
+            ) {
+                updateAiOrganizationSettings({
+                    requireExplicitSlackChannelLinking,
+                });
+            }
         }
     });
 
@@ -329,18 +360,6 @@ const SlackSettingsPanel: FC = () => {
                                             );
                                         }}
                                     />
-                                    <Text fz="xs" c="dimmed">
-                                        Configure which channels your AI Agents
-                                        can access{' '}
-                                        <Anchor
-                                            component={Link}
-                                            to={`/projects/${activeProjectUuid}/ai-agents`}
-                                            fz="inherit"
-                                        >
-                                            here
-                                        </Anchor>
-                                        .
-                                    </Text>
 
                                     <Stack gap="sm">
                                         <Group gap="two">
@@ -366,6 +385,40 @@ const SlackSettingsPanel: FC = () => {
                                                 setFieldValue(
                                                     'aiRequireOAuth',
                                                     event.currentTarget.checked,
+                                                );
+                                            }}
+                                        />
+                                    </Stack>
+
+                                    <Stack gap="sm">
+                                        <Group gap="two">
+                                            <Title order={6} fw={500}>
+                                                Automatic channel linking
+                                            </Title>
+                                            <Tooltip
+                                                multiline
+                                                maw={280}
+                                                label="Turn this off to stop bot mentions from automatically linking AI Agents to unconfigured Slack channels. Channels must then be added from Lightdash."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                />
+                                            </Tooltip>
+                                        </Group>
+                                        <Switch
+                                            label="Enable automatic channel linking"
+                                            checked={
+                                                !form.values
+                                                    .requireExplicitSlackChannelLinking
+                                            }
+                                            disabled={
+                                                isUpdatingAiOrganizationSettings
+                                            }
+                                            onChange={(event) => {
+                                                setFieldValue(
+                                                    'requireExplicitSlackChannelLinking',
+                                                    !event.currentTarget
+                                                        .checked,
                                                 );
                                             }}
                                         />
@@ -517,6 +570,10 @@ const SlackSettingsPanel: FC = () => {
                                 <Button
                                     size="xs"
                                     type="submit"
+                                    loading={
+                                        isUpdatingSlackSettings ||
+                                        isUpdatingAiOrganizationSettings
+                                    }
                                     leftSection={
                                         <MantineIcon icon={IconDeviceFloppy} />
                                     }

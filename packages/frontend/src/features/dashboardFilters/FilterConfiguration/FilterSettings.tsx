@@ -12,7 +12,6 @@ import {
     ActionIcon,
     Box,
     Button,
-    Checkbox,
     Group,
     Stack,
     Text,
@@ -29,7 +28,6 @@ import { getFilterOperatorOptions } from '../../../components/common/Filters/Fil
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import RequiredFilterCard from '../FilterRequirements/RequiredFilterCard';
 
 interface FilterSettingsProps {
@@ -83,22 +81,15 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     const isFilterDisabled = !!filterRule.disabled;
 
-    const isFilterRequirementsEnabled = useDashboardContext(
-        (c) => c.isFilterRequirementsEnabled,
-    );
-
     const hasRequirement =
-        !!filterRule.required ||
-        (isFilterRequirementsEnabled && !!filterRule.requiredGroupId);
+        !!filterRule.required || !!filterRule.requiredGroupId;
 
     const handleToggleRequired = (checked: boolean) => {
         // Toggling on restores the saved rule membership if there is one,
-        // otherwise it creates a one-member rule; off removes it from its
-        // rule. Flag off leaves group membership untouched (main parity).
-        const restoredGroupId =
-            checked && isFilterRequirementsEnabled
-                ? originalFilterRule?.requiredGroupId
-                : undefined;
+        // otherwise it creates a one-member rule; off removes it from its rule.
+        const restoredGroupId = checked
+            ? originalFilterRule?.requiredGroupId
+            : undefined;
 
         const newFilter: DashboardFilterRule = restoredGroupId
             ? {
@@ -111,9 +102,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
             : {
                   ...filterRule,
                   required: checked,
-                  requiredGroupId: isFilterRequirementsEnabled
-                      ? undefined
-                      : filterRule.requiredGroupId,
+                  requiredGroupId: undefined,
               };
 
         onChangeFilterRule(
@@ -367,11 +356,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                                             ? // If the filter is required and the user is disabling it, we should also disable the required flag
                                                               false
                                                             : filterRule.required,
-                                                    // Toggling a default value removes the filter from any requirement rule; flag off leaves it untouched
-                                                    requiredGroupId:
-                                                        isFilterRequirementsEnabled
-                                                            ? undefined
-                                                            : filterRule.requiredGroupId,
+                                                    // Toggling a default value removes the filter from any requirement rule
+                                                    requiredGroupId: undefined,
                                                 };
 
                                             onChangeFilterRule(
@@ -390,25 +376,12 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             </Tooltip>
                         )}
 
-                        {isFilterRequirementsEnabled ? (
-                            <RequiredFilterCard
-                                filterRule={filterRule}
-                                onToggleRequired={handleToggleRequired}
-                                onChangeFilterRule={onChangeFilterRule}
-                                onEditRules={onEditRequirementRules}
-                            />
-                        ) : (
-                            <Checkbox
-                                size="xs"
-                                checked={filterRule.required}
-                                onChange={(e) =>
-                                    handleToggleRequired(
-                                        e.currentTarget.checked,
-                                    )
-                                }
-                                label="Require viewers to pick a value to load the dashboard"
-                            />
-                        )}
+                        <RequiredFilterCard
+                            filterRule={filterRule}
+                            onToggleRequired={handleToggleRequired}
+                            onChangeFilterRule={onChangeFilterRule}
+                            onEditRules={onEditRequirementRules}
+                        />
                     </>
                 )}
             </Stack>

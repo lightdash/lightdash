@@ -248,13 +248,19 @@ jobs:
         with:
           mode: firewall-free
 
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Read packageManager
+        id: package-manager
+        run: |
+          version=$(node -p 'JSON.parse(require("fs").readFileSync("package.json","utf8")).packageManager.split("+")[0]')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache node_modules
         id: cache-node-modules
@@ -263,7 +269,7 @@ jobs:
           path: |
             node_modules
             packages/*/node_modules
-          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ steps.package-manager.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
@@ -477,7 +483,65 @@ jobs:
           git push origin main
 
   # ============================================================================
-  # Job 4: Publish versioned E2B templates
+  # Job 4: Update Helm chart default version
+  # ============================================================================
+  update-helm-chart:
+    name: Update Helm Chart Version
+    needs: build-and-push-images
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      # The push must use a PAT (not GITHUB_TOKEN): pushes made with the
+      # default token don't trigger workflows, and the chart is published by
+      # helm-charts' ci-release workflow on push to main.
+      - name: Checkout helm-charts
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          repository: lightdash/helm-charts
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          path: helm-charts
+
+      - name: Bump chart version and appVersion
+        working-directory: helm-charts
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+          CHART=charts/lightdash/Chart.yaml
+
+          CURRENT_CHART_VERSION=$(awk '/^version:/{print $2}' "$CHART")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_CHART_VERSION"
+          NEW_CHART_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+
+          sed -i "s/^version: .*/version: $NEW_CHART_VERSION/" "$CHART"
+          sed -i "s/^appVersion: .*/appVersion: $VERSION/" "$CHART"
+
+          echo "Chart version: $CURRENT_CHART_VERSION -> $NEW_CHART_VERSION, appVersion -> $VERSION"
+
+      # Same helm-docs version as helm-charts' own generate-helm-docs workflow,
+      # which only runs on PRs and so won't cover a direct push to main
+      - name: Regenerate chart README
+        run: |
+          docker run --rm -v "$PWD/helm-charts:/helm-docs" jnorwood/helm-docs:v1.7.0
+
+      - name: Commit and push to main
+        working-directory: helm-charts
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          VERSION="${TAG#v}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add charts/lightdash/Chart.yaml charts/lightdash/README.md
+          git commit -m "chore(release): update Lightdash to $VERSION"
+          git push origin main
+
+  # ============================================================================
+  # Job 5: Publish versioned E2B templates
   # ============================================================================
   e2b-templates:
     name: Publish ${{ matrix.template.display_name }} (${{ matrix.region }})

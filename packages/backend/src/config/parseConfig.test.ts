@@ -238,6 +238,19 @@ test('Should include secret in output', () => {
     expect(parseConfig().lightdashSecret).toEqual('so very secret');
 });
 
+test('Should use the Lightdash secret as the Slack state secret fallback', () => {
+    process.env.LIGHTDASH_SECRET = 'instance-specific-secret';
+    expect(parseConfig().slack?.stateSecret).toEqual(
+        'instance-specific-secret',
+    );
+});
+
+test('Should prefer an explicit Slack state secret', () => {
+    process.env.LIGHTDASH_SECRET = 'instance-specific-secret';
+    process.env.SLACK_STATE_SECRET = 'slack-specific-secret';
+    expect(parseConfig().slack?.stateSecret).toEqual('slack-specific-secret');
+});
+
 test('Should parse bedrock inference profile prefix from env', () => {
     process.env.BEDROCK_API_KEY = 'test-bedrock-key';
     process.env.BEDROCK_REGION = 'ap-northeast-1';
@@ -1457,6 +1470,20 @@ describe('feature flag env-var allowlists', () => {
         process.env.LIGHTDASH_DISABLE_FEATURE_FLAGS = 'killed-flag';
         const config = parseConfig();
         expect(config.disabledFeatureFlags.has('killed-flag')).toBe(true);
+    });
+
+    test('previewFeatureFlags is off by default and on in PR mode', () => {
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(false);
+        process.env.LIGHTDASH_MODE = LightdashMode.PR;
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(true);
+    });
+
+    test('LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED overrides the mode default', () => {
+        process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = 'true';
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(true);
+        process.env.LIGHTDASH_MODE = LightdashMode.PR;
+        process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = 'false';
+        expect(parseConfig().previewFeatureFlags.enabled).toBe(false);
     });
 
     test('dashboardComments.enabled defaults to true when DISABLE_DASHBOARD_COMMENTS is unset', () => {

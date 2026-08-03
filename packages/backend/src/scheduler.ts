@@ -15,9 +15,8 @@ process.on('uncaughtException', () => {
 (async () => {
     if (process.env.CI !== 'true') {
         const timezoneWarning = getProcessTimezoneWarning({
-            enableTimezoneSupport: Boolean(
-                lightdashConfig.query.enableTimezoneSupport,
-            ),
+            enableTimezoneSupport:
+                lightdashConfig.query.enableTimezoneSupport !== false,
             timezoneOffsetMinutes: new Date().getTimezoneOffset(),
         });
         if (timezoneWarning) {

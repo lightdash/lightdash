@@ -14,6 +14,7 @@ import {
     SchedulerFormat,
     SessionUser,
     SmptError,
+    type DeliveryNotice,
     type PartialFailure,
 } from '@lightdash/common';
 import fs from 'fs';
@@ -28,6 +29,10 @@ import SMTPPool from 'nodemailer/lib/smtp-pool';
 import path from 'path';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import {
+    buildFailureCountPhrase,
+    toEmailFailureFields,
+} from '../../utils/partialFailureUtils';
 
 const RETRYABLE_ERROR_CODES = ['ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND'];
 
@@ -46,6 +51,21 @@ function isNodemailerSmtpError(
     error: unknown,
 ): error is SMTPConnection.SMTPError {
     return error instanceof Error;
+}
+
+function isRetryableSmtpError(error: unknown): boolean {
+    return (
+        isNodemailerSmtpError(error) &&
+        ((error.code &&
+            // Check if the error code is in the list of retryable error codes
+            RETRYABLE_ERROR_CODES.includes(error.code)) ||
+            // Check if the error message contains any of the retryable error codes
+            RETRYABLE_ERROR_CODES.some((code) =>
+                error.message.includes(code),
+            ) ||
+            // It can be either `Connection timeout` or `Timeout`
+            error.message.toLowerCase().includes('timeout'))
+    );
 }
 
 // Timeout configurations based on Nodemailer defaults, adjusted for scheduler compatibility
@@ -295,17 +315,7 @@ export default class EmailClient {
                     return; // Success, exit retry loop
                 } catch (error) {
                     const isLastAttempt = attempt === maxRetries;
-                    const isRetryableError =
-                        isNodemailerSmtpError(error) &&
-                        ((error.code &&
-                            // Check if the error code is in the list of retryable error codes
-                            RETRYABLE_ERROR_CODES.includes(error.code)) ||
-                            // Check if the error message contains any of the retryable error codes
-                            RETRYABLE_ERROR_CODES.some((code) =>
-                                error.message.includes(code),
-                            ) ||
-                            // It can be either `Connection timeout` or `Timeout`
-                            error.message.toLowerCase().includes('timeout'));
+                    const isRetryableError = isRetryableSmtpError(error);
 
                     if (isLastAttempt || !isRetryableError) {
                         const isFileError =
@@ -432,8 +442,9 @@ export default class EmailClient {
             });
         }
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your Google Sheets sync <strong>"${schedulerName}"</strong> failed.</p>
+            <p>Your Google Sheets sync <strong>"${safeName}"</strong> failed.</p>
             <br />
             <br />
             <br />
@@ -482,8 +493,9 @@ export default class EmailClient {
 
         const urlWithRef = appendCorrelationRef(schedulerUrl, correlationId);
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to send.</p>
+            <p>Your scheduled delivery <strong>"${safeName}"</strong> failed to send.</p>
             <br />
             <br />
             <br />
@@ -577,8 +589,9 @@ export default class EmailClient {
             )
             .join('');
 
+        const safeName = sanitizeHtml(schedulerName);
         const message = `
-            <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
+            <p>Your scheduled delivery <strong>"${safeName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
                 totalTargets > 1 ? 's' : ''
             }.</p>
             <br />
@@ -757,7 +770,7 @@ export default class EmailClient {
             context: {
                 title,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 imageUrl: useCidImage ? 'cid:chart-image' : imageUrl,
                 description,
                 date,
@@ -812,7 +825,7 @@ export default class EmailClient {
                 title,
                 description,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 date,
                 frequency,
                 url,
@@ -852,6 +865,7 @@ export default class EmailClient {
         asAttachment?: boolean,
         format?: SchedulerFormat,
         failures?: PartialFailure[],
+        notices?: DeliveryNotice[],
         sender?: EmailSenderIdentity | null,
     ) {
         const csvUrls = attachments.filter(
@@ -886,7 +900,7 @@ export default class EmailClient {
                 title,
                 description,
                 hasMessage: !!message,
-                message: message && marked(message),
+                message: message && sanitizeHtml(marked(message)),
                 date,
                 frequency,
                 csvUrls,
@@ -904,8 +918,13 @@ export default class EmailClient {
                 includeLinks,
                 hasAttachments: emailAttachments && emailAttachments.length > 0,
                 attachmentCount: emailAttachments?.length || 0,
-                failures,
+                failures: failures?.map(toEmailFailureFields),
+                failureCountPhrase: failures
+                    ? buildFailureCountPhrase(failures)
+                    : undefined,
                 hasFailures: failures && failures.length > 0,
+                notices,
+                hasNotices: notices && notices.length > 0,
                 allChartsFailed,
             },
             text: title,
@@ -1019,7 +1038,7 @@ export default class EmailClient {
             template: 'genericNotification',
             context: {
                 title,
-                message: marked(message),
+                message: sanitizeHtml(marked(message)),
                 host: this.lightdashConfig.siteUrl,
             },
             text: `${title}\n\n${message}`,

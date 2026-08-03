@@ -35,13 +35,49 @@ describe('languageModelUsageToTokens', () => {
                 totalTokens: 1200,
             }),
         ).toEqual({
-            inputTokens: 1000,
+            inputTokens: 150,
             outputTokens: 200,
             cacheReadTokens: 800,
             cacheWriteTokens: 50,
             reasoningTokens: 30,
             totalTokens: 1200,
         });
+    });
+
+    it('derives non-cached input only when every input class is reported', () => {
+        expect(
+            languageModelUsageToTokens({
+                inputTokens: 1_000,
+                inputTokenDetails: {
+                    noCacheTokens: undefined,
+                    cacheReadTokens: 800,
+                    cacheWriteTokens: 50,
+                },
+                outputTokens: 200,
+                outputTokenDetails: {
+                    textTokens: 170,
+                    reasoningTokens: 30,
+                },
+                totalTokens: 1_200,
+            }).inputTokens,
+        ).toBe(150);
+
+        expect(
+            languageModelUsageToTokens({
+                inputTokens: 1_000,
+                inputTokenDetails: {
+                    noCacheTokens: undefined,
+                    cacheReadTokens: 800,
+                    cacheWriteTokens: undefined,
+                },
+                outputTokens: 200,
+                outputTokenDetails: {
+                    textTokens: 170,
+                    reasoningTokens: 30,
+                },
+                totalTokens: 1_200,
+            }).inputTokens,
+        ).toBeNull();
     });
 
     it('maps unreported token classes to null', () => {
@@ -132,6 +168,8 @@ describe('emitAiUsage', () => {
             model: 'claude-sonnet-5',
             provider: 'anthropic',
             keyManagement: null,
+            deepResearchRunId: null,
+            deepResearchPhase: null,
             ...tokens,
         };
 
@@ -188,6 +226,28 @@ describe('emitAiUsage', () => {
             tokens,
         );
         expect(track.mock.calls[0][0].properties.keyManagement).toBeNull();
+    });
+
+    it('attributes Deep Research usage to its run and phase', () => {
+        const track = vi.fn<(event: AiUsageEvent) => void>();
+        registerAiUsageTracker(track);
+
+        emitAiUsage(
+            {
+                functionId: 'generateAgentResponse',
+                metadata: {
+                    feature: 'agent',
+                    deepResearchRunUuid: 'run-1',
+                    deepResearchPhase: 'investigating',
+                },
+            },
+            tokens,
+        );
+
+        expect(track.mock.calls[0][0].properties).toMatchObject({
+            deepResearchRunId: 'run-1',
+            deepResearchPhase: 'investigating',
+        });
     });
 
     it('falls back to an anonymous id when no user is attributed', () => {

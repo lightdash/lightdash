@@ -334,7 +334,11 @@ export const getRunQuery = ({
                 if (!enableDataAccess) {
                     return {
                         result: `Success. ${resultSummary}`,
-                        metadata: { status: 'success', chartImageUrl },
+                        metadata: {
+                            status: 'success',
+                            chartImageUrl,
+                            queryUuid: queryResults.queryUuid,
+                        },
                     };
                 }
 
@@ -343,7 +347,11 @@ export const getRunQuery = ({
                     result: [resultSummary, serializeData(csv, 'csv')].join(
                         '\n\n',
                     ),
-                    metadata: { status: 'success', chartImageUrl },
+                    metadata: {
+                        status: 'success',
+                        chartImageUrl,
+                        queryUuid: queryResults.queryUuid,
+                    },
                 };
             } catch (e) {
                 return {

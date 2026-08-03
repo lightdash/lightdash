@@ -18,6 +18,8 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown/AiMarkdown';
 import Callout from '../../../../../components/common/Callout';
+import EmptyStateLoader from '../../../../../components/common/EmptyStateLoader';
+import { useDeepResearchChartQuery } from '../../hooks/useDeepResearch';
 import { DeepResearchChartTile } from './DeepResearchChartTile';
 import styles from './DeepResearchReport.module.css';
 
@@ -64,6 +66,36 @@ const ConfidenceBadge: FC<{ level: unknown; children?: ReactNode }> = ({
 
 const CHART_HREF_PREFIX = '#chart-';
 
+const QueryBackedChart: FC<{
+    projectUuid: string;
+    runUuid: string;
+    queryUuid: string;
+}> = ({ projectUuid, runUuid, queryUuid }) => {
+    const chartQuery = useDeepResearchChartQuery({
+        projectUuid,
+        runUuid,
+        queryUuid,
+    });
+    if (chartQuery.isLoading) {
+        return <EmptyStateLoader title="Loading report chart" />;
+    }
+    if (!chartQuery.data) {
+        return (
+            <Callout variant="warning" title="Chart unavailable">
+                This chart could not be displayed.
+            </Callout>
+        );
+    }
+    return (
+        <DeepResearchChartTile
+            chartKey={queryUuid}
+            chart={chartQuery.data}
+            projectUuid={projectUuid}
+            runUuid={runUuid}
+        />
+    );
+};
+
 /**
  * Chart tags are converted to these internal links before rendering and
  * hydrate into chart tiles from the run's persisted chart data. Every other
@@ -79,11 +111,20 @@ const ReportLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
     if (linkHref?.startsWith(CHART_HREF_PREFIX)) {
         const chartKey = linkHref.slice(CHART_HREF_PREFIX.length);
         const chart = context?.chartData?.[chartKey];
-        if (!context || !chart) {
+        if (!context) {
             return (
                 <Callout variant="warning" title="Chart unavailable">
                     This chart could not be displayed.
                 </Callout>
+            );
+        }
+        if (!chart) {
+            return (
+                <QueryBackedChart
+                    projectUuid={context.projectUuid}
+                    runUuid={context.runUuid}
+                    queryUuid={chartKey}
+                />
             );
         }
         return (

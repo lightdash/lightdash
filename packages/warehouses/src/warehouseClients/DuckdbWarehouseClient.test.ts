@@ -12,9 +12,20 @@ import type { Mock } from 'vitest';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
+    type DuckdbS3Credentials,
 } from './DuckdbWarehouseClient';
 
 const createInstanceMock = vi.fn();
+
+const duckdbS3Credentials = {
+    type: 'duckdb_s3',
+    s3Config: {
+        endpoint: 'localhost:9000',
+        region: 'us-east-1',
+        forcePathStyle: true,
+        useSsl: false,
+    },
+} satisfies DuckdbS3Credentials;
 
 // Must provide DuckDBTypeId since mapFieldTypeFromTypeId references it at runtime
 const DUCKDB_TYPE_IDS = {
@@ -73,6 +84,7 @@ vi.mock('@duckdb/node-api', () => ({
     DuckDBInstance: {
         create: (...args: unknown[]) => createInstanceMock(...args),
     },
+    version: () => 'v1.5.2',
 }));
 
 const getMockStreamResult = (
@@ -245,7 +257,7 @@ describe('DuckdbWarehouseClient', () => {
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = DuckdbWarehouseClient.createForPreAggregate();
+        const client = new DuckdbWarehouseClient();
         const streamCallback = vi.fn();
         const result = await client.executeAsyncQuery(
             {
@@ -272,7 +284,7 @@ describe('DuckdbWarehouseClient', () => {
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = DuckdbWarehouseClient.createForPreAggregate();
+        const client = new DuckdbWarehouseClient();
         const result = await client.runQuery('SELECT id FROM empty_table');
 
         expect(result.rows).toEqual([]);
@@ -368,6 +380,85 @@ describe('DuckdbWarehouseClient', () => {
         expect(secretSql).toContain("ENDPOINT 's3.eu-west-1.amazonaws.com'");
         expect(secretSql).not.toContain('KEY_ID');
         expect(secretSql).not.toContain("SECRET '");
+    });
+
+    it('should load bundled extensions without runtime installs', async () => {
+        const accessMock = vi.spyOn(fs, 'access').mockResolvedValue();
+        try {
+            const runMock = vi.fn();
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = DuckdbWarehouseClient.createForPreAggregate({
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 's3.eu-west-1.amazonaws.com',
+                    region: 'eu-west-1',
+                    forcePathStyle: false,
+                    useSsl: true,
+                },
+            });
+
+            await client.runQuery('SELECT 1 AS val');
+
+            expect(runMock).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    "duckdbExtensions/v1.5.2/httpfs.duckdb_extension';",
+                ),
+            );
+            expect(runMock).toHaveBeenCalledWith(
+                expect.stringContaining(
+                    "duckdbExtensions/v1.5.2/aws.duckdb_extension';",
+                ),
+            );
+            expect(runMock).not.toHaveBeenCalledWith('INSTALL httpfs;');
+            expect(runMock).not.toHaveBeenCalledWith('INSTALL aws;');
+        } finally {
+            accessMock.mockRestore();
+        }
+    });
+
+    it('should surface bundled extension load failures', async () => {
+        const accessMock = vi.spyOn(fs, 'access').mockResolvedValue();
+        try {
+            const loadError = new Error('Invalid bundled extension');
+            const runMock = vi.fn(async (sql: string) => {
+                if (sql.includes('httpfs.duckdb_extension')) {
+                    throw loadError;
+                }
+            });
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, runMock),
+            );
+
+            const client = DuckdbWarehouseClient.createForPreAggregate({
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: true,
+                    useSsl: false,
+                },
+            });
+
+            await expect(client.runQuery('SELECT 1 AS val')).rejects.toThrow(
+                loadError,
+            );
+            expect(runMock).not.toHaveBeenCalledWith('INSTALL httpfs;');
+        } finally {
+            accessMock.mockRestore();
+        }
     });
 
     it('should use static DuckDB S3 credentials when configured', async () => {
@@ -880,6 +971,118 @@ describe('DuckdbWarehouseClient', () => {
             expect(streamMock).not.toHaveBeenCalled();
         });
 
+        it('should keep file readers blocked when only S3 is configured', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const extractStatementsMock = createMockExtractStatements();
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, vi.fn(), {
+                    extractStatements: extractStatementsMock,
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient(duckdbS3Credentials);
+            await expect(
+                client.runQuery(
+                    "SELECT * FROM read_parquet('s3://bucket/data.parquet')",
+                ),
+            ).rejects.toThrow(
+                "SQL validation error: function 'read_parquet' is not allowed",
+            );
+            expect(extractStatementsMock).not.toHaveBeenCalled();
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            {
+                format: 'Parquet',
+                sql: "SELECT * FROM read_parquet('s3://bucket/data.parquet')",
+            },
+            {
+                format: 'inferred JSONL',
+                sql: "SELECT * FROM read_json_auto('s3://bucket/data.jsonl')",
+            },
+            {
+                format: 'typed JSONL',
+                sql: "SELECT * FROM read_json('s3://bucket/data.jsonl', format='newline_delimited')",
+            },
+        ])(
+            'should allow pre-aggregate clients to read S3 $format files',
+            async ({ sql }) => {
+                const rows = [{ val: 1 }];
+                const streamMock = vi.fn(async () =>
+                    getMockStreamResult([rows], [DUCKDB_TYPE_IDS.INTEGER]),
+                );
+                const extractStatementsMock = createMockExtractStatements();
+
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock, vi.fn(), {
+                        extractStatements: extractStatementsMock,
+                    }),
+                );
+
+                const client =
+                    DuckdbWarehouseClient.createForPreAggregate(
+                        duckdbS3Credentials,
+                    );
+                const result = await client.runQuery(sql);
+
+                expect(result.rows).toEqual(rows);
+                expect(extractStatementsMock).toHaveBeenCalledTimes(1);
+                expect(streamMock).toHaveBeenCalledTimes(1);
+            },
+        );
+
+        it('should keep pre-aggregate queries read-only', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock, vi.fn(), {
+                    extractStatements: createMockExtractStatements({
+                        statementType: 11, // COPY
+                    }),
+                }),
+            );
+
+            const client =
+                DuckdbWarehouseClient.createForPreAggregate(
+                    duckdbS3Credentials,
+                );
+            await expect(
+                client.runQuery("COPY t TO 's3://bucket/data.parquet'"),
+            ).rejects.toThrow(
+                'SQL validation error: only SELECT statements are allowed',
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
+        it('should keep secret introspection blocked for pre-aggregate queries', async () => {
+            const streamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(streamMock),
+            );
+
+            const client =
+                DuckdbWarehouseClient.createForPreAggregate(
+                    duckdbS3Credentials,
+                );
+            await expect(
+                client.runQuery(
+                    "SELECT current_setting('s3_secret_access_key')",
+                ),
+            ).rejects.toThrow(
+                "SQL validation error: function 'current_setting' is not allowed",
+            );
+            expect(streamMock).not.toHaveBeenCalled();
+        });
+
         it('should reject user queries that use file table paths', async () => {
             const streamMock = vi.fn(async () =>
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
@@ -1242,7 +1445,7 @@ describe('DuckdbWarehouseClient', () => {
                 /SECRET __lightdash_ducklake\s/.test(s),
             );
             const attachIdx = stmts.findIndex((s) =>
-                /^ATTACH 'ducklake:__lightdash_ducklake'/.test(s),
+                s.startsWith("ATTACH 'ducklake:__lightdash_ducklake'"),
             );
 
             expect(catalogIdx).toBeGreaterThanOrEqual(0);
@@ -1295,8 +1498,8 @@ describe('DuckdbWarehouseClient', () => {
             expect(joined).not.toMatch(/SECRET __lightdash_ducklake\s/);
             expect(
                 stmts.some((s) =>
-                    /^ATTACH 'ducklake:sqlite:\/tmp\/ducklake\.sqlite' AS "ducklake" \(DATA_PATH '\/tmp\/ducklake-data', READ_ONLY\);/.test(
-                        s,
+                    s.startsWith(
+                        "ATTACH 'ducklake:sqlite:/tmp/ducklake.sqlite' AS \"ducklake\" (DATA_PATH '/tmp/ducklake-data', READ_ONLY);",
                     ),
                 ),
             ).toBe(true);

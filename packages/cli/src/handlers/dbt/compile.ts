@@ -75,7 +75,7 @@ const optionsToArgs = (options: Partial<DbtCompileOptions>): string[] =>
         return acc;
     }, []);
 
-export const dbtCompile = async (options: DbtCompileOptions) => {
+const dbtCompile = async (options: DbtCompileOptions) => {
     try {
         const args = optionsToArgs(options);
         GlobalState.debug(`> Running: dbt compile ${args.join(' ')}`);

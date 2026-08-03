@@ -5,6 +5,7 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type DataAppClaudeModel,
+    type DataAppCreationExperience,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -13,7 +14,8 @@ type IterateAppParams = {
     projectUuid: string;
     appUuid: string;
     prompt: string;
-    imageIds?: string[];
+    creationExperience: DataAppCreationExperience;
+    fileIds?: string[];
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
     claudeModel?: DataAppClaudeModel;
@@ -27,7 +29,8 @@ const iterateApp = async ({
     projectUuid,
     appUuid,
     prompt,
-    imageIds,
+    creationExperience,
+    fileIds,
     charts,
     dashboard,
     claudeModel,
@@ -39,7 +42,8 @@ const iterateApp = async ({
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions`,
         body: JSON.stringify({
             prompt,
-            imageIds,
+            creationExperience,
+            fileIds,
             charts,
             dashboard,
             claudeModel,

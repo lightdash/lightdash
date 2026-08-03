@@ -1,10 +1,12 @@
 import {
     type AiDeepResearchBudget,
     type AiDeepResearchChartDataMap,
+    type AiDeepResearchEntryPoint,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventType,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchRunStatus,
+    type AiDeepResearchTerminalReason,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -21,11 +23,26 @@ export type DbAiDeepResearchRun = {
     tool_call_id: string | null;
     prompt: string;
     status: AiDeepResearchRunStatus;
-    selected_mcp_server_uuids: string[];
+    entry_point: AiDeepResearchEntryPoint;
     result_markdown: string | null;
     result_chart_data: AiDeepResearchChartDataMap | null;
+    report_expires_at: Date | null;
+    report_expired_at: Date | null;
     budget_snapshot: AiDeepResearchBudget;
     execution_context_snapshot: AiDeepResearchExecutionContextSnapshot;
+    input_tokens: number | null;
+    output_tokens: number | null;
+    cache_read_tokens: number | null;
+    cache_write_tokens: number | null;
+    reasoning_tokens: number | null;
+    total_tokens: number | null;
+    token_usage_complete: boolean | null;
+    duration_ms: number | null;
+    tool_call_count: number | null;
+    tool_error_count: number | null;
+    warehouse_query_count: number | null;
+    findings_count: number | null;
+    chart_count: number | null;
     error_message: string | null;
     cancellation_requested_at: Date | null;
     started_at: Date | null;
@@ -46,7 +63,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
         | 'prompt_uuid'
         | 'tool_call_id'
         | 'prompt'
-        | 'selected_mcp_server_uuids'
+        | 'entry_point'
         | 'budget_snapshot'
         | 'execution_context_snapshot'
     >,
@@ -56,12 +73,27 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'status'
             | 'result_markdown'
             | 'result_chart_data'
+            | 'report_expires_at'
+            | 'report_expired_at'
             | 'error_message'
             | 'cancellation_requested_at'
             | 'started_at'
             | 'completed_at'
             | 'updated_at'
             | 'execution_context_snapshot'
+            | 'input_tokens'
+            | 'output_tokens'
+            | 'cache_read_tokens'
+            | 'cache_write_tokens'
+            | 'reasoning_tokens'
+            | 'total_tokens'
+            | 'token_usage_complete'
+            | 'duration_ms'
+            | 'tool_call_count'
+            | 'tool_error_count'
+            | 'warehouse_query_count'
+            | 'findings_count'
+            | 'chart_count'
         >
     >
 >;
@@ -83,4 +115,27 @@ export type AiDeepResearchEventsTable = Knex.CompositeTableType<
         'ai_deep_research_run_uuid' | 'event_type' | 'payload'
     > &
         Partial<Pick<DbAiDeepResearchEvent, 'created_at'>>
+>;
+
+export const AiDeepResearchAnalyticsOutboxTableName =
+    'ai_deep_research_analytics_outbox';
+
+export type AiDeepResearchAnalyticsEventType = 'run_started' | 'run_completed';
+
+export type DbAiDeepResearchAnalyticsOutbox = {
+    ai_deep_research_analytics_event_uuid: string;
+    ai_deep_research_run_uuid: string;
+    event_type: AiDeepResearchAnalyticsEventType;
+    terminal_reason: AiDeepResearchTerminalReason | null;
+    delivered_at: Date | null;
+    created_at: Date;
+};
+
+export type AiDeepResearchAnalyticsOutboxTable = Knex.CompositeTableType<
+    DbAiDeepResearchAnalyticsOutbox,
+    Pick<
+        DbAiDeepResearchAnalyticsOutbox,
+        'ai_deep_research_run_uuid' | 'event_type' | 'terminal_reason'
+    >,
+    Pick<DbAiDeepResearchAnalyticsOutbox, 'delivered_at'>
 >;

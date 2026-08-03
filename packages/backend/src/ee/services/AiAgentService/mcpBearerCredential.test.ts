@@ -173,62 +173,45 @@ const buildPreflightService = ({
     };
 };
 
-describe('validateDeepResearchMcpSelection', () => {
-    it('resolves only selected attached servers with their enabled tools', async () => {
+describe('resolveDeepResearchExecutionContext', () => {
+    it('resolves all attached servers with their enabled tools', async () => {
         const secondServer = { ...bearerServer, uuid: 'server-2' };
         const { service, aiAgentMcpRuntimeClient, closeMcpClients } =
             buildPreflightService({
                 attachedServers: [bearerServer, secondServer],
             });
 
-        const snapshot = await service.validateDeepResearchMcpSelection(user, {
-            projectUuid: PROJECT_UUID,
-            agentUuid: 'agent-1',
-            mcpServerUuids: [secondServer.uuid],
-            modelConfig: null,
-        });
+        const snapshot = await service.resolveDeepResearchExecutionContext(
+            user,
+            {
+                projectUuid: PROJECT_UUID,
+                agentUuid: 'agent-1',
+                modelConfig: null,
+            },
+        );
 
         expect(
             aiAgentMcpRuntimeClient.attachRuntimeProviders,
         ).toHaveBeenCalledWith({
             projectUuid: PROJECT_UUID,
             userUuid: USER_UUID,
-            mcpServers: [
-                expect.objectContaining({
-                    uuid: secondServer.uuid,
-                    enabledToolNames: ['search_issues'],
-                }),
-            ],
+            mcpServers: expect.arrayContaining([
+                expect.objectContaining({ uuid: bearerServer.uuid }),
+                expect.objectContaining({ uuid: secondServer.uuid }),
+            ]),
         });
         expect(snapshot).toMatchObject({
             schemaVersion: 1,
             resolutionStage: 'preflight',
             tools: {
                 availableToolNames: ['mcp_github__search_issues'],
-                selectedMcpServers: [
-                    {
-                        uuid: secondServer.uuid,
-                        name: secondServer.name,
-                        enabledToolNames: ['mcp_github__search_issues'],
-                    },
-                ],
+                attachedMcpServers: expect.arrayContaining([
+                    expect.objectContaining({ uuid: bearerServer.uuid }),
+                    expect.objectContaining({ uuid: secondServer.uuid }),
+                ]),
             },
         });
         expect(closeMcpClients).toHaveBeenCalledOnce();
-    });
-
-    it('rejects servers that are not attached to the selected agent', async () => {
-        const { service, aiAgentMcpRuntimeClient } = buildPreflightService();
-
-        await expect(
-            service.validateDeepResearchMcpSelection(user, {
-                projectUuid: PROJECT_UUID,
-                agentUuid: 'agent-1',
-                mcpServerUuids: ['other-server'],
-                modelConfig: null,
-            }),
-        ).rejects.toBeInstanceOf(ParameterError);
-        expect(aiAgentMcpRuntimeClient.resolveTools).not.toHaveBeenCalled();
     });
 
     it('rejects unavailable credentials and closes connected MCP clients', async () => {
@@ -244,10 +227,9 @@ describe('validateDeepResearchMcpSelection', () => {
         });
 
         await expect(
-            service.validateDeepResearchMcpSelection(user, {
+            service.resolveDeepResearchExecutionContext(user, {
                 projectUuid: PROJECT_UUID,
                 agentUuid: 'agent-1',
-                mcpServerUuids: [SERVER_UUID],
                 modelConfig: null,
             }),
         ).rejects.toThrow(

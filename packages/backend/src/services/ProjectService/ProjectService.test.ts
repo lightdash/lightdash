@@ -2,8 +2,10 @@ import { Ability } from '@casl/ability';
 import {
     DbtProjectType,
     DbtVersionOptionLatest,
+    DefaultSupportedDbtVersion,
     defineUserAbility,
     DimensionType,
+    DownloadFileType,
     DuckdbConnectionType,
     FeatureFlags,
     FilterOperator,
@@ -19,14 +21,19 @@ import {
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
+    SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     WarehouseTypes,
     type ChartSummary,
+    type CreateProject,
     type CreateWarehouseCredentials,
+    type DownloadFile,
     type Explore,
     type PossibleAbilities,
     type RegisteredAccount,
+    type UpdateProject,
 } from '@lightdash/common';
+import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -34,6 +41,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -166,6 +174,7 @@ vi.mock('@lightdash/warehouses', () => ({
 const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
+    getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
     getSummary: vi.fn(async () => projectSummary),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
@@ -202,7 +211,14 @@ const projectModel = {
     createWithOptionalCredentials: vi.fn(
         async () => 'created-preview-project-uuid',
     ),
+    update: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
+};
+const organizationWarehouseCredentialsModel = {
+    getByUuidWithSensitiveData:
+        vi.fn<
+            OrganizationWarehouseCredentialsModel['getByUuidWithSensitiveData']
+        >(),
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: vi.fn(),
@@ -228,6 +244,7 @@ const savedChartModel = {
     find: vi.fn(async () => [] as ChartSummary[]),
 };
 const jobModel = {
+    create: vi.fn(async () => undefined),
     get: vi.fn(async () => job),
     update: vi.fn(async () => undefined),
     updateJobStep: vi.fn(async () => undefined),
@@ -256,6 +273,7 @@ const emailModel = {
 };
 
 const schedulerClient = {
+    createProjectWithCompile: vi.fn(async () => undefined),
     deleteScheduledPreAggregateCronJobsForProject: vi.fn(async () => undefined),
     indexCatalog: vi.fn(async () => ({ jobId: 'catalog-job-1' })),
     materializePreAggregate: vi.fn(async () => ({ jobId: 'job-1' })),
@@ -277,12 +295,26 @@ const projectCompileLogModel = {
     insert: vi.fn(async () => undefined),
 };
 
+const getMockedAiAgentService = () => {
+    const provisionDefaultAgent =
+        vi.fn<AiAgentService['provisionDefaultAgent']>();
+    return {
+        provisionDefaultAgent,
+        getAiAgentService: () =>
+            ({ provisionDefaultAgent }) as unknown as AiAgentService,
+    };
+};
+
 const getMockedProjectService = (
     lightdashConfig: LightdashConfig,
     overrides: Partial<
         Pick<
             ConstructorParameters<typeof ProjectService>[0],
-            'spacePermissionService' | 'provisionPlaygroundProject'
+            | 'spacePermissionService'
+            | 'provisionPlaygroundProject'
+            | 'downloadFileModel'
+            | 'getAiAgentService'
+            | 'organizationWarehouseCredentialsModel'
         >
     > = {},
 ) =>
@@ -311,7 +343,8 @@ const getMockedProjectService = (
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         emailModel: emailModel as unknown as EmailModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
-        downloadFileModel: {} as unknown as DownloadFileModel,
+        downloadFileModel:
+            overrides.downloadFileModel ?? ({} as unknown as DownloadFileModel),
         fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
         tagsModel: tagsModel as unknown as TagsModel,
@@ -339,7 +372,8 @@ const getMockedProjectService = (
             replace: vi.fn(async () => undefined),
         } as unknown as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
-            {} as unknown as OrganizationWarehouseCredentialsModel,
+            overrides.organizationWarehouseCredentialsModel ??
+            (organizationWarehouseCredentialsModel as unknown as OrganizationWarehouseCredentialsModel),
         organizationModel: {} as unknown as OrganizationModel,
         projectCompileLogModel:
             projectCompileLogModel as unknown as ProjectCompileLogModel,
@@ -349,6 +383,7 @@ const getMockedProjectService = (
         spacePermissionService:
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
+        getAiAgentService: overrides.getAiAgentService,
         organizationSettingsModel: {
             get: vi.fn(async () => ({
                 queryLimit: null,
@@ -381,6 +416,176 @@ describe('ProjectService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('organization warehouse credential authorization', () => {
+        const organizationWarehouseCredentialsUuid =
+            'organization-warehouse-credentials-uuid';
+        const warehouseConnection: CreateWarehouseCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'snowflake-account',
+            user: 'snowflake-user',
+            password: 'snowflake-password',
+            database: 'analytics',
+            warehouse: 'transforming',
+            schema: 'public',
+            authenticationType: SnowflakeAuthenticationType.PASSWORD,
+            organizationWarehouseCredentialsUuid,
+        };
+        const createProjectData: CreateProject = {
+            name: 'New project',
+            type: ProjectType.DEFAULT,
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DefaultSupportedDbtVersion,
+            warehouseConnection: {
+                ...warehouseConnection,
+                organizationWarehouseCredentialsUuid: undefined,
+            },
+            organizationWarehouseCredentialsUuid,
+        };
+        const updateProjectData: UpdateProject = {
+            name: projectWithSensitiveFields.name,
+            dbtConnection: projectWithSensitiveFields.dbtConnection,
+            dbtVersion: projectWithSensitiveFields.dbtVersion,
+            warehouseConnection,
+        };
+        const projectCreationUser: SessionUser = {
+            ...user,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
+        };
+        const authorizedDeveloperAccount = {
+            ...developerAccount,
+            user: {
+                ...developerAccount.user,
+                role: OrganizationMemberRole.DEVELOPER,
+                ability: defineUserAbility(
+                    {
+                        userUuid: developerAccount.user.id,
+                        role: OrganizationMemberRole.DEVELOPER,
+                        organizationUuid:
+                            projectWithSensitiveFields.organizationUuid,
+                    },
+                    [],
+                ),
+            },
+        } as typeof developerAccount;
+        const organizationWarehouseCredentials = {
+            organizationWarehouseCredentialsUuid,
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            name: 'Shared Snowflake',
+            description: null,
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+            createdAt: new Date('2026-08-03T00:00:00.000Z'),
+            createdByUserUuid: account.user.id,
+            credentials: warehouseConnection,
+        };
+
+        beforeEach(() => {
+            organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockResolvedValue(
+                organizationWarehouseCredentials,
+            );
+        });
+
+        test('rejects save-without-compile before resolving organization credentials', async () => {
+            await expect(
+                service.updateWarehouseCredentials(
+                    projectUuid,
+                    developerAccount,
+                    { warehouseConnection },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(
+                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
+            ).not.toHaveBeenCalled();
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
+
+        test('rejects create-without-compile before resolving organization credentials', async () => {
+            await expect(
+                service.createWithoutCompile(
+                    projectCreationUser,
+                    createProjectData,
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(
+                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
+            ).not.toHaveBeenCalled();
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects scheduled create before creating a job', async () => {
+            await expect(
+                service.scheduleCreate(
+                    projectCreationUser,
+                    createProjectData,
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(
+                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
+            ).not.toHaveBeenCalled();
+            expect(jobModel.create).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects update-and-compile before resolving organization credentials', async () => {
+            await expect(
+                service.updateAndScheduleAsyncWork(
+                    projectUuid,
+                    developerAccount,
+                    updateProjectData,
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(
+                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
+            ).not.toHaveBeenCalled();
+            expect(jobModel.create).not.toHaveBeenCalled();
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
+
+        test('allows organization credentials for an organization developer', async () => {
+            await expect(
+                service.updateWarehouseCredentials(
+                    projectUuid,
+                    authorizedDeveloperAccount,
+                    { warehouseConnection },
+                ),
+            ).resolves.toBeUndefined();
+            expect(
+                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
+            ).toHaveBeenCalledWith(organizationWarehouseCredentialsUuid);
+            expect(projectModel.update).toHaveBeenCalledOnce();
+        });
+
+        test('rejects organization credentials from another organization after lookup', async () => {
+            organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockResolvedValueOnce(
+                {
+                    ...organizationWarehouseCredentials,
+                    organizationUuid: 'another-organization-uuid',
+                },
+            );
+
+            await expect(
+                service.updateWarehouseCredentials(
+                    projectUuid,
+                    authorizedDeveloperAccount,
+                    { warehouseConnection },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(
+                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
+            ).toHaveBeenCalledWith(organizationWarehouseCredentialsUuid);
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
     });
 
     describe('ensurePlaygroundProject', () => {
@@ -467,6 +672,8 @@ describe('ProjectService', () => {
         ).mockResolvedValueOnce({
             ...projectWithSensitiveFields,
             warehouseConnection: warehouseClientMock.credentials,
+            organizationWarehouseCredentialsUuid:
+                'organization-warehouse-credentials-uuid',
         });
         const createWithoutCompileSpy = vi
             .spyOn(service, 'createWithoutCompile')
@@ -495,6 +702,9 @@ describe('ProjectService', () => {
 
         expect(projectModel.delete).toHaveBeenCalledWith(previewProjectUuid);
         expect(scheduleCompileProjectSpy).not.toHaveBeenCalled();
+        expect(createWithoutCompileSpy.mock.calls[0][1]).not.toHaveProperty(
+            'organizationWarehouseCredentialsUuid',
+        );
         createWithoutCompileSpy.mockRestore();
         scheduleCompileProjectSpy.mockRestore();
     });
@@ -507,6 +717,9 @@ describe('ProjectService', () => {
             organizationUuid: projectWithSensitiveFields.organizationUuid,
             organizationName: 'Test organization',
             organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'create' },
+            ]),
         };
         const validateSpy = vi
             .spyOn(
@@ -529,6 +742,8 @@ describe('ProjectService', () => {
             .mockResolvedValueOnce({
                 ...projectWithSensitiveFields,
                 projectUuid: upstreamProjectUuid,
+                organizationWarehouseCredentialsUuid:
+                    'organization-warehouse-credentials-uuid',
             })
             .mockResolvedValueOnce({
                 ...projectWithSensitiveFields,
@@ -560,6 +775,18 @@ describe('ProjectService', () => {
                 accessCopyError: 'access copy failed',
                 contentCopyError: undefined,
             });
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).toHaveBeenCalledWith(
+                previewUser.userUuid,
+                previewUser.organizationUuid,
+                expect.objectContaining({
+                    organizationWarehouseCredentialsUuid:
+                        'organization-warehouse-credentials-uuid',
+                }),
+                null,
+                undefined,
+            );
         } finally {
             validateSpy.mockRestore();
             expirationSpy.mockRestore();
@@ -594,6 +821,137 @@ describe('ProjectService', () => {
         ).rejects.toThrow(
             'Embedded DuckDB connections can only be provisioned internally',
         );
+    });
+
+    describe('default AI agent provisioning', () => {
+        test('provisions a default AI agent for a playground when the organization already has another project', async () => {
+            const createdProjectUuid = 'created-playground-project-uuid';
+            const { provisionDefaultAgent, getAiAgentService } =
+                getMockedAiAgentService();
+            const serviceWithAiAgent = getMockedProjectService(
+                lightdashConfigMock,
+                { getAiAgentService },
+            );
+            const creationUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+            };
+            const organizationProjects = [
+                {
+                    ...defaultProject,
+                    projectUuid: createdProjectUuid,
+                },
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing-project-uuid',
+                },
+            ];
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                createdProjectUuid,
+            );
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(
+                organizationProjects,
+            );
+            const validateSpy = vi
+                .spyOn(
+                    serviceWithAiAgent as unknown as {
+                        validateProjectCreationPermissions: () => Promise<true>;
+                    },
+                    'validateProjectCreationPermissions',
+                )
+                .mockResolvedValue(true);
+
+            try {
+                await serviceWithAiAgent.createWithoutCompile(
+                    creationUser,
+                    {
+                        name: 'Playground',
+                        type: ProjectType.DEFAULT,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                        warehouseConnection: {
+                            type: WarehouseTypes.DUCKDB,
+                            connectionType: DuckdbConnectionType.EMBEDDED,
+                            dataset: 'jaffle_shop',
+                        },
+                    },
+                    RequestMethod.WEB_APP,
+                    { source: 'playground' },
+                );
+
+                expect(provisionDefaultAgent).toHaveBeenCalledWith(
+                    creationUser,
+                    createdProjectUuid,
+                );
+            } finally {
+                validateSpy.mockRestore();
+                projectModel.getAllByOrganizationUuid.mockReset();
+            }
+        });
+
+        test('does not provision a default AI agent for normal creation when the organization already has multiple projects', async () => {
+            const createdProjectUuid = 'created-project-uuid';
+            const { provisionDefaultAgent, getAiAgentService } =
+                getMockedAiAgentService();
+            const serviceWithAiAgent = getMockedProjectService(
+                lightdashConfigMock,
+                { getAiAgentService },
+            );
+            const creationUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+            };
+            const organizationProjects = [
+                {
+                    ...defaultProject,
+                    projectUuid: createdProjectUuid,
+                },
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing-project-uuid-1',
+                },
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing-project-uuid-2',
+                },
+            ];
+            projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
+                createdProjectUuid,
+            );
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(
+                organizationProjects,
+            );
+            const validateSpy = vi
+                .spyOn(
+                    serviceWithAiAgent as unknown as {
+                        validateProjectCreationPermissions: () => Promise<true>;
+                    },
+                    'validateProjectCreationPermissions',
+                )
+                .mockResolvedValue(true);
+
+            try {
+                await serviceWithAiAgent.createWithoutCompile(
+                    creationUser,
+                    {
+                        name: 'Project',
+                        type: ProjectType.DEFAULT,
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    },
+                    RequestMethod.WEB_APP,
+                );
+
+                expect(provisionDefaultAgent).not.toHaveBeenCalled();
+            } finally {
+                validateSpy.mockRestore();
+                projectModel.getAllByOrganizationUuid.mockReset();
+            }
+        });
     });
 
     test('rejects embedded DuckDB credentials inherited from an upstream preview', async () => {
@@ -2892,6 +3250,39 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('getCustomMetrics', () => {
+        test('returns custom metrics when the user can view the project', async () => {
+            (
+                savedChartModel.find as import('vitest').Mock
+            ).mockResolvedValueOnce([]);
+
+            const result = await service.getCustomMetrics(
+                user,
+                defaultProject.projectUuid,
+            );
+
+            expect(result).toEqual([]);
+            expect(savedChartModel.find).toHaveBeenCalledWith({
+                projectUuid: defaultProject.projectUuid,
+            });
+        });
+
+        test('throws ForbiddenError without querying charts when the user cannot view the project', async () => {
+            const restrictedUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([]),
+            } as unknown as SessionUser;
+
+            await expect(
+                service.getCustomMetrics(
+                    restrictedUser,
+                    defaultProject.projectUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(savedChartModel.find).not.toHaveBeenCalled();
+        });
+    });
+
     describe('getUserAttributes', () => {
         // vi.clearAllMocks() in the outer afterEach does not drain
         // mockImplementationOnce queues — reset the email mock per test so
@@ -3100,6 +3491,134 @@ describe('ProjectService', () => {
                     credentials,
                 }),
             ).rejects.toThrowError(ForbiddenError);
+        });
+    });
+
+    describe('getFileStream', () => {
+        const getServiceWithDownloadFile = (downloadFile: DownloadFile) =>
+            getMockedProjectService(lightdashConfigMock, {
+                downloadFileModel: {
+                    getDownloadFile: vi.fn(async () => downloadFile),
+                } as unknown as DownloadFileModel,
+            });
+
+        it('returns a stream when the file belongs to the requested project', async () => {
+            const serviceWithFile = getServiceWithDownloadFile({
+                nanoid: 'file-id',
+                path: __filename,
+                createdAt: new Date(),
+                type: DownloadFileType.JSONL,
+                projectUuid: projectSummary.projectUuid,
+            });
+
+            const stream = await serviceWithFile.getFileStream(
+                user,
+                projectSummary.projectUuid,
+                'file-id',
+            );
+
+            expect(stream).toBeInstanceOf(Readable);
+        });
+
+        it('throws NotFoundError when the file belongs to a different project', async () => {
+            const serviceWithFile = getServiceWithDownloadFile({
+                nanoid: 'file-id',
+                path: '/tmp/file-id.jsonl',
+                createdAt: new Date(),
+                type: DownloadFileType.JSONL,
+                projectUuid: 'another-project-uuid',
+            });
+
+            await expect(
+                serviceWithFile.getFileStream(
+                    user,
+                    projectSummary.projectUuid,
+                    'file-id',
+                ),
+            ).rejects.toThrowError(NotFoundError);
+        });
+
+        it('throws NotFoundError when the file has no owning project', async () => {
+            const serviceWithFile = getServiceWithDownloadFile({
+                nanoid: 'file-id',
+                path: '/tmp/file-id.jsonl',
+                createdAt: new Date(),
+                type: DownloadFileType.JSONL,
+                projectUuid: null,
+            });
+
+            await expect(
+                serviceWithFile.getFileStream(
+                    user,
+                    projectSummary.projectUuid,
+                    'file-id',
+                ),
+            ).rejects.toThrowError(NotFoundError);
+        });
+    });
+
+    describe('validateConfigSecrets', () => {
+        const projectWithSnowflakeAuth = (
+            authenticationType: SnowflakeAuthenticationType,
+            requireUserCredentials?: boolean,
+        ): UpdateProject => ({
+            name: 'test-project',
+            dbtConnection: { type: DbtProjectType.NONE },
+            dbtVersion: DefaultSupportedDbtVersion,
+            warehouseConnection: {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                user: 'test-user',
+                database: 'test-db',
+                warehouse: 'test-warehouse',
+                schema: 'test-schema',
+                authenticationType,
+                requireUserCredentials,
+            },
+        });
+
+        it('rejects Snowflake OAuth authorization code authentication', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+                    ),
+                ),
+            ).toThrowError(ParameterError);
+        });
+
+        it('rejects Snowflake external browser authentication without user credentials', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                    ),
+                ),
+            ).toThrowError(ParameterError);
+        });
+
+        it('allows Snowflake external browser authentication when user credentials are required', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(
+                        SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+                        true,
+                    ),
+                ),
+            ).not.toThrowError();
+        });
+
+        it.each([
+            SnowflakeAuthenticationType.PASSWORD,
+            SnowflakeAuthenticationType.PRIVATE_KEY,
+            SnowflakeAuthenticationType.SSO,
+            SnowflakeAuthenticationType.NONE,
+        ])('allows Snowflake %s authentication', (authenticationType) => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithSnowflakeAuth(authenticationType),
+                ),
+            ).not.toThrowError();
         });
     });
 });

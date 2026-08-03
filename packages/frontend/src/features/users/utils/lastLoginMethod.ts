@@ -2,6 +2,7 @@ import {
     isOpenIdIdentityIssuerType,
     LocalIssuerTypes,
     type LoginOptionTypes,
+    type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
 import { getCookie, setCookie } from '../../../utils/cookies';
 
@@ -74,3 +75,42 @@ export const writeLastLoginMethod = (method: LastLoginMethod): void =>
         encodeLastLoginMethodCookie(method),
         LAST_LOGIN_COOKIE_MAX_AGE_SECONDS,
     );
+
+/**
+ * An SSO attempt that has left for the provider but has not come back
+ * authenticated yet. Kept in sessionStorage so it survives the redirect but
+ * dies with the tab, and only promoted to the cookie above once the user is
+ * actually signed in — clicking a provider is an intent, not an outcome.
+ * It is a UX hint, never authentication state.
+ */
+const PENDING_SSO_LOGIN_STORAGE_KEY = 'ld.pending_sso_login';
+
+export const writePendingSsoLoginMethod = (
+    issuerType: OpenIdIdentityIssuerType,
+): void => {
+    try {
+        sessionStorage.setItem(PENDING_SSO_LOGIN_STORAGE_KEY, issuerType);
+    } catch {
+        return;
+    }
+};
+
+export const readPendingSsoLoginMethod =
+    (): OpenIdIdentityIssuerType | null => {
+        try {
+            const stored = sessionStorage.getItem(
+                PENDING_SSO_LOGIN_STORAGE_KEY,
+            );
+            return stored && isOpenIdIdentityIssuerType(stored) ? stored : null;
+        } catch {
+            return null;
+        }
+    };
+
+export const clearPendingSsoLoginMethod = (): void => {
+    try {
+        sessionStorage.removeItem(PENDING_SSO_LOGIN_STORAGE_KEY);
+    } catch {
+        return;
+    }
+};

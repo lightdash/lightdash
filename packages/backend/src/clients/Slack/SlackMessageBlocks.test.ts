@@ -1,4 +1,9 @@
-import { PartialFailureType, type PartialFailure } from '@lightdash/common';
+import {
+    MAX_DELIVERY_QUERIES,
+    PartialFailureType,
+    type DeliveryNotice,
+    type PartialFailure,
+} from '@lightdash/common';
 import { KnownBlock } from '@slack/bolt';
 import {
     getChartAndDashboardBlocks,
@@ -460,6 +465,269 @@ describe('SlackMessageBlocks', () => {
                 s.text?.text?.includes('Failing chart'),
             );
             expect(failureSection).toBeDefined();
+        });
+    });
+
+    describe('app delivery partial failures (PROD-8374)', () => {
+        const csvUrls = [
+            {
+                filename: 'chart-0.csv',
+                path: 'https://s3.example.com/exports/chart-0.csv',
+                localPath: '/tmp/chart-0.csv',
+                truncated: false,
+            },
+        ];
+
+        it('renders an APP_QUERY failure as "label: error" and pluralizes the headline as a query', () => {
+            const failures: PartialFailure[] = [
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'render',
+                    captureKey: 'v1:abc123',
+                    label: 'Revenue by region',
+                    error: 'Query timed out',
+                },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                failures,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const text = sections.map((s) => s.text?.text ?? '').join('\n');
+            expect(text).toContain('Revenue by region: Query timed out');
+            expect(text).toContain('1 query failed to export');
+        });
+
+        it('renders an APP_QUERY_MISSING failure, appending the identity-changed note when set', () => {
+            const failures: PartialFailure[] = [
+                {
+                    type: PartialFailureType.APP_QUERY_MISSING,
+                    captureKey: 'v1:def456',
+                    label: 'Signups by week',
+                    identityChanged: true,
+                },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                failures,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const text = sections.map((s) => s.text?.text ?? '').join('\n');
+            expect(text).toContain(
+                'Signups by week: did not run in this delivery (query changed since it was selected)',
+            );
+        });
+
+        it('omits the identity-changed note for APP_QUERY_MISSING when identityChanged is false', () => {
+            const failures: PartialFailure[] = [
+                {
+                    type: PartialFailureType.APP_QUERY_MISSING,
+                    captureKey: 'v1:def456',
+                    label: 'Signups by week',
+                    identityChanged: false,
+                },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                failures,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const text = sections.map((s) => s.text?.text ?? '').join('\n');
+            expect(text).toContain(
+                'Signups by week: did not run in this delivery',
+            );
+            expect(text).not.toContain('query changed since it was selected');
+        });
+
+        it('renders an APP_CAPTURE_OVERFLOW failure with the dropped count and limit', () => {
+            const failures: PartialFailure[] = [
+                {
+                    type: PartialFailureType.APP_CAPTURE_OVERFLOW,
+                    droppedCount: 7,
+                },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                failures,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const text = sections.map((s) => s.text?.text ?? '').join('\n');
+            expect(text).toContain(
+                `7 queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})`,
+            );
+        });
+
+        it('builds a per-kind headline when charts and queries fail together', () => {
+            const failures: PartialFailure[] = [
+                {
+                    type: PartialFailureType.DASHBOARD_CHART,
+                    chartName: 'Failing chart A',
+                    error: 'Query timed out',
+                    chartUuid: 'chart-uuid-a',
+                    tileUuid: 'tile-uuid-a',
+                },
+                {
+                    type: PartialFailureType.DASHBOARD_CHART,
+                    chartName: 'Failing chart B',
+                    error: 'Query timed out',
+                    chartUuid: 'chart-uuid-b',
+                    tileUuid: 'tile-uuid-b',
+                },
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'download',
+                    captureKey: 'v1:abc123',
+                    label: 'Revenue by region',
+                    error: 'Query timed out',
+                },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'Mixed delivery',
+                name: 'Mixed delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                failures,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const text = sections.map((s) => s.text?.text ?? '').join('\n');
+            expect(text).toContain('2 charts and 1 query failed to export');
+        });
+
+        it('counts APP_QUERY_MISSING as a failing query in the headline', () => {
+            const failures: PartialFailure[] = [
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'render',
+                    captureKey: 'v1:abc123',
+                    label: 'Revenue by region',
+                    error: 'Query timed out',
+                },
+                {
+                    type: PartialFailureType.APP_QUERY_MISSING,
+                    captureKey: 'v1:def456',
+                    label: 'Signups by week',
+                    identityChanged: false,
+                },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                failures,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const text = sections.map((s) => s.text?.text ?? '').join('\n');
+            expect(text).toContain('2 queries failed to export');
+            expect(text).not.toContain('issue');
+        });
+
+        it('renders notices as a separate info section, not the failure block', () => {
+            const notices: DeliveryNotice[] = [
+                {
+                    type: 'limit_reached',
+                    label: 'Orders over time',
+                    rowCount: 5000,
+                },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                notices,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const noticeSection = sections.find((s) =>
+                s.text?.text?.includes('Orders over time'),
+            );
+            expect(noticeSection).toBeDefined();
+            expect(noticeSection?.text?.text).toContain(
+                'Orders over time reached its query limit; additional rows may exist (5000 rows delivered)',
+            );
+            expect(noticeSection?.text?.text).toContain(':information_source:');
+
+            // Notices must never appear inside the failure block, and vice versa.
+            const failureSection = sections.find((s) =>
+                s.text?.text?.includes(':warning:'),
+            );
+            expect(failureSection).toBeUndefined();
+        });
+
+        it('keeps notices out of the failure block when both failures and notices are present', () => {
+            const failures: PartialFailure[] = [
+                {
+                    type: PartialFailureType.APP_QUERY,
+                    stage: 'render',
+                    captureKey: 'v1:abc123',
+                    label: 'Revenue by region',
+                    error: 'Query timed out',
+                },
+            ];
+            const notices: DeliveryNotice[] = [
+                {
+                    type: 'limit_reached',
+                    label: 'Orders over time',
+                    rowCount: 5000,
+                },
+            ];
+
+            const blocks = getDashboardCsvResultsBlocks({
+                title: 'App delivery',
+                name: 'App delivery',
+                description: 'desc',
+                ctaUrl: 'https://app.lightdash.com/apps/abc',
+                csvUrls,
+                failures,
+                notices,
+            });
+
+            const sections = findBlocks(blocks, 'section');
+            const failureSection = sections.find((s) =>
+                s.text?.text?.includes('Revenue by region'),
+            );
+            const noticeSection = sections.find((s) =>
+                s.text?.text?.includes('Orders over time'),
+            );
+            expect(failureSection?.text?.text).not.toContain(
+                'Orders over time',
+            );
+            expect(noticeSection?.text?.text).not.toContain(
+                'Revenue by region',
+            );
         });
     });
 });

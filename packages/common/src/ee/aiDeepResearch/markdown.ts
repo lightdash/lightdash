@@ -238,10 +238,8 @@ const decodeHtmlEntities = (value: string): string =>
             return named;
         }
         const isHex = code.toLowerCase().startsWith('#x');
-        const codePoint = Number.parseInt(
-            code.slice(isHex ? 2 : 1),
-            isHex ? 16 : 10,
-        );
+        const radix = isHex ? 16 : 10;
+        const codePoint = Number.parseInt(code.slice(isHex ? 2 : 1), radix);
         return Number.isSafeInteger(codePoint) && codePoint <= 0x10ffff
             ? String.fromCodePoint(codePoint)
             : entity;
@@ -495,9 +493,6 @@ export const renderDeepResearchChartRefs = (markdown: string): string =>
 
 const CONFIDENCE_TAG_RE = /<confidence\b[^>]*>/g;
 
-export const countDeepResearchFindings = (markdown: string): number =>
-    maskFencedBlocks(markdown).match(CONFIDENCE_TAG_RE)?.length ?? 0;
-
 const STRUCTURAL_SECTIONS = new Set(['conclusion', 'sources', 'caveats']);
 
 type MarkdownSection = {
@@ -544,6 +539,11 @@ const splitSections = (
     closeCurrent(masked.length);
     return { preamble: preambleLines.join('\n'), sections };
 };
+
+export const countDeepResearchFindings = (markdown: string): number =>
+    splitSections(maskFencedBlocks(markdown)).sections.filter(
+        ({ title }) => !STRUCTURAL_SECTIONS.has(title.trim().toLowerCase()),
+    ).length;
 
 const lintHtmlTags = (masked: string): string[] => {
     const errors: string[] = [];

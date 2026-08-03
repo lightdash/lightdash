@@ -1,0 +1,93 @@
+# Cloud development environment: a preview-like environment with hot reloading.
+#
+#   okteto deploy -f okteto.dev.yaml --wait   # create/update the environment
+#   okteto up -f okteto.dev.yaml              # sync code + start dev servers
+#
+# Okteto derives the public endpoint from the deployment and namespace names.
+# The agent launcher discovers it from the ingress before starting sync.
+name: lightdash
+
+deploy:
+    commands:
+        - name: Configuring database...
+          command: |
+              set -e
+              # Stable password shared with the snapshot builder
+              # (docker/docker-compose.db-snapshot.yml): a database diverted
+              # from a snapshot keeps the password it was initialised with
+              echo "PGPASSWORD=not-very-secret-preview-db" >> "$OKTETO_ENV"
+
+              # Retire the old workload without deleting its persistent data.
+              kubectl delete statefulset db-dev --ignore-not-found --wait
+              kubectl delete deployment db-dev --ignore-not-found --wait
+
+              # Boot the database from the newest pre-seeded snapshot so the
+              # environment starts with demo data and no migrate/seed wait.
+              # Only on first deploy: the volume is kept afterwards.
+              SNAPSHOT=""
+              if ! kubectl get pvc db-data >/dev/null 2>&1; then
+                CANDIDATES=$(kubectl get volumesnapshots -n db-snapshot \
+                  -l app.kubernetes.io/part-of=lightdash-preview-db \
+                  --sort-by=.metadata.creationTimestamp \
+                  -o jsonpath='{range .items[?(@.status.readyToUse==true)]}{.metadata.name}{"\n"}{end}' \
+                  2>/dev/null | tail -n 3 || true)
+                COUNT=$(echo "$CANDIDATES" | grep -c . || true)
+                if [ "$COUNT" -gt 0 ]; then
+                  SNAPSHOT=$(echo "$CANDIDATES" | sed -n "$(( $(date +%s) % COUNT + 1 ))p")
+                fi
+              fi
+              if [ -n "$SNAPSHOT" ]; then
+                echo "Booting dev database from snapshot db-snapshot/$SNAPSHOT"
+                echo "DB_SNAPSHOT_NAME=$SNAPSHOT" >> "$OKTETO_ENV"
+                echo "DB_SNAPSHOT_NAMESPACE=db-snapshot" >> "$OKTETO_ENV"
+              else
+                echo "Reusing existing database volume (or starting blank if no snapshot is ready)"
+              fi
+
+              # The agent launcher overrides this with the discovered ingress
+              # URL when it runs okteto up.
+              echo "SITE_URL=https://lightdash-${OKTETO_NAMESPACE}.${OKTETO_DOMAIN}" >> "$OKTETO_ENV"
+        - name: Deploying compose...
+          command: |
+              set -e
+              if [ -n "${DB_SNAPSHOT_NAME:-}" ]; then
+                if ! okteto deploy -f docker/docker-compose.okteto-dev.yml --timeout 18m; then
+                  echo "Snapshot restore failed: retrying with a blank database volume"
+                  kubectl delete statefulset db-preview --ignore-not-found --wait
+                  kubectl delete deployment db-preview --ignore-not-found --wait
+                  kubectl delete pvc db-data --ignore-not-found --wait
+                  export DB_SNAPSHOT_NAME="" DB_SNAPSHOT_NAMESPACE=""
+                  okteto deploy -f docker/docker-compose.okteto-dev.yml --timeout 20m
+                fi
+              else
+                okteto deploy -f docker/docker-compose.okteto-dev.yml
+              fi
+
+dev:
+    lightdash-dev:
+        # Nightly-baked warm image (see .github/workflows/dev-warm-image.yml):
+        # source at main + node_modules + pre-built dists, so a fresh namespace
+        # only syncs the branch diff and builds incrementally
+        image: ${DEV_WARM_IMAGE:-okteto.global/lightdash-dev-warm:latest}
+        command: bash scripts/okteto-dev-up.sh
+        sync:
+            folders:
+                - .:/usr/app
+            rescanInterval: 1800
+        resources:
+            requests:
+                cpu: '1'
+                memory: 4Gi
+            # Cluster LimitRange max is 2 CPU / 8Gi per container
+            limits:
+                cpu: '2'
+                memory: 8Gi
+        forward:
+            # Node.js debugger (tsx watch --inspect). Local 9230 because a
+            # local dev stack usually holds 9229 already
+            - 9230:9229
+        # No persistent volume: it would shadow the warm image's baked
+        # /usr/app. A pod restart re-syncs (~1 min) — acceptable for
+        # ephemeral dev namespaces
+        persistentVolume:
+            enabled: false

@@ -1,12 +1,17 @@
-import { type DataAppVizContext } from '@lightdash/common';
+import {
+    getEffectiveOptionValues,
+    type DataAppVizContext,
+} from '@lightdash/common';
 import { Stack, Text } from '@mantine-8/core';
 import { IconPuzzle } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useParams } from 'react-router';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
+import { useDataAppVisualization } from '../../features/apps/hooks/useDataAppVisualization';
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
+import { reconcileDataAppVizFieldMapping } from '../../features/apps/utils/autoMapDataAppVizFields';
 import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -27,7 +32,8 @@ const DataAppVizPlaceholder: FC<{ message: string }> = ({ message }) => (
 
 const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { visualizationConfig, resultsData } = useVisualizationContext();
+    const { visualizationConfig, resultsData, colorPalette, itemsMap } =
+        useVisualizationContext();
     const previewOrigin = usePreviewOrigin();
     const hasSignaledScreenshotReady = useRef(false);
 
@@ -50,6 +56,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         : undefined;
     const dataAppVizUuid = config?.dataAppVizUuid ?? '';
     const fieldMapping = config?.fieldMapping;
+    const optionValues = config?.optionValues;
     const rows = resultsData?.rows;
 
     // Hooks run unconditionally; the queries are `enabled`-gated on their args.
@@ -57,6 +64,15 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         projectUuid,
         dataAppVizUuid || undefined,
     );
+
+    // The declaration is the only source of option defaults, so the renderer
+    // fetches it to resolve effective values.
+    const { data: dataAppViz } = useDataAppVisualization(
+        projectUuid,
+        dataAppVizUuid || undefined,
+    );
+    const configOptions = dataAppViz?.schema?.configOptions;
+    const fields = dataAppViz?.schema?.fields;
 
     // Latest READY version of the chosen data app viz drives the preview.
     const readyVersion = useMemo(() => {
@@ -73,9 +89,34 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     );
 
     const dataAppVizContext = useMemo<DataAppVizContext | undefined>(() => {
-        if (!rows) return undefined;
-        return { fieldMapping: fieldMapping ?? {}, rows };
-    }, [fieldMapping, rows]);
+        if (!rows || !configOptions || !fields) return undefined;
+        return {
+            // Reconciled against the contract and columns in force now, so a
+            // rebuilt viz never renders through a binding the panel no longer
+            // shows.
+            fieldMapping: reconcileDataAppVizFieldMapping(
+                fields,
+                itemsMap ?? {},
+                fieldMapping ?? {},
+            ),
+            rows,
+            options: getEffectiveOptionValues(
+                configOptions,
+                optionValues ?? {},
+            ),
+            // Already resolved through the full palette cascade and dark-mode
+            // corrected by the visualization context.
+            colorPalette,
+        };
+    }, [
+        fields,
+        itemsMap,
+        fieldMapping,
+        rows,
+        configOptions,
+        optionValues,
+        colorPalette,
+    ]);
 
     if (!projectUuid || !dataAppVizUuid) {
         return (

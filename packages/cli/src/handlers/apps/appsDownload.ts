@@ -3,12 +3,24 @@ import {
     LightdashError,
     ParameterError,
     type DataAppCodeDownload,
+    type DataAppManifest,
 } from '@lightdash/common';
+import * as path from 'path';
 import { validate as isUuid } from 'uuid';
+import GlobalState from '../../globalState';
+import * as styles from '../../styles';
+import {
+    resolveAppFolderName,
+    writeBundleToDir,
+    writeContextToDir,
+    writeDependenciesToDir,
+    writeFilesToDir,
+} from './appCodeFiles';
+import { buildStaticAuthoringFiles } from './scaffolding';
 
 export const DEFAULT_APPS_LIMIT = 50;
 
-export const getDataAppUuidFromReference = (reference: string): string => {
+export const getDataAppReference = (reference: string): string => {
     let url: URL;
     try {
         url = new URL(reference);
@@ -34,7 +46,52 @@ export const getDataAppUploadFilter = (
     references: string[],
     includeApps: boolean,
 ): Set<string> | null =>
-    includeApps ? null : new Set(references.map(getDataAppUuidFromReference));
+    includeApps ? null : new Set(references.map(getDataAppReference));
+
+/**
+ * --include-apps uploads every folder; explicit --apps references filter by
+ * the manifest's slug or appUuid (references may be either, or app URLs).
+ */
+export const uploadFilterMatches = (
+    filter: Set<string> | null,
+    manifest: DataAppManifest,
+): boolean =>
+    filter === null ||
+    (manifest.appUuid !== undefined && filter.has(manifest.appUuid)) ||
+    (manifest.slug !== undefined && filter.has(manifest.slug));
+
+/** The filter entries this manifest satisfies (for unmatched-ref reporting). */
+export const matchedUploadRefs = (
+    filter: Set<string>,
+    manifest: DataAppManifest,
+): string[] =>
+    [manifest.appUuid, manifest.slug].filter(
+        (ref): ref is string => ref !== undefined && filter.has(ref),
+    );
+
+/**
+ * Warning for --apps references that matched no local app folder. Uuid-shaped
+ * refs (including refs parsed out of app URLs) get the slug-identity
+ * explanation: id-free bundles can only be selected by slug.
+ */
+export const unmatchedUploadRefsWarning = (
+    unmatched: string[],
+): string | null => {
+    if (unmatched.length === 0) return null;
+    const base = `No local app folder matched: ${unmatched.join(', ')}.`;
+    return unmatched.some((ref) => isUuid(ref))
+        ? `${base} Bundles downloaded with slug identity carry no uuid — select them by slug (the folder name) instead of a UUID or app URL.`
+        : base;
+};
+
+/**
+ * Shown when the upload response carries no slug even though the bundle sent
+ * one — the server predates slug identity, so it ignored the slug and matched
+ * (or created) by uuid only. A same-slug upload may have just created a
+ * duplicate app instead of appending.
+ */
+export const preSlugServerHint = (folder: string): string =>
+    `This server predates slug-based app identity, so "${folder}" was matched by uuid only. If you expected to update an existing app, verify no duplicate was created, and upgrade the server (or use a matching CLI version).`;
 
 /**
  * Resolves the --apps-limit flag. Commander passes the raw string (or
@@ -73,24 +130,24 @@ export const shouldFallBackToSpaceScopedListing = (err: unknown): boolean =>
 
 export type AppsDownloadSelection =
     | { mode: 'none' }
-    | { mode: 'explicit'; appUuids: string[] }
-    | { mode: 'list-all'; extraAppUuids: string[] };
+    | { mode: 'explicit'; appRefs: string[] }
+    | { mode: 'list-all'; extraAppRefs: string[] };
 
 /**
- * Explicit UUIDs (--apps) are fetched directly; --include-apps lists every
- * app in the project via the project-wide apps endpoint, falling back to
- * the space-scoped content API on servers that predate it.
+ * Explicit references (--apps) are fetched directly; --include-apps lists
+ * every app in the project via the project-wide apps endpoint, falling back
+ * to the space-scoped content API on servers that predate it.
  */
 export const selectAppsToDownload = (request: {
     apps?: string[];
     includeApps?: boolean;
 }): AppsDownloadSelection => {
-    const explicitUuids = (request.apps ?? []).map(getDataAppUuidFromReference);
+    const explicitRefs = (request.apps ?? []).map(getDataAppReference);
     if (request.includeApps) {
-        return { mode: 'list-all', extraAppUuids: explicitUuids };
+        return { mode: 'list-all', extraAppRefs: explicitRefs };
     }
-    if (explicitUuids.length > 0) {
-        return { mode: 'explicit', appUuids: explicitUuids };
+    if (explicitRefs.length > 0) {
+        return { mode: 'explicit', appRefs: explicitRefs };
     }
     return { mode: 'none' };
 };
@@ -102,6 +159,24 @@ export const capListedApps = (
     appUuids: listedUuids.slice(0, limit),
     truncatedCount: Math.max(0, listedUuids.length - limit),
 });
+
+/**
+ * Data apps a dashboard needs that aren't already covered by an explicit
+ * --apps ref, or by a (possibly --apps-limit-truncated) --include-apps listing.
+ */
+export const computeLinkedAppSlugs = (args: {
+    appSlugs: string[];
+    explicitRefs: Set<string>;
+    includeApps: boolean;
+    cappedAppSlugs: Set<string>;
+}): string[] => {
+    const { appSlugs, explicitRefs, includeApps, cappedAppSlugs } = args;
+    return appSlugs.filter(
+        (slug) =>
+            !explicitRefs.has(slug) &&
+            !(includeApps && cappedAppSlugs.has(slug)),
+    );
+};
 
 /**
  * Pre-context servers return a download payload without `context`.
@@ -118,7 +193,48 @@ export const ensureDownloadedAppContext = (
     return code;
 };
 
-export type AppDownloadFailure = { appUuid: string; message: string };
+/**
+ * Shown after uploading a bundle whose manifest predates slug identity —
+ * uploads keep working via the uuid fallback, but the user should upgrade.
+ */
+export const preSlugUploadHint = (args: {
+    folder: string;
+    slug: string | undefined;
+}): string =>
+    `${args.folder}/lightdash-app.yml predates slug identity. Re-download the app to upgrade${
+        args.slug !== undefined
+            ? ` (or add \`slug: ${args.slug}\` to lightdash-app.yml)`
+            : ''
+    }. Uploads keep working via uuid matching meanwhile.`;
+
+export type AppPresence =
+    // Slugs the target project already has. Authoritative.
+    | { kind: 'known'; slugs: Set<string> }
+    // Listing unavailable or slug-less (older server): fall back to comparing
+    // the manifest's source project against the upload target.
+    | { kind: 'unknown'; targetProjectUuid: string };
+
+/**
+ * Auto-pushed apps normally upload only when the folder changed, because every
+ * upload triggers a sandbox rebuild. The exception is an app the target project
+ * does not have yet — without it a dashboard moved to a new project or instance
+ * lands with its tile skipped.
+ */
+export const shouldAutoPushApp = (args: {
+    manifest: Pick<DataAppManifest, 'slug' | 'projectUuid'>;
+    presence: AppPresence;
+    folderChanged: boolean;
+    force: boolean;
+}): boolean => {
+    if (args.force || args.folderChanged) return true;
+    if (args.manifest.slug === undefined) return true;
+    if (args.presence.kind === 'known') {
+        return !args.presence.slugs.has(args.manifest.slug);
+    }
+    return args.manifest.projectUuid !== args.presence.targetProjectUuid;
+};
+
+export type AppDownloadFailure = { appRef: string; message: string };
 
 export type AppDownloadErrorOutcome =
     | { kind: 'skip-not-built' }
@@ -155,17 +271,6 @@ export const classifyAppDownloadError = (
 };
 
 /**
- * Shown when a newly created app's folder manifest was NOT retargeted —
- * spells out the consequence and the manual fix.
- */
-export const manifestRetargetHint = (args: {
-    folder: string;
-    appUuid: string;
-    projectUuid: string;
-}): string =>
-    `${args.folder}/lightdash-app.yml still targets the original app, so future uploads here will ask to create again. To update the new app instead, set appUuid: ${args.appUuid} and projectUuid: ${args.projectUuid} in lightdash-app.yml.`;
-
-/**
  * Sums changes entries that represent actual upserts — excluding both
  * 'skipped' and 'failed' keys so that failures don't suppress the
  * "all content was skipped" warning.
@@ -188,25 +293,6 @@ export const shouldWarnAllSkipped = (
     return totalSkipped > 0 && computeUpsertedTotal(changes) === 0;
 };
 
-/**
- * Determines how an app upload should proceed given a potential project
- * mismatch between the manifest and the upload target.
- *
- * 'proceed'            — upload immediately (same project, or --create-new).
- * 'needs-confirmation' — projects differ and --create-new was not passed;
- *                        caller must prompt (TTY) or reject (non-TTY).
- */
-export const classifyAppUpload = (
-    manifestProjectUuid: string,
-    targetProjectUuid: string,
-    createNew: boolean,
-): 'proceed' | 'needs-confirmation' => {
-    if (createNew || manifestProjectUuid === targetProjectUuid) {
-        return 'proceed';
-    }
-    return 'needs-confirmation';
-};
-
 export const appsDownloadSummary = (
     successCount: number,
     total: number,
@@ -227,7 +313,105 @@ export const appsDownloadSummary = (
         ok: false,
         message: `${base} — ${failures.length} failed`,
         failureLines: failures.map(
-            (failure) => `  ✖ ${failure.appUuid}: ${failure.message}`,
+            (failure) => `  ✖ ${failure.appRef}: ${failure.message}`,
         ),
     };
+};
+
+export type AppsDownloadOutcome = {
+    successCount: number;
+    skippedNotBuiltCount: number;
+    failures: AppDownloadFailure[];
+};
+
+/**
+ * Downloads each app to its own folder under appsDir, classifying "no built
+ * version" 404s as skips rather than failures. Everything the loop needs
+ * (fetching, versioning, progress reporting) is injected so this stays free
+ * of any dependency on the download handler.
+ */
+export const downloadAppsToDir = async (args: {
+    appRefs: string[];
+    projectId: string;
+    appsDir: string;
+    takenFolders: Set<string>;
+    cliVersion: string;
+    fetchApp: (
+        projectId: string,
+        appRef: string,
+    ) => Promise<DataAppCodeDownload>;
+    onProgress?: (processed: number, total: number) => void;
+}): Promise<AppsDownloadOutcome> => {
+    const {
+        appRefs,
+        projectId,
+        appsDir,
+        takenFolders,
+        cliVersion,
+        fetchApp,
+        onProgress,
+    } = args;
+
+    let successCount = 0;
+    let skippedNotBuiltCount = 0;
+    const failures: AppDownloadFailure[] = [];
+
+    for (const appRef of appRefs) {
+        try {
+            const code = ensureDownloadedAppContext(
+                appRef,
+                // eslint-disable-next-line no-await-in-loop
+                await fetchApp(projectId, appRef),
+            );
+
+            const folder = resolveAppFolderName(code.manifest, takenFolders);
+            takenFolders.add(folder);
+
+            const appDir = path.join(appsDir, folder);
+            const manifest = {
+                ...code.manifest,
+                scaffoldingVersion: cliVersion,
+            };
+            // eslint-disable-next-line no-await-in-loop
+            await writeBundleToDir(appDir, { ...code, manifest });
+            // eslint-disable-next-line no-await-in-loop
+            await writeFilesToDir(
+                appDir,
+                buildStaticAuthoringFiles({
+                    appName: code.manifest.name,
+                    sdkVersion: cliVersion,
+                }),
+            );
+            // Server-provided deps override the scaffold's
+            // template package.json so re-uploads round-trip.
+            if (code.dependencies) {
+                // eslint-disable-next-line no-await-in-loop
+                await writeDependenciesToDir(appDir, code.dependencies);
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await writeContextToDir(appDir, code.context);
+            successCount += 1;
+        } catch (appErr) {
+            const outcome = classifyAppDownloadError(appErr);
+            if (outcome.kind === 'skip-not-built') {
+                skippedNotBuiltCount += 1;
+                GlobalState.debug(
+                    `> Skipped app ${appRef}: no built version to download`,
+                );
+            } else {
+                failures.push({ appRef, message: outcome.message });
+                GlobalState.log(
+                    styles.error(
+                        `Failed to download app ${appRef}: ${outcome.message}`,
+                    ),
+                );
+            }
+        }
+        onProgress?.(
+            successCount + skippedNotBuiltCount + failures.length,
+            appRefs.length,
+        );
+    }
+
+    return { successCount, skippedNotBuiltCount, failures };
 };

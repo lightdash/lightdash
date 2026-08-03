@@ -1,6 +1,7 @@
 import {
     generateSlug,
     getErrorMessage,
+    isValidDataAppSlug,
     validateDataAppCode,
     type DataAppCode,
     type DataAppCodeFile,
@@ -134,7 +135,12 @@ const collectFiles = async (
 export const buildImportBody = (
     code: DataAppCode,
     targetProjectUuid: string,
-    opts: { app?: string; space?: string; createNew?: boolean },
+    opts: {
+        app?: string;
+        space?: string;
+        createNew?: boolean;
+        force?: boolean;
+    },
 ): ImportAppCodeRequestBody => {
     let targetAppUuid: string | undefined;
     if (opts.createNew) {
@@ -143,6 +149,9 @@ export const buildImportBody = (
     } else if (opts.app) {
         targetAppUuid = opts.app;
     } else if (targetProjectUuid === code.manifest.projectUuid) {
+        // Pre-slug bundles carry an appUuid (uuid-fallback identity, and
+        // same-project append on pre-slug servers). Slug-only bundles yield
+        // undefined here — slug-aware servers resolve by slug instead.
         targetAppUuid = code.manifest.appUuid;
     }
 
@@ -150,25 +159,33 @@ export const buildImportBody = (
         code,
         targetAppUuid,
         spaceUuid: opts.space,
+        ...(opts.createNew ? { createNew: true } : {}),
+        ...(opts.force ? { force: true } : {}),
     };
 };
 
 /**
- * Points a downloaded app folder's manifest at a different app, so future
- * uploads update that app instead of the one it was downloaded from.
+ * The persistent slug from a slug-aware server is the folder name (stable
+ * across app renames). Pre-slug servers fall back to name-derived folders.
  */
-export const retargetManifest = async (
-    dir: string,
-    target: { appUuid: string; projectUuid: string; version: number },
-): Promise<void> => {
-    const manifestPath = path.join(dir, MANIFEST_FILENAME);
-    const manifest = YAML.parse(
-        await fs.readFile(manifestPath, 'utf-8'),
-    ) as DataAppManifest;
-    await fs.writeFile(
-        manifestPath,
-        YAML.stringify({ ...manifest, ...target }),
-        'utf-8',
+export const resolveAppFolderName = (
+    manifest: DataAppManifest,
+    takenFolders: Set<string>,
+): string => {
+    // Defense-in-depth: a server of unknown version, or a hand-tampered
+    // manifest on disk, must not steer the local write path via an
+    // unvalidated slug (e.g. `../../etc`) — only trust it once it passes the
+    // same shape check the server enforces on upload.
+    if (manifest.slug !== undefined && isValidDataAppSlug(manifest.slug)) {
+        return manifest.slug;
+    }
+    // The fallback needs a uuid for its collision/untitled suffixes. Real
+    // pre-slug servers always emit appUuid; only a tampered slug-only
+    // manifest lands here without one.
+    return appFolderName(
+        manifest.name,
+        manifest.appUuid ?? 'unknown',
+        takenFolders,
     );
 };
 
@@ -288,19 +305,75 @@ export const attachDependenciesToCode = (
 ): DataAppCode =>
     Object.keys(customDeps).length > 0 ? { ...code, dependencies: deps } : code;
 
-export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
+const CHANGE_TOLERANCE_MS = 30_000;
+
+const collectMtimes = async (dir: string): Promise<number[]> => {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const nested = await Promise.all(
+        entries.map(async (entry) => {
+            const entryPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) return collectMtimes(entryPath);
+            const stats = await fs.stat(entryPath);
+            return [stats.mtime.getTime()];
+        }),
+    );
+    return nested.flat();
+};
+
+const statMtime = async (file: string): Promise<number[]> =>
+    fs
+        .stat(file)
+        .then((stats) => [stats.mtime.getTime()])
+        .catch(() => []);
+
+/**
+ * Mirrors the chart/dashboard rule: changed when a file that actually gets
+ * uploaded has drifted more than 30s from the manifest's downloadedAt.
+ */
+export const appFolderNeedsUpdating = async (
+    dir: string,
+    manifest: DataAppManifest,
+): Promise<boolean> => {
+    if (!manifest.downloadedAt) return true;
+    const downloadedAt = new Date(manifest.downloadedAt).getTime();
+    if (Number.isNaN(downloadedAt)) return true;
+
+    const srcDir = path.join(dir, 'src');
+    const srcExists = await fs
+        .stat(srcDir)
+        .then((s) => s.isDirectory())
+        .catch(() => false);
+
+    const mtimes = [
+        ...(srcExists ? await collectMtimes(srcDir) : []),
+        ...(await statMtime(path.join(dir, 'package.json'))),
+        ...(await statMtime(path.join(dir, 'pnpm-lock.yaml'))),
+        ...(await statMtime(path.join(dir, MANIFEST_FILENAME))),
+    ];
+
+    return mtimes.some(
+        (mtime) => Math.abs(mtime - downloadedAt) > CHANGE_TOLERANCE_MS,
+    );
+};
+
+export const readManifestFromDir = async (
+    dir: string,
+): Promise<DataAppManifest> => {
     const manifestRaw = await fs.readFile(
         path.join(dir, MANIFEST_FILENAME),
         'utf-8',
     );
-    let manifest: DataAppManifest;
     try {
-        manifest = YAML.parse(manifestRaw) as DataAppManifest;
+        return YAML.parse(manifestRaw) as DataAppManifest;
     } catch (err) {
         throw new Error(
             `Could not parse ${MANIFEST_FILENAME}: ${getErrorMessage(err)}`,
         );
     }
+};
+
+export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
+    const manifest = await readManifestFromDir(dir);
 
     const srcDir = path.join(dir, 'src');
     const srcExists = await fs

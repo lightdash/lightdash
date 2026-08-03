@@ -1,0 +1,53 @@
+.tokenColumnHeader {
+    width: 5.5rem;
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 600;
+    text-align: right;
+    text-transform: uppercase;
+}
+
+.toolTokenValue {
+    width: 5.5rem;
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.serverTokenValue {
+    color: var(--mantine-color-dimmed);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.serverTokenValueWarning {
+    color: var(--mantine-color-orange-light-color);
+    font-weight: 600;
+}
+
+.totalTokenValue {
+    flex-shrink: 0;
+    color: var(--mantine-color-text);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.toolRow {
+    border-top: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-5));
+}
+
+.toolLabel {
+    min-width: 0;
+    cursor: pointer;
+}
+
+.toolLabelDisabled {
+    cursor: not-allowed;
+}

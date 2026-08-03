@@ -7,6 +7,11 @@ export type HomepageMarkdownBlock = {
     config: { content: string };
 };
 
+/** How much of the opening view the hero claims. `full` centres it in the
+ * viewport; `compact` gives it only the height of its own content. Absent in
+ * stored configs means "let the layout decide" — see resolveHeroDensity. */
+export type HomepageHeroDensity = 'full' | 'compact';
+
 export type HomepageAskAiHeroBlock = {
     id: string;
     type: 'ask-ai-hero';
@@ -15,7 +20,17 @@ export type HomepageAskAiHeroBlock = {
         /** Replaces the prompt suggestions with the setup checklist.
          * Optional for configs persisted before this field existed. */
         showRecommendedActions?: boolean;
+        density?: HomepageHeroDensity;
     };
+};
+
+/** Day-part greeting ("Good afternoon, Ada") with an optional line under it.
+ * The AI hero has its own built-in greeting; this is the standalone one for
+ * pages that don't lead with a composer. */
+export type HomepageGreetingBlock = {
+    id: string;
+    type: 'greeting';
+    config: { subtitle: string; density?: HomepageHeroDensity };
 };
 
 export type HomepageCollectionItemRef = {
@@ -23,11 +38,63 @@ export type HomepageCollectionItemRef = {
     uuid: string;
 };
 
+/**
+ * Where a collection block's items come from.
+ *
+ * `manual` reads the block's own `items`. Every other source is a live rule
+ * resolved per viewer at render time — which is the point: a snapshot of
+ * "most viewed" is stale the week after it's taken, and a frozen copy of the
+ * pin list stops tracking pins the moment it's published.
+ *
+ * `favorites` and `recently-viewed` are per-viewer; the rest are project-wide.
+ */
+export type HomepageCollectionSource =
+    | 'manual'
+    | 'most-viewed'
+    | 'recently-updated'
+    | 'pinned'
+    | 'favorites'
+    | 'recently-viewed';
+
+/** Sources whose content differs for every viewer, so an admin previewing as
+ * someone else must not see the target's data. */
+export const PERSONAL_COLLECTION_SOURCES: HomepageCollectionSource[] = [
+    'favorites',
+    'recently-viewed',
+];
+
+export const isPersonalCollectionSource = (
+    source: HomepageCollectionSource,
+): boolean => PERSONAL_COLLECTION_SOURCES.includes(source);
+
+export const DEFAULT_COLLECTION_LIMIT = 6;
+export const MAX_COLLECTION_LIMIT = 24;
+
 export type HomepageCollectionBlock = {
     id: string;
     type: 'collection';
-    config: { title: string; items: HomepageCollectionItemRef[] };
+    config: {
+        title: string;
+        /** The hand-picked items. Read only when `source` is `manual`, which
+         * is what an absent `source` means — every config stored before
+         * sources existed is a manual collection. */
+        items: HomepageCollectionItemRef[];
+        source?: HomepageCollectionSource;
+        /** Applies to every source, including manual. */
+        verifiedOnly?: boolean;
+        /** How many items to show. Absent means DEFAULT_COLLECTION_LIMIT. */
+        limit?: number;
+    };
 };
+
+export const collectionSourceOf = (
+    config: HomepageCollectionBlock['config'],
+): HomepageCollectionSource => config.source ?? 'manual';
+
+export const collectionLimitOf = (
+    config: HomepageCollectionBlock['config'],
+): number =>
+    Math.min(config.limit ?? DEFAULT_COLLECTION_LIMIT, MAX_COLLECTION_LIMIT);
 
 export type HomepageResourceKind =
     | 'video'
@@ -78,12 +145,18 @@ export type HomepageAnnouncementsBlock = {
     config: { title: string };
 };
 
-export type HomepageQuickAction =
+export type HomepageQuickActionTarget =
     | { type: 'ask-ai' }
     | { type: 'run-query' }
     | { type: 'browse-dashboards' }
     | { type: 'browse-spaces' }
     | { type: 'dashboard'; dashboardUuid: string; label: string };
+
+/** Any quick action can be promoted to the row's primary one, which renders
+ * as the same chip inverted. Optional so older configs still load. */
+export type HomepageQuickAction = HomepageQuickActionTarget & {
+    primary?: boolean;
+};
 
 export type HomepageQuickActionsBlock = {
     id: string;
@@ -121,9 +194,37 @@ export type HomepageRecommendedActionKey =
     | 'connect-source-control'
     | 'connect-slack';
 
+export const HOMEPAGE_RECOMMENDED_ACTION_SCOPES: Record<
+    HomepageRecommendedActionKey,
+    'organization' | 'project'
+> = {
+    'connect-warehouse': 'organization',
+    'add-semantic-layer': 'project',
+    'connect-source-control': 'organization',
+    'connect-slack': 'organization',
+};
+
+export const SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS = [
+    'add-semantic-layer',
+    'connect-source-control',
+    'connect-slack',
+] as const satisfies readonly HomepageRecommendedActionKey[];
+
+export type SkippableHomepageRecommendedActionKey =
+    (typeof SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS)[number];
+
+export type SkipHomepageRecommendedActionRequest = {
+    actionKey: HomepageRecommendedActionKey;
+};
+
+export type ApiHomepageRecommendedActionSkipsResponse = ApiSuccess<
+    SkippableHomepageRecommendedActionKey[]
+>;
+
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageAskAiHeroBlock
+    | HomepageGreetingBlock
     | HomepageCollectionBlock
     | HomepageResourcesBlock
     | HomepageAnnouncementsBlock

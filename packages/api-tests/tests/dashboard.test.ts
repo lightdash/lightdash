@@ -8,6 +8,7 @@ import {
     DashboardTileTypes,
     DateGranularity,
     DateZoomConfig,
+    generateSlug,
     isDashboardVersionedFields,
     SavedChart,
     SEED_PROJECT,
@@ -359,12 +360,26 @@ describe('Lightdash dashboard', () => {
             const projectUuid = SEED_PROJECT.project_uuid;
             const testDashboardName = uniqueName('Test Dashboard');
 
-            const newDashboard = await createDashboard(admin, projectUuid, {
-                ...dashboardMock,
-                name: testDashboardName,
-            });
+            const [newDashboard, duplicateDashboard] = await Promise.all([
+                createDashboard(admin, projectUuid, {
+                    ...dashboardMock,
+                    name: testDashboardName,
+                }),
+                createDashboard(admin, projectUuid, {
+                    ...dashboardMock,
+                    name: testDashboardName,
+                }),
+            ]);
             tracker.trackDashboard(newDashboard.uuid);
-            expect(newDashboard.slug).toBeDefined();
+            tracker.trackDashboard(duplicateDashboard.uuid);
+            expect(
+                new Set([newDashboard.slug, duplicateDashboard.slug]),
+            ).toEqual(
+                new Set([
+                    generateSlug(testDashboardName),
+                    `${generateSlug(testDashboardName)}-1`,
+                ]),
+            );
 
             // Access the dashboard by slug
             const response = await admin.get<{ results: Dashboard }>(

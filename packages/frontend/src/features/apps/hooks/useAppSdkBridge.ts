@@ -1,10 +1,13 @@
 import {
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    extractAppSdkRouteProjectUuid,
+    isAllowedAppSdkRoute,
     JWT_HEADER_NAME,
     LightdashAppUuidHeader,
-    type DataAppVizContext,
     type DashboardFilters,
+    type DataAppVizContext,
+    type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
@@ -14,6 +17,7 @@ import {
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
 import useApp from '../../../providers/App/useApp';
+import type { DeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
 import {
     handleGsheetExport,
     type GsheetExportColumn,
@@ -73,6 +77,37 @@ export type QueryEvent = {
 };
 
 /**
+ * Shared null/empty field defaults for a terminal (ready/error) QueryEvent.
+ * A terminal event carries no query shape of its own — only the fields the
+ * emitter actually knows (id, queryUuid, status, rowCount/durationMs/error)
+ * vary between call sites.
+ */
+const TERMINAL_EVENT_DEFAULTS: Pick<
+    QueryEvent,
+    | 'label'
+    | 'exploreName'
+    | 'dimensions'
+    | 'metrics'
+    | 'filters'
+    | 'sorts'
+    | 'tableCalculations'
+    | 'additionalMetrics'
+    | 'limit'
+    | 'rawMetricQuery'
+> = {
+    label: null,
+    exploreName: '',
+    dimensions: [],
+    metrics: [],
+    filters: {},
+    sorts: [],
+    tableCalculations: [],
+    additionalMetrics: [],
+    limit: 0,
+    rawMetricQuery: null,
+};
+
+/**
  * A single external-connection fetch proxied through the bridge, reported for
  * the external-requests inspector tab. Single-shot lifecycle: one `pending`
  * event when the fetch starts, one terminal `ready`/`error` event when it
@@ -99,52 +134,10 @@ export type ExternalRequestEvent = {
     error: string | null;
 };
 
-/**
- * Routes the SDK is allowed to call through the postMessage bridge.
- * Everything else is rejected. Patterns use :param for path segments.
- */
-const ALLOWED_ROUTES: Array<{ method: string; pattern: RegExp }> = [
-    // Async metric query execution
-    {
-        method: 'POST',
-        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/,
-    },
-    // Run a saved chart live by UUID (linked charts)
-    {
-        method: 'POST',
-        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/chart$/,
-    },
-    // Run underlying-data queries for SDK result rows
-    {
-        method: 'POST',
-        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/underlying-data$/,
-    },
-    // Poll for query results
-    {
-        method: 'GET',
-        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+$/,
-    },
-    // Schedule backend CSV/XLSX export jobs for SDK query results
-    {
-        method: 'POST',
-        pattern:
-            /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+\/schedule-download$/,
-    },
-    // Poll export job status until the backend returns a file URL
-    {
-        method: 'GET',
-        pattern: /^\/api\/v1\/schedulers\/job\/[^/]+\/status$/,
-    },
-    // Get current user
-    { method: 'GET', pattern: /^\/api\/v1\/user$/ },
-];
-
-function isAllowedRoute(method: string, path: string): boolean {
-    return ALLOWED_ROUTES.some(
-        (route) =>
-            route.method === method.toUpperCase() && route.pattern.test(path),
-    );
-}
+// Routes the SDK is allowed to call through the postMessage bridge live in
+// @lightdash/common (APP_SDK_ALLOWED_ROUTES) — shared with the CLI preview
+// proxy so preview and deployed authority can't drift. Everything else is
+// rejected.
 
 // Keep in sync with MAX_URL_STATE_CHARS in packages/query-sdk/src/urlState.ts.
 // Caps what an app can push into the host page's URL / browser history.
@@ -257,6 +250,12 @@ export type UseAppSdkBridgeParams = {
     // When set, `lightdash:sdk:url-state-change` messages from the iframe SDK
     // are validated and forwarded. Left undefined, they're ignored.
     onUrlStateChange?: (state: Record<string, unknown>) => void;
+    /** When set, every metric/chart query POST is recorded into this accumulator
+     *  (initiation, response, terminal) — the delivery/preview capture source. */
+    deliveryCapture?: DeliveryCaptureAccumulator;
+    /** When set, stamped as `context` onto metric/chart POST bodies (delivery
+     *  renders send SCHEDULED_DELIVERY for honest attribution). */
+    queryContextOverride?: QueryExecutionContext;
 };
 
 export function useAppSdkBridge({
@@ -277,6 +276,8 @@ export function useAppSdkBridge({
     dataAppVizContext,
     onUrlStateChange,
     onSdkManifest,
+    deliveryCapture,
+    queryContextOverride,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -653,18 +654,46 @@ export function useAppSdkBridge({
                 );
             };
 
-            if (!isAllowedRoute(method, path)) {
+            if (!isAllowedAppSdkRoute(method, path)) {
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
             }
 
-            // Stamp dashboard filters and the cache-invalidation flag onto
-            // outgoing query bodies. The backend drops filters whose fields
-            // aren't in the query's/chart's explore, so it's safe to send the
-            // full set on every call. Both `dashboardFilters` and
-            // `invalidateCache` apply to inline metric queries AND linked
-            // (/query/chart) charts, so a dashboard filter or refresh reaches
-            // linked charts too. App attribution rides on the
+            const requestProjectUuid = extractAppSdkRouteProjectUuid(path);
+            if (
+                requestProjectUuid !== null &&
+                requestProjectUuid !== projectUuid
+            ) {
+                respond({
+                    error: `Blocked: request targets project ${requestProjectUuid}, but this app belongs to ${projectUuid}`,
+                });
+                return;
+            }
+
+            // Record the pre-stamp body — dashboard filters/invalidateCache/
+            // context are per-render decoration, not part of the query's identity.
+            if (
+                isMetricQueryPost(method, path) ||
+                isChartQueryPost(method, path)
+            ) {
+                deliveryCapture?.onInitiation({
+                    requestId: id,
+                    method,
+                    path,
+                    body,
+                    label:
+                        ((metadata as Record<string, unknown> | undefined)
+                            ?.label as string | undefined) ?? null,
+                });
+            }
+
+            // Stamp dashboard filters, the cache-invalidation flag, and a
+            // query-context override onto outgoing query bodies. The backend
+            // drops filters whose fields aren't in the query's/chart's
+            // explore, so it's safe to send the full set on every call. All
+            // three apply to inline metric queries AND linked (/query/chart)
+            // charts, so a dashboard filter, refresh, or delivery-capture
+            // context reaches linked charts too. App attribution rides on the
             // LightdashAppUuidHeader instead (see the fetch below).
             const stampFilters =
                 (isMetricQueryPost(method, path) ||
@@ -674,12 +703,19 @@ export function useAppSdkBridge({
                 (isMetricQueryPost(method, path) ||
                     isChartQueryPost(method, path)) &&
                 !!invalidateCache;
+            const stampContext =
+                (isMetricQueryPost(method, path) ||
+                    isChartQueryPost(method, path)) &&
+                !!queryContextOverride;
             const effectiveBody =
-                stampFilters || stampInvalidate
+                stampFilters || stampInvalidate || stampContext
                     ? {
                           ...(body as Record<string, unknown> | undefined),
                           ...(stampFilters ? { dashboardFilters } : {}),
                           ...(stampInvalidate ? { invalidateCache } : {}),
+                          ...(stampContext
+                              ? { context: queryContextOverride }
+                              : {}),
                       }
                     : body;
 
@@ -737,11 +773,12 @@ export function useAppSdkBridge({
             // for the POST.
             const emitPostFailure = (errorMessage: string) => {
                 if (
-                    (!isMetricQueryPost(method, path) &&
-                        !isChartQueryPost(method, path)) ||
-                    !onQueryEvent
+                    !isMetricQueryPost(method, path) &&
+                    !isChartQueryPost(method, path)
                 )
                     return;
+                deliveryCapture?.onPostFailure(id, errorMessage);
+                if (!onQueryEvent) return;
                 onQueryEvent({
                     id,
                     timestamp: Date.now(),
@@ -788,6 +825,16 @@ export function useAppSdkBridge({
                 const json = await res.json();
 
                 if (json.status === 'ok') {
+                    if (
+                        isMetricQueryPost(method, path) ||
+                        isChartQueryPost(method, path)
+                    ) {
+                        deliveryCapture?.onPostResponse(
+                            id,
+                            json.results ?? null,
+                        );
+                    }
+
                     // Track metric query initiation response (has queryUuid)
                     if (
                         (isMetricQueryPost(method, path) ||
@@ -798,6 +845,24 @@ export function useAppSdkBridge({
                         const initLabel = (
                             metadata as Record<string, unknown> | undefined
                         )?.label as string | undefined;
+
+                        // Displaced by results-cache dedupe (see ref comment
+                        // above); `queryUuid: null` avoids masking the real terminal.
+                        const displacedId = queryUuidToPostIdRef.current.get(
+                            json.results.queryUuid,
+                        );
+                        if (displacedId !== undefined && displacedId !== id) {
+                            onQueryEvent({
+                                ...TERMINAL_EVENT_DEFAULTS,
+                                id: displacedId,
+                                timestamp: Date.now(),
+                                queryUuid: null,
+                                status: 'ready',
+                                rowCount: null,
+                                durationMs: null,
+                                error: null,
+                            });
+                        }
                         queryUuidToPostIdRef.current.set(
                             json.results.queryUuid,
                             id,
@@ -831,7 +896,7 @@ export function useAppSdkBridge({
                     }
 
                     // Track query result polling responses
-                    if (isQueryResultGet(method, path) && onQueryEvent) {
+                    if (isQueryResultGet(method, path)) {
                         const result = json.results;
                         // Re-key terminal events to the POST id so consumers
                         // see a single stable id across the pending →
@@ -848,18 +913,14 @@ export function useAppSdkBridge({
                             queryUuidToPostIdRef.current.delete(
                                 result.queryUuid,
                             );
-                            onQueryEvent({
+                            deliveryCapture?.onTerminal(result.queryUuid, {
+                                status: 'ready',
+                                rowCount: result.totalResults ?? null,
+                            });
+                            onQueryEvent?.({
+                                ...TERMINAL_EVENT_DEFAULTS,
                                 id: lifecycleId,
                                 timestamp: Date.now(),
-                                label: null,
-                                exploreName: '',
-                                dimensions: [],
-                                metrics: [],
-                                filters: {},
-                                sorts: [],
-                                tableCalculations: [],
-                                additionalMetrics: [],
-                                limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'ready',
                                 // Use totalResults (full row count across all
@@ -871,7 +932,6 @@ export function useAppSdkBridge({
                                     result.metadata?.performance
                                         ?.initialQueryExecutionMs ?? null,
                                 error: null,
-                                rawMetricQuery: null,
                             });
                         } else if (
                             result?.status === 'error' ||
@@ -880,24 +940,19 @@ export function useAppSdkBridge({
                             queryUuidToPostIdRef.current.delete(
                                 result.queryUuid,
                             );
-                            onQueryEvent({
+                            deliveryCapture?.onTerminal(result.queryUuid, {
+                                status: 'error',
+                                error: result.error ?? 'Query failed',
+                            });
+                            onQueryEvent?.({
+                                ...TERMINAL_EVENT_DEFAULTS,
                                 id: lifecycleId,
                                 timestamp: Date.now(),
-                                label: null,
-                                exploreName: '',
-                                dimensions: [],
-                                metrics: [],
-                                filters: {},
-                                sorts: [],
-                                tableCalculations: [],
-                                additionalMetrics: [],
-                                limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'error',
                                 rowCount: null,
                                 durationMs: null,
                                 error: result.error ?? 'Query failed',
-                                rawMetricQuery: null,
                             });
                         }
                     }
@@ -938,6 +993,8 @@ export function useAppSdkBridge({
             onSdkManifest,
             health.data,
             user.data,
+            deliveryCapture,
+            queryContextOverride,
         ],
     );
 

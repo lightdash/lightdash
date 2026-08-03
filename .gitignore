@@ -5,6 +5,9 @@
 .local/
 .worktrees/
 
+# Conductor workspace context (also keeps it out of Okteto file sync via .stignore)
+/.context/
+
 # dependencies
 node_modules/
 **/node_modules
@@ -39,6 +42,7 @@ lightdash_dev.yml
 /packages/frontend/sdk/dist
 /packages/common/dist
 /packages/backend/dist
+/packages/formula/dist
 /packages/cli/dist
 /packages/warehouses/dist
 /packages/sdk/dist
@@ -154,3 +158,12 @@ docs/superpowers/
 
 # Playground bundle builder venv
 scripts/playground-bundle/.venv/
+
+# Local pnpm store (also keeps it out of Okteto file sync via .stignore)
+.pnpm-store/
+
+# Heavy local paths already ignored via nested .gitignore or .git/info/exclude.
+# Repeated here because Okteto file sync (.stignore) only reads this root file.
+scripts/k8s-dev/terraform/.terraform/
+examples/metricflow-demo/.fusion/
+.claude/worktrees/

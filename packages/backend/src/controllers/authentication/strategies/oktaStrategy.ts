@@ -21,22 +21,12 @@ import { getLoginHint } from '../utils';
 const getIssuerHint = (req: Request) =>
     isString(req.query?.iss) ? req.query.iss : undefined;
 
-const createOpenIdUserFromUserInfo = (
+export const createOpenIdUserFromUserInfo = (
     userInfo: UserinfoResponse,
     issuer: string,
     issuerType: OpenIdIdentityIssuerType,
     fail: OpenIDClientOktaStrategy['fail'],
 ) => {
-    if (userInfo.email_verified === false) {
-        return fail(
-            {
-                message:
-                    'Authentication failed: email is not verified in OpenID profile.',
-            },
-            401,
-        );
-    }
-
     if (!userInfo.email || !userInfo.sub) {
         return fail(
             {
@@ -255,6 +245,7 @@ export class OpenIDClientOktaStrategy extends Strategy {
                                 ip: req.ip,
                                 userAgent: req.get('user-agent'),
                             },
+                            { emailVerified: userInfo.email_verified },
                         );
                     return this.success(user);
                 }

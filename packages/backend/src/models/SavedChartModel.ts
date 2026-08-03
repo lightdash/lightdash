@@ -478,6 +478,7 @@ export const createSavedChart = async (
         updatedByUser,
         spaceUuid,
         dashboardUuid,
+        colorPaletteUuid,
         slug,
         forceSlug,
     }: CreateSavedChart & {
@@ -510,6 +511,7 @@ export const createSavedChart = async (
                         ChartKind.VERTICAL_BAR,
                     last_version_updated_by_user_uuid: userUuid,
                     project_uuid: projectUuid,
+                    color_palette_uuid: colorPaletteUuid ?? null,
                     slug: forceSlug
                         ? slug
                         : await generateUniqueSlugScopedToProject(
@@ -1938,52 +1940,21 @@ export class SavedChartModel {
             .groupBy('saved_query_id')
             .as('latest');
 
-        return qb.unionAll([
-            // First part of UNION - charts in space
-            this.database
-                .select({
-                    saved_query_uuid: 'sq.saved_query_uuid',
-                    name: 'sq.name',
-                    saved_queries_version_id: 'latest.max_version_id',
-                    dashboard_uuid: 'sq.dashboard_uuid',
-                })
-                .from(`${SavedChartsTableName} as sq`)
-                .innerJoin(
-                    latestVersions,
-                    'latest.saved_query_id',
-                    'sq.saved_query_id',
-                )
-                .innerJoin(
-                    `${SpaceTableName} as s`,
-                    's.space_id',
-                    'sq.space_id',
-                )
-                .where('sq.project_uuid', projectUuid)
-                .whereNull('sq.deleted_at'),
-
-            // Second part of UNION - charts saved inside dashboards
-            this.database
-                .select({
-                    saved_query_uuid: 'sq.saved_query_uuid',
-                    name: 'sq.name',
-                    saved_queries_version_id: 'latest.max_version_id',
-                    dashboard_uuid: 'sq.dashboard_uuid',
-                })
-                .from(`${SavedChartsTableName} as sq`)
-                .innerJoin(
-                    latestVersions,
-                    'latest.saved_query_id',
-                    'sq.saved_query_id',
-                )
-                .innerJoin(
-                    `${DashboardsTableName} as d`,
-                    'd.dashboard_uuid',
-                    'sq.dashboard_uuid',
-                )
-                .innerJoin(`${SpaceTableName} as s`, 's.space_id', 'd.space_id')
-                .where('sq.project_uuid', projectUuid)
-                .whereNull('sq.deleted_at'),
-        ]);
+        return qb
+            .select({
+                saved_query_uuid: 'sq.saved_query_uuid',
+                name: 'sq.name',
+                saved_queries_version_id: 'latest.max_version_id',
+                dashboard_uuid: 'sq.dashboard_uuid',
+            })
+            .from(`${SavedChartsTableName} as sq`)
+            .innerJoin(
+                latestVersions,
+                'latest.saved_query_id',
+                'sq.saved_query_id',
+            )
+            .where('sq.project_uuid', projectUuid)
+            .whereNull('sq.deleted_at');
     }
 
     async findChartsForValidation(

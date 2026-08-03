@@ -51,6 +51,14 @@ instance_pm2_names() {
     done
 }
 
+# One name per call: `pm2 delete a b c` aborts at the first name it cannot
+# find, silently leaving every later one running.
+delete_instance_pm2() {
+    for name in $(instance_pm2_names); do
+        pm2 delete "$name" >/dev/null 2>&1 || true
+    done
+}
+
 dotenv_args() {
     if [ "$EE_MODE" = true ]; then
         echo "-e .env.development.local -e .env.development"
@@ -536,8 +544,8 @@ else
     if [ -n "$STALE_IMPORTS" ]; then
         echo "Stale imports in routes.ts:$STALE_IMPORTS"
         echo "Regenerating API artifacts..."
-        pnpm generate-api:fast >/dev/null 2>&1 \
-            || fail "generate-api" "pnpm generate-api:fast failed while regenerating stale routes.ts"
+        pnpm generate-api >/dev/null 2>&1 \
+            || fail "generate-api" "pnpm generate-api failed while regenerating stale routes.ts"
         echo "OK: regenerated API artifacts"
     else
         echo "OK: generated routes resolve"
@@ -561,15 +569,13 @@ if mine:
 " 2>/dev/null || true)"
 if [ -n "$RUNNING_CWD" ] && [ "$RUNNING_CWD" != "$(pwd)" ]; then
     echo "Instance PM2 was running from $RUNNING_CWD — switching to this worktree"
-    # shellcheck disable=SC2046
-    pm2 delete $(instance_pm2_names) >/dev/null 2>&1 || true
+    delete_instance_pm2
 elif [ "${ENV_PORTS_CHANGED:-0}" = 1 ]; then
     # Ports were reconciled but procs may already be online with the stale env.
     # PM2 caches env at spawn time, so delete+start is required (restart --update-env
     # only inherits the current shell, not the .env file).
     echo "Env ports changed — recycling PM2 so the new env is picked up"
-    # shellcheck disable=SC2046
-    pm2 delete $(instance_pm2_names) >/dev/null 2>&1 || true
+    delete_instance_pm2
 fi
 if [ "$SDK_TEST_MODE" = true ]; then
     export LD_ENABLE_SDK_TEST=true

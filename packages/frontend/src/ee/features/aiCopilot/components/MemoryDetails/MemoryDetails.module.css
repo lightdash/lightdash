@@ -1,20 +1,19 @@
+/* Owns its own padding so the column divider reaches the container's edges and
+   meets the header rule above it */
 .layout {
     display: grid;
+    min-height: 100%;
     grid-template-columns: minmax(0, 1fr) 1px 232px;
-    gap: 28px;
     align-items: stretch;
 }
 
 .main {
     min-width: 0;
+    padding: 20px 28px 28px 24px;
 }
 
-.modalTitle {
-    color: var(--mantine-color-ldGray-9);
-    font-size: 16px;
-    font-weight: 550;
-    letter-spacing: -0.014em;
-    line-height: 1.4;
+.statusCalloutText {
+    font-size: var(--mantine-font-size-xs);
 }
 
 .sectionLabel {
@@ -152,6 +151,7 @@
     align-self: start;
     position: sticky;
     top: 0;
+    padding: 20px 24px 28px 28px;
 }
 
 .railRow {
@@ -242,7 +242,10 @@
 @media (max-width: 820px) {
     .layout {
         grid-template-columns: minmax(0, 1fr);
-        gap: var(--mantine-spacing-xl);
+    }
+
+    .main {
+        padding: 20px 18px 24px;
     }
 
     .divider {
@@ -251,7 +254,7 @@
 
     .rail {
         position: static;
-        padding-top: var(--mantine-spacing-xl);
+        padding: 20px 18px 24px;
         border-top: 1px solid var(--mantine-color-ldGray-2);
     }
 }

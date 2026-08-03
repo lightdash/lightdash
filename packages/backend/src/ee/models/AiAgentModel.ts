@@ -6470,14 +6470,17 @@ export class AiAgentModel {
         }
     }
 
-    async getToolCallsAndResultsForPrompt(promptUuid: string): Promise<
+    async getToolCallsAndResultsForPrompt(
+        promptUuid: string,
+        options: { includeSubagentToolCalls?: boolean } = {},
+    ): Promise<
         Array<{
             toolCall: AiAgentToolCall;
             toolResult: AiAgentToolResult | null;
             approvalDecision: AiSqlApprovalDecision | null;
         }>
     > {
-        const rows = await this.database(AiAgentToolCallTableName)
+        const query = this.database(AiAgentToolCallTableName)
             .select<
                 Array<
                     DbAiAgentToolCall & {
@@ -6496,11 +6499,17 @@ export class AiAgentModel {
                 `${AiAgentToolResultTableName}.created_at as result_created_at`,
                 `${AiSqlApprovalTableName}.decision as approval_decision`,
             )
-            .leftJoin(
-                AiAgentToolResultTableName,
-                `${AiAgentToolCallTableName}.tool_call_id`,
-                `${AiAgentToolResultTableName}.tool_call_id`,
-            )
+            .leftJoin(AiAgentToolResultTableName, function joinToolResult() {
+                this.on(
+                    `${AiAgentToolCallTableName}.tool_call_id`,
+                    '=',
+                    `${AiAgentToolResultTableName}.tool_call_id`,
+                ).andOn(
+                    `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                    '=',
+                    `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                );
+            })
             // Tool calls awaiting/granted SQL approval may have no result yet —
             // join the decision so history reconstruction can replay the
             // native approval request/response parts.
@@ -6510,11 +6519,18 @@ export class AiAgentModel {
                 `${AiSqlApprovalTableName}.tool_call_id`,
             )
             .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
-            // Subagent children are stored with `parent_tool_call_id` set so the
-            // thread viewer can render them nested. Exclude them from rebuilt
-            // model history — the parent tool's compact result is the handoff.
-            .whereNull(`${AiAgentToolCallTableName}.parent_tool_call_id`)
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
+        // Subagent children are stored with `parent_tool_call_id` set so the
+        // thread viewer can render them nested. Exclude them from rebuilt
+        // model history — the parent tool's compact result is the handoff.
+        // Deep Research provenance opts back in: chart evidence produced by
+        // investigator subagents lives in child rows.
+        if (!options.includeSubagentToolCalls) {
+            void query.whereNull(
+                `${AiAgentToolCallTableName}.parent_tool_call_id`,
+            );
+        }
+        const rows = await query;
 
         return rows
             .filter(

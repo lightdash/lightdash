@@ -3,12 +3,16 @@ import {
     Account,
     AiAgentWithContext,
     AiResultType,
+    AiWritebackRunStatus,
+    aiWritebackRunStatusToMcpTaskStatus,
+    AiWritebackSource,
     AnyType,
     ApiKeyAccount,
     assertUnreachable,
     buildRunSqlDescription,
     ChartType,
     clearAgentToolDefinition,
+    clientSupportsMcpTasks,
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
@@ -24,6 +28,7 @@ import {
     findFieldsToolDefinition,
     ForbiddenError,
     getAiWritebackStatusToolDefinition,
+    getAiWritebackTaskStatusMessage,
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
     getErrorMessage,
@@ -42,11 +47,16 @@ import {
     listExploresToolDefinition,
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
+    MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
+    MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
     MCP_QUERY_POLL_INTERVAL_MS,
     MCP_QUERY_SYNC_WAIT_MS,
+    MCP_TASKS_EXTENSION_NAME,
+    McpCancelTaskResult,
+    McpCreateTaskResult,
+    McpGetTaskResult,
     mcpListProjectsToolDefinition,
     MetricQuery,
-    MissingConfigError,
     NotFoundError,
     OauthAccount,
     ParameterError,
@@ -80,6 +90,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 // eslint-disable-next-line import/extensions
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import {
+    CallToolResult,
+    CancelTaskRequestSchema,
+    ErrorCode,
+    GetTaskRequestSchema,
+    McpError,
     ServerNotification,
     ServerRequest,
     // eslint-disable-next-line import/extensions
@@ -88,6 +103,7 @@ import * as Sentry from '@sentry/node';
 import { stringify } from 'csv-stringify/sync';
 import fs from 'fs/promises';
 import path from 'path';
+import { validate as isValidUuid } from 'uuid';
 import { z } from 'zod';
 import {
     LightdashAnalytics,
@@ -105,6 +121,7 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { ContentVerificationService } from '../../../services/ContentVerificationService';
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { OAuthScope } from '../../../services/OAuthService/OAuthService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -1144,13 +1161,28 @@ export class McpService extends BaseService {
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
                 try {
-                    const { aiWritebackRunUuid } =
+                    const { aiWritebackRunUuid, createdAt, updatedAt } =
                         await this.aiWritebackService.enqueueWriteback({
                             user,
                             projectUuid,
                             prompt: args.prompt,
                             source: 'mcp',
                         });
+
+                    // Server-directed task augmentation (MCP Tasks extension):
+                    // only clients that declared the extension in this
+                    // request's _meta get a task handle instead of the legacy
+                    // uuid + poll-tool response.
+                    if (clientSupportsMcpTasks(extra._meta)) {
+                        return McpService.buildAiWritebackCreateTaskResult(
+                            aiWritebackRunUuid,
+                            createdAt,
+                            updatedAt,
+                            // The SDK types tool results as CallToolResult; the
+                            // tasks extension replaces it with a CreateTaskResult,
+                            // which the SDK passes through unvalidated.
+                        ) as unknown as CallToolResult;
+                    }
 
                     return await this.buildScopedResponse(
                         ctx,
@@ -1208,6 +1240,8 @@ export class McpService extends BaseService {
                             : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
                     } else if (status === 'error') {
                         summary = `AI writeback failed: ${errorMessage ?? 'unknown error'}`;
+                    } else if (status === 'cancelled') {
+                        summary = 'AI writeback cancelled.';
                     } else {
                         summary = `AI writeback still running (stage: ${status}). Check back in 10-15 seconds.`;
                     }
@@ -1236,6 +1270,244 @@ export class McpService extends BaseService {
                 }
             },
         );
+    }
+
+    /**
+     * MCP Tasks extension (io.modelcontextprotocol/tasks) surface for AI
+     * writeback runs: tasks/get and tasks/cancel handlers backed by the
+     * ai_writeback_run rows, with the run uuid doubling as the taskId. The
+     * installed SDK predates the 2026-07-28 extension, so the handlers are
+     * registered as raw JSON-RPC request handlers and the responses are
+     * shaped by hand.
+     */
+    private registerAiWritebackTaskHandlers(): void {
+        // The SDK refuses tasks/* request handlers unless a core `tasks`
+        // capability is registered, so it unavoidably appears on the wire
+        // even though this server speaks the 2026-07-28 extension shapes,
+        // not the SDK's draft-era task protocol. Draft-era clients are not
+        // drawn in by it in practice: the draft gates task-augmented calls
+        // on per-tool execution.taskSupport, which no tool here declares.
+        // Also advertise the extension itself (under `extensions` per the
+        // final SEP, and `experimental` for draft-era clients, mirroring
+        // the skills extension above).
+        this.mcpServer.server.registerCapabilities({
+            tasks: {},
+            experimental: {
+                [MCP_TASKS_EXTENSION_NAME]: {},
+            },
+            extensions: {
+                [MCP_TASKS_EXTENSION_NAME]: {},
+            },
+        });
+
+        this.mcpServer.server.setRequestHandler(
+            GetTaskRequestSchema,
+            async (request, extra) =>
+                this.handleGetAiWritebackTask(request.params.taskId, extra),
+        );
+
+        this.mcpServer.server.setRequestHandler(
+            CancelTaskRequestSchema,
+            async (request, extra) =>
+                this.handleCancelAiWritebackTask(request.params.taskId, extra),
+        );
+    }
+
+    private async handleGetAiWritebackTask(
+        taskId: string,
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): Promise<McpGetTaskResult> {
+        McpService.requireTasksCapability(extra);
+        const ctx = getMcpContext(extra);
+        const { user } = McpService.getAccount(ctx);
+
+        const snapshot = await this.getAiWritebackTaskSnapshot(user, taskId);
+        // The task namespace covers exactly the runs handles were issued for
+        // ('mcp'-sourced); other surfaces' runs read as not found here even
+        // though the legacy get_ai_writeback_status tool still serves them
+        if (snapshot.source !== 'mcp') {
+            throw McpService.taskNotFoundError(taskId);
+        }
+
+        const base: McpGetTaskResult = {
+            resultType: 'complete',
+            taskId,
+            status: aiWritebackRunStatusToMcpTaskStatus(snapshot.status),
+            statusMessage: getAiWritebackTaskStatusMessage(snapshot.status),
+            createdAt: snapshot.createdAt.toISOString(),
+            lastUpdatedAt: snapshot.updatedAt.toISOString(),
+            // Run rows are retained indefinitely, so the handle never expires
+            ttlMs: null,
+            pollIntervalMs: MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
+        };
+
+        switch (base.status) {
+            case 'working':
+            case 'cancelled':
+            case 'input_required':
+                return base;
+            case 'completed': {
+                // A run error is a tool-level failure: per the extension it
+                // is a completed task whose result carries isError: true —
+                // 'failed' is reserved for JSON-RPC protocol faults
+                const runFailed = snapshot.status === 'error';
+                let text: string;
+                if (runFailed) {
+                    text = `AI writeback failed: ${snapshot.errorMessage ?? 'unknown error'}`;
+                } else if (snapshot.prUrl) {
+                    text = `AI writeback complete. Pull request opened: ${snapshot.prUrl}`;
+                } else {
+                    text =
+                        'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                }
+                return {
+                    ...base,
+                    result: {
+                        content: [{ type: 'text', text }],
+                        structuredContent: {
+                            aiWritebackRunUuid: taskId,
+                            status: snapshot.status,
+                            prUrl: runFailed ? null : snapshot.prUrl,
+                            errorMessage: runFailed
+                                ? (snapshot.errorMessage ??
+                                  'AI writeback failed')
+                                : null,
+                        },
+                        isError: runFailed,
+                    },
+                };
+            }
+            case 'failed':
+                // Unreachable: run statuses never map to 'failed' (reserved
+                // for protocol faults), but the task vocabulary includes it
+                return base;
+            default:
+                return assertUnreachable(
+                    base.status,
+                    `Unknown MCP task status: ${base.status}`,
+                );
+        }
+    }
+
+    private async handleCancelAiWritebackTask(
+        taskId: string,
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): Promise<McpCancelTaskResult> {
+        McpService.requireTasksCapability(extra);
+        const ctx = getMcpContext(extra);
+        const { user } = McpService.getAccount(ctx);
+
+        let outcome: {
+            cancelled: boolean;
+            status: AiWritebackRunStatus;
+        };
+        if (!isValidUuid(taskId)) {
+            throw McpService.taskNotFoundError(taskId);
+        }
+        try {
+            outcome = await this.aiWritebackService.cancelRun(user, taskId);
+        } catch (error) {
+            throw McpService.toTaskProtocolError(error, taskId);
+        }
+
+        if (!outcome.cancelled) {
+            const taskStatus = aiWritebackRunStatusToMcpTaskStatus(
+                outcome.status,
+            );
+            // Cancellation lost the finalize claim: the run is still working
+            // but its git side effects are underway and can't be recalled
+            if (taskStatus === 'working') {
+                throw new McpError(
+                    ErrorCode.InvalidParams,
+                    `Task ${taskId} can no longer be cancelled: its pull request is being finalized`,
+                );
+            }
+            throw new McpError(
+                ErrorCode.InvalidParams,
+                `Task ${taskId} is already in terminal status '${taskStatus}' and cannot be cancelled`,
+            );
+        }
+
+        return { resultType: 'complete' };
+    }
+
+    /**
+     * The extension mandates -32003 for tasks/* requests from clients that
+     * did not declare the tasks capability in this request's _meta.
+     */
+    private static requireTasksCapability(
+        extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+    ): void {
+        if (!clientSupportsMcpTasks(extra._meta)) {
+            throw new McpError(
+                MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
+                `This request requires the ${MCP_TASKS_EXTENSION_NAME} capability to be declared in the request's _meta`,
+                {
+                    requiredCapabilities: {
+                        extensions: { [MCP_TASKS_EXTENSION_NAME]: {} },
+                    },
+                },
+            );
+        }
+    }
+
+    /**
+     * Resolves a taskId to its writeback run snapshot, normalizing every
+     * lookup/authorization failure to the same task-not-found protocol error
+     * so foreign task ids don't leak run existence.
+     */
+    private async getAiWritebackTaskSnapshot(
+        user: SessionUser,
+        taskId: string,
+    ): Promise<{
+        status: AiWritebackRunStatus;
+        prUrl: string | null;
+        errorMessage: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        source: AiWritebackSource;
+    }> {
+        if (!isValidUuid(taskId)) {
+            throw McpService.taskNotFoundError(taskId);
+        }
+        try {
+            return await this.aiWritebackService.getRunSnapshot(user, taskId);
+        } catch (error) {
+            throw McpService.toTaskProtocolError(error, taskId);
+        }
+    }
+
+    private static taskNotFoundError(taskId: string): McpError {
+        return new McpError(
+            ErrorCode.InvalidParams,
+            `Task ${taskId} not found`,
+        );
+    }
+
+    private static toTaskProtocolError(error: unknown, taskId: string): Error {
+        if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+            return McpService.taskNotFoundError(taskId);
+        }
+        return error instanceof Error ? error : new Error(String(error));
+    }
+
+    private static buildAiWritebackCreateTaskResult(
+        aiWritebackRunUuid: string,
+        createdAt: Date,
+        updatedAt: Date,
+    ): McpCreateTaskResult {
+        return {
+            resultType: 'task',
+            taskId: aiWritebackRunUuid,
+            status: 'working',
+            statusMessage: getAiWritebackTaskStatusMessage('pending'),
+            // Row timestamps, so the handle matches what tasks/get reports
+            createdAt: createdAt.toISOString(),
+            lastUpdatedAt: updatedAt.toISOString(),
+            // Run rows are retained indefinitely, so the handle never expires
+            ttlMs: null,
+            pollIntervalMs: MCP_AI_WRITEBACK_TASK_POLL_INTERVAL_MS,
+        };
     }
 
     private registerContentWriteTools(): void {
@@ -2934,6 +3206,7 @@ export class McpService extends BaseService {
         if (options.aiWritebackEnabled) {
             this.registerRunAiWritebackTool();
             this.registerGetAiWritebackStatusTool();
+            this.registerAiWritebackTaskHandlers();
         }
 
         this.mcpServer.registerPrompt(
@@ -3469,29 +3742,15 @@ export class McpService extends BaseService {
         return { user, account, organizationUuid: user.organizationUuid };
     }
 
-    public canAccessMcp(context: McpProtocolContext): boolean {
-        if (!context.authInfo) {
-            throw new ForbiddenError('Invalid authInfo context');
-        }
-
-        const user = context.authInfo.extra?.user;
-        const account = context.authInfo.extra?.account;
-
-        // TODO replace with CASL ability check
-        // Do not enforce client scopes for now until more MCP clients support this
-        /*
-        //const { scopes } = account.authentication;
-
-        if (
-            !scopes.includes(OAuthScope.MCP_READ) &&
-            !scopes.includes(OAuthScope.MCP_WRITE)
-        ) {
-            throw new ForbiddenError('You are not allowed to access MCP');
-        }
-        */
-
-        if (!this.lightdashConfig.mcp.enabled) {
-            throw new MissingConfigError('MCP is not enabled');
+    public canAccessMcp(account: Account): boolean {
+        if (account.authentication.type === 'oauth') {
+            const { scopes } = account.authentication;
+            if (
+                !scopes.includes(OAuthScope.MCP_READ) &&
+                !scopes.includes(OAuthScope.MCP_WRITE)
+            ) {
+                throw new ForbiddenError('You are not allowed to access MCP');
+            }
         }
 
         return true;
@@ -3611,7 +3870,8 @@ export class McpService extends BaseService {
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {
-        this.canAccessMcp(context);
+        const { account } = McpService.getAccount(context);
+        this.canAccessMcp(account);
         return VERSION;
     }
 

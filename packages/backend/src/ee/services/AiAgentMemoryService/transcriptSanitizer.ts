@@ -1,9 +1,10 @@
 import { type UUID } from '@lightdash/common';
 import { stripMemoryCitations } from '../ai/utils/memoryCitation';
+import {
+    transformToolForDistill,
+    type DistillToolOutput,
+} from './transcriptToolPolicy';
 
-const TOOL_RESULT_LIMIT = 6_000;
-const TOOL_RESULT_HEAD = 4_500;
-const TOOL_RESULT_TAIL = 1_500;
 const UUID_PATTERN = /\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\b/gi;
 
 export type TranscriptTool = {
@@ -11,6 +12,7 @@ export type TranscriptTool = {
     name: string;
     args: unknown;
     result: string | null;
+    resultIsError: boolean;
     source: 'lightdash' | 'mcp';
 };
 
@@ -22,6 +24,8 @@ export type TranscriptTurn = {
     errorMessage: string | null;
     respondedAt: Date | null;
     interrupted: boolean;
+    feedback: { score: number; comment: string | null } | null;
+    steers: string[];
     tools: TranscriptTool[];
 };
 
@@ -33,26 +37,17 @@ export type TranscriptThread = {
     turns: TranscriptTurn[];
 };
 
-type SanitizedToolResult = {
-    content: string;
-    truncated: boolean;
-    omittedChars: number;
-};
-
-type SanitizedTranscript = {
+export type DistillTranscript = {
     createdFrom: string;
     turns: Array<{
         index: number;
-        status: 'error' | 'interrupted' | 'success' | 'uncertain';
         user: string;
-        tools: Array<{
-            source: TranscriptTool['source'];
-            name: string;
-            args: unknown;
-            result: SanitizedToolResult | null;
-        }>;
-        assistant: string;
-        error: string | null;
+        delivery?: 'errored' | 'interrupted' | 'uncertain';
+        tools?: DistillToolOutput[];
+        assistant?: string;
+        error?: string;
+        feedback?: { score: number; comment?: string };
+        steers?: string[];
     }>;
 };
 
@@ -76,44 +71,55 @@ const sanitizeUnknown = (value: unknown): unknown => {
     return value;
 };
 
-const sanitizeToolResult = (rawValue: string): SanitizedToolResult => {
-    const value = sanitizeText(rawValue);
-    if (value.length <= TOOL_RESULT_LIMIT) {
-        return { content: value, truncated: false, omittedChars: 0 };
-    }
-    const omittedChars = value.length - TOOL_RESULT_HEAD - TOOL_RESULT_TAIL;
-    return {
-        content: `${value.slice(0, TOOL_RESULT_HEAD)}\n${value.slice(-TOOL_RESULT_TAIL)}`,
-        truncated: true,
-        omittedChars,
-    };
-};
-
-export const sanitizeThread = (
+export const sanitizeThread = async (
     thread: TranscriptThread,
-): SanitizedTranscript => ({
+    options: { onUnknownTool?: (toolName: string) => void } = {},
+): Promise<DistillTranscript> => ({
     createdFrom: thread.createdFrom,
-    turns: thread.turns.map((turn, index) => {
-        let status: 'error' | 'interrupted' | 'success' | 'uncertain' =
-            'uncertain';
-        if (turn.interrupted) status = 'interrupted';
-        else if (turn.errorMessage) status = 'error';
-        else if (turn.respondedAt && turn.assistantText) status = 'success';
+    turns: await Promise.all(
+        thread.turns.map(async (turn, index) => {
+            let delivery: 'errored' | 'interrupted' | 'uncertain' | undefined;
+            if (turn.interrupted) delivery = 'interrupted';
+            else if (turn.errorMessage) delivery = 'errored';
+            else if (!turn.respondedAt || !turn.assistantText)
+                delivery = 'uncertain';
 
-        return {
-            index: index + 1,
-            status,
-            user: sanitizeText(turn.userText),
-            tools: turn.tools.map((tool) => ({
-                source: tool.source,
-                name: tool.name,
-                args: sanitizeUnknown(tool.args),
-                result: tool.result ? sanitizeToolResult(tool.result) : null,
-            })),
-            assistant: turn.assistantText
-                ? sanitizeText(turn.assistantText)
-                : '',
-            error: turn.errorMessage ? sanitizeText(turn.errorMessage) : null,
-        };
-    }),
+            const tools = (
+                await Promise.all(
+                    turn.tools.map((tool) =>
+                        transformToolForDistill(tool, {
+                            sanitizeText,
+                            sanitizeUnknown,
+                            onUnknownTool: options.onUnknownTool,
+                        }),
+                    ),
+                )
+            ).filter((tool): tool is DistillToolOutput => tool !== null);
+            const feedback =
+                turn.feedback && turn.feedback.score !== 0
+                    ? {
+                          score: turn.feedback.score,
+                          ...(turn.feedback.comment
+                              ? { comment: sanitizeText(turn.feedback.comment) }
+                              : {}),
+                      }
+                    : undefined;
+            const steers = turn.steers.map(sanitizeText);
+
+            return {
+                index: index + 1,
+                user: sanitizeText(turn.userText),
+                ...(delivery ? { delivery } : {}),
+                ...(tools.length > 0 ? { tools } : {}),
+                ...(turn.assistantText
+                    ? { assistant: sanitizeText(turn.assistantText) }
+                    : {}),
+                ...(turn.errorMessage
+                    ? { error: sanitizeText(turn.errorMessage) }
+                    : {}),
+                ...(feedback ? { feedback } : {}),
+                ...(steers.length > 0 ? { steers } : {}),
+            };
+        }),
+    ),
 });

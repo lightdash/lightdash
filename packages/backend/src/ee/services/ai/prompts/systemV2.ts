@@ -7,7 +7,10 @@ import {
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
 import { AiAgentSkillReference } from '../skills/types';
-import { AiAgentRequestingUser } from '../types/aiAgent';
+import {
+    AiAgentDeepResearchRunContext,
+    AiAgentRequestingUser,
+} from '../types/aiAgent';
 import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
@@ -38,6 +41,7 @@ export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
     availableSkills?: AiAgentSkillReference[];
     knowledgeDocuments?: AiAgentDocumentContext[];
+    deepResearchRuns?: AiAgentDeepResearchRunContext[];
     hasProjectContext?: boolean;
     instructions?: string;
     agentName?: string;
@@ -67,6 +71,7 @@ export const getSystemPromptV2 = (args: {
     // runSql's own max, quoted in its prompt section.
     runSqlMaxLimit?: number;
     unauthenticatedMcpServerNames?: string[];
+    mcpServers?: Array<{ name: string; toolNames: string[] }>;
 }): SystemModelMessage => {
     const {
         instructions,
@@ -90,6 +95,7 @@ export const getSystemPromptV2 = (args: {
         warehouseSchema = null,
         runSqlMaxLimit,
         unauthenticatedMcpServerNames = [],
+        mcpServers = [],
     } = args;
 
     const crossExploreJoinRule = canRunSql
@@ -150,6 +156,41 @@ export const getSystemPromptV2 = (args: {
         knowledgeDocuments.length === 0
             ? 'No knowledge documents have been curated for this agent.'
             : knowledgeDocuments.map(renderKnowledgeDocument).join('\n');
+
+    const deepResearchRuns = args.deepResearchRuns ?? [];
+    const deepResearchContent =
+        deepResearchRuns.length === 0
+            ? ''
+            : [
+                  '## Deep Research in this conversation',
+                  'This state is current for this user turn. Treat active progress separately from report findings. Never claim unfinished findings are available, implicitly start a duplicate run, or offer to cancel, restart, or modify a run.',
+                  'For questions about report findings, call `listKnowledgeDocuments`, identify the matching Deep Research report, then call `getKnowledgeDocumentContent`. If more than one report could match, ask which research question the user means.',
+                  xmlBuilder(
+                      'deep_research_runs',
+                      { count: deepResearchRuns.length },
+                      ...deepResearchRuns.map((run) =>
+                          xmlBuilder(
+                              'deep_research_run',
+                              {
+                                  uuid: run.uuid,
+                                  status: run.status,
+                                  phase: run.phase,
+                                  activity: run.activity,
+                                  progress_current: run.progressCurrent,
+                                  progress_total: run.progressTotal,
+                                  started_at: run.startedAt,
+                                  elapsed_seconds: run.elapsedSeconds,
+                                  report_available: run.hasReport,
+                              },
+                              xmlBuilder(
+                                  'question',
+                                  null,
+                                  escapeXmlText(run.question),
+                              ),
+                          ),
+                      ),
+                  ),
+              ].join('\n');
 
     const projectContextContent = args.hasProjectContext
         ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
@@ -255,6 +296,24 @@ export const getSystemPromptV2 = (args: {
                   )
                   .join('\n')}`
             : '';
+    const hasLiveMcpTools = mcpServers.some(
+        ({ toolNames }) => toolNames.length > 0,
+    );
+    const mcpToolsSection =
+        mcpServers.length > 0
+            ? [
+                  '## MCP tools',
+                  ...(hasLiveMcpTools
+                      ? [
+                            'MCP tool definitions are loaded on demand. You MUST call `loadMcpTools` with the exact names you need before calling any unloaded MCP tool. Never guess a tool input from its name. Loaded tools remain available for this thread.',
+                        ]
+                      : []),
+                  ...mcpServers.map(
+                      ({ name, toolNames }) =>
+                          `- ${name}: ${[...toolNames].sort().join(', ') || '(no tools available)'}`,
+                  ),
+              ].join('\n')
+            : '';
 
     // Experimental: when grepFields replaces discoverFields, override the
     // discovery guidance so the agent greps the field catalog itself.
@@ -276,7 +335,9 @@ export const getSystemPromptV2 = (args: {
 
     const finalContent = [
         content,
+        deepResearchContent,
         grepFieldsSection,
+        mcpToolsSection,
         mcpConnectionsSection,
         skillsSection,
     ]

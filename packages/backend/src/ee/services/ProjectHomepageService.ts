@@ -6,9 +6,9 @@ import {
     defaultHomepageConfig,
     ForbiddenError,
     getErrorMessage,
-    HOMEPAGE_MAX_BLOCKS_PER_ROW,
     NotFoundError,
     ParameterError,
+    parseHomepageConfig,
     type AnnouncementsPage,
     type CreateAnnouncementRequest,
     type CreateProjectHomepageRequest,
@@ -184,7 +184,7 @@ export type ProjectHomepageServiceArguments = {
     >;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
-    projectModel: Pick<ProjectModel, 'getProjectMemberAccess'>;
+    projectModel: Pick<ProjectModel, 'getProjectMemberAccess' | 'getSummary'>;
     fileStorageClient: FileStorageClient;
     persistentDownloadFileService: PersistentDownloadFileService;
     slackClient: Pick<SlackClient, 'postMessage'>;
@@ -237,16 +237,21 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
-    private assertCanView(user: SessionUser, projectUuid: string): void {
+    private async assertCanView(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(user);
         if (
             ability.cannot(
                 'view',
                 subject('Project', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid,
                     projectUuid,
                 }),
             )
@@ -255,16 +260,21 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
-    private assertCanManage(user: SessionUser, projectUuid: string): void {
+    private async assertCanManage(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(user);
         if (
             ability.cannot(
                 'manage',
                 subject('ProjectHomepage', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid,
                     projectUuid,
                 }),
             )
@@ -275,16 +285,14 @@ export class ProjectHomepageService extends BaseService {
         }
     }
 
-    private static validateConfig(config: HomepageConfig): void {
-        if (config.version !== 1) {
-            throw new ParameterError('Unsupported homepage config version');
-        }
-        const oversizedRow = config.rows.find(
-            (row) => row.blocks.length > HOMEPAGE_MAX_BLOCKS_PER_ROW,
-        );
-        if (oversizedRow) {
+    /** Strict schema parse: validates the block union, strips unknown
+     * properties before they reach storage, enforces the row block cap. */
+    private static validateConfig(config: HomepageConfig): HomepageConfig {
+        try {
+            return parseHomepageConfig(config);
+        } catch (e) {
             throw new ParameterError(
-                `Rows support at most ${HOMEPAGE_MAX_BLOCKS_PER_ROW} blocks`,
+                e instanceof Error ? e.message : 'Invalid homepage config',
             );
         }
     }
@@ -350,7 +358,7 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
     ): Promise<ResolvedHomepage | null> {
         await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
+        await this.assertCanView(user, projectUuid);
         const viewer = await this.getViewerContext(
             user.organizationUuid,
             projectUuid,
@@ -366,7 +374,7 @@ export class ProjectHomepageService extends BaseService {
         target: HomepageViewAsTarget,
     ): Promise<HomepageViewAsResult> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         switch (target.type) {
             case 'user': {
                 const viewer = await this.getViewerContext(
@@ -396,7 +404,7 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
     ): Promise<HomepageAssignment[]> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         return this.projectHomepageModel.getAssignments(projectUuid);
     }
 
@@ -406,7 +414,7 @@ export class ProjectHomepageService extends BaseService {
         groupUuids: string[],
     ): Promise<void> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         await this.projectHomepageModel.updateGroupPriorities(
             projectUuid,
             groupUuids,
@@ -418,7 +426,7 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
     ): Promise<HomepageRecentlyViewedItem[]> {
         await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
+        await this.assertCanView(user, projectUuid);
         return this.projectHomepageModel.getRecentlyViewed(
             projectUuid,
             user.userUuid,
@@ -431,7 +439,7 @@ export class ProjectHomepageService extends BaseService {
         homepageUuid?: string,
     ): Promise<ProjectHomepage | null> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         if (homepageUuid) {
             return this.getOwnedHomepage(projectUuid, homepageUuid);
         }
@@ -447,7 +455,7 @@ export class ProjectHomepageService extends BaseService {
         projectUuid: string,
     ): Promise<ProjectHomepage[]> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         return this.projectHomepageModel.list(projectUuid);
     }
 
@@ -457,7 +465,7 @@ export class ProjectHomepageService extends BaseService {
         data: CreateProjectHomepageRequest,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         const draftConfig = data.duplicateFrom
             ? (await this.getOwnedHomepage(projectUuid, data.duplicateFrom))
                   .draftConfig
@@ -476,7 +484,7 @@ export class ProjectHomepageService extends BaseService {
         homepageUuid: string,
     ): Promise<void> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         await this.getOwnedHomepage(projectUuid, homepageUuid);
         await this.projectHomepageModel.delete(homepageUuid);
     }
@@ -488,12 +496,14 @@ export class ProjectHomepageService extends BaseService {
         data: UpdateProjectHomepageDraftRequest,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
-        ProjectHomepageService.validateConfig(data.draftConfig);
+        await this.assertCanManage(user, projectUuid);
+        const draftConfig = ProjectHomepageService.validateConfig(
+            data.draftConfig,
+        );
         await this.getOwnedHomepage(projectUuid, homepageUuid);
         return this.projectHomepageModel.updateDraft(homepageUuid, {
             name: data.name,
-            draftConfig: data.draftConfig,
+            draftConfig,
             baseUpdatedAt: data.baseUpdatedAt,
         });
     }
@@ -504,7 +514,7 @@ export class ProjectHomepageService extends BaseService {
         homepageUuid: string,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         await this.getOwnedHomepage(projectUuid, homepageUuid);
         return this.projectHomepageModel.discardDraft(homepageUuid);
     }
@@ -516,7 +526,7 @@ export class ProjectHomepageService extends BaseService {
         audience: HomepageAudience,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         await this.getOwnedHomepage(projectUuid, homepageUuid);
         const published = await this.projectHomepageModel.publish(
             homepageUuid,
@@ -556,7 +566,7 @@ export class ProjectHomepageService extends BaseService {
         url: string,
     ): Promise<HomepageLinkMetadata> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
 
         const provider = classifyResourceUrl(url);
         try {
@@ -644,7 +654,7 @@ export class ProjectHomepageService extends BaseService {
         },
     ): Promise<AnnouncementsPage> {
         await this.assertFlagEnabled(user);
-        this.assertCanView(user, projectUuid);
+        await this.assertCanView(user, projectUuid);
         if (
             options.page < 1 ||
             options.pageSize < 1 ||
@@ -654,7 +664,7 @@ export class ProjectHomepageService extends BaseService {
         }
         // Drafts are only ever visible to someone who can manage the homepage.
         if (options.includeUnpublished) {
-            this.assertCanManage(user, projectUuid);
+            await this.assertCanManage(user, projectUuid);
         }
         return this.projectHomepageModel.listAnnouncements(
             projectUuid,
@@ -781,7 +791,7 @@ export class ProjectHomepageService extends BaseService {
         data: CreateAnnouncementRequest,
     ): Promise<ProjectAnnouncement> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         ProjectHomepageService.validateAnnouncementTitle(data.title);
         ProjectHomepageService.validateAnnouncementBody(data.body);
         if (data.slackChannelId) {
@@ -808,7 +818,7 @@ export class ProjectHomepageService extends BaseService {
         update: UpdateAnnouncementRequest,
     ): Promise<ProjectAnnouncement> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         const announcement = await this.getOwnedAnnouncement(
             projectUuid,
             announcementUuid,
@@ -874,7 +884,7 @@ export class ProjectHomepageService extends BaseService {
         announcementUuid: string,
     ): Promise<void> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         const announcement = await this.getOwnedAnnouncement(
             projectUuid,
             announcementUuid,
@@ -956,7 +966,7 @@ export class ProjectHomepageService extends BaseService {
         contentLength: number,
     ): Promise<{ url: string }> {
         await this.assertFlagEnabled(user);
-        this.assertCanManage(user, projectUuid);
+        await this.assertCanManage(user, projectUuid);
         if (!user.organizationUuid) {
             throw new ForbiddenError();
         }

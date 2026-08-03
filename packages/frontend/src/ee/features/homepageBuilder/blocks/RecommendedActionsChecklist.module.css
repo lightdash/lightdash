@@ -4,11 +4,14 @@
     margin-inline: auto;
 }
 
+/* Held at the arrow buttons' height so the row measures the same whether or
+ * not the stack is big enough to show them */
 .headerRow {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    min-height: 22px;
 }
 
 .actionRow {

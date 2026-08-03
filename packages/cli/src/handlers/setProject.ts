@@ -143,7 +143,7 @@ export const setProjectHandler = async (options: SetProjectOptions) => {
     }
 };
 
-export const unsetProjectCommand = async () => {
+const unsetProjectCommand = async () => {
     await unsetProject();
     console.error(`\n  Project unset.\n`);
 };

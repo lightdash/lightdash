@@ -6,22 +6,9 @@ import { deepResearchRunFixture } from '../../deepResearch/fixtures';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import { DeepResearchThreadRuns } from './DeepResearchThreadRuns';
 
-const {
-    continueDeepResearchMock,
-    localRegistrationsMock,
-    useDeepResearchRunMock,
-} = vi.hoisted(() => ({
+const { continueDeepResearchMock, useDeepResearchRunMock } = vi.hoisted(() => ({
     continueDeepResearchMock: vi.fn(),
-    localRegistrationsMock: vi.fn(),
     useDeepResearchRunMock: vi.fn(),
-}));
-
-vi.mock('../../../../../hooks/user/useUser', () => ({
-    default: () => ({ data: { userUuid: 'user-1' } }),
-}));
-
-vi.mock('../../deepResearch/deepResearchRegistry', () => ({
-    useDeepResearchRunsForThread: localRegistrationsMock,
 }));
 
 vi.mock('../../hooks/useDeepResearch', () => ({
@@ -30,7 +17,6 @@ vi.mock('../../hooks/useDeepResearch', () => ({
         isLoading: false,
     }),
     useDeepResearchRun: useDeepResearchRunMock,
-    useDeepResearchThreadRuns: () => ({ data: [] }),
 }));
 
 vi.mock('./DeepResearchRunCard', () => ({
@@ -44,16 +30,13 @@ describe('DeepResearchThreadRuns', () => {
         agentUuid: 'agent-1',
         threadUuid: 'thread-1',
         promptUuid: 'prompt-1',
-        mcpServerUuids: ['mcp-1'],
         userUuid: 'user-1',
         question: 'Why did enterprise retention fall in Q2?',
-        depth: 'standard',
         createdAt: '2026-07-15T09:00:00.000Z',
         state: 'started',
     };
 
     beforeEach(() => {
-        localRegistrationsMock.mockReturnValue([registration]);
         continueDeepResearchMock.mockReset();
         useDeepResearchRunMock.mockReset();
     });
@@ -61,8 +44,7 @@ describe('DeepResearchThreadRuns', () => {
     const renderThreadRuns = (canRetry = false) =>
         renderWithProviders(
             <DeepResearchThreadRuns
-                projectUuid="project-1"
-                threadUuid="thread-1"
+                registrations={[registration]}
                 canRetry={canRetry}
             />,
         );
@@ -121,11 +103,13 @@ describe('DeepResearchThreadRuns', () => {
 
     it('does not retry a failed start while the thread is busy', async () => {
         const user = userEvent.setup();
-        localRegistrationsMock.mockReturnValue([
-            { ...registration, state: 'start_failed' },
-        ]);
 
-        renderThreadRuns(false);
+        renderWithProviders(
+            <DeepResearchThreadRuns
+                registrations={[{ ...registration, state: 'start_failed' }]}
+                canRetry={false}
+            />,
+        );
 
         const retryButton = screen.getByRole('button', { name: 'Try again' });
         expect(retryButton).toBeDisabled();
@@ -135,18 +119,18 @@ describe('DeepResearchThreadRuns', () => {
 
     it('retries a failed start with its original prompt while idle', async () => {
         const user = userEvent.setup();
-        localRegistrationsMock.mockReturnValue([
-            { ...registration, state: 'start_failed' },
-        ]);
 
-        renderThreadRuns(true);
+        renderWithProviders(
+            <DeepResearchThreadRuns
+                registrations={[{ ...registration, state: 'start_failed' }]}
+                canRetry
+            />,
+        );
         await user.click(screen.getByRole('button', { name: 'Try again' }));
 
         expect(continueDeepResearchMock).toHaveBeenCalledWith({
             question: registration.question,
-            depth: registration.depth,
             promptUuid: registration.promptUuid,
-            mcpServerUuids: registration.mcpServerUuids,
         });
     });
 });

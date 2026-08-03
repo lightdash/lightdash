@@ -1,7 +1,11 @@
 import {
     assertUnreachable,
+    collectionLimitOf,
+    collectionSourceOf,
     type HomepageBlock,
+    type HomepageCollectionBlock,
     type HomepageConfig,
+    type HomepageHeroDensity,
 } from '@lightdash/common';
 import { type BlockWidthTier, traitFor } from './blockLayout';
 
@@ -10,7 +14,7 @@ const GRID_COLUMNS = 12;
 
 // Only a single-block leading row of one of these types gets the day-0 style
 // vertically-centred hero treatment.
-const LEADING_HERO_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
+const LEADING_HERO_TYPES: HomepageBlock['type'][] = ['ask-ai-hero', 'greeting'];
 
 // Chrome-like rows that may sit above the composer without demoting it — they
 // join the hero composition instead (day-0 has its chips above the hero too).
@@ -21,8 +25,7 @@ const HERO_COMPANION_TYPES: HomepageBlock['type'][] = ['quick-actions'];
 export type RowGap = 'none' | 'grouped' | 'section';
 
 // 'viewport' = the hero is the only content, centred in the full viewport
-// (day-0 feel). 'shared' = body rows follow, so the hero yields part of the
-// viewport and the first row peeks above the fold.
+// (day-0 feel). 'shared' = body rows follow, so the hero shares the page.
 export type HeroPresentation = 'viewport' | 'shared';
 
 // 'intro' = a lone leading text block that opens the page and gets breathing
@@ -67,12 +70,13 @@ export type ResolvedRow = {
 };
 
 export type ResolvedLayout = {
-    // The leading hero composition, rendered vertically-centred above
-    // everything: optional chrome rows (quick-actions) + the composer row.
+    // The leading hero composition, rendered above everything: optional chrome
+    // rows (quick-actions) + the composer row.
     hero: {
         companions: ResolvedRow[];
         row: ResolvedRow;
         presentation: HeroPresentation;
+        density: HomepageHeroDensity;
     } | null;
     // Every other row, in order, with gaps derived from adjacency.
     rows: ResolvedRow[];
@@ -81,6 +85,60 @@ export type ResolvedLayout = {
 const isLeadingHero = (blocks: HomepageBlock[]): boolean =>
     blocks.length === 1 && LEADING_HERO_TYPES.includes(blocks[0].type);
 
+// The hero's vertical budget. An explicit choice always wins; otherwise a hero
+// with content below it stays compact so that content is actually visible, and
+// a hero that *is* the page keeps the full-viewport opening.
+const resolveHeroDensity = (
+    block: HomepageBlock,
+    hasBodyRows: boolean,
+): HomepageHeroDensity => {
+    const configured =
+        block.type === 'ask-ai-hero' || block.type === 'greeting'
+            ? block.config.density
+            : undefined;
+    if (configured) return configured;
+    return hasBodyRows ? 'compact' : 'full';
+};
+
+// One day-part greeting per page. The AI hero carries its own; a standalone
+// greeting block carries one too, so a page with both greets twice and pays
+// for the vertical space twice. First in reading order keeps it: a later hero
+// drops its built-in greeting, a later greeting block drops out entirely
+// (a greeting block with no greeting left has nothing to render).
+const dedupeGreetings = (
+    rows: HomepageConfig['rows'],
+): HomepageConfig['rows'] => {
+    let claimed = false;
+    return rows
+        .map((row) => ({
+            ...row,
+            blocks: row.blocks.flatMap((block): HomepageBlock[] => {
+                if (block.type === 'greeting') {
+                    if (claimed) return [];
+                    claimed = true;
+                    return [block];
+                }
+                if (block.type === 'ask-ai-hero' && block.config.showGreeting) {
+                    if (claimed) {
+                        return [
+                            {
+                                ...block,
+                                config: {
+                                    ...block.config,
+                                    showGreeting: false,
+                                },
+                            },
+                        ];
+                    }
+                    claimed = true;
+                    return [block];
+                }
+                return [block];
+            }),
+        }))
+        .filter((row) => row.blocks.length > 0);
+};
+
 // Blocks whose config makes them provably render nothing (their Views return
 // null). Config is persisted data that crosses code versions in both
 // directions during rolling deploys — reads tolerate missing fields rather
@@ -88,7 +146,14 @@ const isLeadingHero = (blocks: HomepageBlock[]): boolean =>
 // must not demote the hero, leave a phantom row gap, or hold a ghost column.
 const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
     switch (block.type) {
+        // A collection with a dynamic source has no items in config — what it
+        // will show is only knowable once its data lands, so it reports
+        // emptiness at runtime instead (see RuntimeEmptyBlocks).
         case 'collection':
+            return (
+                collectionSourceOf(block.config) === 'manual' &&
+                (block.config.items?.length ?? 0) === 0
+            );
         case 'resources':
         case 'metrics':
             return (block.config.items?.length ?? 0) === 0;
@@ -100,6 +165,7 @@ const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
         // announcements feed), not config — always treat as visible.
         case 'announcements':
         case 'ask-ai-hero':
+        case 'greeting':
         case 'favorites':
         case 'recent':
             return false;
@@ -120,9 +186,18 @@ const toVisibleRows = (rows: HomepageConfig['rows']): HomepageConfig['rows'] =>
 // column with its centred 3-col grid. With only 1-2 items the extra width is
 // just empty margin around a centred card, and it starves whatever it shares
 // the row with — so weight follows actual item count, not just block type.
+// A dynamic source has no config item count to read, so it's sized by the
+// limit it will fill up to.
+const collectionItemCount = (
+    config: HomepageCollectionBlock['config'],
+): number =>
+    collectionSourceOf(config) === 'manual'
+        ? (config.items?.length ?? 0)
+        : collectionLimitOf(config);
+
 const columnWeightFor = (block: HomepageBlock): number => {
     if (block.type === 'collection') {
-        return (block.config.items?.length ?? 0) >= 3 ? 2 : 1;
+        return collectionItemCount(block.config) >= 3 ? 2 : 1;
     }
     return traitFor(block.type).columnWeight;
 };
@@ -137,7 +212,7 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
         case 'metrics':
             return clampUnits(block.config.items?.length ?? 0, 4);
         case 'collection':
-            return clampUnits(block.config.items?.length ?? 0, 3);
+            return clampUnits(collectionItemCount(block.config), 3);
         // Resources render as a self-sizing list/media grid — natural width.
         case 'resources':
         case 'announcements':
@@ -146,6 +221,7 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
         case 'markdown':
         case 'quick-actions':
         case 'ask-ai-hero':
+        case 'greeting':
             return null;
         default:
             return assertUnreachable(block, 'Unknown homepage block type');
@@ -155,8 +231,9 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
 // How many items a block actually has, for blocks laid out on the page grid.
 const gridItemCountFor = (block: HomepageBlock): number => {
     switch (block.type) {
-        case 'metrics':
         case 'collection':
+            return collectionItemCount(block.config);
+        case 'metrics':
         case 'resources':
             return block.config.items?.length ?? 0;
         default:
@@ -244,14 +321,12 @@ const resolveRow = (
     const widthTier: BlockWidthTier = (() => {
         if (!single) return 'full';
         const tier = traitFor(row.blocks[0].type).widthTier;
-        // Build cards are editing surfaces and read as one column: a text
-        // block indented to its 680px reading measure beside a full-width
-        // metrics card leaves a ragged left edge, and published widths are
-        // what Preview is for. The composer is the exception — its width is
-        // its design, not a published measure. This changes no card span:
-        // every non-full tier either has no card grid, or (resources)
-        // resolves to the same span at both tiers.
-        if (isBuild && tier !== 'composer') return 'full';
+        // Build cards are editing surfaces and read as one column: a block
+        // indented to its published measure beside a full-width card leaves a
+        // ragged left edge, and published widths are what Preview is for. This
+        // changes no card span: every non-full tier either has no card grid,
+        // or (resources) resolves to the same span at both tiers.
+        if (isBuild) return 'full';
         return tier;
     })();
     const gap: RowGap = (() => {
@@ -303,7 +378,9 @@ const applyRowAlign = (rows: ResolvedRow[]): ResolvedRow[] => {
     );
     return rows.map((row) =>
         TIER_ORDER.indexOf(row.widthTier) < widest &&
-        !row.columns.some((column) => column.block.type === 'ask-ai-hero')
+        !row.columns.some((column) =>
+            LEADING_HERO_TYPES.includes(column.block.type),
+        )
             ? { ...row, align: 'start' as const }
             : row,
     );
@@ -338,7 +415,11 @@ export const resolveHomepageLayout = (
     opts: { surface: LayoutSurface } = { surface: 'view' },
 ): ResolvedLayout => {
     const isBuild = opts.surface === 'build';
-    const visibleRows = isBuild ? config.rows : toVisibleRows(config.rows);
+    // Build keeps every row/block 1:1 so nothing becomes un-editable — the
+    // greeting de-dup is a render-time concern.
+    const visibleRows = isBuild
+        ? config.rows
+        : dedupeGreetings(toVisibleRows(config.rows));
     // Leading chrome rows join the hero rather than demoting it: the composer
     // is still "leading" with a quick-actions strip above it.
     const composerIdx = visibleRows.findIndex(
@@ -357,7 +438,7 @@ export const resolveHomepageLayout = (
     const smoothed = applyRowAlign(applyItemSpans(smoothWidthTiers(resolved)));
     const rows = hasLeadingHero ? smoothed : applyIntroRole(smoothed);
     // A hero keeps the whole viewport only when it's alone; with body rows it
-    // yields so the first row peeks above the fold.
+    // sizes to its own content so the first row is visible without scrolling.
     const hero = hasLeadingHero
         ? {
               companions: visibleRows
@@ -366,6 +447,10 @@ export const resolveHomepageLayout = (
               row: resolveRow(composerRow, true, isBuild),
               presentation:
                   rows.length > 0 ? ('shared' as const) : ('viewport' as const),
+              density: resolveHeroDensity(
+                  composerRow.blocks[0],
+                  rows.length > 0,
+              ),
           }
         : null;
     return { hero, rows };

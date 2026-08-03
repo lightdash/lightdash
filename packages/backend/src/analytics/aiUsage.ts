@@ -1,3 +1,4 @@
+import type { AiDeepResearchPhase } from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 import type { EmbeddingModelUsage, LanguageModelUsage } from 'ai';
 import Logger from '../logging/logger';
@@ -11,6 +12,7 @@ type BaseTrack = Omit<AnalyticsTrack, 'context'>;
  */
 export type AiCallFeature =
     | 'agent'
+    | 'deep-research'
     | 'agent-subtask'
     | 'chart-metadata'
     | 'document-summary'
@@ -29,7 +31,8 @@ export type AiCallFeature =
     | 'ai-agent-memory'
     | 'llm-judge'
     | 'data-app'
-    | 'managed-agent';
+    | 'managed-agent'
+    | 'external-connection-config';
 
 /**
  * Whether the AI call ran on Lightdash's own (instance) provider key or the
@@ -68,14 +71,28 @@ export type AiUsageTokens = {
 // usage, and a missing field must never throw into the AI call path.
 export const languageModelUsageToTokens = (
     usage: LanguageModelUsage,
-): AiUsageTokens => ({
-    inputTokens: usage?.inputTokens ?? null,
-    outputTokens: usage?.outputTokens ?? null,
-    cacheReadTokens: usage?.inputTokenDetails?.cacheReadTokens ?? null,
-    cacheWriteTokens: usage?.inputTokenDetails?.cacheWriteTokens ?? null,
-    reasoningTokens: usage?.outputTokenDetails?.reasoningTokens ?? null,
-    totalTokens: usage?.totalTokens ?? null,
-});
+): AiUsageTokens => {
+    const inputTokens = usage?.inputTokens ?? null;
+    const cacheReadTokens = usage?.inputTokenDetails?.cacheReadTokens ?? null;
+    const cacheWriteTokens = usage?.inputTokenDetails?.cacheWriteTokens ?? null;
+    const noCacheTokens = usage?.inputTokenDetails?.noCacheTokens ?? null;
+    const normalizedInputTokens =
+        noCacheTokens ??
+        (inputTokens !== null &&
+        cacheReadTokens !== null &&
+        cacheWriteTokens !== null
+            ? inputTokens - cacheReadTokens - cacheWriteTokens
+            : null);
+
+    return {
+        inputTokens: normalizedInputTokens,
+        outputTokens: usage?.outputTokens ?? null,
+        cacheReadTokens,
+        cacheWriteTokens,
+        reasoningTokens: usage?.outputTokenDetails?.reasoningTokens ?? null,
+        totalTokens: usage?.totalTokens ?? null,
+    };
+};
 
 export const embeddingModelUsageToTokens = (
     usage: EmbeddingModelUsage,
@@ -112,6 +129,8 @@ export type AiUsageEvent = BaseTrack & {
         model: string | null;
         provider: string | null;
         keyManagement: AiKeyManagement | null;
+        deepResearchRunId: string | null;
+        deepResearchPhase: AiDeepResearchPhase | null;
     } & AiUsageTokens;
 };
 
@@ -175,6 +194,14 @@ export const emitAiUsage = (
             keyManagement: parseKeyManagement(
                 getMetadataString(metadata, 'keyManagement'),
             ),
+            deepResearchRunId: getMetadataString(
+                metadata,
+                'deepResearchRunUuid',
+            ),
+            deepResearchPhase: getMetadataString(
+                metadata,
+                'deepResearchPhase',
+            ) as AiDeepResearchPhase | null,
             ...tokens,
         };
 

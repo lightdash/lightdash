@@ -3,7 +3,9 @@ import {
     ChartSourceType,
     ChartType,
     CommercialFeatureFlags,
+    ConflictError,
     ForbiddenError,
+    generateSlug,
     getLtreePathFromSlug,
     NotFoundError,
     ParameterError,
@@ -64,8 +66,7 @@ import { wrapSentryTransaction } from '../utils';
 import {
     acquireProjectSlugLock,
     acquireSpaceAccessLock,
-    generateUniqueSlug,
-    generateUniqueSpaceSlug,
+    generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
@@ -640,7 +641,7 @@ export class SpaceModel {
             let spaceUuid = requestedSpaceUuid;
             await acquireProjectSlugLock(
                 transaction,
-                input.projectUuid,
+                String(project.projectId),
                 `space:${input.path}`,
             );
 
@@ -1956,58 +1957,6 @@ export class SpaceModel {
         return closestAncestor ? closestAncestor.space_uuid : null;
     }
 
-    static async getSpaceSlugByUuid({
-        trx,
-        spaceUuid,
-    }: {
-        trx: Knex;
-        spaceUuid: string;
-    }) {
-        const [space] = await trx(SpaceTableName)
-            .select('slug')
-            .where('space_uuid', spaceUuid);
-
-        if (!space) {
-            throw new NotFoundError(
-                `Space with uuid ${spaceUuid} does not exist`,
-            );
-        }
-        return space.slug;
-    }
-
-    /**
-     * Generates a slug for a space.
-     * @param slug - The slug to generate.
-     * @param trx - The transaction to use.
-     * @param parentSpaceUuid - The uuid of the parent space.
-     * @returns The slug.
-     */
-    static async getSpaceSlug({
-        slug,
-        trx,
-        parentSpaceUuid,
-        forceSameSlug,
-    }: {
-        slug: string;
-        trx: Knex;
-        parentSpaceUuid: string | null;
-        forceSameSlug: boolean;
-    }) {
-        if (forceSameSlug && !parentSpaceUuid) {
-            return slug;
-        }
-
-        if (parentSpaceUuid) {
-            const parentSpaceSlug = await this.getSpaceSlugByUuid({
-                trx,
-                spaceUuid: parentSpaceUuid,
-            });
-            return `${parentSpaceSlug}/${slug}`;
-        }
-
-        return generateUniqueSlug(trx, SpaceTableName, slug);
-    }
-
     async generateSpacePath(
         spaceSlug: string,
         parentSpaceUuid: string | null,
@@ -2033,6 +1982,24 @@ export class SpaceModel {
         return `${parentSpace.path}.${getLtreePathFromSlug(spaceSlug)}`;
     }
 
+    private static convertCreatedSpace(space: DbSpace, projectUuid: string) {
+        return {
+            organizationUuid: space.organization_uuid,
+            name: space.name,
+            uuid: space.space_uuid,
+            projectUuid,
+            pinnedListUuid: null,
+            pinnedListOrder: null,
+            slug: space.slug,
+            parentSpaceUuid: space.parent_space_uuid,
+            path: space.path,
+            inheritParentPermissions: space.inherit_parent_permissions,
+            projectMemberAccessRole:
+                (space.project_member_access_role as SpaceMemberRole) ?? null,
+            colorPaletteUuid: space.color_palette_uuid,
+        };
+    }
+
     async createSpace(
         spaceData: {
             name: string;
@@ -2042,7 +2009,7 @@ export class SpaceModel {
         {
             projectUuid,
             userId,
-            trx = this.database,
+            trx,
             path,
         }: {
             trx?: Knex;
@@ -2061,32 +2028,63 @@ export class SpaceModel {
             | 'inheritsFromOrgOrProject'
         >
     > {
-        const [project] = await trx(ProjectTableName)
-            .select('project_id')
-            .where('project_uuid', projectUuid);
+        if (trx === undefined) {
+            return this.database.transaction((transaction) =>
+                this.createSpace(spaceData, {
+                    projectUuid,
+                    userId,
+                    path,
+                    trx: transaction,
+                }),
+            );
+        }
 
-        const spaceSlug = await generateUniqueSpaceSlug(
-            spaceData.name,
+        const project = await trx(ProjectTableName)
+            .select('project_id')
+            .where('project_uuid', projectUuid)
+            .first();
+        if (!project) {
+            throw new NotFoundError(
+                `Project with uuid ${projectUuid} does not exist`,
+            );
+        }
+
+        const baseSlug = generateSlug(spaceData.name);
+        await acquireProjectSlugLock(
+            trx,
+            String(project.project_id),
+            `space:${path ?? baseSlug}`,
+        );
+        if (path !== undefined) {
+            const existing = await trx(SpaceTableName)
+                .where('project_id', project.project_id)
+                .where('path', path)
+                .first();
+            if (existing?.deleted_at) {
+                throw new ConflictError(
+                    `Space path "${path}" is already used by a deleted space`,
+                );
+            }
+            if (existing) {
+                return SpaceModel.convertCreatedSpace(existing, projectUuid);
+            }
+        }
+
+        const spaceSlug = await generateUniqueSlugScopedToProject(
+            trx,
             project.project_id,
-            {
-                trx,
-            },
+            SpaceTableName,
+            baseSlug,
         );
 
-        let spacePath = '';
-        if (path) {
-            // 1. `path` property is passed to `createSpace` function when Promoting a space or using content as code
-            // 2. If `PromoteService` or `CoderService` call `createSpace` that means that given space was not fount in given project so needs to be created – and existance check was done by using path (1)
-            // 3. So given all the above, it makes sense to create the new space using the passed path (instead of slug) as that's the field we use for matching
-            spacePath = path;
-        } else {
-            spacePath = await this.generateSpacePath(
+        const spacePath =
+            path ??
+            (await this.generateSpacePath(
                 spaceSlug,
                 spaceData.parentSpaceUuid,
                 project.project_id,
                 { trx },
-            );
-        }
+            ));
 
         const [space] = await trx(SpaceTableName)
             .insert({
@@ -2101,21 +2099,7 @@ export class SpaceModel {
             })
             .returning('*');
 
-        return {
-            organizationUuid: space.organization_uuid,
-            name: space.name,
-            uuid: space.space_uuid,
-            projectUuid,
-            pinnedListUuid: null,
-            pinnedListOrder: null,
-            slug: space.slug,
-            parentSpaceUuid: space.parent_space_uuid,
-            path: space.path,
-            inheritParentPermissions: space.inherit_parent_permissions,
-            projectMemberAccessRole:
-                (space.project_member_access_role as SpaceMemberRole) ?? null,
-            colorPaletteUuid: space.color_palette_uuid,
-        };
+        return SpaceModel.convertCreatedSpace(space, projectUuid);
     }
 
     async permanentDelete(spaceUuid: string): Promise<void> {

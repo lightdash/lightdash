@@ -223,6 +223,46 @@ describe('getMetadata explore field listing', () => {
         );
     });
 
+    it('redirects to explores where a missing field is actually reachable', async () => {
+        // The agent frequently pairs a real fieldId (surfaced by grepFields
+        // across the whole catalog) with the wrong explore. A bare "not found"
+        // is a dead end that sends it back to grep in a loop; the error must
+        // say where the field IS reachable.
+        const sales = makeExplore({});
+        const billing: Explore = {
+            ...sales,
+            name: 'billing',
+            label: 'Billing',
+            tables: {
+                orders: {
+                    ...sales.tables.orders,
+                    dimensions: {},
+                },
+            },
+        };
+
+        const tool = getGetMetadata({ availableExplores: [billing, sales] });
+        const result = (await tool.execute!(
+            {
+                requests: [
+                    {
+                        type: 'field',
+                        fields: [
+                            { exploreId: 'billing', fieldId: 'orders_status' },
+                        ],
+                    },
+                ],
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            {} as any,
+        )) as ExecuteResult;
+
+        expect(result.result).toContain(
+            'Field "orders_status" not found in explore "billing"',
+        );
+        expect(result.result).toContain('It IS available in: sales');
+    });
+
     it('truncates very wide base tables with a "+N more" marker', async () => {
         const explore = makeExplore({});
         for (let i = 0; i < 150; i += 1) {

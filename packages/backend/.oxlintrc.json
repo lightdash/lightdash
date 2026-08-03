@@ -1,0 +1,468 @@
+{
+    "$schema": "../../node_modules/oxlint/configuration_schema.json",
+    "options": {
+        "typeAware": true
+    },
+    "ignorePatterns": [
+        "src/ee/services/McpService/mcp-chart-app/**",
+        "src/ee/sandboxes/**",
+        "src/generated/**"
+    ],
+    "plugins": ["typescript", "import", "node", "promise", "vitest"],
+    "jsPlugins": [
+        {
+            "name": "lightdash",
+            "specifier": "./eslint-rules/eslint-plugin-lightdash.cjs"
+        },
+        { "name": "jsdoc-js", "specifier": "eslint-plugin-jsdoc" },
+        { "name": "perfectionist", "specifier": "eslint-plugin-perfectionist" },
+        { "name": "vitest-js", "specifier": "@vitest/eslint-plugin" }
+    ],
+    "rules": {
+        /* ── eslint core (airbnb-base + backend decisions) ────────────── */
+        "eqeqeq": ["error", "always", { "null": "ignore" }],
+        "no-void": ["error", { "allowAsStatement": true }],
+        "no-await-in-loop": "error",
+        "no-param-reassign": [
+            "error",
+            {
+                "props": true,
+                "ignorePropertyModificationsFor": [
+                    "acc",
+                    "accumulator",
+                    "e",
+                    "ctx",
+                    "context",
+                    "req",
+                    "request",
+                    "res",
+                    "response",
+                    "$scope",
+                    "staticContext"
+                ]
+            }
+        ],
+        "array-callback-return": "error",
+        "block-scoped-var": "error",
+        "default-case": "error",
+        "default-case-last": "error",
+        "grouped-accessor-pairs": "error",
+        "guard-for-in": "error",
+        "new-cap": ["error", { "newIsCap": true, "capIsNew": false }],
+        "no-alert": "error",
+        "no-bitwise": "error",
+        "no-caller": "error",
+        "no-constructor-return": "error",
+        "no-continue": "error",
+        "no-else-return": "error",
+        "no-empty-function": [
+            "error",
+            { "allow": ["arrowFunctions", "functions", "methods"] }
+        ],
+        "no-eval": "error",
+        "no-extend-native": "error",
+        "no-extra-bind": "error",
+        "no-iterator": "error",
+        "no-labels": "error",
+        "no-lone-blocks": "error",
+        "no-lonely-if": "error",
+        "no-multi-assign": "error",
+        "no-multi-str": "error",
+        "no-nested-ternary": "error",
+        "no-new": "error",
+        "no-new-wrappers": "error",
+        "no-plusplus": "error",
+        "no-proto": "error",
+        "no-return-assign": "error",
+        "no-script-url": "error",
+        "no-self-compare": "error",
+        "no-sequences": "error",
+        "no-unneeded-ternary": "error",
+        "no-useless-computed-key": "error",
+        "no-useless-concat": "error",
+        "no-useless-rename": "error",
+        /* oxlint flags mid-switch guard returns (behavior-changing autofix) — re-enable when fixed upstream */
+        "no-useless-return": "off",
+        "no-var": "error",
+        "prefer-const": "error",
+        "prefer-exponentiation-operator": "error",
+        "prefer-numeric-literals": "error",
+        "prefer-object-spread": "error",
+        "prefer-promise-reject-errors": "error",
+        "prefer-rest-params": "error",
+        "prefer-spread": "error",
+        "prefer-template": "error",
+        "radix": "error",
+        "symbol-description": "error",
+        "yoda": "error",
+        "object-shorthand": [
+            "error",
+            "always",
+            { "ignoreConstructors": false, "avoidQuotes": true }
+        ],
+        "prefer-arrow-callback": [
+            "error",
+            { "allowNamedFunctions": false, "allowUnboundThis": true }
+        ],
+        /* oxlint CFG mishandles try/catch continuation in loops (retry-loop FPs) — re-enable when fixed upstream */
+        "no-unreachable-loop": "off",
+        "prefer-regex-literals": [
+            "error",
+            { "disallowRedundantWrapping": true }
+        ],
+        "no-restricted-exports": [
+            "error",
+            { "restrictedNamedExports": ["default", "then"] }
+        ],
+        "no-restricted-properties": [
+            "error",
+            {
+                "object": "arguments",
+                "property": "callee",
+                "message": "arguments.callee is deprecated"
+            },
+            {
+                "object": "global",
+                "property": "isFinite",
+                "message": "Please use Number.isFinite instead"
+            },
+            {
+                "object": "self",
+                "property": "isFinite",
+                "message": "Please use Number.isFinite instead"
+            },
+            {
+                "object": "window",
+                "property": "isFinite",
+                "message": "Please use Number.isFinite instead"
+            },
+            {
+                "object": "global",
+                "property": "isNaN",
+                "message": "Please use Number.isNaN instead"
+            },
+            {
+                "object": "self",
+                "property": "isNaN",
+                "message": "Please use Number.isNaN instead"
+            },
+            {
+                "object": "window",
+                "property": "isNaN",
+                "message": "Please use Number.isNaN instead"
+            },
+            {
+                "property": "__defineGetter__",
+                "message": "Please use Object.defineProperty instead."
+            },
+            {
+                "property": "__defineSetter__",
+                "message": "Please use Object.defineProperty instead."
+            },
+            {
+                "object": "Math",
+                "property": "pow",
+                "message": "Use the exponentiation operator (**) instead."
+            }
+        ],
+        "arrow-body-style": [
+            "error",
+            "as-needed",
+            { "requireReturnForObjectLiteral": false }
+        ],
+        "prefer-destructuring": [
+            "error",
+            {
+                "VariableDeclarator": { "array": false, "object": true },
+                "AssignmentExpression": { "array": true, "object": false }
+            },
+            { "enforceForRenamedProperties": false }
+        ],
+        "no-label-var": "error",
+        "no-restricted-globals": [
+            "error",
+            {
+                "name": "isFinite",
+                "message": "Use Number.isFinite instead"
+            },
+            { "name": "isNaN", "message": "Use Number.isNaN instead" },
+            "addEventListener",
+            "blur",
+            "close",
+            "closed",
+            "confirm",
+            "defaultStatus",
+            "defaultstatus",
+            "event",
+            "external",
+            "find",
+            "focus",
+            "frameElement",
+            "frames",
+            "history",
+            "innerHeight",
+            "innerWidth",
+            "length",
+            "location",
+            "locationbar",
+            "menubar",
+            "moveBy",
+            "moveTo",
+            "name",
+            "onblur",
+            "onerror",
+            "onfocus",
+            "onload",
+            "onresize",
+            "onunload",
+            "open",
+            "opener",
+            "opera",
+            "outerHeight",
+            "outerWidth",
+            "pageXOffset",
+            "pageYOffset",
+            "parent",
+            "print",
+            "removeEventListener",
+            "resizeBy",
+            "resizeTo",
+            "screen",
+            "screenLeft",
+            "screenTop",
+            "screenX",
+            "screenY",
+            "scroll",
+            "scrollbars",
+            "scrollBy",
+            "scrollTo",
+            "scrollX",
+            "scrollY",
+            "self",
+            "status",
+            "statusbar",
+            "stop",
+            "toolbar",
+            "top"
+        ],
+        "func-names": "warn",
+        "operator-assignment": ["error", "always"],
+        "global-require": "error",
+        "no-new-require": "error",
+        "no-path-concat": "error",
+        "no-empty": "error",
+        "no-inner-declarations": "error",
+        "no-promise-executor-return": "error",
+        "no-prototype-builtins": "error",
+        "no-regex-spaces": "error",
+        /* oxlint misses `this` in parameter defaults (40 false positives) — re-enable when fixed upstream */
+        "class-methods-use-this": "off",
+        "consistent-return": "error",
+        "no-extra-label": "error",
+        "no-fallthrough": "error",
+        "vars-on-top": "error",
+        "no-case-declarations": "off",
+        "no-template-curly-in-string": "off",
+        "no-restricted-imports": [
+            "error",
+            {
+                "patterns": [
+                    {
+                        "group": [
+                            "@lightdash/common/src",
+                            "@lightdash/common/src/**"
+                        ],
+                        "message": "Backend runtime code must import from @lightdash/common, not @lightdash/common/src. Deep source imports are not available in the production image."
+                    }
+                ]
+            }
+        ],
+        /* rules from oxlint:recommended not in the previous ESLint setup — enable incrementally */
+        "no-control-regex": "off",
+        "no-unsafe-optional-chaining": "off",
+        "no-unassigned-vars": "off",
+        "no-constant-binary-expression": "off",
+        "promise/no-callback-in-promise": "off",
+        "vitest/require-mock-type-parameters": "off",
+        "vitest/no-conditional-expect": "off",
+        "vitest/require-to-throw-message": "off",
+        "vitest/expect-expect": "off",
+        "vitest/prefer-snapshot-hint": "off",
+        "vitest/no-conditional-tests": "off",
+        "vitest/no-standalone-expect": "off",
+        "vitest/valid-title": "off",
+        "vitest/no-disabled-tests": "off",
+        "@typescript-eslint/no-useless-default-assignment": "off",
+        "@typescript-eslint/no-meaningless-void-operator": "off",
+
+        /* ── import ───────────────────────────────────────────────────── */
+        "import/first": "error",
+        "import/export": "error",
+        "import/extensions": [
+            "error",
+            "ignorePackages",
+            {
+                "js": "never",
+                "mjs": "never",
+                "jsx": "never",
+                "ts": "never",
+                "tsx": "never"
+            }
+        ],
+        "import/newline-after-import": "error",
+        "import/no-absolute-path": "error",
+        "import/no-amd": "error",
+        "import/no-cycle": "error",
+        "import/no-duplicates": "error",
+        "import/no-dynamic-require": "error",
+        "import/no-mutable-exports": "error",
+        "import/no-named-as-default": "off",
+        "import/no-self-import": "error",
+        "import/no-webpack-loader-syntax": "error",
+
+        /* ── @typescript-eslint (syntax + tsgolint type-aware) ────────── */
+        "@typescript-eslint/no-explicit-any": "error",
+        "@typescript-eslint/no-unused-vars": "off",
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-floating-promises": [
+            "error",
+            { "ignoreVoid": true, "ignoreIIFE": true }
+        ],
+        "@typescript-eslint/dot-notation": "error",
+        "@typescript-eslint/no-implied-eval": "error",
+        "@typescript-eslint/return-await": ["error", "in-try-catch"],
+        "@typescript-eslint/default-param-last": "error",
+        "@typescript-eslint/no-array-constructor": "error",
+        "@typescript-eslint/no-empty-function": [
+            "error",
+            {
+                "allow": [
+                    "arrowFunctions",
+                    "functions",
+                    "methods",
+                    "constructors"
+                ]
+            }
+        ],
+        "@typescript-eslint/no-loop-func": "error",
+        "@typescript-eslint/no-redeclare": "error",
+        "@typescript-eslint/no-shadow": "error",
+        "@typescript-eslint/no-unused-expressions": "error",
+        "@typescript-eslint/no-use-before-define": "error",
+        "@typescript-eslint/no-useless-constructor": "error",
+        "@typescript-eslint/no-unsafe-member-access": "error",
+        "@typescript-eslint/no-unsafe-assignment": "error",
+        "@typescript-eslint/no-unsafe-call": "error",
+        "@typescript-eslint/only-throw-error": "off",
+        /* type-aware rules from oxlint:recommended not in the previous ESLint setup — enable incrementally */
+        "@typescript-eslint/restrict-template-expressions": "off",
+        "@typescript-eslint/no-base-to-string": "off",
+        "@typescript-eslint/unbound-method": "off",
+        "@typescript-eslint/triple-slash-reference": "off",
+        "@typescript-eslint/no-non-null-asserted-optional-chain": "off",
+        "@typescript-eslint/no-wrapper-object-types": "off",
+        "@typescript-eslint/prefer-as-const": "off",
+        "@typescript-eslint/await-thenable": "off",
+        "@typescript-eslint/no-duplicate-type-constituents": "off",
+        "@typescript-eslint/no-misused-spread": "off",
+        "@typescript-eslint/no-redundant-type-constituents": "off",
+        "@typescript-eslint/require-array-sort-compare": "off",
+
+        /* ── perfectionist (via jsPlugin; oxfmt only sorts declarations) ─ */
+        "perfectionist/sort-named-imports": [
+            "error",
+            {
+                "type": "natural",
+                "ignoreCase": true,
+                "groups": ["value-import", "type-import"]
+            }
+        ]
+    },
+    "overrides": [
+        {
+            "files": [
+                "src/*.ts",
+                "src/analytics/**/*.ts",
+                "src/clients/**/*.ts",
+                "src/controllers/**/*.ts",
+                "src/database/**/*.ts",
+                "src/dbt/**/*.ts",
+                "src/ee/**/*.ts",
+                "src/models/**/*.ts",
+                "src/services/**/*.ts",
+                "src/utils/**/*.ts",
+                "src/logging/**/*.ts",
+                "src/scheduler/**/*.ts",
+                "src/config/**/*.ts",
+                "src/projectAdapters/**/*.ts",
+                "src/prometheus/**/*.ts",
+                "src/database/migrations/*.ts",
+                "src/routers/*.ts"
+            ],
+            "rules": {
+                "@typescript-eslint/no-unsafe-member-access": "off",
+                "@typescript-eslint/no-unsafe-assignment": "off",
+                "@typescript-eslint/no-unsafe-call": "off"
+            }
+        },
+        {
+            "files": ["src/services/**/*.ts", "src/ee/services/**/*.ts"],
+            "rules": {
+                "lightdash/no-direct-ability-check": "error"
+            }
+        },
+        {
+            "files": [
+                "src/controllers/**/*Controller.ts",
+                "src/ee/controllers/**/*Controller.ts"
+            ],
+            "rules": {
+                "jsdoc-js/no-restricted-syntax": [
+                    "error",
+                    {
+                        "contexts": [
+                            {
+                                "comment": "JsdocBlock:not(*:has(JsdocTag[tag=\"summary\"]))",
+                                "context": "MethodDefinition:has(Decorator)",
+                                "message": "@summary tag is required for API endpoint documentation. Add it like: /** @summary Human readable name */"
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "files": ["**/*.mock.ts", "**/*.test.ts", "**/*.spec.ts"],
+            "rules": {
+                "@typescript-eslint/no-unsafe-member-access": "off",
+                "@typescript-eslint/no-unsafe-assignment": "off",
+                "@typescript-eslint/no-unsafe-call": "off",
+                "no-restricted-imports": "off",
+                "@typescript-eslint/dot-notation": [
+                    "error",
+                    {
+                        "allowPrivateClassPropertyAccess": true,
+                        "allowProtectedClassPropertyAccess": true
+                    }
+                ],
+                "vitest/no-focused-tests": "error",
+                "vitest/no-import-node-test": "error",
+                "vitest-js/expect-expect": "off",
+                "vitest-js/no-commented-out-tests": "warn",
+                "vitest-js/no-conditional-expect": "off",
+                "vitest-js/no-disabled-tests": "warn",
+                "vitest-js/no-standalone-expect": "off",
+                "vitest-js/no-identical-title": "error",
+                "vitest-js/no-interpolation-in-snapshots": "error",
+                "vitest-js/no-mocks-import": "error",
+                "vitest-js/no-unneeded-async-expect-function": "error",
+                "vitest-js/prefer-called-exactly-once-with": "error",
+                "vitest-js/require-local-test-context-for-concurrent-snapshots": "error",
+                "vitest-js/valid-describe-callback": "error",
+                "vitest-js/valid-expect": "error",
+                "vitest-js/valid-expect-in-promise": "error",
+                "vitest-js/valid-title": ["error", { "allowArguments": true }]
+            }
+        }
+    ]
+}

@@ -1,0 +1,11 @@
+{
+    "$schema": "../../node_modules/oxlint/configuration_schema.json",
+    "extends": ["../../.oxlintrc.base.json"],
+    "options": {
+        "typeAware": true
+    },
+    "rules": {
+        "no-console": "off",
+        "@typescript-eslint/only-throw-error": "off"
+    }
+}

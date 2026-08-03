@@ -2,6 +2,10 @@ import { type ApiSuccess } from '../../types/api/success';
 import { type ItemsMap } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
 
+export const AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS = 30;
+export const AI_DEEP_RESEARCH_QUERY_RESULTS_RETENTION_DAYS = 31;
+export const AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS = 32;
+
 export const AI_DEEP_RESEARCH_RUN_STATUSES = [
     'queued',
     'running',
@@ -24,6 +28,24 @@ export const AI_DEEP_RESEARCH_TERMINAL_STATUSES = [
 export type AiDeepResearchTerminalStatus =
     (typeof AI_DEEP_RESEARCH_TERMINAL_STATUSES)[number];
 
+export const AI_DEEP_RESEARCH_ENTRY_POINTS = ['homepage', 'ask_ai'] as const;
+
+export type AiDeepResearchEntryPoint =
+    (typeof AI_DEEP_RESEARCH_ENTRY_POINTS)[number];
+
+export const AI_DEEP_RESEARCH_TERMINAL_REASONS = [
+    'user_cancellation',
+    'permission_revoked',
+    'tool_limit',
+    'query_limit',
+    'token_limit',
+    'provider_error',
+    'internal_error',
+] as const;
+
+export type AiDeepResearchTerminalReason =
+    (typeof AI_DEEP_RESEARCH_TERMINAL_REASONS)[number];
+
 export const isAiDeepResearchRunTerminal = (
     status: AiDeepResearchRunStatus,
 ): status is AiDeepResearchTerminalStatus =>
@@ -31,11 +53,68 @@ export const isAiDeepResearchRunTerminal = (
         status as AiDeepResearchTerminalStatus,
     );
 
-export type AiDeepResearchBudget = {
+export type AiDeepResearchBudget = AiDeepResearchLimits & {
+    maxResultRows: number;
+};
+
+export type AiDeepResearchLimits = {
     maxTokens: number;
     maxToolCalls: number;
     maxWarehouseQueries: number;
-    maxResultRows: number;
+    maxHypotheses: number;
+};
+
+export const AI_DEEP_RESEARCH_DEFAULT_LIMITS: AiDeepResearchLimits = {
+    maxTokens: 10_000_000,
+    maxToolCalls: 1_000,
+    maxWarehouseQueries: 100,
+    maxHypotheses: 5,
+};
+
+export type AiDeepResearchHypothesis = {
+    id: string;
+    claim: string;
+    /** Why the claim is plausible given what is already known. */
+    rationale: string;
+    /** Evidence that would support the claim if found. */
+    supportingEvidence: string;
+    /** Evidence that would falsify the claim if found. */
+    falsifyingEvidence: string;
+};
+
+export const AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS = [
+    'supported',
+    'refuted',
+    'inconclusive',
+] as const;
+
+export type AiDeepResearchHypothesisVerdict =
+    (typeof AI_DEEP_RESEARCH_HYPOTHESIS_VERDICTS)[number];
+
+export type AiDeepResearchInvestigationEvidence = {
+    finding: string;
+    /** Warehouse query executions this finding is grounded in. */
+    queryUuids: string[];
+    /** Non-warehouse references (documents, URLs, MCP sources). */
+    sources: string[];
+};
+
+export type AiDeepResearchInvestigationReport = {
+    verdict: AiDeepResearchHypothesisVerdict;
+    summary: string;
+    evidence: AiDeepResearchInvestigationEvidence[];
+    alternativeExplanations: string[];
+    /** Why the evidence does or does not establish causation. */
+    causalLimitations: string[];
+    confidence: AiDeepResearchConfidence;
+};
+
+/** One hypothesis and what its isolated investigation produced. */
+export type AiDeepResearchInvestigation = {
+    hypothesis: AiDeepResearchHypothesis;
+    report: AiDeepResearchInvestigationReport | null;
+    /** Set when the investigator failed; the judge treats it as a gap. */
+    failureReason: string | null;
 };
 
 export type AiDeepResearchExecutionContextSnapshot = {
@@ -63,7 +142,7 @@ export type AiDeepResearchExecutionContextSnapshot = {
     };
     tools: {
         availableToolNames: string[];
-        selectedMcpServers: {
+        attachedMcpServers: {
             uuid: string;
             name: string;
             enabledToolNames: string[];
@@ -95,27 +174,16 @@ export type AiDeepResearchExecutionContextSnapshot = {
     };
 };
 
-export const AI_DEEP_RESEARCH_EFFORTS = [
-    'low',
-    'medium',
-    'high',
-    'xhigh',
-] as const;
-
-export type AiDeepResearchEffort = (typeof AI_DEEP_RESEARCH_EFFORTS)[number];
-
 export type AiDeepResearchRequestBody = {
     prompt: string;
     /** Agent whose complete runtime configuration will execute this run. */
     agentUuid: string;
-    /** Server-owned execution budget tier. Defaults to medium. */
-    effort?: AiDeepResearchEffort;
     /** Agent thread to attach the run to. Must be owned by the caller. */
     threadUuid: string;
     /** Thread message that captured this prompt. */
     promptUuid: string;
-    /** Agent-attached MCP servers enabled for this run. */
-    mcpServerUuids: string[];
+    /** Product surface that accepted the run. */
+    entryPoint: AiDeepResearchEntryPoint;
 };
 
 export const AI_DEEP_RESEARCH_CONFIDENCE_LEVELS = [
@@ -259,21 +327,41 @@ export type AiDeepResearchEvent =
           createdAt: string;
       };
 
+export type AiDeepResearchRunMetrics = {
+    durationMs: number | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    cacheReadTokens: number | null;
+    cacheWriteTokens: number | null;
+    reasoningTokens: number | null;
+    totalTokens: number | null;
+    tokenUsageComplete: boolean | null;
+    toolCallCount: number | null;
+    toolErrorCount: number | null;
+    warehouseQueryCount: number | null;
+    findingsCount: number | null;
+    chartCount: number | null;
+};
+
 export type AiDeepResearchRun = {
     aiDeepResearchRunUuid: string;
     projectUuid: string;
     agentUuid: string;
     aiThreadUuid: string;
     promptUuid: string;
-    mcpServerUuids: string[];
+    entryPoint: AiDeepResearchEntryPoint;
     prompt: string;
     status: AiDeepResearchRunStatus;
     /** The report narrative with compact <chart> references. */
     resultMarkdown: string | null;
     /** Render data for each referenced chart, keyed by chart key. */
     resultChartData: AiDeepResearchChartDataMap | null;
+    reportExpiresAt: string | null;
+    reportExpiredAt: string | null;
+    isReportExpired: boolean;
     budget: AiDeepResearchBudget;
     executionContextSnapshot: AiDeepResearchExecutionContextSnapshot | null;
+    metrics: AiDeepResearchRunMetrics;
     errorMessage: string | null;
     cancellationRequestedAt: string | null;
     createdAt: string;
@@ -290,6 +378,9 @@ export type AiDeepResearchEventsPage = {
 export type ApiAiDeepResearchRunResponse = ApiSuccess<AiDeepResearchRun>;
 
 export type ApiAiDeepResearchRunListResponse = ApiSuccess<AiDeepResearchRun[]>;
+
+export type ApiAiDeepResearchChartResponse =
+    ApiSuccess<AiDeepResearchChartData>;
 
 export type ApiAiDeepResearchEventsResponse =
     ApiSuccess<AiDeepResearchEventsPage>;

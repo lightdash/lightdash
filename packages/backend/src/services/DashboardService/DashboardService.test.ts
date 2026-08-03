@@ -9,6 +9,7 @@ import {
     OrganizationMemberRole,
     PossibleAbilities,
     ProjectMemberRole,
+    SCHEDULER_TASKS,
     SchedulerFormat,
     SessionUser,
     type Account,
@@ -80,6 +81,7 @@ const analyticsModel = {
 };
 const savedChartModel = {
     get: vi.fn(async () => chart),
+    create: vi.fn(async () => ({ ...chart, uuid: 'duplicated-chart-uuid' })),
     permanentDelete: vi.fn(async () => ({
         uuid: 'chart_uuid',
         projectUuid: 'project_uuid',
@@ -112,6 +114,7 @@ const slackClient = {
 
 const schedulerClient = {
     generateDailyJobsForScheduler: vi.fn(async () => undefined),
+    scheduleTask: vi.fn(async () => ({ jobId: 'jobId' })),
 };
 
 const dashboardChartsResult = {
@@ -207,6 +210,26 @@ describe('DashboardService', () => {
     afterEach(() => {
         vi.clearAllMocks();
     });
+
+    test('duplicates dashboard charts from the original slug base', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (service as any).duplicateChartForDashboard({
+            chartUuid: chart.uuid,
+            projectUuid,
+            dashboardUuid,
+            user,
+        });
+
+        expect(savedChartModel.create).toHaveBeenCalledWith(
+            projectUuid,
+            user.userUuid,
+            expect.objectContaining({
+                slug: chart.slug,
+                dashboardUuid,
+            }),
+        );
+    });
+
     test('should get dashboard by uuid', async () => {
         const result = await service.getByIdOrSlug(user, dashboard.uuid);
 
@@ -218,6 +241,18 @@ describe('DashboardService', () => {
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
             dashboard.uuid,
             { projectUuid: undefined },
+        );
+    });
+
+    test('should forward the applied parameter values when exporting content', async () => {
+        await service.scheduleExportContent(user, dashboard.uuid, {
+            format: SchedulerFormat.IMAGE,
+            parameters: { region: 'APAC' },
+        });
+
+        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+            SCHEDULER_TASKS.EXPORT_CONTENT,
+            expect.objectContaining({ parameters: { region: 'APAC' } }),
         );
     });
 
@@ -812,6 +847,12 @@ describe('DashboardService', () => {
                 dashboardDesc: 'desc',
             });
 
+            expect(dashboardModel.create).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({ slug: dashboard.slug }),
+                expect.anything(),
+                projectUuid,
+            );
             expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
             const versionData = (
                 dashboardModel.addVersion as import('vitest').Mock

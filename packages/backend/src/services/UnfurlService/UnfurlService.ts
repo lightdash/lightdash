@@ -5,10 +5,12 @@ import {
     AuthorizationError,
     ChartType,
     DashboardTileTypes,
+    DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
     expandSelectedTabs,
     EXPORT_TAB_PAGE_CLASS,
     ForbiddenError,
+    getChartType,
     getErrorMessage,
     HealthState,
     isDashboardChartTileType,
@@ -20,6 +22,7 @@ import {
     LightdashRequestMethodHeader,
     NotFoundError,
     ParameterError,
+    parseDeliveryCaptureManifest,
     QueryHistoryStatus,
     RequestMethod,
     resolveExportTabs,
@@ -34,6 +37,7 @@ import {
     validateSelectedTabs,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DeliveryCaptureManifest,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -216,6 +220,9 @@ const appViewport = {
 
 const APP_SCREENSHOT_MIN_HEIGHT = 600;
 
+// How long we wait for `MinimalApp` to mount the ready indicator.
+const APP_READY_TIMEOUT_MS = 60_000;
+
 const bigNumberViewport = {
     width: 768,
     height: 500,
@@ -239,6 +246,26 @@ const getBackoffDelay = (retryCount: number, baseDelayMs: number): number => {
     const exponentialDelay = baseDelayMs * 2 ** retryCount;
     const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1);
     return Math.round(exponentialDelay + jitter);
+};
+
+// Browserless honours the window size only through launch args, not the
+// Playwright viewport, and app iframes size themselves to the window.
+const getAppBrowserEndpoint = (
+    browserEndpoint: string,
+    size: { width: number; height: number },
+    internalHost?: string,
+): string => {
+    const endpoint = new URL(browserEndpoint);
+    const args = [`--window-size=${size.width},${size.height}`];
+    // App bundles call secure-context APIs (crypto.randomUUID in the SDK
+    // transport), which a plain-http internal host silently breaks.
+    if (internalHost?.startsWith('http://')) {
+        args.push(
+            `--unsafely-treat-insecure-origin-as-secure=${new URL(internalHost).origin}`,
+        );
+    }
+    endpoint.searchParams.set('launch', JSON.stringify({ args }));
+    return endpoint.toString();
 };
 
 const isBrowserQueueFullError = (error: unknown): boolean => {
@@ -496,6 +523,9 @@ export class UnfurlService extends BaseService {
                     title: sqlChart.name,
                     description: sqlChart.description ?? undefined,
                     organizationUuid: sqlChart.organization.organizationUuid,
+                    // Drives the screenshot viewport; big numbers get a
+                    // shorter one so the value isn't lost in whitespace.
+                    chartType: getChartType(sqlChart.chartKind),
                     resourceUuid: sqlChart.savedSqlUuid,
                 };
             case LightdashPage.EXPLORE:
@@ -1224,18 +1254,12 @@ export class UnfurlService extends BaseService {
 
                     const browserConnectionEndpoint =
                         lightdashPage === LightdashPage.APP
-                            ? (() => {
-                                  const endpoint = new URL(browserEndpoint);
-                                  endpoint.searchParams.set(
-                                      'launch',
-                                      JSON.stringify({
-                                          args: [
-                                              `--window-size=${initialViewport.width},${initialViewport.height}`,
-                                          ],
-                                      }),
-                                  );
-                                  return endpoint.toString();
-                              })()
+                            ? getAppBrowserEndpoint(
+                                  browserEndpoint,
+                                  initialViewport,
+                                  this.lightdashConfig.headlessBrowser
+                                      .internalLightdashHost,
+                              )
                             : browserEndpoint;
 
                     browser = await playwright.chromium.connectOverCDP(
@@ -1279,30 +1303,11 @@ export class UnfurlService extends BaseService {
                     });
 
                     if (lightdashPage === LightdashPage.APP) {
-                        // Browserless drops Playwright's viewport over CDP (see [APP-DIAG]
-                        // logs stuck at 800×600); push the override straight to Chrome.
-                        try {
-                            const cdp = await page
-                                .context()
-                                .newCDPSession(page);
-                            await cdp.send(
-                                'Emulation.setDeviceMetricsOverride',
-                                {
-                                    width: initialViewport.width,
-                                    height: initialViewport.height,
-                                    deviceScaleFactor: 1,
-                                    mobile: false,
-                                },
-                            );
-                        } catch (cdpErr) {
-                            this.logger.warn(
-                                `[APP] CDP viewport override failed; falling through - unfurlId: ${imageId}, err: ${
-                                    cdpErr instanceof Error
-                                        ? cdpErr.message
-                                        : String(cdpErr)
-                                }`,
-                            );
-                        }
+                        await this.overrideCdpViewport(
+                            page,
+                            initialViewport,
+                            `unfurlId: ${imageId}`,
+                        );
                     }
 
                     // Scope custom headers to internal requests only — setting them
@@ -1712,11 +1717,11 @@ export class UnfurlService extends BaseService {
                         // (the bridge sees every metric query the iframe
                         // runs). After the signal we sleep briefly so CSS /
                         // chart entrance animations can finish.
-                        const APP_READY_TIMEOUT_MS = 60_000;
                         const APP_ANIMATION_BUFFER_MS = 5_000;
                         this.logger.info(
                             `Waiting for app screenshot ready indicator (timeout ${APP_READY_TIMEOUT_MS}ms) - unfurlId: ${imageId}`,
                         );
+                        const waitStart = Date.now();
                         try {
                             await page.waitForSelector(
                                 SCREENSHOT_SELECTORS.READY_INDICATOR,
@@ -1728,6 +1733,16 @@ export class UnfurlService extends BaseService {
                             this.logger.info(
                                 `App ready indicator found - waiting ${APP_ANIMATION_BUFFER_MS}ms for animations - unfurlId: ${imageId}`,
                             );
+                            this.analytics.track({
+                                event: 'headless_browser.app_ready_wait',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    ready: true,
+                                    waitMs: Date.now() - waitStart,
+                                    context,
+                                    imageId,
+                                },
+                            });
                         } catch (waitError) {
                             // Fall through to the animation buffer so the
                             // screenshot still happens for apps that never
@@ -1735,6 +1750,16 @@ export class UnfurlService extends BaseService {
                             this.logger.warn(
                                 `App ready indicator not detected within ${APP_READY_TIMEOUT_MS}ms; proceeding with animation buffer only - unfurlId: ${imageId}`,
                             );
+                            this.analytics.track({
+                                event: 'headless_browser.app_ready_wait',
+                                anonymousId: LightdashAnalytics.anonymousId,
+                                properties: {
+                                    ready: false,
+                                    waitMs: Date.now() - waitStart,
+                                    context,
+                                    imageId,
+                                },
+                            });
                         }
                         // page.evaluate keeps CDP traffic flowing during the
                         // animation buffer so a remote Chromium doesn't drop
@@ -2119,153 +2144,6 @@ export class UnfurlService extends BaseService {
                                     ),
                                 ),
                             );
-                            // DIAG-app-screenshot-viewport — remove after investigation.
-                            // Fully isolated: errors and timeouts cannot affect the screenshot,
-                            // and the entire block is unreachable for non-APP deliveries.
-                            if (lightdashPage === LightdashPage.APP) {
-                                if (lightdashPage !== LightdashPage.APP) {
-                                    this.logger.warn(
-                                        `[APP-DIAG] unreachable non-APP diagnostic path - unfurlId: ${imageId}`,
-                                    );
-                                } else {
-                                    const DIAG_BUDGET_MS = 2000;
-                                    const diagWork = (async () => {
-                                        const frames = page!.frames();
-                                        const diagFrame = frames.find(
-                                            (f) => f !== page!.mainFrame(),
-                                        );
-                                        const playwrightViewport =
-                                            page!.viewportSize();
-                                        const parentView = await page!.evaluate(
-                                            () => ({
-                                                innerW: window.innerWidth,
-                                                innerH: window.innerHeight,
-                                                dpr: window.devicePixelRatio,
-                                                docW: document.documentElement
-                                                    .clientWidth,
-                                                docH: document.documentElement
-                                                    .clientHeight,
-                                            }),
-                                        );
-                                        const iframeView = diagFrame
-                                            ? await diagFrame.evaluate(() => ({
-                                                  innerW: window.innerWidth,
-                                                  innerH: window.innerHeight,
-                                                  dpr: window.devicePixelRatio,
-                                                  bodyScrollW:
-                                                      document.body
-                                                          ?.scrollWidth ?? null,
-                                                  bodyScrollH:
-                                                      document.body
-                                                          ?.scrollHeight ??
-                                                      null,
-                                                  docScrollW:
-                                                      document.documentElement
-                                                          .scrollWidth,
-                                                  docScrollH:
-                                                      document.documentElement
-                                                          .scrollHeight,
-                                                  rootRect: (() => {
-                                                      const r = (
-                                                          document.querySelector(
-                                                              '#root',
-                                                          ) ?? document.body
-                                                      )?.getBoundingClientRect();
-                                                      return r
-                                                          ? {
-                                                                w: r.width,
-                                                                h: r.height,
-                                                                x: r.x,
-                                                                y: r.y,
-                                                            }
-                                                          : null;
-                                                  })(),
-                                                  maxLeafRight: (() => {
-                                                      let maxRight = 0;
-                                                      const root =
-                                                          document.querySelector(
-                                                              '#root',
-                                                          ) ?? document.body;
-                                                      if (!root) return 0;
-                                                      const walker =
-                                                          document.createTreeWalker(
-                                                              root,
-                                                              NodeFilter.SHOW_ELEMENT,
-                                                          );
-                                                      let node: Node | null =
-                                                          walker.currentNode;
-                                                      while (node) {
-                                                          const el =
-                                                              node as Element;
-                                                          if (
-                                                              el.children
-                                                                  .length === 0
-                                                          ) {
-                                                              const rect =
-                                                                  el.getBoundingClientRect();
-                                                              if (
-                                                                  rect.width >
-                                                                      0 &&
-                                                                  rect.height >
-                                                                      0
-                                                              ) {
-                                                                  maxRight =
-                                                                      Math.max(
-                                                                          maxRight,
-                                                                          rect.right,
-                                                                      );
-                                                              }
-                                                          }
-                                                          node =
-                                                              walker.nextNode();
-                                                      }
-                                                      return Math.ceil(
-                                                          maxRight,
-                                                      );
-                                                  })(),
-                                              }))
-                                            : null;
-                                        this.logger.info(
-                                            `[APP-DIAG] unfurlId=${imageId} playwrightViewport=${JSON.stringify(
-                                                playwrightViewport,
-                                            )} parent=${JSON.stringify(
-                                                parentView,
-                                            )} iframe=${JSON.stringify(
-                                                iframeView,
-                                            )} iframeBox=${JSON.stringify(
-                                                iframeBox,
-                                            )} clipW=${clipWidth} clipH=${clipHeight} appContentHeight=${
-                                                appContentHeight ?? null
-                                            }`,
-                                        );
-                                    })();
-
-                                    try {
-                                        await Promise.race([
-                                            diagWork,
-                                            new Promise<void>((_, reject) => {
-                                                setTimeout(
-                                                    () =>
-                                                        reject(
-                                                            new Error(
-                                                                'diag timeout',
-                                                            ),
-                                                        ),
-                                                    DIAG_BUDGET_MS,
-                                                );
-                                            }),
-                                        ]);
-                                    } catch (diagErr) {
-                                        this.logger.warn(
-                                            `[APP-DIAG] skipped: ${
-                                                diagErr instanceof Error
-                                                    ? diagErr.message
-                                                    : String(diagErr)
-                                            } - unfurlId: ${imageId}`,
-                                        );
-                                    }
-                                }
-                            }
                             imageBuffer = await page.screenshot({
                                 path,
                                 animations: 'disabled',
@@ -2424,6 +2302,162 @@ export class UnfurlService extends BaseService {
                 }
             },
         );
+    }
+
+    // Browserless drops Playwright's viewport over CDP; push it to Chrome.
+    private async overrideCdpViewport(
+        page: playwright.Page,
+        size: { width: number; height: number },
+        logContext: string,
+    ): Promise<void> {
+        try {
+            const cdp = await page.context().newCDPSession(page);
+            await cdp.send('Emulation.setDeviceMetricsOverride', {
+                width: size.width,
+                height: size.height,
+                deviceScaleFactor: 1,
+                mobile: false,
+            });
+        } catch (cdpErr) {
+            this.logger.warn(
+                `[APP] CDP viewport override failed; falling through - ${logContext}, err: ${
+                    cdpErr instanceof Error ? cdpErr.message : String(cdpErr)
+                }`,
+            );
+        }
+    }
+
+    // Fail-closed: a missing ready indicator, missing global or invalid
+    // manifest all throw — an empty manifest would ship a partial delivery.
+    async captureAppDeliveryManifest({
+        url,
+        authUserUuid,
+        contextId,
+    }: {
+        url: string;
+        authUserUuid: string;
+        contextId?: string;
+    }): Promise<DeliveryCaptureManifest> {
+        if (this.lightdashConfig.headlessBrowser?.host === undefined) {
+            throw new UnexpectedServerError(
+                `Can't capture app delivery queries if HEADLESS_BROWSER_HOST env variable is not defined`,
+            );
+        }
+        const cookie = await this.getUserCookie(authUserUuid);
+
+        let browser: playwright.Browser | undefined;
+        let page: playwright.Page | undefined;
+        try {
+            browser = await playwright.chromium.connectOverCDP(
+                getAppBrowserEndpoint(
+                    this.lightdashConfig.headlessBrowser.browserEndpoint,
+                    appViewport,
+                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
+                ),
+                { timeout: 1000 * 60 * 30 },
+            );
+            page = await browser.newPage({
+                viewport: appViewport,
+                ignoreHTTPSErrors:
+                    this.lightdashConfig.headlessBrowser
+                        .internalLightdashHostIgnoreHttpsErrors,
+            });
+            // Same geometry as the screenshot render so the app issues the
+            // same set of queries.
+            await this.overrideCdpViewport(
+                page,
+                appViewport,
+                `contextId: ${contextId}`,
+            );
+
+            // Scope custom headers to internal requests only — setting them on
+            // every request (e.g. Google Fonts) triggers CORS preflight failures.
+            const internalHost =
+                this.lightdashConfig.headlessBrowser.internalLightdashHost.replace(
+                    /\/+$/,
+                    '',
+                );
+            await page.route(`${internalHost}/**`, async (route) => {
+                try {
+                    await route.continue({
+                        headers: {
+                            ...route.request().headers(),
+                            [LightdashRequestMethodHeader]:
+                                RequestMethod.HEADLESS_BROWSER,
+                            'Lightdash-Headless-Browser-Context':
+                                ScreenshotContext.SCHEDULED_DELIVERY,
+                            // String(): a non-string jobId (graphile ids can
+                            // surface as bigint) throws in route.continue.
+                            'Lightdash-Headless-Browser-Context-Id': String(
+                                contextId ?? 'undefined',
+                            ),
+                        },
+                    });
+                } catch {
+                    // Best effort only: a failed continue({headers}) pollutes
+                    // the request's fallback overrides, so no retry can resume
+                    // it — the String() above is the real safeguard.
+                    await route.continue().catch(() => {});
+                }
+            });
+
+            const cookieMatch = cookie.match(/connect\.sid=([^;]+)/);
+            if (!cookieMatch)
+                throw new UnexpectedServerError('Invalid cookie provided');
+            await page.context().addCookies([
+                {
+                    name: 'connect.sid',
+                    value: cookieMatch[1],
+                    domain: new URL(url).hostname,
+                    path: '/',
+                    sameSite: 'Strict',
+                },
+            ]);
+
+            page.on('console', (msg) => {
+                if (msg.type() === 'error') {
+                    this.logger.error(
+                        `Delivery capture console error - contextId: ${contextId}, text: ${msg.text()}`,
+                    );
+                }
+            });
+
+            await page.goto(url, { timeout: 150000 });
+
+            try {
+                await page.waitForSelector(
+                    SCREENSHOT_SELECTORS.READY_INDICATOR,
+                    { state: 'attached', timeout: APP_READY_TIMEOUT_MS },
+                );
+            } catch (waitError) {
+                // Fail-closed: unlike the screenshot path there is no partial
+                // result worth shipping, so the timeout propagates.
+                this.logger.error(
+                    `App delivery capture ready indicator not detected within ${APP_READY_TIMEOUT_MS}ms - contextId: ${contextId}`,
+                );
+                throw waitError;
+            }
+
+            const raw = await page.evaluate(
+                (globalName) =>
+                    (window as unknown as Record<string, unknown>)[globalName],
+                DELIVERY_CAPTURE_GLOBAL,
+            );
+            const manifest = parseDeliveryCaptureManifest(raw);
+            if (manifest === null) {
+                throw new UnexpectedServerError(
+                    `App delivery capture missing or malformed - contextId: ${contextId}`,
+                );
+            }
+
+            this.logger.info(
+                `App delivery capture returned ${manifest.items.length} queries (overflow ${manifest.overflowCount}) - contextId: ${contextId}`,
+            );
+            return manifest;
+        } finally {
+            if (page) await page.close().catch(() => {});
+            if (browser) await browser.close().catch(() => {});
+        }
     }
 
     private async getSharedUrl(linkUrl: string): Promise<string> {

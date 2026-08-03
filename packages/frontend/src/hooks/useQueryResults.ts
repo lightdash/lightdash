@@ -125,6 +125,7 @@ export const scheduleDownloadQuery = async (
             exportPivotedData: options.exportPivotedData,
             attachmentDownloadName: options.attachmentDownloadName,
             conditionalFormattings: options.conditionalFormattings,
+            showColumnTotals: options.showColumnTotals,
         }),
         version: 'v2',
     });

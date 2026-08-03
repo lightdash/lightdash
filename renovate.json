@@ -212,7 +212,6 @@
         "eslint-plugin-jsx-a11y",
         "eslint-plugin-perfectionist",
         "eslint-plugin-react-refresh",
-        "eslint-plugin-testing-library",
         "globals"
       ]
     },

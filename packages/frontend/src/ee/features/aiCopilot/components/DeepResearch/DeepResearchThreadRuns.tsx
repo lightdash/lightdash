@@ -1,22 +1,19 @@
 import { Alert, Button, Paper, Skeleton, Stack, Text } from '@mantine-8/core';
-import { useMemo } from 'react';
-import useUser from '../../../../../hooks/user/useUser';
-import { useDeepResearchRunsForThread } from '../../deepResearch/deepResearchRegistry';
-import { toDeepResearchRegistration } from '../../deepResearch/runProgress';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import {
     useContinueDeepResearchMutation,
     useDeepResearchRun,
-    useDeepResearchThreadRuns,
 } from '../../hooks/useDeepResearch';
 import { DeepResearchRunCard } from './DeepResearchRunCard';
 
 const DeepResearchThreadRun = ({
     registration,
     canRetry,
+    onRunAgain,
 }: {
     registration: DeepResearchRunRegistration;
     canRetry: boolean;
+    onRunAgain?: (registration: DeepResearchRunRegistration) => void;
 }) => {
     const runQuery = useDeepResearchRun(registration);
     const continueMutation = useContinueDeepResearchMutation({
@@ -57,9 +54,7 @@ const DeepResearchThreadRun = ({
                                 }
                                 continueMutation.mutate({
                                     question: registration.question,
-                                    depth: registration.depth,
                                     promptUuid: registration.promptUuid,
-                                    mcpServerUuids: registration.mcpServerUuids,
                                 });
                             }}
                         >
@@ -107,48 +102,21 @@ const DeepResearchThreadRun = ({
         <DeepResearchRunCard
             run={runQuery.data}
             projectUuid={registration.projectUuid}
+            canRunAgain={canRetry}
+            onRunAgain={onRunAgain ? () => onRunAgain(registration) : undefined}
         />
     );
 };
 
 export const DeepResearchThreadRuns = ({
-    projectUuid,
-    threadUuid,
+    registrations,
     canRetry = false,
+    onRunAgain,
 }: {
-    projectUuid: string;
-    threadUuid: string;
+    registrations: DeepResearchRunRegistration[];
     canRetry?: boolean;
+    onRunAgain?: (registration: DeepResearchRunRegistration) => void;
 }) => {
-    const user = useUser(true);
-    const userUuid = user.data?.userUuid;
-    // Server is the source of truth; the local registry only contributes
-    // optimistic entries (starting / start_failed / just-started runs the
-    // list has not caught up with yet).
-    const serverRuns = useDeepResearchThreadRuns(projectUuid, threadUuid);
-    const localRegistrations = useDeepResearchRunsForThread(
-        projectUuid,
-        threadUuid,
-        userUuid,
-    );
-    const registrations = useMemo(() => {
-        const fromServer = (serverRuns.data ?? []).map((run) =>
-            toDeepResearchRegistration(run, {
-                threadUuid,
-                userUuid: userUuid ?? '',
-            }),
-        );
-        const serverRunUuids = new Set(
-            fromServer.map((registration) => registration.runUuid),
-        );
-        return [
-            ...fromServer,
-            ...localRegistrations.filter(
-                (registration) => !serverRunUuids.has(registration.runUuid),
-            ),
-        ];
-    }, [serverRuns.data, localRegistrations, threadUuid, userUuid]);
-
     if (!registrations.length) {
         return null;
     }
@@ -159,6 +127,7 @@ export const DeepResearchThreadRuns = ({
                     key={registration.runUuid}
                     registration={registration}
                     canRetry={canRetry}
+                    onRunAgain={onRunAgain}
                 />
             ))}
         </Stack>

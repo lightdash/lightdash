@@ -626,3 +626,34 @@ describe('moveToSpace', () => {
         expect(tracker.history.update).toHaveLength(0);
     });
 });
+
+describe('findChartsForValidation', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new SavedChartModel({
+        database,
+        lightdashConfig: lightdashConfigMock,
+    });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    test('resolves project ownership once before joining latest chart versions', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+        await model.findChartsForValidation(projectUuid);
+
+        const [query] = tracker.history.select;
+        expect(query.bindings).toContain(projectUuid);
+        expect(query.sql).not.toContain('union all');
+        expect(query.sql.match(/spaces/g)).toHaveLength(1);
+        expect(query.sql.match(/dashboards/g)).toHaveLength(1);
+        expect(query.sql).toContain('"sq"."project_uuid"');
+    });
+});

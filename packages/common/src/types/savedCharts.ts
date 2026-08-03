@@ -1,3 +1,4 @@
+import { type DataAppVizOptionValue } from '../ee/apps/dataAppVizConfigOptions';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
@@ -785,10 +786,19 @@ export type CustomVis = {
 /** Maps a data app viz's field name → the host query field id bound to it. */
 export type DataAppVizFieldMapping = Record<string, string>;
 
+/** Maps a declared config option's name → the value the user chose for it. */
+export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;
+
 export type DataAppVizChart = {
     /** The reusable data app viz this chart renders with (by reference). */
     dataAppVizUuid: string;
     fieldMapping: DataAppVizFieldMapping;
+    /**
+     * Only options the user explicitly changed — declared defaults are never
+     * seeded here, they're resolved at render time. Absent on charts saved
+     * before config options shipped.
+     */
+    optionValues?: DataAppVizOptionValues;
 };
 
 export type CartesianChart = {
@@ -984,14 +994,17 @@ type CreateChartBase = Pick<
     | 'parameters'
 >;
 
+// colorPaletteUuid is on each member to avoid an allOf in the OpenAPI schema.
 export type CreateChartInSpace = CreateChartBase & {
     spaceUuid?: string;
     dashboardUuid?: null;
+    colorPaletteUuid?: string | null;
 };
 
 export type CreateChartInDashboard = CreateChartBase & {
     dashboardUuid: string;
     spaceUuid?: null;
+    colorPaletteUuid?: string | null;
 };
 
 export type CreateSavedChart = CreateChartInSpace | CreateChartInDashboard;
@@ -1097,6 +1110,13 @@ export const getConditionalFormattingsFromChartConfig = (
 ): ConditionalFormattingConfig[] | undefined =>
     config && isTableChartConfig(config)
         ? config.conditionalFormattings
+        : undefined;
+
+export const getShowColumnTotalsFromChartConfig = (
+    config: ChartConfig['config'] | undefined,
+): boolean | undefined =>
+    config && isTableChartConfig(config)
+        ? config.showColumnCalculation
         : undefined;
 
 export const hashFieldReference = (reference: PivotReference) =>

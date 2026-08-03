@@ -190,6 +190,56 @@ describe('convertMetricFilterToDbt', () => {
         expect(convertMetricFilterToDbt(filters)).toEqual(expected);
     });
 
+    it('should convert IN_THE_CURRENT and NOT_IN_THE_CURRENT filters correctly', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.days,
+                    completed: false,
+                },
+            },
+            {
+                target: { fieldRef: 'field2' },
+                id: '2',
+                operator: FilterOperator.NOT_IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.quarters,
+                    completed: false,
+                },
+            },
+        ];
+        const expected: DbtColumnLightdashMetric['filters'] = [
+            { field1: 'inTheCurrent days' },
+            { field2: 'notInTheCurrent quarters' },
+        ];
+        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+    });
+
+    it('should round-trip IN_THE_CURRENT through the dbt grammar', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.weeks,
+                    completed: false,
+                },
+            },
+        ];
+        const dbtFilters = convertMetricFilterToDbt(filters);
+        const parsed = parseFilters(dbtFilters);
+        expect(parsed[0].operator).toEqual(FilterOperator.IN_THE_CURRENT);
+        expect(parsed[0].settings).toEqual({ unitOfTime: UnitOfTime.weeks });
+        expect(parsed[0].values).toEqual([1]);
+    });
+
     it('should throw error on convert IN_THE_NEXT and IN_THE_PAST with completed', () => {
         const filters: MetricFilterRule[] = [
             {

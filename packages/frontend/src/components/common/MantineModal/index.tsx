@@ -99,6 +99,12 @@ export type MantineModalProps = {
      * "Are you sure you want to delete the {resourceType} "{resourceLabel}"?"
      */
     resourceLabel?: string;
+    /**
+     * Secondary line rendered under the title, in the header.
+     * Use for context about the modal itself; `description` instead puts copy
+     * in the body, where it reads as content.
+     */
+    subtitle?: React.ReactNode;
     icon?: IconType;
     /**
      * Modal size. Accepts Mantine's built-in sizes ('xs', 'sm', 'md', 'lg', 'xl') or a custom number/string.
@@ -209,6 +215,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     opened,
     onClose,
     title,
+    subtitle,
     variant = 'default',
     role = variant === 'delete' ? 'alertdialog' : 'dialog',
     resourceType,
@@ -345,7 +352,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             gap="sm"
                             flex={1}
                             wrap="nowrap"
-                            align="flex-start"
+                            align={subtitle ? 'center' : 'flex-start'}
                         >
                             {effectiveIcon ? (
                                 <Paper p="6px" withBorder radius="md">
@@ -355,9 +362,16 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                     />
                                 </Paper>
                             ) : null}
-                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
-                                {title}
-                            </Text>
+                            <Stack gap={2} miw={0}>
+                                <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                                    {title}
+                                </Text>
+                                {subtitle ? (
+                                    <Text c="ldGray.6" fz="sm" lh="20px">
+                                        {subtitle}
+                                    </Text>
+                                ) : null}
+                            </Stack>
                         </Group>
                         {headerActions ? (
                             <Group gap="sm" mr="md">

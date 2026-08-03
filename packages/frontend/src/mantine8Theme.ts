@@ -4,6 +4,7 @@ import {
     Button,
     Card,
     Loader,
+    Menu,
     Modal,
     MultiSelect,
     NumberInput,
@@ -59,7 +60,12 @@ declare module '@mantine-8/core' {
     }
 }
 
-type ExtendedCustomColors = 'ldGray' | 'ldDark' | DefaultMantineColor;
+type ExtendedCustomColors =
+    | 'ldGray'
+    | 'ldDark'
+    | 'ldBrandGray'
+    | 'ldBrandViolet'
+    | DefaultMantineColor;
 
 const subtleInputStyles = (theme: MantineTheme) => ({
     input: {
@@ -260,6 +266,13 @@ export const getMantine8ThemeOverride = (
                 defaultProps: {
                     loaders: { ...Loader.defaultLoaders, dots: DotsLoader },
                 },
+            }),
+
+            Menu: Menu.extend({
+                styles: (theme) => ({
+                    dropdown: { fontFamily: theme.fontFamily },
+                    item: { fontFamily: theme.fontFamily },
+                }),
             }),
 
             Select: Select.extend({

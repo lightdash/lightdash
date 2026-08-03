@@ -759,7 +759,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           "type": "string",
         },
         "resourceUuidOrSlug": {
-          "description": "UUID (preferred) or slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results — slugs are not guaranteed unique.",
+          "description": "UUID (preferred) or project-scoped slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results as the canonical identity.",
           "type": "string",
         },
         "targets": {
@@ -3913,6 +3913,59 @@ Parameters:
       "type": "object",
     },
     "name": "loadSkill",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+          ],
+          "type": "object",
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "description": "Load the definitions for MCP tools you need before calling them. Pass exact tool names from the MCP tools section of the system prompt. Loaded definitions remain available for the rest of the thread.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "names": {
+          "description": "Exact MCP tool names to load.",
+          "items": {
+            "minLength": 1,
+            "type": "string",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "names",
+      ],
+      "type": "object",
+    },
+    "name": "loadMcpTools",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -7736,6 +7789,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "improveContext",
   "loadSkill",
   "loadProjectContext",
+  "loadMcpTools",
   "editDbtProject",
   "editProjectContext",
   "editRepo",
@@ -7753,6 +7807,8 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "getKnowledgeDocumentContent",
   "readPinnedThread",
   "submitResearchReport",
+  "submitResearchHypotheses",
+  "submitInvestigationReport",
   "findCharts",
   "findDashboards",
   "generateBarVizConfig",

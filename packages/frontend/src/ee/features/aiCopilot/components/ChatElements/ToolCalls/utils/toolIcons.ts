@@ -68,6 +68,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             getProjectInfo: IconPlugConnected,
             loadSkill: IconBook2,
             loadProjectContext: IconVocabulary,
+            loadMcpTools: IconPlugConnected,
             editDbtProject: IconPencil,
             editProjectContext: IconVocabulary,
             editRepo: IconPencil,
@@ -90,6 +91,8 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             getKnowledgeDocumentContent: IconFileText,
             readPinnedThread: IconMessages,
             submitResearchReport: IconFileText,
+            submitResearchHypotheses: IconListDetails,
+            submitInvestigationReport: IconFileText,
         };
 
     return isToolName(toolName) ? iconMap[toolName] : IconPlugConnected;

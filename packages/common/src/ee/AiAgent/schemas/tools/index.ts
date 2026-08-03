@@ -9,6 +9,7 @@ export * from './toolEditContentArgs';
 export * from './toolGenerateHashesArgs';
 export * from './toolGenerateUuidsArgs';
 export * from './toolLoadProjectContextArgs';
+export * from './toolLoadMcpToolsArgs';
 export * from './toolLoadSkillArgs';
 export * from './toolMcpQueryResultDescription';
 export * from './toolEditDbtProjectArgs';

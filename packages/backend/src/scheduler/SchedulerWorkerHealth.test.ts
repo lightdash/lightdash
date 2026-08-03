@@ -99,7 +99,7 @@ describe('SchedulerWorkerHealth', () => {
         const result = health.isHealthy(startedAt + GRACE_MS + 1);
         expect(result.ok).toBe(false);
         expect(result.reason).toBe(
-            'no job activity or pg ping within staleness threshold',
+            'no recent job activity and LISTEN not established',
         );
     });
 
@@ -125,7 +125,7 @@ describe('SchedulerWorkerHealth', () => {
         const result = health.isHealthy(activityAt + GRACE_MS + 1);
         expect(result.ok).toBe(false);
         expect(result.reason).toBe(
-            'no job activity or pg ping within staleness threshold',
+            'no recent job activity and LISTEN not established',
         );
     });
 
@@ -203,12 +203,12 @@ describe('SchedulerWorkerHealth', () => {
         });
     });
 
-    describe('pg-reachable signal', () => {
-        it('keeps the probe healthy past staleness when only pg-ping is fresh', () => {
-            // The exact scenario this refactor exists to fix: no jobs flowed
-            // for longer than the activity staleness window, but pg-ping has
-            // proven the worker can still reach pg in the last 60s. Probe
-            // must NOT trip — the worker is healthy, just idle.
+    describe('pg-reachable signal (negative only)', () => {
+        it('does NOT let a fresh pg-ping vouch for an idle worker with no LISTEN', () => {
+            // The Aug 2026 incident class: pool dead after a transient
+            // Postgres restart, no jobs flowing, but plain pg queries succeed
+            // because the DB is back. The old pgReachableFresh branch returned
+            // 200 for days in this state. A fresh ping must never vouch.
             const health = new SchedulerWorkerHealth();
             const startedAt = Date.now();
 
@@ -216,10 +216,14 @@ describe('SchedulerWorkerHealth', () => {
             Date.now = () => pingAt;
             health.markPgReachable();
 
-            expect(health.isHealthy(pingAt + 60_000)).toEqual({ ok: true });
+            const result = health.isHealthy(pingAt + 60_000);
+            expect(result.ok).toBe(false);
+            expect(result.reason).toBe(
+                'no recent job activity and LISTEN not established',
+            );
         });
 
-        it('trips when both job activity and pg-ping are stale', () => {
+        it('trips with a postgres-unreachable reason when the ping goes stale on an idle worker', () => {
             const health = new SchedulerWorkerHealth();
             const startedAt = Date.now();
 
@@ -227,12 +231,31 @@ describe('SchedulerWorkerHealth', () => {
             Date.now = () => activityAt;
             health.markJobActivity();
             health.markPgReachable();
+            health.markListenUp();
 
+            // Activity and ping both 3min+1ms old; LISTEN is up, but the
+            // stale ping (DB unreachable) must win over the idle-ok path.
             const result = health.isHealthy(activityAt + GRACE_MS + 1);
             expect(result.ok).toBe(false);
-            expect(result.reason).toBe(
-                'no job activity or pg ping within staleness threshold',
-            );
+            expect(result.reason).toMatch(/^postgres unreachable for \d+s$/);
+        });
+
+        it('does not trip on a stale ping while jobs are actively flowing', () => {
+            // Live job traffic is stronger evidence than a ping — transient
+            // ping timeouts must not restart a worker that is executing jobs.
+            const health = new SchedulerWorkerHealth();
+            const startedAt = Date.now();
+
+            Date.now = () => startedAt;
+            health.markPgReachable();
+
+            const laterActivity = startedAt + GRACE_MS + 5 * 60_000;
+            Date.now = () => laterActivity;
+            health.markJobActivity();
+
+            expect(health.isHealthy(laterActivity + 60_000)).toEqual({
+                ok: true,
+            });
         });
 
         it('reports LISTEN failure even when pg ping is still fresh', () => {
@@ -255,6 +278,121 @@ describe('SchedulerWorkerHealth', () => {
             const health = new SchedulerWorkerHealth();
             health.markPgReachable();
             expect(health.isHealthy()).toEqual({ ok: true });
+        });
+    });
+
+    describe('idle worker with LISTEN established', () => {
+        it('stays healthy indefinitely while LISTEN is up and pg is reachable', () => {
+            // Replaces the old pgReachableFresh voucher for legitimately idle
+            // instances: connected LISTEN means the worker is wired for
+            // wake-up. A dead pool cannot sustain this state — the heartbeat
+            // NOTIFY makes its own listener nudge the pool, which trips the
+            // poolDead latch.
+            const health = new SchedulerWorkerHealth();
+            const startedAt = Date.now();
+            health.markListenUp();
+
+            const muchLater = startedAt + 6 * 60 * 60_000;
+            Date.now = () => muchLater;
+            health.markPgReachable();
+
+            expect(health.isHealthy(muchLater + 30_000)).toEqual({ ok: true });
+        });
+
+        it('tolerates a transient listen blip inside the 60s budget on an idle worker', () => {
+            // The 60s LISTEN budget is the sole arbiter for reconnects — an
+            // idle worker must not flip 503 on the first blip (that would be
+            // stricter than the old pgReachableFresh behavior and cause
+            // liveness churn on ordinary reconnects). Past the budget the
+            // LISTEN branch trips as before; a dead pool is caught by the
+            // poolDead latch, not this path.
+            const health = new SchedulerWorkerHealth();
+            const startedAt = Date.now();
+            health.markListenUp();
+
+            const lostAt = startedAt + GRACE_MS + 10 * 60_000;
+            Date.now = () => lostAt;
+            health.markPgReachable();
+            health.markListenLost();
+
+            expect(health.isHealthy(lostAt + 30_000)).toEqual({ ok: true });
+
+            const pastBudget = health.isHealthy(lostAt + LISTEN_BUDGET_MS + 1);
+            expect(pastBudget.ok).toBe(false);
+            expect(pastBudget.reason).toMatch(/^LISTEN connection lost/);
+        });
+    });
+
+    describe('pool-dead latch', () => {
+        it('reports unhealthy with the terminating reason, overriding every other signal', () => {
+            const health = new SchedulerWorkerHealth();
+            const t = Date.now();
+            // Everything else looks healthy: fresh ping, LISTEN up, job in
+            // flight, fresh activity — the dead pool must still win.
+            health.markPgReachable();
+            health.markListenUp();
+            health.markJobStarted();
+            health.markPoolDead('nudge called after worker terminated');
+
+            const result = health.isHealthy(t + 1);
+            expect(result.ok).toBe(false);
+            expect(result.reason).toBe(
+                'worker pool terminated: nudge called after worker terminated',
+            );
+        });
+
+        it('is permanent — later recovery signals cannot clear it', () => {
+            const health = new SchedulerWorkerHealth();
+            const t = Date.now();
+            health.markPoolDead('boom');
+
+            health.markListenUp();
+            health.markJobStarted();
+            health.markJobActivity();
+            health.markPgReachable();
+
+            expect(health.isHealthy(t + 10_000).ok).toBe(false);
+            expect(health.isHealthy(t + 60 * 60_000).ok).toBe(false);
+        });
+
+        it('latches on first call only and reports whether this call latched', () => {
+            const health = new SchedulerWorkerHealth();
+            expect(health.markPoolDead('first')).toBe(true);
+            expect(health.markPoolDead('second')).toBe(false);
+
+            // The retained reason is the first one.
+            const result = health.isHealthy(Date.now() + 1);
+            expect(result.reason).toBe('worker pool terminated: first');
+        });
+
+        it('fires onPoolDead listeners exactly once despite repeated triggers', () => {
+            // The LISTEN retry loop re-raises the nudge error every ~100ms;
+            // the exit side effect must not be scheduled repeatedly.
+            const health = new SchedulerWorkerHealth();
+            const listener = vi.fn();
+            health.onPoolDead(listener);
+
+            health.markPoolDead('nudge called after worker terminated');
+            health.markPoolDead('nudge called after worker terminated');
+            health.markPoolDead('nudge called after worker terminated');
+
+            expect(listener).toHaveBeenCalledTimes(1);
+            expect(listener).toHaveBeenCalledWith(
+                'nudge called after worker terminated',
+            );
+        });
+
+        it('a throwing listener does not prevent the latch or other listeners', () => {
+            const health = new SchedulerWorkerHealth();
+            const second = vi.fn();
+            health.onPoolDead(() => {
+                throw new Error('listener bug');
+            });
+            health.onPoolDead(second);
+
+            expect(health.markPoolDead('boom')).toBe(true);
+            expect(second).toHaveBeenCalledTimes(1);
+            expect(health.isHealthy(Date.now() + 1).ok).toBe(false);
         });
     });
 });

@@ -109,10 +109,15 @@ export const loadTemplateDependencies = (
 /**
  * Reads vendored template, excluding sandbox-only entries (skill.md, scripts/, src/).
  */
-export const loadVendoredTemplate = (): DataAppCodeFile[] => {
+const loadVendoredTemplate = (): DataAppCodeFile[] => {
     const { templateDir } = resolveVendorDirs();
     const SKIP = new Set(['skill.md', 'scripts', 'src']);
     return walkDir(templateDir, templateDir, SKIP);
+};
+
+export const loadVendoredStarterSource = (): DataAppCodeFile[] => {
+    const { templateDir } = resolveVendorDirs();
+    return walkDir(path.join(templateDir, 'src'), templateDir, new Set());
 };
 
 /**

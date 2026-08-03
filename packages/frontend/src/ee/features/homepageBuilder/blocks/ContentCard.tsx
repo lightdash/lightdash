@@ -1,5 +1,4 @@
 import {
-    ContentType,
     contentToResourceViewItem,
     type SummaryContent,
 } from '@lightdash/common';
@@ -15,21 +14,9 @@ import { type FC, type PropsWithChildren } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
+import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import classes from './blockStyles.module.css';
-
-const contentUrl = (projectUuid: string, content: SummaryContent): string => {
-    switch (content.contentType) {
-        case ContentType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${content.uuid}/view`;
-        case ContentType.SPACE:
-            return `/projects/${projectUuid}/spaces/${content.uuid}`;
-        case ContentType.DATA_APP:
-            return `/projects/${projectUuid}/n${content.uuid}`;
-        default:
-            return `/projects/${projectUuid}/saved/${content.uuid}`;
-    }
-};
 
 type Props = {
     content: SummaryContent;
@@ -144,7 +131,9 @@ export const ContentCard: FC<Props> = ({
     star,
     variant = 'row',
 }) => {
-    const to = onRemove ? null : contentUrl(projectUuid, content);
+    const to = onRemove
+        ? null
+        : getResourceUrl(projectUuid, contentToResourceViewItem(content));
     const cardClass = `${classes.hoverCard}${to ? ` ${classes.clickable}` : ''}`;
 
     if (variant === 'tile') {

@@ -1,7 +1,8 @@
+import { type ApiAppVersionSummary } from '@lightdash/common';
 import { useCallback, useEffect, useRef } from 'react';
 
 /**
- * Returns a `notify(version, status)` function that shows an OS notification
+ * Returns a `notify(version)` function that shows an OS notification
  * when a build completes — but only when the tab is in the background.
  *
  * Automatically requests notification permission when `shouldRequestPermission`
@@ -22,7 +23,7 @@ export function useBuildNotification(
     const notifiedVersionRef = useRef<number | null>(null);
 
     return useCallback(
-        (version: number, status: string) => {
+        ({ version, status }: ApiAppVersionSummary) => {
             if (notifiedVersionRef.current === version) return;
             notifiedVersionRef.current = version;
 

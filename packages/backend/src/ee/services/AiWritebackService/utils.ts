@@ -36,6 +36,11 @@ import type {
 
 const DEFAULT_GITLAB_HOST_DOMAIN = 'gitlab.com';
 
+export const quoteShellArgument = (value: string): string => {
+    const escaped = value.replace(/'/g, "'\"'\"'");
+    return `'${escaped}'`;
+};
+
 const splitOwnerRepo = (
     repository: string,
 ): { owner: string; repo: string } => {

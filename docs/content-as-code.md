@@ -557,11 +557,10 @@ field. `registry.test.ts` ensures that adding a resource to
 `CONTENT_AS_CODE_VERSIONS` also requires adding a matching coverage test.
 
 When a model changes, regenerate the OpenAPI schema before running a focused
-contract test. CI does this through `build:fast`, but focused local test runs do
-not:
+contract test. CI does this through `build`, but focused local test runs do not:
 
 ```bash
-pnpm generate-api:backend:fast
+pnpm generate-api:backend
 pnpm -F backend exec vitest run \
   src/contentAsCode/fieldCoverage/chart.test.ts \
   --config vitest.config.ts
@@ -589,12 +588,19 @@ This is a schema coverage contract, not a replacement for behavior tests. It
 catches unclassified top-level fields; resource adapters and round-trip tests
 must still prove that portable fields download, compare, and upload correctly.
 
-Charts, dashboards, and spaces do not yet have universal database-enforced
-project-scoped slug uniqueness. Application-level locking protects current
-content-as-code and promotion creation paths, but callers must not assume a slug
-is a globally reliable unique identifier. Resolution should detect ambiguity,
-and new relationships must use UUIDs until database constraints or a dedicated
-portable identity are introduced.
+Charts, dashboards, SQL Runner charts, spaces, and data apps reserve slugs
+within their project, including slugs owned by soft-deleted rows. The database
+uniqueness constraints are authoritative. Normal creation derives a slug from
+the name and appends `-1`, `-2`, and so on after exact indexed candidate
+probes. Content-as-code and promotion may request an exact slug: an available
+slug is preserved, an active matching resource is updated by the upsert flow,
+and a deleted-resource conflict is rejected rather than silently reused.
+
+The same slug may exist in different projects. Slugs remain portable,
+human-readable project-scoped selectors, while UUIDs are the canonical internal
+identity for relationships and unscoped references. Lookup code must always
+include the project scope or reject ambiguity; it must never select an arbitrary
+match.
 
 If implementing the CLI requires importing backend domain maps, reproducing
 validation rules, fetching current resources to calculate a diff, or calling

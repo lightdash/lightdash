@@ -74,7 +74,7 @@ type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
 };
 
-export const logDeployWarnings = (
+const logDeployWarnings = (
     warningResults: ApiDeployExploresResults['warnings'] | undefined,
 ) => {
     if (

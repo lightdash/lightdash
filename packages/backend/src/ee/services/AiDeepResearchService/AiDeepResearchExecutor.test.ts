@@ -1,18 +1,25 @@
 import {
-    type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchHypothesis,
+    type AiDeepResearchInvestigationReport,
     type AnyType,
     type SessionUser,
 } from '@lightdash/common';
 import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
-import { AI_DEEP_RESEARCH_REPORT_TOOL_NAME } from './AiDeepResearchAgent';
+import {
+    AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME,
+    AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
+    getAiDeepResearchPhaseBudgets,
+} from './AiDeepResearchAgent';
 import { AiDeepResearchExecutor } from './AiDeepResearchExecutor';
 
-const budget: AiDeepResearchBudget = {
+const budget = {
     maxTokens: 10_000,
     maxToolCalls: 20,
     maxWarehouseQueries: 10,
     maxResultRows: 1_000,
+    maxHypotheses: 2,
 };
 
 const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
@@ -40,7 +47,7 @@ const executionContextSnapshot: AiDeepResearchExecutionContextSnapshot = {
     },
     tools: {
         availableToolNames: ['submitResearchReport'],
-        selectedMcpServers: [],
+        attachedMcpServers: [],
     },
     knowledgeDocuments: [],
     repository: {
@@ -78,6 +85,32 @@ The monthly trend was stable.
     charts: [],
 };
 
+const hypothesis = (index: number): AiDeepResearchHypothesis => ({
+    id: `hypothesis-${index}`,
+    claim: `Claim ${index}`,
+    rationale: `Rationale ${index}`,
+    supportingEvidence: `Supporting evidence ${index}`,
+    falsifyingEvidence: `Falsifying evidence ${index}`,
+});
+
+const investigationReport = (
+    overrides: Partial<AiDeepResearchInvestigationReport> = {},
+): AiDeepResearchInvestigationReport => ({
+    verdict: 'supported',
+    summary: 'The evidence supports the claim.',
+    evidence: [
+        {
+            finding: 'Orders dropped after the pricing change',
+            queryUuids: [],
+            sources: [],
+        },
+    ],
+    alternativeExplanations: ['Seasonality'],
+    causalLimitations: ['Correlation only; no controlled comparison'],
+    confidence: 'medium',
+    ...overrides,
+});
+
 const run = (
     overrides: Partial<DbAiDeepResearchRun> = {},
 ): DbAiDeepResearchRun => ({
@@ -91,11 +124,26 @@ const run = (
     tool_call_id: null,
     prompt: 'Investigate revenue',
     status: 'running',
-    selected_mcp_server_uuids: ['mcp-1'],
+    entry_point: 'ask_ai',
     result_markdown: null,
     result_chart_data: null,
+    report_expires_at: null,
+    report_expired_at: null,
     budget_snapshot: budget,
     execution_context_snapshot: executionContextSnapshot,
+    input_tokens: null,
+    output_tokens: null,
+    cache_read_tokens: null,
+    cache_write_tokens: null,
+    reasoning_tokens: null,
+    total_tokens: null,
+    token_usage_complete: null,
+    duration_ms: null,
+    tool_call_count: null,
+    tool_error_count: null,
+    warehouse_query_count: null,
+    findings_count: null,
+    chart_count: null,
     error_message: null,
     cancellation_requested_at: null,
     started_at: new Date(),
@@ -151,12 +199,49 @@ const reportSubmission = (toolCallId = 'report-1', input = report) =>
         result: JSON.stringify({ submitted: true }),
     });
 
+const researchRole = (options: AnyType) => options.execution.research?.role;
+
+/**
+ * A generateAgentThreadResponse stub that plays each phase's part: the
+ * planner hands back hypotheses, investigators hand back reports, and the
+ * judge relies on the mocked provenance for its submitted report.
+ */
+const respondByRole = ({
+    onInvestigate,
+}: {
+    onInvestigate?: (options: AnyType) => Promise<string> | string;
+} = {}) =>
+    vi.fn(async (_user: SessionUser, options: AnyType) => {
+        const { research } = options.execution;
+        switch (research?.role) {
+            case 'planner': {
+                research.onHypotheses(
+                    Array.from({ length: research.maxHypotheses }, (_, i) =>
+                        hypothesis(i + 1),
+                    ),
+                );
+                return 'planned';
+            }
+            case 'investigator': {
+                if (onInvestigate) {
+                    return onInvestigate(options);
+                }
+                research.onReport(investigationReport());
+                return 'investigated';
+            }
+            default:
+                return 'judged';
+        }
+    });
+
 const buildExecutor = ({
-    generateAgentThreadResponse = vi.fn().mockResolvedValue('done'),
+    generateAgentThreadResponse = respondByRole(),
     provenance = [reportSubmission()],
+    childProvenance = provenance,
 }: {
     generateAgentThreadResponse?: AnyType;
     provenance?: AnyType[];
+    childProvenance?: AnyType[];
 } = {}) => {
     const session = {
         userUuid: 'user-1',
@@ -164,13 +249,19 @@ const buildExecutor = ({
         isActive: true,
     } as SessionUser;
     const aiDeepResearchRunModel = {
+        accumulateTokenUsage: vi.fn().mockResolvedValue(true),
         appendProgressEvent: vi.fn().mockResolvedValue(true),
         findByUuid: vi.fn().mockResolvedValue(run()),
         touch: vi.fn().mockResolvedValue(true),
         updateExecutionContextSnapshot: vi.fn().mockResolvedValue(undefined),
     };
     const aiAgentModel = {
-        getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue(provenance),
+        getToolCallsAndResultsForPrompt: vi.fn(
+            async (_promptUuid: string, options?: AnyType) =>
+                options?.includeSubagentToolCalls
+                    ? childProvenance
+                    : provenance,
+        ),
     };
     const userService = {
         getSessionByUserUuidAndOrg: vi.fn().mockResolvedValue(session),
@@ -194,6 +285,43 @@ const buildExecutor = ({
     };
 };
 
+const callsByRole = (mock: AnyType, role: string | undefined) =>
+    mock.mock.calls.filter(
+        ([, options]: AnyType[]) => researchRole(options) === role,
+    );
+
+describe('getAiDeepResearchPhaseBudgets', () => {
+    it('reserves fixed capacity for planning and judging and splits the rest across investigators', () => {
+        const phases = getAiDeepResearchPhaseBudgets(budget);
+
+        expect(phases.planner.maxToolCalls).toBe(2);
+        expect(phases.judge.maxToolCalls).toBe(4);
+        // (20 - 2 - 4) / 2 hypotheses
+        expect(phases.investigator.maxToolCalls).toBe(7);
+        expect(phases.investigator.maxWarehouseQueries).toBe(5);
+        expect(phases.investigator.maxResultRows).toBe(budget.maxResultRows);
+    });
+
+    it('scales per-hypothesis depth down as the hypothesis count grows', () => {
+        const twoWay = getAiDeepResearchPhaseBudgets({
+            ...budget,
+            maxHypotheses: 2,
+        });
+        const sixWay = getAiDeepResearchPhaseBudgets({
+            ...budget,
+            maxHypotheses: 6,
+        });
+
+        expect(sixWay.investigator.maxToolCalls).toBeLessThan(
+            twoWay.investigator.maxToolCalls,
+        );
+        expect(sixWay.investigator.maxToolCalls).toBeGreaterThanOrEqual(1);
+        expect(sixWay.investigator.maxWarehouseQueries).toBeGreaterThanOrEqual(
+            1,
+        );
+    });
+});
+
 describe('AiDeepResearchExecutor', () => {
     it('does not start a run created by an inactive user', async () => {
         const { executor, userService, generateAgentThreadResponse } =
@@ -212,192 +340,509 @@ describe('AiDeepResearchExecutor', () => {
             status: 'failed',
             errorMessage:
                 'Deep Research cannot run because its creator is inactive',
+            terminalReason: 'permission_revoked',
         });
         expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
 
-    it('executes the stored prompt with the full native agent runtime selection', async () => {
+    it('does not start an already cancelled run', async () => {
+        const generateAgentThreadResponse = vi.fn();
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+        const controller = new AbortController();
+        controller.abort();
+
+        await expect(
+            executor.execute(run(), { signal: controller.signal }),
+        ).resolves.toEqual({
+            status: 'cancelled',
+            terminalReason: 'internal_error',
+        });
+        expect(generateAgentThreadResponse).not.toHaveBeenCalled();
+    });
+
+    it('plans, investigates every hypothesis, judges, and completes with child-row evidence', async () => {
         const queryUuid = '11111111-1111-4111-8111-111111111111';
-        const decoyQueryUuid = '22222222-2222-4222-8222-222222222222';
-        const provenance = [
-            toolProvenance({
-                toolName: 'mcp_analytics__run_metric_query_2',
-                toolCallId: 'query-1',
-                toolArgs: { queryUuid: decoyQueryUuid },
-                result: JSON.stringify({
-                    content: [{ queryUuid }],
-                }),
-            }),
-            reportSubmission(),
-        ];
-        const generateAgentThreadResponse = vi.fn(
-            async (
-                _user: SessionUser,
-                options: {
-                    execution: {
-                        onExecutionContextResolved: (
-                            snapshot: AiDeepResearchExecutionContextSnapshot,
-                        ) => Promise<void>;
-                    };
-                },
-            ) => {
-                await options.execution.onExecutionContextResolved(
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: async (options: AnyType) => {
+                await options.execution.onStepUsage({
+                    runUuid: 'run-1',
+                    phase: options.execution.phase,
+                    tokens: {
+                        inputTokens: 70,
+                        outputTokens: 30,
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                        reasoningTokens: 0,
+                        totalTokens: 100,
+                    },
+                });
+                await options.execution.onExecutionContextResolved?.(
                     executionContextSnapshot,
                 );
-                return 'ignored';
+                options.execution.research.onReport(investigationReport());
+                return 'investigated';
             },
-        );
-        const { executor, userService, aiDeepResearchRunModel } = buildExecutor(
-            {
+        });
+        const { executor, aiDeepResearchRunModel, aiAgentModel } =
+            buildExecutor({
                 generateAgentThreadResponse,
-                provenance: [
+                provenance: [reportSubmission()],
+                childProvenance: [
                     toolProvenance({
-                        toolName: 'readContent',
-                        toolCallId: 'content-1',
+                        toolName: 'runSql',
+                        toolCallId: 'query-1',
                         toolArgs: {},
-                        result: JSON.stringify({ queryUuid: decoyQueryUuid }),
+                        result: JSON.stringify({ queryUuid }),
                     }),
-                    ...provenance,
+                    reportSubmission(),
                 ],
-            },
-        );
-        const inputRun = run();
+            });
 
-        const result = await executor.execute(inputRun, {
+        const result = await executor.execute(run(), {
             signal: new AbortController().signal,
         });
 
-        expect(userService.getSessionByUserUuidAndOrg).toHaveBeenCalledWith(
-            'user-1',
-            'org-1',
-        );
-        expect(generateAgentThreadResponse).toHaveBeenCalledWith(
-            expect.objectContaining({ userUuid: 'user-1' }),
-            expect.objectContaining({
-                agentUuid: 'agent-1',
-                threadUuid: 'thread-1',
-                promptUuid: 'prompt-1',
-                autoApproveSql: true,
-                execution: expect.objectContaining({
-                    mode: 'deep_research',
-                    budget,
-                    selectedMcpServerUuids: ['mcp-1'],
-                    abortSignal: expect.any(AbortSignal),
-                    onStepUsage: expect.any(Function),
-                    onWarehouseQuery: expect.any(Function),
-                    onExecutionContextResolved: expect.any(Function),
-                }),
-                onStepProgress: expect.any(Function),
-            }),
-        );
         expect(result).toEqual({
             status: 'completed',
             report,
             warehouseQueryUuids: [queryUuid],
+            terminalReason: null,
         });
-        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(1);
+        expect(
+            aiDeepResearchRunModel.accumulateTokenUsage,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            aiDeepResearchRunModel.accumulateTokenUsage,
+        ).toHaveBeenCalledWith(
+            'run-1',
+            expect.objectContaining({ totalTokens: 100 }),
+        );
+
+        const plannerCalls = callsByRole(
+            generateAgentThreadResponse,
+            'planner',
+        );
+        const investigatorCalls = callsByRole(
+            generateAgentThreadResponse,
+            'investigator',
+        );
+        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
+        expect(plannerCalls).toHaveLength(1);
+        expect(investigatorCalls).toHaveLength(2);
+        expect(judgeCalls).toHaveLength(1);
+
+        expect(plannerCalls[0][1]).toMatchObject({
+            toolHints: [AI_DEEP_RESEARCH_HYPOTHESES_TOOL_NAME],
+            forceToolHints: true,
+            execution: {
+                parentToolCallId: 'deep-research:run-1:planner',
+                research: { maxHypotheses: 2 },
+            },
+        });
+
+        const investigatorParents = investigatorCalls.map(
+            ([, options]: AnyType[]) => options.execution.parentToolCallId,
+        );
+        expect(investigatorParents).toEqual([
+            'deep-research:run-1:hypothesis-1',
+            'deep-research:run-1:hypothesis-2',
+        ]);
+        investigatorCalls.forEach(([, options]: AnyType[]) => {
+            expect(options.execution.budget).toMatchObject({
+                maxToolCalls: 7,
+                maxWarehouseQueries: 5,
+            });
+        });
+
+        // The judge starts from the aggregate usage of every prior phase and
+        // receives every investigation report.
+        expect(judgeCalls[0][1].execution.initialTokenUsage).toBe(200);
+        expect(judgeCalls[0][1].execution.parentToolCallId).toBeUndefined();
+        expect(
+            judgeCalls[0][1].execution.research.investigations.map(
+                (investigation: AnyType) => ({
+                    id: investigation.hypothesis.id,
+                    hasReport: investigation.report !== null,
+                }),
+            ),
+        ).toEqual([
+            { id: 'hypothesis-1', hasReport: true },
+            { id: 'hypothesis-2', hasReport: true },
+        ]);
+
         expect(
             aiDeepResearchRunModel.updateExecutionContextSnapshot,
         ).toHaveBeenCalledWith('run-1', executionContextSnapshot);
+        expect(
+            aiAgentModel.getToolCallsAndResultsForPrompt,
+        ).toHaveBeenLastCalledWith('prompt-1', {
+            includeSubagentToolCalls: true,
+        });
     });
 
-    it('records unique tool progress and returns a partial report when a budget is exhausted', async () => {
-        const generateAgentThreadResponse = vi.fn(
-            async (
-                _user: SessionUser,
-                options: {
-                    onStepProgress: (
-                        progress: string,
-                        toolName: string,
-                        toolCallId: string,
-                    ) => Promise<void>;
-                },
-            ) => {
-                await Promise.allSettled([
-                    options.onStepProgress(
-                        'Running query',
-                        'runQuery',
-                        'query-1',
-                    ),
-                    options.onStepProgress(
-                        'Running query',
-                        'runQuery',
-                        'query-1',
-                    ),
-                    options.onStepProgress(
-                        'Reading content',
-                        'readContent',
-                        'content-1',
-                    ),
-                ]);
+    it('starts every investigator before any of them resolves', async () => {
+        const started: Array<(value: string) => void> = [];
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: (options: AnyType) => {
+                options.execution.research.onReport(investigationReport());
+                return new Promise<string>((resolve) => {
+                    started.push(resolve);
+                });
             },
-        );
-        const { executor, aiDeepResearchRunModel } = buildExecutor({
+        });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+
+        const pendingRun = executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        // Both investigators are in flight while neither has resolved —
+        // the fan-out is deterministic, not sequential.
+        await vi.waitFor(() => {
+            expect(started).toHaveLength(2);
+        });
+        started.forEach((resolve) => resolve('investigated'));
+
+        await expect(pendingRun).resolves.toMatchObject({
+            status: 'completed',
+        });
+    });
+
+    it('passes a failed investigation to the judge as unavailable without discarding successes', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: (options: AnyType) => {
+                if (
+                    options.execution.research.hypothesis.id === 'hypothesis-2'
+                ) {
+                    throw new Error('warehouse credentials expired');
+                }
+                options.execution.research.onReport(investigationReport());
+                return 'investigated';
+            },
+        });
+        const { executor } = buildExecutor({
             generateAgentThreadResponse,
-            provenance: [],
         });
 
         const result = await executor.execute(
-            run({
-                budget_snapshot: {
-                    ...budget,
-                    maxToolCalls: 1,
-                },
-            }),
+            run({ budget_snapshot: { ...budget, maxHypotheses: 3 } }),
             { signal: new AbortController().signal },
         );
 
+        expect(result).toMatchObject({ status: 'completed' });
+        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
+        expect(judgeCalls).toHaveLength(1);
         expect(
-            aiDeepResearchRunModel.appendProgressEvent,
-        ).toHaveBeenCalledTimes(1);
-        expect(result).toMatchObject({
-            status: 'partially_completed',
-            warehouseQueryUuids: [],
-            report: {
-                charts: [],
+            judgeCalls[0][1].execution.research.investigations.map(
+                (investigation: AnyType) => ({
+                    id: investigation.hypothesis.id,
+                    hasReport: investigation.report !== null,
+                    failureReason: investigation.failureReason,
+                }),
+            ),
+        ).toEqual([
+            {
+                id: 'hypothesis-1',
+                hasReport: true,
+                failureReason: null,
             },
-        });
-        expect(
-            result.status === 'partially_completed' && result.report.markdown,
-        ).toContain('maxToolCalls');
+            {
+                id: 'hypothesis-2',
+                hasReport: false,
+                failureReason: 'warehouse credentials expired',
+            },
+            {
+                id: 'hypothesis-3',
+                hasReport: true,
+                failureReason: null,
+            },
+        ]);
     });
 
-    it('enforces every native warehouse execution, including multiple queries inside one tool', async () => {
-        const generateAgentThreadResponse = vi.fn(
-            async (
-                _user: SessionUser,
-                options: {
-                    execution: {
-                        onWarehouseQuery: () => void;
-                    };
-                },
-            ) => {
-                options.execution.onWarehouseQuery();
-                options.execution.onWarehouseQuery();
+    it('fails with an actionable reason when fewer than two investigations complete', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: () => {
+                throw new Error('model provider unavailable');
             },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
+        });
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result.status).toBe('failed');
+        expect(result.status === 'failed' && result.errorMessage).toContain(
+            'requires at least two',
+        );
+        expect(result.status === 'failed' && result.errorMessage).toContain(
+            'model provider unavailable',
+        );
+        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
+            0,
+        );
+    });
+
+    it('fails when the planner does not submit hypotheses', async () => {
+        const generateAgentThreadResponse = vi.fn(
+            async (_user: SessionUser, _options: AnyType) => 'no submission',
         );
         const { executor } = buildExecutor({
             generateAgentThreadResponse,
             provenance: [],
+            childProvenance: [],
+        });
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result).toEqual({
+            status: 'failed',
+            errorMessage:
+                'Deep Research could not produce competing hypotheses to investigate',
+            terminalReason: 'provider_error',
+        });
+        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(1);
+    });
+
+    it('aborts every in-flight investigator on cancellation and never starts the judge', async () => {
+        const controller = new AbortController();
+        const investigatorSignals: AbortSignal[] = [];
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: (options: AnyType) => {
+                const signal: AbortSignal = options.execution.abortSignal;
+                investigatorSignals.push(signal);
+                return new Promise<string>((_resolve, reject) => {
+                    signal.addEventListener('abort', () =>
+                        reject(new Error('aborted')),
+                    );
+                });
+            },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
+        });
+
+        const pendingRun = executor.execute(run(), {
+            signal: controller.signal,
+        });
+        await vi.waitFor(() => {
+            expect(investigatorSignals).toHaveLength(2);
+        });
+        controller.abort();
+
+        await expect(pendingRun).resolves.toEqual({
+            status: 'cancelled',
+            terminalReason: 'internal_error',
+        });
+        expect(investigatorSignals.every((signal) => signal.aborted)).toBe(
+            true,
+        );
+        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
+            0,
+        );
+    });
+
+    it('enforces the aggregate tool-call budget across parallel investigators', async () => {
+        let investigatorIndex = 0;
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: async (options: AnyType) => {
+                investigatorIndex += 1;
+                await options.onStepProgress(
+                    'Reading content',
+                    'readContent',
+                    `content-${investigatorIndex}`,
+                );
+                options.execution.research.onReport(investigationReport());
+                return 'investigated';
+            },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
         });
 
         const result = await executor.execute(
-            run({
-                budget_snapshot: {
-                    ...budget,
-                    maxWarehouseQueries: 1,
-                },
-            }),
+            run({ budget_snapshot: { ...budget, maxToolCalls: 1 } }),
             { signal: new AbortController().signal },
         );
 
-        expect(result).toMatchObject({
-            status: 'partially_completed',
-            warehouseQueryUuids: [],
+        expect(result.status).toBe('partially_completed');
+        expect(
+            result.status === 'partially_completed' && result.report.markdown,
+        ).toContain('maxToolCalls');
+        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
+            0,
+        );
+    });
+
+    it('enforces the aggregate warehouse-query budget across parallel investigators', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: async (options: AnyType) => {
+                options.execution.onWarehouseQuery();
+                options.execution.research.onReport(investigationReport());
+                return 'investigated';
+            },
         });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
+        });
+
+        const result = await executor.execute(
+            run({ budget_snapshot: { ...budget, maxWarehouseQueries: 1 } }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result.status).toBe('partially_completed');
         expect(
             result.status === 'partially_completed' && result.report.markdown,
         ).toContain('maxWarehouseQueries');
+    });
+
+    it('enforces the aggregate token budget across phases', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: async (options: AnyType) => {
+                await options.execution.onStepUsage({
+                    runUuid: 'run-1',
+                    phase: options.execution.phase,
+                    tokens: {
+                        inputTokens: 40,
+                        outputTokens: 20,
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                        reasoningTokens: 0,
+                        totalTokens: 60,
+                    },
+                });
+                options.execution.research.onReport(investigationReport());
+                return 'investigated';
+            },
+        });
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [],
+        });
+
+        const result = await executor.execute(
+            run({ budget_snapshot: { ...budget, maxTokens: 100 } }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result.status).toBe('partially_completed');
+        expect(result.terminalReason).toBe('token_limit');
+        expect(
+            result.status === 'partially_completed' && result.report.markdown,
+        ).toContain('maxTokens');
+        expect(callsByRole(generateAgentThreadResponse, 'judge')).toHaveLength(
+            0,
+        );
+    });
+
+    it('retries each investigator once with forced submission before giving up on it', async () => {
+        const attemptsByHypothesis = new Map<string, number>();
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: (options: AnyType) => {
+                const { research } = options.execution;
+                const attempts =
+                    (attemptsByHypothesis.get(research.hypothesis.id) ?? 0) + 1;
+                attemptsByHypothesis.set(research.hypothesis.id, attempts);
+                if (attempts === 2) {
+                    expect(options.toolHints).toEqual([
+                        AI_DEEP_RESEARCH_INVESTIGATION_TOOL_NAME,
+                    ]);
+                    expect(options.forceToolHints).toBe(true);
+                    research.onReport(investigationReport());
+                }
+                return 'investigated';
+            },
+        });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result).toMatchObject({ status: 'completed' });
+        expect([...attemptsByHypothesis.values()]).toEqual([2, 2]);
+    });
+
+    it('keeps a submitted investigation report when the call crashes after submission', async () => {
+        const generateAgentThreadResponse = respondByRole({
+            onInvestigate: (options: AnyType) => {
+                options.execution.research.onReport(investigationReport());
+                throw new Error('provider disconnected after submission');
+            },
+        });
+        const { executor } = buildExecutor({ generateAgentThreadResponse });
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result).toMatchObject({ status: 'completed' });
+        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
+        expect(
+            judgeCalls[0][1].execution.research.investigations.every(
+                (investigation: AnyType) => investigation.report !== null,
+            ),
+        ).toBe(true);
+    });
+
+    it('retries the judge once with forced report submission when no report was submitted', async () => {
+        const generateAgentThreadResponse = respondByRole();
+        const { executor, aiAgentModel } = buildExecutor({
+            generateAgentThreadResponse,
+            provenance: [],
+            childProvenance: [reportSubmission()],
+        });
+        // First top-level read (post-judge check) finds nothing; the forced
+        // retry submits, and the final child-inclusive read returns it.
+        aiAgentModel.getToolCallsAndResultsForPrompt.mockImplementation(
+            async (_promptUuid: string, options?: AnyType) =>
+                options?.includeSubagentToolCalls ? [reportSubmission()] : [],
+        );
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result).toMatchObject({ status: 'completed', report });
+        const judgeCalls = callsByRole(generateAgentThreadResponse, 'judge');
+        expect(judgeCalls).toHaveLength(2);
+        expect(judgeCalls[1][1]).toMatchObject({
+            toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
+            forceToolHints: true,
+        });
+    });
+
+    it('returns a partial result when execution fails after a valid report was saved', async () => {
+        const { executor } = buildExecutor({
+            generateAgentThreadResponse: vi
+                .fn()
+                .mockRejectedValue(new Error('provider disconnected')),
+        });
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).resolves.toEqual({
+            status: 'partially_completed',
+            report,
+            warehouseQueryUuids: [],
+            terminalReason: 'provider_error',
+        });
     });
 
     it('uses the latest valid submitted report when a later draft is invalid', async () => {
@@ -419,176 +864,14 @@ describe('AiDeepResearchExecutor', () => {
             status: 'completed',
             report,
             warehouseQueryUuids: [],
+            terminalReason: null,
         });
-    });
-
-    it('returns the saved report when the model token budget is exhausted', async () => {
-        const generateAgentThreadResponse = vi.fn(
-            async (
-                _user: SessionUser,
-                options: {
-                    execution: {
-                        onStepUsage: (tokens: number) => void;
-                    };
-                },
-            ) => {
-                options.execution.onStepUsage(600);
-                options.execution.onStepUsage(500);
-            },
-        );
-        const { executor } = buildExecutor({ generateAgentThreadResponse });
-
-        await expect(
-            executor.execute(
-                run({
-                    budget_snapshot: {
-                        ...budget,
-                        maxTokens: 1_000,
-                    },
-                }),
-                { signal: new AbortController().signal },
-            ),
-        ).resolves.toEqual({
-            status: 'partially_completed',
-            report,
-            warehouseQueryUuids: [],
-        });
-    });
-
-    it('returns a partial result when execution fails after a valid report was saved', async () => {
-        const { executor } = buildExecutor({
-            generateAgentThreadResponse: vi
-                .fn()
-                .mockRejectedValue(new Error('provider disconnected')),
-        });
-
-        await expect(
-            executor.execute(run(), {
-                signal: new AbortController().signal,
-            }),
-        ).resolves.toEqual({
-            status: 'partially_completed',
-            report,
-            warehouseQueryUuids: [],
-        });
-    });
-
-    it('retries once with forced report submission when generation ends without a report', async () => {
-        const generateAgentThreadResponse = vi.fn(
-            async (
-                _user: SessionUser,
-                options: {
-                    execution: {
-                        onStepUsage: (tokens: number) => void;
-                    };
-                },
-            ) => {
-                if (generateAgentThreadResponse.mock.calls.length === 1) {
-                    options.execution.onStepUsage(600);
-                }
-            },
-        );
-        const { executor, aiAgentModel } = buildExecutor({
-            generateAgentThreadResponse,
-            provenance: [],
-        });
-        aiAgentModel.getToolCallsAndResultsForPrompt
-            .mockResolvedValueOnce([])
-            .mockResolvedValueOnce([reportSubmission()]);
-
-        await expect(
-            executor.execute(run(), {
-                signal: new AbortController().signal,
-            }),
-        ).resolves.toEqual({
-            status: 'completed',
-            report,
-            warehouseQueryUuids: [],
-        });
-        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(2);
-        expect(generateAgentThreadResponse).toHaveBeenNthCalledWith(
-            2,
-            expect.anything(),
-            expect.objectContaining({
-                toolHints: [AI_DEEP_RESEARCH_REPORT_TOOL_NAME],
-                forceToolHints: true,
-                execution: expect.objectContaining({
-                    initialTokenUsage: 600,
-                }),
-            }),
-        );
-    });
-
-    it.each([
-        {
-            budgetName: 'maxTokens',
-            budget: { ...budget, maxTokens: 1 },
-            consumeBudget: async (options: AnyType, _attempt: number) => {
-                await options.execution.onStepUsage(1);
-            },
-        },
-        {
-            budgetName: 'maxToolCalls',
-            budget: { ...budget, maxToolCalls: 1 },
-            consumeBudget: async (options: AnyType, attempt: number) => {
-                await options.onStepProgress(
-                    'Reading content',
-                    'readContent',
-                    `content-${attempt}`,
-                );
-            },
-        },
-        {
-            budgetName: 'maxWarehouseQueries',
-            budget: { ...budget, maxWarehouseQueries: 1 },
-            consumeBudget: async (options: AnyType, _attempt: number) => {
-                await options.execution.onWarehouseQuery();
-            },
-        },
-    ])(
-        'enforces the cumulative $budgetName budget across report recovery',
-        async ({ budget: recoveryBudget, consumeBudget }) => {
-            let attempt = 0;
-            const generateAgentThreadResponse = vi.fn(
-                async (_user: SessionUser, options: AnyType) => {
-                    attempt += 1;
-                    await consumeBudget(options, attempt);
-                },
-            );
-            const { executor } = buildExecutor({
-                generateAgentThreadResponse,
-                provenance: [],
-            });
-
-            const result = await executor.execute(
-                run({ budget_snapshot: recoveryBudget }),
-                { signal: new AbortController().signal },
-            );
-
-            expect(result.status).toBe('partially_completed');
-            expect(generateAgentThreadResponse).toHaveBeenCalledTimes(2);
-        },
-    );
-
-    it('does not recover after the run is aborted between agent calls', async () => {
-        const controller = new AbortController();
-        const generateAgentThreadResponse = vi.fn(async () => {
-            controller.abort();
-        });
-        const { executor } = buildExecutor({
-            generateAgentThreadResponse,
-            provenance: [],
-        });
-
-        await expect(
-            executor.execute(run(), { signal: controller.signal }),
-        ).resolves.toEqual({ status: 'cancelled' });
-        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(1);
     });
 
     it('fails when execution ends without a valid submitted report', async () => {
-        const { executor, generateAgentThreadResponse } = buildExecutor({
+        const { executor } = buildExecutor({
             provenance: [],
+            childProvenance: [],
         });
 
         await expect(
@@ -598,19 +881,7 @@ describe('AiDeepResearchExecutor', () => {
         ).resolves.toEqual({
             status: 'failed',
             errorMessage: 'Deep Research finished without submitting a report',
+            terminalReason: 'provider_error',
         });
-        expect(generateAgentThreadResponse).toHaveBeenCalledTimes(2);
-    });
-
-    it('does not start an already cancelled run', async () => {
-        const generateAgentThreadResponse = vi.fn();
-        const { executor } = buildExecutor({ generateAgentThreadResponse });
-        const controller = new AbortController();
-        controller.abort();
-
-        await expect(
-            executor.execute(run(), { signal: controller.signal }),
-        ).resolves.toEqual({ status: 'cancelled' });
-        expect(generateAgentThreadResponse).not.toHaveBeenCalled();
     });
 });

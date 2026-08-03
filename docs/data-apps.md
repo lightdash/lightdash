@@ -1026,37 +1026,43 @@ Data apps can be **downloaded as source, versioned in git, edited, and re-upload
 
 Opt-in flags on the existing `lightdash download` / `lightdash upload` commands (off by default — core users never touch app code paths unless they ask):
 
-- **`lightdash download --apps <appReferences...>`** — download specific data apps by UUID or app URL into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
-- **`lightdash upload --apps <appReferences...>`** — upload specific apps by UUID or app URL (matched by manifest `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
+- **`lightdash apps create "<name>"`** — create a new app locally at `lightdash/apps/<slug>/` from the E2B starter template. The command requires npm and first asks the user to accept that it will download packages and run shadcn locally. It then lists the exact direct dependencies and shadcn components for a second approval before writing anything. After approval, it checks that the slug is available in the selected project and adds the complete runnable source tree, manifest, agent skills, and a fresh project context snapshot. `--slug`, `--description`, `--project`, and `--path` override the defaults; `--assume-yes` approves installation in non-interactive environments.
+- **`lightdash download --apps <appReferences...>`** — download specific data apps by UUID, slug, or app URL into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
+- **`lightdash upload --apps <appReferences...>`** — upload specific apps by UUID, slug, or app URL, matched against each local folder's manifest (`slug` or `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes. **Unchanged apps are skipped server-side** (no new version, no rebuild — the CLI reports `unchanged`); `--force` rebuilds anyway. When the per-project build cap rejects an upload (HTTP 429), the CLI **waits and retries** instead of failing (see below).
 
-**Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`, with a stable `untitled-app-<uuid8>` fallback for unnamed apps so re-downloads reuse the same folder). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
+**Identity:** the manifest's `slug` — unique per project (DB-enforced on `apps`) and fixed at creation — is the source of truth, mirroring charts/dashboards-as-code. The download folder is named by the slug, so re-downloads and renames reuse the same folder. Upload matches the slug against the **target** project: found → append a new version; missing → create a new app with that exact slug. Nothing is ever rewritten on disk after upload. Pre-slug bundles (manifests carrying only `appUuid`) fall back to uuid matching in the same project (the CLI warns and suggests re-downloading); `--create-new` always creates a fresh app with a newly generated slug. Manifests still include `appUuid` and `projectUuid` for released-CLI compatibility, but both are informational — the slug always wins. Both stop being emitted at the announced id-free cutover (see the deferred manifest-ids PR).
 
 ### What the endpoints do
 
-- **Download** — `GET /api/v1/ee/projects/{projectUuid}/apps/{appUuid}/download` reads the version's `source.tar` from S3, extracts it in-process (`tar-stream`), and returns the `src/` files + manifest (`AppGenerateService.getAppCode`).
+- **Download** — `GET /api/v1/ee/projects/{projectUuid}/apps/{appUuidOrSlug}/download` (accepts either a uuid or the app's slug) reads the version's `source.tar` from S3, extracts it in-process (`tar-stream`), and returns the `src/` files + manifest (`AppGenerateService.getAppCode`).
+- **Create locally** — `GET /api/v1/ee/projects/{projectUuid}/apps/authoring-context?slug=<slug>` checks `create:DataApp`, validates that the slug is available (including soft-deleted apps), and returns the selected project's semantic layer plus empty prompt history and theme context. The CLI supplies static files from the same `sandboxes/data-apps/template/` tree packaged into the published CLI, installs the declared dependencies with lifecycle scripts disabled, and runs the same pinned shadcn generator used by the E2B image build.
 - **Upload** — `POST /api/v1/ee/projects/{projectUuid}/apps/upload` (`AppGenerateService.importAppCode`) validates the source (`validateDataAppCode` rejects path traversal), re-tars it, stores `source.tar` at the new version's prefix, creates a `pending` version, and enqueues the **build-only pipeline** `APP_BUILD_FROM_SOURCE` (`runBuildFromSourcePipeline`): sandbox → restore source → `pnpm build` (**fail-loud, no AI autofix**) → package → store → `ready`. Concurrent builds are **rate-limited per project** (`MAX_CONCURRENT_APP_BUILDS_PER_PROJECT`, HTTP 429 when exceeded).
+- **Unchanged skip** — before creating a version (and before the build cap is consulted), an append upload is compared against the app's **latest** version: same `src/` file set (byte-for-byte, from the stored `source.tar`), same custom-dependency summary, and — for viz apps — the same declared viz schema. Identical → the server returns `action: 'unchanged'` with the matched version number and applies only app-level metadata (name/description) and link reconciliation. A latest version in **`error`** status never skips (re-uploading the same source retries the build); an identical **in-flight** build skips (no duplicate build is queued). `force: true` in the body (CLI `--force`) bypasses the check. Comparison failures fall back to a normal rebuild — skipping is only an optimization.
+- **CLI wait-and-retry on the build cap** — when an upload 429s, the CLI retries it with capped exponential backoff (5s → 30s, `withBuildLimitRetry` in `packages/cli/src/handlers/apps/uploadRetry.ts`) instead of recording a failure. The wait budget (10 min) is shared across the run and **refilled by every accepted upload**, so it bounds *consecutive unproductive* waiting (a stuck build queue), not the total duration of a large healthy run — bulk uploads of more apps than the cap complete in waves. Once the budget is spent, remaining apps fail fast on 429 with the pre-retry behavior (non-zero exit, re-run hint).
 
 ### Moving an app between projects or instances
 
-- **Different project (same instance):** `lightdash upload --apps <appUuid> --project <target-project>` — creates and builds the app in the target project.
-- **Different instance:** point the CLI at the destination first — `lightdash login <destination-url>` (or set `LIGHTDASH_URL` / `LIGHTDASH_API_KEY`) — then `lightdash upload --apps <appUuid> --project <target>`. The **destination builds the source in its own sandbox** (so it must have data apps / the build sandbox enabled); it never receives code built elsewhere.
+Cross-project and cross-instance upload are both a plain **slug upsert** against the target — no manifest editing or retargeting step is needed:
+
+- **Different project (same instance):** `lightdash upload --apps <slug> --project <target-project>` — the manifest's slug is looked up in the target project: missing → creates and builds a new app there with that same slug; found → appends a new version. Re-running the same upload is idempotent (v1, then v2, …).
+- **Different instance:** point the CLI at the destination first — `lightdash login <destination-url>` (or set `LIGHTDASH_URL` / `LIGHTDASH_API_KEY`) — then `lightdash upload --apps <slug> --project <target>`. The **destination builds the source in its own sandbox** (so it must have data apps / the build sandbox enabled); it never receives code built elsewhere. The slug upsert behaves the same as the same-instance case.
 
 ### Constraints & notes
 
 - **Enterprise-only** (`APP_RUNTIME_ENABLED`); the caller needs `view` / `create` / `manage:DataApp`.
-- **Declared dependencies:** apps can declare custom npm packages in their `package.json`. The CLI validates the declared set (registry-only specs, no git/file/url, up to 60 direct deps, `pnpm-lock.yaml` must be committed) and warns which packages will be installed in the build sandbox before uploading. Install scripts never run. The instance-level flag `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED` (default `false` during rollout) gates this feature; when disabled, uploads with a non-empty custom dependency set are rejected at the API with a clear error, and builds/iterations of versions that already store custom deps refuse to run (template-only uploads are always accepted). The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading. The dependency summary (name + version) is shown as a chip on the assistant bubble in the chat UI so the author can confirm what was installed.
+- **Declared dependencies:** apps can declare custom npm packages in their `package.json`. The CLI validates the declared set (registry-only specs, no git/file/url, up to 60 direct deps, `pnpm-lock.yaml` must be committed) and warns which packages will be installed in the build sandbox before uploading. Install scripts never run. The per-organization `EnableDataAppCustomDependencies` feature flag must be enabled, and uploading custom dependencies requires `manage:DataAppDependency` (admin-only by default). Uploads are screened against the OSV malicious-packages feed; operators can also require a minimum package release age. Template-only uploads are unaffected. The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading. The dependency summary (name + version) is shown as a chip on the assistant bubble in the chat UI so the author can confirm what was installed.
 - **Semantic-layer coupling:** a moved app's queries run against the **target project's** fields *by name*; fields missing in the target surface as in-app query errors, not upload failures.
 - **External connection links travel in the manifest.** `lightdash-app.yml` carries `externalConnections: [{alias, connectionSlug}]` — download emits the app's live links, upload resolves each slug in the target project and **reconciles** the app's links to match (`replaceAppLinks`: adds, repoints, and removes; an empty list unlinks everything; an absent key leaves links untouched for pre-field bundles). A slug missing in the target is skipped with a warning in the upload response (the CLI prints it) — the same warn-don't-fail stance as semantic-layer coupling. Aliases are validated (charset/length/dupes) and each resolved connection requires `manage:ExternalConnection`, both rejected before any app row is created. Under `--include-all`, connections upload before apps, so config + links move in one pass.
 - **Data app vizs round-trip their schema via the manifest.** A viz's declared schema (`app_versions.viz_schema`) exists only in the database — it is emitted as structured output during generation, never written into the source tree. So `lightdash-app.yml` carries a `vizSchema` field for `data_app_viz` apps, and upload validates it (fail-loud) and persists it on the new version. Without it the uploaded viz would never appear in the viz picker (the picker requires a non-null schema on the latest ready version). Bundles downloaded before this field existed re-upload without a schema — re-download from the source project to fix.
 - **Security:** because the server only ever builds source in its trusted, network-locked sandbox and never serves client-supplied *built* code, the runtime trust model is unchanged from AI-generated apps. See [Security Model](#security-model). (Follow-up: the query bridge runs as the *viewing* user — a pre-existing consideration for any app, generated or uploaded.)
 
-### Local authoring (Phase 2)
+### Local authoring
 
-Phase 1 makes apps [downloadable and uploadable from source](#cli); Phase 2 makes the downloaded tree **locally buildable**, so you can verify changes compile before uploading.
+Apps created with `lightdash apps create "<name>"` and apps checked out with `lightdash download --apps <slug>` use the same locally-buildable structure, so you can verify changes compile before uploading.
 
-#### What downloading an app now includes
+#### What a local app includes
 
-The download folder adds to the Phase 1 output (`src/` + `lightdash-app.yml`):
+The app folder contains `src/` + `lightdash-app.yml`, along with:
 
 - **Build scaffolding:** `package.json` (Lightdash App SDK pinned to the same published version the server uses), `vite.config.js`, `tailwind.config.js`, `postcss.config.js`, `tsconfig.json`, `index.html`
 - **Agent skills:** `.claude/skills/lightdash-data-app` (SDK reference) and `.claude/skills/developing-data-apps-locally` (local authoring workflow)
@@ -1068,12 +1074,13 @@ All scaffolding and context files are read-only reference — see [Upload is sou
 #### The local loop
 
 ```sh
-edit src/  →  pnpm install && pnpm build  →  lightdash upload --apps <appUuid>  →  server rebuilds
+lightdash apps create "<name>"  →  edit src/  →  npm run build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
 ```
 
 1. Edit files under `src/`.
-2. Run `pnpm install && pnpm build` as a pre-flight compile check against the downloaded scaffolding.
-3. Upload with `lightdash upload --apps <appUuid>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
+2. Run `npm install && npm run build` as a pre-flight compile check against the downloaded scaffolding.
+3. Optionally run `lightdash apps preview` to test against real data using the current CLI login.
+4. Upload with `lightdash upload --apps <slug>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
 
 **The server's build is authoritative.** Your local build is a compile check only; the deployed app is always the server's output.
 
@@ -1089,10 +1096,33 @@ Only `src/` is sent on upload. Scaffolding files and `.lightdash/context/` are l
 
 If the org design linked to the app has more than **30 asset files**, the theme assets are skipped during download and a warning is printed; the theme instruction markdown is still written to `.lightdash/context/theme/`. An app whose theme was skipped may not build locally without those assets — the server-side rebuild is unaffected.
 
-#### Out of scope (Phase 3)
+#### Local preview against real data (Phase 3)
 
-- **Local preview against real data** — `pnpm build` is a compile check only, not a live data preview.
-- **Org-level custom-dependency toggle** — the `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED` flag is instance-wide only; per-org control is not implemented.
+`lightdash apps preview [path]` starts the downloaded app's Vite server and connects its SDK to the project in
+`lightdash-app.yml` (override with `--project`). It pre-flights both the CLI credential and project before starting, so
+an expired login or an app downloaded from another instance fails with an actionable error instead of an in-app query
+failure. Bare `npm run dev` has no authenticated data access.
+
+Preview does not copy or pass the durable CLI credential to the app. A loopback-only proxy injects the canonical PAT or
+service-account authorization header (plus configured reverse-proxy authorization) after enforcing the shared data-app
+SDK route allowlist and the selected project. Vite and browser code receive only a random per-run nonce scoped to that
+allowlist and project, never the durable credential. Cross-origin browser access to Vite is disabled, and Vite only adds
+authentication to proxy traffic when the SDK presents that nonce. The Vite child is started with a minimal environment
+so `LIGHTDASH_API_KEY` and
+unrelated parent-process secrets are not inherited. The dev CSP limits network requests to the local origin, forcing SDK
+API calls through that proxy. The deployed postMessage bridge enforces the same route and project boundary.
+
+This removes the credential from the app environment and browser; it does **not** turn local authoring into the
+production sandbox. Vite and the downloaded tooling execute as the local OS user, so malicious local code could read
+that user's files (including the existing CLI config), and the app is intentionally allowed to read query results. Only
+preview trusted source and dependencies. Preview also uses the developer's own permissions and user attributes, which
+may differ from a deployed viewer's. The production app remains the authoritative CSP/sandbox check.
+
+Current local-preview parity is the direct SDK transport: metric and saved-chart queries, polling, underlying data,
+downloads, and current-user lookup. Host-mediated capabilities are not emulated. In particular, external connections
+(`externalFetch`), data-app-viz row/field context, Google Sheets export, and product inspector/URL-state integration need
+the in-product postMessage host. Full host emulation should be implemented as a separate local iframe harness rather than
+expanding the credential proxy ad hoc.
 
 ---
 

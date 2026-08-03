@@ -1,4 +1,5 @@
 import { DimensionType, type WarehouseClient } from '@lightdash/common';
+import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -163,6 +164,48 @@ describe('PreAggregationDuckDbClient', () => {
         expect(
             preAggregateModel.getActiveMaterialization,
         ).not.toHaveBeenCalled();
+    });
+
+    test('creates the explicitly scoped pre-aggregate DuckDB client', () => {
+        const createForPreAggregateSpy = vi.spyOn(
+            DuckdbWarehouseClient,
+            'createForPreAggregate',
+        );
+        const client = new PreAggregationDuckDbClient({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            },
+            preAggregateModel: {
+                getActiveMaterialization: vi.fn(),
+            },
+            projectModel: {
+                getExploreFromCache: vi.fn(),
+            },
+        });
+
+        const warehouseClient = client.createExecutionWarehouseClient();
+
+        expect(warehouseClient).toBeInstanceOf(DuckdbWarehouseClient);
+        expect(createForPreAggregateSpy).toHaveBeenCalledWith(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'mock_endpoint',
+                    region: 'mock_region',
+                    accessKey: undefined,
+                    secretKey: undefined,
+                    forcePathStyle: false,
+                    useSsl: true,
+                },
+            },
+            expect.objectContaining({
+                instanceCacheKey: 'pre-aggregate-query-instance',
+            }),
+        );
     });
 
     test('returns resolved DuckDB query/client and patches pre-aggregate sqlTable', async () => {

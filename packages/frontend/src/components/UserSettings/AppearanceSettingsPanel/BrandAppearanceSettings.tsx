@@ -10,7 +10,6 @@ import {
     Button,
     ColorInput,
     Group,
-    Select,
     Skeleton,
     Stack,
     Text,
@@ -22,9 +21,14 @@ import {
     IconPlus,
     IconRefresh,
     IconTrash,
+    IconWand,
     IconWorld,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
+import {
+    useColorPalettes,
+    useCreateColorPalette,
+} from '../../../hooks/appearance/useOrganizationAppearance';
 import useHealth from '../../../hooks/health/useHealth';
 import {
     useFetchOrganizationBrand,
@@ -35,8 +39,11 @@ import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import classes from './BrandAppearanceSettings.module.css';
 import { BrandPreview } from './BrandPreview';
+import { generateBrandPalette } from './generateBrandPalette';
+import { PaletteModalBase } from './PaletteModalBase';
 
-const BRAND_COLOR_TYPES = ['accent', 'brand', 'dark', 'light', 'other'];
+// TODO: re-enable color role editing once roles have a consumer
+// const BRAND_COLOR_TYPES = ['accent', 'brand', 'dark', 'light', 'other'];
 
 type BrandFormValues = {
     domain: string;
@@ -56,46 +63,54 @@ const brandToForm = (brand: OrganizationBrand | null): BrandFormValues => ({
     fonts: brand?.fonts ?? [],
 });
 
-const capitalize = (value: string) =>
-    value.length > 0 ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+// TODO: re-enable color role editing once roles have a consumer
+// const capitalize = (value: string) =>
+//     value.length > 0 ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+//
+// const getColorTypeOptions = (currentType: string) =>
+//     (BRAND_COLOR_TYPES.includes(currentType)
+//         ? BRAND_COLOR_TYPES
+//         : [...BRAND_COLOR_TYPES, currentType]
+//     ).map((type) => ({ value: type, label: capitalize(type) }));
 
-const getColorTypeOptions = (currentType: string) =>
-    (BRAND_COLOR_TYPES.includes(currentType)
-        ? BRAND_COLOR_TYPES
-        : [...BRAND_COLOR_TYPES, currentType]
-    ).map((type) => ({ value: type, label: capitalize(type) }));
-
-const LogoTile: FC<{
-    label: string;
-    dark: boolean;
-    logo: OrganizationBrandLogo | undefined;
-    name: string;
-}> = ({ label, dark, logo, name }) => (
-    <Stack gap="two" align="center">
-        <Box className={dark ? classes.logoTileDark : classes.logoTile}>
-            {logo ? (
-                <img
-                    src={logo.url}
-                    alt={`${name} ${label} logo`}
-                    className={classes.logoImage}
-                />
-            ) : (
-                <Text size="sm" c="dimmed">
-                    No logo
-                </Text>
-            )}
-        </Box>
-        <Text size="xs" c="dimmed">
-            {label}
-        </Text>
-    </Stack>
-);
+// TODO: re-enable logo tiles once logos have a consumer
+// const LogoTile: FC<{
+//     label: string;
+//     dark: boolean;
+//     logo: OrganizationBrandLogo | undefined;
+//     name: string;
+// }> = ({ label, dark, logo, name }) => (
+//     <Stack gap="two" align="center">
+//         <Box className={dark ? classes.logoTileDark : classes.logoTile}>
+//             {logo ? (
+//                 <img
+//                     src={logo.url}
+//                     alt={`${name} ${label} logo`}
+//                     className={classes.logoImage}
+//                 />
+//             ) : (
+//                 <Text size="sm" c="dimmed">
+//                     No logo
+//                 </Text>
+//             )}
+//         </Box>
+//         <Text size="xs" c="dimmed">
+//             {label}
+//         </Text>
+//     </Stack>
+// );
 
 const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
     brand,
 }) => {
     const fetchMutation = useFetchOrganizationBrand();
     const saveMutation = useSaveOrganizationBrand();
+    const [generatedPalette, setGeneratedPalette] = useState<string[] | null>(
+        null,
+    );
+    const [isPaletteModalOpen, setIsPaletteModalOpen] = useState(false);
+    const { data: palettes = [] } = useColorPalettes();
+    const createColorPalette = useCreateColorPalette();
 
     const form = useForm<BrandFormValues>({
         initialValues: brandToForm(brand),
@@ -124,17 +139,28 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
         });
     };
 
+    const handleGeneratePalette = () => {
+        const palette = generateBrandPalette(
+            form.values.colors.map((color) => color.hex),
+        );
+        setGeneratedPalette(palette);
+        if (palette.length > 0) {
+            setIsPaletteModalOpen(true);
+        }
+    };
+
+    // TODO: re-enable logo tiles once logos have a consumer
     // Brandfetch's logo `theme` describes the artwork colour, not the
     // background it belongs on: `light` is a light/white logo (meant for dark
     // backgrounds) and `dark` is a dark logo (meant for light backgrounds).
     // Pair each with a contrasting tile so neither disappears into it.
-    const logoForLightBg =
-        form.values.logos.find((logo) => logo.theme === 'dark') ??
-        form.values.logos.find((logo) => logo.theme === null) ??
-        form.values.logos[0];
-    const logoForDarkBg =
-        form.values.logos.find((logo) => logo.theme === 'light') ??
-        form.values.logos[0];
+    // const logoForLightBg =
+    //     form.values.logos.find((logo) => logo.theme === 'dark') ??
+    //     form.values.logos.find((logo) => logo.theme === null) ??
+    //     form.values.logos[0];
+    // const logoForDarkBg =
+    //     form.values.logos.find((logo) => logo.theme === 'light') ??
+    //     form.values.logos[0];
 
     const titleFont =
         form.values.fonts.find((font) => font.type === 'title') ?? null;
@@ -148,6 +174,7 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                     <TextInput
                         label="Brand domain"
                         placeholder="acme.com"
+                        radius="md"
                         leftSection={<MantineIcon icon={IconWorld} />}
                         {...form.getInputProps('domain')}
                         rightSection={
@@ -168,6 +195,7 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                         }
                     />
 
+                    {/* TODO: re-enable logo tiles once logos have a consumer
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
                             Logo
@@ -187,7 +215,9 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                             />
                         </Group>
                     </Stack>
+                    */}
 
+                    {/* TODO: re-enable font selects once fonts have a consumer
                     <Group gap="sm" grow align="flex-start">
                         <Select
                             label="Title font"
@@ -204,6 +234,7 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                             disabled
                         />
                     </Group>
+                    */}
 
                     <Stack gap="xs">
                         <Box>
@@ -211,8 +242,8 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                                 Brand colors
                             </Text>
                             <Text size="xs" c="dimmed">
-                                Roles are auto-classified by Brandfetch. Edit
-                                any value or role.
+                                Colors are auto-detected from your brand. Edit
+                                any value.
                             </Text>
                         </Box>
 
@@ -239,6 +270,7 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                                             withEyeDropper={false}
                                             className={classes.colorInput}
                                         />
+                                        {/* TODO: re-enable color role editing once roles have a consumer
                                         <Select
                                             data={getColorTypeOptions(
                                                 color.type,
@@ -256,6 +288,7 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                                             variant="unstyled"
                                             className={classes.colorTypeSelect}
                                         />
+                                        */}
                                     </Box>
                                     <Tooltip
                                         label="Remove color"
@@ -281,6 +314,7 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
 
                             <Button
                                 variant="default"
+                                radius="md"
                                 leftSection={<MantineIcon icon={IconPlus} />}
                                 className={classes.addColor}
                                 onClick={() =>
@@ -295,6 +329,69 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                             </Button>
                         </Stack>
                     </Stack>
+
+                    <Stack gap="xs">
+                        <Box>
+                            <Text size="sm" fw={500}>
+                                Chart palette
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                                Expand your brand colors into a full chart
+                                palette.
+                            </Text>
+                        </Box>
+                        <Button
+                            variant="default"
+                            radius="md"
+                            fullWidth
+                            leftSection={<MantineIcon icon={IconWand} />}
+                            onClick={handleGeneratePalette}
+                            disabled={form.values.colors.length === 0}
+                        >
+                            Generate palette
+                        </Button>
+                        {generatedPalette && generatedPalette.length > 0 && (
+                            <Group gap={4}>
+                                {generatedPalette.map((hex, index) => (
+                                    <Tooltip
+                                        key={`${hex}-${index}`}
+                                        label={hex}
+                                        position="top"
+                                    >
+                                        <Box
+                                            className={classes.paletteSwatch}
+                                            bg={hex}
+                                        />
+                                    </Tooltip>
+                                ))}
+                            </Group>
+                        )}
+                        {generatedPalette && generatedPalette.length > 0 && (
+                            <PaletteModalBase
+                                key={generatedPalette.join('-')}
+                                opened={isPaletteModalOpen}
+                                onClose={() => setIsPaletteModalOpen(false)}
+                                onSubmit={(values) => {
+                                    if (!values.name) return;
+                                    createColorPalette.mutate({
+                                        name: values.name,
+                                        colors: values.colors,
+                                        darkColors: values.darkColors,
+                                    });
+                                }}
+                                isLoading={createColorPalette.isLoading}
+                                initialValues={{
+                                    name: '',
+                                    colors: generatedPalette,
+                                }}
+                                title="Chart palette from your brand"
+                                submitButtonText="Create palette"
+                                existingPaletteNames={palettes.map(
+                                    (palette) => palette.name,
+                                )}
+                            />
+                        )}
+                    </Stack>
                 </Stack>
 
                 <Stack gap="xs">
@@ -307,6 +404,7 @@ const BrandAppearanceForm: FC<{ brand: OrganizationBrand | null }> = ({
                         colors={form.values.colors}
                         titleFont={titleFont}
                         bodyFont={bodyFont}
+                        paletteColors={generatedPalette}
                     />
                 </Stack>
             </Box>

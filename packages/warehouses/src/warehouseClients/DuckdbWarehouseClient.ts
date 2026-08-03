@@ -1,4 +1,8 @@
-import { DuckDBInstance, DuckDBTypeId } from '@duckdb/node-api';
+import {
+    DuckDBInstance,
+    DuckDBTypeId,
+    version as duckdbVersion,
+} from '@duckdb/node-api';
 import {
     AnyType,
     CreateDuckdbCredentials,
@@ -126,9 +130,6 @@ export type DuckdbS3Credentials = {
 };
 
 export type DuckdbConnectionCredentials = DuckdbS3Credentials;
-
-// Backwards-compatible alias while this API settles.
-export type DuckdbS3ConnectionConfig = DuckdbS3Credentials;
 
 export type DuckdbWarehouseClientOptions = {
     /** Resource-constrained isolated sessions, used for materialization/parquet conversion and embedded databases. */
@@ -399,11 +400,6 @@ const resolveEmbeddedDatabasePath = (dataset: string): string => {
     return realDatabasePath;
 };
 
-export type DuckdbWarehouseClientArgs = {
-    databasePath?: string;
-    s3Config?: DuckdbS3SessionConfig;
-};
-
 export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMotherduckCredentials> {
     private static readonly sharedInstances = new Map<string, DuckdbInstance>();
 
@@ -449,6 +445,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     ) => void;
 
     private readonly embeddedQueryTimeoutMs: number;
+
+    private allowsPreAggregateFileReads = false;
 
     constructor(
         credentials?: CreateDuckdbCredentials | DuckdbConnectionCredentials,
@@ -574,10 +572,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     }
 
     static createForPreAggregate(
-        credentials?: DuckdbConnectionCredentials,
+        credentials: DuckdbS3Credentials,
         options?: DuckdbWarehouseClientOptions,
     ): DuckdbWarehouseClient {
-        return new DuckdbWarehouseClient(credentials, options);
+        const client = new DuckdbWarehouseClient(credentials, options);
+        client.allowsPreAggregateFileReads = true;
+        return client;
     }
 
     private static getSharedInstanceSemaphore(
@@ -684,13 +684,56 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return !(s3Config.accessKey && s3Config.secretKey);
     }
 
-    private static async loadAwsExtensionForCredentialChain(
+    private static async getBundledExtensionPath(
+        extension: 'httpfs' | 'aws',
+    ): Promise<string | undefined> {
+        // Production images bundle signed extensions under the embedded DuckDB
+        // version to avoid runtime downloads. Local development has no bundled
+        // files and intentionally falls back to INSTALL/LOAD below.
+        const extensionPath = path.resolve(
+            __dirname,
+            '..',
+            'duckdbExtensions',
+            duckdbVersion(),
+            `${extension}.duckdb_extension`,
+        );
+
+        try {
+            await fs.access(extensionPath, fsSync.constants.R_OK);
+            return extensionPath;
+        } catch {
+            return undefined;
+        }
+    }
+
+    private async loadExtension(
         db: DuckdbConnection,
-        s3Config?: DuckdbS3SessionConfig,
+        extension: 'httpfs' | 'aws',
     ): Promise<void> {
-        if (s3Config && DuckdbWarehouseClient.usesS3CredentialChain(s3Config)) {
-            await db.run('INSTALL aws;');
-            await db.run('LOAD aws;');
+        const extensionPath =
+            await DuckdbWarehouseClient.getBundledExtensionPath(extension);
+        if (!extensionPath) {
+            await db.run(`INSTALL ${extension};`);
+            await db.run(`LOAD ${extension};`);
+            return;
+        }
+
+        // A bundled file should be valid because Docker verifies the version at
+        // build time. Surface load failures instead of hiding corruption or an
+        // ABI mismatch behind a network install.
+        await db.run(
+            `LOAD '${DuckdbWarehouseClient.escapeDuckdbString(extensionPath)}';`,
+        );
+    }
+
+    private async loadAwsExtensionForCredentialChain(
+        db: DuckdbConnection,
+    ): Promise<void> {
+        if (
+            this.s3Config &&
+            DuckdbWarehouseClient.usesS3CredentialChain(this.s3Config)
+        ) {
+            await this.loadExtension(db, 'aws');
         }
     }
 
@@ -703,12 +746,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         if (!client.ducklakeConfig) {
             // For DuckLake mode, httpfs and the ducklake/postgres/mysql/azure
             // extensions are autoloaded by ATTACH — no explicit INSTALL/LOAD.
-            await db.run('INSTALL httpfs;');
-            await db.run('LOAD httpfs;');
-            await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
-                db,
-                client.s3Config,
-            );
+            await client.loadExtension(db, 'httpfs');
+            await client.loadAwsExtensionForCredentialChain(db);
         }
         const httpfsMs = performance.now() - httpfsStart;
 
@@ -1250,12 +1289,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         tempDir: string,
     ): Promise<void> {
         if (!this.ducklakeConfig) {
-            await db.run('INSTALL httpfs;');
-            await db.run('LOAD httpfs;');
-            await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
-                db,
-                this.s3Config,
-            );
+            await this.loadExtension(db, 'httpfs');
+            await this.loadAwsExtensionForCredentialChain(db);
         }
 
         await db.run(`SET temp_directory = '${tempDir}';`);
@@ -1801,13 +1836,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
     }
 
-    private async validateUserSql(
+    private async validateSelectSql(
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
-        DuckdbWarehouseClient.validateSqlFunctions(sql);
-        DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
-
         const extracted = await db.extractStatements(sql);
 
         if (extracted.count === 0) {
@@ -1830,6 +1862,23 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         } finally {
             stmt.destroySync();
         }
+    }
+
+    private async validateUserSql(
+        db: DuckdbConnection,
+        sql: string,
+    ): Promise<void> {
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
+        DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        await this.validateSelectSql(db, sql);
+    }
+
+    private async validatePreAggregateSql(
+        db: DuckdbConnection,
+        sql: string,
+    ): Promise<void> {
+        DuckdbWarehouseClient.validateSqlFunctions(sql);
+        await this.validateSelectSql(db, sql);
     }
 
     private async validateInternalSql(
@@ -1900,7 +1949,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             if (this.embeddedConfig) {
                 await db.run("SET disabled_filesystems = 'LocalFileSystem';");
             }
-            await this.validateUserSql(db, sql);
+            if (this.allowsPreAggregateFileReads) {
+                await this.validatePreAggregateSql(db, sql);
+            } else {
+                await this.validateUserSql(db, sql);
+            }
             reportPhase?.('session', performance.now() - sessionStart);
 
             const queryStart = performance.now();

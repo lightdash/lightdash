@@ -16,7 +16,6 @@ import { DashboardExplorerBanner } from './DashboardExplorerBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
-import { PlaygroundBanner } from './PlaygroundBanner';
 import { PreviewBanner } from './PreviewBanner';
 import { TrialWarningBanner } from './TrialWarningBanner';
 
@@ -94,10 +93,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
     const hasBanner =
-        isImpersonating ||
-        isCurrentProjectPreview ||
-        isCurrentProjectPlayground ||
-        showTrialWarning;
+        isImpersonating || isCurrentProjectPreview || showTrialWarning;
 
     // Calculate placeholder height: navbar + banner.
     const headerContainerHeight =
@@ -128,8 +124,6 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                                 : null
                         }
                     />
-                ) : isCurrentProjectPlayground ? (
-                    <PlaygroundBanner />
                 ) : (
                     organizationAccess && (
                         <TrialWarningBanner access={organizationAccess} />

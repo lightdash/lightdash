@@ -68,13 +68,17 @@ export const googleStrategyVerify = async (
                 openIdUser.openId,
             );
 
-            if (hasBigqueryScope) {
+            if (hasBigqueryScope && refreshToken) {
                 Logger.info(
                     `Creating user warehouse credentials for bigquery on Google OAuth`,
                 );
                 await userService.createBigqueryWarehouseCredentials(
                     req.user,
                     refreshToken,
+                );
+            } else if (hasBigqueryScope) {
+                Logger.warn(
+                    `Google OAuth granted the BigQuery scope but returned no refresh token; keeping existing user warehouse credentials for user ${req.user.userUuid}`,
                 );
             }
 
@@ -102,13 +106,17 @@ export const googleStrategyVerify = async (
             );
         }
 
-        if (hasBigqueryScope) {
+        if (hasBigqueryScope && refreshToken) {
             Logger.info(
                 `Creating user warehouse credentials for bigquery on Google OAuth`,
             );
             await userService.createBigqueryWarehouseCredentials(
                 user,
                 refreshToken,
+            );
+        } else if (hasBigqueryScope) {
+            Logger.warn(
+                `Google OAuth granted the BigQuery scope but returned no refresh token; keeping existing user warehouse credentials for user ${user.userUuid}`,
             );
         }
         return done(null, user);

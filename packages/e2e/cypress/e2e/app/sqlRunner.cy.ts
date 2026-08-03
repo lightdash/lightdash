@@ -181,6 +181,15 @@ describe('SQL Runner (new)', () => {
             'exist',
         );
 
+        // Verify that the big number is displayed
+        cy.get(
+            `button[data-testid="visualization-${ChartKind.BIG_NUMBER}"]`,
+        ).click();
+        cy.get(`div[data-testid="chart-view-${ChartKind.BIG_NUMBER}"]`).should(
+            'exist',
+        );
+        cy.get('[data-testid="big-number-value"]').should('be.visible');
+
         // Verify that the bar chart is displayed
         cy.get(
             `button[data-testid="visualization-${ChartKind.VERTICAL_BAR}"]`,
@@ -188,6 +197,45 @@ describe('SQL Runner (new)', () => {
         cy.get(
             `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
         ).should('exist');
+    });
+
+    it('Should save a big number chart and render it in view mode', () => {
+        cy.get('.monaco-editor').should('be.visible');
+        cy.contains('jaffle').click().wait(500);
+        cy.contains(/^customers$/).click();
+        cy.contains('Run query').click();
+        cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
+
+        cy.contains('label', 'Chart').click();
+        cy.get(
+            `button[data-testid="visualization-${ChartKind.BIG_NUMBER}"]`,
+        ).click();
+
+        // The label defaults to the value field and can be overridden
+        cy.contains('button', 'Display').click();
+        cy.get('input[placeholder="age"]').type('Average age');
+        cy.get(`div[data-testid="chart-view-${ChartKind.BIG_NUMBER}"]`).should(
+            'contain.text',
+            'Average age',
+        );
+
+        cy.contains('Save').click();
+        cy.get(
+            'input[placeholder="eg. How many weekly active users do we have?"]',
+        ).type('Customers big number SQL chart');
+        cy.findByText('Next').click();
+        cy.get('section[role="dialog"]')
+            .find('button')
+            .contains('Save')
+            .click();
+
+        // The saved chart renders on the view page, not an ECharts canvas
+        cy.contains('Customers big number SQL chart').should('be.visible');
+        cy.get(`div[data-testid="chart-view-${ChartKind.BIG_NUMBER}"]`).should(
+            'exist',
+        );
+        cy.get('[data-testid="big-number-value"]').should('be.visible');
+        cy.get('.echarts-for-react').should('not.exist');
     });
 
     it('Should save a chart', () => {

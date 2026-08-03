@@ -1,6 +1,7 @@
 import {
     DashboardTileTypes,
     type DashboardAsCode,
+    type DashboardAsCodeUpsertResult,
     type DashboardConfig,
     type DashboardDAO,
     type DashboardTile,
@@ -8,6 +9,7 @@ import {
     type DashboardTileTarget,
     type DashboardTileWithSlug,
     type DateZoomTileTarget,
+    type PromotionChanges,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -24,24 +26,34 @@ export const isAnyChartTile = (
     tile.type === DashboardTileTypes.SAVED_CHART ||
     tile.type === DashboardTileTypes.SQL_CHART;
 
-export const getChartSlugForTileUuid = (
+// The portable per-tile identity: a chart tile's chart slug, or a data app
+// tile's app slug. Suffixed when several tiles reference the same content.
+const getTileContentSlug = (
+    tile: DashboardTile | DashboardTileAsCode,
+): string | undefined => {
+    if (isAnyChartTile(tile)) return tile.properties.chartSlug ?? undefined;
+    if (tile.type === DashboardTileTypes.DATA_APP)
+        return tile.properties.appSlug ?? undefined;
+    return undefined;
+};
+
+export const getTileSlugForTileUuid = (
     dashboard: DashboardDAO,
     uuid: string,
 ): string | undefined => {
     const tile = dashboard.tiles.find((item) => item.uuid === uuid);
-    if (!tile || !isAnyChartTile(tile) || tile.properties.chartSlug == null) {
+    const contentSlug = tile ? getTileContentSlug(tile) : undefined;
+    if (!tile || contentSlug === undefined) {
         return undefined;
     }
     const matchingTiles = dashboard.tiles.filter(
-        (item) =>
-            isAnyChartTile(item) &&
-            item.properties.chartSlug === tile.properties.chartSlug,
+        (item) => getTileContentSlug(item) === contentSlug,
     );
     if (matchingTiles.length > 1) {
         const index = matchingTiles.findIndex((item) => item.uuid === uuid);
-        return `${tile.properties.chartSlug}-${index + 1}`;
+        return `${contentSlug}-${index + 1}`;
     }
-    return tile.properties.chartSlug;
+    return contentSlug;
 };
 
 export const getFiltersWithTileSlugs = (
@@ -54,7 +66,7 @@ export const getFiltersWithTileSlugs = (
         tileTargets: Object.entries(filter.tileTargets ?? {}).reduce<
             Record<string, DashboardTileTarget>
         >((result, [tileUuid, target]) => {
-            const tileSlug = getChartSlugForTileUuid(dashboard, tileUuid);
+            const tileSlug = getTileSlugForTileUuid(dashboard, tileUuid);
             return tileSlug ? { ...result, [tileSlug]: target } : result;
         }, {}),
     })),
@@ -66,9 +78,7 @@ const findTileUuid = (
 ): string | undefined =>
     tiles.find(
         (tile) =>
-            isAnyChartTile(tile) &&
-            (tile.tileSlug === tileSlug ||
-                tile.properties.chartSlug === tileSlug),
+            tile.tileSlug === tileSlug || getTileContentSlug(tile) === tileSlug,
     )?.uuid;
 
 export const getFiltersWithTileUuids = (
@@ -104,7 +114,7 @@ export const getConfigWithDateZoomTileSlugs = (
         config.dateZoomConfig.tileTargets ?? {},
     ).reduce<Record<string, DateZoomTileTarget>>(
         (result, [tileUuid, target]) => {
-            const tileSlug = getChartSlugForTileUuid(dashboard, tileUuid);
+            const tileSlug = getTileSlugForTileUuid(dashboard, tileUuid);
             return tileSlug ? { ...result, [tileSlug]: target } : result;
         },
         {},
@@ -114,6 +124,13 @@ export const getConfigWithDateZoomTileSlugs = (
         dateZoomConfig: { ...config.dateZoomConfig, tileTargets },
     };
 };
+
+/** Attaches skipped-tile warnings to a promotion result, omitting the key when there are none. */
+export const withTileWarnings = (
+    changes: PromotionChanges,
+    warnings: string[],
+): DashboardAsCodeUpsertResult =>
+    warnings.length > 0 ? { ...changes, warnings } : changes;
 
 export const getConfigWithDateZoomTileUuids = (
     config: DashboardConfig,

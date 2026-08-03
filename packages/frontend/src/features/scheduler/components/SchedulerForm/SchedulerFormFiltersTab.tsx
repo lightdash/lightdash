@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     FilterOperator,
     FilterType,
     getFilterTypeFromItem,
@@ -40,7 +39,6 @@ import FiltersProvider from '../../../../components/common/Filters/FiltersProvid
 import useFiltersContext from '../../../../components/common/Filters/useFiltersContext';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useProject } from '../../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
@@ -349,12 +347,6 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
 
     const tileNamesById = useDashboardTileStatusContext((c) => c.tileNamesById);
 
-    const { data: filterRequirementsFlag } = useServerFeatureFlag(
-        FeatureFlags.DashboardFilterRequirements,
-    );
-    const isFilterRequirementsEnabled =
-        filterRequirementsFlag?.enabled === true;
-
     const { savedFiltersInDashboard, savedFiltersNotInDashboard } =
         useMemo(() => {
             const inDashboard: typeof savedFilters = [];
@@ -437,11 +429,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     // Same base as the submit gate in useSchedulerFormModal: the saved
     // dashboard filters, not the live session filters.
     const { unmetRequirements, filtersWithUnmetRequirements } =
-        getSchedulerFilterRequirements(
-            dashboard?.filters,
-            draftFilters,
-            isFilterRequirementsEnabled,
-        );
+        getSchedulerFilterRequirements(dashboard?.filters, draftFilters);
     const unmetFilterIds = new Set(
         filtersWithUnmetRequirements.map((filter) => filter.id),
     );
@@ -451,17 +439,8 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     const hasUnmetGroups = unmetRequirements.some(
         (requirement) => requirement.type === 'group',
     );
-    const isMissingRequiredValue = (
-        dashboardFilter: DashboardFilterRule,
-        schedulerFilter: DashboardFilterRule | undefined,
-    ) =>
-        isFilterRequirementsEnabled
-            ? unmetFilterIds.has(dashboardFilter.id)
-            : Boolean(
-                  dashboardFilter.required &&
-                  (!schedulerFilter?.values ||
-                      schedulerFilter?.values?.length === 0),
-              );
+    const isMissingRequiredValue = (dashboardFilter: DashboardFilterRule) =>
+        unmetFilterIds.has(dashboardFilter.id);
 
     return (
         <FiltersProvider<Record<string, FilterableDimension>>
@@ -505,7 +484,6 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                 schedulerFilter={filter}
                                 isMissingRequiredValue={isMissingRequiredValue(
                                     originalFilter,
-                                    filter,
                                 )}
                                 onChange={(updatedFilter) =>
                                     handleUpdateSchedulerFilter(
@@ -563,7 +541,6 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                     schedulerFilter={schedulerFilter}
                                     isMissingRequiredValue={isMissingRequiredValue(
                                         filter,
-                                        schedulerFilter,
                                     )}
                                     onChange={(updatedFilter) =>
                                         handleUpdateSchedulerFilter(

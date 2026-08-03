@@ -1,4 +1,5 @@
 import type { ApiSuccess, KnexPaginatedData } from '../..';
+import type { AiDeepResearchLimits } from '../aiDeepResearch/types';
 import type { DataAppModelVisibility } from '../apps/types';
 import type {
     AiAgentEvaluationRunSummary,
@@ -127,6 +128,8 @@ export type AiAgentAdminMemorySort = {
     direction: 'asc' | 'desc';
 };
 
+// Admin list row. Independent from the owner-facing AiAgentUserMemoryItem:
+// separate API surfaces, free to diverge
 export type AiAgentAdminMemoryItem = {
     uuid: string;
     slug: string;
@@ -323,7 +326,9 @@ export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
     aiAgentReviewsEnabled: boolean;
+    deepResearchLimits: AiDeepResearchLimits;
     mcpContentWritesEnabled: boolean;
+    requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
     modelVisibility?: AiOrgModelVisibility | null;
@@ -344,7 +349,9 @@ export type CreateAiOrganizationSettings = Omit<
 export type UpdateAiOrganizationSettings = {
     aiAgentsVisible?: boolean;
     aiAgentReviewsEnabled?: boolean;
+    deepResearchLimits?: AiDeepResearchLimits;
     mcpContentWritesEnabled?: boolean;
+    requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;
     dataAppModelVisibility?: DataAppModelVisibility | null;

@@ -1,54 +1,55 @@
 import { assertUnreachable, generateSlug } from '@lightdash/common';
 import { Knex } from 'knex';
-import { customAlphabet as createCustomNanoid } from 'nanoid';
 import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
-import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 
-type SlugTables =
+type ProjectUuidSlugTable =
     | typeof AppsTableName
     | typeof SavedChartsTableName
     | typeof SavedSqlTableName
-    | typeof DashboardsTableName
-    | typeof SpaceTableName;
+    | typeof DashboardsTableName;
 
-// Advisory-lock namespace for content-as-code / promotion slug creation.
-// Namespace 1 is already used by cached explores (ProjectModel), so use 2 here
-// to avoid clashing with that lock space.
-const CONTENT_AS_CODE_SLUG_LOCK_NAMESPACE = 2;
+type SlugTable = ProjectUuidSlugTable | typeof SpaceTableName;
+
+const PROJECT_SLUG_LOCK_NAMESPACE = 2;
 const SPACE_ACCESS_LOCK_NAMESPACE = 3;
 
 const MAX_GENERATED_SAVED_CHART_SLUG_LENGTH = 255;
+const MAX_GENERATED_APP_SLUG_LENGTH = 255;
 
-const getSavedChartSlugCandidate = (
+const getSlugCandidate = (
+    tableName: SlugTable,
     baseSlug: string,
     increment: number,
 ): string => {
-    if (increment === 0) return baseSlug;
-
-    const suffix = `-${increment}`;
-    return `${baseSlug.slice(
-        0,
-        MAX_GENERATED_SAVED_CHART_SLUG_LENGTH - suffix.length,
-    )}${suffix}`;
+    const suffix = increment === 0 ? '' : `-${increment}`;
+    switch (tableName) {
+        case SavedChartsTableName:
+            if (increment === 0) return baseSlug;
+            return `${baseSlug.slice(
+                0,
+                MAX_GENERATED_SAVED_CHART_SLUG_LENGTH - suffix.length,
+            )}${suffix}`;
+        case AppsTableName:
+            return `${baseSlug.slice(
+                0,
+                MAX_GENERATED_APP_SLUG_LENGTH - suffix.length,
+            )}${suffix}`;
+        case DashboardsTableName:
+        case SavedSqlTableName:
+        case SpaceTableName:
+            return `${baseSlug}${suffix}`;
+        default:
+            return assertUnreachable(tableName, 'getSlugCandidate');
+    }
 };
 
 /**
- * Take a transaction-scoped Postgres advisory lock keyed on (projectUuid, slug).
- *
- * Content-as-code (and promotion) force the exact slug from the YAML/source when
- * creating charts and dashboards, bypassing the unique-slug generation. The
- * create-vs-update decision in CoderService is a non-atomic find-then-create, so
- * two concurrent uploads of the same slug could both decide to create and insert
- * duplicate slugs (PROD-7883) — there is no DB unique constraint to catch it.
- *
- * Holding this lock around the find-then-create makes that decision atomic: a
- * second caller with the same key blocks until the first transaction commits, by
- * which point the first row is visible and the second can dedupe instead of
- * inserting a duplicate. The lock is released automatically when `trx` ends.
+ * Serialize the small find-then-insert window for a project slug. Database
+ * constraints remain the final authority for project-scoped uniqueness.
  */
 export const acquireProjectSlugLock = async (
     trx: Knex,
@@ -56,7 +57,7 @@ export const acquireProjectSlugLock = async (
     slug: string,
 ): Promise<void> => {
     await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
-        CONTENT_AS_CODE_SLUG_LOCK_NAMESPACE,
+        PROJECT_SLUG_LOCK_NAMESPACE,
         `${projectUuid}:${slug}`,
     ]);
 };
@@ -71,129 +72,41 @@ export const acquireSpaceAccessLock = async (
     ]);
 };
 
-export const generateUniqueSlug = async (
-    trx: Knex,
-    tableName: SlugTables,
-    name: string,
-) => {
-    const baseSlug = generateSlug(name);
-    const matchingSlugs: string[] = await trx(tableName)
-        .select('slug')
-        .where('slug', 'like', `${baseSlug}%`)
-        .pluck('slug');
-    let slug = generateSlug(name);
-    let inc = 0;
-    while (matchingSlugs.includes(slug)) {
-        inc += 1;
-        slug = `${baseSlug}-${inc}`; // generate new slug with number suffix
-    }
-    return slug;
-};
-
-const customNanoid = createCustomNanoid(
-    '1234567890abcdefghijklmnopqrstuvwxyz',
-    10,
-);
-
-export const generateUniqueSpaceSlug = async (
-    name: string,
-    projectId: number,
-    { trx }: { trx: Knex },
-) => {
-    const baseSlug = generateSlug(name);
-    const checkSlugExists = (slug: string) =>
-        trx(SpaceTableName)
-            .select('slug')
-            .where('slug', '=', slug)
-            .where('project_id', projectId)
-            .first();
-
-    if (await checkSlugExists(baseSlug)) {
-        return `${baseSlug}-${customNanoid()}`;
-    }
-
-    return baseSlug;
-};
-
-export const generateUniqueSlugScopedToProject = async (
+export function generateUniqueSlugScopedToProject(
     trx: Knex,
     projectUuid: string,
-    tableName: SlugTables,
+    tableName: ProjectUuidSlugTable,
     name: string,
-) => {
-    const generatedSlug = generateSlug(name);
-    const baseSlug =
-        tableName === AppsTableName
-            ? generatedSlug.slice(0, 255)
-            : generatedSlug;
-    let matchingSlugs: string[];
-    switch (tableName) {
-        case SavedChartsTableName: {
-            let increment = 0;
-            for (;;) {
-                const candidate = getSavedChartSlugCandidate(
-                    baseSlug,
-                    increment,
-                );
-                // eslint-disable-next-line no-await-in-loop
-                const existing = await trx(SavedChartsTableName)
-                    .select(`${SavedChartsTableName}.saved_query_id`)
-                    .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
-                    .where(`${SavedChartsTableName}.slug`, candidate)
-                    .first();
-                if (!existing) return candidate;
-                increment += 1;
-            }
-        }
-        case DashboardsTableName:
-            matchingSlugs = await trx(DashboardsTableName)
-                .innerJoin(
-                    SpaceTableName,
-                    `${SpaceTableName}.space_id`,
-                    `${DashboardsTableName}.space_id`,
-                )
-                .innerJoin(
-                    ProjectTableName,
-                    `${SpaceTableName}.project_id`,
-                    `${ProjectTableName}.project_id`,
-                )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid)
-                .select(`${DashboardsTableName}.slug`)
-                .where(`${DashboardsTableName}.slug`, 'like', `${baseSlug}%`)
-                .pluck(`${DashboardsTableName}.slug`);
-            break;
-        case SavedSqlTableName:
-            matchingSlugs = await trx(SavedSqlTableName)
-                .where(`${SavedSqlTableName}.project_uuid`, projectUuid)
-                .select(`${SavedSqlTableName}.slug`)
-                .where(`${SavedSqlTableName}.slug`, 'like', `${baseSlug}%`)
-                .pluck(`${SavedSqlTableName}.slug`);
-            break;
-        case AppsTableName:
-            matchingSlugs = await trx(AppsTableName)
-                .where(`${AppsTableName}.project_uuid`, projectUuid)
-                .select(`${AppsTableName}.slug`)
-                .where(`${AppsTableName}.slug`, 'like', `${baseSlug}%`)
-                .pluck(`${AppsTableName}.slug`);
-            break;
-        case SpaceTableName:
-            throw new Error('Not implemented');
-        default:
-            return assertUnreachable(
-                tableName,
-                'generateUniqueSlugScopedToProject',
-            );
+): Promise<string>;
+export function generateUniqueSlugScopedToProject(
+    trx: Knex,
+    projectId: number,
+    tableName: typeof SpaceTableName,
+    name: string,
+): Promise<string>;
+export async function generateUniqueSlugScopedToProject(
+    trx: Knex,
+    projectOwner: string | number,
+    tableName: SlugTable,
+    name: string,
+): Promise<string> {
+    const baseSlug = generateSlug(name);
+    let increment = 0;
+    for (;;) {
+        const candidate = getSlugCandidate(tableName, baseSlug, increment);
+        const ownerColumn =
+            tableName === SpaceTableName
+                ? `${SpaceTableName}.project_id`
+                : `${tableName}.project_uuid`;
+        // Slug reservations include soft-deleted rows so restoring content
+        // cannot create an ambiguous project-scoped identity.
+        // eslint-disable-next-line no-await-in-loop
+        const existing = await trx(tableName)
+            .select(`${tableName}.slug`)
+            .where(ownerColumn, projectOwner)
+            .where(`${tableName}.slug`, candidate)
+            .first();
+        if (!existing) return candidate;
+        increment += 1;
     }
-
-    let slug = baseSlug;
-    let inc = 0;
-    while (matchingSlugs.includes(slug)) {
-        inc += 1;
-        const suffix = `-${inc}`;
-        slug =
-            tableName === AppsTableName
-                ? `${baseSlug.slice(0, 255 - suffix.length)}${suffix}`
-                : `${baseSlug}${suffix}`;
-    }
-    return slug;
-};
+}

@@ -71,8 +71,22 @@ export class QueryBuilder {
                 parameters: {},
                 label: undefined,
             };
-        } else {
+        } else if (
+            exploreOrState !== null &&
+            typeof exploreOrState === 'object' &&
+            Array.isArray(exploreOrState.dimensions)
+        ) {
             this._state = exploreOrState;
+        } else {
+            // Fail here, at the call site, instead of on a later chained call.
+            // The most common cause is a circular import: a model-name
+            // constant read before its module initialized is undefined.
+            throw new Error(
+                `query() expects a model name string, got ${
+                    exploreOrState === null ? 'null' : typeof exploreOrState
+                }. If the model name is a shared constant, make sure it is not ` +
+                    'exported from a file that imports this one (circular import).',
+            );
         }
     }
 

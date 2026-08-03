@@ -2,6 +2,7 @@
 // version's viz_schema — it exists only in the database (generation structured
 // output), so a copy that drops it produces a data app viz that never appears
 // in the viz picker.
+import { type AppVersionDependencies } from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -52,10 +53,16 @@ const sourceApp = {
     upstream_app_uuid: null,
     template: 'data_app_viz',
     name: 'My Viz',
+    slug: 'my-viz',
     description: 'A viz',
     created_by_user_uuid: USER_UUID,
     deleted_at: null,
     deleted_by_user_uuid: null,
+};
+
+const DEPENDENCIES: AppVersionDependencies = {
+    custom: [{ name: 'recharts', version: '2.12.0' }],
+    lockfileHash: 'a'.repeat(64),
 };
 
 const sourceVersion = {
@@ -86,6 +93,7 @@ function buildService() {
             version: { version: 1 },
         }),
         createVersion: vi.fn().mockResolvedValue({ version: 7 }),
+        getVersion: vi.fn().mockResolvedValue(sourceVersion),
         setUpstreamAppUuid: vi.fn().mockResolvedValue(undefined),
         syncPromotedApp: vi.fn().mockResolvedValue(undefined),
         updateStatusMessage: vi.fn().mockResolvedValue(undefined),
@@ -119,7 +127,7 @@ function buildService() {
 
     const service = new AppGenerateService({
         lightdashConfig: {
-            appRuntime: { customDependenciesEnabled: true },
+            appRuntime: {},
         } as never,
         analytics: { track: vi.fn() } as never,
         analyticsModel: {} as never,
@@ -321,6 +329,35 @@ describe('viz_schema propagation on app copy paths', () => {
         );
     });
 
+    it('restoreVersion carries build state without copying generation experience', async () => {
+        const { service, appModel } = buildService();
+        appModel.getVersion.mockResolvedValue({
+            ...sourceVersion,
+            dependencies: DEPENDENCIES,
+            resources: {
+                images: [],
+                creationExperience: 'explorer_chart_config',
+            },
+        });
+
+        await service.restoreVersion(
+            makeUser(),
+            PROJECT_UUID,
+            SOURCE_APP_UUID,
+            3,
+        );
+
+        expect(appModel.createVersion).toHaveBeenCalledWith(
+            SOURCE_APP_UUID,
+            { version: 7, prompt: 'Restore version 3' },
+            'ready',
+            USER_UUID,
+            { images: [] },
+            DEPENDENCIES,
+            VIZ_SCHEMA,
+        );
+    });
+
     it('duplicateAppsForPreview copies viz_schema onto the preview copy', async () => {
         const { service, appModel } = buildService();
 
@@ -334,6 +371,7 @@ describe('viz_schema propagation on app copy paths', () => {
             expect.objectContaining({
                 project_uuid: PREVIEW_PROJECT_UUID,
                 template: 'data_app_viz',
+                slug: 'my-viz',
             }),
             expect.anything(),
             'ready',

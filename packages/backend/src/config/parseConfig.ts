@@ -1,4 +1,5 @@
 import {
+    AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
     AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
@@ -1622,6 +1623,14 @@ export type LightdashConfig = {
     appRuntime: AppRuntimeConfig;
     enabledFeatureFlags: Set<string>;
     disabledFeatureFlags: Set<string>;
+    previewFeatureFlags: {
+        /**
+         * Preview/Okteto environments only: enables `PREVIEW_ENABLED_FEATURE_FLAGS`
+         * by default and exposes the feature-flag management API so QA can toggle
+         * flags at runtime. Defaults on in PR mode.
+         */
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1832,15 +1841,6 @@ export type AppRuntimeConfig = {
      * `auth` selects how export headers are minted (see `gcpOtelAuth.ts`).
      */
     otel: DataAppOtelConfig;
-    /**
-     * When false, uploads that declare a non-empty custom dependency set are
-     * rejected at the API boundary with a clear error, and builds/iterations
-     * of versions with stored custom deps refuse to run. Template-only
-     * uploads (no declared dependencies) are always accepted. Env var
-     * `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED`; defaults to `false` while
-     * the feature rolls out — set to `true` to enable on an instance.
-     */
-    customDependenciesEnabled: boolean;
     /**
      * NPM registry hosts added to the sandbox egress allowlist when a version
      * has a custom dependency set (`app_versions.dependencies` non-null).
@@ -2266,8 +2266,6 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         e2bCodingAgentTemplateTag:
             process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
         otel: parseDataAppOtelConfig(),
-        customDependenciesEnabled:
-            process.env.LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED === 'true',
         dependencyRegistryHosts: (
             process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||
             'registry.npmjs.org'
@@ -2851,7 +2849,7 @@ export const parseConfig = (): LightdashConfig => {
             signingSecret: process.env.SLACK_SIGNING_SECRET,
             clientId: process.env.SLACK_CLIENT_ID,
             clientSecret: process.env.SLACK_CLIENT_SECRET,
-            stateSecret: process.env.SLACK_STATE_SECRET || 'slack-state-secret',
+            stateSecret: process.env.SLACK_STATE_SECRET || lightdashSecret,
             appToken: process.env.SLACK_APP_TOKEN,
             port: parseInt(process.env.SLACK_PORT || '4351', 10),
             socketMode: process.env.SLACK_SOCKET_MODE === 'true',
@@ -2888,7 +2886,7 @@ export const parseConfig = (): LightdashConfig => {
                     retentionDays:
                         getIntegerFromEnvironmentVariable(
                             'QUERY_HISTORY_RETENTION_DAYS',
-                        ) || 30,
+                        ) || AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
                     batchSize:
                         getIntegerFromEnvironmentVariable(
                             'QUERY_HISTORY_CLEANUP_BATCH_SIZE',
@@ -3157,5 +3155,13 @@ export const parseConfig = (): LightdashConfig => {
                 ([envVar]) => process.env[envVar] === 'true',
             ).map(([, flagId]) => flagId),
         ]),
+        previewFeatureFlags: {
+            enabled:
+                process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED ===
+                    'true' ||
+                (process.env.LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED !==
+                    'false' &&
+                    lightdashMode === LightdashMode.PR),
+        },
     };
 };

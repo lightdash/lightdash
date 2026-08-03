@@ -123,14 +123,15 @@ const deepResearchChartDataFixture: AiDeepResearchChartDataMap = {
 export const deepResearchRunFixture: DeepResearchRunView = {
     uuid: 'run-quarterly-retention',
     projectUuid: 'project-1',
+    agentUuid: 'agent-1',
     threadUuid: 'thread-quarterly-retention',
     question:
         'Why did enterprise retention fall in Q2 despite higher product adoption?',
-    depth: 'standard',
     status: 'completed',
     phase: 'Writing the report',
     startedAt: '2026-07-15T09:00:00.000Z',
     completedAt: '2026-07-15T09:18:00.000Z',
+    updatedAt: '2026-07-15T09:18:00.000Z',
     elapsedMs: 1_080_000,
     sourceCount: 4,
     queryCount: 7,
@@ -152,5 +153,8 @@ export const deepResearchRunFixture: DeepResearchRunView = {
     ],
     resultMarkdown: deepResearchReportMarkdownFixture,
     resultChartData: deepResearchChartDataFixture,
+    reportExpiresAt: '2026-08-29T09:18:00.000Z',
+    reportExpiredAt: null,
+    isReportExpired: false,
     errorMessage: null,
 };

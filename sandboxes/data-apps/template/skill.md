@@ -2,6 +2,8 @@
 
 You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
+**Building a single reusable chart rather than an app?** Use the `reusable-visualization` skill before writing any code. A reusable visualization runs no query of its own — the host hands it rows, a field mapping, config option values and a colour palette — so the data and filter APIs below do not apply to it. That skill is the contract for those builds and overrides this guide wherever the two differ. Everything else here (environment, components, visual design) still applies.
+
 ## Iteration mindset
 
 This pipeline is built for iteration — the user refines the app with follow-up prompts, and you have the full conversation history on every iteration. **Favor a responsive first build over upfront perfection.** Hit the core ask and ship; let the user tell you what to add.
@@ -47,7 +49,17 @@ Available at `@/components/ui/<name>`:
 
 ## Semantic Layer (dbt models)
 
-The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`**. Read these to discover every model, dimension, metric, join, and parameter available to you. **Never guess field names** — use only what's in the YAML. When a dimension or metric has `ai_hints`, follow that guidance when deciding which field best matches the user's intent; hints supplement names, labels, and descriptions. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
+The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`** — one file per model, plus an index. **Never guess field names** — use only what's in the YAML. When a dimension or metric has `ai_hints`, follow that guidance when deciding which field best matches the user's intent; hints supplement names, labels, and descriptions. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
+
+### Finding the right models
+
+Projects range from a handful of models to well over a thousand, so the directory is indexed rather than inlined:
+
+1. **Read `/tmp/dbt-repo/models/_index.md` first.** It lists every model, most-queried first, with its file name, dimension/metric counts, joined tables, and description.
+2. **Read only the model files the app actually needs**, e.g. `Read /tmp/dbt-repo/models/orders.yml`. Each file holds that model's complete dimensions, metrics, joins, parameters, and model-level filters.
+3. **Grep when the index isn't enough.** If you know a field name but not its model, `Grep` the directory for it. A wide model may be split across `<name>.yml`, `<name>.part2.yml`, … — the last line of each part points at the next.
+
+**Never read every model file, and never page through a file with `offset`/`limit`** — pick the model from the index and read that one file whole.
 
 ### Reading dbt YAML
 
@@ -128,6 +140,16 @@ query('orders')
 **Never prefix joined table fields with the base explore name.** `'customers.name'` is correct. `'name'` alone would resolve to `orders_name` which doesn't exist.
 
 Each entry under `meta.joins` may carry a `relationship` (`one-to-many`, `many-to-one`, `one-to-one`, `many-to-many`) and a `sql_on` condition — either can be absent. When a `relationship` is present, use it to reason about grain and fan-out: joining a `one-to-many` table multiplies base rows, so aggregating a base metric across that join can double-count — prefer a metric defined on the "many" side, or aggregate before joining.
+
+### Model-level filters — check before querying
+
+Some models declare filters in their `meta:` block (the index marks them with `filters=…`). They change what every query against that model returns, so account for them when writing queries:
+
+- **`required_filters`** — the backend force-ANDs each of these onto every query against the model, **unless your query has its own filter on the same field** (another time interval of the same date field also counts: filtering `order_date_month` overrides a required filter on `order_date`). If the user asks for a range that conflicts with a required filter (e.g. "last 90 days" but the model requires the last 4 weeks), you MUST add your own filter on that field — without one, the backend's filter silently caps your results.
+- **`default_filters`** — NOT enforced by the backend, but Lightdash's own Explore UI pre-applies them. Apply them in your queries by default so the app's numbers match what users see in Lightdash; drop or replace one only when the user's request conflicts with it.
+- **`sql_filter`** — a raw SQL condition ANDed onto every query against the model. It cannot be overridden or removed. Factor it into naming and copy — a model filtered to `status = 'completed'` must not be labelled "all orders" — and consider it when results look narrower than expected.
+
+Entries under `required_filters` / `default_filters` use the SDK `Filter` shape (`field`, `operator`, `value`, `unit`) — pass them to `.filters([...])` as-is.
 
 ### Understanding data grain
 
@@ -215,6 +237,8 @@ const base = query('orders').metrics(['total_revenue']);
 const bySegment = base.label('Revenue by Segment').dimensions(['customer_segment']);
 const byRegion = base.label('Revenue by Region').dimensions(['region']);
 ```
+
+**Sharing the explore-name constant:** define it in the component that uses it, or in its own module (e.g. `src/lib/constants.js`). Never export it from a component file that imports its consumers — that circular import evaluates the consumer first, the constant is `undefined` when a module-scope `query(...)` runs, and the app crashes on load.
 
 KPI cards — metrics without dimensions gives a single aggregated row:
 ```ts
@@ -641,7 +665,7 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 ## Visual Design
 
-**Invoke the `frontend-design` skill before writing any UI code** (auto-loaded from `.claude/skills/frontend-design/`). It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
+**Use the `frontend-design` skill before writing any UI code.** It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
 
 Lightdash-specific constraints that apply on top of `frontend-design`'s direction:
 

@@ -7,12 +7,21 @@ import {
     AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
+    type AiDeepResearchActivity,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchHypothesis,
+    type AiDeepResearchInvestigation,
+    type AiDeepResearchInvestigationReport,
+    type AiDeepResearchPhase,
+    type AiDeepResearchRunStatus,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';
-import { AiKeyManagement } from '../../../../analytics/aiUsage';
+import {
+    AiKeyManagement,
+    type AiUsageTokens,
+} from '../../../../analytics/aiUsage';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
@@ -107,23 +116,76 @@ export type AiAgentRequestingUser = {
     groups: string[];
 };
 
+/**
+ * The structured phase a deep-research call plays. Absent for the legacy
+ * single-loop behavior. Planner and investigator hand their results back
+ * through callbacks fired by their submission tools; the judge reports
+ * through the existing submitResearchReport path.
+ */
+export type AiDeepResearchExecutionRole =
+    | {
+          role: 'planner';
+          maxHypotheses: number;
+          onHypotheses: (hypotheses: AiDeepResearchHypothesis[]) => void;
+      }
+    | {
+          role: 'investigator';
+          hypothesis: AiDeepResearchHypothesis;
+          onReport: (report: AiDeepResearchInvestigationReport) => void;
+      }
+    | {
+          role: 'judge';
+          investigations: AiDeepResearchInvestigation[];
+      };
+
+export type AiDeepResearchStepUsage = {
+    runUuid: string;
+    phase: AiDeepResearchPhase;
+    tokens: AiUsageTokens;
+};
+
 export type AiAgentExecutionConfig =
     | {
           mode: 'standard';
           maxSteps: number;
           budget?: never;
           onStepUsage?: never;
+          research?: never;
+          parentToolCallId?: never;
       }
     | {
           mode: 'deep_research';
+          runUuid: string;
+          phase: AiDeepResearchPhase;
           maxSteps: number;
           budget: AiDeepResearchBudget;
           initialTokenUsage: number;
-          onStepUsage?: (tokens: number) => void | Promise<void>;
+          onStepUsage?: (
+              usage: AiDeepResearchStepUsage,
+          ) => void | Promise<void>;
           onExecutionContextResolved?: (
               snapshot: AiDeepResearchExecutionContextSnapshot,
           ) => void | Promise<void>;
+          research: AiDeepResearchExecutionRole;
+          /**
+           * Persists this call's tool activity as subagent children so it
+           * stays out of rebuilt model history; null keeps it top-level.
+           */
+          parentToolCallId?: string | null;
       };
+
+export type AiAgentDeepResearchRunContext = {
+    uuid: string;
+    question: string;
+    status: AiDeepResearchRunStatus;
+    phase: AiDeepResearchPhase | null;
+    activity: AiDeepResearchActivity | null;
+    progressCurrent: number | null;
+    progressTotal: number | null;
+    startedAt: string | null;
+    elapsedSeconds: number;
+    hasReport: boolean;
+};
 
 export type AiAgentArgs = AnyAiModel & {
     // Whether this turn runs on a Lightdash-managed or self-managed (BYO) key.
@@ -132,11 +194,13 @@ export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
     knowledgeDocuments: AiAgentDocumentContext[];
+    deepResearchRuns: AiAgentDeepResearchRunContext[];
     projectContext: ProjectContextEntry[];
     // Whether the project_context feature is on for this turn (Control = off).
     projectContextEnabled: boolean;
     aiAgentMemoryEnabled: boolean;
     mcpServers: AiAgentMcpServer[];
+    compactionSummary: string | null;
     messageHistory: ModelMessage[];
     promptUuid: string;
     threadUuid: string;

@@ -21,6 +21,53 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { SpaceModel } from './SpaceModel';
 
+describe('SpaceModel project-scoped creation', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new SpaceModel({ database });
+    let tracker: Tracker;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('reuses an active space created concurrently for the same CaC path', async () => {
+        tracker.on.select(ProjectTableName).responseOnce({ project_id: 1 });
+        tracker.on.select('pg_advisory_xact_lock').response({});
+        tracker.on.select(SpaceTableName).responseOnce({
+            organization_uuid: 'organization-uuid',
+            space_uuid: 'existing-space-uuid',
+            name: 'Finance',
+            slug: 'finance',
+            path: 'finance',
+            parent_space_uuid: null,
+            inherit_parent_permissions: false,
+            project_member_access_role: null,
+            color_palette_uuid: null,
+            deleted_at: null,
+        });
+
+        const space = await model.createSpace(
+            {
+                name: 'Finance',
+                inheritParentPermissions: false,
+                parentSpaceUuid: null,
+            },
+            {
+                projectUuid: 'project-uuid',
+                userId: 1,
+                path: 'finance',
+            },
+        );
+
+        expect(space.uuid).toBe('existing-space-uuid');
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+});
+
 describe('SpaceModel space access as code', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new SpaceModel({ database });
@@ -892,7 +939,7 @@ describe('SpaceModel space access as code', () => {
             .filter(({ sql }) => sql.includes('pg_advisory_xact_lock'))
             .map(({ bindings }) => bindings);
         expect(advisoryLockBindings).toEqual([
-            [2, 'project-uuid:space:finance'],
+            [2, '1:space:finance'],
             [3, 'space-uuid'],
             [3, 'parent-space-uuid'],
         ]);
@@ -947,6 +994,14 @@ describe('SpaceModel space access as code', () => {
                     !sql.includes('join "organizations"'),
             )
             .responseOnce([{ project_id: 1 }]);
+        tracker.on
+            .select(
+                ({ sql }) =>
+                    sql.includes(`from "${SpaceTableName}"`) &&
+                    sql.includes('"path" =') &&
+                    !sql.includes('for update'),
+            )
+            .responseOnce(undefined);
         tracker.on
             .select(
                 ({ sql }) =>

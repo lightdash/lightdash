@@ -1,5 +1,9 @@
 import {
     assertUnreachable,
+    isAppScheduler,
+    isChartScheduler,
+    isDashboardScheduler,
+    isSqlChartScheduler,
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerResourceType,
@@ -203,14 +207,22 @@ export const getSchedulerLink = (
         return `${resourcePath}?${paramName}=${item.schedulerUuid}${syncParam}`;
     }
 
-    // Handle SchedulerItem (uses savedChartUuid/dashboardUuid/savedSqlUuid)
-    if (item.savedChartUuid) {
+    // Handle SchedulerItem. Dispatch on the resource type guards rather than
+    // truthiness of a uuid field, so a new scheduler resource type fails to
+    // compile here instead of silently falling through to the dashboard URL.
+    if (isChartScheduler(item)) {
         return `/projects/${projectUuid}/saved/${item.savedChartUuid}/view/?${paramName}=${item.schedulerUuid}${syncParam}`;
     }
-    if (item.savedSqlUuid) {
+    if (isSqlChartScheduler(item)) {
         return `/projects/${projectUuid}/sql-runner/${item.savedSqlUuid}?${paramName}=${item.schedulerUuid}${syncParam}`;
     }
-    return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?${paramName}=${item.schedulerUuid}`;
+    if (isAppScheduler(item)) {
+        return `/projects/${projectUuid}/apps/${item.appUuid}/view?${paramName}=${item.schedulerUuid}${syncParam}`;
+    }
+    if (isDashboardScheduler(item)) {
+        return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?${paramName}=${item.schedulerUuid}`;
+    }
+    return assertUnreachable(item, 'Unknown scheduler resource type');
 };
 
 export const getItemLink = (
@@ -220,13 +232,19 @@ export const getItemLink = (
     // Use item's projectUuid if available, otherwise fall back to the provided one
     const projectUuid = item.projectUuid ?? fallbackProjectUuid ?? '';
 
-    if (item.savedChartUuid) {
+    if (isChartScheduler(item)) {
         return `/projects/${projectUuid}/saved/${item.savedChartUuid}/view`;
     }
-    if (item.savedSqlUuid) {
+    if (isSqlChartScheduler(item)) {
         return `/projects/${projectUuid}/sql-runner/${item.savedSqlUuid}`;
     }
-    return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
+    if (isAppScheduler(item)) {
+        return `/projects/${projectUuid}/apps/${item.appUuid}/view`;
+    }
+    if (isDashboardScheduler(item)) {
+        return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
+    }
+    return assertUnreachable(item, 'Unknown scheduler resource type');
 };
 
 export const formatTime = (date: Date) =>

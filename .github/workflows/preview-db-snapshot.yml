@@ -42,7 +42,7 @@ jobs:
       # only; the run steps below need the CLI on the runner itself
       - name: Install Okteto CLI
         run: |
-          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.7.0/okteto-Linux-x86_64
+          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
           chmod +x okteto
           sudo mv okteto /usr/local/bin/okteto
 
@@ -65,6 +65,9 @@ jobs:
 
       - name: Deploy database and seeder
         run: okteto deploy -f docker/docker-compose.db-snapshot.yml --namespace db-snapshot --name db-snapshot --timeout 30m
+        env:
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
       - name: Snapshot the seeded volume
         run: ./scripts/preview-db-snapshot.sh "${GITHUB_SHA::7}"

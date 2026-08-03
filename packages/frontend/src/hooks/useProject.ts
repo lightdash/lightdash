@@ -19,6 +19,7 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
+import { useLocation } from 'react-router';
 import { lightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useTracking from '../providers/Tracking/useTracking';
@@ -50,7 +51,7 @@ const updateProject = async (uuid: string, data: UpdateProject) =>
         sensitive: true,
     });
 
-const getProject = async (uuid: string) =>
+export const getProject = async (uuid: string) =>
     lightdashApi<Project>({
         url: `/projects/${uuid}`,
         method: 'GET',
@@ -134,6 +135,10 @@ export const useCreateMutation = (options?: {
     const { setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { showToastApiError } = useToaster();
     const { track } = useTracking();
+    const { pathname } = useLocation();
+    const onboardingFlow = pathname.startsWith('/onboarding/')
+        ? 'new'
+        : 'legacy';
     return useMutation<ApiJobStartedResults, ApiError, CreateProject>(
         (data) => createProject(data),
         {
@@ -153,6 +158,7 @@ export const useCreateMutation = (options?: {
                         warehouse: data.warehouseConnection.type,
                         errorType: error.name,
                         warehouseOnly: options?.warehouseOnly,
+                        onboardingFlow,
                     },
                 });
                 showToastApiError({

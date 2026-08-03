@@ -125,7 +125,6 @@ import {
 } from '@lightdash/common';
 import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
-import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
@@ -165,6 +164,7 @@ import {
     hasBlockingTotalFilters,
     replaceUserAttributesAsStrings,
 } from '../../utils/QueryBuilder/utils';
+import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
@@ -321,6 +321,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         return new Promise<void>((resolve, reject) => {
+            // eslint-disable-next-line prefer-const -- assigned below; onAbort closure needs the binding first
             let timeout: ReturnType<typeof setTimeout>;
             const onAbort = () => {
                 clearTimeout(timeout);
@@ -759,16 +760,12 @@ export class AsyncQueryService extends ProjectService {
             await resultsStorageClient.getDownloadStream(fileName);
 
         const rows: ResultRow[] = [];
-        const rl = createInterface({
-            input: cacheStream,
-            crlfDelay: Infinity,
-        });
 
         const startLine = (page - 1) * pageSize;
         const endLine = startLine + pageSize;
         let nonEmptyLineCount = 0;
 
-        for await (const line of rl) {
+        for await (const line of splitJsonlStream(cacheStream)) {
             if (line.trim()) {
                 if (
                     nonEmptyLineCount >= startLine &&
@@ -1347,6 +1344,41 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * Column totals for an export, keyed by field id. For a pivoted source this
+     * is one total per rendered value column; for a plain table the
+     * `calculate-total` query collapses to a single grand-total row, which is
+     * exactly the footer the table chart shows. Returns undefined when the
+     * totals query fails so the export still succeeds without them.
+     */
+    private async getExportColumnTotals({
+        account,
+        projectUuid,
+        sourceQueryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        sourceQueryUuid: string;
+    }): Promise<Record<string, number> | undefined> {
+        try {
+            const { rows, fields } =
+                await this.executeCalculateTotalAndGetResults({
+                    account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                    kind: 'columnTotal',
+                });
+            return buildWarehouseColumnTotals(formatRows(rows, fields));
+        } catch (error) {
+            this.logger.warn('Failed to compute column totals for export', {
+                projectUuid,
+                sourceQueryUuid,
+                error: getErrorMessage(error),
+            });
+            return undefined;
+        }
+    }
+
+    /**
      * Pivot totals are exclusively warehouse-computed — the export renderer has
      * no client-side fallback, so without this they come out blank. Mirrors the
      * UI: re-run the source query collapsed across the pivot (`calculate-total`)
@@ -1376,27 +1408,11 @@ export class AsyncQueryService extends ProjectService {
         let warehouseGrandTotals: Record<string, number> | undefined;
 
         if (pivotConfig.columnTotals) {
-            try {
-                const { rows, fields } =
-                    await this.executeCalculateTotalAndGetResults({
-                        account,
-                        projectUuid,
-                        queryUuid: sourceQueryUuid,
-                        kind: 'columnTotal',
-                    });
-                warehouseColumnTotals = buildWarehouseColumnTotals(
-                    formatRows(rows, fields),
-                );
-            } catch (error) {
-                this.logger.warn(
-                    'Failed to compute column totals for pivot export',
-                    {
-                        projectUuid,
-                        sourceQueryUuid,
-                        error: getErrorMessage(error),
-                    },
-                );
-            }
+            warehouseColumnTotals = await this.getExportColumnTotals({
+                account,
+                projectUuid,
+                sourceQueryUuid,
+            });
         }
 
         const { indexColumn } = pivotDetails;
@@ -1476,6 +1492,7 @@ export class AsyncQueryService extends ProjectService {
         attachmentDownloadName,
         expirationSecondsOverride,
         conditionalFormattings,
+        showColumnTotals = false,
     }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
 
@@ -1770,6 +1787,13 @@ export class AsyncQueryService extends ProjectService {
                               hiddenFields,
                               attachmentDownloadName,
                               conditionalFormattings,
+                              columnTotals: showColumnTotals
+                                  ? await this.getExportColumnTotals({
+                                        account,
+                                        projectUuid,
+                                        sourceQueryUuid: queryUuid,
+                                    })
+                                  : undefined,
                           },
                           displayTimezone ?? undefined,
                       );
@@ -5294,6 +5318,12 @@ export class AsyncQueryService extends ProjectService {
             .addChartViewEvent(
                 savedChart.uuid,
                 account.isRegisteredUser() ? account.user.id : null,
+                resolvedDashboardUuid
+                    ? {
+                          source: 'dashboard',
+                          dashboardUuid: resolvedDashboardUuid,
+                      }
+                    : undefined,
             )
             .catch((e) =>
                 this.logger.warn('Failed to track chart view event', {
@@ -6483,6 +6513,7 @@ export class AsyncQueryService extends ProjectService {
         args: ExecuteAsyncMetricQueryArgs,
         pollingOptions?: PollingOptions,
     ): Promise<{
+        queryUuid: string;
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
@@ -6501,13 +6532,47 @@ export class AsyncQueryService extends ProjectService {
             ...pollingOptions,
         });
 
-        return this.getReadyQueryResults({
+        const results = await this.getReadyQueryResults({
             account,
             projectUuid,
             queryUuid,
             cacheMetadata,
             fields,
         });
+
+        return { queryUuid, ...results };
+    }
+
+    async extendQueryResultsExpiration({
+        account,
+        projectUuid,
+        queryUuid,
+        expiresAt,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        expiresAt: Date;
+    }): Promise<void> {
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+        if (
+            !queryHistory.resultsFileName ||
+            (queryHistory.resultsExpiresAt &&
+                queryHistory.resultsExpiresAt >= expiresAt)
+        ) {
+            return;
+        }
+
+        await this.queryHistoryModel.update(
+            queryUuid,
+            projectUuid,
+            { results_expires_at: expiresAt },
+            account,
+        );
     }
 
     /**

@@ -82,7 +82,7 @@ const AVAILABLE_MESSAGE_TO_FEATURE: Record<string, string> = {
   stay constants-only — the Lightdash frontend imports it for staleness
   detection without pulling SDK runtime code.
 - Commands: `pnpm build` (regenerates version, compiles to `dist/`),
-  `pnpm test`, `pnpm typecheck:fast`. The sandbox template image packs this
+  `pnpm test`, `pnpm typecheck`. The sandbox template image packs this
   package via `pnpm build && pnpm pack` in
   `sandboxes/data-apps/build-sandbox.ts`.
 </importantToKnow>

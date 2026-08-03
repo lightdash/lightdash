@@ -71,6 +71,7 @@ import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel'
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
 import { ReviewRemediationWorkspace } from '../ee/features/aiCopilot/components/Admin/ReviewRemediationWorkspace';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';
+import { AiDeepResearchSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiDeepResearchSettingsPage';
 import { AiEvalsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiEvalsSettingsPage';
 import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiGeneralSettingsPage';
 import { AiMemoriesSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiMemoriesSettingsPage';
@@ -85,7 +86,9 @@ import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
+import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
+import { canAccessDeepResearchSettings } from '../hooks/settings/deepResearchSettingsAccess';
 import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
 import { useSettingsContext } from '../hooks/settings/useSettingsContext';
 import { useSettingsNavigation } from '../hooks/settings/useSettingsNavigation';
@@ -150,12 +153,15 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled,
         dataAppsFlag,
+        isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading,
+        isDeepResearchFlagLoading,
         showImpersonationPanel,
         isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
@@ -486,14 +492,40 @@ const Settings: FC = () => {
             });
         }
 
-        if (
-            dataAppsFlag?.enabled &&
-            user?.ability.can('view', 'OrganizationDesign')
-        ) {
-            allowedRoutes.push({
-                path: '/themes',
-                element: <DesignListPage />,
-            });
+        if (dataAppsFlag?.enabled) {
+            const canViewThemes =
+                user?.ability.can('view', 'OrganizationDesign') ?? false;
+            const canViewActivity =
+                user?.ability.can('manage', 'Organization') ?? false;
+
+            if (canViewThemes) {
+                allowedRoutes.push({
+                    path: '/dataApps/themes',
+                    element: <DesignListPage />,
+                });
+            }
+            if (canViewActivity) {
+                allowedRoutes.push({
+                    path: '/dataApps/activity',
+                    element: <DataAppActivitySettingsPage />,
+                });
+            }
+            // Land on whichever sub-page the user can actually reach.
+            if (canViewThemes || canViewActivity) {
+                allowedRoutes.push({
+                    path: '/dataApps',
+                    element: (
+                        <Navigate
+                            to={
+                                canViewThemes
+                                    ? '/generalSettings/dataApps/themes'
+                                    : '/generalSettings/dataApps/activity'
+                            }
+                            replace
+                        />
+                    ),
+                });
+            }
         }
 
         if (user?.ability.can('manage', 'Organization')) {
@@ -627,6 +659,19 @@ const Settings: FC = () => {
                     path: '/ai/general',
                     element: <AiGeneralSettingsPage />,
                 });
+                if (
+                    canAccessDeepResearchSettings({
+                        isAiCopilotEnabledOrTrial,
+                        isDeepResearchEnabled,
+                        canManageOrgAiAgent,
+                        hasAnyAiAgentAccess,
+                    })
+                ) {
+                    allowedRoutes.push({
+                        path: '/ai/deep-research',
+                        element: <AiDeepResearchSettingsPage />,
+                    });
+                }
             }
             allowedRoutes.push({
                 path: '/ai/threads',
@@ -742,6 +787,7 @@ const Settings: FC = () => {
         isEmailWhitelabelEnabled,
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
+        isDeepResearchEnabled,
         shouldShowAiAgentReviews,
         shouldShowAiAgentMemories,
         canManageOrgAiAgent,
@@ -848,7 +894,14 @@ const Settings: FC = () => {
                 { path: '/generalSettings/ai/issues/:fingerprint' },
                 location.pathname,
             ) &&
-            !matchPath({ path: '/generalSettings/roadmap' }, location.pathname)
+            !matchPath(
+                { path: '/generalSettings/roadmap' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/dataApps/activity' },
+                location.pathname,
+            )
         );
     }, [location.pathname]);
 
@@ -859,9 +912,17 @@ const Settings: FC = () => {
     const isAwaitingAiSettingsRoute =
         isAiOrganizationSettingsLoading &&
         Boolean(matchPath('/generalSettings/ai/*', location.pathname));
+    const isAwaitingDeepResearchRoute =
+        isDeepResearchFlagLoading &&
+        Boolean(
+            matchPath('/generalSettings/ai/deep-research', location.pathname),
+        );
     const isAwaitingRoadmapRoute =
         isOrganizationRoadmapLoading &&
         Boolean(matchPath('/generalSettings/roadmap', location.pathname));
+    const isAwaitingDataAppsRoute =
+        isDataAppsFlagLoading &&
+        Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
 
     if (
         isHealthLoading ||
@@ -870,7 +931,9 @@ const Settings: FC = () => {
         isActiveProjectUuidLoading ||
         isProjectLoading ||
         isAwaitingAiSettingsRoute ||
-        isAwaitingRoadmapRoute
+        isAwaitingDeepResearchRoute ||
+        isAwaitingRoadmapRoute ||
+        isAwaitingDataAppsRoute
     ) {
         return <PageSpinner />;
     }

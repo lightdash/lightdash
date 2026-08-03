@@ -8,6 +8,7 @@ import {
     IconChartPie,
     IconFolder,
     IconLayoutDashboard,
+    IconLink,
     IconSparkles,
     IconTable,
     type Icon,
@@ -22,6 +23,9 @@ import {
     type ReactElement,
 } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
+import { faviconUrl } from './blocks/resourceUrls';
 import classes from './HomepageStars.module.css';
 
 const randomBetween = (min: number, max: number) =>
@@ -204,6 +208,87 @@ const StaticChips: FC<{ types: ChipKey[] }> = ({ types }) => (
     </Group>
 );
 
+// The only real content in the sky: these link out, so they are the one kind
+// of star that takes clicks and reports them.
+type MediaCard = {
+    key: string;
+    title: string;
+    subtitle: string;
+    href: string;
+    thumbnailUrl: string | null;
+};
+
+const MEDIA_CARDS: MediaCard[] = [
+    {
+        key: 'data-apps-video',
+        title: 'What can you build with Lightdash Data Apps? 3 real examples',
+        subtitle: 'Oliver shows us how we can build data apps!',
+        href: 'https://www.youtube.com/watch?v=BwvgHQyhI1o',
+        thumbnailUrl: 'https://i.ytimg.com/vi/BwvgHQyhI1o/hqdefault.jpg',
+    },
+    {
+        key: 'bi-as-code',
+        title: 'BI-as-code',
+        subtitle: 'Building content with code',
+        href: 'https://www.lightdash.com/bi-as-code',
+        thumbnailUrl: null,
+    },
+];
+
+const MediaStarCard: FC<{ card: MediaCard }> = ({ card }) => {
+    const { track } = useTracking();
+    const [thumbnailFailed, setThumbnailFailed] = useState(false);
+    const [faviconFailed, setFaviconFailed] = useState(false);
+    const favicon = faviconUrl(card.href);
+    const thumbnail = thumbnailFailed ? null : card.thumbnailUrl;
+
+    return (
+        <a
+            href={card.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${classes.card} ${classes.mediaCard}`}
+            onClick={() =>
+                track({
+                    name: EventName.HOMEPAGE_STARS_MEDIA_CARD_CLICKED,
+                    properties: { cardKey: card.key, href: card.href },
+                })
+            }
+        >
+            {thumbnail ? (
+                <Box className={classes.mediaThumb}>
+                    <img
+                        src={thumbnail}
+                        alt=""
+                        loading="lazy"
+                        draggable={false}
+                        onError={() => setThumbnailFailed(true)}
+                    />
+                </Box>
+            ) : (
+                <Box className={classes.mediaWash}>
+                    {favicon && !faviconFailed ? (
+                        <img
+                            className={classes.mediaFavicon}
+                            src={favicon}
+                            alt=""
+                            loading="lazy"
+                            draggable={false}
+                            onError={() => setFaviconFailed(true)}
+                        />
+                    ) : (
+                        <MantineIcon icon={IconLink} size={20} />
+                    )}
+                </Box>
+            )}
+            <Box className={classes.mediaBody}>
+                <Text className={classes.mediaTitle}>{card.title}</Text>
+                <Text className={classes.mediaSubtitle}>{card.subtitle}</Text>
+            </Box>
+        </a>
+    );
+};
+
 const StarCard: FC<{
     icon: Icon;
     tint: string;
@@ -308,12 +393,22 @@ const buildSparklineValues = (): number[] => {
 
 // Catalog of distinct star identities. A def only spawns while no visible
 // star uses it, so the sky never shows duplicate cards, KPIs, or chips.
-type StarDef = { key: string; render: (seed: StarSeed) => ReactElement };
+// Only interactive defs are exposed to the accessibility tree and to clicks.
+// Priority defs spawn ahead of the decorative ones whenever they are free,
+// so the media cards are reliably on screen rather than 2-in-18 lucky draws.
+type StarDef = {
+    key: string;
+    interactive: boolean;
+    priority: boolean;
+    render: (seed: StarSeed) => ReactElement;
+};
 
 const STAR_DEFS: StarDef[] = [
     ...MOCK_CHARTS.map(
         (chart): StarDef => ({
             key: `chart-${chart.name}`,
+            interactive: false,
+            priority: false,
             render: (seed) => (
                 <StarCard
                     icon={chart.icon}
@@ -327,6 +422,8 @@ const STAR_DEFS: StarDef[] = [
     ...MOCK_DASHBOARD_NAMES.map(
         (name): StarDef => ({
             key: `dashboard-${name}`,
+            interactive: false,
+            priority: false,
             render: (seed) => (
                 <StarCard
                     icon={IconLayoutDashboard}
@@ -340,6 +437,8 @@ const STAR_DEFS: StarDef[] = [
     ...MOCK_KPIS.map(
         (kpi): StarDef => ({
             key: `kpi-${kpi.label}`,
+            interactive: false,
+            priority: false,
             render: (seed) => (
                 <Box className={classes.card} p="sm">
                     <Text size="xs" c="dimmed" lineClamp={1}>
@@ -360,7 +459,17 @@ const STAR_DEFS: StarDef[] = [
     ...MOCK_CHIP_SETS.map(
         (types, index): StarDef => ({
             key: `chips-${index}`,
+            interactive: false,
+            priority: false,
             render: () => <StaticChips types={types} />,
+        }),
+    ),
+    ...MEDIA_CARDS.map(
+        (card): StarDef => ({
+            key: `media-${card.key}`,
+            interactive: true,
+            priority: true,
+            render: () => <MediaStarCard card={card} />,
         }),
     ),
 ];
@@ -413,7 +522,7 @@ type StarDraws = {
 // All randomness for a star is drawn before setState so the state updaters
 // below stay pure (StrictMode double-invokes them in dev).
 const drawStar = (): StarDraws => ({
-    lifetimeMs: randomBetween(5000, 9000),
+    lifetimeMs: randomBetween(15000, 25000),
     slotPick: Math.random(),
     defPick: Math.random(),
     sizePick: Math.random(),
@@ -471,7 +580,9 @@ const appendStar = (
     const candidateSlots = sideSlots.length > 0 ? sideSlots : freeSlots;
     const slot =
         candidateSlots[Math.floor(draws.slotPick * candidateSlots.length)];
-    const def = freeDefs[Math.floor(draws.defPick * freeDefs.length)];
+    const priorityDefs = freeDefs.filter((def) => def.priority);
+    const candidateDefs = priorityDefs.length > 0 ? priorityDefs : freeDefs;
+    const def = candidateDefs[Math.floor(draws.defPick * candidateDefs.length)];
     const sizeScale =
         SIZE_SCALES[Math.floor(draws.sizePick * SIZE_SCALES.length)];
     return [
@@ -672,7 +783,7 @@ const HomepageStars: FC = () => {
                     tier,
                 );
             });
-            spawnTimer = window.setTimeout(spawn, randomBetween(450, 1400));
+            spawnTimer = window.setTimeout(spawn, randomBetween(2000, 4500));
         };
 
         spawnTimer = window.setTimeout(spawn, 500);
@@ -687,31 +798,38 @@ const HomepageStars: FC = () => {
     if (disabled) return null;
 
     return (
-        <Box className={classes.sky} inert aria-hidden>
-            {stars.map((star) => (
-                <Box
-                    key={star.id}
-                    className={`${classes.star} ${star.className} ${phaseClass(
-                        star.phase,
-                    )}`}
-                    style={star.style}
-                    data-side={star.slot.side}
-                    data-star-def={star.defKey}
-                    data-star-phase={star.phase}
-                    onAnimationEnd={(event) => {
-                        if (event.target !== event.currentTarget) return;
-                        if (star.phase === 'leaving') {
-                            removeStar(star.id);
-                        } else if (star.phase === 'entering') {
-                            // Drop the animation so the settled card is
-                            // painted, not resampled from a compositor layer.
-                            settleStar(star.id);
-                        }
-                    }}
-                >
-                    {STAR_DEF_MAP.get(star.defKey)?.render(star.seed) ?? null}
-                </Box>
-            ))}
+        <Box className={classes.sky} data-testid="homepage-stars-sky">
+            {stars.map((star) => {
+                const def = STAR_DEF_MAP.get(star.defKey);
+                return (
+                    <Box
+                        key={star.id}
+                        className={`${classes.star} ${
+                            star.className
+                        } ${phaseClass(star.phase)}`}
+                        style={star.style}
+                        // Decoration stays out of the accessibility tree; only
+                        // media cards are announced, via their link text.
+                        aria-hidden={def?.interactive ? undefined : true}
+                        data-side={star.slot.side}
+                        data-star-def={star.defKey}
+                        data-star-phase={star.phase}
+                        onAnimationEnd={(event) => {
+                            if (event.target !== event.currentTarget) return;
+                            if (star.phase === 'leaving') {
+                                removeStar(star.id);
+                            } else if (star.phase === 'entering') {
+                                // Drop the animation so the settled card is
+                                // painted, not resampled from a compositor
+                                // layer.
+                                settleStar(star.id);
+                            }
+                        }}
+                    >
+                        {def?.render(star.seed) ?? null}
+                    </Box>
+                );
+            })}
         </Box>
     );
 };

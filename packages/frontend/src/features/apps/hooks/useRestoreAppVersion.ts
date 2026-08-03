@@ -38,6 +38,16 @@ export const useRestoreAppVersion = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['app', variables.projectUuid, variables.appUuid],
             });
+            // The restored version carries its own field schema, so any panel
+            // open over this visualization is now reconciling against a
+            // contract that is no longer the one being rendered.
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'data-app-viz',
+                    variables.projectUuid,
+                    variables.appUuid,
+                ],
+            });
         },
     });
 };

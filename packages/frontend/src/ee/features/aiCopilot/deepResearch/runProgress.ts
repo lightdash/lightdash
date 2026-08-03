@@ -2,55 +2,15 @@ import {
     assertUnreachable,
     countDeepResearchFindings,
     type AiDeepResearchActivity,
-    type AiDeepResearchBudget,
-    type AiDeepResearchEffort,
     type AiDeepResearchEvent,
     type AiDeepResearchPhase,
     type AiDeepResearchRun,
 } from '@lightdash/common';
 import {
-    DEEP_RESEARCH_DEPTHS,
-    type DeepResearchDepth,
     type DeepResearchRunRegistration,
     type DeepResearchRunStatus,
     type DeepResearchRunView,
 } from './types';
-
-export const DEEP_RESEARCH_DEPTH_CONFIG: Record<
-    DeepResearchDepth,
-    {
-        label: string;
-        effort: AiDeepResearchEffort;
-        warehouseQueries: number;
-        description: string;
-    }
-> = {
-    quick: {
-        label: 'Low',
-        effort: 'low',
-        warehouseQueries: 10,
-        description: 'A focused check of the strongest available evidence.',
-    },
-    standard: {
-        label: 'Medium',
-        effort: 'medium',
-        warehouseQueries: 25,
-        description:
-            'A balanced investigation with validation and alternatives.',
-    },
-    deep: {
-        label: 'High',
-        effort: 'high',
-        warehouseQueries: 50,
-        description: 'A broad investigation with more competing explanations.',
-    },
-    exhaustive: {
-        label: 'Extra High',
-        effort: 'xhigh',
-        warehouseQueries: 100,
-        description: 'The widest evidence review for high-stakes questions.',
-    },
-};
 
 const getActivityLabel = (activity: AiDeepResearchActivity | null): string => {
     switch (activity) {
@@ -120,14 +80,6 @@ export const isDeepResearchRunTerminal = (
         'waiting_for_reconnection',
     ].includes(status);
 
-/** The budget is a pure function of depth, so it round-trips a run's depth. */
-const getDepthFromBudget = (budget: AiDeepResearchBudget): DeepResearchDepth =>
-    DEEP_RESEARCH_DEPTHS.find(
-        (depth) =>
-            DEEP_RESEARCH_DEPTH_CONFIG[depth].warehouseQueries ===
-            budget.maxWarehouseQueries,
-    ) ?? 'standard';
-
 /** A registration equivalent for a run loaded from the server. */
 export const toDeepResearchRegistration = (
     run: AiDeepResearchRun,
@@ -138,22 +90,15 @@ export const toDeepResearchRegistration = (
     agentUuid: run.agentUuid,
     threadUuid: args.threadUuid,
     promptUuid: run.promptUuid,
-    mcpServerUuids: run.mcpServerUuids,
     userUuid: args.userUuid,
     question: run.prompt,
-    depth: getDepthFromBudget(run.budget),
     createdAt: run.createdAt,
     state: 'started',
 });
 
-/** Plain-text intro of the report markdown, for compact previews. */
+/** Intro of the report markdown, before the detailed report sections. */
 export const getDeepResearchReportPreview = (markdown: string): string =>
-    markdown
-        .split(/^## /m)[0]
-        .replace(/^(`{3,}|~{3,})[\s\S]*?(\1|$)/gm, ' ')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+    markdown.split(/^## /m)[0].trim();
 
 export const adaptDeepResearchRun = ({
     run,
@@ -184,9 +129,9 @@ export const adaptDeepResearchRun = ({
     return {
         uuid: run.aiDeepResearchRunUuid,
         projectUuid: run.projectUuid,
+        agentUuid: run.agentUuid,
         threadUuid: registration.threadUuid,
         question: registration.question,
-        depth: registration.depth,
         status: run.status,
         phase: getPhaseLabel(
             latestProgress?.phase ?? null,
@@ -194,6 +139,7 @@ export const adaptDeepResearchRun = ({
         ),
         startedAt: run.startedAt,
         completedAt: run.completedAt,
+        updatedAt: run.updatedAt,
         elapsedMs: Math.max(0, endTime - startTime),
         sourceCount: null,
         queryCount,
@@ -212,6 +158,9 @@ export const adaptDeepResearchRun = ({
             })),
         resultMarkdown: run.resultMarkdown,
         resultChartData: run.resultChartData,
+        reportExpiresAt: run.reportExpiresAt,
+        reportExpiredAt: run.reportExpiredAt,
+        isReportExpired: run.isReportExpired,
         errorMessage: run.errorMessage,
     };
 };

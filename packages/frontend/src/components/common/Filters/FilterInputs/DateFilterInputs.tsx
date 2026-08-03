@@ -115,8 +115,6 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         return (
                             <FilterMonthAndYearPicker
                                 disabled={disabled}
-                                // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                                // @ts-ignore
                                 placeholder={placeholder}
                                 data-autofocus
                                 popoverProps={popoverProps}
@@ -166,8 +164,6 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         return (
                             <FilterYearPicker
                                 disabled={disabled}
-                                // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                                // @ts-ignore
                                 placeholder={placeholder}
                                 data-autofocus
                                 popoverProps={popoverProps}
@@ -207,8 +203,6 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 return (
                     <FilterDateTimePicker
                         disabled={disabled}
-                        // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                        // @ts-ignore
                         placeholder={placeholder}
                         data-autofocus
                         withSeconds

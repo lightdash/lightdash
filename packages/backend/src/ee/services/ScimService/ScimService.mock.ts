@@ -103,6 +103,18 @@ export const mockProjects = [
     },
 ];
 
+export const mockOrganizationCustomRole: Role = {
+    roleUuid: 'custom-organization-role-uuid',
+    name: 'Custom Organization Role',
+    description: 'Custom organization role',
+    level: 'organization',
+    organizationUuid: 'org-uuid',
+    ownerType: 'user',
+    createdBy: 'test-user-uuid',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+
 // Mock custom roles for testing
 export const mockCustomRoles: Role[] = [
     {
@@ -127,6 +139,7 @@ export const mockCustomRoles: Role[] = [
         createdAt: new Date(),
         updatedAt: new Date(),
     },
+    mockOrganizationCustomRole,
 ];
 
 // Mock organization member profile model

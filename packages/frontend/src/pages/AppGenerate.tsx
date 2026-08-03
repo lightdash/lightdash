@@ -6,6 +6,7 @@ import {
     getVisibleDataAppClaudeModels,
     isApiError,
     isAppVersionInProgress,
+    MAX_APP_FILES_PER_VERSION,
     resolveDefaultVisibleDataAppClaudeModel,
     type ApiAppVersionSummary,
     type AppChartReference,
@@ -13,8 +14,6 @@ import {
     type AppDashboardReference,
     type AppExternalConnectionReference,
     type AppVersionDependencyEntry,
-    type AppVersionStatusHistoryEntry,
-    type AppVersionStatusHistoryEntryKind,
     type DataAppClaudeModel,
     type DataAppTemplate,
     type DataAppVizContext,
@@ -43,6 +42,7 @@ import {
     IconHammer,
     IconExternalLink,
     IconArrowBackUp,
+    IconFileDescription,
     IconLayoutDashboard,
     IconLink,
     IconPackage,
@@ -98,8 +98,8 @@ import {
     InspectButton,
     ModelPicker,
     ScreenshotButton,
+    SelectedAttachmentSection,
     SelectedDashboardSection,
-    SelectedImageSection,
     SelectedQuerySection,
     type SelectedChart,
     type SelectedConnection,
@@ -111,13 +111,11 @@ import ChatMessageContent from '../features/apps/ChatMessageContent';
 import AppBuilderSidebarToggle from '../features/apps/components/AppBuilderSidebarToggle';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
-import AppSpaceChip from '../features/apps/components/AppSpaceChip';
 import DataAppVizResultCard from '../features/apps/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/apps/components/DataAppVizTestPanel';
 import LoadingDots from '../features/apps/components/LoadingDots';
-import { getAppVersionFailureMessage } from '../features/apps/getAppVersionFailureMessage';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
-import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
+import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import type {
@@ -139,11 +137,21 @@ import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExt
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { getTemplate } from '../features/apps/templates';
 import {
+    getAppFileValidationError,
+    isSupportedAppImage,
+} from '../features/apps/utils/appFileAttachments';
+import {
+    emptyChatMessage,
     mergeChatMessages,
+    type ChatAttachedFile,
     type ChatChart,
     type ChatConnection,
     type ChatMessage,
-} from '../features/apps/utils/mergeChatMessages';
+} from '../features/apps/utils/chatMessage';
+import {
+    versionNarrationTexts,
+    versionsToChatMessages,
+} from '../features/apps/utils/versionsToChatMessages';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
@@ -175,19 +183,6 @@ function parseElementRefLabel(label: string): ElementRef | null {
     return { tag: m[1] ?? '', text: m[2] ?? '', loc: m[3] ?? '' };
 }
 
-// The null guard exists because the poll worker feeds raw fetch JSON into
-// the query cache; the consecutive dedupe because a retry can restart the
-// generation stream and re-emit the same entry.
-function versionNarrationTexts(
-    history: AppVersionStatusHistoryEntry[] | undefined,
-    kind: AppVersionStatusHistoryEntryKind,
-): string[] {
-    return (history ?? [])
-        .filter((entry) => entry.kind === kind)
-        .map((entry) => entry.message)
-        .filter((message, index, all) => message !== all[index - 1]);
-}
-
 // Run a layout-changing state update inside a native View Transition so the
 // browser cross-fades/morphs the before/after frames (used for the
 // centered-composer → split-sidebar handoff). flushSync forces React to
@@ -204,7 +199,7 @@ function withViewTransition(update: () => void): void {
     }
 }
 
-// ChatChart and ChatMessage are imported from `features/apps/utils/mergeChatMessages`
+// ChatChart and ChatMessage are imported from `features/apps/utils/chatMessage`
 // alongside the merge helper, so the type and the merge logic stay collocated.
 
 const AppResourceImage: FC<{
@@ -558,15 +553,16 @@ const AppGenerate: FC = () => {
         appUuid: string | null; // null = override set from the new-app page
         designUuid: string | null;
     } | null>(null);
-    const [imageAttachments, setImageAttachments] = useState<
+    const [fileAttachments, setFileAttachments] = useState<
         Array<{
+            localId: string;
             file: File;
-            previewUrl: string;
+            /** Object URL for image thumbnails; null for non-image files. */
+            previewUrl: string | null;
             kind?: 'screenshot';
         }>
     >([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const MAX_IMAGES_PER_VERSION = 4;
     const [selectedCharts, setSelectedCharts] = useState<SelectedChart[]>([]);
     const [selectedDashboard, setSelectedDashboard] =
         useState<SelectedDashboard | null>(null);
@@ -676,7 +672,7 @@ const AppGenerate: FC = () => {
         questions: string[];
         prompt: string;
         template: DataAppTemplate | undefined;
-        imageIds: string[] | undefined;
+        fileIds: string[] | undefined;
         appUuid: string;
         charts: AppChartReference[] | undefined;
         dashboard: AppDashboardReference | undefined;
@@ -698,6 +694,8 @@ const AppGenerate: FC = () => {
     // local→server message transition (localMessages get cleared when server
     // version data arrives, but the ref persists).
     const sentImagesByPrompt = useRef(new Map<string, string[]>());
+    // Maps prompt text → non-image attachment chips, same lifecycle as above
+    const sentFilesByPrompt = useRef(new Map<string, ChatAttachedFile[]>());
     // Maps prompt text → chart names so they survive the local→server transition
     const sentChartsByPrompt = useRef(new Map<string, ChatChart[]>());
     // Maps prompt text → connection names so they survive the local→server transition
@@ -740,7 +738,7 @@ const AppGenerate: FC = () => {
         setSelectedCharts([]);
         setSelectedDashboard(null);
         setSelectedConnections([]);
-        setImageAttachments([]);
+        setFileAttachments([]);
         setLocalMessages([]);
         setPin(null);
         clearQueries();
@@ -765,6 +763,7 @@ const AppGenerate: FC = () => {
             urls.forEach((url) => URL.revokeObjectURL(url)),
         );
         sentImagesByPrompt.current.clear();
+        sentFilesByPrompt.current.clear();
     }, [clearQueries, clearExternalRequests]);
     useEffect(() => {
         const prev = prevUrlAppUuid.current;
@@ -803,7 +802,7 @@ const AppGenerate: FC = () => {
     const [restoreTargetVersion, setRestoreTargetVersion] = useState<
         number | null
     >(null);
-    const { mutateAsync: uploadImage } = useAppImageUpload();
+    const { mutateAsync: uploadFile } = useAppFileUpload();
     const { showToastError, showToastSuccess, showToastWarning } = useToaster();
     const { mutateAsync: uploadThumbnail } = useAppThumbnailUpload();
 
@@ -841,6 +840,14 @@ const AppGenerate: FC = () => {
     const appSpaceName = appData?.pages?.[0]?.spaceName ?? null;
     const appCreatedByUserUuid = appData?.pages?.[0]?.createdByUserUuid ?? null;
     const appPersistedTemplate = appData?.pages?.[0]?.template ?? null;
+    const appSlug = appData?.pages?.[0]?.slug ?? null;
+    const appViews = appData?.pages?.[0]?.views ?? null;
+    // Latest build activity stands in for "last modified" — apps have no
+    // updated-at of their own.
+    const appNewestVersion = appData?.pages?.[0]?.versions[0];
+    const appLastModified = appNewestVersion
+        ? (appNewestVersion.statusUpdatedAt ?? appNewestVersion.createdAt)
+        : null;
 
     // Used to resolve the user's space role when checking manage rights for
     // an existing app — space editors/admins inherit manage on its data app.
@@ -920,127 +927,17 @@ const AppGenerate: FC = () => {
     }, [serverVersionCount]);
 
     // Convert fetched versions into chat messages (oldest first)
-    const historyMessages = useMemo<ChatMessage[]>(() => {
-        if (allVersions.length === 0) return [];
-        const sorted = [...allVersions].sort((a, b) => a.version - b.version);
-        return sorted.flatMap((v) => {
-            // Prefer server-side resources; fall back to session refs
-            const serverCharts: ChatChart[] =
-                v.resources?.charts.map((c) => ({
-                    name: c.chartName,
-                    uuid: c.chartUuid,
-                    chartKind: undefined,
-                    linkLive: c.linkLive,
-                })) ?? [];
-            const charts =
-                serverCharts.length > 0
-                    ? serverCharts
-                    : (sentChartsByPrompt.current.get(v.prompt) ?? []);
-            const serverConnections: ChatConnection[] =
-                v.resources?.externalConnections?.map((c) => ({
-                    externalConnectionUuid: c.externalConnectionUuid,
-                    name: c.name,
-                    alias: c.alias,
-                })) ?? [];
-            const externalConnections =
-                serverConnections.length > 0
-                    ? serverConnections
-                    : (sentConnectionsByPrompt.current.get(v.prompt) ?? []);
-            const imageResourceIds =
-                v.resources?.images.map((img) => img.imageId) ?? [];
-            const imagePreviewUrls =
-                sentImagesByPrompt.current.get(v.prompt) ?? [];
-            const dashboardName =
-                v.resources?.dashboardName ??
-                sentDashboardByPrompt.current.get(v.prompt) ??
-                null;
-            const clarifications = v.resources?.clarifications ?? [];
-            const authorName = v.createdByUser
-                ? [v.createdByUser.firstName, v.createdByUser.lastName]
-                      .filter((s) => s.length > 0)
-                      .join(' ') || null
-                : null;
-            // Assistant reply is dated to when the build actually finished;
-            // fall back to createdAt for old rows persisted before the column
-            // started being written, or for rows still mid-build.
-            const replyTimestamp = v.statusUpdatedAt ?? v.createdAt;
-            // Uploaded-from-source versions (`lightdash upload`) are the only
-            // ones created without a prompt. Their build pipeline stores no
-            // completion message either, so derive the assistant bubble from
-            // the version row rather than trusting a leftover statusMessage.
-            const isUploadedVersion = v.prompt === '';
-            const readyMessage =
-                v.version === 1
-                    ? 'Your app is ready!'
-                    : `Version ${v.version} is ready!`;
-            const reasoning = versionNarrationTexts(
-                v.statusHistory,
-                'thinking',
-            );
-            const activity = versionNarrationTexts(v.statusHistory, 'tool');
-            const msgs: ChatMessage[] = [
-                {
-                    role: 'user',
-                    content: v.prompt,
-                    imagePreviewUrls,
-                    imageResourceIds,
-                    charts,
-                    externalConnections,
-                    dashboardName,
-                    clarifications,
-                    appUuid: null,
-                    version: null,
-                    timestamp: new Date(v.createdAt),
-                    userName: authorName,
-                    vizSchema: null,
-                    reasoning: [],
-                    activity: [],
-                },
-            ];
-            if (v.status === 'ready') {
-                msgs.push({
-                    role: 'assistant',
-                    content: isUploadedVersion
-                        ? readyMessage
-                        : (v.statusMessage ?? readyMessage),
-                    imagePreviewUrls: [],
-                    imageResourceIds: [],
-                    charts: [],
-                    externalConnections: [],
-                    dashboardName: null,
-                    clarifications: [],
-                    appUuid: activeAppUuid ?? null,
-                    version: v.version,
-                    timestamp: new Date(replyTimestamp),
-                    userName: null,
-                    vizSchema: v.resources?.vizSchema ?? null,
-                    reasoning,
-                    activity,
-                });
-            } else if (v.status === 'error') {
-                msgs.push({
-                    role: 'assistant',
-                    content: getAppVersionFailureMessage(v),
-                    imagePreviewUrls: [],
-                    imageResourceIds: [],
-                    charts: [],
-                    externalConnections: [],
-                    dashboardName: null,
-                    clarifications: [],
-                    appUuid: null,
-                    version: null,
-                    timestamp: new Date(replyTimestamp),
-                    userName: null,
-                    vizSchema: null,
-                    reasoning,
-                    activity,
-                });
-            }
-            // 'building' status is not rendered as a history message —
-            // it's shown as a live progress indicator below
-            return msgs;
-        });
-    }, [allVersions, activeAppUuid]);
+    const historyMessages = useMemo<ChatMessage[]>(
+        () =>
+            versionsToChatMessages(allVersions, {
+                charts: sentChartsByPrompt.current,
+                connections: sentConnectionsByPrompt.current,
+                imagePreviewUrls: sentImagesByPrompt.current,
+                files: sentFilesByPrompt.current,
+                dashboardName: sentDashboardByPrompt.current,
+            }),
+        [allVersions],
+    );
 
     // Lookup table: version number → full version summary. Used to retrieve
     // declared-dependency metadata when rendering assistant bubbles.
@@ -1231,24 +1128,14 @@ const AppGenerate: FC = () => {
             setLocalMessages((prev) => [
                 ...prev,
                 {
+                    ...emptyChatMessage(),
                     role: 'user',
                     content: prompt,
-                    imagePreviewUrls: [],
-                    imageResourceIds: [],
-                    charts: [],
-                    externalConnections: [],
-                    dashboardName: null,
-                    clarifications: [],
-                    appUuid: null,
-                    version: null,
                     timestamp: new Date(),
                     userName:
                         [user.data?.firstName, user.data?.lastName]
                             .filter((s): s is string => !!s && s.length > 0)
                             .join(' ') || null,
-                    vizSchema: null,
-                    reasoning: [],
-                    activity: [],
                     submittedAtVersion: maxHistoryVersion,
                 },
             ]);
@@ -1259,6 +1146,7 @@ const AppGenerate: FC = () => {
                     projectUuid,
                     appUuid: activeAppUuid,
                     prompt,
+                    creationExperience: 'app_builder',
                     claudeModel: selectedModel,
                     designUuid,
                 },
@@ -1277,21 +1165,11 @@ const AppGenerate: FC = () => {
                         setLocalMessages((prev) => [
                             ...prev,
                             {
+                                ...emptyChatMessage(),
                                 role: 'assistant',
+                                status: 'error',
                                 content: themeErrorMessage,
-                                imagePreviewUrls: [],
-                                imageResourceIds: [],
-                                charts: [],
-                                externalConnections: [],
-                                dashboardName: null,
-                                clarifications: [],
-                                appUuid: null,
-                                version: null,
                                 timestamp: new Date(),
-                                userName: null,
-                                vizSchema: null,
-                                reasoning: [],
-                                activity: [],
                             },
                         ]);
                     },
@@ -1510,7 +1388,7 @@ const AppGenerate: FC = () => {
     }, [messages, isLoading, scrollToBottom]);
 
     // Revoke all sent image blob URLs on unmount to prevent memory leaks.
-    // We don't revoke on imageAttachments change because the URLs may have
+    // We don't revoke on fileAttachments change because the URLs may have
     // been transferred to a sent message for display.
     useEffect(() => {
         const ref = sentImagesByPrompt.current;
@@ -1580,40 +1458,29 @@ const AppGenerate: FC = () => {
         return <Box>Missing project UUID</Box>;
     }
 
-    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
-    const ACCEPTED_IMAGE_TYPES = [
-        'image/png',
-        'image/jpeg',
-        'image/gif',
-        'image/webp',
-    ];
-
-    const handleImageAttach = (file: File, kind?: 'screenshot') => {
-        if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-            showToastError({
-                title: 'Unsupported image type',
-                subtitle: `${file.name}: only PNG, JPEG, GIF, and WEBP are supported.`,
-            });
+    const handleFileAttach = async (file: File, kind?: 'screenshot') => {
+        const validationError = await getAppFileValidationError(file);
+        if (validationError) {
+            showToastError(validationError);
             return;
         }
-        if (file.size > MAX_IMAGE_SIZE) {
-            showToastError({
-                title: 'Image too large',
-                subtitle: `${file.name} exceeds the 10MB limit.`,
-            });
-            return;
-        }
-        setImageAttachments((prev) => {
-            if (prev.length >= MAX_IMAGES_PER_VERSION) {
+        const isImage = isSupportedAppImage(file);
+        setFileAttachments((prev) => {
+            if (prev.length >= MAX_APP_FILES_PER_VERSION) {
                 showToastWarning({
-                    title: `Image limit reached`,
-                    subtitle: `You can attach up to ${MAX_IMAGES_PER_VERSION} images per message.`,
+                    title: `Attachment limit reached`,
+                    subtitle: `You can attach up to ${MAX_APP_FILES_PER_VERSION} files per message.`,
                 });
                 return prev;
             }
             return [
                 ...prev,
-                { file, previewUrl: URL.createObjectURL(file), kind },
+                {
+                    localId: uuid4(),
+                    file,
+                    previewUrl: isImage ? URL.createObjectURL(file) : null,
+                    kind,
+                },
             ];
         });
     };
@@ -1621,29 +1488,25 @@ const AppGenerate: FC = () => {
     const handlePaste = (e: React.ClipboardEvent) => {
         const items = e.clipboardData?.files;
         if (items && items.length > 0) {
-            const imageFiles = Array.from(items).filter((f) =>
-                f.type.startsWith('image/'),
-            );
-            if (imageFiles.length > 0) {
-                e.preventDefault();
-                imageFiles.forEach((file) => handleImageAttach(file));
-            }
+            e.preventDefault();
+            Array.from(items).forEach((file) => void handleFileAttach(file));
         }
     };
 
     const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
-            Array.from(files).forEach((file) => handleImageAttach(file));
+            Array.from(files).forEach((file) => void handleFileAttach(file));
         }
         e.target.value = '';
     };
 
-    const clearImage = (previewUrl: string) => {
-        URL.revokeObjectURL(previewUrl);
-        setImageAttachments((prev) =>
-            prev.filter((img) => img.previewUrl !== previewUrl),
-        );
+    const clearAttachment = (localId: string) => {
+        setFileAttachments((prev) => {
+            const removed = prev.find((att) => att.localId === localId);
+            if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+            return prev.filter((att) => att.localId !== localId);
+        });
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -1652,9 +1515,9 @@ const AppGenerate: FC = () => {
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        Array.from(e.dataTransfer.files)
-            .filter((f) => f.type.startsWith('image/'))
-            .forEach((file) => handleImageAttach(file));
+        Array.from(e.dataTransfer.files).forEach(
+            (file) => void handleFileAttach(file),
+        );
     };
 
     // Header-menu "Capture thumbnail": saves the preview as the app thumbnail
@@ -1710,7 +1573,7 @@ const AppGenerate: FC = () => {
                     });
                 }
             }
-            handleImageAttach(file, 'screenshot');
+            void handleFileAttach(file, 'screenshot');
         } catch (err) {
             showToastError({
                 title: 'Screenshot failed',
@@ -1742,21 +1605,11 @@ const AppGenerate: FC = () => {
             setLocalMessages((prev) => [
                 ...prev,
                 {
+                    ...emptyChatMessage(),
                     role: 'assistant' as const,
+                    status: 'error' as const,
                     content: errorMessage,
-                    imagePreviewUrls: [],
-                    imageResourceIds: [],
-                    charts: [],
-                    externalConnections: [],
-                    dashboardName: null,
-                    clarifications: [],
-                    appUuid: null,
-                    version: null,
                     timestamp: new Date(),
-                    userName: null,
-                    vizSchema: null,
-                    reasoning: [],
-                    activity: [],
                 },
             ]);
         },
@@ -1817,28 +1670,28 @@ const AppGenerate: FC = () => {
                 });
             }
 
-            // Upload images sequentially. Two reasons we can't run these in parallel:
+            // Upload files sequentially. Two reasons we can't run these in parallel:
             // 1. The backend buffers each body to avoid AWS SDK chunked signing,
             //    which MinIO/GCS handle unreliably (RequestTimeout).
             // 2. Concurrent PUTs to the same staging prefix
             //    (apps/{appUuid}/uploads/) hit MinIO's per-prefix lock and fail
             //    with "A timeout occurred while trying to lock a resource".
             // Surface individual failures via toast rather than silently dropping them.
-            let imageIds: string[] | undefined;
-            if (imageAttachments.length > 0) {
+            let fileIds: string[] | undefined;
+            if (fileAttachments.length > 0) {
                 const ids: string[] = [];
-                for (const att of imageAttachments) {
+                for (const att of fileAttachments) {
                     try {
-                        const result = await uploadImage({
+                        const result = await uploadFile({
                             projectUuid: projectUuid!,
                             file: att.file,
                             appUuid: targetAppUuid!,
                             kind: att.kind,
                         });
-                        ids.push(result.imageId);
+                        ids.push(result.fileId);
                     } catch (err) {
                         showToastError({
-                            title: 'Image upload failed',
+                            title: 'File upload failed',
                             subtitle:
                                 err instanceof Error
                                     ? err.message
@@ -1846,17 +1699,26 @@ const AppGenerate: FC = () => {
                         });
                     }
                 }
-                imageIds = ids.length > 0 ? ids : undefined;
+                fileIds = ids.length > 0 ? ids : undefined;
                 if (ids.length === 0) {
                     return;
                 }
             }
 
-            // Capture preview URLs before clearing — they stay in the message bubble.
-            // Also store in the ref so they survive the local→server transition.
-            const sentImageUrls = imageAttachments.map((att) => att.previewUrl);
+            // Capture preview URLs / file chips before clearing — they stay in
+            // the message bubble. Also store in the refs so they survive the
+            // local→server transition.
+            const sentImageUrls = fileAttachments.flatMap((att) =>
+                att.previewUrl ? [att.previewUrl] : [],
+            );
             if (sentImageUrls.length > 0) {
                 sentImagesByPrompt.current.set(trimmed, sentImageUrls);
+            }
+            const sentFiles: ChatAttachedFile[] = fileAttachments
+                .filter((att) => att.previewUrl === null)
+                .map((att) => ({ filename: att.file.name || 'attachment' }));
+            if (sentFiles.length > 0) {
+                sentFilesByPrompt.current.set(trimmed, sentFiles);
             }
             const sentCharts: ChatChart[] = selectedCharts.map((c) => ({
                 name: c.name,
@@ -1892,24 +1754,19 @@ const AppGenerate: FC = () => {
             setLocalMessages((prev) => [
                 ...prev,
                 {
+                    ...emptyChatMessage(),
                     role: 'user',
                     content: trimmed,
                     imagePreviewUrls: sentImageUrls,
-                    imageResourceIds: [],
+                    files: sentFiles,
                     charts: sentCharts,
                     externalConnections: sentConnections,
                     dashboardName: sentDashboardName,
-                    clarifications: [],
-                    appUuid: null,
-                    version: null,
                     timestamp: new Date(),
                     userName:
                         [user.data?.firstName, user.data?.lastName]
                             .filter((s): s is string => !!s && s.length > 0)
                             .join(' ') || null,
-                    vizSchema: null,
-                    reasoning: [],
-                    activity: [],
                     // Snapshot the highest server version known at submit time.
                     // Once history catches up past this number the optimistic
                     // bubble is dropped by `mergeChatMessages` — even if the
@@ -1920,7 +1777,7 @@ const AppGenerate: FC = () => {
             ]);
             promptEditorRef.current?.clear();
             setIsPromptEmpty(true);
-            setImageAttachments([]);
+            setFileAttachments([]);
             setIsCapturingScreenshot(false);
             setSelectedCharts([]);
             setSelectedDashboard(null);
@@ -1942,14 +1799,14 @@ const AppGenerate: FC = () => {
                         template: starterTemplate,
                         charts,
                         dashboard,
-                        imageIds,
+                        fileIds,
                     });
                     if (questions.length > 0) {
                         setPendingClarification({
                             questions,
                             prompt: trimmed,
                             template: starterTemplate,
-                            imageIds,
+                            fileIds,
                             appUuid: newAppUuid,
                             charts,
                             dashboard,
@@ -1984,7 +1841,8 @@ const AppGenerate: FC = () => {
                         projectUuid,
                         appUuid: activeAppUuid,
                         prompt: trimmed,
-                        imageIds,
+                        creationExperience: 'app_builder',
+                        fileIds,
                         charts,
                         dashboard,
                         claudeModel: selectedModel,
@@ -1998,7 +1856,8 @@ const AppGenerate: FC = () => {
                         projectUuid,
                         prompt: trimmed,
                         template: starterTemplate,
-                        imageIds,
+                        creationExperience: 'app_builder',
+                        fileIds,
                         appUuid: newAppUuid,
                         charts,
                         dashboard,
@@ -2066,7 +1925,8 @@ const AppGenerate: FC = () => {
                 projectUuid: projectUuid!,
                 prompt: captured.prompt,
                 template: captured.template,
-                imageIds: captured.imageIds,
+                creationExperience: 'app_builder',
+                fileIds: captured.fileIds,
                 appUuid: captured.appUuid,
                 charts: captured.charts,
                 dashboard: captured.dashboard,
@@ -2481,6 +2341,54 @@ const AppGenerate: FC = () => {
                                                                       />
                                                                   ),
                                                               )}
+                                                        {msg.files.length >
+                                                            0 && (
+                                                            <Box
+                                                                mt="xs"
+                                                                className={
+                                                                    classes.bubbleQueryList
+                                                                }
+                                                            >
+                                                                {msg.files.map(
+                                                                    (f, fi) => (
+                                                                        <Box
+                                                                            key={`${f.filename}-${fi}`}
+                                                                            className={
+                                                                                classes.bubbleQueryItem
+                                                                            }
+                                                                        >
+                                                                            <Box
+                                                                                className={
+                                                                                    classes.bubbleQueryItemIcon
+                                                                                }
+                                                                            >
+                                                                                <MantineIcon
+                                                                                    icon={
+                                                                                        IconFileDescription
+                                                                                    }
+                                                                                    size={
+                                                                                        12
+                                                                                    }
+                                                                                />
+                                                                            </Box>
+                                                                            <Text
+                                                                                fw={
+                                                                                    500
+                                                                                }
+                                                                                truncate
+                                                                                className={
+                                                                                    classes.bubbleQueryItemName
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    f.filename
+                                                                                }
+                                                                            </Text>
+                                                                        </Box>
+                                                                    ),
+                                                                )}
+                                                            </Box>
+                                                        )}
                                                     </Box>
                                                 </Box>
                                             ) : (
@@ -2501,7 +2409,8 @@ const AppGenerate: FC = () => {
                                                             }
                                                             userName={null}
                                                             version={
-                                                                msg.appUuid &&
+                                                                msg.status ===
+                                                                    'ready' &&
                                                                 msg.version !==
                                                                     null
                                                                     ? buildBubbleVersionInfo(
@@ -2562,7 +2471,8 @@ const AppGenerate: FC = () => {
                                                                     }
                                                                 />
                                                             )
-                                                        ) : msg.appUuid ? (
+                                                        ) : msg.status !==
+                                                          'error' ? (
                                                             <AiMarkdown>
                                                                 {msg.content}
                                                             </AiMarkdown>
@@ -2837,10 +2747,12 @@ const AppGenerate: FC = () => {
 
                         {!isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
+                                {/* No `accept` — any text-based file is
+                                    allowed regardless of extension; validation
+                                    happens in handleFileAttach. */}
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept="image/png,image/jpeg,image/gif,image/webp"
                                     multiple
                                     onChange={handleFileInputChange}
                                     hidden
@@ -2900,8 +2812,7 @@ const AppGenerate: FC = () => {
                                                 selectedDashboard ||
                                                 selectedConnections.length >
                                                     0 ||
-                                                imageAttachments.length >
-                                                    0) && (
+                                                fileAttachments.length > 0) && (
                                                 <Box
                                                     className={
                                                         classes.attachedResources
@@ -3038,21 +2949,21 @@ const AppGenerate: FC = () => {
                                                             }
                                                         />
                                                     )}
-                                                    {imageAttachments.length >
+                                                    {fileAttachments.length >
                                                         0 && (
-                                                        <SelectedImageSection
-                                                            images={imageAttachments.map(
+                                                        <SelectedAttachmentSection
+                                                            attachments={fileAttachments.map(
                                                                 (att) => ({
+                                                                    id: att.localId,
                                                                     previewUrl:
                                                                         att.previewUrl,
+                                                                    filename:
+                                                                        att.file
+                                                                            .name,
                                                                 }),
                                                             )}
-                                                            onRemove={(
-                                                                previewUrl,
-                                                            ) =>
-                                                                clearImage(
-                                                                    previewUrl,
-                                                                )
+                                                            onRemove={
+                                                                clearAttachment
                                                             }
                                                             disabled={
                                                                 isSubmitting
@@ -3132,13 +3043,13 @@ const AppGenerate: FC = () => {
                                                                 ),
                                                         )
                                                     }
-                                                    onAddImages={() =>
+                                                    onAddFiles={() =>
                                                         fileInputRef.current?.click()
                                                     }
                                                     disabled={isSubmitting}
-                                                    imagesDisabled={
-                                                        imageAttachments.length >=
-                                                        MAX_IMAGES_PER_VERSION
+                                                    filesDisabled={
+                                                        fileAttachments.length >=
+                                                        MAX_APP_FILES_PER_VERSION
                                                     }
                                                 />
                                                 {previewApp &&
@@ -3149,8 +3060,8 @@ const AppGenerate: FC = () => {
                                                             }
                                                             disabled={
                                                                 isSubmitting ||
-                                                                imageAttachments.length >=
-                                                                    MAX_IMAGES_PER_VERSION
+                                                                fileAttachments.length >=
+                                                                    MAX_APP_FILES_PER_VERSION
                                                             }
                                                             loading={
                                                                 isCapturingScreenshot
@@ -3312,37 +3223,27 @@ const AppGenerate: FC = () => {
                         <Box className={classes.previewPanel}>
                             {activeAppUuid && (
                                 <AppHeader
-                                    appUuid={activeAppUuid}
-                                    name={appName}
-                                    description={appDescription || null}
-                                    spaceChip={
-                                        <AppSpaceChip
-                                            projectUuid={projectUuid}
-                                            spaceName={appSpaceName}
-                                            capturePreviewScreenshot={
-                                                screenshotAvailable
-                                                    ? capturePreviewScreenshot
-                                                    : null
-                                            }
-                                            app={{
-                                                uuid: activeAppUuid,
-                                                name: appName,
-                                                description:
-                                                    appDescription || undefined,
-                                                spaceUuid: appSpaceUuid,
-                                                createdByUserUuid:
-                                                    appCreatedByUserUuid,
-                                                latestVersionNumber:
-                                                    latestReadyVersion?.version ??
-                                                    null,
-                                                latestVersionStatus:
-                                                    latestReadyVersion?.status ??
-                                                    null,
-                                            }}
-                                        />
-                                    }
+                                    projectUuid={projectUuid}
+                                    app={{
+                                        uuid: activeAppUuid,
+                                        name: appName,
+                                        description: appDescription || null,
+                                        spaceUuid: appSpaceUuid,
+                                        spaceName: appSpaceName,
+                                        createdByUserUuid: appCreatedByUserUuid,
+                                        latestVersionNumber:
+                                            latestReadyVersion?.version ?? null,
+                                        latestVersionStatus:
+                                            latestReadyVersion?.status ?? null,
+                                        lastModified: appLastModified,
+                                        views: appViews,
+                                        slug: appSlug,
+                                    }}
                                     rightSection={
                                         <AppHeaderActions
+                                            fullscreenToggle={null}
+                                            onEdit={null}
+                                            shareUrl={null}
                                             projectUuid={projectUuid}
                                             appUuid={activeAppUuid}
                                             upgrade={{

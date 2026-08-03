@@ -6,8 +6,8 @@ import {
     RedshiftAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import { JSONSchemaType } from 'ajv';
-import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../ajv';
 import * as styles from '../../styles';
 import { Target } from '../types';
@@ -35,7 +35,7 @@ export type RedshiftTarget = {
     autocreate?: boolean;
 };
 
-export const redshiftSchema: JSONSchemaType<RedshiftTarget> = {
+const redshiftSchema: JSONSchemaType<RedshiftTarget> = {
     type: 'object',
     properties: {
         type: {

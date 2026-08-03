@@ -36,6 +36,7 @@ import type {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentThreadWorkstreamsResponse,
+    ApiAiAgentUserMemoriesResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
@@ -57,11 +58,13 @@ import type {
     ApiAppThumbnailUrlResponse,
     ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
+    ApiDataAppActivityResponse,
     ApiExternalConnectionAsCodeListResponse,
     ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
     ApiGetAppCodeResponse,
     ApiGetAppResponse,
+    ApiGetDataAppAuthoringContextResponse,
     ApiGetDataAppVizResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiHomepageLinkMetadataResponse,
@@ -1002,6 +1005,7 @@ export type UpdateUserArgs = {
     timezone: string | null;
     /* Explicit gradient placeholder override; null falls back to the deterministic gradient. */
     avatarGradient: UserAvatarColorValue | null;
+    howDidYouHearAboutUs: string;
 };
 
 export type ApiUserAvatarResponse = {
@@ -1252,6 +1256,7 @@ type ApiResults =
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
     | ApiAiAgentMemoryResponse['results']
+    | ApiAiAgentUserMemoriesResponse['results']
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiAiAgentArtifactVizQueryResponse['results']
@@ -1321,10 +1326,12 @@ type ApiResults =
     | CreateOAuthClientResponse
     | ApiGenerateAppResponse['results']
     | ApiGetAppCodeResponse['results']
+    | ApiGetDataAppAuthoringContextResponse['results']
     | ApiGetAppResponse['results']
     | ApiListDataAppVizsResponse['results']
     | ApiGetDataAppVizResponse['results']
     | ApiMyAppsResponse['results']
+    | ApiDataAppActivityResponse['results']
     | ApiPromoteAppResponse['results']
     | ApiPromoteAppDiffResponse['results']
     | ApiPreviewTokenResponse['results']

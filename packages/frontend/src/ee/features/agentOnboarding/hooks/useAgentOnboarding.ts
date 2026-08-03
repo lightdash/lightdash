@@ -3,6 +3,7 @@ import {
     type AgentOnboardingFile,
     type AgentOnboardingFileContent,
     type AgentOnboardingRun,
+    type ApiAgentOnboardingActiveRunResponse,
     type ApiAgentOnboardingFileResponse,
     type ApiAgentOnboardingRunResponse,
     type ApiError,
@@ -23,6 +24,9 @@ const agentOnboardingRunQueryKey = (
     runUuid: string | undefined,
 ) => ['agent-onboarding-run', projectUuid, runUuid] as const;
 
+const agentOnboardingActiveRunQueryKey = (projectUuid: string | undefined) =>
+    ['agent-onboarding-active-run', projectUuid] as const;
+
 const getAgentOnboardingRefetchInterval = (
     run: AgentOnboardingRun | undefined,
 ): number | false =>
@@ -33,6 +37,13 @@ const getAgentOnboardingRefetchInterval = (
 const getRun = async (projectUuid: string, runUuid: string) =>
     lightdashApi<ApiAgentOnboardingRunResponse['results']>({
         url: `/ee/projects/${projectUuid}/agent-onboarding/${runUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const getActiveRun = async (projectUuid: string) =>
+    lightdashApi<ApiAgentOnboardingActiveRunResponse['results']>({
+        url: `/ee/projects/${projectUuid}/agent-onboarding`,
         method: 'GET',
         body: undefined,
     });
@@ -73,6 +84,22 @@ export const useAgentOnboardingRun = (
         refetchIntervalInBackground: true,
     });
 
+export const useActiveAgentOnboardingRun = (
+    projectUuid: string | undefined,
+    options?: Pick<
+        UseQueryOptions<AgentOnboardingRun | null, ApiError>,
+        'enabled'
+    >,
+) =>
+    useQuery<AgentOnboardingRun | null, ApiError>({
+        queryKey: agentOnboardingActiveRunQueryKey(projectUuid),
+        queryFn: () => getActiveRun(projectUuid!),
+        enabled: !!projectUuid && (options?.enabled ?? true),
+        // A run can start or finish elsewhere in the app, so this must not be
+        // served stale on remount (e.g. after a back navigation)
+        staleTime: 0,
+    });
+
 export const useAgentOnboardingFile = (
     projectUuid: string | undefined,
     runUuid: string | undefined,
@@ -91,10 +118,24 @@ export const useAgentOnboardingFile = (
     });
 
 export const useStartAgentOnboardingRun = () => {
+    const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
     return useMutation<AgentOnboardingRun, ApiError, string>({
         mutationFn: startRun,
+        onSuccess: (run) => {
+            queryClient.setQueryData(
+                agentOnboardingRunQueryKey(
+                    run.projectUuid,
+                    run.agentOnboardingRunUuid,
+                ),
+                run,
+            );
+            queryClient.setQueryData(
+                agentOnboardingActiveRunQueryKey(run.projectUuid),
+                run,
+            );
+        },
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to start project setup',
@@ -123,6 +164,11 @@ export const useCancelAgentOnboardingRun = () => {
                     run.agentOnboardingRunUuid,
                 ),
                 run,
+            );
+            // Cancelled runs are terminal, so nothing is active any more
+            queryClient.setQueryData(
+                agentOnboardingActiveRunQueryKey(run.projectUuid),
+                null,
             );
         },
         onError: ({ error }) => {

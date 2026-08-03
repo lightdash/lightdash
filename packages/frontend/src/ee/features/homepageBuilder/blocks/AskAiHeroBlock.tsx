@@ -1,10 +1,22 @@
-import { Box, Stack, Switch, Text } from '@mantine-8/core';
+import { type HomepageHeroDensity } from '@lightdash/common';
+import {
+    Box,
+    SegmentedControl,
+    Skeleton,
+    Stack,
+    Switch,
+    Text,
+} from '@mantine-8/core';
 import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { DayOneAskInput } from '../DayOneAskInput';
 import { getGreeting } from '../greeting';
-import { RecommendedActionsChecklist } from './RecommendedActionsChecklist';
+import layout from '../homepageLayout.module.css';
+import {
+    RecommendedActionsChecklist,
+    RecommendedActionsChecklistPlaceholder,
+} from './RecommendedActionsChecklist';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 import { useRecommendedActions } from './useRecommendedActions';
 
@@ -27,35 +39,75 @@ export const AskAiHero: FC<{
 }) => {
     const { user } = useApp();
     const actions = useRecommendedActions(projectUuid);
-    const showChecklist = showRecommendedActions && actions.hasPendingActions;
+    // One answer for the whole hero: the greeting's wording and whether there
+    // is a checklist at all come from the same statuses, so they arrive
+    // together or not at all. The composer holds its own slot from the first
+    // render — gating its mount here would stop it fetching until the reveal
+    // and land it a beat late.
+    const isReady = !actions.isLoading;
+    const isWarehouseConnected =
+        actions.statuses['connect-warehouse'].isComplete;
     return (
         <Stack gap={16} align="center" w="100%">
-            {showGreeting && (
-                <Text
-                    component="h1"
-                    fz={23}
-                    fw={600}
-                    lts="-0.02em"
-                    lh={1.2}
-                    ta="center"
-                    m={0}
-                >
-                    {getGreeting(user.data?.firstName)}. What do you want to
-                    know?
-                </Text>
-            )}
+            {showGreeting &&
+                (isReady ? (
+                    <Text component="h1" className={layout.heroGreeting}>
+                        {isWarehouseConnected
+                            ? `${getGreeting(user.data?.firstName)}. What do you want to know?`
+                            : "Let's get started"}
+                    </Text>
+                ) : (
+                    <Skeleton h={34} w={320} radius="sm" />
+                ))}
             <Box w="100%">
                 <DayOneAskInput projectUuid={projectUuid} preview={preview} />
             </Box>
-            {showChecklist && (
-                <RecommendedActionsChecklist
-                    projectUuid={projectUuid}
-                    actions={actions}
-                />
-            )}
+            {showRecommendedActions &&
+                (isReady ? (
+                    actions.hasPendingActions && (
+                        <RecommendedActionsChecklist actions={actions} />
+                    )
+                ) : (
+                    <RecommendedActionsChecklistPlaceholder
+                        actionCount={actions.visibleActions.length}
+                    />
+                ))}
         </Stack>
     );
 };
+
+// Shared by both hero-capable blocks. 'auto' clears the stored choice and
+// lets the layout decide (compact when content follows, full when alone) —
+// the right default for most pages, so it stays the first option.
+export const HeroDensityControl: FC<{
+    value: HomepageHeroDensity | undefined;
+    onChange: (density: HomepageHeroDensity | undefined) => void;
+}> = ({ value, onChange }) => (
+    <Stack gap={4}>
+        <Text size="xs" fw={500}>
+            Opening size
+        </Text>
+        <SegmentedControl
+            size="xs"
+            value={value ?? 'auto'}
+            onChange={(next) =>
+                onChange(
+                    next === 'auto' ? undefined : (next as HomepageHeroDensity),
+                )
+            }
+            data={[
+                { value: 'auto', label: 'Auto' },
+                { value: 'compact', label: 'Compact' },
+                { value: 'full', label: 'Full screen' },
+            ]}
+        />
+        <Text size="xs" c="dimmed">
+            {value === 'full'
+                ? 'Fills the opening view — content below starts under the fold.'
+                : 'Sized to its own content, so what you add below stays visible.'}
+        </Text>
+    </Stack>
+);
 
 export const AskAiHeroBlockView: FC<BlockComponentProps> = ({
     block,
@@ -103,6 +155,12 @@ export const AskAiHeroBlockBuild: FC<BuildComponentProps> = ({
                             showGreeting: e.currentTarget.checked,
                         },
                     })
+                }
+            />
+            <HeroDensityControl
+                value={block.config.density}
+                onChange={(density) =>
+                    onChange({ ...block, config: { ...block.config, density } })
                 }
             />
         </Stack>

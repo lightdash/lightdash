@@ -4,8 +4,8 @@ import {
     ParseError,
     WarehouseTypes,
 } from '@lightdash/common';
+import betterAjvErrors from '@sidvind/better-ajv-errors';
 import { JSONSchemaType } from 'ajv';
-import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../ajv';
 import { Target } from '../types';
 
@@ -26,7 +26,7 @@ export type AthenaTarget = {
     num_retries?: number;
 };
 
-export const athenaSchema: JSONSchemaType<AthenaTarget> = {
+const athenaSchema: JSONSchemaType<AthenaTarget> = {
     type: 'object',
     properties: {
         type: {

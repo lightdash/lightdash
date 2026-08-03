@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    FeatureFlags,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -9,10 +10,11 @@ import {
 import { Anchor, Skeleton, Text } from '@mantine-8/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -22,9 +24,11 @@ import {
 } from '../aiCopilot/components/AgentSelector/AgentSelectorUtils';
 import { AgentChatInput } from '../aiCopilot/components/ChatElements/AgentChatInput';
 import { usePendingPrompt } from '../aiCopilot/components/PendingPromptContext/PendingPromptContext';
+import { type StartDeepResearchArgs } from '../aiCopilot/deepResearch/types';
 import { useAgentSuggestions } from '../aiCopilot/hooks/useAgentSuggestions';
 import { useCanCreateAiAgentThread } from '../aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../aiCopilot/hooks/useAiAgentSqlModeAvailable';
+import { useStartDeepResearchForThreadMutation } from '../aiCopilot/hooks/useDeepResearch';
 import {
     useCreateAgentThreadMutation,
     useProjectAiAgents,
@@ -68,6 +72,29 @@ const useAiRouterEnabledFromCache = (): boolean | undefined => {
     );
     return enabled;
 };
+
+const inputHoldClass = (projectUuid: string | null) =>
+    projectUuid ? classes.inputHold : classes.inputHoldMinimal;
+
+// The composer's footprint on a surface that is still deciding whether it can
+// show a composer at all. Lives here so the reserved height is stated once,
+// next to the composer it stands in for.
+export const DayOneAskInputPlaceholder: FC<
+    Pick<Props, 'projectUuid' | 'hideSuggestions'>
+> = ({ projectUuid, hideSuggestions }) => (
+    <div className={classes.composer}>
+        <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
+        {!projectUuid && <Skeleton h={17} w={260} mt={10} mx="auto" />}
+        {!hideSuggestions && <div className={classes.pillRow} />}
+    </div>
+);
+
+// Two chips, not the full generated set. On the homepage the composer is the
+// opening view and the chips are a hint at what it can do — five of them read
+// as a menu to work through, and they cost more vertical space than the
+// composer itself, pushing curated content under the fold. The thread page
+// still shows the full set, where there's nothing below to protect.
+const HOMEPAGE_SUGGESTION_LIMIT = 2;
 
 // The chips come from an LLM generation, so on a cold view they land a second
 // or two after the composer. The row reserves one chip-line of height while
@@ -143,6 +170,9 @@ const DayOneAskInputInner: FC<Props> = ({
     const routerEnabled = useAiRouterEnabledFromCache();
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(projectUuid ?? '');
+    const { mutateAsync: startDeepResearch } =
+        useStartDeepResearchForThreadMutation(projectUuid ?? '', 'homepage');
+    const deepResearchFlag = useServerFeatureFlag(FeatureFlags.AiDeepResearch);
 
     const showAutoOption = (agents?.length ?? 0) > 1 && routerEnabled === true;
     const validDefaultAgent = agents?.find(
@@ -154,6 +184,8 @@ const DayOneAskInputInner: FC<Props> = ({
     const activeSelection =
         validDefaultAgent ?? (showAutoOption ? 'auto' : agents?.[0]);
     const referenceAgent = validDefaultAgent ?? agents?.[0];
+    const selectedAgent =
+        activeSelection === 'auto' ? undefined : activeSelection;
 
     const { data: project } = useProject(projectUuid ?? undefined);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(
@@ -229,6 +261,26 @@ const DayOneAskInputInner: FC<Props> = ({
         submitPrompt(prompt, toolHints, context, optimisticContext);
     };
 
+    const handleStartDeepResearch = useCallback(
+        async ({ question }: StartDeepResearchArgs) => {
+            if (!projectUuid || !selectedAgent) {
+                return;
+            }
+            const thread = await createAgentThread({
+                agentUuid: selectedAgent.uuid,
+                prompt: question,
+                skipAgentResponse: true,
+            });
+            await startDeepResearch({
+                question,
+                agentUuid: selectedAgent.uuid,
+                threadUuid: thread.uuid,
+                promptUuid: thread.firstMessage.uuid,
+            });
+        },
+        [createAgentThread, projectUuid, selectedAgent, startDeepResearch],
+    );
+
     const handleChipPick = (chip: AgentSuggestion, index: number) => {
         const organizationId = user.data?.organizationUuid;
         if (organizationId && projectUuid && referenceAgent?.uuid) {
@@ -254,7 +306,12 @@ const DayOneAskInputInner: FC<Props> = ({
         submitPrompt(chip.label, [chip.tool]);
     };
 
-    const chips = suggestionsQuery.data?.chips ?? [];
+    // Sliced at the source so the impression/click analytics count what the
+    // viewer actually saw.
+    const chips = (suggestionsQuery.data?.chips ?? []).slice(
+        0,
+        HOMEPAGE_SUGGESTION_LIMIT,
+    );
     const impressionFiredRef = useRef(false);
     useEffect(() => {
         if (impressionFiredRef.current) return;
@@ -281,11 +338,9 @@ const DayOneAskInputInner: FC<Props> = ({
         track,
     ]);
 
-    if (isLoadingAgents || isLoadingPreferences) {
-        return <Skeleton h={64} radius="lg" />;
-    }
+    const isComposerLoading = isLoadingAgents || isLoadingPreferences;
 
-    if (projectUuid && (!agents || agents.length === 0)) {
+    if (!isComposerLoading && projectUuid && (!agents || agents.length === 0)) {
         return (
             <div className={blockClasses.dashedEmpty}>
                 Set up an AI agent to enable Ask AI here —{' '}
@@ -302,30 +357,43 @@ const DayOneAskInputInner: FC<Props> = ({
         // whole subtree is `inert`: no focus, no typing, no submit — it just
         // shows what viewers will get.
         <div className={classes.composer} inert={preview}>
-            <AgentChatInput
-                projectUuid={projectUuid ?? undefined}
-                agents={agents}
-                selectedAgent={activeSelection ?? agents?.[0]}
-                placeholder={
-                    activeSelection === 'auto'
-                        ? 'Ask anything about your data…'
-                        : activeSelection
-                          ? `Ask ${activeSelection.name}…`
-                          : 'Ask anything about your data…'
-                }
-                onSubmit={handleSubmit}
-                loading={isCreatingThread}
-                showSuggestions={false}
-                fullWidth
-                revealAgentSelectorOnFocus
-                dense
-                disabled={!projectUuid || !canCreateThread}
-                disabledReason={
-                    projectUuid && !canCreateThread
-                        ? "Your role can view AI agents but can't start conversations. Ask a workspace admin for access."
-                        : undefined
-                }
-            />
+            {/* The hold sits in the input's own slot rather than replacing the
+                whole block, so the hint and chip row keep their place and the
+                composer resolves without moving anything around it. */}
+            {isComposerLoading ? (
+                <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
+            ) : (
+                <AgentChatInput
+                    projectUuid={projectUuid ?? undefined}
+                    agentUuid={selectedAgent?.uuid}
+                    agents={agents}
+                    selectedAgent={activeSelection ?? agents?.[0]}
+                    placeholder={
+                        activeSelection === 'auto'
+                            ? 'Ask anything about your data…'
+                            : activeSelection
+                              ? `Ask ${activeSelection.name}…`
+                              : 'Ask anything about your data…'
+                    }
+                    onSubmit={handleSubmit}
+                    onStartDeepResearch={
+                        selectedAgent && deepResearchFlag.data?.enabled
+                            ? handleStartDeepResearch
+                            : undefined
+                    }
+                    loading={isCreatingThread}
+                    showSuggestions={false}
+                    fullWidth
+                    revealControlsOnFocus
+                    dense
+                    disabled={!projectUuid || !canCreateThread}
+                    disabledReason={
+                        projectUuid && !canCreateThread
+                            ? "Your role can view AI agents but can't start conversations. Ask a workspace admin for access."
+                            : undefined
+                    }
+                />
+            )}
             {!projectUuid && (
                 <Text size="xs" c="dimmed" ta="center" mt={10}>
                     {canManageProject

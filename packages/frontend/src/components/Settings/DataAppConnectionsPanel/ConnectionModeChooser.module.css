@@ -1,0 +1,18 @@
+.card {
+    display: block;
+    width: 100%;
+    padding: var(--mantine-spacing-md);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-body);
+    transition: border-color 100ms ease;
+}
+
+.card:hover:not(:disabled) {
+    border-color: var(--mantine-primary-color-filled);
+}
+
+.card:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}

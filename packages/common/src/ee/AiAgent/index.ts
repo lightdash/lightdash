@@ -15,6 +15,7 @@ import type {
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '../..';
+import assertUnreachable from '../../utils/assertUnreachable';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
@@ -376,11 +377,138 @@ export type AiAgentMemory = {
 
 export type ApiAiAgentMemoryResponse = ApiSuccess<AiAgentMemory>;
 
+/** A memory list row as its owner sees it. Not shared with the admin list row. */
+export type AiAgentUserMemoryItem = {
+    uuid: string;
+    slug: string;
+    title: string;
+    // Memory body, truncated server-side for the list view
+    summary: string;
+    status: AiAgentMemoryStatus;
+    scope: AiAgentMemoryScope;
+    // Null when the memory was consolidated across agents
+    agent: {
+        uuid: string;
+        name: string;
+        imageUrl: string | null;
+    } | null;
+    sourceThreadUuid: string | null;
+    citedCount: number;
+    lastCitedAt: string | null;
+    pulledCount: number;
+    lastPulledAt: string | null;
+    generatedAt: string;
+};
+
+export type AiAgentUserMemoriesSummary = {
+    memories: AiAgentUserMemoryItem[];
+};
+
+export type ApiAiAgentUserMemoriesResponse = ApiSuccess<
+    KnexPaginatedData<AiAgentUserMemoriesSummary>
+>;
+
+/**
+ * One curated memory as the consolidation curator sees it. Slug is the only
+ * identifier; thread summaries and usage counters are deliberately absent.
+ */
+export type AiAgentMemoryConsolidationInputEntry = {
+    id: string;
+    title: string;
+    memory: string;
+    terms: string[];
+    objects: Array<{
+        object: AiProjectContextTypedObjectRef;
+        resolved: boolean;
+    }>;
+    scope: AiAgentMemoryScope;
+    age_days: number;
+    generated_at: string;
+};
+
+export type AiAgentMemoryConsolidationOperation =
+    | {
+          type: 'merge';
+          source_slugs: string[];
+          slug: string;
+          title: string;
+          memory: string;
+          terms: string[];
+          objects: AiProjectContextTypedObjectRef[];
+          reason: string;
+      }
+    | {
+          type: 'supersede';
+          loser_slug: string;
+          winner_slug: string;
+          reason: string;
+      }
+    | {
+          type: 'retire';
+          slug: string;
+          reason: string;
+      };
+
+export type AiAgentMemoryConsolidationOperationType =
+    AiAgentMemoryConsolidationOperation['type'];
+
+export const AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES: ReadonlyArray<AiAgentMemoryConsolidationOperationType> =
+    ['merge', 'supersede', 'retire'];
+
+/** The one operation that creates a row. */
+export type AiAgentMemoryConsolidationMergeOperation = Extract<
+    AiAgentMemoryConsolidationOperation,
+    { type: 'merge' }
+>;
+
+/**
+ * Every existing row an operation names — a merge's sources included. Validation
+ * and the apply transaction's locking share it, so the set of rows an operation
+ * is checked against can never drift from the set it locks.
+ */
+export const getAiAgentMemoryConsolidationOperationSlugs = (
+    operation: AiAgentMemoryConsolidationOperation,
+): string[] => {
+    switch (operation.type) {
+        case 'merge':
+            return operation.source_slugs;
+        case 'supersede':
+            return [operation.loser_slug, operation.winner_slug];
+        case 'retire':
+            return [operation.slug];
+        default:
+            return assertUnreachable(operation, 'Unknown consolidation op');
+    }
+};
+
+/** Enumerable and content-free, so both the run audit and metrics can label by it. */
+export const AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS = [
+    'unknown_slug',
+    'duplicate_target',
+    'self_supersede',
+    'insufficient_sources',
+    'row_moved',
+] as const;
+
+export type AiAgentMemoryConsolidationRejectionReason =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS)[number];
+
+export type AiAgentMemoryConsolidationRejection = {
+    operation: AiAgentMemoryConsolidationOperation;
+    reason: AiAgentMemoryConsolidationRejectionReason;
+};
+
+export type AiAgentMemoryConsolidationRunStatus = 'succeeded' | 'failed';
+
 export type ApiUpdateAiAgentMemoryStatusRequest = {
     status: AiAgentMemoryEditableStatus;
 };
 
 export type ApiUpdateAiAgentMemoryStatusResponse = ApiSuccessEmpty;
+
+export type ApiTriggerAiAgentMemoryDistillResponse = ApiSuccess<{
+    jobId: string;
+}>;
 
 export type ApiAiAgentAvatarUploadResponse = ApiSuccess<AiAgent>;
 

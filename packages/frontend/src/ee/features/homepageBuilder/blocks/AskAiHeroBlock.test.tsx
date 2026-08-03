@@ -12,8 +12,30 @@ vi.mock('../../aiCopilot/hooks/useAiAgentsButtonVisibility', () => ({
 vi.mock('../../../../providers/App/useApp', () => ({
     default: () => ({ user: { data: { firstName: 'Test' } } }),
 }));
+const state = vi.hoisted(() => ({
+    isLoading: false,
+    isWarehouseConnected: true,
+    hasPendingActions: false,
+}));
+
 vi.mock('./useRecommendedActions', () => ({
-    useRecommendedActions: () => ({ hasPendingActions: false }),
+    useRecommendedActions: () => ({
+        hasPendingActions: state.hasPendingActions,
+        isLoading: state.isLoading,
+        visibleActions: ['connect-warehouse'],
+        statuses: {
+            'connect-warehouse': {
+                isComplete: state.isWarehouseConnected,
+            },
+        },
+    }),
+}));
+
+vi.mock('./RecommendedActionsChecklist', () => ({
+    RecommendedActionsChecklist: () => <div data-testid="setup-checklist" />,
+    RecommendedActionsChecklistPlaceholder: () => (
+        <div data-testid="setup-checklist-hold" />
+    ),
 }));
 
 const block: HomepageAskAiHeroBlock = {
@@ -22,17 +44,27 @@ const block: HomepageAskAiHeroBlock = {
     config: { showGreeting: true },
 };
 
+const blockWithChecklist: HomepageAskAiHeroBlock = {
+    ...block,
+    config: { showGreeting: true, showRecommendedActions: true },
+};
+
 const wrap = (ui: React.ReactNode) =>
     render(<MantineProvider>{ui}</MantineProvider>);
 
 describe('AskAiHeroBlockView', () => {
+    beforeEach(() => {
+        state.isLoading = false;
+        state.isWarehouseConnected = true;
+        state.hasPendingActions = false;
+    });
+
     it('greets in the hero slot', () => {
         wrap(
             <AskAiHeroBlockView
                 itemSpan={null}
                 block={block}
                 projectUuid="p1"
-                presentation="hero"
             />,
         );
         expect(
@@ -65,6 +97,74 @@ describe('AskAiHeroBlockView', () => {
         );
         expect(screen.queryByText(/What do you want to know/)).toBeNull();
         expect(screen.getByTestId('ask-input')).toBeInTheDocument();
+    });
+
+    it('uses the getting started heading before a warehouse is connected', () => {
+        state.isWarehouseConnected = false;
+
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={block}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(
+            screen.getByRole('heading', { name: "Let's get started" }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/What do you want to know/)).toBeNull();
+    });
+
+    it('holds the heading area while the warehouse status is loading', () => {
+        state.isLoading = true;
+
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={block}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.queryByRole('heading')).toBeNull();
+        expect(screen.getByTestId('ask-input')).toBeInTheDocument();
+    });
+
+    it('holds the heading and the checklist on the same answer', () => {
+        state.isLoading = true;
+        state.hasPendingActions = false;
+
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={blockWithChecklist}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.queryByRole('heading')).toBeNull();
+        expect(screen.getByTestId('setup-checklist-hold')).toBeInTheDocument();
+        expect(screen.queryByTestId('setup-checklist')).toBeNull();
+        // The composer keeps fetching behind its own hold rather than waiting
+        // for the reveal to start
+        expect(screen.getByTestId('ask-input')).toBeInTheDocument();
+    });
+
+    it('reveals the heading and the checklist together', () => {
+        state.hasPendingActions = true;
+
+        wrap(
+            <AskAiHeroBlockView
+                itemSpan={null}
+                block={blockWithChecklist}
+                projectUuid="p1"
+            />,
+        );
+
+        expect(screen.getByRole('heading')).toBeInTheDocument();
+        expect(screen.getByTestId('setup-checklist')).toBeInTheDocument();
+        expect(screen.queryByTestId('setup-checklist-hold')).toBeNull();
     });
 });
 

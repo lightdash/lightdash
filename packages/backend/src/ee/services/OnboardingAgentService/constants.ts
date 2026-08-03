@@ -4,6 +4,10 @@ export const CLAUDE_SKILLS_DIR = '/home/user/.claude/skills';
 export const CLI_WRAPPER_PATH = '/tmp/ld';
 export const CLAUDE_SETTINGS_PATH = '/tmp/ld-claude-settings.json';
 export const CLAUDE_BASH_GUARD_PATH = '/tmp/ld-bash-guard.cjs';
+export const AGENT_RUNNER_PATH = '/tmp/ld-agent-runner.sh';
+export const AGENT_STREAM_PATH = '/tmp/ld-agent-stream.jsonl';
+export const AGENT_EXIT_CODE_PATH = '/tmp/ld-agent-exit-code';
+export const AGENT_STDERR_PATH = '/tmp/ld-agent-stderr.log';
 
 export const CLI_WRAPPER_SCRIPT = `#!/bin/bash
 deny() {
@@ -265,6 +269,8 @@ export const SANDBOX_TIMEOUT_MS = 60 * 60 * 1000;
 export const PAT_EXPIRY_GRACE_MS = 15 * 60 * 1000;
 export const CANCELLATION_POLL_INTERVAL_MS = 2 * 1000;
 export const FILE_SYNC_INTERVAL_MS = 2 * 1000;
+export const STREAM_POLL_INTERVAL_MS = 2 * 1000;
+export const SANDBOX_DISCONNECT_GRACE_MS = 3 * 60 * 1000;
 export const MAX_ONBOARDING_FILE_COUNT = 100;
 export const MAX_ONBOARDING_FILE_SIZE_BYTES = 1024 * 1024;
 export const MAX_ONBOARDING_TOTAL_SIZE_BYTES = 10 * 1024 * 1024;
@@ -291,3 +297,29 @@ export const ALLOWED_TOOLS = [
     'TodoWrite',
     `Bash(${CLI_WRAPPER_PATH}:*)`,
 ].join(',');
+
+export const AGENT_RUNNER_SCRIPT = `#!/bin/bash
+set -o pipefail
+
+: > ${AGENT_STREAM_PATH}
+: > ${AGENT_STDERR_PATH}
+rm -f ${AGENT_EXIT_CODE_PATH}
+
+{
+    cat ${PROMPT_PATH} | timeout --signal=TERM --kill-after=30s ${
+        RUN_TIMEOUT_MS / 1000
+    }s claude -p \\
+        --model ${CLAUDE_MODEL} \\
+        --output-format stream-json --verbose \\
+        --add-dir ${CLAUDE_SKILLS_DIR} \\
+        --settings ${CLAUDE_SETTINGS_PATH} \\
+        --permission-mode dontAsk \\
+        --tools "${CLAUDE_TOOLS}" \\
+        --allowedTools "${ALLOWED_TOOLS}"
+} > ${AGENT_STREAM_PATH} 2> ${AGENT_STDERR_PATH}
+exit_code=$?
+exit_code_tmp="${AGENT_EXIT_CODE_PATH}.$$"
+printf '%s\\n' "$exit_code" > "$exit_code_tmp"
+mv "$exit_code_tmp" ${AGENT_EXIT_CODE_PATH}
+exit "$exit_code"
+`;

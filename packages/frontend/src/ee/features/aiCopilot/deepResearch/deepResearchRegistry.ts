@@ -27,12 +27,8 @@ const readRegistry = (): DeepResearchRunRegistration[] => {
                       typeof item.threadUuid === 'string' &&
                       'promptUuid' in item &&
                       typeof item.promptUuid === 'string' &&
-                      'mcpServerUuids' in item &&
-                      Array.isArray(item.mcpServerUuids) &&
-                      item.mcpServerUuids.every(
-                          (serverUuid: unknown) =>
-                              typeof serverUuid === 'string',
-                      ),
+                      'question' in item &&
+                      typeof item.question === 'string',
               )
             : [];
     } catch {

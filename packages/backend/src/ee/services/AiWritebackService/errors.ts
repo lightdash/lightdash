@@ -59,3 +59,21 @@ export class RepoTooLargeError extends ParameterError {
         );
     }
 }
+
+/**
+ * Thrown by the pre-side-effect checkpoint in runCodingAgent when the run row
+ * went terminal (cancelled via tasks/cancel, or swept to error) while the
+ * agent was working. A deliberate abort, not a failure: callers log it at
+ * info and skip Sentry, error metrics, and failure analytics.
+ */
+export class WritebackRunAbortedError extends Error {
+    readonly runStatus: string;
+
+    constructor(runStatus: string) {
+        super(
+            `Writeback run is already in terminal status '${runStatus}' — aborting before any commit, push, or pull request is made`,
+        );
+        this.name = 'WritebackRunAbortedError';
+        this.runStatus = runStatus;
+    }
+}

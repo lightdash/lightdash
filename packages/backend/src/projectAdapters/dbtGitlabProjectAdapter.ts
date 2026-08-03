@@ -6,9 +6,8 @@ import {
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { CachedWarehouse } from '../types';
+import { DEFAULT_GITLAB_HOST_DOMAIN } from '../utils/credentialDestination';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
-
-const DEFAULT_GITLAB_HOST_DOMAIN = 'gitlab.com';
 
 type DbtGitlabProjectAdapterArgs = {
     warehouseClient: WarehouseClient;

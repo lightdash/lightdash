@@ -2,11 +2,14 @@ import { Ability } from '@casl/ability';
 import {
     ChartType,
     ContentType,
+    CustomDimensionType,
+    DimensionType,
     ForbiddenError,
     OrganizationMemberRole,
     PossibleAbilities,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromSession } from '../../auth/account';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -44,6 +47,9 @@ const verificationInfo = {
 
 const savedChartData = {
     ...chartSummary,
+    name: 'Orders',
+    slug: 'orders',
+    description: 'Orders chart',
     spaceUuid: 'space-uuid',
     metricQuery: {
         metrics: [],
@@ -80,7 +86,10 @@ const adminUser = {
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability<PossibleAbilities>([
         { subject: 'ContentVerification', action: 'manage' },
-        { subject: 'SavedChart', action: ['view', 'update', 'delete'] },
+        {
+            subject: 'SavedChart',
+            action: ['view', 'update', 'delete', 'create'],
+        },
     ]),
     isActive: true,
     abilityRules: [],
@@ -103,6 +112,7 @@ const savedChartModel = {
     get: vi.fn(async () => savedChartData),
     createVersion: vi.fn(async () => savedChartData),
     update: vi.fn(async () => savedChartData),
+    create: vi.fn(async () => savedChartData),
 };
 
 const contentVerificationModel = {
@@ -118,10 +128,15 @@ const spacePermissionService = {
         inheritsFromOrgOrProject: true,
         access: [],
     })),
+    getFirstViewableSpaceUuid: vi.fn(async () => 'space-uuid'),
 };
 
 const projectModel = {
     getExploreFromCache: vi.fn(async () => null),
+    getSummary: vi.fn(async () => ({
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+    })),
 };
 
 vi.spyOn(analyticsMock, 'track');
@@ -155,6 +170,22 @@ describe('SavedChartService - Content Verification', () => {
         vi.clearAllMocks();
     });
 
+    it('duplicates a chart from its original slug base', async () => {
+        await service.duplicate(adminUser, 'project-uuid', 'chart-uuid', {
+            chartName: 'Copy of Orders',
+            chartDesc: 'Orders chart copy',
+        });
+
+        expect(savedChartModel.create).toHaveBeenCalledWith(
+            'project-uuid',
+            adminUser.userUuid,
+            expect.objectContaining({
+                name: 'Copy of Orders',
+                slug: 'orders',
+            }),
+        );
+    });
+
     describe('CASL authorization', () => {
         it('should allow verifyChart when user is admin', async () => {
             const result = await service.verifyChart(adminUser, 'chart-uuid');
@@ -186,6 +217,84 @@ describe('SavedChartService - Content Verification', () => {
             ).rejects.toThrow(ForbiddenError);
 
             expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('custom SQL permissions on create', () => {
+        const chartCreator = {
+            ...editorUser,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'create' },
+            ]),
+        };
+        const account = fromSession(chartCreator, 'session-cookie');
+        const baseChart = {
+            name: 'Custom SQL chart',
+            tableName: 'orders',
+            metricQuery: {
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            },
+            chartConfig: {
+                type: ChartType.TABLE,
+            },
+            tableConfig: {
+                columnOrder: [],
+            },
+            spaceUuid: 'space-uuid',
+            dashboardUuid: null,
+        };
+
+        it('rejects custom SQL dimensions without CustomFields permission', async () => {
+            await expect(
+                service.create(account, 'project-uuid', {
+                    ...baseChart,
+                    metricQuery: {
+                        ...baseChart.metricQuery,
+                        customDimensions: [
+                            {
+                                id: 'custom_sql',
+                                name: 'Custom SQL',
+                                table: 'orders',
+                                type: CustomDimensionType.SQL,
+                                sql: "'value'",
+                                dimensionType: DimensionType.STRING,
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toThrow(
+                'User cannot save queries with custom SQL dimensions',
+            );
+
+            expect(savedChartModel.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects SQL table calculations without CustomSqlTableCalculations permission', async () => {
+            await expect(
+                service.create(account, 'project-uuid', {
+                    ...baseChart,
+                    metricQuery: {
+                        ...baseChart.metricQuery,
+                        tableCalculations: [
+                            {
+                                name: 'custom_sql',
+                                displayName: 'Custom SQL',
+                                sql: "'value'",
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toThrow(
+                'User cannot save queries with SQL table calculations',
+            );
+
+            expect(savedChartModel.create).not.toHaveBeenCalled();
         });
     });
 

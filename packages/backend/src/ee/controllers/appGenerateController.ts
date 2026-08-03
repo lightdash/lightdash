@@ -2,7 +2,7 @@ import {
     ApiErrorPayload,
     assertRegisteredAccount,
     ParameterError,
-    type ApiAppImageUploadResponse,
+    type ApiAppFileUploadResponse,
     type ApiAppImageUrlResponse,
     type ApiAppSchedulersResponse,
     type ApiAppThumbnailUrlResponse,
@@ -10,12 +10,14 @@ import {
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
     type ApiCreateAppSchedulerResponse,
+    type ApiDataAppActivityResponse,
     type ApiDeleteAppResponse,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppCodeResponse,
     type ApiGetAppResponse,
+    type ApiGetDataAppAuthoringContextResponse,
     type ApiGetDataAppVizResponse,
     type ApiImportAppCodeResponse,
     type ApiListDataAppVizsResponse,
@@ -29,9 +31,11 @@ import {
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
     type ApiUpgradeAppResponse,
+    type DataAppActivityFilters,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
     type UpgradeAppRequestBody,
+    type UuidOrSlug,
 } from '@lightdash/common';
 import {
     Body,
@@ -58,6 +62,7 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
+import { validateDateFilter, validateUuidFilter } from './filterValidation';
 
 @Route('/api/v1/ee/projects/{projectUuid}/apps')
 @Hidden()
@@ -78,7 +83,7 @@ export class AppGenerateController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             body.prompt,
-            body.imageIds ?? [],
+            body.fileIds ?? body.imageIds ?? [],
             body.appUuid,
             body.charts,
             body.dashboard,
@@ -87,6 +92,7 @@ export class AppGenerateController extends BaseController {
             body.spaceUuid,
             body.claudeModel,
             {
+                creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
             },
@@ -201,7 +207,7 @@ export class AppGenerateController extends BaseController {
             body.template,
             body.charts,
             body.dashboard,
-            body.imageIds,
+            body.fileIds ?? body.imageIds,
         );
         return {
             status: 'ok',
@@ -210,10 +216,33 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Upload a file attachment for a data app generation request.
+     * Send raw bytes with the appropriate Content-Type header; pass the
+     * original filename via the `filename` query parameter. Supported:
+     * images (PNG, JPEG, GIF, WEBP), PDFs, and text-based files (JSON,
+     * CSV, Markdown, XML/TWB, YAML, code, …).
+     * @summary Upload app file
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/upload-file')
+    @OperationId('uploadAppFile')
+    async uploadFile(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Query() filename?: string,
+        @Query() kind?: 'screenshot',
+    ): Promise<ApiAppFileUploadResponse> {
+        this.setStatus(200);
+        return this.handleUploadFile(req, projectUuid, appUuid, filename, kind);
+    }
+
+    /**
      * Upload an image for a data app generation request.
-     * Send raw image bytes with the appropriate Content-Type header.
-     * The request body is streamed directly to S3 without buffering.
      * @summary Upload app image
+     * @deprecated Use the upload-file endpoint — this alias remains for older
+     * clients and accepts the same payloads.
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -223,10 +252,49 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() filename?: string,
         @Query() kind?: 'screenshot',
-    ): Promise<ApiAppImageUploadResponse> {
+    ): Promise<ApiAppFileUploadResponse> {
+        this.setStatus(200);
+        return this.handleUploadFile(req, projectUuid, appUuid, filename, kind);
+    }
+
+    /**
+     * Get project context for authoring a new data app locally.
+     * @summary Get data app authoring context
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/authoring-context')
+    @OperationId('getDataAppAuthoringContext')
+    async getDataAppAuthoringContext(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() slug: string,
+        @Query() designUuid?: string,
+    ): Promise<ApiGetDataAppAuthoringContextResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAppGenerateService().getDataAppAuthoringContext(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slug,
+                    designUuid ?? null,
+                ),
+        };
+    }
+
+    private async handleUploadFile(
+        req: express.Request,
+        projectUuid: string,
+        appUuid: string,
+        filename?: string,
+        kind?: 'screenshot',
+    ): Promise<ApiAppFileUploadResponse> {
+        assertRegisteredAccount(req.account);
         const mimeType = req.headers['content-type'];
         if (!mimeType) {
             throw new ParameterError('Content-Type header is required');
@@ -240,13 +308,14 @@ export class AppGenerateController extends BaseController {
                 'Content-Length must be a positive integer',
             );
         }
-        const result = await this.getAppGenerateService().uploadImage(
+        const result = await this.getAppGenerateService().uploadFile(
             toSessionUser(req.account),
             projectUuid,
             mimeType,
             req,
             contentLength,
             appUuid,
+            filename,
             kind,
         );
         return {
@@ -305,11 +374,12 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             body.prompt,
-            body.imageIds ?? [],
+            body.fileIds ?? body.imageIds ?? [],
             body.charts,
             body.dashboard,
             body.claudeModel,
             {
+                creationExperience: body.creationExperience,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
             },
@@ -608,12 +678,12 @@ export class AppGenerateController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{appUuid}/download')
+    @Get('/{appUuidOrSlug}/download')
     @OperationId('getAppCode')
     async getAppCode(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Path() appUuid: string,
+        @Path() appUuidOrSlug: UuidOrSlug,
         @Query() version?: number,
     ): Promise<ApiGetAppCodeResponse> {
         assertRegisteredAccount(req.account);
@@ -622,7 +692,7 @@ export class AppGenerateController extends BaseController {
             results: await this.getAppGenerateService().getAppCode(
                 toSessionUser(req.account),
                 projectUuid,
-                appUuid,
+                appUuidOrSlug,
                 version,
             ),
         };
@@ -847,6 +917,67 @@ export class UserAppsController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+}
+
+const ACTIVITY_MAX_PAGE_SIZE = 100;
+
+@Route('/api/v1/ee/org/apps')
+@Hidden()
+@Response<ApiErrorPayload>('default', 'Error')
+export class OrgAppsController extends BaseController {
+    /**
+     * List every data app generation across the organization — who built what,
+     * when, and with which model. Org admins only; the `manage:Organization`
+     * check lives in `AppGenerateService.getOrganizationActivity`.
+     * @summary Get data app activity
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/activity')
+    @OperationId('getDataAppActivity')
+    async getDataAppActivity(
+        @Request() req: express.Request,
+        // Pagination
+        @Query() page?: number,
+        @Query() pageSize?: number,
+        // Filtering
+        @Query() projectUuids?: DataAppActivityFilters['projectUuids'],
+        @Query() userUuids?: DataAppActivityFilters['userUuids'],
+        @Query() models?: DataAppActivityFilters['models'],
+        @Query() dateFrom?: DataAppActivityFilters['dateFrom'],
+        @Query() dateTo?: DataAppActivityFilters['dateTo'],
+    ): Promise<ApiDataAppActivityResponse> {
+        assertRegisteredAccount(req.account);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('userUuids', userUuids);
+        validateDateFilter('dateFrom', dateFrom);
+        validateDateFilter('dateTo', dateTo);
+        // Always paginate: the log grows without bound and every row carries a
+        // full prompt, so an unpaginated read would pull the org's entire
+        // generation history in one response.
+        const paginateArgs = {
+            page: page ?? 1,
+            pageSize: Math.min(pageSize ?? 50, ACTIVITY_MAX_PAGE_SIZE),
+        };
+        const filters: DataAppActivityFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(userUuids && { userUuids }),
+            ...(models && { models }),
+            ...(dateFrom && { dateFrom }),
+            ...(dateTo && { dateTo }),
+        };
+        const results = await this.services
+            .getAppGenerateService<AppGenerateService>()
+            .getOrganizationActivity(
+                toSessionUser(req.account),
+                paginateArgs,
+                filters,
+            );
+        return {
+            status: 'ok',
+            results,
         };
     }
 }

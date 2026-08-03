@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     friendlyName,
     GoogleChatError,
+    MAX_DELIVERY_QUERIES,
     operatorActionValue,
     PartialFailureType,
     sanitizeHtml,
@@ -10,7 +11,13 @@ import {
     type PartialFailure,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
+import { buildFailureCountPhrase } from '../../utils/partialFailureUtils';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
+
+// Google Chat renders a subset of HTML in textParagraph.text, and app delivery
+// labels/errors are authored by app code, so strip markup before interpolating.
+const stripMarkup = (text: string): string =>
+    sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} });
 
 /* eslint-disable class-methods-use-this */
 export class GoogleChatClient {
@@ -279,6 +286,20 @@ export class GoogleChatClient {
                             return `- <b>No targets found for this scheduled delivery</b>`;
                         case PartialFailureType.AI_AUGMENTATION:
                             return `- <b>AI summary could not be generated</b>`;
+                        case PartialFailureType.APP_QUERY:
+                            return `- <b>${stripMarkup(
+                                f.label,
+                            )}:</b> ${stripMarkup(f.error)}`;
+                        case PartialFailureType.APP_QUERY_MISSING:
+                            return `- <b>${stripMarkup(
+                                f.label,
+                            )}:</b> did not run in this delivery${
+                                f.identityChanged
+                                    ? ' (query changed since it was selected)'
+                                    : ''
+                            }`;
+                        case PartialFailureType.APP_CAPTURE_OVERFLOW:
+                            return `- <b>${f.droppedCount} queries were dropped from capture (limit ${MAX_DELIVERY_QUERIES})</b>`;
                         default:
                             return assertUnreachable(
                                 f,
@@ -297,7 +318,9 @@ export class GoogleChatClient {
             } else {
                 widgets.push({
                     textParagraph: {
-                        text: `⚠️ <b>Warning:</b> ${failures.length} chart(s) failed to export\n${failureLines}`,
+                        text: `⚠️ <b>Warning:</b> ${buildFailureCountPhrase(
+                            failures,
+                        )} failed to export\n${failureLines}`,
                     },
                 });
             }
@@ -349,20 +372,11 @@ export class GoogleChatClient {
         contentName: string | null;
         contactSentence: string | null;
     }): Promise<void> {
-        // Google Chat renders a subset of HTML in textParagraph.text, so
-        // strip any markup from admin-supplied strings before interpolating
-        // into the template (which uses static <b> tags around contentName).
-        const safeContentName = contentName
-            ? sanitizeHtml(contentName, {
-                  allowedTags: [],
-                  allowedAttributes: {},
-              })
-            : null;
+        // The template wraps contentName in static <b> tags, so admin-supplied
+        // strings must not carry markup of their own.
+        const safeContentName = contentName ? stripMarkup(contentName) : null;
         const safeContactSentence = contactSentence
-            ? sanitizeHtml(contactSentence, {
-                  allowedTags: [],
-                  allowedAttributes: {},
-              })
+            ? stripMarkup(contactSentence)
             : null;
         const baseSentence = safeContentName
             ? `The scheduled delivery for <b>"${safeContentName}"</b> failed to run, and the delivery owner has been notified.`

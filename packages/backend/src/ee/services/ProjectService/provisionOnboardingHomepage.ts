@@ -5,7 +5,15 @@ import {
     ProjectType,
     type SessionUser,
 } from '@lightdash/common';
-import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import * as Sentry from '@sentry/node';
+import {
+    type CodingAgentOnboardingEnablement,
+    type HomepageBuilderEnablement,
+    type LightdashAnalytics,
+    type OnboardingFlow,
+    type OnboardingHomepageSkippedReason,
+} from '../../../analytics/LightdashAnalytics';
+import Logger from '../../../logging/logger';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectHomepageModel } from '../../models/ProjectHomepageModel';
@@ -14,7 +22,11 @@ export type ProvisionOnboardingHomepageArguments = {
     user: SessionUser;
     projectUuid: string;
     projectType: ProjectType;
-    featureFlagService: Pick<FeatureFlagService, 'get'>;
+    provisioningSource?: 'playground';
+    featureFlagService: Pick<
+        FeatureFlagService,
+        'get' | 'ensureOrganizationOverrideEnabled'
+    >;
     projectModel: Pick<ProjectModel, 'getAllByOrganizationUuid'>;
     projectHomepageModel: Pick<
         ProjectHomepageModel,
@@ -27,60 +39,140 @@ export const provisionOnboardingHomepage = async ({
     user,
     projectUuid,
     projectType,
+    provisioningSource,
     featureFlagService,
     projectModel,
     projectHomepageModel,
     analytics,
 }: ProvisionOnboardingHomepageArguments): Promise<void> => {
-    if (projectType !== ProjectType.DEFAULT || !user.organizationUuid) {
+    const { organizationUuid } = user;
+    if (projectType !== ProjectType.DEFAULT || !organizationUuid) {
         return;
     }
 
-    const [orgSetupPageFlag, homepageBuilderFlag] = await Promise.all([
-        featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.NewOnboarding,
-        }),
-        featureFlagService.get({
+    const orgSetupPageFlag = await featureFlagService.get({
+        user,
+        featureFlagId: FeatureFlags.NewOnboarding,
+    });
+    const onboardingFlow: OnboardingFlow = orgSetupPageFlag.enabled
+        ? 'new'
+        : 'legacy';
+    let homepageBuilderEnablement: HomepageBuilderEnablement | null = null;
+    let codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null =
+        null;
+    const trackSkipped = (reason: OnboardingHomepageSkippedReason) => {
+        analytics.track({
+            event: 'onboarding_homepage.skipped',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                onboardingFlow,
+                homepageBuilderEnablement,
+                codingAgentOnboardingEnablement,
+                reason,
+            },
+        });
+    };
+    if (!orgSetupPageFlag.enabled) {
+        trackSkipped('new_onboarding_flag_disabled');
+        return;
+    }
+
+    try {
+        const organizationProjects =
+            await projectModel.getAllByOrganizationUuid(organizationUuid);
+        const isPlayground = provisioningSource === 'playground';
+        if (
+            !isPlayground &&
+            (organizationProjects.length !== 1 ||
+                organizationProjects[0].projectUuid !== projectUuid)
+        ) {
+            trackSkipped('not_first_project');
+            return;
+        }
+
+        try {
+            homepageBuilderEnablement =
+                await featureFlagService.ensureOrganizationOverrideEnabled({
+                    user,
+                    featureFlagId: CommercialFeatureFlags.HomepageBuilder,
+                });
+        } catch (error) {
+            Sentry.captureException(error);
+            Logger.error(
+                `Failed to enable homepage builder for organization ${organizationUuid}: ${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
+            homepageBuilderEnablement = 'failed';
+        }
+
+        try {
+            codingAgentOnboardingEnablement =
+                await featureFlagService.ensureOrganizationOverrideEnabled({
+                    user,
+                    featureFlagId: FeatureFlags.CodingAgentOnboarding,
+                });
+        } catch (error) {
+            Sentry.captureException(error);
+            Logger.error(
+                `Failed to enable coding agent onboarding for organization ${organizationUuid}: ${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
+            codingAgentOnboardingEnablement = 'failed';
+        }
+
+        const homepageBuilderFlag = await featureFlagService.get({
             user,
             featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-        }),
-    ]);
-    if (!orgSetupPageFlag.enabled || !homepageBuilderFlag.enabled) {
-        return;
-    }
+        });
+        if (!homepageBuilderFlag.enabled) {
+            trackSkipped('homepage_builder_flag_disabled');
+            return;
+        }
 
-    const organizationProjects = await projectModel.getAllByOrganizationUuid(
-        user.organizationUuid,
-    );
-    if (
-        organizationProjects.length !== 1 ||
-        organizationProjects[0].projectUuid !== projectUuid
-    ) {
-        return;
-    }
+        const existingHomepages = await projectHomepageModel.list(projectUuid);
+        if (existingHomepages.length > 0) {
+            trackSkipped('homepage_already_exists');
+            return;
+        }
 
-    const existingHomepages = await projectHomepageModel.list(projectUuid);
-    if (existingHomepages.length > 0) {
-        return;
+        const homepage = await projectHomepageModel.create({
+            projectUuid,
+            name: 'Getting started',
+            draftConfig: buildOnboardingHomepageConfig(),
+            createdByUserUuid: user.userUuid,
+        });
+        await projectHomepageModel.publish(homepage.homepageUuid, {
+            type: 'everyone',
+        });
+        analytics.track({
+            event: 'onboarding_homepage.provisioned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                homepageUuid: homepage.homepageUuid,
+                onboardingFlow,
+                homepageBuilderEnablement,
+                codingAgentOnboardingEnablement,
+            },
+        });
+    } catch (error) {
+        analytics.track({
+            event: 'onboarding_homepage.failed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                onboardingFlow,
+                homepageBuilderEnablement,
+                codingAgentOnboardingEnablement,
+                errorType: error instanceof Error ? error.name : 'Unknown',
+            },
+        });
+        throw error;
     }
-
-    const homepage = await projectHomepageModel.create({
-        projectUuid,
-        name: 'Getting started',
-        draftConfig: buildOnboardingHomepageConfig(),
-        createdByUserUuid: user.userUuid,
-    });
-    await projectHomepageModel.publish(homepage.homepageUuid, {
-        type: 'everyone',
-    });
-    analytics.track({
-        event: 'onboarding_homepage.provisioned',
-        userId: user.userUuid,
-        properties: {
-            organizationId: user.organizationUuid,
-            projectId: projectUuid,
-            homepageUuid: homepage.homepageUuid,
-        },
-    });
 };
