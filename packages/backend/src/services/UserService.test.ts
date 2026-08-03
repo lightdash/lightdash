@@ -74,7 +74,12 @@ const userModel = {
     activateUser: vi.fn(async () => sessionUser),
     activateUserWithoutPassword: vi.fn(async () => sessionUser),
     addProjectMemberships: vi.fn(async () => undefined),
-    getOrganizationsForUser: vi.fn(async () => [sessionUser]),
+    getOrganizationsForUser: vi.fn<UserModel['getOrganizationsForUser']>(
+        async () => [sessionUser],
+    ),
+    getUserByPrimaryEmailAndPassword: vi.fn<
+        UserModel['getUserByPrimaryEmailAndPassword']
+    >(async () => userWithoutOrg),
     findUserByEmail: vi.fn<UserModel['findUserByEmail']>(async () => undefined),
     createPendingUser: vi.fn<UserModel['createPendingUser']>(
         async () => newUser,
@@ -255,6 +260,45 @@ describe('UserService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('organization selection during login', () => {
+        const selectedOrganization = {
+            organizationUuid: 'selected-organization-uuid',
+            organizationName: 'Selected organization',
+            organizationCreatedAt: new Date('2025-01-01T00:00:00.000Z'),
+        };
+        const otherOrganization = {
+            organizationUuid: 'other-organization-uuid',
+            organizationName: 'Other organization',
+            organizationCreatedAt: new Date('2025-01-02T00:00:00.000Z'),
+        };
+
+        test('rejects password login for a user in multiple organizations', async () => {
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                selectedOrganization,
+                otherOrganization,
+            ]);
+
+            await expect(
+                userService.loginWithPassword('user@example.com', 'password'),
+            ).rejects.toThrow(
+                new ForbiddenError('User is part of multiple organizations'),
+            );
+        });
+
+        test('returns the resolved organization for a single-organization password login', async () => {
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                selectedOrganization,
+            ]);
+
+            await expect(
+                userService.loginWithPassword('user@example.com', 'password'),
+            ).resolves.toEqual({
+                ...userWithoutOrg,
+                ...selectedOrganization,
+            });
+        });
     });
 
     describe('OAuth grants', () => {
@@ -1069,7 +1113,7 @@ describe('UserService', () => {
 
                 await expect(
                     service.loginWithEmailOtp('EMAIL', '123456'),
-                ).resolves.toBe(sessionUser);
+                ).resolves.toEqual(sessionUser);
 
                 expect(
                     emailModel.getPrimaryEmailStatusByUserAndOtp,
@@ -1133,6 +1177,48 @@ describe('UserService', () => {
                         onboardingFlow: 'new',
                     },
                 });
+            });
+
+            test('rejects OTP login for a user in multiple organizations', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                const emailStatus = activeOtp();
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(false);
+                userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                emailModel.getPrimaryEmailStatusByUserAndOtp.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                    {
+                        organizationUuid: 'first-organization-uuid',
+                        organizationName: 'First organization',
+                        organizationCreatedAt: new Date(
+                            '2025-01-01T00:00:00.000Z',
+                        ),
+                    },
+                    {
+                        organizationUuid: 'second-organization-uuid',
+                        organizationName: 'Second organization',
+                        organizationCreatedAt: new Date(
+                            '2025-01-02T00:00:00.000Z',
+                        ),
+                    },
+                ]);
+
+                await expect(
+                    service.loginWithEmailOtp('EMAIL', '123456'),
+                ).rejects.toThrow(
+                    new ForbiddenError(
+                        'User is part of multiple organizations',
+                    ),
+                );
+
+                expect(emailModel.deleteEmailOtp).not.toHaveBeenCalled();
             });
 
             test('rejects a sixth attempt without comparing the code', async () => {
@@ -1237,7 +1323,7 @@ describe('UserService', () => {
 
                 await expect(
                     service.loginWithEmailOtp('EMAIL', '123456'),
-                ).resolves.toBe(sessionUser);
+                ).resolves.toEqual(sessionUser);
             });
         });
 

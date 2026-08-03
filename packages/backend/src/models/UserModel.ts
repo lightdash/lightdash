@@ -383,7 +383,9 @@ export class UserModel {
                 'organizations.organization_uuid',
                 'organizations.created_at',
                 'organizations.organization_name',
-            );
+            )
+            .orderBy('organizations.created_at', 'asc')
+            .orderBy('organizations.organization_id', 'asc');
 
         return organizations.map((organization) => ({
             organizationUuid: organization.organization_uuid,
@@ -457,6 +459,8 @@ export class UserModel {
             // this is already empty for them — the explicit guard documents
             // intent and survives any join refactor.
             .andWhere(`${UserTableName}.is_internal`, false)
+            .orderBy('organizations.created_at', 'asc')
+            .orderBy('organizations.organization_id', 'asc')
             .select<(DbUserDetails & { password_hash: string })[]>(
                 '*',
                 'organizations.created_at as organization_created_at',
@@ -1204,6 +1208,8 @@ export class UserModel {
     async findSessionUserByUUID(userUuid: string): Promise<SessionUser> {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('user_uuid', userUuid)
+            .orderBy('organizations.created_at', 'asc')
+            .orderBy('organizations.organization_id', 'asc')
             .select('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
@@ -1278,6 +1284,8 @@ export class UserModel {
         const [user] = await userDetailsQueryBuilder(this.database)
             .where('email', email)
             .andWhere(`${UserTableName}.is_internal`, false)
+            .orderBy('organizations.created_at', 'asc')
+            .orderBy('organizations.organization_id', 'asc')
             .select('*', 'organizations.created_at as organization_created_at');
         return user
             ? mapDbUserDetailsToLightdashUser(
