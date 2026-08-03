@@ -1,4 +1,5 @@
 import {
+    isApiError,
     isCreateProjectJob,
     JobStatusType,
     JobStepStatusType,
@@ -6,18 +7,27 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
-import { useQueryClient } from '@tanstack/react-query';
-import confetti from 'canvas-confetti';
-import { useEffect, useMemo, useRef, useState, type FC } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-import { getProject, useCreateMutation } from '../../hooks/useProject';
-import { refetchFeatureFlags } from '../../hooks/useServerOrClientFeatureFlag';
+import { Button, Group, Loader } from '@mantine-8/core';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import { useLocation } from 'react-router';
+import {
+    getInFlightJobUuidFromError,
+    useActiveCreateProjectJob,
+} from '../../hooks/useActiveCreateProjectJob';
+import { useCreateMutation } from '../../hooks/useProject';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import classes from './CreateProjectconnection.module.css';
+import CreateProjectJobProgress from './CreateProjectJobProgress';
 import { dbtDefaults, noneDefaultValues } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
@@ -25,6 +35,7 @@ import { FormProvider, useForm } from './formContext';
 import { ProjectForm } from './ProjectForm';
 import { ProjectFormProvider } from './ProjectFormProvider';
 import { type ProjectConnectionForm } from './types';
+import { useCreateProjectSuccessRedirect } from './useCreateProjectSuccessRedirect';
 import { useOnProjectError } from './useOnProjectError';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import { createWarehouseValueValidators } from './WarehouseForms/validators';
@@ -45,23 +56,42 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     successRedirect,
     celebrateOnSuccess = false,
 }) => {
-    const navigate = useNavigate();
     const { pathname } = useLocation();
     const onboardingFlow = pathname.startsWith('/onboarding/')
         ? 'new'
         : 'legacy';
-    const queryClient = useQueryClient();
     const { user, health } = useApp();
     const [createProjectJobId, setCreateProjectJobId] = useState<string>();
-    const { activeJob } = useActiveJob();
+    const { activeJob, setActiveJobId, setQuietActiveJobId } = useActiveJob();
     const { isLoading: isSaving, mutateAsync } = useCreateMutation({
         quietJobToast: warehouseOnly,
         warehouseOnly,
     });
     const onProjectError = useOnProjectError();
 
+    const resumeJob = useCallback(
+        (jobUuid: string) => {
+            setCreateProjectJobId(jobUuid);
+            if (warehouseOnly) {
+                setQuietActiveJobId(jobUuid);
+            } else {
+                setActiveJobId(jobUuid);
+            }
+        },
+        [warehouseOnly, setActiveJobId, setQuietActiveJobId],
+    );
+
+    const { data: inFlightJob, isInitialLoading: isCheckingInFlightJob } =
+        useActiveCreateProjectJob();
+
+    useEffect(() => {
+        if (!inFlightJob || createProjectJobId) {
+            return;
+        }
+        resumeJob(inFlightJob.jobUuid);
+    }, [inFlightJob, createProjectJobId, resumeJob]);
+
     const submitButtonRef = useRef<HTMLButtonElement>(null);
-    const hasFiredConfettiRef = useRef(false);
 
     const warehouseType = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
     const dbtType = health.data?.defaultProject?.type ?? dbtDefaults.dbtType;
@@ -108,18 +138,27 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             },
         });
         if (selectedWarehouse) {
-            const data = await mutateAsync({
-                name: name || user.data?.organizationName || 'My project',
-                type: ProjectType.DEFAULT,
-                dbtConnection,
-                dbtVersion,
-                organizationWarehouseCredentialsUuid,
-                warehouseConnection: {
-                    ...warehouseConnection,
-                    type: selectedWarehouse,
-                } as CreateWarehouseCredentials,
-            });
-            setCreateProjectJobId(data.jobUuid);
+            try {
+                const data = await mutateAsync({
+                    name: name || user.data?.organizationName || 'My project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection,
+                    dbtVersion,
+                    organizationWarehouseCredentialsUuid,
+                    warehouseConnection: {
+                        ...warehouseConnection,
+                        type: selectedWarehouse,
+                    } as CreateWarehouseCredentials,
+                });
+                setCreateProjectJobId(data.jobUuid);
+            } catch (error) {
+                const inFlightJobUuid = isApiError(error)
+                    ? getInFlightJobUuidFromError(error.error)
+                    : undefined;
+                if (inFlightJobUuid) {
+                    resumeJob(inFlightJobUuid);
+                }
+            }
         }
     };
 
@@ -127,86 +166,13 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         onProjectError(errors);
     };
 
-    useEffect(() => {
-        if (
-            !createProjectJobId ||
-            createProjectJobId !== activeJob?.jobUuid ||
-            !isCreateProjectJob(activeJob) ||
-            !activeJob.jobResults?.projectUuid
-        ) {
-            return;
-        }
-        const { projectUuid } = activeJob.jobResults;
-        const redirectTo = successRedirect
-            ? successRedirect(projectUuid)
-            : `/createProjectSettings/${projectUuid}`;
-
-        if (!celebrateOnSuccess) {
-            void navigate({ pathname: redirectTo });
-            return;
-        }
-
-        // Celebrate path fires exactly once — the effect re-runs on every
-        // job-status poll, and the async closure below owns the navigation.
-        if (hasFiredConfettiRef.current) {
-            return;
-        }
-        hasFiredConfettiRef.current = true;
-
-        const rect = submitButtonRef.current?.getBoundingClientRect();
-        const origin = rect
-            ? {
-                  x: (rect.left + rect.width / 2) / window.innerWidth,
-                  y: (rect.top + rect.height / 2) / window.innerHeight,
-              }
-            : { x: 0.5, y: 0.7 };
-        // The canvas outlives the client-side navigation, so the burst carries
-        // over onto the page we land on.
-        void confetti({
-            disableForReducedMotion: true,
-            startVelocity: 35,
-            particleCount: 120,
-            spread: 100,
-            gravity: 0.7,
-            origin,
-        });
-
-        // Warm the caches the home reads before we land there, so it doesn't
-        // flash the stale "connect your warehouse" checklist (the projects/org
-        // lists still show no warehouse), the pre-homepage-builder home (the
-        // org's onboarding flags are only enabled once this first project
-        // exists) or a cold project spinner. The button stays busy meanwhile,
-        // so it reads as one smooth step. Navigate even if priming fails.
-        void (async () => {
-            try {
-                await Promise.all([
-                    queryClient.refetchQueries({
-                        queryKey: ['projects'],
-                        type: 'all',
-                    }),
-                    queryClient.refetchQueries({
-                        queryKey: ['organization'],
-                        type: 'all',
-                    }),
-                    refetchFeatureFlags(queryClient),
-                    queryClient.prefetchQuery({
-                        queryKey: ['project', projectUuid],
-                        queryFn: () => getProject(projectUuid),
-                    }),
-                ]);
-            } catch {
-                // Ignore — the destination will load normally on its own.
-            }
-            void navigate({ pathname: redirectTo });
-        })();
-    }, [
+    useCreateProjectSuccessRedirect({
         activeJob,
-        celebrateOnSuccess,
         createProjectJobId,
-        navigate,
-        queryClient,
         successRedirect,
-    ]);
+        celebrateOnSuccess,
+        submitButtonRef,
+    });
 
     // The warehouse adapter test runs inside the async create job, so
     // connection failures surface as the job's ERROR status, not via the
@@ -259,6 +225,23 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         [isSaving, createProjectJobId, hasThisJobFailed],
     );
 
+    const thisJob =
+        createProjectJobId &&
+        createProjectJobId === activeJob?.jobUuid &&
+        isCreateProjectJob(activeJob)
+            ? activeJob
+            : undefined;
+
+    const hideForm = !!thisJob && thisJob.jobStatus !== JobStatusType.ERROR;
+
+    if (isCheckingInFlightJob) {
+        return (
+            <Group justify="center" p="xl">
+                <Loader color="gray" />
+            </Group>
+        );
+    }
+
     return (
         <FormProvider form={form}>
             <form
@@ -267,26 +250,35 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             >
                 <FormContainer>
                     <ProjectFormProvider>
-                        <ProjectForm
-                            showGeneralSettings={
-                                !isCreatingFirstProject && !warehouseOnly
-                            }
-                            disabled={isSavingProject}
-                            defaultType={health.data?.defaultProject?.type}
-                            warehouseOnly={warehouseOnly}
-                        />
+                        {thisJob && <CreateProjectJobProgress job={thisJob} />}
 
-                        <Button
-                            ref={submitButtonRef}
-                            style={{ alignSelf: 'end' }}
-                            type="submit"
-                            loading={isSavingProject}
-                            disabled={!form.isValid()}
-                        >
-                            {warehouseOnly
-                                ? 'Test & save'
-                                : 'Test & deploy project'}
-                        </Button>
+                        {!hideForm && (
+                            <>
+                                <ProjectForm
+                                    showGeneralSettings={
+                                        !isCreatingFirstProject &&
+                                        !warehouseOnly
+                                    }
+                                    disabled={isSavingProject}
+                                    defaultType={
+                                        health.data?.defaultProject?.type
+                                    }
+                                    warehouseOnly={warehouseOnly}
+                                />
+
+                                <Button
+                                    ref={submitButtonRef}
+                                    style={{ alignSelf: 'end' }}
+                                    type="submit"
+                                    loading={isSavingProject}
+                                    disabled={!form.isValid()}
+                                >
+                                    {warehouseOnly
+                                        ? 'Test & save'
+                                        : 'Test & deploy project'}
+                                </Button>
+                            </>
+                        )}
                     </ProjectFormProvider>
                 </FormContainer>
             </form>
