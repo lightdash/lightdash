@@ -4,8 +4,9 @@ const LISTEN_RECOVERY_BUDGET_MS = 60_000;
 
 const JOB_ACTIVITY_STALENESS_MS = 3 * 60_000;
 
-// A successful pg ping within this window proves the worker process can still
-// reach the database, even when no graphile-worker job has fired recently.
+// A pg ping older than this window means the worker process cannot reach the
+// database. Negative signal only: a fresh ping never vouches for health, since
+// DB reachability is exactly what still holds when the worker pool is dead.
 const PG_REACHABLE_STALENESS_MS = 3 * 60_000;
 
 // Per-pod unique poolId — replicas sharing one would collapse to a single dedup'd heartbeat row,
@@ -35,6 +36,12 @@ export class SchedulerWorkerHealth {
     private startedAt: number = Date.now();
 
     private lastReportedState: HealthState = 'starting';
+
+    private poolDeadAt: number | null = null;
+
+    private poolDeadReason: string | null = null;
+
+    private readonly poolDeadListeners: Array<(reason: string) => void> = [];
 
     constructor(poolId?: string) {
         this.poolId = poolId ?? Math.random().toString(36).slice(2, 10);
@@ -108,6 +115,39 @@ export class SchedulerWorkerHealth {
         );
     }
 
+    // Register a callback for the pool-dead latch. Fires at most once, on the
+    // first markPoolDead call.
+    onPoolDead(listener: (reason: string) => void) {
+        this.poolDeadListeners.push(listener);
+    }
+
+    // Permanent latch: a terminated graphile-worker pool cannot recover
+    // in-process (0.13 never respawns dead workers), so once this fires the
+    // probe reports unhealthy until the process is replaced. Returns true only
+    // on the first call so callers can gate side effects; the LISTEN retry loop
+    // re-raises the same error every ~100ms and must not re-trigger them.
+    markPoolDead(reason: string): boolean {
+        if (this.poolDeadAt !== null) {
+            return false;
+        }
+        this.poolDeadAt = Date.now();
+        this.poolDeadReason = reason;
+        Logger.error(
+            `[scheduler-health] worker pool dead poolId=${this.poolId} reason="${reason}" — unhealthy until restart`,
+        );
+        this.poolDeadListeners.forEach((listener) => {
+            try {
+                listener(reason);
+            } catch (e) {
+                Logger.error(
+                    `[scheduler-health] pool-dead listener threw poolId=${this.poolId}`,
+                    e,
+                );
+            }
+        });
+        return true;
+    }
+
     getInFlightJobCount(): number {
         return this.inFlightJobCount;
     }
@@ -119,6 +159,18 @@ export class SchedulerWorkerHealth {
     }
 
     private computeHealth(now: number): HealthCheckResult {
+        // Terminated pool wins over every other signal: DB reachability, a
+        // reconnected LISTEN client, even in-flight bookkeeping. This is the
+        // Aug 2026 incident class — pool dead, everything else looks fine.
+        if (this.poolDeadAt !== null) {
+            return {
+                ok: false,
+                reason: `worker pool terminated: ${
+                    this.poolDeadReason ?? 'unknown'
+                }`,
+            };
+        }
+
         if (
             this.listenLostAt !== null &&
             now - this.listenLostAt > LISTEN_RECOVERY_BUDGET_MS
@@ -131,7 +183,8 @@ export class SchedulerWorkerHealth {
             };
         }
 
-        // Startup grace — the per-pool heartbeat takes ~1 min to fire on a fresh worker.
+        // Startup grace — the pg ping and LISTEN take a moment to establish on
+        // a fresh worker.
         const sinceStart = now - this.startedAt;
         if (sinceStart < JOB_ACTIVITY_STALENESS_MS) {
             return { ok: true };
@@ -151,18 +204,40 @@ export class SchedulerWorkerHealth {
             return { ok: true };
         }
 
-        // pg ping runs independently of the job queue, so it stays fresh during
-        // idle stretches between bursts when no job:start fires.
-        const pgReachableFresh =
+        // With no job flowing, a stale pg ping means the worker cannot reach
+        // postgres at all — jobs could not be fetched even if enqueued.
+        // Deliberately checked only on the idle path: live job traffic is
+        // stronger evidence than a ping and must not be overridden by it.
+        if (
             this.lastPgReachableAt !== null &&
-            now - this.lastPgReachableAt <= PG_REACHABLE_STALENESS_MS;
-        if (pgReachableFresh) {
+            now - this.lastPgReachableAt > PG_REACHABLE_STALENESS_MS
+        ) {
+            return {
+                ok: false,
+                reason: `postgres unreachable for ${Math.round(
+                    (now - this.lastPgReachableAt) / 1000,
+                )}s`,
+            };
+        }
+
+        // Idle is healthy only while wired for wake-up: LISTEN established and
+        // no unrecovered listen error. A dead pool cannot sustain this state —
+        // the minutely heartbeat NOTIFY makes its listener nudge the pool,
+        // which trips the poolDead latch above.
+        //
+        // Note this replaces the old `pgReachableFresh` voucher: a successful
+        // ping proves DB reachability, which is precisely the condition that
+        // still holds when the pool is dead after a transient Postgres outage.
+        // It vouched 200 for workers that had executed nothing for days.
+        const listenUp =
+            this.lastListenSuccessAt !== null && this.listenLostAt === null;
+        if (listenUp) {
             return { ok: true };
         }
 
         return {
             ok: false,
-            reason: 'no job activity or pg ping within staleness threshold',
+            reason: 'no recent job activity and LISTEN not established',
         };
     }
 

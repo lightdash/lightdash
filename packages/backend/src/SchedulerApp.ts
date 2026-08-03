@@ -50,6 +50,12 @@ import { VERSION } from './version';
 
 const FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS = 15 * 60 * 1000;
 
+// Delay between the pool-dead latch firing and process.exit(1): long enough
+// for the health endpoint to serve a 503 and for logs/Sentry to flush, short
+// enough that the outage stays measured in seconds. There are no in-flight
+// jobs to drain — a dead pool executes nothing by definition.
+const POOL_DEAD_EXIT_DELAY_MS = 15_000;
+
 type SchedulerAppArguments = {
     lightdashConfig: LightdashConfig;
     port: string | number;
@@ -281,6 +287,24 @@ export default class SchedulerApp {
 
     private async initWorker() {
         const workerHealth = new SchedulerWorkerHealth(derivePoolIdFromEnv());
+        // Crash-only recovery: a terminated graphile-worker pool cannot be
+        // rebuilt in-process (0.13 never respawns dead workers), and queued
+        // jobs are durable, so the correct move is to exit and let the
+        // orchestrator start a fresh pod. The probe flips 503 immediately via
+        // the poolDead latch; the delayed exit is the belt-and-braces path in
+        // case no liveness probe is configured. Fires at most once.
+        workerHealth.onPoolDead((reason) => {
+            Logger.error(
+                `[scheduler-health] worker pool is dead (${reason}); exiting in ${POOL_DEAD_EXIT_DELAY_MS}ms so the orchestrator restarts a fresh worker`,
+            );
+            Sentry.captureException(
+                new Error(`Scheduler worker pool dead: ${reason}`),
+                { extra: { poolId: workerHealth.getPoolId() } },
+            );
+            setTimeout(() => {
+                process.exit(1);
+            }, POOL_DEAD_EXIT_DELAY_MS).unref();
+        });
         wireWorkerHealthEvents(schedulerWorkerEventEmitter, workerHealth);
         const worker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
@@ -356,7 +380,9 @@ export default class SchedulerApp {
                 await shutdownOtelTracing();
                 if (worker && worker.runner) {
                     Logger.info('Stopping scheduler worker');
-                    await worker?.runner?.stop();
+                    // worker.stop() (not runner.stop()) so the settling runner
+                    // promise is recognised as graceful, not a pool crash.
+                    await worker.stop();
                 }
             },
             onShutdown: async () => {

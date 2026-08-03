@@ -1,10 +1,19 @@
 import { ALL_TASK_NAMES } from '@lightdash/common';
+import { run as runGraphileWorker, type Runner } from 'graphile-worker';
 import { type LightdashConfig } from '../config/parseConfig';
 import {
     SchedulerWorker,
     type SchedulerWorkerArguments,
 } from './SchedulerWorker';
 import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
+
+vi.mock('graphile-worker', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('graphile-worker')>();
+    return {
+        ...actual,
+        run: vi.fn(),
+    };
+});
 
 class TestableSchedulerWorker extends SchedulerWorker {
     public exposeTaskList() {
@@ -94,12 +103,17 @@ describe('SchedulerWorker — task list no longer carries heartbeat plumbing', (
 });
 
 describe('SchedulerWorker — pingPgOnce', () => {
-    it('runs SELECT 1 through withPgClient and marks pg reachable on success', async () => {
+    it('sends the jobs:insert NOTIFY heartbeat through withPgClient and marks pg reachable on success', async () => {
+        // The NOTIFY doubles as a pool liveness probe: it makes this process's
+        // own LISTEN client nudge the worker pool, so a terminated pool
+        // surfaces "nudge called after worker terminated" via
+        // pool:listen:error and trips the poolDead latch — even on an idle
+        // instance where nothing else generates NOTIFYs.
         const health = new SchedulerWorkerHealth('pod-xyz');
         const markPgReachableSpy = vi.spyOn(health, 'markPgReachable');
 
         const pgClient = {
-            query: vi.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }),
+            query: vi.fn().mockResolvedValue({ rows: [{ pg_notify: '' }] }),
         };
         const withPgClient = vi
             .fn()
@@ -113,7 +127,9 @@ describe('SchedulerWorker — pingPgOnce', () => {
         await worker.pingPgOnceExposed(health);
 
         expect(withPgClient).toHaveBeenCalledTimes(1);
-        expect(pgClient.query).toHaveBeenCalledWith('SELECT 1');
+        expect(pgClient.query).toHaveBeenCalledWith(
+            `SELECT pg_notify('jobs:insert', '')`,
+        );
         expect(markPgReachableSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -185,5 +201,78 @@ describe('SchedulerWorker — pingPgOnce', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+});
+
+describe('SchedulerWorker — runner promise settlement', () => {
+    const makeFakeRunner = () => {
+        let settle!: () => void;
+        const promise = new Promise<void>((resolve) => {
+            settle = resolve;
+        });
+        const runner = {
+            promise,
+            stop: vi.fn(async () => {
+                settle();
+            }),
+            addJob: vi.fn(),
+        } as unknown as Runner;
+        return { runner, settle };
+    };
+
+    const flushSettlement = async () => {
+        // The .finally continuation registered in run() executes on the
+        // microtask queue after the runner promise settles.
+        await new Promise((resolve) => {
+            setImmediate(resolve);
+        });
+    };
+
+    beforeEach(() => {
+        vi.mocked(runGraphileWorker).mockReset();
+    });
+
+    it('latches poolDead when the runner promise settles outside a graceful stop', async () => {
+        // graphile-worker 0.13 gives up permanently after e.g. 10 consecutive
+        // failed job acquisitions (Postgres restart). When its promise
+        // settles without stop() having been called, the pool is dead.
+        const health = new SchedulerWorkerHealth('pod-crash');
+        const markPoolDeadSpy = vi.spyOn(health, 'markPoolDead');
+        const { runner, settle } = makeFakeRunner();
+        vi.mocked(runGraphileWorker).mockResolvedValue(runner);
+
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(vi.fn().mockResolvedValue({ rows: [] }), health),
+        );
+        await worker.run();
+        expect(worker.isRunning).toBe(true);
+
+        settle();
+        await flushSettlement();
+
+        expect(worker.isRunning).toBe(false);
+        expect(markPoolDeadSpy).toHaveBeenCalledWith(
+            'graphile runner stopped unexpectedly',
+        );
+        expect(health.isHealthy(Date.now() + 1).ok).toBe(false);
+    });
+
+    it('does not latch poolDead when stop() settles the promise gracefully', async () => {
+        const health = new SchedulerWorkerHealth('pod-graceful');
+        const markPoolDeadSpy = vi.spyOn(health, 'markPoolDead');
+        const { runner } = makeFakeRunner();
+        vi.mocked(runGraphileWorker).mockResolvedValue(runner);
+
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(vi.fn().mockResolvedValue({ rows: [] }), health),
+        );
+        await worker.run();
+
+        await worker.stop();
+        await flushSettlement();
+
+        expect(worker.isRunning).toBe(false);
+        expect(runner.stop).toHaveBeenCalledTimes(1);
+        expect(markPoolDeadSpy).not.toHaveBeenCalled();
     });
 });
