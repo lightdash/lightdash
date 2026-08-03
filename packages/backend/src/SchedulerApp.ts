@@ -50,11 +50,17 @@ import { VERSION } from './version';
 
 const FEATURE_FLAG_CHECK_FLUSH_INTERVAL_MS = 15 * 60 * 1000;
 
-// Delay between the pool-dead latch firing and process.exit(1): long enough
-// for the health endpoint to serve a 503 and for logs/Sentry to flush, short
-// enough that the outage stays measured in seconds. There are no in-flight
-// jobs to drain — a dead pool executes nothing by definition.
-const POOL_DEAD_EXIT_DELAY_MS = 15_000;
+// Delay between the pool-dead latch firing and the fallback process.exit(1).
+// The PRIMARY restart path is the liveness probe: the latch flips
+// /api/v1/health to 503 immediately, the orchestrator SIGTERMs the pod, and
+// terminus runs worker.stop() so graphile fail_job-releases any in-flight
+// jobs for immediate retry (relevant when a single worker died while
+// siblings still process — the latch also fires there). The hard exit only
+// covers deployments with no liveness probe. It must stay comfortably above
+// the helm chart's scheduler liveness window (~305s: failureThreshold 20 x
+// periodSeconds 15) so the probe path, which shuts down cleanly, always wins
+// where configured.
+const POOL_DEAD_EXIT_DELAY_MS = 10 * 60_000;
 
 type SchedulerAppArguments = {
     lightdashConfig: LightdashConfig;
@@ -289,13 +295,14 @@ export default class SchedulerApp {
         const workerHealth = new SchedulerWorkerHealth(derivePoolIdFromEnv());
         // Crash-only recovery: a terminated graphile-worker pool cannot be
         // rebuilt in-process (0.13 never respawns dead workers), and queued
-        // jobs are durable, so the correct move is to exit and let the
-        // orchestrator start a fresh pod. The probe flips 503 immediately via
-        // the poolDead latch; the delayed exit is the belt-and-braces path in
-        // case no liveness probe is configured. Fires at most once.
+        // jobs are durable, so the correct move is to get this process
+        // replaced. The probe flips 503 immediately via the poolDead latch and
+        // the liveness probe restarts the pod gracefully; the delayed exit is
+        // the belt-and-braces path for deployments without a liveness probe.
+        // Fires at most once.
         workerHealth.onPoolDead((reason) => {
             Logger.error(
-                `[scheduler-health] worker pool is dead (${reason}); exiting in ${POOL_DEAD_EXIT_DELAY_MS}ms so the orchestrator restarts a fresh worker`,
+                `[scheduler-health] worker pool is dead (${reason}); health probe now reports 503, fallback exit in ${POOL_DEAD_EXIT_DELAY_MS}ms`,
             );
             Sentry.captureException(
                 new Error(`Scheduler worker pool dead: ${reason}`),

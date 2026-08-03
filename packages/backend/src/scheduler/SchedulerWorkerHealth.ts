@@ -220,18 +220,19 @@ export class SchedulerWorkerHealth {
             };
         }
 
-        // Idle is healthy only while wired for wake-up: LISTEN established and
-        // no unrecovered listen error. A dead pool cannot sustain this state —
+        // Idle is healthy only while wired for wake-up: LISTEN has been
+        // established at some point. An outstanding listen error is
+        // deliberately NOT checked here — the 60s budget above is the sole
+        // arbiter for transient reconnects, so an idle worker does not flip
+        // 503 on the first blip. A dead pool cannot hide behind this branch:
         // the minutely heartbeat NOTIFY makes its listener nudge the pool,
-        // which trips the poolDead latch above.
+        // which trips the poolDead latch above within a minute.
         //
         // Note this replaces the old `pgReachableFresh` voucher: a successful
         // ping proves DB reachability, which is precisely the condition that
         // still holds when the pool is dead after a transient Postgres outage.
         // It vouched 200 for workers that had executed nothing for days.
-        const listenUp =
-            this.lastListenSuccessAt !== null && this.listenLostAt === null;
-        if (listenUp) {
+        if (this.lastListenSuccessAt !== null) {
             return { ok: true };
         }
 

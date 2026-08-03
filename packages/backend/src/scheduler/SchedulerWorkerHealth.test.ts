@@ -299,7 +299,13 @@ describe('SchedulerWorkerHealth', () => {
             expect(health.isHealthy(muchLater + 30_000)).toEqual({ ok: true });
         });
 
-        it('is unhealthy when a listen error is outstanding, even before the budget, once activity is stale', () => {
+        it('tolerates a transient listen blip inside the 60s budget on an idle worker', () => {
+            // The 60s LISTEN budget is the sole arbiter for reconnects — an
+            // idle worker must not flip 503 on the first blip (that would be
+            // stricter than the old pgReachableFresh behavior and cause
+            // liveness churn on ordinary reconnects). Past the budget the
+            // LISTEN branch trips as before; a dead pool is caught by the
+            // poolDead latch, not this path.
             const health = new SchedulerWorkerHealth();
             const startedAt = Date.now();
             health.markListenUp();
@@ -309,14 +315,11 @@ describe('SchedulerWorkerHealth', () => {
             health.markPgReachable();
             health.markListenLost();
 
-            // 30s after the loss: inside the 60s LISTEN budget, but with no
-            // job activity and no established LISTEN the idle-ok path must
-            // not apply.
-            const result = health.isHealthy(lostAt + 30_000);
-            expect(result.ok).toBe(false);
-            expect(result.reason).toBe(
-                'no recent job activity and LISTEN not established',
-            );
+            expect(health.isHealthy(lostAt + 30_000)).toEqual({ ok: true });
+
+            const pastBudget = health.isHealthy(lostAt + LISTEN_BUDGET_MS + 1);
+            expect(pastBudget.ok).toBe(false);
+            expect(pastBudget.reason).toMatch(/^LISTEN connection lost/);
         });
     });
 
