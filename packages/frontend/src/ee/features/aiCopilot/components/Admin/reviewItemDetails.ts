@@ -65,6 +65,8 @@ export const writebackBlockedReasonLabels: Record<
     missing_agent: 'No agent is linked to this issue',
     missing_project_context_entry: 'No project context entry was generated',
     project_context_disabled: 'Project context is not enabled',
+    insufficient_source_code_access:
+        'You do not have permission to modify source code',
     unsupported_source_control: 'Project is not connected to GitHub or GitLab',
     git_app_not_installed: 'Git app is not installed',
     missing_writeback_config: 'Writeback runtime is not configured',
@@ -91,6 +93,8 @@ export const writebackBlockedReasonDescriptions: Partial<
         'Install the Lightdash app on your repository so it can open pull requests.',
     project_context_disabled:
         'Enable project context so Lightdash can propose updates to your project knowledge.',
+    insufficient_source_code_access:
+        'Ask a project admin for permission to manage source code before creating a pull request.',
     missing_writeback_config:
         'Ask an admin to configure the writeback runtime to enable automatic fixes.',
 };

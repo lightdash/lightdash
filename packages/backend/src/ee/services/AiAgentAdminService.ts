@@ -149,6 +149,8 @@ type ProjectWritebackAccess =
 
 type ProjectWritebackAccessEntry = [string, ProjectWritebackAccess];
 
+type SourceCodeAction = 'view' | 'manage';
+
 /**
  * Read-access scope for the org-wide AI admin surfaces (threads, agents,
  * reviews). `all` = org principal with `view:OrganizationAiAgent`; `projects`
@@ -454,6 +456,49 @@ export class AiAgentAdminService extends BaseService {
                 'Insufficient permissions to access AI agent reviews',
             );
         }
+    }
+
+    private assertSourceCodeAccess(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        action: SourceCodeAction,
+    ): void {
+        const sourceCodeSubject = subject('SourceCode', {
+            organizationUuid,
+            projectUuid,
+            ...(action === 'manage' ? { isProtectedBranch: false } : {}),
+        });
+        if (this.createAuditedAbility(user).cannot(action, sourceCodeSubject)) {
+            throw new ForbiddenError();
+        }
+    }
+
+    private getWritebackEligibility(
+        user: SessionUser,
+        args: Parameters<typeof getAiAgentReviewItemWritebackEligibility>[0],
+    ): AiAgentReviewItemWritebackEligibility {
+        const eligibility = getAiAgentReviewItemWritebackEligibility(args);
+        if (
+            !eligibility.eligible ||
+            !args.item.projectUuid ||
+            this.createAuditedAbility(user).can(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: args.item.organizationUuid,
+                    projectUuid: args.item.projectUuid,
+                    isProtectedBranch: false,
+                }),
+            )
+        ) {
+            return eligibility;
+        }
+
+        return unavailableWritebackEligibility(
+            'insufficient_source_code_access',
+            eligibility.strategy,
+            eligibility.provider,
+        );
     }
 
     /**
@@ -839,24 +884,21 @@ export class AiAgentAdminService extends BaseService {
         const reconciled = items.map((item) => {
             const override = overrides.get(item.fingerprint);
             const reconciledItem = { ...item, ...(override ?? {}) };
-            const writebackEligibility =
-                getAiAgentReviewItemWritebackEligibility({
-                    item: reconciledItem,
-                    reviewsEnabled,
-                    projectContextEnabled,
-                    projectAccess: reconciledItem.projectUuid
-                        ? (projectAccessByUuid.get(
-                              reconciledItem.projectUuid,
-                          ) ?? null)
-                        : null,
-                    hasSemanticWritebackConfig:
-                        this.hasSemanticWritebackConfig(),
-                    sourceThreadHasWritebackPr:
-                        !!reconciledItem.latestFinding?.threadUuid &&
-                        (writebackPrByThread.get(
-                            reconciledItem.latestFinding.threadUuid,
-                        )?.length ?? 0) > 0,
-                });
+            const writebackEligibility = this.getWritebackEligibility(user, {
+                item: reconciledItem,
+                reviewsEnabled,
+                projectContextEnabled,
+                projectAccess: reconciledItem.projectUuid
+                    ? (projectAccessByUuid.get(reconciledItem.projectUuid) ??
+                      null)
+                    : null,
+                hasSemanticWritebackConfig: this.hasSemanticWritebackConfig(),
+                sourceThreadHasWritebackPr:
+                    !!reconciledItem.latestFinding?.threadUuid &&
+                    (writebackPrByThread.get(
+                        reconciledItem.latestFinding.threadUuid,
+                    )?.length ?? 0) > 0,
+            });
 
             return {
                 ...reconciledItem,
@@ -1109,6 +1151,10 @@ export class AiAgentAdminService extends BaseService {
             case 'project_context_disabled':
                 throw new ParameterError(
                     'Project context writeback is not enabled',
+                );
+            case 'insufficient_source_code_access':
+                throw new ForbiddenError(
+                    'Insufficient permissions to manage source code',
                 );
             case 'unsupported_source_control':
                 throw new ParameterError(
@@ -1677,7 +1723,7 @@ export class AiAgentAdminService extends BaseService {
         const sourceThreadHasWritebackPr =
             finding !== null &&
             (writebackPrByThread.get(finding.threadUuid)?.length ?? 0) > 0;
-        const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
+        const writebackEligibility = this.getWritebackEligibility(user, {
             item: reviewItem,
             reviewsEnabled,
             projectContextEnabled,
@@ -1701,6 +1747,12 @@ export class AiAgentAdminService extends BaseService {
         }
         const { projectUuid } = scope;
         const { agentUuid } = scope;
+        this.assertSourceCodeAccess(
+            user,
+            organizationUuid,
+            projectUuid,
+            'manage',
+        );
 
         // Plan the writeback up front: for semantic_layer we seed a real
         // Build-fix thread with the writeback prompt so the workspace can show
@@ -1970,6 +2022,7 @@ export class AiAgentAdminService extends BaseService {
                     : null;
                 const writeback =
                     await this.projectContextService.writebackEntry({
+                        user,
                         projectUuid,
                         entry: plan.entry,
                         branchTimestamp: Date.now(),
@@ -2823,6 +2876,15 @@ export class AiAgentAdminService extends BaseService {
                 'No pull request is linked to this review item',
             );
         }
+        if (!reviewItem.projectUuid) {
+            throw new ForbiddenError();
+        }
+        this.assertSourceCodeAccess(
+            user,
+            organizationUuid,
+            reviewItem.projectUuid,
+            'view',
+        );
         const parsed = parsePullRequestUrl(reviewItem.linkedPrUrl);
         if (!parsed) {
             throw new NotFoundError(
@@ -2911,7 +2973,7 @@ export class AiAgentAdminService extends BaseService {
                   )
               ).get(reviewItem.latestFinding.threadUuid)?.length ?? 0) > 0
             : false;
-        const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
+        const writebackEligibility = this.getWritebackEligibility(user, {
             item: reviewItem,
             reviewsEnabled,
             projectContextEnabled,
@@ -2988,6 +3050,7 @@ export class AiAgentAdminService extends BaseService {
         }
 
         const preview = await this.projectContextService.previewWriteback({
+            user,
             projectUuid: reviewItem.projectUuid,
             entry: plan.entry,
         });

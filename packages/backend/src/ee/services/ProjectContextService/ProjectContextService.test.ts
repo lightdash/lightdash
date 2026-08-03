@@ -65,12 +65,33 @@ const existingEntries = (): ProjectContextEntry[] => [
     },
 ];
 
-const userWithIngestAccess = (canManage: boolean = true): SessionUser => {
+const userWithProjectContextAccess = ({
+    canCompile = true,
+    canViewSourceCode = true,
+    canManageSourceCode = true,
+}: {
+    canCompile?: boolean;
+    canViewSourceCode?: boolean;
+    canManageSourceCode?: boolean;
+} = {}): SessionUser => {
     const { build, can, rules } = new AbilityBuilder<MemberAbility>(Ability);
-    if (canManage) {
+    if (canCompile) {
         can('manage', 'CompileProject', {
             organizationUuid: ORG_UUID,
             projectUuid: PROJECT_UUID,
+        });
+    }
+    if (canViewSourceCode) {
+        can('view', 'SourceCode', {
+            organizationUuid: ORG_UUID,
+            projectUuid: PROJECT_UUID,
+        });
+    }
+    if (canManageSourceCode) {
+        can('manage', 'SourceCode', {
+            organizationUuid: ORG_UUID,
+            projectUuid: PROJECT_UUID,
+            isProtectedBranch: false,
         });
     }
 
@@ -148,10 +169,26 @@ describe('ProjectContextService.ingestProjectContext', () => {
 
         await expect(
             service.ingestProjectContext(
-                userWithIngestAccess(false),
+                userWithProjectContextAccess({ canCompile: false }),
                 PROJECT_UUID,
             ),
         ).rejects.toThrow(ForbiddenError);
+        expect(getCachedEntries()).toEqual(existingEntries());
+    });
+
+    test('requires view source-code access', async () => {
+        const { service, getCachedEntries } = makeService({});
+
+        await expect(
+            service.ingestProjectContext(
+                userWithProjectContextAccess({
+                    canViewSourceCode: false,
+                    canManageSourceCode: false,
+                }),
+                PROJECT_UUID,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(mockGetInstallationToken).not.toHaveBeenCalled();
         expect(getCachedEntries()).toEqual(existingEntries());
     });
 
@@ -163,7 +200,7 @@ describe('ProjectContextService.ingestProjectContext', () => {
             },
         });
         const result = await service.ingestProjectContext(
-            userWithIngestAccess(),
+            userWithProjectContextAccess(),
             PROJECT_UUID,
         );
         expect(result).toEqual({
@@ -178,7 +215,7 @@ describe('ProjectContextService.ingestProjectContext', () => {
             installationId: undefined,
         });
         const result = await service.ingestProjectContext(
-            userWithIngestAccess(),
+            userWithProjectContextAccess(),
             PROJECT_UUID,
         );
         expect(result).toEqual({
@@ -192,7 +229,7 @@ describe('ProjectContextService.ingestProjectContext', () => {
         mockGetFileContent.mockRejectedValue(new NotFoundError('missing'));
         const { service, getCachedEntries } = makeService({});
         const result = await service.ingestProjectContext(
-            userWithIngestAccess(),
+            userWithProjectContextAccess(),
             PROJECT_UUID,
         );
         expect(result).toEqual({ ingested: true, entryCount: 0 });
@@ -211,7 +248,7 @@ describe('ProjectContextService.ingestProjectContext', () => {
         });
         const { service, getCachedEntries } = makeService({});
         const result = await service.ingestProjectContext(
-            userWithIngestAccess(),
+            userWithProjectContextAccess(),
             PROJECT_UUID,
         );
         expect(result).toEqual({ ingested: true, entryCount: 1 });
@@ -230,9 +267,40 @@ describe('ProjectContextService.ingestProjectContext', () => {
         mockGetFileContent.mockRejectedValue(new Error('500 from GitHub'));
         const { service, getCachedEntries } = makeService({});
         await expect(
-            service.ingestProjectContext(userWithIngestAccess(), PROJECT_UUID),
+            service.ingestProjectContext(
+                userWithProjectContextAccess(),
+                PROJECT_UUID,
+            ),
         ).rejects.toThrow('500 from GitHub');
         expect(getCachedEntries()).toEqual(existingEntries());
+    });
+});
+
+describe('ProjectContextService.previewWriteback', () => {
+    const judgeEntry = {
+        op: 'create' as const,
+        id: null,
+        kind: 'definition' as const,
+        content: '"HR" = high-risk cohort.',
+        terms: ['HR'],
+        objects: [],
+    };
+
+    test('requires view source-code access before reading the file', async () => {
+        const { service } = makeService({});
+
+        await expect(
+            service.previewWriteback({
+                user: userWithProjectContextAccess({
+                    canViewSourceCode: false,
+                    canManageSourceCode: false,
+                }),
+                projectUuid: PROJECT_UUID,
+                entry: judgeEntry,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(mockGetInstallationToken).not.toHaveBeenCalled();
+        expect(mockGetFileContent).not.toHaveBeenCalled();
     });
 });
 
@@ -264,6 +332,7 @@ describe('ProjectContextService.writebackEntry', () => {
         const { service } = makeService({});
 
         const result = await service.writebackEntry({
+            user: userWithProjectContextAccess(),
             projectUuid: PROJECT_UUID,
             entry: { ...judgeEntry, objects: ['orders'] },
             branchTimestamp: 1000,
@@ -285,6 +354,7 @@ describe('ProjectContextService.writebackEntry', () => {
 
         const error = await service
             .writebackEntry({
+                user: userWithProjectContextAccess(),
                 projectUuid: PROJECT_UUID,
                 entry: { ...judgeEntry, op: 'update' as const, id: null },
                 branchTimestamp: 1000,
@@ -301,6 +371,7 @@ describe('ProjectContextService.writebackEntry', () => {
         const { service } = makeService({});
 
         const result = await service.writebackEntry({
+            user: userWithProjectContextAccess(),
             projectUuid: PROJECT_UUID,
             entry: judgeEntry,
             branchTimestamp: 1000,
@@ -345,6 +416,7 @@ describe('ProjectContextService.writebackEntry', () => {
         const { service } = makeService({});
 
         const result = await service.writebackEntry({
+            user: userWithProjectContextAccess(),
             projectUuid: PROJECT_UUID,
             entry: { ...judgeEntry, op: 'update', id: 'hr' },
             branchTimestamp: 2000,
@@ -367,6 +439,7 @@ describe('ProjectContextService.writebackEntry', () => {
         const { service } = makeService({ installationId: undefined });
         await expect(
             service.writebackEntry({
+                user: userWithProjectContextAccess(),
                 projectUuid: PROJECT_UUID,
                 entry: judgeEntry,
                 branchTimestamp: 1,
@@ -380,6 +453,7 @@ describe('ProjectContextService.writebackEntry', () => {
         const { service } = makeService({});
 
         await service.writebackEntry({
+            user: userWithProjectContextAccess(),
             projectUuid: PROJECT_UUID,
             entry: judgeEntry,
             branchTimestamp: 1000,
@@ -396,5 +470,23 @@ describe('ProjectContextService.writebackEntry', () => {
             'https://app.lightdash.com/projects/p/ai-agents/a/threads/t',
         );
         expect(body).toContain('prompt-123');
+    });
+
+    test('requires manage source-code access before creating a branch', async () => {
+        const { service } = makeService({});
+
+        await expect(
+            service.writebackEntry({
+                user: userWithProjectContextAccess({
+                    canManageSourceCode: false,
+                }),
+                projectUuid: PROJECT_UUID,
+                entry: judgeEntry,
+                branchTimestamp: 1000,
+                sourceThread: null,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(mockGetInstallationToken).not.toHaveBeenCalled();
+        expect(mockCreateBranch).not.toHaveBeenCalled();
     });
 });
