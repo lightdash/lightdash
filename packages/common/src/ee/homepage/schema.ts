@@ -110,6 +110,36 @@ const quickActionsBlockSchema = z.object({
     config: z.object({ actions: z.array(quickActionSchema) }),
 });
 
+const ctaTargetSchema = z.discriminatedUnion('type', [
+    z.object({ type: z.literal('ask-ai') }),
+    z.object({ type: z.literal('run-query') }),
+    z.object({ type: z.literal('browse-dashboards') }),
+    z.object({ type: z.literal('browse-spaces') }),
+    z.object({
+        type: z.literal('dashboard'),
+        dashboardUuid: z.string(),
+        label: z.string(),
+    }),
+    z.object({ type: z.literal('link'), url: z.string() }),
+]);
+
+const ctaBlockSchema = z.object({
+    id: z.string(),
+    type: z.literal('cta'),
+    config: z.object({
+        title: z.string().optional(),
+        description: z.string().optional(),
+        buttonLabel: z.string(),
+        target: ctaTargetSchema,
+        theme: z
+            .enum(['brand', 'accent', 'dark', 'neutral', 'custom'])
+            .optional(),
+        customColor: z.string().optional(),
+        background: z.enum(['none', 'card', 'theme']).optional(),
+        align: z.enum(['left', 'center', 'right']).optional(),
+    }),
+});
+
 const metricRefSchema = z.object({
     tableName: z.string(),
     metricName: z.string(),
@@ -142,6 +172,7 @@ export const homepageBlockSchema = z.discriminatedUnion('type', [
     resourcesBlockSchema,
     announcementsBlockSchema,
     quickActionsBlockSchema,
+    ctaBlockSchema,
     metricsBlockSchema,
     favoritesBlockSchema,
     recentBlockSchema,

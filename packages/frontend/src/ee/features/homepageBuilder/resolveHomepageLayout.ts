@@ -165,6 +165,8 @@ const isConfigEmptyBlock = (block: HomepageBlock): boolean => {
             return (block.config.items?.length ?? 0) === 0;
         case 'quick-actions':
             return (block.config.actions?.length ?? 0) === 0;
+        case 'cta':
+            return (block.config.buttonLabel ?? '').trim() === '';
         case 'markdown':
             return (block.config.content ?? '').trim() === '';
         // Visibility depends on runtime data (viewer, AI availability, the
@@ -226,6 +228,7 @@ const hugUnitsFor = (block: HomepageBlock): ResolvedColumn['hugUnits'] => {
         case 'recent':
         case 'markdown':
         case 'quick-actions':
+        case 'cta':
         case 'ask-ai-hero':
         case 'greeting':
             return null;

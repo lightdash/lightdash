@@ -176,6 +176,48 @@ export type HomepageQuickActionsBlock = {
     config: { actions: HomepageQuickAction[] };
 };
 
+/** Where the CTA button leads: the quick-action vocabulary plus a free URL. */
+export type HomepageCtaTarget =
+    | HomepageQuickActionTarget
+    | { type: 'link'; url: string };
+
+/** Semantic theme tokens, resolved at render from the org's brand colors —
+ * a rebrand restyles every CTA without touching stored configs. `custom`
+ * reads the block's own `customColor`. */
+export type HomepageCtaTheme =
+    | 'brand'
+    | 'accent'
+    | 'dark'
+    | 'neutral'
+    | 'custom';
+
+/** The block's container: invisible (just the button on the page), a neutral
+ * card, or a surface painted with the theme (the button then inverts it). */
+export type HomepageCtaBackground = 'none' | 'card' | 'theme';
+
+/** Where a bare (title-less) CTA button sits in its row. */
+export type HomepageCtaAlign = 'left' | 'center' | 'right';
+
+export type HomepageCtaBlock = {
+    id: string;
+    type: 'cta';
+    config: {
+        /** Optional: without it the CTA is just its button. */
+        title?: string;
+        description?: string;
+        buttonLabel: string;
+        target: HomepageCtaTarget;
+        // Optional for back-compat: undefined renders as 'brand'.
+        theme?: HomepageCtaTheme;
+        /** Hex color used when `theme` is `custom`. */
+        customColor?: string;
+        // Optional: undefined renders as 'none' (chromeless).
+        background?: HomepageCtaBackground;
+        // Optional: undefined centres the bare button. Ignored with a title.
+        align?: HomepageCtaAlign;
+    };
+};
+
 export type HomepageMetricRef = {
     tableName: string;
     metricName: string;
@@ -242,6 +284,7 @@ export type HomepageBlock =
     | HomepageAnnouncementsBlock
     | HomepageMetricsBlock
     | HomepageQuickActionsBlock
+    | HomepageCtaBlock
     | HomepageFavoritesBlock
     | HomepageRecentBlock;
 

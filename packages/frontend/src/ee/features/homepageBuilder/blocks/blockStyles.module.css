@@ -108,6 +108,177 @@ a .hoverCard:hover,
     overflow: hidden;
 }
 
+/* ---- CTA banner ----
+ * The page's one loud moment. Paint arrives as CSS vars resolved from the
+ * org's brand (see CtaBlock): solid hex or avatar-mesh gradient layers, on
+ * the banner or just the button. The [data-theme] attribute doubles as a
+ * specificity bump over the generic link/row helpers later in this file. */
+.ctaBanner[data-theme] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 24px 28px;
+    border-radius: 14px;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--cta-bg, transparent);
+    color: var(--cta-fg, inherit);
+    box-shadow: var(--mantine-shadow-subtle);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Sheen sits top-right, where the button lives. */
+.ctaBanner[data-theme]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+        120% 200% at 100% 0%,
+        rgb(255 255 255 / 12%),
+        transparent 55%
+    );
+}
+
+.ctaBanner[data-bg='card'] {
+    background-color: light-dark(#fff, var(--mantine-color-dark-6));
+    background-image: none;
+    color: light-dark(var(--mantine-color-ldGray-9), #fff);
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.ctaBanner[data-bg='card']::after {
+    background: radial-gradient(
+        120% 200% at 100% 0%,
+        light-dark(rgb(0 0 0 / 3%), rgb(255 255 255 / 5%)),
+        transparent 55%
+    );
+}
+
+/* No background at all: the button (and any text) sits directly on the page.
+ * The container keeps only its row layout. */
+.ctaBanner[data-bg='none'] {
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+    padding: 4px 0;
+    color: light-dark(var(--mantine-color-ldGray-9), #fff);
+}
+
+.ctaBanner[data-bg='none']::after {
+    content: none;
+}
+
+/* A button-only CTA is a slimmer band; the admin picks where the button sits. */
+.ctaBanner[data-buttononly='true'] {
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.ctaBanner[data-buttononly='true'][data-bg='none'] {
+    padding: 4px 0;
+}
+
+.ctaBanner[data-buttononly='true'][data-align='left'] {
+    justify-content: flex-start;
+}
+
+.ctaBanner[data-buttononly='true'][data-align='center'] {
+    justify-content: center;
+}
+
+.ctaBanner[data-buttononly='true'][data-align='right'] {
+    justify-content: flex-end;
+}
+
+.ctaBanner[data-theme].clickable:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.ctaBanner[data-bg='none'].clickable:hover {
+    box-shadow: none;
+    transform: none;
+}
+
+.ctaBody {
+    min-width: 0;
+    position: relative;
+}
+
+.ctaTitle {
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    line-height: 1.25;
+}
+
+.ctaDesc {
+    margin-top: 3px;
+    font-size: 13.5px;
+    opacity: 0.82;
+}
+
+/* The button is a styled span — the whole banner is the link. On a painted
+ * banner it inverts the banner's colors; with fill=button it carries the
+ * paint itself on a neutral banner. */
+.ctaButton {
+    position: relative;
+    flex-shrink: 0;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    background-color: var(
+        --cta-fg,
+        light-dark(var(--mantine-color-ldGray-9), #fff)
+    );
+    color: var(--cta-bg, light-dark(#fff, var(--mantine-color-ldGray-9)));
+    box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ctaButton[data-fill='button'] {
+    background-color: var(
+        --cta-btn-bg,
+        light-dark(var(--mantine-color-ldGray-9), #fff)
+    );
+    background-image: var(--cta-btn-bg-image, none);
+    background-blend-mode: var(--cta-btn-bg-blend, normal);
+    background-size: var(--cta-btn-bg-size, auto);
+    color: var(--cta-btn-fg, light-dark(#fff, var(--mantine-color-ldGray-9)));
+}
+
+.ctaBanner[data-theme].clickable:hover .ctaButton {
+    transform: scale(1.03);
+}
+
+/* Theme picker swatches in the build panel — same paint vars as the banner. */
+.ctaSwatch {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background-color: var(--cta-bg, transparent);
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.12s ease-in-out;
+}
+
+.ctaSwatch[data-neutral='true'] {
+    background-color: light-dark(#fff, var(--mantine-color-dark-6));
+}
+
+.ctaSwatch[data-selected='true'] {
+    outline: 2px solid var(--mantine-color-blue-5);
+    outline-offset: 1px;
+}
+
 /* Compact mode's geometry resolves itself: as many tile columns as the
  * block's width affords, collapsing to a single column of rows when narrow.
  * The admin picks the density; the grid picks the arrangement. */

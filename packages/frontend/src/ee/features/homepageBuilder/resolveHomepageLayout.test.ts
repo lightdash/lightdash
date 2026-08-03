@@ -59,6 +59,16 @@ const makeBlock = (
         case 'favorites':
         case 'recent':
             return { id, type, config: { title: 't' } };
+        case 'cta':
+            return {
+                id,
+                type,
+                config: {
+                    title: empty ? ' ' : 'Explore',
+                    buttonLabel: empty ? '' : 'Go',
+                    target: { type: 'run-query' },
+                },
+            };
         case 'greeting':
             return { id, type, config: { subtitle: 's' } };
         default:
