@@ -1000,9 +1000,18 @@ export const convertTable = (
     );
     const defaultShowUnderlyingValues =
         expandedDefaultShowUnderlyingValues?.fields.filter((ref) => {
-            const [tableRef, fieldRef] = ref.includes('.')
-                ? ref.split('.')
-                : [model.name, ref];
+            const parts = ref.split('.');
+            if (parts.length > 2) {
+                tableWarnings.push(
+                    showUnderlyingValuesWarning(
+                        showUnderlyingValuesContext,
+                        `Invalid reference "${ref}".`,
+                    ),
+                );
+                return false;
+            }
+            const [tableRef, fieldRef] =
+                parts.length === 2 ? parts : [model.name, ref];
             if (tableRef !== model.name) {
                 // Refs to other models can only resolve at explore compile time.
                 return true;
