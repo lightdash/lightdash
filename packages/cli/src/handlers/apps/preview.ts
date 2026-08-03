@@ -82,7 +82,9 @@ export const assertScaffoldingSupportsPreviewProxy = async (
         .catch(() => '');
     if (!viteConfig.includes('LIGHTDASH_PREVIEW_PROXY_TARGET')) {
         throw new Error(
-            `This app's scaffolding predates the secure preview proxy. Re-download the app ('lightdash download --apps <appUuid>') to refresh vite.config.js, then run preview again.`,
+            `This app's scaffolding predates the secure preview proxy. Re-download the app ('lightdash download --apps ${path.basename(
+                appDir,
+            )}') to refresh vite.config.js, then run preview again.`,
         );
     }
 };
