@@ -496,6 +496,72 @@ describe('extractChartTableNames', () => {
     });
 });
 
+describe('selectVirtualViewCandidates', () => {
+    const chart = (slug: string, tableName: string | undefined): AnyType => ({
+        slug,
+        tableName,
+    });
+
+    it('collects table names of explicitly selected charts', () => {
+        expect(
+            testHelpers.selectVirtualViewCandidates({
+                chartItems: [
+                    chart('wanted', 'my_virtual_view'),
+                    chart('other', 'other_view'),
+                ],
+                chartSlugs: ['wanted'],
+                dashboardItems: [],
+                dashboardSlugs: [],
+            }),
+        ).toEqual(['my_virtual_view']);
+    });
+
+    it('collects table names of the selected dashboards charts only', () => {
+        expect(
+            testHelpers.selectVirtualViewCandidates({
+                chartItems: [
+                    chart('dash-chart', 'my_virtual_view'),
+                    chart('other-dash-chart', 'other_view'),
+                ],
+                chartSlugs: [],
+                dashboardItems: [
+                    makeLooseDashboard('wanted-dash', ['dash-chart']),
+                    makeLooseDashboard('other-dash', ['other-dash-chart']),
+                ],
+                dashboardSlugs: ['wanted-dash'],
+            }),
+        ).toEqual(['my_virtual_view']);
+    });
+
+    it('ignores dashboards entirely when none are selected', () => {
+        expect(
+            testHelpers.selectVirtualViewCandidates({
+                chartItems: [chart('dash-chart', 'my_virtual_view')],
+                chartSlugs: [],
+                dashboardItems: [
+                    makeLooseDashboard('some-dash', ['dash-chart']),
+                ],
+                dashboardSlugs: [],
+            }),
+        ).toEqual([]);
+    });
+
+    it('dedupes across sources and drops charts without a table name', () => {
+        expect(
+            testHelpers.selectVirtualViewCandidates({
+                chartItems: [
+                    chart('a-chart', 'shared_view'),
+                    chart('b-chart', 'shared_view'),
+                    chart('sql-chart', undefined),
+                ],
+                chartSlugs: ['a-chart', 'sql-chart'],
+                dashboardItems: [makeLooseDashboard('dash', ['b-chart'])],
+                dashboardSlugs: ['dash'],
+            }),
+        ).toEqual(['shared_view']);
+    });
+});
+
 describe('getDashboardAppSlugs', () => {
     let tmpDir: string;
 
@@ -830,6 +896,71 @@ version: 1
         expect(lightdashApi).not.toHaveBeenCalled();
         expect(logSpy).toHaveBeenCalledExactlyOnceWith(
             expect.stringContaining('Error uploading virtual views'),
+        );
+    });
+
+    it('uploads candidate matches only, silent on unmatched candidates', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'my_view.yml'),
+            virtualView('my_view'),
+        );
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'unrelated_view.yml'),
+            virtualView('unrelated_view'),
+        );
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'create',
+        } as never);
+
+        const changes = await upsertVirtualViews(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+            ['my_view', 'orders', 'customers'],
+        );
+
+        expect(changes).toEqual({ 'virtual views created': 1 });
+        expect(lightdashApi).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                url: expect.stringContaining('/code/virtualViews/my_view'),
+            }),
+        );
+        expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it('still warns about explicit slugs missing locally when candidates are present', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'my_view.yml'),
+            virtualView('my_view'),
+        );
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            action: 'update',
+        } as never);
+
+        const changes = await upsertVirtualViews(
+            'project-uuid',
+            ['missing_view'],
+            {},
+            false,
+            true,
+            tmpDir,
+            ['my_view'],
+        );
+
+        expect(changes).toEqual({ 'virtual views updated': 1 });
+        expect(logSpy).toHaveBeenCalledExactlyOnceWith(
+            expect.stringContaining(
+                'Virtual view "missing_view" was not found locally',
+            ),
         );
     });
 });

@@ -1084,11 +1084,18 @@ const upsertVirtualViews = async (
     force: boolean,
     canUpload: boolean,
     customPath?: string,
+    candidateSlugs: string[] = [],
 ): Promise<Record<string, number>> => {
     const virtualViews = await readVirtualViewFiles(customPath);
-    const selected = slugs.length
-        ? virtualViews.filter(({ slug }) => slugs.includes(slug))
-        : virtualViews;
+    // Candidates are chart table names, and most are regular dbt explores
+    // with no local file — unmatched candidates never warn; explicit slugs do.
+    const candidateSet = new Set(candidateSlugs);
+    const selected =
+        slugs.length > 0 || candidateSet.size > 0
+            ? virtualViews.filter(
+                  ({ slug }) => slugs.includes(slug) || candidateSet.has(slug),
+              )
+            : virtualViews;
     const selectedSlugs = new Set(selected.map(({ slug }) => slug));
     slugs
         .filter((slug) => !selectedSlugs.has(slug))
@@ -2935,6 +2942,33 @@ const selectDashboardAppSlugs = (
     ),
 ];
 
+// Virtual views a filtered upload should carry: the table names of the local
+// charts selected explicitly (-c) or referenced by the selected dashboards'
+// tiles. Dashboards contribute only when some are selected — a filtered
+// upload without -d uploads no dashboards, so there is nothing to derive.
+const selectVirtualViewCandidates = ({
+    chartItems,
+    chartSlugs,
+    dashboardItems,
+    dashboardSlugs,
+}: {
+    chartItems: ChartAsCode[];
+    chartSlugs: string[];
+    dashboardItems: DashboardAsCode[];
+    dashboardSlugs: string[];
+}): string[] => {
+    const selectedChartSlugs = new Set([
+        ...chartSlugs,
+        ...(dashboardSlugs.length > 0
+            ? selectDashboardChartSlugs(dashboardItems, dashboardSlugs)
+            : []),
+    ]);
+    if (selectedChartSlugs.size === 0) return [];
+    return extractChartTableNames(
+        chartItems.filter((chart) => selectedChartSlugs.has(chart.slug)),
+    );
+};
+
 const getDashboardChartSlugs = async (
     dashboardSlugs: string[],
     customPath?: string,
@@ -3132,11 +3166,53 @@ export const uploadHandler = async (
             );
         }
 
+        // The Virtual views, Data apps and Charts phases all derive slugs
+        // from the same dashboard YAML; read the download folder once and
+        // share it.
+        let dashboardItemsPromise: Promise<DashboardAsCode[]> | undefined;
+        const loadDashboardItems = () => {
+            dashboardItemsPromise =
+                dashboardItemsPromise ??
+                readDashboardItems(options.path, looseFiles.dashboards);
+            return dashboardItemsPromise;
+        };
+
         if (!options.skipVirtualViews) {
-            if (hasFilters && options.virtualViews.length === 0) {
+            // --include-virtual-views on a filtered upload also pushes the
+            // virtual views backing the selected charts and dashboards. An
+            // unfiltered upload already pushes every local virtual view.
+            let virtualViewCandidates: string[] = [];
+            if (
+                options.includeVirtualViews === true &&
+                hasFilters &&
+                (options.charts.length > 0 || options.dashboards.length > 0)
+            ) {
+                virtualViewCandidates = selectVirtualViewCandidates({
+                    chartItems: [
+                        ...(await readCodeFiles<ChartAsCode>(
+                            'charts',
+                            options.path,
+                        )),
+                        ...looseFiles.charts,
+                    ],
+                    chartSlugs: options.charts,
+                    dashboardItems:
+                        options.dashboards.length > 0
+                            ? await loadDashboardItems()
+                            : [],
+                    dashboardSlugs: options.dashboards,
+                });
+            }
+            if (
+                hasFilters &&
+                options.virtualViews.length === 0 &&
+                virtualViewCandidates.length === 0
+            ) {
                 GlobalState.log(
                     styles.warning(
-                        `No virtual view filters provided, skipping`,
+                        options.includeVirtualViews === true
+                            ? `No virtual views referenced by the selected content, skipping`
+                            : `No virtual view filters provided, skipping`,
                     ),
                 );
             } else {
@@ -3152,6 +3228,7 @@ export const uploadHandler = async (
                             options.force,
                             uploadPermissions.virtualViews,
                             options.path,
+                            virtualViewCandidates,
                         ),
                 });
             }
@@ -3183,16 +3260,6 @@ export const uploadHandler = async (
                 });
             }
         }
-
-        // Both the Data apps and Charts phases derive slugs from the same
-        // dashboard YAML; read the download folder once and share it.
-        let dashboardItemsPromise: Promise<DashboardAsCode[]> | undefined;
-        const loadDashboardItems = () => {
-            dashboardItemsPromise =
-                dashboardItemsPromise ??
-                readDashboardItems(options.path, looseFiles.dashboards);
-            return dashboardItemsPromise;
-        };
 
         // Upload data apps (enterprise; explicit --apps/--include-apps, or
         // auto-pushed for a dashboard's apps). Must land before dashboards.
@@ -3855,6 +3922,7 @@ export const testHelpers = {
     readSpaceFiles,
     readSpaceNames,
     sanitizeChartForDownload,
+    selectVirtualViewCandidates,
     shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
     sortSpaceFilesParentFirst,
