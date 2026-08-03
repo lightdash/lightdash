@@ -13,6 +13,7 @@ export * from './apps/deliveryCapture';
 export * from './apps/sdkFeatures';
 export * from './apps/types';
 export * from './apps/code';
+export * from './apps/dataReferences';
 export * from './apps/sdkBridgeRoutes';
 export * from './ambientAi';
 export * from './commercialFeatureFlags';
