@@ -16057,6 +16057,10 @@
                     "data_app_viz"
                 ]
             },
+            "DataAppCreationExperience": {
+                "type": "string",
+                "enum": ["app_builder", "explorer_chart_config"]
+            },
             "AppChartReference": {
                 "properties": {
                     "linkLive": {
@@ -16165,6 +16169,9 @@
                         },
                         "type": "array",
                         "deprecated": true
+                    },
+                    "creationExperience": {
+                        "$ref": "#/components/schemas/DataAppCreationExperience"
                     },
                     "template": {
                         "$ref": "#/components/schemas/DataAppTemplate"
@@ -16894,6 +16901,9 @@
                             "$ref": "#/components/schemas/AppVersionFileResource"
                         },
                         "type": "array"
+                    },
+                    "creationExperience": {
+                        "$ref": "#/components/schemas/DataAppCreationExperience"
                     },
                     "images": {
                         "items": {
@@ -51715,7 +51725,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.61.1",
+        "version": "1.62.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

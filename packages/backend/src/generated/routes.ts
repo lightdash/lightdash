@@ -14762,6 +14762,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppCreationExperience: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['app_builder'] },
+                { dataType: 'enum', enums: ['explorer_chart_config'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AppChartReference: {
         dataType: 'refAlias',
         type: {
@@ -14857,6 +14869,7 @@ const models: TsoaRoute.Models = {
                 appUuid: { dataType: 'string' },
                 fileIds: { dataType: 'array', array: { dataType: 'string' } },
                 imageIds: { dataType: 'array', array: { dataType: 'string' } },
+                creationExperience: { ref: 'DataAppCreationExperience' },
                 template: { ref: 'DataAppTemplate' },
                 prompt: { dataType: 'string', required: true },
             },
@@ -15531,6 +15544,7 @@ const models: TsoaRoute.Models = {
                         ref: 'AppVersionFileResource',
                     },
                 },
+                creationExperience: { ref: 'DataAppCreationExperience' },
                 images: {
                     dataType: 'array',
                     array: {

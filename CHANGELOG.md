@@ -1,3 +1,16 @@
+# [1.62.0](https://github.com/lightdash/lightdash/compare/1.61.1...1.62.0) (2026-08-03)
+
+
+### Bug Fixes
+
+* **ai:** stub native chart rendering in runQuery unit test ([#26678](https://github.com/lightdash/lightdash/issues/26678)) ([5f57b64](https://github.com/lightdash/lightdash/commit/5f57b64bfc76d5fe9f86955ccf911cd43cfa4bfe))
+* **e2e:** fill required onboarding field in space test ([#26674](https://github.com/lightdash/lightdash/issues/26674)) ([8bb7dfd](https://github.com/lightdash/lightdash/commit/8bb7dfd59bf9e07f5c937ee0001148e39a0562aa))
+
+
+### Features
+
+* track data app creation experience ([#26654](https://github.com/lightdash/lightdash/issues/26654)) ([901b4a2](https://github.com/lightdash/lightdash/commit/901b4a23bef4f66d7715dec35241b023eec757b8))
+
 ## [1.61.1](https://github.com/lightdash/lightdash/compare/1.61.0...1.61.1) (2026-08-03)
 
 
