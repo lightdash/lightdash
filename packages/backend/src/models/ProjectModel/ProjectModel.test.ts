@@ -16,8 +16,10 @@ import {
     FieldType,
     MetricType,
     NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
     ProjectMemberRole,
+    ServiceAccountScope,
     SpaceMemberRole,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -26,6 +28,7 @@ import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
 import { ProjectMembershipsTableName } from '../../database/entities/projectMemberships';
 import {
@@ -935,6 +938,41 @@ describe('ProjectModel', () => {
             expect(bindings).toContain(ProjectMemberRole.EDITOR);
             expect(bindings).toContain(ProjectMemberRole.VIEWER);
             expect(bindings).toContain('custom-role-1');
+        });
+
+        test('updates grants, service-account scope, and organization role in one transaction', async () => {
+            tracker.on
+                .select(matchSql(ServiceAccountsTableName))
+                .response([{ user_id: 1, organization_uuid: 'org-1' }]);
+            tracker.on
+                .select(matchSql(ProjectTableName))
+                .response([
+                    { project_uuid: 'p-1', project_id: 10, org_uuid: 'org-1' },
+                ]);
+            tracker.on
+                .delete(matchSql(ProjectMembershipsTableName))
+                .response([]);
+            tracker.on
+                .insert(matchSql(ProjectMembershipsTableName))
+                .response([]);
+            tracker.on.update(matchSql(ServiceAccountsTableName)).response([]);
+            tracker.on
+                .update(matchSql(OrganizationMembershipsTableName))
+                .response([]);
+
+            await model.setServiceAccountProjectAccess(
+                SA_UUID,
+                [{ projectUuid: 'p-1', role: ProjectMemberRole.EDITOR }],
+                { makeProjectScoped: true },
+            );
+
+            expect(tracker.history.update).toHaveLength(2);
+            expect(tracker.history.update[0].bindings).toContainEqual([
+                ServiceAccountScope.SYSTEM_MEMBER,
+            ]);
+            expect(tracker.history.update[1].bindings).toContain(
+                OrganizationMemberRole.MEMBER,
+            );
         });
     });
 });

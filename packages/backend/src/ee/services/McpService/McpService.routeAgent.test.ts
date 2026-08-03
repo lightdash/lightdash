@@ -346,4 +346,70 @@ describe('McpService route_agent', () => {
         expect(rendered).toContain('slug="allowed-space"');
         expect(rendered).not.toContain('slug="blocked-space"');
     });
+
+    it('rejects a project argument that differs from the pinned project', async () => {
+        const { aiRouterService } = makeMcpService();
+        const routeAgentTool = mockRegisteredMcpTools.get(
+            McpToolName.ROUTE_AGENT,
+        );
+        const pinnedExtra = {
+            ...extra,
+            authInfo: {
+                extra: {
+                    ...extra.authInfo.extra,
+                    headerProjectUuid: projectUuid,
+                },
+            },
+        };
+
+        await expect(
+            routeAgentTool!(
+                {
+                    prompt: 'show revenue by month',
+                    projectUuid: 'another-project-uuid',
+                },
+                pinnedExtra,
+            ),
+        ).rejects.toThrow(
+            'The requested project does not match the pinned MCP project',
+        );
+        expect(aiRouterService.routePromptToAgent).not.toHaveBeenCalled();
+    });
+
+    it('uses pinned project context instead of a stored project and agent', async () => {
+        const { aiAgentService, storedContext } = makeMcpService();
+        storedContext.projectUuid = 'stored-project-uuid';
+        storedContext.agentUuid = 'stored-agent-uuid';
+        const getCurrentProjectTool = mockRegisteredMcpTools.get(
+            McpToolName.GET_CURRENT_PROJECT,
+        );
+        const getCurrentAgentTool = mockRegisteredMcpTools.get(
+            McpToolName.GET_CURRENT_AGENT,
+        );
+        const pinnedExtra = {
+            ...extra,
+            authInfo: {
+                extra: {
+                    ...extra.authInfo.extra,
+                    headerProjectUuid: projectUuid,
+                },
+            },
+        };
+
+        const projectResult = (await getCurrentProjectTool!(
+            {},
+            pinnedExtra,
+        )) as { content: Array<{ text: string }> };
+        const agentResult = (await getCurrentAgentTool!({}, pinnedExtra)) as {
+            content: Array<{ text: string }>;
+        };
+
+        expect(JSON.parse(projectResult.content[0].text)).toEqual(
+            expect.objectContaining({ projectUuid }),
+        );
+        expect(JSON.parse(agentResult.content[0].text)).toEqual({
+            error: 'No active agent set. Use set_agent to set one.',
+        });
+        expect(aiAgentService.getAgent).not.toHaveBeenCalled();
+    });
 });

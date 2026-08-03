@@ -426,9 +426,15 @@ export const managedAgentConfig: AgentCreateParams = {
 
 type RenderManagedAgentConfigArgs = {
     lightdashSiteUrl: string;
+    projectUuid: string;
     skillIds: string[];
     toolSettings?: Record<string, boolean>;
 };
+
+export const getManagedAgentMcpUrl = (
+    lightdashSiteUrl: string,
+    projectUuid: string,
+) => `${lightdashSiteUrl}/api/v1/mcp/projects/${projectUuid}`;
 
 const managedAgentCapabilityTools = {
     createContent: ['create_content_from_code'],
@@ -455,6 +461,7 @@ export const normalizeManagedAgentToolSettings = (
 
 export const renderManagedAgentConfig = ({
     lightdashSiteUrl,
+    projectUuid,
     skillIds,
     toolSettings = {},
 }: RenderManagedAgentConfigArgs): AgentCreateParams => {
@@ -478,7 +485,7 @@ export const renderManagedAgentConfig = ({
             {
                 name: 'lightdash',
                 type: 'url',
-                url: `${lightdashSiteUrl}/api/v1/mcp`,
+                url: getManagedAgentMcpUrl(lightdashSiteUrl, projectUuid),
             },
         ];
         // eslint-disable-next-line no-param-reassign

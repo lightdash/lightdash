@@ -431,12 +431,12 @@ export class ServiceAccountService extends BaseService {
             await this.projectModel.setServiceAccountProjectAccess(
                 tokenUuid,
                 grants,
+                { makeProjectScoped: true },
             );
             updated = await this.serviceAccountModel.update({
                 serviceAccountUuid: tokenUuid,
                 data: {
                     description: update.description,
-                    scopes: [ServiceAccountScope.SYSTEM_MEMBER],
                 },
             });
         } else if (hasOrgPermission) {
