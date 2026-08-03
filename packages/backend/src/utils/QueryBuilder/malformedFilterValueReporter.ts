@@ -74,7 +74,7 @@ export const reportMalformedFilterValues = (
             return;
         }
 
-        // Capture malformed filter attempts before compiler validation rejects them.
+        // Arrays are rejected by the compiler; objects remain monitored for compatibility.
         filterRule.values?.forEach((value, valueIndex) => {
             if (
                 typeof value === 'object' &&

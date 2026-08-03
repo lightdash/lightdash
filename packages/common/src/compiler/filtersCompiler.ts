@@ -954,10 +954,8 @@ const escapeStringValuesOnFilterRule = (
 ): FilterRule<FilterOperator, unknown> => ({
     ...filterRule,
     values: filterRule.values?.map((v) => {
-        if (typeof v === 'object' && v !== null && !(v instanceof Date)) {
-            throw new CompileError(
-                'Complex objects or arrays are not permitted as filter values',
-            );
+        if (Array.isArray(v)) {
+            throw new CompileError('Arrays are not permitted as filter values');
         }
 
         return typeof v === 'string'

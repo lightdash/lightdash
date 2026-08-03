@@ -1655,40 +1655,31 @@ describe('Filter SQL', () => {
         expect(render).toThrowError(
             expect.objectContaining({
                 statusCode: 400,
-                message:
-                    'Complex objects or arrays are not permitted as filter values',
+                message: 'Arrays are not permitted as filter values',
             }),
         );
     });
 
-    test('should reject object filter values before rendering SQL', () => {
-        const render = () =>
-            renderFilterRuleSql(
-                {
-                    id: 'filter-rule',
-                    target: { fieldId: 'payments_payment_method' },
-                    operator: FilterOperator.EQUALS,
-                    values: [{ value: 'coupon' }],
-                    caseSensitive: true,
-                },
-                DimensionType.STRING,
-                stringFilterDimension,
-                "'",
-                (value) => value.replaceAll("'", "''"),
-                WeekDay.MONDAY,
-                SupportedDbtAdapter.POSTGRES,
-                'UTC',
-                true,
-            );
-
-        expect(render).toThrowError(CompileError);
-        expect(render).toThrowError(
-            expect.objectContaining({
-                statusCode: 400,
-                message:
-                    'Complex objects or arrays are not permitted as filter values',
-            }),
+    test('should preserve object filter values for compatibility', () => {
+        const sql = renderFilterRuleSql(
+            {
+                id: 'filter-rule',
+                target: { fieldId: 'payments_payment_method' },
+                operator: FilterOperator.EQUALS,
+                values: [{ value: 'coupon' }],
+                caseSensitive: true,
+            },
+            DimensionType.STRING,
+            stringFilterDimension,
+            "'",
+            (value) => value.replaceAll("'", "''"),
+            WeekDay.MONDAY,
+            SupportedDbtAdapter.POSTGRES,
+            'UTC',
+            true,
         );
+
+        expect(sql).toContain('[object Object]');
     });
 
     test('should allow date object filter values before rendering date SQL', () => {
