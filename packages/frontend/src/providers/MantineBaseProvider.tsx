@@ -3,8 +3,8 @@ import {
     type MantineThemeOverride,
 } from '@mantine/core';
 import { useContext, useMemo, type FC } from 'react';
-import { cssVariablesResolver } from '../mantine8CssVariablesResolver';
-import { getMantine8ThemeOverride } from '../mantine8Theme';
+import { cssVariablesResolver } from '../mantineCssVariablesResolver';
+import { getMantineThemeOverride } from '../mantineTheme';
 import CodeHighlightProvider from './CodeHighlightProvider';
 import { ColorSchemeContext } from './ColorSchemeContext';
 
@@ -21,7 +21,7 @@ type Props = {
     withCssVariables?: boolean;
 };
 
-const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
+const MantineBaseProvider: FC<React.PropsWithChildren<Props>> = ({
     children,
     themeOverride,
     forceColorScheme,
@@ -35,7 +35,7 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
     const appColorScheme = useContext(ColorSchemeContext)?.colorScheme;
     const resolvedColorScheme = forceColorScheme || appColorScheme || 'light';
     const baseTheme = useMemo(
-        () => getMantine8ThemeOverride(resolvedColorScheme),
+        () => getMantineThemeOverride(resolvedColorScheme),
         [resolvedColorScheme],
     );
     const mergedTheme = useMemo(
@@ -58,4 +58,4 @@ const Mantine8Provider: FC<React.PropsWithChildren<Props>> = ({
     );
 };
 
-export default Mantine8Provider;
+export default MantineBaseProvider;

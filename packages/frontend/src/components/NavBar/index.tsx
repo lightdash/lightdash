@@ -9,7 +9,7 @@ import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
-import Mantine8Provider from '../../providers/Mantine8Provider';
+import MantineBaseProvider from '../../providers/MantineBaseProvider';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
@@ -99,13 +99,13 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const headerContainerHeight =
         NAVBAR_HEIGHT + (hasBanner ? BANNER_HEIGHT : 0);
 
-    // Scoped dark theme for the navbar using Mantine 8's cssVariablesSelector + getRootElement.
+    // Scoped dark theme for the navbar using Mantine's cssVariablesSelector + getRootElement.
     // This is the recommended approach for scoped theming, though it has known CSS specificity
     // limitations (see: https://github.com/orgs/mantinedev/discussions/4803).
     // The manual `data-mantine-color-scheme="dark"` attribute helps CSS selectors match correctly.
     return (
         <Box id="navbar-header" data-mantine-color-scheme="dark">
-            <Mantine8Provider
+            <MantineBaseProvider
                 forceColorScheme="dark"
                 cssVariablesSelector="#navbar-header"
                 getRootElement={getNavBarRootElement}
@@ -150,7 +150,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 </Box>
                 {/* Placeholder to reserve space when navbar is fixed */}
                 {isFixed && !isFullscreen && <Box h={headerContainerHeight} />}
-            </Mantine8Provider>
+            </MantineBaseProvider>
         </Box>
     );
 });

@@ -185,7 +185,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
             return acc;
         }, {});
 
-        // Convert to Mantine 8 grouped format
+        // Convert to Mantine grouped format
         return Object.entries(groupedBySpace).map(([group, items]) => ({
             group,
             items,

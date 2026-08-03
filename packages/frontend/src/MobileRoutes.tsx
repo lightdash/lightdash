@@ -38,7 +38,7 @@ import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
 import classes from './MobileRoutes.module.css';
-import Mantine8Provider from './providers/Mantine8Provider';
+import MantineBaseProvider from './providers/MantineBaseProvider';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import Logo from './svgs/logo-icon.svg?react';
 import { PageName } from './types/Events';
@@ -88,7 +88,7 @@ export const MobileNavBar: FC = () => {
 
     return (
         <Box id="mobile-navbar" data-mantine-color-scheme="dark">
-            <Mantine8Provider
+            <MantineBaseProvider
                 forceColorScheme="dark"
                 cssVariablesSelector="#mobile-navbar"
                 getRootElement={getMobileNavBarRootElement}
@@ -187,7 +187,7 @@ export const MobileNavBar: FC = () => {
                         onClick={() => logout()}
                     />
                 </Drawer>
-            </Mantine8Provider>
+            </MantineBaseProvider>
         </Box>
     );
 };

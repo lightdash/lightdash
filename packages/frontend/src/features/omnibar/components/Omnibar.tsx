@@ -45,7 +45,7 @@ import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
-import Mantine8Provider from '../../../providers/Mantine8Provider';
+import MantineBaseProvider from '../../../providers/MantineBaseProvider';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useOmnibarSettingsItems } from '../hooks/useOmnibarSettingsItems';
@@ -347,7 +347,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 modal portals onto the page — re-anchor the subtree to the
                 app's real color scheme so JS-resolved component colors match
                 the page instead of the navbar. */}
-            <Mantine8Provider withCssVariables={false}>
+            <MantineBaseProvider withCssVariables={false}>
                 <Modal
                     withCloseButton={false}
                     size={rem(960)}
@@ -571,7 +571,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                         </Group>
                     </Stack>
                 </Modal>
-            </Mantine8Provider>
+            </MantineBaseProvider>
         </OmnibarKeyboardNav>
     );
 };

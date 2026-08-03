@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
 
-describe('Mantine form v8 compatibility', () => {
+describe('Mantine form compatibility', () => {
     test('nested field updates preserve Zod validation behavior', () => {
         const schema = z.object({
             user: z.object({

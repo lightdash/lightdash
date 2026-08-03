@@ -11,7 +11,7 @@ import { useState, type FC, type ReactNode } from 'react';
 import { PullRequestActionButtons } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/AiEditDbtProjectToolCall';
 import styles from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/AiEditDbtProjectToolCall.module.css';
 import { PullRequestCiChecks } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/PullRequestCiChecks';
-import Mantine8Provider from '../providers/Mantine8Provider';
+import MantineBaseProvider from '../providers/MantineBaseProvider';
 
 const DEMO_PR_URL = 'https://github.com/charliedowler/jaffle/pull/1';
 
@@ -164,7 +164,9 @@ const InteractiveDemo: FC<{ failMerge?: boolean }> = ({
 const meta: Meta = {
     title: 'AI Copilot/WritebackPrCard',
     decorators: [
-        (renderStory) => <Mantine8Provider>{renderStory()}</Mantine8Provider>,
+        (renderStory) => (
+            <MantineBaseProvider>{renderStory()}</MantineBaseProvider>
+        ),
     ],
 };
 

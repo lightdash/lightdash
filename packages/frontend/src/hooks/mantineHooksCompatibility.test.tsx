@@ -48,7 +48,7 @@ const ElementSizeProbe = () => {
     );
 };
 
-describe('Mantine v8 hooks compatibility', () => {
+describe('Mantine hooks compatibility', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();

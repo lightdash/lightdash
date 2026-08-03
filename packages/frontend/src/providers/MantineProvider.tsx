@@ -4,7 +4,7 @@ import { Notifications } from '@mantine/notifications';
 import { useEffect, useMemo, type FC } from 'react';
 import { type ColorScheme } from '../mantineTheme';
 import { ColorSchemeContext } from './ColorSchemeContext';
-import Mantine8Provider from './Mantine8Provider';
+import MantineBaseProvider from './MantineBaseProvider';
 
 type Props = {
     themeOverride?: MantineThemeOverride;
@@ -48,14 +48,14 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <ColorSchemeContext.Provider value={colorSchemeContextValue}>
-            <Mantine8Provider
+            <MantineBaseProvider
                 forceColorScheme={colorScheme}
                 themeOverride={themeOverride}
                 env={env}
             >
                 {children}
                 <Notifications limit={notificationsLimit} />
-            </Mantine8Provider>
+            </MantineBaseProvider>
         </ColorSchemeContext.Provider>
     );
 };

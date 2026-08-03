@@ -40,8 +40,8 @@ const renderDateTimeRange = (element: ReactNode) =>
         </FiltersContext.Provider>,
     );
 
-describe('Mantine Dates v8 runtime', () => {
-    it('renders with the application v8 provider and emits date strings', () => {
+describe('Mantine Dates runtime', () => {
+    it('renders with the application provider and emits date strings', () => {
         const onChange = vi.fn();
         const { container, getAllByRole } = renderWithProviders(
             <DatePicker
