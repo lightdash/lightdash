@@ -1332,6 +1332,7 @@ export type LightdashConfig = {
     intercom: IntercomConfig;
     pylon: PylonConfig;
     headway: HeadwayConfig;
+    learn: LearnConfig;
     siteUrl: string;
     staticIp: string;
     signupUrl: string | undefined;
@@ -1924,6 +1925,13 @@ type PylonConfig = {
 
 type HeadwayConfig = {
     enabled: boolean;
+};
+
+export type LearnConfig = {
+    contentBaseUrl: string;
+    progressApiUrl: string;
+    /** Server-held bearer for the progress service; null ⇒ progress is client-local only. */
+    serviceToken: string | null;
 };
 
 export type RudderConfig = {
@@ -2706,6 +2714,17 @@ export const parseConfig = (): LightdashConfig => {
         },
         headway: {
             enabled: process.env.HEADWAY_ENABLED !== 'false',
+        },
+        learn: {
+            contentBaseUrl: (
+                process.env.LEARN_CONTENT_BASE_URL ||
+                'https://lu-content.onrender.com'
+            ).replace(/\/$/, ''),
+            progressApiUrl: (
+                process.env.LEARN_PROGRESS_API_URL ||
+                'https://lu-progress.onrender.com'
+            ).replace(/\/$/, ''),
+            serviceToken: process.env.LEARN_SERVICE_TOKEN || null,
         },
         siteUrl,
         helpMenuUrl: process.env.HELP_MENU_URL,

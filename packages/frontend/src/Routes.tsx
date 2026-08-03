@@ -499,6 +499,25 @@ const SPACES_ROUTES: RouteObject[] = [
     },
 ];
 
+const LEARN_ROUTES: RouteObject[] = [
+    {
+        path: 'learn',
+        lazy: async () => {
+            const Learn = await loadLazyRouteDefault(
+                './pages/Learn',
+                () => import('./pages/Learn'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.LEARN}>
+                        <Learn />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+];
+
 const METRICS_ROUTES: RouteObject[] = [
     {
         path: 'metrics',
@@ -579,6 +598,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     ...DASHBOARD_LIST_ROUTES,
     ...SPACES_ROUTES,
     ...METRICS_ROUTES,
+    ...LEARN_ROUTES,
     {
         path: 'home',
         lazy: async () => {
