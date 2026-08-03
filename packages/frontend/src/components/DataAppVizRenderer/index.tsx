@@ -6,10 +6,12 @@ import { Stack, Text } from '@mantine-8/core';
 import { IconPuzzle } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useParams } from 'react-router';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
 import AppIframePreview from '../../features/apps/AppIframePreview';
-import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
-import { useDataAppVisualization } from '../../features/apps/hooks/useDataAppVisualization';
-import { useGetApp } from '../../features/apps/hooks/useGetApp';
+import {
+    useDataAppVizPreviewToken,
+    useDataAppVizRenderMetadata,
+} from '../../features/apps/hooks/useDataAppVizRender';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { reconcileDataAppVizFieldMapping } from '../../features/apps/utils/autoMapDataAppVizFields';
 import MantineIcon from '../common/MantineIcon';
@@ -32,8 +34,14 @@ const DataAppVizPlaceholder: FC<{ message: string }> = ({ message }) => (
 
 const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { visualizationConfig, resultsData, colorPalette, itemsMap } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        resultsData,
+        colorPalette,
+        itemsMap,
+        savedChartUuid,
+    } = useVisualizationContext();
+    const { embedToken } = useEmbed();
     const previewOrigin = usePreviewOrigin();
     const hasSignaledScreenshotReady = useRef(false);
 
@@ -59,34 +67,25 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const optionValues = config?.optionValues;
     const rows = resultsData?.rows;
 
-    // Hooks run unconditionally; the queries are `enabled`-gated on their args.
-    const { data: appData } = useGetApp(
+    const renderTarget = useMemo(
+        () => ({ isEmbedded: !!embedToken, savedChartUuid }),
+        [embedToken, savedChartUuid],
+    );
+    const { data: renderMetadata } = useDataAppVizRenderMetadata(
         projectUuid,
         dataAppVizUuid || undefined,
+        renderTarget,
     );
-
-    // The declaration is the only source of option defaults, so the renderer
-    // fetches it to resolve effective values.
-    const { data: dataAppViz } = useDataAppVisualization(
+    const readyMetadata =
+        renderMetadata?.state === 'ready' ? renderMetadata : undefined;
+    const { data: token } = useDataAppVizPreviewToken(
         projectUuid,
         dataAppVizUuid || undefined,
+        readyMetadata?.version,
+        renderTarget,
     );
-    const configOptions = dataAppViz?.schema?.configOptions;
-    const fields = dataAppViz?.schema?.fields;
-
-    // Latest READY version of the chosen data app viz drives the preview.
-    const readyVersion = useMemo(() => {
-        const versions = appData?.pages.flatMap((page) => page.versions) ?? [];
-        const ready = versions.filter((v) => v.status === 'ready');
-        if (ready.length === 0) return undefined;
-        return ready.reduce((max, v) => Math.max(max, v.version), 0);
-    }, [appData]);
-
-    const { data: token } = useAppPreviewToken(
-        projectUuid,
-        dataAppVizUuid || undefined,
-        readyVersion,
-    );
+    const configOptions = readyMetadata?.schema.configOptions;
+    const fields = readyMetadata?.schema.fields;
 
     const dataAppVizContext = useMemo<DataAppVizContext | undefined>(() => {
         if (!rows || !configOptions || !fields) return undefined;
@@ -124,13 +123,13 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         );
     }
 
-    if (readyVersion === undefined || !token) {
+    if (!readyMetadata || !token) {
         return (
             <DataAppVizPlaceholder message="Data app visualization is still generating…" />
         );
     }
 
-    const previewUrl = `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${readyVersion}/t/${token}/?r=0#transport=postMessage&projectUuid=${projectUuid}`;
+    const previewUrl = `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${readyMetadata.version}/t/${token}/?r=0#transport=postMessage&projectUuid=${projectUuid}`;
 
     return (
         <AppIframePreview
