@@ -581,6 +581,17 @@ export class AppModel {
         return row ?? null;
     }
 
+    async getLatestRenderableDataAppVizVersion(
+        appId: string,
+    ): Promise<DbAppVersion | null> {
+        const row = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, status: 'ready' })
+            .whereNotNull('viz_schema')
+            .orderBy('version', 'desc')
+            .first();
+        return row ?? null;
+    }
+
     /**
      * Whether any version between the latest ready version and `beforeVersion`
      * (both exclusive) was cancelled by the user. The persistent Claude session

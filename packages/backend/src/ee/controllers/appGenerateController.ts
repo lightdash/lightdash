@@ -11,6 +11,8 @@ import {
     type ApiClarifyAppResponse,
     type ApiCreateAppSchedulerResponse,
     type ApiDataAppActivityResponse,
+    type ApiDataAppVizPreviewTokenResponse,
+    type ApiDataAppVizRenderMetadataResponse,
     type ApiDeleteAppResponse,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
@@ -179,6 +181,58 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * @summary Get data app visualization render metadata
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations/{dataAppVizUuid}/render-metadata')
+    @OperationId('getDataAppVizRenderMetadata')
+    async getDataAppVizRenderMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() dataAppVizUuid: string,
+    ): Promise<ApiDataAppVizRenderMetadataResponse> {
+        assertRegisteredAccount(req.account);
+        const result =
+            await this.getAppGenerateService().getDataAppVizRenderMetadata(
+                toSessionUser(req.account),
+                projectUuid,
+                dataAppVizUuid,
+            );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * @summary Get a data app visualization preview token
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/visualizations/{dataAppVizUuid}/versions/{version}/preview-token')
+    @OperationId('getDataAppVizPreviewToken')
+    async getDataAppVizPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() dataAppVizUuid: string,
+        @Path() version: number,
+    ): Promise<ApiDataAppVizPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
+        const token =
+            await this.getAppGenerateService().getDataAppVizPreviewToken(
+                toSessionUser(req.account),
+                projectUuid,
+                dataAppVizUuid,
+                version,
+            );
+        return {
+            status: 'ok',
+            results: { token },
         };
     }
 

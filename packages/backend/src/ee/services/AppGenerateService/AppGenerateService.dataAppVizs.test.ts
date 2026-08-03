@@ -7,6 +7,7 @@ import {
     OrganizationMemberRole,
     type DataAppVizSchema,
 } from '@lightdash/common';
+import { verifyPreviewToken } from '../../../routers/appPreviewToken';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -57,7 +58,7 @@ const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
 
 function buildService(appModel: unknown) {
     const service = new AppGenerateService({
-        lightdashConfig: {} as never,
+        lightdashConfig: { lightdashSecret: 'test-secret' } as never,
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
@@ -274,6 +275,231 @@ describe('AppGenerateService data app vizs', () => {
                 'not-a-data-app-viz',
             ),
         ).rejects.toThrow(NotFoundError);
+    });
+
+    describe('viz-only render metadata', () => {
+        const makeVersion = (overrides: Record<string, unknown> = {}) => ({
+            app_version_id: 'app-version-1',
+            app_id: 'data-app-viz-1',
+            version: 1,
+            prompt: 'build a chart',
+            status: 'ready',
+            error: null,
+            status_message: null,
+            status_history: [],
+            status_updated_at: new Date('2026-06-30'),
+            resources: null,
+            dependencies: null,
+            viz_schema: vizSchema,
+            generation_usage: null,
+            created_at: new Date('2026-06-30'),
+            created_by_user_uuid: 'user-1',
+            ...overrides,
+        });
+
+        it('resolves the template-filtered viz before checking the feature flag', async () => {
+            const appModel = {
+                findVisualizationApp: vi.fn().mockResolvedValue(undefined),
+            };
+            const service = buildService(appModel);
+            const dataAppsEnabledFor = vi.spyOn(service, 'dataAppsEnabledFor');
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'non-visualization-data-app',
+                ),
+            ).rejects.toMatchObject({
+                message: 'Data app visualization not found',
+            });
+
+            expect(dataAppsEnabledFor).not.toHaveBeenCalled();
+        });
+
+        it('resolves the template-filtered viz before validating a token version', async () => {
+            const appModel = {
+                findVisualizationApp: vi.fn().mockResolvedValue(undefined),
+            };
+            const service = buildService(appModel);
+            const dataAppsEnabledFor = vi.spyOn(service, 'dataAppsEnabledFor');
+
+            await expect(
+                service.getDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'non-visualization-data-app',
+                    0,
+                ),
+            ).rejects.toThrow(NotFoundError);
+
+            expect(dataAppsEnabledFor).not.toHaveBeenCalled();
+        });
+
+        it('rejects a real viz when data apps are disabled', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            };
+            const service = buildService(appModel);
+            vi.spyOn(service, 'dataAppsEnabledFor').mockResolvedValue(false);
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('serves the last renderable version while the latest build is in progress', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeVersion({ version: 3, status: 'building' }),
+                    ),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toEqual({
+                state: 'ready',
+                version: 2,
+                schema: vizSchema,
+                latestBuildInProgress: true,
+            });
+        });
+
+        it('returns building when no renderable version exists and the latest build is in progress', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getLatestVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ status: 'generating' })),
+                getLatestRenderableDataAppVizVersion: vi
+                    .fn()
+                    .mockResolvedValue(null),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVizRenderMetadata(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                ),
+            ).resolves.toEqual({
+                state: 'building',
+                latestBuildInProgress: true,
+            });
+        });
+
+        it.each([
+            makeVersion({ status: 'error', viz_schema: null }),
+            makeVersion({ status: 'ready', viz_schema: null }),
+            null,
+        ])(
+            'returns failed when no renderable version or active build exists',
+            async (latestVersion) => {
+                const appModel = {
+                    findVisualizationApp: vi
+                        .fn()
+                        .mockResolvedValue(makeDataAppVizRow()),
+                    getLatestVersion: vi.fn().mockResolvedValue(latestVersion),
+                    getLatestRenderableDataAppVizVersion: vi
+                        .fn()
+                        .mockResolvedValue(null),
+                };
+                const service = buildService(appModel);
+
+                await expect(
+                    service.getDataAppVizRenderMetadata(
+                        USER,
+                        'project-1',
+                        'data-app-viz-1',
+                    ),
+                ).resolves.toEqual({
+                    state: 'failed',
+                    latestBuildInProgress: false,
+                });
+            },
+        );
+
+        it('mints a token for the exact requested renderable version', async () => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi
+                    .fn()
+                    .mockResolvedValue(makeVersion({ version: 2 })),
+            };
+            const service = buildService(appModel);
+
+            const token = await service.getDataAppVizPreviewToken(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+                2,
+            );
+
+            expect(appModel.getVersion).toHaveBeenCalledWith(
+                'data-app-viz-1',
+                2,
+            );
+            expect(
+                verifyPreviewToken(token, 'test-secret', 'data-app-viz-1', 2),
+            ).toMatchObject({
+                ok: true,
+                payload: {
+                    appUuid: 'data-app-viz-1',
+                    version: 2,
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                },
+            });
+        });
+
+        it.each([
+            null,
+            makeVersion({ status: 'building' }),
+            makeVersion({ viz_schema: null }),
+        ])('rejects a non-renderable requested version', async (appVersion) => {
+            const appModel = {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+                getVersion: vi.fn().mockResolvedValue(appVersion),
+            };
+            const service = buildService(appModel);
+
+            await expect(
+                service.getDataAppVizPreviewToken(
+                    USER,
+                    'project-1',
+                    'data-app-viz-1',
+                    2,
+                ),
+            ).rejects.toMatchObject({
+                message: 'Renderable data app visualization version not found',
+            });
+        });
     });
 
     it('surfaces viz_schema per version as resources.vizSchema', async () => {
