@@ -32,6 +32,7 @@ import {
     combineManifestSources,
     CompilationSource,
     CompiledDimension,
+    ConflictError,
     ContentType,
     convertCustomMetricToDbt,
     convertExplores,
@@ -449,6 +450,8 @@ const isValidDbtCloudWebhookSignature = (
 const WINDOW_CLAUSE_PATTERN = /\bover\s*\(/i;
 
 export class ProjectService extends BaseService {
+    static ACTIVE_CREATE_PROJECT_JOB_MAX_AGE_MS = 60 * 60 * 1000;
+
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -2871,7 +2874,24 @@ export class ProjectService extends BaseService {
         };
 
         // create legacy job steps that UI expects
-        await this.jobModel.create(job);
+        if (data.type === ProjectType.PREVIEW) {
+            await this.jobModel.create(job, true);
+        } else {
+            const result = await this.jobModel.createProjectJobIfNoActive({
+                job,
+                organizationUuid: user.organizationUuid,
+                createdAfter: new Date(
+                    Date.now() -
+                        ProjectService.ACTIVE_CREATE_PROJECT_JOB_MAX_AGE_MS,
+                ),
+            });
+            if (!result.isCreated) {
+                throw new ConflictError(
+                    'A project creation is already in progress',
+                    { jobUuid: result.activeJob.jobUuid },
+                );
+            }
+        }
         // schedule job
         await this.schedulerClient.createProjectWithCompile({
             createdByUserUuid: user.userUuid,
@@ -2884,6 +2904,20 @@ export class ProjectService extends BaseService {
             projectUuid: undefined,
         });
         return { jobUuid: job.jobUuid };
+    }
+
+    async getActiveCreateProjectJob(user: SessionUser): Promise<Job | null> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        return this.jobModel.findActiveCreateProjectJob({
+            organizationUuid: user.organizationUuid,
+            createdAfter: new Date(
+                Date.now() -
+                    ProjectService.ACTIVE_CREATE_PROJECT_JOB_MAX_AGE_MS,
+            ),
+        });
     }
 
     static PREVIEW_PROJECT_FALLBACK_TTL_HOURS = 720;
@@ -3458,7 +3492,10 @@ export class ProjectService extends BaseService {
                 });
         }
 
-        await this.jobModel.create(job);
+        await this.jobModel.create(
+            job,
+            savedProject.type === ProjectType.PREVIEW,
+        );
 
         if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await this.schedulerClient.testAndCompileProject({
@@ -8088,7 +8125,7 @@ export class ProjectService extends BaseService {
             steps: [{ stepType: JobStepType.COMPILING }],
         };
 
-        await this.jobModel.create(job);
+        await this.jobModel.create(job, type === ProjectType.PREVIEW);
 
         await this.schedulerClient.compileProject({
             createdByUserUuid: user.userUuid,
