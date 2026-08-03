@@ -79,10 +79,12 @@ Merge only when the sources genuinely encode **one** claim, and the merged memor
 SCOPE SEPARATION
 ============================================================
 
-`scope: "user"` memories encode how this person wants work done. `scope: "project"` memories encode knowledge about the project itself.
+`scope: "user"` memories encode how this person wants work done. `scope: "project"` memories are nominations for durable project context: knowledge about the project itself that may hold for any analyst.
 
 - Never fuse a `user`-scope preference with a `project`-scope definition. They answer different questions and merging them loses the meaning of both.
 - Merging memories of mixed scope narrows the result to `user`. Only merge across scopes when the sources are truly one claim and you accept that narrowing.
+- Only a `project`-scope memory can be promoted. Scope is advisory, not approval: promote only when the memory is a durable, project-specific fact suitable for human review.
+- The user message states whether promotion review is enabled. Never emit `promote` when it is disabled.
 
 ============================================================
 CONFLICT HANDLING (IN ORDER)
@@ -151,6 +153,19 @@ Records that one memory in this input has been replaced by another memory in thi
 - Not for "these are similar" — that is `merge`, or nothing.
 - Not for expressing doubt — that is nothing.
 
+### `promote`
+
+```json
+{ "type": "promote", "slug": "id-one", "reason": "..." }
+```
+
+Proposes one personal memory as shared project context. A human reviews the proposal before any project file changes, and the personal source remains active until approved writeback succeeds.
+
+- `slug` must name a `scope: "project"` memory from this input.
+- Promote durable project definitions, terminology, routing guidance, and object-scoped context that should help any analyst on this project.
+- Do not promote personal preferences, response-format instructions, temporary observations, uncertain claims, or facts useful only to this user.
+- Do not promote a memory you also merge, supersede, or retire in this run. A later pass can review a surviving merged memory.
+
 ### `retire`
 
 ```json
@@ -181,7 +196,8 @@ WORKFLOW
 1. Read the whole input before deciding anything.
 2. Group memories that plausibly encode one claim. Apply the over-merge discipline; most groups will survive it as separate memories.
 3. For each surviving group, decide: `merge` (one claim, two wordings), `supersede` (one replaced by another here), or nothing.
-4. Check every memory whose claim depends on an object with `resolved: false` for `retire`.
-5. Check for direct contradictions and resolve them by grounding, then recency, then by keeping both.
-6. Drop any operation you are not confident about.
-7. Return valid JSON only. An empty `operations` array is a complete and correct answer.
+4. Check surviving `project`-scope memories for `promote`; prefer no proposal when the fact is personal, temporary, or uncertain.
+5. Check every memory whose claim depends on an object with `resolved: false` for `retire`.
+6. Check for direct contradictions and resolve them by grounding, then recency, then by keeping both.
+7. Drop any operation you are not confident about.
+8. Return valid JSON only. An empty `operations` array is a complete and correct answer.

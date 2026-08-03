@@ -154,7 +154,10 @@ export const planReviewWriteback = (
         return buildSemanticLayerWritebackPrompt(item, ymlPathByModel);
     }
     if (item.primaryRootCause === 'project_context') {
-        const entry = item.latestFinding?.projectContextEntry ?? null;
+        const entry =
+            item.projectContextEntry ??
+            item.latestFinding?.projectContextEntry ??
+            null;
         if (entry) {
             return { strategy: 'project_context', entry };
         }

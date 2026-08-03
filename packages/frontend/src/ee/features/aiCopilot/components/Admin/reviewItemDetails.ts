@@ -248,7 +248,10 @@ export const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
 export const getReviewReasoningText = (
     reviewItem: AiAgentReviewItemSummary,
 ): string => {
-    const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
+    const contextEntry =
+        reviewItem.projectContextEntry ??
+        reviewItem.latestFinding?.projectContextEntry ??
+        null;
 
     if (contextEntry) {
         const objectRefs = contextEntry.objects
@@ -299,7 +302,10 @@ export const getSuggestedNextStep = (
 export const getReviewSecondaryDetail = (
     reviewItem: AiAgentReviewItemSummary,
 ): string | null => {
-    const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
+    const contextEntry =
+        reviewItem.projectContextEntry ??
+        reviewItem.latestFinding?.projectContextEntry ??
+        null;
     if (contextEntry) {
         return contextEntry.kind;
     }

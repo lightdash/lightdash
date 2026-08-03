@@ -76,6 +76,26 @@ describe('getIssueTitle', () => {
 });
 
 describe('getReviewReasoningText', () => {
+    it('renders the persisted project context entry for a memory promotion', () => {
+        const item = makeItem({
+            source: 'memory_promotion',
+            primaryRootCause: 'project_context',
+            projectContextEntry: {
+                op: 'create',
+                id: null,
+                kind: 'context',
+                content: 'Use the orders explore for revenue questions.',
+                terms: ['revenue'],
+                objects: [{ type: 'explore', name: 'orders' }],
+            },
+            latestFinding: null,
+        });
+
+        expect(getReviewReasoningText(item)).toBe(
+            'Adds project context: Use the orders explore for revenue questions. Objects: explore "orders".',
+        );
+    });
+
     it('formats a persisted legacy string ref', () => {
         const item = makeItem({
             primaryRootCause: 'project_context',

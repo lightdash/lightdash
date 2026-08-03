@@ -161,6 +161,28 @@ describe('planReviewWriteback', () => {
         expect(plan).toEqual({ strategy: 'project_context', entry });
     });
 
+    it('uses the persisted entry from a memory promotion', () => {
+        const entry = {
+            op: 'create' as const,
+            id: null,
+            kind: 'context' as const,
+            content: 'Use orders for revenue questions.',
+            terms: ['revenue'],
+            objects: [{ type: 'explore' as const, name: 'orders' }],
+        };
+        const plan = planReviewWriteback(
+            baseItem({
+                source: 'memory_promotion',
+                primaryRootCause: 'project_context',
+                latestFinding: null,
+                findingCount: 0,
+                projectContextEntry: entry,
+            }),
+        );
+
+        expect(plan).toEqual({ strategy: 'project_context', entry });
+    });
+
     it('builds a project_context entry from a manual issue', () => {
         const plan = planReviewWriteback(
             baseItem({

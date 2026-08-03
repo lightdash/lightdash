@@ -28,7 +28,13 @@ import {
     type DbAiAgentMemory,
     type DbAiAgentMemoryConsolidationRun,
 } from '../../database/entities/aiAgentMemory';
+import {
+    AiAgentReviewItemEventsTableName,
+    AiAgentReviewItemTableName,
+    type DbAiAgentReviewItem,
+} from '../../database/entities/aiAgentReviewClassifier';
 import { AiAgentMemoryModel } from '../../models/AiAgentMemoryModel';
+import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { renderMemoryBlock } from '../ai/utils/memoryBlock';
@@ -249,9 +255,11 @@ describe('AI agent memory consolidation integration', () => {
         {
             consolidationDryRun = false,
             schedulerClientOverride,
+            promotionReviewEnabled = true,
         }: {
             consolidationDryRun?: boolean;
             schedulerClientOverride?: ReturnType<typeof stubSchedulerClient>;
+            promotionReviewEnabled?: boolean;
         } = {},
     ) =>
         new AiAgentMemoryService({
@@ -285,6 +293,9 @@ describe('AI agent memory consolidation integration', () => {
                             featureFlagId: FeatureFlags.AiAgentMemory,
                         })
                     ).enabled,
+                isAiAgentReviewsEnabled: vi
+                    .fn()
+                    .mockResolvedValue(promotionReviewEnabled),
             },
             schedulerClient: schedulerClientOverride ?? schedulerClient,
             consolidationDryRun,
@@ -315,7 +326,7 @@ describe('AI agent memory consolidation integration', () => {
     const mergedRow = async (handle: string): Promise<DbAiAgentMemory> => {
         const row = await database(AiAgentMemoryTableName)
             .where('project_uuid', SEED_PROJECT.project_uuid)
-            .whereILike('slug', `${handle}-%`)
+            .whereRaw('slug ~ ?', [`^${handle}-[0-9a-f]{8}$`])
             .first<DbAiAgentMemory>();
         if (!row) throw new Error(`Missing merged memory for ${handle}`);
         return row;
@@ -407,6 +418,263 @@ describe('AI agent memory consolidation integration', () => {
         expect(
             run!.applied_operations.map((operation) => operation.type),
         ).toEqual(['supersede', 'retire']);
+    });
+
+    it('creates a review item for a project-scoped promotion and supersedes only after writeback', async () => {
+        const slugs = await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'promote',
+        });
+        const slug = slugs[0]!;
+        await attachSourceThread(slug);
+        await database(AiAgentMemoryTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .where('slug', slug)
+            .update({
+                scope: 'project',
+                terms: JSON.stringify(['revenue']),
+                objects: JSON.stringify([
+                    { type: 'explore', name: resolvableExploreName },
+                ]),
+            });
+
+        const outcome = await buildService(
+            cannedCall([
+                {
+                    type: 'promote',
+                    slug,
+                    reason: 'This definition applies to every analyst.',
+                },
+            ]),
+        ).consolidateScheduledPartition(partitionPayload(ownerUuid));
+
+        const [run] = await runsForOwner(ownerUuid);
+        expect({ outcome, error: run?.error_message }).toEqual({
+            outcome: 'consolidated',
+            error: null,
+        });
+
+        const source = await memoryBySlug(slug);
+        const review = await database(AiAgentReviewItemTableName)
+            .where(
+                'fingerprint',
+                `memory_promotion:${source.ai_agent_memory_uuid}`,
+            )
+            .first<DbAiAgentReviewItem>();
+
+        expect(source.status).toBe('active');
+        expect(review).toMatchObject({
+            source: 'memory_promotion',
+            source_ai_agent_memory_uuid: source.ai_agent_memory_uuid,
+            project_uuid: SEED_PROJECT.project_uuid,
+            agent_uuid: agentUuid,
+            primary_root_cause: 'project_context',
+            status: 'open',
+            project_context_entry: {
+                op: 'create',
+                kind: 'context',
+                content: source.raw_memory,
+                terms: ['revenue'],
+                objects: [{ type: 'explore', name: resolvableExploreName }],
+            },
+        });
+        const reviewSummary = await getTestContext()
+            .app.getModels()
+            .getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>()
+            .getReviewItem(SEED_ORG_1.organization_uuid, review!.fingerprint);
+        expect(reviewSummary).toMatchObject({
+            source: 'memory_promotion',
+            latestFinding: null,
+            projectContextEntry: review!.project_context_entry,
+        });
+
+        expect(
+            await model.supersedePromotionSource({
+                fingerprint: review!.fingerprint,
+                projectUuid: SEED_PROJECT.project_uuid,
+            }),
+        ).toBe(true);
+        expect(await memoryBySlug(slug)).toMatchObject({
+            status: 'superseded',
+            superseded_by_uuid: null,
+        });
+    });
+
+    it('keeps a promoted source active while its review is pending', async () => {
+        const slugs = await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'promotionpending',
+        });
+        const slug = slugs[0]!;
+        await attachSourceThread(slug);
+        await database(AiAgentMemoryTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .where('slug', slug)
+            .update({ scope: 'project' });
+
+        await buildService(
+            cannedCall([
+                {
+                    type: 'promote',
+                    slug,
+                    reason: 'This applies across the project.',
+                },
+            ]),
+        ).consolidateScheduledPartition(partitionPayload(ownerUuid));
+
+        await database(AiAgentMemoryTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .where('slug', slugs[1]!)
+            .update({
+                raw_memory: 'Changed after promotion nomination.',
+                generated_at: new Date(Date.UTC(2026, 6, 21, 12)),
+            });
+        await buildService(
+            cannedCall([
+                {
+                    type: 'retire',
+                    slug,
+                    reason: 'No longer useful.',
+                },
+            ]),
+        ).consolidateScheduledPartition(partitionPayload(ownerUuid));
+
+        const runs = await runsForOwner(ownerUuid);
+        expect(runs[1]).toMatchObject({
+            applied_count: 0,
+            rejected_count: 1,
+        });
+        expect(runs[1]!.rejected_operations[0]!.reason).toBe(
+            'promotion_pending',
+        );
+        expect(await memoryBySlug(slug)).toMatchObject({ status: 'active' });
+    });
+
+    it('keeps normal curation available when promotion review is disabled', async () => {
+        const slugs = await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'promotiondisabled',
+        });
+        await attachSourceThread(slugs[0]!);
+        await database(AiAgentMemoryTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .where('slug', slugs[0]!)
+            .update({ scope: 'project' });
+
+        await buildService(
+            cannedCall([
+                {
+                    type: 'promote',
+                    slug: slugs[0]!,
+                    reason: 'This applies across the project.',
+                },
+                {
+                    type: 'retire',
+                    slug: slugs[1]!,
+                    reason: 'No longer valid.',
+                },
+            ]),
+            { promotionReviewEnabled: false },
+        ).consolidateScheduledPartition(partitionPayload(ownerUuid));
+
+        const [run] = await runsForOwner(ownerUuid);
+        expect(run).toMatchObject({ applied_count: 1, rejected_count: 1 });
+        expect(run!.rejected_operations[0]!.reason).toBe('reviews_disabled');
+        expect(await memoryBySlug(slugs[0]!)).toMatchObject({
+            status: 'active',
+        });
+        expect(await memoryBySlug(slugs[1]!)).toMatchObject({
+            status: 'retired',
+        });
+        await expect(
+            database(AiAgentReviewItemTableName)
+                .where(
+                    'source_ai_agent_memory_uuid',
+                    (await memoryBySlug(slugs[0]!)).ai_agent_memory_uuid,
+                )
+                .first(),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects duplicate promotion and reopens a dismissed nomination', async () => {
+        const slugs = await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'promotionrepeat',
+        });
+        const slug = slugs[0]!;
+        await attachSourceThread(slug);
+        await database(AiAgentMemoryTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .where('slug', slug)
+            .update({ scope: 'project' });
+        const operation: AiAgentMemoryConsolidationOperation = {
+            type: 'promote',
+            slug,
+            reason: 'This applies across the project.',
+        };
+
+        await buildService(
+            cannedCall([operation]),
+        ).consolidateScheduledPartition(partitionPayload(ownerUuid));
+        const source = await memoryBySlug(slug);
+        const fingerprint = `memory_promotion:${source.ai_agent_memory_uuid}`;
+
+        await database(AiAgentMemoryTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .where('slug', slugs[1]!)
+            .update({ generated_at: new Date(Date.UTC(2026, 6, 21, 12)) });
+        await buildService(
+            cannedCall([operation]),
+        ).consolidateScheduledPartition(partitionPayload(ownerUuid));
+        const duplicateRun = (await runsForOwner(ownerUuid))[1]!;
+        expect(duplicateRun).toMatchObject({
+            applied_count: 0,
+            rejected_count: 1,
+        });
+        expect(duplicateRun.rejected_operations[0]!.reason).toBe(
+            'promotion_pending',
+        );
+
+        await database(AiAgentReviewItemTableName)
+            .where('fingerprint', fingerprint)
+            .update({
+                status: 'dismissed',
+                dismissed_reason: 'low_confidence',
+            });
+        await database(AiAgentMemoryTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .where('slug', slugs[1]!)
+            .update({ generated_at: new Date(Date.UTC(2026, 6, 22, 12)) });
+        await buildService(
+            cannedCall([operation]),
+        ).consolidateScheduledPartition(partitionPayload(ownerUuid));
+
+        const reopenedRun = (await runsForOwner(ownerUuid))[2]!;
+        expect(reopenedRun).toMatchObject({
+            applied_count: 1,
+            rejected_count: 0,
+        });
+        await expect(
+            database(AiAgentReviewItemTableName)
+                .where('fingerprint', fingerprint)
+                .first(),
+        ).resolves.toMatchObject({
+            status: 'open',
+            dismissed_reason: null,
+        });
+        await expect(
+            database(AiAgentReviewItemEventsTableName)
+                .where('fingerprint', fingerprint)
+                .orderBy('occurred_at')
+                .select('event_type'),
+        ).resolves.toEqual([
+            { event_type: 'created' },
+            { event_type: 'status_changed' },
+        ]);
     });
 
     it('merges into one active row that inherits what its sources earned', async () => {

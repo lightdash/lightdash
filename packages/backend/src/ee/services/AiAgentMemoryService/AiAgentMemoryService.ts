@@ -120,6 +120,7 @@ export type AiAgentMemoryDistillCall = (args: {
 export type AiAgentMemoryConsolidateCall = (args: {
     partition: AiAgentMemoryConsolidationPartition;
     input: AiAgentMemoryConsolidationInputEntry[];
+    promotionReviewEnabled: boolean;
     abortSignal?: AbortSignal;
 }) => Promise<ConsolidationOutput>;
 
@@ -175,7 +176,7 @@ type Dependencies = {
     featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: Pick<
         AiOrganizationSettingsService,
-        'isAiAgentMemoryEnabled'
+        'isAiAgentMemoryEnabled' | 'isAiAgentReviewsEnabled'
     >;
     schedulerClient: MemorySchedulerClient;
     /** Runs consolidation without applying its proposed operations. */
@@ -312,6 +313,7 @@ export class AiAgentMemoryService extends BaseService {
                     dryRun: args.dryRun,
                     inputCount: args.input.length,
                     mergeCount: operationCounts.merge,
+                    promoteCount: operationCounts.promote,
                     supersedeCount: operationCounts.supersede,
                     retireCount: operationCounts.retire,
                     rejectedCount: args.rejected.length,
@@ -813,10 +815,18 @@ export class AiAgentMemoryService extends BaseService {
                 return 'skipped';
             }
 
+            const promotionReviewEnabled =
+                await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
+                    { organizationUuid: partition.organizationUuid },
+                );
+
             // Same corpus state as the last attempt, whatever that attempt's
             // status: a partition that reliably trips the pass cannot burn a
             // call every day forever.
-            const inputHash = computeConsolidationInputHash(memories);
+            const inputHash = computeConsolidationInputHash(
+                memories,
+                promotionReviewEnabled,
+            );
             const latestRun =
                 await this.aiAgentMemoryModel.findLatestConsolidationRun({
                     projectUuid: partition.projectUuid,
@@ -855,6 +865,7 @@ export class AiAgentMemoryService extends BaseService {
                 inputHash,
                 explores,
                 now: new Date(),
+                promotionReviewEnabled,
                 abortSignal,
             });
             return outcome;
@@ -924,6 +935,7 @@ export class AiAgentMemoryService extends BaseService {
         inputHash: string;
         explores: Record<string, Explore | ExploreError>;
         now: Date;
+        promotionReviewEnabled: boolean;
         abortSignal?: AbortSignal;
     }): Promise<ConsolidationPartitionResult> {
         const { partition, context, memories, inputHash, explores } = args;
@@ -975,6 +987,7 @@ export class AiAgentMemoryService extends BaseService {
             const output = await this.consolidateCall({
                 partition,
                 input,
+                promotionReviewEnabled: args.promotionReviewEnabled,
                 // One hung provider socket must not spend the whole job budget.
                 abortSignal: AbortSignal.any([
                     ...(args.abortSignal ? [args.abortSignal] : []),
@@ -987,6 +1000,7 @@ export class AiAgentMemoryService extends BaseService {
             const { applied, rejected } = validateConsolidationOperations({
                 operations: output.operations,
                 input,
+                promotionReviewEnabled: args.promotionReviewEnabled,
             });
             rejectedOperations = rejected;
             failureStage = 'persistence';
@@ -1155,6 +1169,11 @@ export class AiAgentMemoryService extends BaseService {
             return { outcome: 'skipped', run: null };
         }
 
+        const promotionReviewEnabled =
+            await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled({
+                organizationUuid: partition.organizationUuid,
+            });
+
         // Deliberately off the daily pass's duration and eligibility metrics: a
         // manual run is not a sample of the cron's cost.
         return this.consolidatePartition({
@@ -1165,7 +1184,11 @@ export class AiAgentMemoryService extends BaseService {
                 dryRun: args.dryRun ?? this.consolidationDryRun,
             },
             memories,
-            inputHash: computeConsolidationInputHash(memories),
+            promotionReviewEnabled,
+            inputHash: computeConsolidationInputHash(
+                memories,
+                promotionReviewEnabled,
+            ),
             explores,
             now: args.now ?? new Date(),
             abortSignal: args.abortSignal,
@@ -1175,6 +1198,7 @@ export class AiAgentMemoryService extends BaseService {
     private async consolidateWithLlm(args: {
         partition: AiAgentMemoryConsolidationPartition;
         input: AiAgentMemoryConsolidationInputEntry[];
+        promotionReviewEnabled: boolean;
         abortSignal?: AbortSignal;
     }): Promise<ConsolidationOutput> {
         if (!this.orgAiCopilotConfigResolver) {
@@ -1210,7 +1234,10 @@ export class AiAgentMemoryService extends BaseService {
                 messages: [
                     {
                         role: 'user',
-                        content: buildConsolidationUserMessage(args.input),
+                        content: buildConsolidationUserMessage(
+                            args.input,
+                            args.promotionReviewEnabled,
+                        ),
                     },
                 ],
             });

@@ -3068,6 +3068,7 @@ export type AiAgentMemoryConsolidatedEvent = BaseTrack & {
         dryRun: boolean;
         inputCount: number;
         mergeCount: number;
+        promoteCount: number;
         supersedeCount: number;
         retireCount: number;
         rejectedCount: number;

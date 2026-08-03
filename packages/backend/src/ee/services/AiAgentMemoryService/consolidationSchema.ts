@@ -52,6 +52,16 @@ const supersedeOperationSchema = z
     })
     .strict();
 
+const promoteOperationSchema = z
+    .object({
+        type: z.literal('promote'),
+        slug: slugSchema.describe(
+            'Id of a project-scoped memory to propose for project context.',
+        ),
+        reason: z.string().min(1).max(500),
+    })
+    .strict();
+
 const retireOperationSchema = z
     .object({
         type: z.literal('retire'),
@@ -62,6 +72,7 @@ const retireOperationSchema = z
 
 export const consolidationOperationSchema = z.discriminatedUnion('type', [
     mergeOperationSchema,
+    promoteOperationSchema,
     supersedeOperationSchema,
     retireOperationSchema,
 ]);

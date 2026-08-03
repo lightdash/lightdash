@@ -86,6 +86,7 @@ const build = () => {
         } as AnyType,
         aiOrganizationSettingsService: {
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(true),
+            isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
         },
         schedulerClient: {
             aiAgentMemoryDistill: vi.fn(),

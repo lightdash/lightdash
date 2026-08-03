@@ -840,6 +840,32 @@ describe('AiAgentReviewClassifierModel', () => {
                 .responseOnce(remediationRows);
         };
 
+        it('does not cap open linked PR reconciliation items', async () => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([]);
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce(
+                Array.from({ length: 101 }, (_, index) =>
+                    makeReviewItemRow({
+                        ai_agent_review_item_uuid: `review-${index}`,
+                        fingerprint: `manual:${index}`,
+                        source: 'manual',
+                        linked_pr_url: `https://github.com/example/repo/pull/${index}`,
+                        pr_state: 'open',
+                    }),
+                ),
+            );
+            tracker.on
+                .select(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+                prState: 'open',
+                unbounded: true,
+            });
+
+            expect(result).toHaveLength(101);
+        });
+
         it('keeps a fresh running writeback as running', async () => {
             stubListQueries([makeReviewItemRow()], []);
 

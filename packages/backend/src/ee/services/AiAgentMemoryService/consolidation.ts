@@ -77,28 +77,33 @@ export const buildConsolidationInput = (args: {
  */
 export const computeConsolidationInputHash = (
     memories: AiAgentMemoryConsolidationSelection[],
+    promotionReviewEnabled: boolean,
 ): string =>
     createHash('sha256')
         .update(
-            memories
-                .map(
-                    (memory) =>
-                        `${
-                            memory.ai_agent_memory_uuid
-                        }:${memory.generated_at.toISOString()}`,
-                )
-                .sort()
-                .join('\n'),
+            [
+                `promotion-review:${promotionReviewEnabled}`,
+                ...memories
+                    .map(
+                        (memory) =>
+                            `${
+                                memory.ai_agent_memory_uuid
+                            }:${memory.generated_at.toISOString()}`,
+                    )
+                    .sort(),
+            ].join('\n'),
         )
         .digest('hex');
 
-/** Slugs whose status this operation would change. */
+/** Slugs this operation claims, including a promotion proposal's source. */
 const operationTargets = (
     operation: AiAgentMemoryConsolidationOperation,
 ): string[] => {
     switch (operation.type) {
         case 'merge':
             return operation.source_slugs;
+        case 'promote':
+            return [operation.slug];
         case 'supersede':
             return [operation.loser_slug];
         case 'retire':
@@ -113,7 +118,7 @@ const operationWinners = (
     operation: AiAgentMemoryConsolidationOperation,
 ): string[] => (operation.type === 'supersede' ? [operation.winner_slug] : []);
 
-/** One status flip per row, and no flip on a row an earlier flip points at. */
+/** One claim per row, and no claim on a row an earlier supersede points at. */
 type ConsolidationClaims = {
     targets: Set<string>;
     winners: Set<string>;
@@ -160,7 +165,9 @@ const normalizeOperation = (
 const rejectionReason = (
     operation: AiAgentMemoryConsolidationOperation,
     inputSlugs: Set<string>,
+    entriesBySlug: Map<string, AiAgentMemoryConsolidationInputEntry>,
     claims: ConsolidationClaims,
+    promotionReviewEnabled: boolean,
 ): AiAgentMemoryConsolidationRejection['reason'] | null => {
     if (
         getAiAgentMemoryConsolidationOperationSlugs(operation).some(
@@ -181,6 +188,15 @@ const rejectionReason = (
     ) {
         return 'self_supersede';
     }
+    if (
+        operation.type === 'promote' &&
+        entriesBySlug.get(operation.slug)?.scope !== 'project'
+    ) {
+        return 'not_project_scope';
+    }
+    if (operation.type === 'promote' && !promotionReviewEnabled) {
+        return 'reviews_disabled';
+    }
     if (collidesWithClaims(operation, claims)) {
         return 'duplicate_target';
     }
@@ -195,6 +211,7 @@ const rejectionReason = (
 export const validateConsolidationOperations = (args: {
     operations: AiAgentMemoryConsolidationOperation[];
     input: AiAgentMemoryConsolidationInputEntry[];
+    promotionReviewEnabled: boolean;
 }): {
     applied: AiAgentMemoryConsolidationOperation[];
     rejected: AiAgentMemoryConsolidationRejection[];
@@ -210,7 +227,13 @@ export const validateConsolidationOperations = (args: {
 
     for (const operation of args.operations) {
         const normalized = normalizeOperation(operation, entriesBySlug);
-        const reason = rejectionReason(normalized, inputSlugs, claims);
+        const reason = rejectionReason(
+            normalized,
+            inputSlugs,
+            entriesBySlug,
+            claims,
+            args.promotionReviewEnabled,
+        );
         if (reason !== null) {
             rejected.push({ operation, reason });
         } else {
@@ -243,6 +266,7 @@ export const countConsolidationOperations = (
 ): ConsolidationOperationCounts => {
     const counts: ConsolidationOperationCounts = {
         merge: 0,
+        promote: 0,
         supersede: 0,
         retire: 0,
     };
@@ -260,6 +284,11 @@ export const countConsolidationRejections = (
         duplicate_target: 0,
         self_supersede: 0,
         insufficient_sources: 0,
+        not_project_scope: 0,
+        missing_agent: 0,
+        reviews_disabled: 0,
+        promotion_pending: 0,
+        promotion_already_reviewed: 0,
         row_moved: 0,
     };
     rejections.forEach((rejection) => {
@@ -308,9 +337,11 @@ export const countConsolidationScopes = (args: {
 
 export const buildConsolidationUserMessage = (
     input: AiAgentMemoryConsolidationInputEntry[],
+    promotionReviewEnabled: boolean,
 ): string =>
     [
         'Curate this active memory set for one user on one Lightdash project.',
+        `Promotion review is ${promotionReviewEnabled ? 'enabled' : 'disabled'}. Do not emit promote when it is disabled.`,
         '',
         JSON.stringify({ memories: input }),
         '',

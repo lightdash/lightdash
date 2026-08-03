@@ -221,6 +221,8 @@ type ListReviewItemsArgs = {
     agentUuid?: string;
     fingerprint?: string;
     statuses?: AiAgentReviewItemStatus[];
+    prState?: AiAgentReviewItemPrState;
+    unbounded?: boolean;
     limit?: number;
 };
 
@@ -1254,25 +1256,36 @@ export class AiAgentReviewClassifierModel {
                         args.fingerprint,
                     );
                 }
+                if (args.statuses || args.prState) {
+                    void query.leftJoin(
+                        AiAgentReviewItemTableName,
+                        function joinReviewItems() {
+                            this.on(
+                                `${AiAgentReviewItemTableName}.fingerprint`,
+                                `${AiAgentTurnSignalTableName}.fingerprint`,
+                            ).andOn(
+                                `${AiAgentReviewItemTableName}.organization_uuid`,
+                                `${AiAgentTurnSignalTableName}.organization_uuid`,
+                            );
+                        },
+                    );
+                }
                 if (args.statuses) {
+                    void query.whereRaw(
+                        `COALESCE(${AiAgentReviewItemTableName}.status, 'triage') IN (${args.statuses
+                            .map(() => '?')
+                            .join(', ')})`,
+                        args.statuses,
+                    );
+                }
+                if (args.prState) {
                     void query
-                        .leftJoin(
-                            AiAgentReviewItemTableName,
-                            function joinReviewItems() {
-                                this.on(
-                                    `${AiAgentReviewItemTableName}.fingerprint`,
-                                    `${AiAgentTurnSignalTableName}.fingerprint`,
-                                ).andOn(
-                                    `${AiAgentReviewItemTableName}.organization_uuid`,
-                                    `${AiAgentTurnSignalTableName}.organization_uuid`,
-                                );
-                            },
+                        .where(
+                            `${AiAgentReviewItemTableName}.pr_state`,
+                            args.prState,
                         )
-                        .whereRaw(
-                            `COALESCE(${AiAgentReviewItemTableName}.status, 'triage') IN (${args.statuses
-                                .map(() => '?')
-                                .join(', ')})`,
-                            args.statuses,
+                        .whereNotNull(
+                            `${AiAgentReviewItemTableName}.linked_pr_url`,
                         );
                 }
             });
@@ -1293,7 +1306,9 @@ export class AiAgentReviewClassifierModel {
             })
             .groupBy(`${AiAgentTurnSignalTableName}.fingerprint`)
             .orderBy('last_seen_at', 'desc')
-            .limit(limit)) as ReviewItemAggregateRow[];
+            .modify((query) => {
+                if (!args.unbounded) void query.limit(limit);
+            })) as ReviewItemAggregateRow[];
 
         const fingerprints = aggregateRows.map((row) => row.fingerprint);
         const latestRows =
@@ -1406,6 +1421,7 @@ export class AiAgentReviewClassifierModel {
                     createdByUserUuid: item?.created_by_user_uuid ?? null,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
+                    projectContextEntry: latest.project_context_entry ?? null,
                     remediation,
                     createdAt: item?.created_at ?? firstSeenAt,
                     updatedAt: item?.updated_at ?? lastSeenAt,
@@ -1439,11 +1455,11 @@ export class AiAgentReviewClassifierModel {
         const aiFingerprints = new Set(
             reviewItems.map((item) => item.fingerprint),
         );
-        const manualRows = (await this.database<AiAgentReviewItemTable>(
+        const standaloneRows = (await this.database<AiAgentReviewItemTable>(
             AiAgentReviewItemTableName,
         )
             .where('organization_uuid', args.organizationUuid)
-            .where('source', 'manual')
+            .whereIn('source', ['manual', 'memory_promotion'])
             .modify(excludeHiddenRootCauses('primary_root_cause'))
             .modify((query) => {
                 if (args.projectUuid) {
@@ -1458,6 +1474,11 @@ export class AiAgentReviewClassifierModel {
                 if (args.statuses) {
                     void query.whereIn('status', args.statuses);
                 }
+                if (args.prState) {
+                    void query
+                        .where('pr_state', args.prState)
+                        .whereNotNull('linked_pr_url');
+                }
             })
             .select<ReviewItemRow[]>(
                 '*',
@@ -1466,15 +1487,15 @@ export class AiAgentReviewClassifierModel {
                 ),
             )) as ReviewItemRow[];
 
-        const manualFingerprints = manualRows
+        const standaloneFingerprints = standaloneRows
             .map((row) => row.fingerprint)
             .filter((fingerprint) => !aiFingerprints.has(fingerprint));
-        const manualRemediations =
+        const standaloneRemediations =
             await this.getLatestReviewRemediationsByFingerprint({
                 organizationUuid: args.organizationUuid,
-                fingerprints: manualFingerprints,
+                fingerprints: standaloneFingerprints,
             });
-        const manualItems = manualRows
+        const standaloneItems = standaloneRows
             .filter((row) => !aiFingerprints.has(row.fingerprint))
             .map((row): AiAgentReviewItemSummary => {
                 const writebackStale = isStaleWritebackStatus(
@@ -1482,11 +1503,11 @@ export class AiAgentReviewClassifierModel {
                     row.updated_at_age_ms,
                 );
                 const remediation =
-                    manualRemediations.get(row.fingerprint) ?? null;
+                    standaloneRemediations.get(row.fingerprint) ?? null;
                 return {
                     uuid: row.ai_agent_review_item_uuid,
                     fingerprint: row.fingerprint,
-                    source: 'manual',
+                    source: row.source,
                     organizationUuid: row.organization_uuid,
                     projectUuid: row.project_uuid,
                     agentUuid: row.agent_uuid,
@@ -1517,6 +1538,7 @@ export class AiAgentReviewClassifierModel {
                     createdByUserUuid: row.created_by_user_uuid,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
+                    projectContextEntry: row.project_context_entry ?? null,
                     remediation,
                     createdAt: row.created_at,
                     updatedAt: row.updated_at,
@@ -1524,19 +1546,18 @@ export class AiAgentReviewClassifierModel {
                 };
             });
 
-        return [...reviewItems, ...manualItems]
-            .sort((a, b) => {
-                if (a.boardPosition == null && b.boardPosition == null) {
-                    return (
-                        new Date(b.lastSeenAt).getTime() -
-                        new Date(a.lastSeenAt).getTime()
-                    );
-                }
-                if (a.boardPosition == null) return 1;
-                if (b.boardPosition == null) return -1;
-                return a.boardPosition - b.boardPosition;
-            })
-            .slice(0, limit);
+        const items = [...reviewItems, ...standaloneItems].sort((a, b) => {
+            if (a.boardPosition == null && b.boardPosition == null) {
+                return (
+                    new Date(b.lastSeenAt).getTime() -
+                    new Date(a.lastSeenAt).getTime()
+                );
+            }
+            if (a.boardPosition == null) return 1;
+            if (b.boardPosition == null) return -1;
+            return a.boardPosition - b.boardPosition;
+        });
+        return args.unbounded ? items : items.slice(0, limit);
     }
 
     async createManualReviewItem(

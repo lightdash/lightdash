@@ -772,7 +772,10 @@ export type AiAgentReviewItem = {
     updatedAt: Date;
 };
 
-export type AiAgentReviewItemSource = 'ai_finding' | 'manual';
+export type AiAgentReviewItemSource =
+    | 'ai_finding'
+    | 'manual'
+    | 'memory_promotion';
 
 export type AiAgentReviewItemPriority =
     | 'urgent'
@@ -782,6 +785,7 @@ export type AiAgentReviewItemPriority =
     | 'none';
 
 export type AiAgentReviewItemSummary = AiAgentReviewItem & {
+    projectContextEntry?: AiAgentJudgeProjectContextEntry | null;
     /**
      * Legacy boolean kept for current clients. New clients should use
      * writebackEligibility for the blocking reason and provider.

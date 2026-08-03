@@ -103,7 +103,10 @@ import { type ProjectContextService } from './ProjectContextService/ProjectConte
 type AiAgentAdminServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentModel: AiAgentModel;
-    aiAgentMemoryModel: Pick<AiAgentMemoryModel, 'findAdminMemoriesPaginated'>;
+    aiAgentMemoryModel: Pick<
+        AiAgentMemoryModel,
+        'findAdminMemoriesPaginated' | 'supersedePromotionSource'
+    >;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewClassifierService: Pick<
         AiAgentReviewClassifierService,
@@ -215,7 +218,7 @@ const getWritebackStrategy = (
             ),
         };
     }
-    if (!item.latestFinding?.projectContextEntry) {
+    if (!item.projectContextEntry && !item.latestFinding?.projectContextEntry) {
         if (item.source === 'manual') {
             return { strategy: 'project_context' };
         }
@@ -843,15 +846,29 @@ export class AiAgentAdminService extends BaseService {
         }
         const scope = await this.resolveReadScope(user, organizationUuid);
 
-        const allItems =
-            await this.aiAgentReviewClassifierModel.listReviewItems({
+        const [allItems, openPrItems] = await Promise.all([
+            this.aiAgentReviewClassifierModel.listReviewItems({
                 organizationUuid,
                 statuses,
-            });
+            }),
+            this.aiAgentReviewClassifierModel.listReviewItems({
+                organizationUuid,
+                prState: 'open',
+                unbounded: true,
+            }),
+        ]);
         const items =
             scope.kind === 'all'
                 ? allItems
                 : allItems.filter(
+                      (item) =>
+                          item.projectUuid !== null &&
+                          scope.projectUuids.includes(item.projectUuid),
+                  );
+        const scopedOpenPrItems =
+            scope.kind === 'all'
+                ? openPrItems
+                : openPrItems.filter(
                       (item) =>
                           item.projectUuid !== null &&
                           scope.projectUuids.includes(item.projectUuid),
@@ -864,7 +881,7 @@ export class AiAgentAdminService extends BaseService {
         const overrides = await this.reconcileLinkedPullRequests(
             user.userUuid,
             organizationUuid,
-            items,
+            scopedOpenPrItems,
             { projectContextEnabled },
         );
 
@@ -908,9 +925,7 @@ export class AiAgentAdminService extends BaseService {
             };
         });
 
-        const filtered = statuses
-            ? reconciled.filter((item) => statuses.includes(item.status))
-            : reconciled;
+        const filtered = reconciled;
 
         const blockedReasons = filtered.reduce<
             Partial<Record<AiAgentReviewItemWritebackBlockedReason, number>>
@@ -1245,6 +1260,16 @@ export class AiAgentAdminService extends BaseService {
                         ? 'resolved'
                         : 'open';
                     const prState = pr.merged ? 'merged' : 'closed';
+                    if (
+                        pr.merged &&
+                        item.source === 'memory_promotion' &&
+                        item.projectUuid
+                    ) {
+                        await this.aiAgentMemoryModel.supersedePromotionSource({
+                            fingerprint: item.fingerprint,
+                            projectUuid: item.projectUuid,
+                        });
+                    }
                     await this.aiAgentReviewClassifierModel.reconcileReviewItemPrState(
                         {
                             fingerprint: item.fingerprint,

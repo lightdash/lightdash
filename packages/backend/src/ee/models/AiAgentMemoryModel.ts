@@ -3,6 +3,7 @@ import {
     getAiAgentMemoryConsolidationOperationSlugs,
     getAiProjectContextObjectKey,
     ProjectType,
+    shouldReopenReviewItem,
     type AiAgentAdminMemoriesSummary,
     type AiAgentAdminMemoryFilters,
     type AiAgentAdminMemoryItem,
@@ -47,6 +48,13 @@ import {
     type DbAiAgentMemoryConsolidationRun,
     type DbAiAgentThreadDistill,
 } from '../database/entities/aiAgentMemory';
+import {
+    AiAgentReviewItemEventsTableName,
+    AiAgentReviewItemTableName,
+    type AiAgentReviewItemEventsTable,
+    type AiAgentReviewItemTable,
+    type DbAiAgentReviewItem,
+} from '../database/entities/aiAgentReviewClassifier';
 
 // Keeps list payloads bounded; the memory page shows the full body
 const MEMORY_LIST_SUMMARY_MAX_LENGTH = 280;
@@ -204,11 +212,21 @@ type ConsolidationSourceRow = Pick<
     | 'generated_at'
     | 'agent_uuid'
     | 'scope'
+    | 'title'
+    | 'raw_memory'
+    | 'terms'
+    | 'objects'
     | 'cited_count'
     | 'last_cited_at'
     | 'pulled_count'
     | 'last_pulled_at'
 >;
+
+/** An open promotion review keyed to the memory it was raised from. */
+type PromotionReviewRow = Pick<
+    DbAiAgentReviewItem,
+    'fingerprint' | 'status' | 'dismissed_reason' | 'pr_state'
+> & { source_ai_agent_memory_uuid: string };
 
 const CONSOLIDATION_LOCK_CLASS = 4;
 
@@ -1040,6 +1058,36 @@ export class AiAgentMemoryModel {
         return updated > 0;
     }
 
+    async supersedePromotionSource(args: {
+        fingerprint: string;
+        projectUuid: string;
+    }): Promise<boolean> {
+        const promotion = await this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .where('fingerprint', args.fingerprint)
+            .where('source', 'memory_promotion')
+            .first('source_ai_agent_memory_uuid');
+        if (!promotion?.source_ai_agent_memory_uuid) return false;
+
+        const updated = await this.database<AiAgentMemoryTable>(
+            AiAgentMemoryTableName,
+        )
+            .where(
+                'ai_agent_memory_uuid',
+                promotion.source_ai_agent_memory_uuid,
+            )
+            .where('project_uuid', args.projectUuid)
+            .where('status', 'active')
+            .update({
+                status: 'superseded',
+                superseded_by_uuid: null,
+                updated_at: this.database.fn.now(),
+            });
+
+        return updated > 0;
+    }
+
     async incrementPulledForActiveMemories(args: {
         projectUuid: string;
         userUuid: string;
@@ -1320,6 +1368,7 @@ export class AiAgentMemoryModel {
         accepted: AiAgentMemoryConsolidationOperation[];
         rejected: AiAgentMemoryConsolidationRejection[];
         currentBySlug: Map<string, ConsolidationSourceRow>;
+        promotionReviewByMemoryUuid: Map<string, PromotionReviewRow>;
     }> {
         await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
             CONSOLIDATION_LOCK_CLASS,
@@ -1348,6 +1397,10 @@ export class AiAgentMemoryModel {
                           'generated_at',
                           'agent_uuid',
                           'scope',
+                          'title',
+                          'raw_memory',
+                          'terms',
+                          'objects',
                           'cited_count',
                           'last_cited_at',
                           'pulled_count',
@@ -1359,6 +1412,42 @@ export class AiAgentMemoryModel {
         const selectedBySlug = new Map(
             args.selection.map((row) => [row.slug, row]),
         );
+        const promotionReviews =
+            currentRows.length === 0
+                ? []
+                : await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+                      .where('source', 'memory_promotion')
+                      .whereIn(
+                          'source_ai_agent_memory_uuid',
+                          currentRows.map((row) => row.ai_agent_memory_uuid),
+                      )
+                      .forUpdate()
+                      .select(
+                          'fingerprint',
+                          'source_ai_agent_memory_uuid',
+                          'status',
+                          'dismissed_reason',
+                          'pr_state',
+                      );
+        const promotionReviewByMemoryUuid = new Map(
+            promotionReviews
+                .filter(
+                    (review): review is PromotionReviewRow =>
+                        review.source_ai_agent_memory_uuid !== null,
+                )
+                .map((review) => [review.source_ai_agent_memory_uuid, review]),
+        );
+        const getPromotionReview = (slug: string) =>
+            promotionReviewByMemoryUuid.get(
+                currentBySlug.get(slug)!.ai_agent_memory_uuid,
+            );
+        const isPromotionPending = (slug: string): boolean => {
+            const review = getPromotionReview(slug);
+            return (
+                review?.pr_state === 'open' ||
+                ['triage', 'open', 'in_progress'].includes(review?.status ?? '')
+            );
+        };
         const isUnmoved = (slug: string): boolean => {
             const current = currentBySlug.get(slug);
             const selected = selectedBySlug.get(slug);
@@ -1376,16 +1465,55 @@ export class AiAgentMemoryModel {
         const rejected = [...args.rejected];
         for (const operation of args.operations) {
             if (
-                getAiAgentMemoryConsolidationOperationSlugs(operation).every(
+                !getAiAgentMemoryConsolidationOperationSlugs(operation).every(
                     isUnmoved,
                 )
             ) {
-                accepted.push(operation);
-            } else {
                 rejected.push({ operation, reason: 'row_moved' });
+            } else if (
+                operation.type === 'promote' &&
+                currentBySlug.get(operation.slug)!.scope !== 'project'
+            ) {
+                rejected.push({ operation, reason: 'not_project_scope' });
+            } else if (
+                operation.type === 'promote' &&
+                currentBySlug.get(operation.slug)!.agent_uuid === null
+            ) {
+                rejected.push({ operation, reason: 'missing_agent' });
+            } else if (
+                operation.type === 'promote' &&
+                isPromotionPending(operation.slug)
+            ) {
+                rejected.push({ operation, reason: 'promotion_pending' });
+            } else if (
+                operation.type === 'promote' &&
+                getPromotionReview(operation.slug) !== undefined &&
+                !shouldReopenReviewItem(
+                    getPromotionReview(operation.slug)!.status,
+                    getPromotionReview(operation.slug)!.dismissed_reason,
+                )
+            ) {
+                rejected.push({
+                    operation,
+                    reason: 'promotion_already_reviewed',
+                });
+            } else if (
+                operation.type !== 'promote' &&
+                getAiAgentMemoryConsolidationOperationSlugs(operation).some(
+                    isPromotionPending,
+                )
+            ) {
+                rejected.push({ operation, reason: 'promotion_pending' });
+            } else {
+                accepted.push(operation);
             }
         }
-        return { accepted, rejected, currentBySlug };
+        return {
+            accepted,
+            rejected,
+            currentBySlug,
+            promotionReviewByMemoryUuid,
+        };
     }
 
     async recordDryRunConsolidation(args: {
@@ -1433,11 +1561,15 @@ export class AiAgentMemoryModel {
         unresolvedObjectKeys: Set<string>;
     }): Promise<AiAgentMemoryConsolidationApplyResult> {
         return this.database.transaction(async (trx) => {
-            const { accepted, rejected, currentBySlug } =
-                await AiAgentMemoryModel.lockAndRevalidateConsolidation(
-                    trx,
-                    args,
-                );
+            const {
+                accepted,
+                rejected,
+                currentBySlug,
+                promotionReviewByMemoryUuid,
+            } = await AiAgentMemoryModel.lockAndRevalidateConsolidation(
+                trx,
+                args,
+            );
 
             const applied: AiAgentMemoryConsolidationOperation[] = [];
             for (const operation of accepted) {
@@ -1457,6 +1589,84 @@ export class AiAgentMemoryModel {
                             }),
                         );
                         break;
+                    case 'promote': {
+                        const source = currentBySlug.get(operation.slug)!;
+                        const fingerprint = `memory_promotion:${source.ai_agent_memory_uuid}`;
+                        const existing = promotionReviewByMemoryUuid.get(
+                            source.ai_agent_memory_uuid,
+                        );
+                        const reviewFields = {
+                            project_context_entry: JSON.stringify({
+                                op: 'create',
+                                id: null,
+                                kind: 'context',
+                                content: source.raw_memory,
+                                terms: source.terms,
+                                objects: source.objects,
+                            }) as never,
+                            title: `Promote memory: ${source.title}`,
+                            description: source.raw_memory,
+                            status: 'open' as const,
+                            dismissed_reason: null,
+                            status_updated_at: trx.fn.now() as never,
+                            status_updated_by_user_uuid: null,
+                            updated_at: trx.fn.now() as never,
+                        };
+                        if (existing) {
+                            // eslint-disable-next-line no-await-in-loop
+                            await trx<AiAgentReviewItemTable>(
+                                AiAgentReviewItemTableName,
+                            )
+                                .where('fingerprint', fingerprint)
+                                .update(reviewFields);
+                            // eslint-disable-next-line no-await-in-loop
+                            await trx<AiAgentReviewItemEventsTable>(
+                                AiAgentReviewItemEventsTableName,
+                            ).insert({
+                                fingerprint,
+                                organization_uuid: args.run.organizationUuid,
+                                event_type: 'status_changed',
+                                occurred_at: trx.fn.now() as never,
+                                payload: JSON.stringify({
+                                    from: existing.status,
+                                    to: 'open',
+                                    dismissedReason: null,
+                                }) as never,
+                                created_by_user_uuid: null,
+                            });
+                        } else {
+                            // eslint-disable-next-line no-await-in-loop
+                            await trx<AiAgentReviewItemTable>(
+                                AiAgentReviewItemTableName,
+                            ).insert({
+                                fingerprint,
+                                source: 'memory_promotion',
+                                source_ai_agent_memory_uuid:
+                                    source.ai_agent_memory_uuid,
+                                organization_uuid: args.run.organizationUuid,
+                                project_uuid: args.run.projectUuid,
+                                agent_uuid: source.agent_uuid,
+                                primary_root_cause: 'project_context',
+                                priority: 'none',
+                                ...reviewFields,
+                            });
+                            // eslint-disable-next-line no-await-in-loop
+                            await trx<AiAgentReviewItemEventsTable>(
+                                AiAgentReviewItemEventsTableName,
+                            ).insert({
+                                fingerprint,
+                                organization_uuid: args.run.organizationUuid,
+                                event_type: 'created',
+                                occurred_at: trx.fn.now() as never,
+                                payload: JSON.stringify({
+                                    rootCause: 'project_context',
+                                }) as never,
+                                created_by_user_uuid: null,
+                            });
+                        }
+                        applied.push(operation);
+                        break;
+                    }
                     case 'supersede':
                         // eslint-disable-next-line no-await-in-loop
                         await trx<AiAgentMemoryTable>(AiAgentMemoryTableName)

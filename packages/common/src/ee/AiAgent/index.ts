@@ -438,6 +438,11 @@ export type AiAgentMemoryConsolidationOperation =
           reason: string;
       }
     | {
+          type: 'promote';
+          slug: string;
+          reason: string;
+      }
+    | {
           type: 'supersede';
           loser_slug: string;
           winner_slug: string;
@@ -453,7 +458,7 @@ export type AiAgentMemoryConsolidationOperationType =
     AiAgentMemoryConsolidationOperation['type'];
 
 export const AI_AGENT_MEMORY_CONSOLIDATION_OPERATION_TYPES: ReadonlyArray<AiAgentMemoryConsolidationOperationType> =
-    ['merge', 'supersede', 'retire'];
+    ['merge', 'promote', 'supersede', 'retire'];
 
 /** The one operation that creates a row. */
 export type AiAgentMemoryConsolidationMergeOperation = Extract<
@@ -472,6 +477,8 @@ export const getAiAgentMemoryConsolidationOperationSlugs = (
     switch (operation.type) {
         case 'merge':
             return operation.source_slugs;
+        case 'promote':
+            return [operation.slug];
         case 'supersede':
             return [operation.loser_slug, operation.winner_slug];
         case 'retire':
@@ -487,6 +494,11 @@ export const AI_AGENT_MEMORY_CONSOLIDATION_REJECTION_REASONS = [
     'duplicate_target',
     'self_supersede',
     'insufficient_sources',
+    'not_project_scope',
+    'missing_agent',
+    'reviews_disabled',
+    'promotion_pending',
+    'promotion_already_reviewed',
     'row_moved',
 ] as const;
 

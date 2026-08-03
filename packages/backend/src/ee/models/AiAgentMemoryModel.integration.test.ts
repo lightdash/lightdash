@@ -287,6 +287,7 @@ describe('AiAgentMemoryModel integration', () => {
                             featureFlagId: FeatureFlags.AiAgentMemory,
                         })
                     ).enabled,
+                isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
             },
             schedulerClient,
             consolidationDryRun: false,

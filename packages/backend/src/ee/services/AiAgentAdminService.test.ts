@@ -11,6 +11,8 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import {
+    getInstallationToken,
+    getPullRequest,
     getPullRequestComments,
     getPullRequestDiffFiles,
 } from '../../clients/github/Github';
@@ -251,6 +253,7 @@ const makeService = ({
     aiOrganizationSettingsService = {},
     projectModel = {},
     projectService = {},
+    projectContextService = {},
     schedulerClient = {},
     githubAppInstallationsModel = {},
     gitlabAppInstallationsModel = {},
@@ -270,6 +273,7 @@ const makeService = ({
     aiOrganizationSettingsService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
     projectService?: Record<string, unknown>;
+    projectContextService?: Record<string, unknown>;
     schedulerClient?: Record<string, unknown>;
     githubAppInstallationsModel?: Record<string, unknown>;
     gitlabAppInstallationsModel?: Record<string, unknown>;
@@ -294,6 +298,7 @@ const makeService = ({
             findAdminMemoriesPaginated: vi
                 .fn()
                 .mockResolvedValue({ data: { memories: [] } }),
+            supersedePromotionSource: vi.fn().mockResolvedValue(false),
             ...aiAgentMemoryModel,
         },
         aiAgentReviewClassifierModel: {
@@ -384,7 +389,7 @@ const makeService = ({
                 .mockResolvedValue({ jobUuid: COMPILE_JOB_UUID }),
             ...projectService,
         },
-        projectContextService: {},
+        projectContextService,
         pullRequestsModel: {
             findByProjectAndUrl: vi
                 .fn()
@@ -1284,6 +1289,40 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
         });
     });
 
+    it('allows memory promotion writeback with its persisted context entry', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({
+                    source: 'memory_promotion',
+                    latestFinding: null,
+                    findingCount: 0,
+                    primaryRootCause: 'project_context',
+                    projectContextEntry: {
+                        op: 'create',
+                        id: null,
+                        kind: 'context',
+                        content: 'Use orders for revenue questions.',
+                        terms: ['revenue'],
+                        objects: [{ type: 'explore', name: 'orders' }],
+                    },
+                }),
+                reviewsEnabled: true,
+                projectContextEnabled: true,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: false,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toEqual({
+            eligible: true,
+            provider: PullRequestProvider.GITHUB,
+            strategy: 'project_context',
+            reason: null,
+        });
+    });
+
     it('blocks writeback when no agent is linked', () => {
         expect(
             getAiAgentReviewItemWritebackEligibility({
@@ -2061,6 +2100,132 @@ describe('AiAgentAdminService project-scoped read access', () => {
     });
 });
 
+describe('AiAgentAdminService promotion PR reconciliation', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(getInstallationToken).mockResolvedValue('token');
+    });
+
+    it.each([
+        {
+            merged: true,
+            initialStatus: 'open' as const,
+            expectedStatus: 'resolved' as const,
+            expectedPrState: 'merged' as const,
+            superseded: true,
+            statuses: undefined,
+            visible: true,
+        },
+        {
+            merged: false,
+            initialStatus: 'open' as const,
+            expectedStatus: 'open' as const,
+            expectedPrState: 'closed' as const,
+            superseded: false,
+            statuses: undefined,
+            visible: true,
+        },
+        {
+            merged: true,
+            initialStatus: 'dismissed' as const,
+            expectedStatus: 'resolved' as const,
+            expectedPrState: 'merged' as const,
+            superseded: true,
+            statuses: ['open' as const],
+            visible: false,
+        },
+    ])(
+        'supersedes only after merge: $merged, initial status: $initialStatus',
+        async ({
+            merged,
+            initialStatus,
+            expectedStatus,
+            expectedPrState,
+            superseded,
+            statuses,
+            visible,
+        }) => {
+            vi.mocked(getPullRequest).mockResolvedValue({
+                state: 'closed',
+                merged,
+            } as never);
+            const supersedePromotionSource = vi.fn().mockResolvedValue(true);
+            const reconcileReviewItemPrState = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            const ingestProjectContext = vi.fn().mockResolvedValue(undefined);
+            const item = makeReviewItem({
+                source: 'memory_promotion',
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+                primaryRootCause: 'project_context',
+                status: initialStatus,
+                linkedPrUrl: PR_URL,
+                prState: 'open',
+                projectContextEntry: {
+                    op: 'create',
+                    id: null,
+                    kind: 'context',
+                    content: 'Use orders for revenue questions.',
+                    terms: [],
+                    objects: [],
+                },
+            });
+            const listReviewItems = vi.fn(async (args: { prState?: string }) =>
+                args.prState || visible ? [item] : [],
+            );
+            const service = makeService({
+                aiAgentMemoryModel: { supersedePromotionSource },
+                aiAgentReviewClassifierModel: {
+                    listReviewItems,
+                    reconcileReviewItemPrState,
+                },
+                schedulerClient: { ingestProjectContext },
+            });
+
+            const results = await service.listReviewItems(
+                makeAdminUser(),
+                statuses,
+            );
+
+            if (visible) {
+                expect(results[0]).toMatchObject({
+                    status: expectedStatus,
+                    prState: expectedPrState,
+                });
+            } else {
+                expect(results).toEqual([]);
+            }
+            expect(reconcileReviewItemPrState).toHaveBeenCalledWith({
+                fingerprint: item.fingerprint,
+                organizationUuid: ORGANIZATION_UUID,
+                status: expectedStatus,
+                prState: expectedPrState,
+            });
+            expect(listReviewItems).toHaveBeenCalledWith({
+                organizationUuid: ORGANIZATION_UUID,
+                prState: 'open',
+                unbounded: true,
+            });
+            if (superseded) {
+                expect(supersedePromotionSource).toHaveBeenCalledWith({
+                    fingerprint: item.fingerprint,
+                    projectUuid: PROJECT_UUID,
+                });
+                expect(ingestProjectContext).toHaveBeenCalledWith({
+                    projectUuid: PROJECT_UUID,
+                    organizationUuid: ORGANIZATION_UUID,
+                    userUuid: USER_UUID,
+                });
+            } else {
+                expect(supersedePromotionSource).not.toHaveBeenCalled();
+                expect(ingestProjectContext).not.toHaveBeenCalled();
+            }
+        },
+    );
+});
+
 describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
     const payload = {
         fingerprint: 'fingerprint-1',
@@ -2072,6 +2237,51 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('keeps a promoted memory active while its writeback PR is open', async () => {
+        const supersedePromotionSource = vi.fn().mockResolvedValue(true);
+        const writebackEntry = vi.fn().mockResolvedValue({
+            prUrl: PR_URL,
+            owner: 'acme',
+            repo: 'dbt',
+            prNumber: 42,
+        });
+        const item = makeReviewItem({
+            source: 'memory_promotion',
+            primaryRootCause: 'project_context',
+            projectContextEntry: {
+                op: 'create',
+                id: null,
+                kind: 'context',
+                content: 'Use orders for revenue questions.',
+                terms: ['revenue'],
+                objects: [{ type: 'explore', name: 'orders' }],
+            },
+        });
+        const service = makeService({
+            aiAgentMemoryModel: { supersedePromotionSource },
+            aiAgentReviewClassifierModel: {
+                getReviewItem: vi.fn().mockResolvedValue(item),
+            },
+            projectContextService: { writebackEntry },
+            pullRequestsModel: {
+                findOrCreate: vi.fn().mockResolvedValue({
+                    pullRequestUuid: 'pull-request-1',
+                }),
+            },
+        });
+
+        await service.runReviewItemWritebackJob(payload);
+
+        expect(writebackEntry).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: PROJECT_UUID,
+                entry: item.projectContextEntry,
+                sourceThread: null,
+            }),
+        );
+        expect(supersedePromotionSource).not.toHaveBeenCalled();
     });
 
     it('enqueues a compile poll instead of seeding the verification thread inline', async () => {

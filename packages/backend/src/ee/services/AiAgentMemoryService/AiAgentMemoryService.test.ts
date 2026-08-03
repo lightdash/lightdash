@@ -228,6 +228,7 @@ describe('AiAgentMemoryService', () => {
         const distillCall = vi.fn();
         const consolidateCall = vi.fn().mockResolvedValue({ operations: [] });
         const track = vi.fn();
+        const isAiAgentReviewsEnabled = vi.fn().mockResolvedValue(true);
         const prometheusMetrics = {
             trackAiAgentMemoryDistill: vi.fn(),
             incrementAiAgentMemorySweepEnqueued: vi.fn(),
@@ -273,6 +274,7 @@ describe('AiAgentMemoryService', () => {
                             featureFlagId: FeatureFlags.AiAgentMemory,
                         })
                     ).enabled,
+                isAiAgentReviewsEnabled,
             },
             schedulerClient: {
                 aiAgentMemoryDistill,
@@ -311,6 +313,7 @@ describe('AiAgentMemoryService', () => {
             distillCall,
             consolidateCall,
             track,
+            isAiAgentReviewsEnabled,
             prometheusMetrics,
         };
     };
@@ -1426,6 +1429,50 @@ describe('AiAgentMemoryService', () => {
                         }),
                         reason: 'unknown_slug',
                     },
+                ],
+            }),
+        );
+    });
+
+    it('rejects promotion but keeps other curation when reviews are disabled', async () => {
+        const {
+            service,
+            isAiAgentReviewsEnabled,
+            findActiveForProject,
+            consolidateCall,
+            applyConsolidation,
+        } = buildConsolidation();
+        isAiAgentReviewsEnabled.mockResolvedValue(false);
+        findActiveForProject.mockResolvedValue(
+            activeMemories({ scope: 'project' }),
+        );
+        consolidateCall.mockResolvedValue({
+            operations: [
+                {
+                    type: 'promote',
+                    slug: 'net-revenue-0',
+                    reason: 'Useful across the project.',
+                },
+                {
+                    type: 'retire',
+                    slug: 'net-revenue-1',
+                    reason: 'No longer valid.',
+                },
+            ],
+        });
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('consolidated');
+
+        expect(consolidateCall).toHaveBeenCalledWith(
+            expect.objectContaining({ promotionReviewEnabled: false }),
+        );
+        expect(applyConsolidation).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operations: [expect.objectContaining({ type: 'retire' })],
+                rejected: [
+                    expect.objectContaining({ reason: 'reviews_disabled' }),
                 ],
             }),
         );

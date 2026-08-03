@@ -457,6 +457,7 @@ const AiAgentAdminReviewItemsTable = ({
                 agent?.name,
                 project?.name,
                 reviewItem.latestFinding?.recommendation?.title,
+                reviewItem.projectContextEntry?.content,
                 reviewItem.latestFinding?.projectContextEntry?.content,
             ]
                 .filter(Boolean)
