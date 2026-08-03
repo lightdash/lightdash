@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { gql, GraphQLClient } from 'graphql-request';
 import { DbtClient } from '../types';
+import { DEFAULT_DBT_CLOUD_DISCOVERY_ENDPOINT } from '../utils/credentialDestination';
 
 const quoteChars: Record<SupportedDbtAdapter, string> = {
     bigquery: '`',
@@ -150,8 +151,7 @@ const dbtCloudEnvironmentQuery = gql`
 `;
 
 export class DbtMetadataApiClient implements DbtClient {
-    private readonly domain: string =
-        'https://metadata.cloud.getdbt.com/graphql';
+    private readonly domain: string = DEFAULT_DBT_CLOUD_DISCOVERY_ENDPOINT;
 
     private readonly bearerToken: string;
 

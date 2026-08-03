@@ -352,6 +352,29 @@ describe('ExternalConnectionService.update type switches', () => {
             }),
         );
     });
+
+    it('rejects changing the origin without a new secret', async () => {
+        const { service, model } = buildService({});
+        mockAbility(service, true);
+
+        await expect(
+            service.update(adminAccount, projectUuid, connectionUuid, {
+                origin: 'https://attacker.example.com',
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(model.update).not.toHaveBeenCalled();
+    });
+
+    it('keeps the stored secret for a normalized-equivalent origin', async () => {
+        const { service, model } = buildService({});
+        mockAbility(service, true);
+
+        await service.update(adminAccount, projectUuid, connectionUuid, {
+            origin: 'https://API.EXAMPLE.COM./',
+        });
+
+        expect(model.update).toHaveBeenCalled();
+    });
 });
 
 // -------------------------------------------------------------------

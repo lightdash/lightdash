@@ -6,7 +6,11 @@ import {
     CreateAthenaCredentials,
     CreateDatabricksCredentials,
     CreatePostgresCredentials,
+    CreateSnowflakeCredentials,
     DatabricksAuthenticationType,
+    DbtCloudIDEProjectConfig,
+    DbtGithubProjectConfig,
+    DbtProjectType,
     DimensionType,
     ExploreType,
     FieldType,
@@ -319,6 +323,50 @@ describe('ProjectModel', () => {
             expect(result.password).toEqual('new_password');
         });
 
+        test('should NOT merge Postgres secrets when the host changes', () => {
+            const incompleteConfig = {
+                ...CompletePostgresCredentials,
+                host: 'attacker.example.com',
+                user: undefined,
+                password: undefined,
+            } as unknown as CreatePostgresCredentials;
+
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                incompleteConfig,
+                CompletePostgresCredentials,
+            );
+
+            expect(result.user).toBeUndefined();
+            expect(result.password).toBeUndefined();
+        });
+
+        test('should NOT merge Snowflake secrets when the access URL changes', () => {
+            const completeConfig: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'saved-user',
+                password: 'saved-password',
+                database: 'database',
+                warehouse: 'warehouse',
+                schema: 'schema',
+                accessUrl: 'https://account.snowflakecomputing.com',
+            };
+            const incompleteConfig = {
+                ...completeConfig,
+                user: undefined,
+                password: undefined,
+                accessUrl: 'https://attacker.example.com',
+            } as unknown as CreateSnowflakeCredentials;
+
+            const result = ProjectModel.mergeMissingWarehouseSecrets(
+                incompleteConfig,
+                completeConfig,
+            );
+
+            expect(result.user).toBeUndefined();
+            expect(result.password).toBeUndefined();
+        });
+
         test('should NOT merge Athena access keys when authenticationType is iam_role', async () => {
             const incompleteAthenaCredentials: CreateAthenaCredentials = {
                 type: WarehouseTypes.ATHENA,
@@ -400,6 +448,88 @@ describe('ProjectModel', () => {
 
             expect(result.oauthClientId).toEqual('client-id');
             expect(result.oauthClientSecret).toEqual('client-secret');
+        });
+    });
+
+    describe('mergeMissingDbtConfigSecrets', () => {
+        test('should NOT merge the dbt Cloud API key when the discovery endpoint changes', () => {
+            const completeConfig: DbtCloudIDEProjectConfig = {
+                type: DbtProjectType.DBT_CLOUD_IDE,
+                api_key: 'saved-api-key',
+                environment_id: 'environment-id',
+                discovery_api_endpoint: 'https://metadata.cloud.getdbt.com',
+            };
+            const incompleteConfig = {
+                ...completeConfig,
+                api_key: undefined,
+                discovery_api_endpoint: 'https://attacker.example.com',
+            } as unknown as DbtCloudIDEProjectConfig;
+
+            const result = ProjectModel.mergeMissingDbtConfigSecrets(
+                incompleteConfig,
+                completeConfig,
+            );
+
+            if (result.type !== DbtProjectType.DBT_CLOUD_IDE) {
+                throw new Error('Expected a dbt Cloud IDE config');
+            }
+            expect(result.api_key).toBeUndefined();
+        });
+
+        test('should NOT merge a GitHub token when the host domain changes', () => {
+            const completeConfig: DbtGithubProjectConfig = {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'personal_access_token',
+                personal_access_token: 'saved-token',
+                installation_id: undefined,
+                repository: 'lightdash/lightdash',
+                branch: 'main',
+                project_sub_path: '/',
+                host_domain: 'github.com',
+            };
+            const incompleteConfig = {
+                ...completeConfig,
+                personal_access_token: undefined,
+                host_domain: 'attacker.example.com',
+            };
+
+            const result = ProjectModel.mergeMissingDbtConfigSecrets(
+                incompleteConfig,
+                completeConfig,
+            );
+
+            if (result.type !== DbtProjectType.GITHUB) {
+                throw new Error('Expected a GitHub config');
+            }
+            expect(result.personal_access_token).toBeUndefined();
+        });
+
+        test('should merge a GitHub token for a normalized-equivalent host domain', () => {
+            const completeConfig: DbtGithubProjectConfig = {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'personal_access_token',
+                personal_access_token: 'saved-token',
+                installation_id: undefined,
+                repository: 'lightdash/lightdash',
+                branch: 'main',
+                project_sub_path: '/',
+                host_domain: 'github.com',
+            };
+            const incompleteConfig = {
+                ...completeConfig,
+                personal_access_token: undefined,
+                host_domain: 'GITHUB.COM.',
+            };
+
+            const result = ProjectModel.mergeMissingDbtConfigSecrets(
+                incompleteConfig,
+                completeConfig,
+            );
+
+            if (result.type !== DbtProjectType.GITHUB) {
+                throw new Error('Expected a GitHub config');
+            }
+            expect(result.personal_access_token).toEqual('saved-token');
         });
     });
 
