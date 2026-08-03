@@ -779,9 +779,20 @@ const extractAppSlugsFromDashboards = (
     ),
 ];
 
+// A virtual view's slug is the explore name charts store in tableName, so
+// these names double as virtual view slug candidates.
+const extractChartTableNames = (charts: ChartAsCode[]): string[] => [
+    ...new Set(
+        charts
+            .map((chart) => chart.tableName)
+            .filter((tableName): tableName is string => !!tableName),
+    ),
+];
+
 export type DownloadContentResult = {
     total: number;
     chartSlugs: string[];
+    chartTableNames: string[];
     appSlugs: string[];
     metadataEntries: MetadataEntry[];
     spaces: SpaceAsCode[];
@@ -807,6 +818,7 @@ export const downloadContent = async (
     let offset = 0;
     let total = 0;
     let chartSlugs: string[] = [];
+    let chartTableNames: string[] = [];
     let appSlugs: string[] = [];
     let allMetadataEntries: MetadataEntry[] = [];
     let allSpaces: SpaceAsCode[] = [];
@@ -911,6 +923,10 @@ export const downloadContent = async (
                 });
                 allMetadataEntries = [...allMetadataEntries, ...entries];
             }
+            chartTableNames = [
+                ...chartTableNames,
+                ...extractChartTableNames(results.charts),
+            ];
         }
 
         // Accumulate space metadata from each page
@@ -940,6 +956,7 @@ export const downloadContent = async (
     return {
         total,
         chartSlugs: [...new Set(chartSlugs)],
+        chartTableNames: [...new Set(chartTableNames)],
         appSlugs: [...new Set(appSlugs)],
         metadataEntries: allMetadataEntries,
         spaces: allSpaces,
@@ -991,6 +1008,60 @@ const downloadVirtualViews = async (
     );
     results.missingSlugs.forEach((slug) =>
         GlobalState.log(styles.warning(`Virtual view "${slug}" was not found`)),
+    );
+    return results.virtualViews.length;
+};
+
+// This download is implicit (derived from a dashboard's charts, not asked for
+// by the user), so an older server without the endpoint (404) or a user
+// without content-as-code access (403) must not fail the run.
+const isVirtualViewsUnavailableError = (error: unknown): boolean =>
+    error instanceof LightdashError && [403, 404].includes(error.statusCode);
+
+/**
+ * Downloads the virtual views backing a dashboard's charts. The candidates are
+ * chart table names, so ones the server reports as missing are just regular
+ * dbt explores — expected, never warned. Returns null when virtual views are
+ * unavailable on the server.
+ */
+const downloadLinkedVirtualViews = async (
+    projectId: string,
+    tableNames: string[],
+    customPath?: string,
+): Promise<number | null> => {
+    const query = new URLSearchParams(
+        tableNames.map((name) => ['slugs', name] as [string, string]),
+    ).toString();
+    let results: ApiVirtualViewAsCodeListResponse['results'];
+    try {
+        results = await lightdashApi<
+            ApiVirtualViewAsCodeListResponse['results']
+        >({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/code/virtualViews?${query}`,
+            body: undefined,
+        });
+    } catch (error) {
+        if (isVirtualViewsUnavailableError(error)) {
+            GlobalState.debug(
+                `Could not download linked virtual views: ${getErrorMessage(error)}`,
+            );
+            return null;
+        }
+        throw error;
+    }
+    if (results.virtualViews.length > 0) {
+        await writeCodeResourceDocuments({
+            definition: VIRTUAL_VIEW_CODE_RESOURCE,
+            basePath: getDownloadFolder(customPath),
+            documents: results.virtualViews,
+            pruneOtherDocuments: false,
+        });
+    }
+    results.skipped.forEach(({ slug, reason }) =>
+        GlobalState.log(
+            styles.warning(`Skipped virtual view "${slug}": ${reason}`),
+        ),
     );
     return results.virtualViews.length;
 };
@@ -1946,6 +2017,7 @@ export const downloadHandler = async (
                     );
                     const {
                         total: regularCharts,
+                        chartTableNames: linkedChartTableNames,
                         metadataEntries: linkedChartMeta,
                     } = await downloadContent(
                         chartSlugs,
@@ -1987,6 +2059,32 @@ export const downloadHandler = async (
                     output.completeItem(
                         `${regularCharts + sqlCharts} downloaded`,
                     );
+
+                    // Virtual views the linked charts are built on. Skipped
+                    // when a broader step already downloaded every one.
+                    if (
+                        linkedChartTableNames.length > 0 &&
+                        !includeAllOptionalContent &&
+                        !options.includeVirtualViews
+                    ) {
+                        output.startItem('Linked virtual views');
+                        const linkedVirtualViews =
+                            await downloadLinkedVirtualViews(
+                                projectId,
+                                linkedChartTableNames,
+                                options.path,
+                            );
+                        if (linkedVirtualViews === null) {
+                            output.completeItem(
+                                'not available on this server',
+                                'warning',
+                            );
+                        } else {
+                            output.completeItem(
+                                `${linkedVirtualViews} downloaded`,
+                            );
+                        }
+                    }
                 }
 
                 // Consumed after the explicit apps step (see cappedAppSlugs).
@@ -3739,14 +3837,17 @@ export const uploadHandler = async (
 
 export const testHelpers = {
     assertUniqueSpacePaths,
+    downloadLinkedVirtualViews,
     downloadSpaces,
     extractAppSlugsFromDashboards,
+    extractChartTableNames,
     getFlatSpaceFileNames,
     getDashboardAppSlugs,
     getDashboardChartSlugs,
     hasContentFilters,
     isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
+    isVirtualViewsUnavailableError,
     downloadAiAgents,
     isFilteredWithNoDashboards,
     readAiAgentFiles,

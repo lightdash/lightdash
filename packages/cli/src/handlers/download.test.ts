@@ -68,13 +68,16 @@ vi.mock('./dbt/apiClient', async (importOriginal) => ({
 
 const {
     assertUniqueSpacePaths,
+    downloadLinkedVirtualViews,
     downloadSpaces,
+    extractChartTableNames,
     getDashboardAppSlugs,
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
     hasContentFilters,
     isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
+    isVirtualViewsUnavailableError,
     downloadAiAgents,
     isFilteredWithNoDashboards,
     readAiAgentFiles,
@@ -470,6 +473,29 @@ describe('extractAppSlugsFromDashboards', () => {
     });
 });
 
+describe('extractChartTableNames', () => {
+    const chart = (tableName: string | undefined): AnyType => ({
+        slug: 'a-chart',
+        tableName,
+    });
+
+    it('dedupes table names across charts', () => {
+        expect(
+            extractChartTableNames([
+                chart('orders'),
+                chart('customers'),
+                chart('orders'),
+            ]),
+        ).toEqual(['orders', 'customers']);
+    });
+
+    it('drops missing table names (e.g. SQL charts)', () => {
+        expect(
+            extractChartTableNames([chart(undefined), chart(''), chart('one')]),
+        ).toEqual(['one']);
+    });
+});
+
 describe('getDashboardAppSlugs', () => {
     let tmpDir: string;
 
@@ -583,6 +609,125 @@ describe('sanitizeChartForDownload', () => {
             xRef: { field: 'events_date_day' },
             yRef: { field: 'orders_count' },
         });
+    });
+});
+
+describe('downloadLinkedVirtualViews', () => {
+    let tmpDir: string;
+    const virtualViewDocument = (slug: string) => ({
+        contentType: ContentAsCodeType.VIRTUAL_VIEW,
+        version: 1,
+        slug,
+        name: slug,
+        sql: 'SELECT 1 AS order_id',
+        columns: [{ reference: 'order_id', type: 'number' }],
+        parameters: null,
+    });
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'linked-virtual-views-test-'),
+        );
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('writes matched virtual views and stays silent on regular dbt table names', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            virtualViews: [virtualViewDocument('my_virtual_view')],
+            skipped: [],
+            missingSlugs: ['orders', 'customers'],
+        } as never);
+
+        const count = await downloadLinkedVirtualViews(
+            'project-uuid',
+            ['my_virtual_view', 'orders', 'customers'],
+            tmpDir,
+        );
+
+        expect(count).toBe(1);
+        expect(lightdashApi).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                url: '/api/v1/projects/project-uuid/code/virtualViews?slugs=my_virtual_view&slugs=orders&slugs=customers',
+            }),
+        );
+        await expect(
+            fs.readFile(
+                path.join(tmpDir, 'virtual-views', 'my_virtual_view.yml'),
+                'utf-8',
+            ),
+        ).resolves.toContain('slug: my_virtual_view');
+        expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it('warns about skipped virtual views', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            virtualViews: [],
+            skipped: [{ slug: 'broken_view', reason: 'malformed' }],
+            missingSlugs: [],
+        } as never);
+
+        await expect(
+            downloadLinkedVirtualViews('project-uuid', ['broken_view'], tmpDir),
+        ).resolves.toBe(0);
+        expect(logSpy).toHaveBeenCalledExactlyOnceWith(
+            expect.stringContaining('Skipped virtual view "broken_view"'),
+        );
+    });
+
+    it('returns null when the server has no virtual views endpoint', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(
+            new LightdashError({
+                message: 'Not found',
+                name: 'NotFoundError',
+                statusCode: 404,
+                data: {},
+            }),
+        );
+
+        await expect(
+            downloadLinkedVirtualViews('project-uuid', ['orders'], tmpDir),
+        ).resolves.toBeNull();
+    });
+
+    it('rethrows unexpected errors', async () => {
+        const serverError = new LightdashError({
+            message: 'Boom',
+            name: 'UnexpectedServerError',
+            statusCode: 500,
+            data: {},
+        });
+        vi.mocked(lightdashApi).mockRejectedValueOnce(serverError);
+
+        await expect(
+            downloadLinkedVirtualViews('project-uuid', ['orders'], tmpDir),
+        ).rejects.toBe(serverError);
+    });
+
+    it('classifies permission and missing-route errors as unavailable', () => {
+        [403, 404].forEach((statusCode) => {
+            expect(
+                isVirtualViewsUnavailableError(
+                    new LightdashError({
+                        message: 'unavailable',
+                        name: 'TestError',
+                        statusCode,
+                        data: {},
+                    }),
+                ),
+            ).toBe(true);
+        });
+        expect(isVirtualViewsUnavailableError(new Error('nope'))).toBe(false);
     });
 });
 
