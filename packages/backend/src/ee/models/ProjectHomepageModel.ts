@@ -3,6 +3,7 @@ import {
     ConflictError,
     NotFoundError,
     ParameterError,
+    sanitizeHomepageConfig,
     type AnnouncementsPage,
     type HomepageAssignment,
     type HomepageAudience,
@@ -36,8 +37,14 @@ export class ProjectHomepageModel {
             homepageUuid: row.homepage_uuid,
             projectUuid: row.project_uuid,
             name: row.name,
-            draftConfig: row.draft_config,
-            publishedConfig: row.published_config,
+            // Stored configs are raw jsonb: migrate legacy shapes and drop
+            // blocks that no longer validate, so every consumer gets a
+            // guaranteed HomepageConfig rather than a cast.
+            draftConfig: sanitizeHomepageConfig(row.draft_config),
+            publishedConfig:
+                row.published_config === null
+                    ? null
+                    : sanitizeHomepageConfig(row.published_config),
             isDefault: row.is_default,
             createdByUserUuid: row.created_by_user_uuid,
             createdAt: row.created_at,
@@ -90,7 +97,7 @@ export class ProjectHomepageModel {
         return {
             homepageUuid: row.homepage_uuid,
             name: row.name,
-            config: row.published_config,
+            config: sanitizeHomepageConfig(row.published_config),
         };
     }
 
@@ -429,7 +436,9 @@ export class ProjectHomepageModel {
                     homepage: {
                         homepageUuid: byGroup.homepage_uuid,
                         name: byGroup.name,
-                        config: byGroup.published_config,
+                        config: sanitizeHomepageConfig(
+                            byGroup.published_config,
+                        ),
                     },
                     source: {
                         type: 'group',
@@ -450,7 +459,7 @@ export class ProjectHomepageModel {
                     homepage: {
                         homepageUuid: byRole.homepage_uuid,
                         name: byRole.name,
-                        config: byRole.published_config,
+                        config: sanitizeHomepageConfig(byRole.published_config),
                     },
                     source: { type: 'role', role: viewer.role },
                 };
