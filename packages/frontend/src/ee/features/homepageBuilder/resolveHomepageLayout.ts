@@ -17,8 +17,14 @@ const GRID_COLUMNS = 12;
 const LEADING_HERO_TYPES: HomepageBlock['type'][] = ['ask-ai-hero', 'greeting'];
 
 // Chrome-like rows that may sit above the composer without demoting it — they
-// join the hero composition instead (day-0 has its chips above the hero too).
-const HERO_COMPANION_TYPES: HomepageBlock['type'][] = ['quick-actions'];
+// join the hero composition instead. Day-0 has both above its hero: the
+// quick-action chips and the personal favorites strip. A hero demoted to a
+// body row silently loses its density control, so this list must cover every
+// block the starter layouts place above the composer.
+const HERO_COMPANION_TYPES: HomepageBlock['type'][] = [
+    'quick-actions',
+    'favorites',
+];
 
 // Gap before a row, as a token resolved to px in CSS. The first row of a
 // section has no gap (the section's own spacing separates it).
