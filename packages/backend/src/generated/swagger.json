@@ -11140,6 +11140,66 @@
             "ApiAnnouncementImageUploadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__url-string__"
             },
+            "HomepageOpening": {
+                "type": "string",
+                "enum": ["ask-first", "content-first"],
+                "description": "Which hero opens the homepage: the Ask AI composer or greeting + quick\nactions. An admin's layout decision, independent of whether AI is licensed."
+            },
+            "OrganizationHomepageSettings": {
+                "properties": {
+                    "opening": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/HomepageOpening"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["opening", "enabled", "organizationUuid"],
+                "type": "object",
+                "description": "Org-wide homepage v2 state. `enabled` turns the new homepage on for every\nproject in the organization; the commercial flag remains as a kill-switch.\n`opening: null` means \"auto\" — AI availability decides, which is the legacy\nbehaviour for orgs enabled via the flag before this setting existed."
+            },
+            "ApiSuccess_OrganizationHomepageSettings_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationHomepageSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOrganizationHomepageSettingsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_OrganizationHomepageSettings_"
+            },
+            "UpdateOrganizationHomepageSettings": {
+                "properties": {
+                    "opening": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/HomepageOpening"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["opening", "enabled"],
+                "type": "object"
+            },
             "ManagedAgentScheduleOption": {
                 "enum": [
                     "every_6_hours",
@@ -51743,7 +51803,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.69.1",
+        "version": "1.70.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -56595,6 +56655,74 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/homepage-settings": {
+            "get": {
+                "operationId": "getOrganizationHomepageSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationHomepageSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": []
+            },
+            "patch": {
+                "operationId": "updateOrganizationHomepageSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationHomepageSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationHomepageSettings"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/databricks/sso/is-authenticated": {

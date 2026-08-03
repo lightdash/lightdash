@@ -177,6 +177,8 @@ import { OrganizationCoderController } from './../ee/controllers/OrganizationCod
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationDomainVerificationController } from './../ee/controllers/OrganizationDomainVerificationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { OrganizationHomepageSettingsController } from './../ee/controllers/organizationHomepageSettingsController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationSsoController } from './../ee/controllers/OrganizationSsoController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationWarehouseCredentialsController } from './../ee/controllers/OrganizationWarehouseCredentialsController';
@@ -10512,6 +10514,80 @@ const models: TsoaRoute.Models = {
     ApiAnnouncementImageUploadResponse: {
         dataType: 'refAlias',
         type: { ref: 'ApiSuccess__url-string__', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageOpening: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['ask-first'] },
+                { dataType: 'enum', enums: ['content-first'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationHomepageSettings: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                opening: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'HomepageOpening' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                enabled: { dataType: 'boolean', required: true },
+                organizationUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_OrganizationHomepageSettings_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'OrganizationHomepageSettings',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOrganizationHomepageSettingsResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_OrganizationHomepageSettings_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateOrganizationHomepageSettings: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                opening: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'HomepageOpening' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                enabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ManagedAgentScheduleOption: {
@@ -57690,6 +57766,126 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'uploadImage',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationHomepageSettingsController_getSettings: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/org/homepage-settings',
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationHomepageSettingsController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationHomepageSettingsController.prototype.getSettings,
+        ),
+
+        async function OrganizationHomepageSettingsController_getSettings(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationHomepageSettingsController_getSettings,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationHomepageSettingsController>(
+                        OrganizationHomepageSettingsController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getSettings',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationHomepageSettingsController_updateSettings: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateOrganizationHomepageSettings',
+        },
+    };
+    app.patch(
+        '/api/v1/org/homepage-settings',
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationHomepageSettingsController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationHomepageSettingsController.prototype.updateSettings,
+        ),
+
+        async function OrganizationHomepageSettingsController_updateSettings(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationHomepageSettingsController_updateSettings,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationHomepageSettingsController>(
+                        OrganizationHomepageSettingsController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateSettings',
                     controller,
                     response,
                     next,

@@ -1,3 +1,22 @@
+# [1.70.0](https://github.com/lightdash/lightdash/compare/1.69.1...1.70.0) (2026-08-03)
+
+
+### Bug Fixes
+
+* **validator:** avoid postgres bind limit ([#26605](https://github.com/lightdash/lightdash/issues/26605)) ([f975ad1](https://github.com/lightdash/lightdash/commit/f975ad1edc5c81b59050f8d293fdcc11dabeb708))
+* **validator:** filter orphan charts with set lookups instead of array scans ([#26650](https://github.com/lightdash/lightdash/issues/26650)) ([b32b251](https://github.com/lightdash/lightdash/commit/b32b251c3d6b838f08b3e786117c313fb7f28e93))
+
+
+### Features
+
+* **ai-agents:** persist last used AI model selection ([#26680](https://github.com/lightdash/lightdash/issues/26680)) ([1f95278](https://github.com/lightdash/lightdash/commit/1f95278ffcf4926b7d640114d16730d90c8ccea8))
+* **cli:** opt-in upload of the virtual views a dashboard uses ([#26645](https://github.com/lightdash/lightdash/issues/26645)) ([e1d7933](https://github.com/lightdash/lightdash/commit/e1d79333189bb1f94d318573a11d507c455bb190)), closes [#26580](https://github.com/lightdash/lightdash/issues/26580)
+* **homepage:** onboarding provisioner respects the org opening preset ([#26692](https://github.com/lightdash/lightdash/issues/26692)) ([2221dcf](https://github.com/lightdash/lightdash/commit/2221dcfde7728e69a33e72a7e04a365b8a76d2cb))
+* **homepage:** opt-in funnel and customisation analytics ([#26712](https://github.com/lightdash/lightdash/issues/26712)) ([4986c51](https://github.com/lightdash/lightdash/commit/4986c51b4ffbb0bd05f0d7c4118177846bbb7fb1)), closes [#26704](https://github.com/lightdash/lightdash/issues/26704)
+* **homepage:** org-level homepage settings with opening preset ([#26690](https://github.com/lightdash/lightdash/issues/26690)) ([a3cb71b](https://github.com/lightdash/lightdash/commit/a3cb71b997c7c5023b64c2a83148cc58925a6efa)), closes [#26440](https://github.com/lightdash/lightdash/issues/26440)
+* **homepage:** render paths respect the org opening preset ([#26691](https://github.com/lightdash/lightdash/issues/26691)) ([f7b9ea2](https://github.com/lightdash/lightdash/commit/f7b9ea25570d8c96d5b36f3755d72055aef32ea8))
+* **homepage:** Try-the-new-Homepage promo card + org-wide opt-in modal ([#26704](https://github.com/lightdash/lightdash/issues/26704)) ([9c8e9c5](https://github.com/lightdash/lightdash/commit/9c8e9c55ee27e8e83c75333257ce7cdb3d284539)), closes [#26690](https://github.com/lightdash/lightdash/issues/26690) [#26691](https://github.com/lightdash/lightdash/issues/26691) [#26692](https://github.com/lightdash/lightdash/issues/26692)
+
 ## [1.69.1](https://github.com/lightdash/lightdash/compare/1.69.0...1.69.1) (2026-08-03)
 
 
