@@ -1129,6 +1129,10 @@ appsProgram
         'assume yes to the dependency install prompts when node_modules is missing',
         false,
     )
+    .option(
+        '--port <port>',
+        'port for the app dev server (default: Vite picks one, usually 5173)',
+    )
     .option('--verbose', undefined, false)
     .action(appsPreviewHandler);
 
