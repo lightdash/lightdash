@@ -522,6 +522,16 @@ const EMPTY_CONFIG: HomepageCollectionBlock['config'] = {
     items: [],
 };
 
+const SkeletonGrid: FC<{ itemSpan: number | null }> = ({ itemSpan }) => (
+    <PageGrid itemSpan={itemSpan} elastic>
+        {[0, 1, 2].map((i) => (
+            <PageGridItem key={i}>
+                <Skeleton h={108} radius="md" />
+            </PageGridItem>
+        ))}
+    </PageGrid>
+);
+
 export const CollectionBlockView: FC<BlockComponentProps> = ({
     itemSpan,
     block,
@@ -537,24 +547,19 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
     // Emptiness of a dynamic source is only knowable once its data lands, so
     // the page is told rather than inferring it from config.
     useReportRuntimeEmpty(block.id, contents.length === 0, isLoading);
+    const favoriteUuids = useMemo(
+        () => new Set((favorites ?? []).map((item) => item.data.uuid)),
+        [favorites],
+    );
     if (block.type !== 'collection') return null;
     // Nothing to show, and nothing on the way: render no header at all. The
     // page drops the row on the next commit.
     if (!isLoading && contents.length === 0) return null;
-    const favoriteUuids = new Set(
-        (favorites ?? []).map((item) => item.data.uuid),
-    );
     return (
         <Stack gap={0}>
             <BlockHeader icon={IconLayoutGrid} title={block.config.title} />
             {isLoading ? (
-                <PageGrid itemSpan={itemSpan ?? null} elastic>
-                    {[0, 1, 2].map((i) => (
-                        <PageGridItem key={i}>
-                            <Skeleton h={108} radius="md" />
-                        </PageGridItem>
-                    ))}
-                </PageGrid>
+                <SkeletonGrid itemSpan={itemSpan ?? null} />
             ) : (
                 <PageGrid itemSpan={itemSpan ?? null} elastic>
                     {contents.map((content) => {
@@ -735,15 +740,7 @@ const DynamicSourcePreview: FC<{
     );
     const isPersonal = isPersonalCollectionSource(collectionSourceOf(config));
     if (isLoading) {
-        return (
-            <PageGrid itemSpan={itemSpan} elastic>
-                {[0, 1, 2].map((i) => (
-                    <PageGridItem key={i}>
-                        <Skeleton h={108} radius="md" />
-                    </PageGridItem>
-                ))}
-            </PageGrid>
-        );
+        return <SkeletonGrid itemSpan={itemSpan} />;
     }
     return (
         <Stack gap={6}>

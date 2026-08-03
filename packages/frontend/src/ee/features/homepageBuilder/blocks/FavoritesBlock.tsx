@@ -38,17 +38,8 @@ const FavoritePills: FC<{
     /** Text shown when the user has no favorites. Pass `null` to render nothing
      * (used by the top-bar variant, which hides itself when empty). */
     emptyText: string | null;
-    maxVisible?: number;
-    wrap?: 'wrap' | 'nowrap';
     justify?: 'flex-start' | 'center';
-}> = ({
-    projectUuid,
-    isInteractive,
-    emptyText,
-    maxVisible = FAVORITES_DEFAULT_VISIBLE,
-    wrap = 'wrap',
-    justify = 'flex-start',
-}) => {
+}> = ({ projectUuid, isInteractive, emptyText, justify = 'flex-start' }) => {
     const { data: favorites } = useFavorites(projectUuid);
     const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
     const [expanded, setExpanded] = useState(false);
@@ -67,13 +58,14 @@ const FavoritePills: FC<{
         });
     };
 
+    const maxVisible = FAVORITES_DEFAULT_VISIBLE;
     const canTruncate = favorites.length > maxVisible;
     const visible =
         canTruncate && !expanded ? favorites.slice(0, maxVisible) : favorites;
     const hiddenCount = favorites.length - maxVisible;
 
     return (
-        <Group gap={8} wrap={expanded ? 'wrap' : wrap} justify={justify}>
+        <Group gap={8} wrap="wrap" justify={justify}>
             {visible.map((item) => (
                 <Link
                     key={item.data.uuid}

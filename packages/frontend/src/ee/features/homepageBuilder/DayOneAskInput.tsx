@@ -79,10 +79,9 @@ const inputHoldClass = (projectUuid: string | null) =>
 // The composer's footprint on a surface that is still deciding whether it can
 // show a composer at all. Lives here so the reserved height is stated once,
 // next to the composer it stands in for.
-export const DayOneAskInputPlaceholder: FC<Props> = ({
-    projectUuid,
-    hideSuggestions,
-}) => (
+export const DayOneAskInputPlaceholder: FC<
+    Pick<Props, 'projectUuid' | 'hideSuggestions'>
+> = ({ projectUuid, hideSuggestions }) => (
     <div className={classes.composer}>
         <Skeleton className={inputHoldClass(projectUuid)} radius="lg" />
         {!projectUuid && <Skeleton h={17} w={260} mt={10} mx="auto" />}

@@ -7,7 +7,6 @@ import { Box, Paper, Text } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import { TIER_CLASS } from './blockLayout';
 import { getBlockDefinition } from './blocks/registry';
-import { type BlockPresentation } from './blocks/types';
 import layout from './homepageLayout.module.css';
 import { useRuntimeEmptyBlocks } from './hooks/useRuntimeEmptyBlocks';
 import {
@@ -16,33 +15,21 @@ import {
 } from './resolveHomepageLayout';
 import { RuntimeEmptyBlocksProvider } from './RuntimeEmptyBlocks';
 
-const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
-
 // Unknown block types render nothing so newer configs degrade gracefully
 const BlockRenderer: FC<{
     block: HomepageBlock;
     projectUuid: string;
     personalPlaceholders: boolean;
-    presentation?: BlockPresentation;
     itemSpan: number | null;
     standalone: boolean;
-}> = ({
-    block,
-    projectUuid,
-    personalPlaceholders,
-    presentation,
-    itemSpan,
-    standalone,
-}) => {
+}> = ({ block, projectUuid, personalPlaceholders, itemSpan, standalone }) => {
     const definition = getBlockDefinition(block.type);
     if (!definition) return null;
-    if (personalPlaceholders && PERSONAL_BLOCK_TYPES.includes(block.type)) {
+    if (personalPlaceholders && definition.personal) {
         return (
             <Paper withBorder p="md" h="100%">
                 <Text size="sm" fw={600}>
-                    {block.type === 'favorites'
-                        ? 'Favorites'
-                        : 'Recently viewed'}
+                    {definition.label}
                 </Text>
                 <Text size="xs" c="dimmed">
                     Personal to each viewer — the target user sees their own
@@ -56,7 +43,6 @@ const BlockRenderer: FC<{
         <View
             block={block}
             projectUuid={projectUuid}
-            presentation={presentation}
             itemSpan={itemSpan}
             standalone={standalone}
         />
@@ -157,7 +143,6 @@ export const PublishedHomepage: FC<Props> = ({
                                 block={hero.row.columns[0].block}
                                 projectUuid={projectUuid}
                                 personalPlaceholders={personalPlaceholders}
-                                presentation="hero"
                                 itemSpan={hero.row.columns[0].itemSpan}
                                 standalone={hero.row.columns.length === 1}
                             />

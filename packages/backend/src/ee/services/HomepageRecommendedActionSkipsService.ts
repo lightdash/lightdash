@@ -34,7 +34,7 @@ export class HomepageRecommendedActionSkipsService extends BaseService {
     }
 
     private static validateActionKey(
-        actionKey: HomepageRecommendedActionKey | string,
+        actionKey: HomepageRecommendedActionKey,
     ): SkippableHomepageRecommendedActionKey {
         const skippableActionKey =
             SKIPPABLE_HOMEPAGE_RECOMMENDED_ACTION_KEYS.find(
@@ -110,7 +110,7 @@ export class HomepageRecommendedActionSkipsService extends BaseService {
     async skip(
         account: RegisteredAccount,
         projectUuid: UUID | null,
-        actionKey: HomepageRecommendedActionKey | string,
+        actionKey: HomepageRecommendedActionKey,
     ): Promise<void> {
         const validatedActionKey =
             HomepageRecommendedActionSkipsService.validateActionKey(actionKey);
@@ -119,9 +119,12 @@ export class HomepageRecommendedActionSkipsService extends BaseService {
                 validatedActionKey,
                 projectUuid,
             );
-        const scope = await this.getAuthorizedScope(account, projectUuid);
+        const { organizationUuid } = await this.getAuthorizedScope(
+            account,
+            projectUuid,
+        );
         await this.homepageRecommendedActionSkipsModel.create({
-            ...scope,
+            organizationUuid,
             projectUuid: storageProjectUuid,
             actionKey: validatedActionKey,
             createdByUserUuid: account.user.userUuid,
@@ -131,7 +134,7 @@ export class HomepageRecommendedActionSkipsService extends BaseService {
     async unskip(
         account: RegisteredAccount,
         projectUuid: UUID | null,
-        actionKey: HomepageRecommendedActionKey | string,
+        actionKey: HomepageRecommendedActionKey,
     ): Promise<void> {
         const validatedActionKey =
             HomepageRecommendedActionSkipsService.validateActionKey(actionKey);
@@ -140,9 +143,12 @@ export class HomepageRecommendedActionSkipsService extends BaseService {
                 validatedActionKey,
                 projectUuid,
             );
-        const scope = await this.getAuthorizedScope(account, projectUuid);
+        const { organizationUuid } = await this.getAuthorizedScope(
+            account,
+            projectUuid,
+        );
         await this.homepageRecommendedActionSkipsModel.delete({
-            ...scope,
+            organizationUuid,
             projectUuid: storageProjectUuid,
             actionKey: validatedActionKey,
         });

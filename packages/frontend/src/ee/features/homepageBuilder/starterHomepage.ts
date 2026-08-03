@@ -65,7 +65,7 @@ export const buildStarterHomepage = (
             row({
                 id: uuidv4(),
                 type: 'quick-actions',
-                config: { actions: getDefaultQuickActions(false) },
+                config: { actions: getDefaultQuickActions() },
             }),
             row({
                 id: uuidv4(),

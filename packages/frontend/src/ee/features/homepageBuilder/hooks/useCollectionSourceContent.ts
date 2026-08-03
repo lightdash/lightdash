@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     collectionLimitOf,
     collectionSourceOf,
     type HomepageCollectionBlock,
@@ -85,7 +86,7 @@ export const useCollectionSourceContent = (
             case 'recently-viewed':
                 return [];
             default:
-                return [];
+                return assertUnreachable(source, 'Unknown collection source');
         }
     }, [source, popular.data, pinned.data, favorites.data]);
 

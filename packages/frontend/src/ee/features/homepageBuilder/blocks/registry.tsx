@@ -41,6 +41,8 @@ export type BlockDefinition = {
     requiresAi?: boolean;
     /** Can only be added once per homepage. */
     singleton?: boolean;
+    /** Renders per-viewer content, so admin previews show a placeholder. */
+    personal?: boolean;
     create: () => HomepageBlock;
     View: FC<BlockComponentProps>;
     Build: FC<BuildComponentProps>;
@@ -85,7 +87,7 @@ export const blockLibrary: BlockDefinition[] = [
         create: () => ({
             id: uuidv4(),
             type: 'quick-actions',
-            config: { actions: getDefaultQuickActions(false) },
+            config: { actions: getDefaultQuickActions() },
         }),
         View: QuickActionsBlockView,
         Build: QuickActionsBlockBuild,
@@ -151,6 +153,7 @@ export const blockLibrary: BlockDefinition[] = [
         label: 'Favorites',
         description: 'Each viewer’s starred content, only visible to them.',
         icon: IconStar,
+        personal: true,
         create: () => ({
             id: uuidv4(),
             type: 'favorites',
@@ -165,6 +168,7 @@ export const blockLibrary: BlockDefinition[] = [
         description: 'Each viewer’s recently opened charts and dashboards.',
         icon: IconClock,
         singleton: true,
+        personal: true,
         create: () => ({
             id: uuidv4(),
             type: 'recent',

@@ -65,7 +65,6 @@ describe('AskAiHeroBlockView', () => {
                 itemSpan={null}
                 block={block}
                 projectUuid="p1"
-                presentation="hero"
             />,
         );
         expect(
