@@ -182,6 +182,11 @@ describe('SchedulerService', () => {
     });
 
     describe('sendSchedulerByUuid', () => {
+        const userWhoCanSendPersistedScheduler = buildUser([
+            { subject: 'ScheduledDeliveries', action: ['create'] },
+            { subject: 'SavedChart', action: ['view'] },
+        ]);
+
         test('should throw ForbiddenError when user cannot view the underlying resource', async () => {
             await expect(
                 service.sendSchedulerByUuid(
@@ -193,6 +198,25 @@ describe('SchedulerService', () => {
             expect(
                 schedulerClient.addScheduledDeliveryJob,
             ).not.toHaveBeenCalled();
+        });
+
+        test('executes send-now deliveries as the authenticated user', async () => {
+            await service.sendSchedulerByUuid(
+                userWhoCanSendPersistedScheduler,
+                chartSchedulerInPrivateSpace.schedulerUuid,
+            );
+
+            expect(
+                schedulerClient.addScheduledDeliveryJob,
+            ).toHaveBeenCalledWith(
+                expect.any(Date),
+                expect.objectContaining({
+                    executionUserUuid:
+                        userWhoCanSendPersistedScheduler.userUuid,
+                    userUuid: userWhoCanSendPersistedScheduler.userUuid,
+                }),
+                chartSchedulerInPrivateSpace.schedulerUuid,
+            );
         });
     });
 
