@@ -79,6 +79,7 @@ export class ManagedAgentModel {
         agentVersion: number | null;
         environmentId: string | null;
         vaultId: string | null;
+        vaultConfigHash: string | null;
     }> {
         const row = await this.database(ManagedAgentSettingsTableName)
             .where({ project_uuid: projectUuid })
@@ -88,6 +89,7 @@ export class ManagedAgentModel {
                 'anthropic_agent_version',
                 'anthropic_environment_id',
                 'anthropic_vault_id',
+                'anthropic_vault_config_hash',
             )
             .first();
         return {
@@ -96,6 +98,7 @@ export class ManagedAgentModel {
             agentVersion: row?.anthropic_agent_version ?? null,
             environmentId: row?.anthropic_environment_id ?? null,
             vaultId: row?.anthropic_vault_id ?? null,
+            vaultConfigHash: row?.anthropic_vault_config_hash ?? null,
         };
     }
 
@@ -118,12 +121,14 @@ export class ManagedAgentModel {
         projectUuid: string,
         environmentId: string,
         vaultId: string,
+        vaultConfigHash: string,
     ): Promise<void> {
         await this.database(ManagedAgentSettingsTableName)
             .where({ project_uuid: projectUuid })
             .update({
                 anthropic_environment_id: environmentId,
                 anthropic_vault_id: vaultId,
+                anthropic_vault_config_hash: vaultConfigHash,
             });
     }
 

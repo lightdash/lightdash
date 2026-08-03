@@ -2278,14 +2278,10 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user, organizationUuid } = McpService.getAccount(ctx);
-
-                const contextRow = await this.mcpContextModel.getContext(
-                    user.userUuid,
-                    organizationUuid,
-                );
-
-                if (!contextRow || !contextRow.context.projectUuid) {
+                const { account } = McpService.getAccount(ctx);
+                const contextProjectUuid =
+                    await this.getProjectUuidFromContext(ctx);
+                if (!contextProjectUuid) {
                     return {
                         content: [
                             {
@@ -2301,8 +2297,15 @@ export class McpService extends BaseService {
                         ],
                     };
                 }
-
-                const { projectUuid, projectName, tags } = contextRow.context;
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const project = await this.projectService.getProject(
+                    projectUuid,
+                    account,
+                );
+                const tags = await this.getEffectiveTagsFromContext(
+                    ctx,
+                    projectUuid,
+                );
 
                 return {
                     content: [
@@ -2311,7 +2314,7 @@ export class McpService extends BaseService {
                             text: JSON.stringify(
                                 {
                                     projectUuid,
-                                    projectName,
+                                    projectName: project.name,
                                     selectedTags: tags,
                                 },
                                 null,
@@ -2338,9 +2341,10 @@ export class McpService extends BaseService {
 
                 await this.checkAiAgentsVisible(user);
 
-                const projectUuid =
-                    args.projectUuid ??
-                    (await this.getProjectUuidFromContext(ctx));
+                const projectUuid = await this.resolveToolProjectUuid(
+                    ctx,
+                    args.projectUuid,
+                );
 
                 const agents = await this.aiAgentService.listAgents(
                     user,
@@ -2382,8 +2386,10 @@ export class McpService extends BaseService {
 
                 await this.checkAiAgentsVisible(user);
 
-                const projectUuid =
-                    args.projectUuid ?? (await this.resolveProjectUuid(ctx));
+                const projectUuid = await this.resolveToolProjectUuid(
+                    ctx,
+                    args.projectUuid,
+                );
 
                 let selection;
                 try {
@@ -2560,12 +2566,16 @@ export class McpService extends BaseService {
 
                 await this.checkAiAgentsVisible(user);
 
+                const projectUuid = await this.resolveProjectUuid(ctx);
                 const contextRow = await this.mcpContextModel.getContext(
                     user.userUuid,
                     organizationUuid,
                 );
 
-                if (!contextRow?.context.agentUuid) {
+                if (
+                    contextRow?.context.projectUuid !== projectUuid ||
+                    !contextRow.context.agentUuid
+                ) {
                     return {
                         content: [
                             {
@@ -2585,7 +2595,7 @@ export class McpService extends BaseService {
                 const agent = await this.aiAgentService.getAgent(
                     user,
                     contextRow.context.agentUuid,
-                    undefined,
+                    projectUuid,
                     { includeSummaryContext: true },
                 );
 
@@ -3526,6 +3536,25 @@ export class McpService extends BaseService {
             }
         }
         return projectUuid;
+    }
+
+    private async resolveToolProjectUuid(
+        context: McpProtocolContext,
+        requestedProjectUuid?: string,
+    ): Promise<string> {
+        const pinnedProjectUuid = context.authInfo?.extra.headerProjectUuid;
+        if (pinnedProjectUuid) {
+            if (
+                requestedProjectUuid &&
+                requestedProjectUuid !== pinnedProjectUuid
+            ) {
+                throw new ForbiddenError(
+                    'The requested project does not match the pinned MCP project',
+                );
+            }
+            return this.resolveProjectUuid(context);
+        }
+        return requestedProjectUuid ?? this.resolveProjectUuid(context);
     }
 
     public getServer(): McpServer {

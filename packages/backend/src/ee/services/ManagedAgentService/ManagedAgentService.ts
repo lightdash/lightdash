@@ -10,6 +10,7 @@ import {
     ManagedAgentTargetType,
     NotFoundError,
     ParameterError,
+    ProjectMemberRole,
     ProjectType,
     ServiceAccountScope,
     ValidationErrorType,
@@ -274,12 +275,18 @@ export class ManagedAgentService extends BaseService {
         projectUuid: string,
         serviceAccountToken: string,
     ): Promise<ManagedAgentSessionConfig> {
+        await this.ensureProjectScopedServiceAccount(
+            projectUuid,
+            serviceAccountToken,
+        );
+
         const {
             agentId,
             agentConfigHash,
             agentVersion,
             environmentId,
             vaultId,
+            vaultConfigHash,
         } = await this.managedAgentModel.getAnthropicResourceIds(projectUuid);
         const project = await this.projectModel.getSummary(projectUuid);
         const organization = await this.organizationModel.get(
@@ -288,6 +295,7 @@ export class ManagedAgentService extends BaseService {
         const settings = await this.managedAgentModel.getSettings(projectUuid);
 
         return {
+            projectUuid,
             serviceAccountPat: serviceAccountToken,
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
             skillIds: this.lightdashConfig.managedAgent.skillIds,
@@ -297,6 +305,7 @@ export class ManagedAgentService extends BaseService {
             persistedAgentVersion: agentVersion,
             persistedEnvironmentId: environmentId,
             persistedVaultId: vaultId,
+            persistedVaultConfigHash: vaultConfigHash,
             onAgentSynced: async (
                 newAgentId,
                 newAgentConfigHash,
@@ -309,14 +318,88 @@ export class ManagedAgentService extends BaseService {
                     newAgentVersion,
                 );
             },
-            onResourcesCreated: async (newEnvId, newVaultId) => {
+            onResourcesCreated: async (
+                newEnvId,
+                newVaultId,
+                newVaultConfigHash,
+            ) => {
                 await this.managedAgentModel.setAnthropicResourceIds(
                     projectUuid,
                     newEnvId,
                     newVaultId,
+                    newVaultConfigHash,
                 );
             },
         };
+    }
+
+    private async ensureProjectScopedServiceAccount(
+        projectUuid: string,
+        serviceAccountToken: string,
+    ): Promise<void> {
+        const serviceAccount =
+            await this.serviceAccountModel.getByToken(serviceAccountToken);
+        const projectGrants =
+            await this.projectModel.getServiceAccountProjectGrants(
+                serviceAccount.uuid,
+            );
+        const isProjectScoped =
+            serviceAccount.scopes.length === 1 &&
+            serviceAccount.scopes[0] === ServiceAccountScope.SYSTEM_MEMBER &&
+            projectGrants.length === 1 &&
+            projectGrants[0].projectUuid === projectUuid &&
+            projectGrants[0].role === ProjectMemberRole.EDITOR &&
+            projectGrants[0].roleUuid === null;
+
+        if (isProjectScoped) {
+            return;
+        }
+
+        await this.projectModel.setServiceAccountProjectAccess(
+            serviceAccount.uuid,
+            [
+                {
+                    projectUuid,
+                    role: ProjectMemberRole.EDITOR,
+                },
+            ],
+            { makeProjectScoped: true },
+        );
+        this.logger.info(
+            `Restricted managed agent service account to project ${projectUuid}`,
+        );
+    }
+
+    private async createProjectScopedServiceAccount(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+    ): Promise<string> {
+        const serviceAccount = await this.serviceAccountModel.create({
+            user,
+            data: {
+                organizationUuid,
+                description: `Autopilot (${projectUuid})`,
+                expiresAt: null,
+                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+            },
+        });
+
+        try {
+            await this.projectModel.createServiceAccountProjectAccess(
+                projectUuid,
+                serviceAccount.uuid,
+                {
+                    role: ProjectMemberRole.EDITOR,
+                    roleUuid: undefined,
+                },
+            );
+        } catch (error) {
+            await this.serviceAccountModel.delete(serviceAccount.uuid);
+            throw error;
+        }
+
+        return serviceAccount.token;
     }
 
     private async syncProjectAgentConfig(projectUuid: string): Promise<void> {
@@ -864,18 +947,15 @@ export class ManagedAgentService extends BaseService {
             if (!existingToken) {
                 const { organizationUuid } =
                     await this.projectModel.getSummary(projectUuid);
-                const serviceAccount = await this.serviceAccountModel.create({
-                    user,
-                    data: {
+                const serviceAccountToken =
+                    await this.createProjectScopedServiceAccount(
+                        user,
+                        projectUuid,
                         organizationUuid,
-                        description: `Autopilot (${projectUuid})`,
-                        expiresAt: null,
-                        scopes: [ServiceAccountScope.ORG_ADMIN],
-                    },
-                });
+                    );
                 await this.managedAgentModel.setServiceAccountToken(
                     projectUuid,
-                    serviceAccount.token,
+                    serviceAccountToken,
                 );
                 this.logger.info(
                     `Created service account for managed agent in project ${projectUuid}`,
