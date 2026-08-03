@@ -68,7 +68,6 @@ import {
     type ContentAsCodeOutputVariant,
 } from '../terminal/contentAsCodeOutput';
 import {
-    appFolderNeedsUpdating,
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
@@ -89,11 +88,9 @@ import {
     resolveAppsLimit,
     resolveUploadFilterUuids,
     selectAppsToDownload,
-    shouldAutoPushApp,
     shouldFallBackToSpaceScopedListing,
     unmatchedUploadRefsWarning,
     uploadFilterMatches,
-    type AppPresence,
 } from './apps/appsDownload';
 import { loadTemplateDependencies } from './apps/scaffolding';
 import {
@@ -3334,21 +3331,11 @@ export const uploadHandler = async (
                   )
                 : null;
 
-            // The manifest always names the source project, so comparing it
-            // to the target would re-push every run — list the target instead.
-            let presence: AppPresence = {
-                kind: 'unknown',
-                targetProjectUuid: projectId,
-            };
-            // The listing serves two consumers: the auto-push presence gate,
-            // and uuid/URL --apps refs, which resolve to slugs against the
-            // target so they can match slug-identity local folders.
+            // uuid/URL --apps refs resolve to slugs against the target
+            // project's listing so they can match slug-identity local folders.
             const filterHasUuidRefs =
                 uploadFilter !== null && [...uploadFilter].some(isUuid);
-            if (
-                (!isExplicitAppSelection && autoPushAppSlugs.length > 0) ||
-                filterHasUuidRefs
-            ) {
+            if (filterHasUuidRefs && uploadFilter !== null) {
                 try {
                     const projectApps = await lightdashApi<
                         ApiEmbedProjectAppsResponse['results']
@@ -3357,23 +3344,10 @@ export const uploadHandler = async (
                         url: `/api/v1/ee/projects/${projectId}/apps`,
                         body: undefined,
                     });
-                    // An older server answers without slugs; that is not an
-                    // error, but it is not an answer either.
-                    if (
-                        !isExplicitAppSelection &&
-                        projectApps.every((app) => app.slug !== undefined)
-                    ) {
-                        presence = {
-                            kind: 'known',
-                            slugs: new Set(projectApps.map((app) => app.slug)),
-                        };
-                    }
-                    if (filterHasUuidRefs && uploadFilter !== null) {
-                        uploadFilter = resolveUploadFilterUuids(
-                            uploadFilter,
-                            projectApps,
-                        );
-                    }
+                    uploadFilter = resolveUploadFilterUuids(
+                        uploadFilter,
+                        projectApps,
+                    );
                 } catch (listErr) {
                     GlobalState.debug(
                         `Could not list target project apps: ${getErrorMessage(listErr)}`,
@@ -3449,26 +3423,10 @@ export const uploadHandler = async (
                             // eslint-disable-next-line no-continue
                             continue;
                         }
-                        // eslint-disable-next-line no-await-in-loop
-                        const folderChanged = await appFolderNeedsUpdating(
-                            folderPath,
-                            code.manifest,
-                        );
-                        if (
-                            !shouldAutoPushApp({
-                                manifest: code.manifest,
-                                presence,
-                                folderChanged,
-                                force: options.force === true,
-                            })
-                        ) {
-                            GlobalState.debug(
-                                `Skipping app "${subDir.name}" — unchanged and already in the target project`,
-                            );
-                            appsSkipped += 1;
-                            // eslint-disable-next-line no-continue
-                            continue;
-                        }
+                        // Auto-push candidates always POST: the server's
+                        // byte-compare skip is the single unchanged authority,
+                        // and it runs before the build cap, so identical apps
+                        // cost no build slots.
                     }
 
                     // Read declared dependencies from the app folder (optional).
