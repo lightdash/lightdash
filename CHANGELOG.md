@@ -1,3 +1,10 @@
+## [1.69.1](https://github.com/lightdash/lightdash/compare/1.69.0...1.69.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **autopilot:** restrict agents to their project ([#26703](https://github.com/lightdash/lightdash/issues/26703)) ([24b6e52](https://github.com/lightdash/lightdash/commit/24b6e526666b0b8902fddc78a4af445e0925f1d8))
+
 # [1.69.0](https://github.com/lightdash/lightdash/compare/1.68.0...1.69.0) (2026-08-03)
 
 
