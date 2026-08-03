@@ -217,6 +217,10 @@ export type LocalAppDependencies = {
     // freshly downloaded folder; it only becomes an error if the declared
     // set differs from the template baseline (the caller decides).
     lockfile: string | null;
+    // A stray package-lock.json — custom deps require pnpm's lockfile, so
+    // the caller can give a targeted hint when this is set and lockfile
+    // is null.
+    hasNpmLockfile: boolean;
 };
 
 /**
@@ -230,17 +234,23 @@ export const readDependenciesFromDir = async (
 ): Promise<LocalAppDependencies | null> => {
     const pkgJsonPath = path.join(dir, 'package.json');
     const lockfilePath = path.join(dir, 'pnpm-lock.yaml');
+    const npmLockfilePath = path.join(dir, 'package-lock.json');
 
-    const [pkgJsonExists, lockfileExists] = await Promise.all([
-        fs
-            .stat(pkgJsonPath)
-            .then(() => true)
-            .catch(() => false),
-        fs
-            .stat(lockfilePath)
-            .then(() => true)
-            .catch(() => false),
-    ]);
+    const [pkgJsonExists, lockfileExists, npmLockfileExists] =
+        await Promise.all([
+            fs
+                .stat(pkgJsonPath)
+                .then(() => true)
+                .catch(() => false),
+            fs
+                .stat(lockfilePath)
+                .then(() => true)
+                .catch(() => false),
+            fs
+                .stat(npmLockfilePath)
+                .then(() => true)
+                .catch(() => false),
+        ]);
 
     if (!pkgJsonExists && !lockfileExists) return null;
 
@@ -255,7 +265,7 @@ export const readDependenciesFromDir = async (
         lockfileExists ? fs.readFile(lockfilePath, 'utf-8') : null,
     ]);
 
-    return { packageJson, lockfile };
+    return { packageJson, lockfile, hasNpmLockfile: npmLockfileExists };
 };
 
 /**

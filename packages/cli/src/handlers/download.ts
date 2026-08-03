@@ -3476,7 +3476,9 @@ export const uploadHandler = async (
                             if (rawDeps.lockfile === null) {
                                 GlobalState.log(
                                     styles.error(
-                                        `Skipping "${subDir.name}": it declares custom dependencies but has no pnpm-lock.yaml. Run 'pnpm install' in the app folder to generate one, then upload again.`,
+                                        rawDeps.hasNpmLockfile
+                                            ? `Skipping "${subDir.name}": custom dependencies require a pnpm lockfile — the server builds with pnpm, so package-lock.json is not used. Run 'pnpm install' in the app folder to generate pnpm-lock.yaml, then upload again.`
+                                            : `Skipping "${subDir.name}": it declares custom dependencies but has no pnpm-lock.yaml (the server builds with pnpm). Run 'pnpm install' in the app folder to generate one, then upload again.`,
                                     ),
                                 );
                                 appsFailed += 1;
