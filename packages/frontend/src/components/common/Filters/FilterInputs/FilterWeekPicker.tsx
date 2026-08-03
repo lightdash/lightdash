@@ -3,7 +3,7 @@ import {
     DatePicker,
     type DateInputProps,
     type DayOfWeek,
-} from '@mantine/dates';
+} from '@mantine-8/dates';
 import dayjs from 'dayjs';
 import { useState, type FC } from 'react';
 import {
@@ -12,13 +12,22 @@ import {
     startOfWeek,
 } from '../utils/filterDateUtils';
 import InvalidDateInput from './InvalidDateInput';
+import { formatMantineDate, parseMantineDate } from './mantineDateAdapter';
 
 interface Props extends Omit<
     DateInputProps,
-    'getDayProps' | 'firstDayOfWeek' | 'value' | 'onChange'
+    | 'getDayProps'
+    | 'firstDayOfWeek'
+    | 'value'
+    | 'defaultValue'
+    | 'onChange'
+    | 'minDate'
+    | 'maxDate'
 > {
     value: Date | null;
     onChange: (value: Date) => void;
+    minDate?: Date;
+    maxDate?: Date;
     firstDayOfWeek: DayOfWeek;
     invalidValue?: string;
 }
@@ -28,10 +37,15 @@ const FilterWeekPicker: FC<Props> = ({
     value,
     onChange,
     invalidValue,
+    minDate,
+    maxDate,
     ...rest
 }) => {
     const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
-    const getDayProps = (date: Date) => {
+    const getDayProps = (mantineValue: string) => {
+        const date = parseMantineDate(mantineValue);
+        if (!date) return {};
+
         const isHovered = isInWeekRange(date, hoveredDate, firstDayOfWeek);
         const isSelected = isInWeekRange(date, value, firstDayOfWeek);
         const isInRange = isHovered || isSelected;
@@ -49,7 +63,8 @@ const FilterWeekPicker: FC<Props> = ({
             selected: isSelected,
         };
     };
-    const handleChange = (date: Date | null) => {
+    const handleChange = (mantineValue: string | null) => {
+        const date = parseMantineDate(mantineValue);
         if (date) {
             onChange(startOfWeek(date, firstDayOfWeek));
         }
@@ -66,6 +81,12 @@ const FilterWeekPicker: FC<Props> = ({
                 {({ close }) => (
                     <DatePicker
                         firstDayOfWeek={firstDayOfWeek}
+                        minDate={
+                            formatMantineDate(minDate ?? null) ?? undefined
+                        }
+                        maxDate={
+                            formatMantineDate(maxDate ?? null) ?? undefined
+                        }
                         value={null}
                         getDayProps={getDayProps}
                         onChange={(date) => {
@@ -86,7 +107,9 @@ const FilterWeekPicker: FC<Props> = ({
             popoverProps={{ shadow: 'sm', ...rest.popoverProps }}
             getDayProps={getDayProps}
             firstDayOfWeek={firstDayOfWeek}
-            value={value}
+            minDate={formatMantineDate(minDate ?? null) ?? undefined}
+            maxDate={formatMantineDate(maxDate ?? null) ?? undefined}
+            value={formatMantineDate(value)}
             onChange={handleChange}
         />
     );
