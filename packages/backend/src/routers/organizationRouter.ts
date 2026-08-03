@@ -55,6 +55,26 @@ organizationRouter.post(
             .catch(next),
 );
 
+organizationRouter.get(
+    '/jobs/create-project/active',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await req.services
+                .getProjectService()
+                .getActiveCreateProjectJob(req.user!);
+
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
 organizationRouter.delete(
     '/projects/:projectUuid',
     allowApiKeyAuthentication,
