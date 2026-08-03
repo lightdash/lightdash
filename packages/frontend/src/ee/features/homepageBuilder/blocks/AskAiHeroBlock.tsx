@@ -12,6 +12,8 @@ import {
 } from '@mantine-8/core';
 import { type FC } from 'react';
 import useApp from '../../../../providers/App/useApp';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../types/Events';
 import { DayOneAskInput } from '../DayOneAskInput';
 import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
 import layout from '../homepageLayout.module.css';
@@ -124,6 +126,7 @@ export const HeroOpeningControl: FC<{
     onSwap: (opening: HomepageOpening) => void;
 }> = ({ projectUuid, value, onSwap }) => {
     const { canAskAi } = useHomepageAiState(projectUuid);
+    const { track } = useTracking();
     // Without a working composer there's no choice to offer.
     if (!canAskAi) return null;
     return (
@@ -135,7 +138,15 @@ export const HeroOpeningControl: FC<{
                 size="xs"
                 value={value}
                 onChange={(next) => {
-                    if (next !== value) onSwap(next as HomepageOpening);
+                    if (next === value) return;
+                    track({
+                        name: EventName.HOMEPAGE_OPENING_SWAPPED,
+                        properties: {
+                            from: value,
+                            to: next as HomepageOpening,
+                        },
+                    });
+                    onSwap(next as HomepageOpening);
                 }}
                 data={[
                     { value: 'ask-first', label: 'Ask AI' },

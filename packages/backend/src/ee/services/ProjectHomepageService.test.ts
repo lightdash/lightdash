@@ -135,6 +135,7 @@ const makeService = ({
     slackInstalled?: boolean;
 } = {}) =>
     new ProjectHomepageService({
+        analytics: { track: vi.fn() },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({
                 id: 'homepage-builder',

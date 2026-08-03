@@ -82,6 +82,12 @@ export enum SectionName {
 
 export enum EventName {
     HOMEPAGE_QUICK_ACTION_CLICKED = 'homepage_quick_action.clicked',
+    HOMEPAGE_V2_PROMO_VIEWED = 'homepage_v2_promo.viewed',
+    HOMEPAGE_V2_PROMO_DISMISSED = 'homepage_v2_promo.dismissed',
+    HOMEPAGE_V2_OPTED_IN = 'homepage_v2.opted_in',
+    HOMEPAGE_BLOCK_ADDED = 'homepage_block.added',
+    HOMEPAGE_BLOCK_REMOVED = 'homepage_block.removed',
+    HOMEPAGE_OPENING_SWAPPED = 'homepage_opening.swapped',
     HOMEPAGE_RECOMMENDED_ACTION_CLICKED = 'homepage_recommended_action.clicked',
     HOMEPAGE_RECOMMENDED_ACTION_SKIPPED = 'homepage_recommended_action.skipped',
     REVOKE_INVITES_BUTTON_CLICKED = 'revoke_invites_button.clicked',

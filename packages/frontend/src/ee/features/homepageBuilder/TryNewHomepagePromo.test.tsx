@@ -8,6 +8,10 @@ vi.mock('react-router', () => ({
     useNavigate: () => vi.fn(),
 }));
 
+vi.mock('../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: vi.fn() }),
+}));
+
 const { aiState, mutateSettings, abilityRules, license } = vi.hoisted(() => ({
     aiState: { current: { canAskAi: true } },
     mutateSettings: vi.fn(),

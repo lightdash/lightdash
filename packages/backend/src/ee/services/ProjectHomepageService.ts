@@ -33,6 +33,7 @@ import { type KnownBlock } from '@slack/web-api';
 import { createCanvas, loadImage } from 'canvas';
 import { randomUUID } from 'crypto';
 import { type Readable } from 'stream';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -187,6 +188,7 @@ export type ProjectHomepageServiceArguments = {
         | 'upsertOrgHomepageSettings'
         | 'swapHeroBlocks'
     >;
+    analytics: Pick<LightdashAnalytics, 'track'>;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
     groupsModel: Pick<GroupsModel, 'findUserGroups'>;
     projectModel: Pick<ProjectModel, 'getProjectMemberAccess' | 'getSummary'>;
@@ -202,6 +204,8 @@ export type ProjectHomepageServiceArguments = {
 
 export class ProjectHomepageService extends BaseService {
     private readonly projectHomepageModel: ProjectHomepageServiceArguments['projectHomepageModel'];
+
+    private readonly analytics: ProjectHomepageServiceArguments['analytics'];
 
     private readonly featureFlagService: ProjectHomepageServiceArguments['featureFlagService'];
 
@@ -222,6 +226,7 @@ export class ProjectHomepageService extends BaseService {
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
+        this.analytics = args.analytics;
         this.featureFlagService = args.featureFlagService;
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
@@ -295,6 +300,10 @@ export class ProjectHomepageService extends BaseService {
                 'Only organization admins can change homepage settings',
             );
         }
+        const previous =
+            await this.projectHomepageModel.findOrgHomepageSettings(
+                user.organizationUuid,
+            );
         const settings =
             await this.projectHomepageModel.upsertOrgHomepageSettings(
                 user.organizationUuid,
@@ -309,6 +318,16 @@ export class ProjectHomepageService extends BaseService {
                 update.opening,
             );
         }
+        this.analytics.track({
+            event: 'organization_homepage_settings.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                enabled: settings.enabled,
+                opening: settings.opening,
+                previouslyEnabled: previous?.enabled ?? false,
+            },
+        });
         return settings;
     }
 
@@ -607,6 +626,32 @@ export class ProjectHomepageService extends BaseService {
             homepageUuid,
             audience,
         );
+        const publishedBlocks = (published.publishedConfig?.rows ?? []).flatMap(
+            (row) => row.blocks,
+        );
+        this.analytics.track({
+            event: 'homepage.published',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid ?? '',
+                projectId: projectUuid,
+                homepageUuid,
+                audienceType: audience.type,
+                blockTypeCounts: publishedBlocks.reduce<Record<string, number>>(
+                    (counts, block) => ({
+                        ...counts,
+                        [block.type]: (counts[block.type] ?? 0) + 1,
+                    }),
+                    {},
+                ),
+                openingBlockType:
+                    publishedBlocks.find(
+                        (block) =>
+                            block.type === 'ask-ai-hero' ||
+                            block.type === 'greeting',
+                    )?.type ?? null,
+            },
+        });
         const { organizationUuid } = user;
         if (organizationUuid) {
             const publishedDrafts =
