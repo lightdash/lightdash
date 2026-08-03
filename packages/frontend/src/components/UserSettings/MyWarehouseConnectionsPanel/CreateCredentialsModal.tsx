@@ -64,6 +64,11 @@ const defaultCredentials: Record<
         user: '',
         password: '',
     },
+    [WarehouseTypes.DORIS]: {
+        type: WarehouseTypes.DORIS,
+        user: '',
+        password: '',
+    },
     [WarehouseTypes.ATHENA]: {
         type: WarehouseTypes.ATHENA,
         accessKeyId: '',

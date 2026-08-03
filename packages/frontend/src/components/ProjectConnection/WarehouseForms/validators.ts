@@ -69,6 +69,11 @@ export const warehouseValueValidators: Record<
         host: hasNoWhiteSpaces('Host'),
         user: hasNoWhiteSpaces('User'),
     },
+    [WarehouseTypes.DORIS]: {
+        schema: hasNoWhiteSpaces('Schema'),
+        host: hasNoWhiteSpaces('Host'),
+        user: hasNoWhiteSpaces('User'),
+    },
     [WarehouseTypes.ATHENA]: {
         region: hasNoWhiteSpaces('Region'),
         database: hasNoWhiteSpaces('Catalog'),
@@ -232,5 +237,11 @@ export const createWarehouseValueValidators: Record<
         database: requiredWhen('Database', isMotherduck, hasNoWhiteSpaces),
         schema: required('Schema', hasNoWhiteSpaces),
         token: hasNoWhiteSpaces('Service token'),
+    },
+    [WarehouseTypes.DORIS]: {
+        schema: required('Schema', hasNoWhiteSpaces),
+        host: required('Host', hasNoWhiteSpaces),
+        user: required('User', hasNoWhiteSpaces),
+        password: required('Password'),
     },
 } as const;

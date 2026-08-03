@@ -377,6 +377,7 @@ export const WarehouseFormInputs: FC<{
         case WarehouseTypes.POSTGRES:
         case WarehouseTypes.TRINO:
         case WarehouseTypes.CLICKHOUSE:
+        case WarehouseTypes.DORIS:
             return (
                 <>
                     <TextInput

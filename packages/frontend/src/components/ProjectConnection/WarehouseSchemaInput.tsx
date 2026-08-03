@@ -4,6 +4,7 @@ import { AthenaSchemaInput } from './WarehouseForms/AthenaForm';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { ClickhouseSchemaInput } from './WarehouseForms/ClickhouseForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
+import { DorisSchemaInput } from './WarehouseForms/DorisForm';
 import { DuckdbSchemaInput } from './WarehouseForms/DuckdbForm';
 import { PostgresSchemaInput } from './WarehouseForms/PostgresForm';
 import { RedshiftSchemaInput } from './WarehouseForms/RedshiftForm';
@@ -81,6 +82,13 @@ const WarehouseSchemaInput: FC<{
         case WarehouseTypes.DUCKDB:
             return (
                 <DuckdbSchemaInput
+                    disabled={disabled}
+                    description={description}
+                />
+            );
+        case WarehouseTypes.DORIS:
+            return (
+                <DorisSchemaInput
                     disabled={disabled}
                     description={description}
                 />

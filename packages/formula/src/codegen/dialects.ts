@@ -576,6 +576,59 @@ const TRINO_CONFIG: DialectConfig = {
     generateRight: (text, count) => `SUBSTR(${text}, -(${count}))`,
 };
 
+// --- Doris config ---
+//
+// Apache Doris speaks the MySQL protocol and a MySQL-flavoured SQL dialect.
+// Mirrors `DorisSqlBuilder` in `packages/warehouses` and `dorisConfig` in
+// `packages/common/src/utils/timeFrames.ts`. Key divergences from ANSI:
+//   - Identifiers quoted with backticks (MySQL).
+//   - DATE_TRUNC(datetime, 'unit') — argument order is (date, unit), the
+//     inverse of the ANSI `DATE_TRUNC('unit', date)`.
+//   - DATE_ADD(date, INTERVAL n UNIT) — MySQL interval arithmetic. QUARTER is
+//     not a valid INTERVAL keyword on Doris, so it is expanded to months.
+//   - DATE_DIFF maps to TIMESTAMPDIFF(UNIT, start, end).
+//   - STRPOS has no native equivalent; INSTR(text, substr) matches semantics.
+// TODO(doris): verify STARTS_WITH / SPLIT_PART / LAST_DAY availability on the
+// target Doris version; they currently fall through to the ANSI defaults.
+
+// MySQL/Doris INTERVAL + TIMESTAMPDIFF unit keywords.
+const DORIS_UNIT: Record<DateUnit, string> = {
+    day: 'DAY',
+    week: 'WEEK',
+    month: 'MONTH',
+    quarter: 'QUARTER',
+    year: 'YEAR',
+};
+
+const backtickQuoteIdentifier = (name: string): string =>
+    `\`${name.replace(/`/g, '``')}\``;
+
+const DORIS_CONFIG: DialectConfig = {
+    quoteIdentifier: backtickQuoteIdentifier,
+    // Doris unescapes backslashes like MySQL, so double quotes AND escape
+    // backslashes (matches DorisSqlBuilder.escapeString).
+    generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
+    generateModulo: infixPercentModulo,
+    generateDateTrunc: (unit, arg, weekStartDay) => {
+        // Doris DATE_TRUNC week anchors on Monday; shift for other starts.
+        if (unit === 'week' && weekStartDay !== 0) {
+            return `DATE_ADD(DATE_TRUNC(DATE_SUB(${arg}, INTERVAL ${weekStartDay} DAY), 'week'), INTERVAL ${weekStartDay} DAY)`;
+        }
+        return `DATE_TRUNC(${arg}, '${unit}')`;
+    },
+    generateDateAdd: (unit, date, n) => {
+        // QUARTER is not a valid Doris INTERVAL unit; expand to months.
+        if (unit === 'quarter') {
+            return `DATE_ADD(${date}, INTERVAL (${n}) * 3 MONTH)`;
+        }
+        return `DATE_ADD(${date}, INTERVAL ${n} ${DORIS_UNIT[unit]})`;
+    },
+    generateDateDiff: (unit, start, end) =>
+        `TIMESTAMPDIFF(${DORIS_UNIT[unit]}, ${start}, ${end})`,
+    // Doris has no STRPOS; INSTR(text, substr) is 1-indexed, 0 if not found.
+    generateStrpos: (text, substring) => `INSTR(${text}, ${substring})`,
+};
+
 export const DIALECTS: Record<Dialect, DialectConfig> = {
     postgres: POSTGRES_CONFIG,
     redshift: REDSHIFT_CONFIG,
@@ -586,4 +639,5 @@ export const DIALECTS: Record<Dialect, DialectConfig> = {
     clickhouse: CLICKHOUSE_CONFIG,
     athena: TRINO_CONFIG,
     trino: TRINO_CONFIG,
+    doris: DORIS_CONFIG,
 };

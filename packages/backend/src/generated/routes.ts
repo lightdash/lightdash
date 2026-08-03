@@ -13429,6 +13429,7 @@ const models: TsoaRoute.Models = {
             'clickhouse',
             'athena',
             'spark',
+            'doris',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -25678,6 +25679,7 @@ const models: TsoaRoute.Models = {
             'clickhouse',
             'athena',
             'duckdb',
+            'doris',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -27172,6 +27174,78 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WarehouseTypes.DORIS': {
+        dataType: 'refEnum',
+        enums: ['doris'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateDorisCredentials.Exclude_keyofCreateDorisCredentials.SensitiveCredentialsFieldNames__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    type: { ref: 'WarehouseTypes.DORIS', required: true },
+                    requireUserCredentials: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    schema: { dataType: 'string', required: true },
+                    startOfWeek: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'WeekDay' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    dataTimezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    timeoutSeconds: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    host: { dataType: 'string', required: true },
+                    port: { dataType: 'double', required: true },
+                    ssl: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_CreateDorisCredentials.SensitiveCredentialsFieldNames_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_CreateDorisCredentials.Exclude_keyofCreateDorisCredentials.SensitiveCredentialsFieldNames__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DorisCredentials: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Omit_CreateDorisCredentials.SensitiveCredentialsFieldNames_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseCredentials: {
         dataType: 'refAlias',
         type: {
@@ -27186,6 +27260,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'ClickhouseCredentials' },
                 { ref: 'AthenaCredentials' },
                 { ref: 'DuckdbCredentials' },
+                { ref: 'DorisCredentials' },
             ],
             validators: {},
         },
@@ -27868,6 +27943,33 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateDorisCredentials: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                ssl: { dataType: 'boolean' },
+                timeoutSeconds: { dataType: 'double' },
+                dataTimezone: { dataType: 'string' },
+                startOfWeek: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'WeekDay' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                schema: { dataType: 'string', required: true },
+                port: { dataType: 'double', required: true },
+                requireUserCredentials: { dataType: 'boolean' },
+                password: { dataType: 'string', required: true },
+                user: { dataType: 'string', required: true },
+                host: { dataType: 'string', required: true },
+                type: { ref: 'WarehouseTypes.DORIS', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateWarehouseCredentials: {
         dataType: 'refAlias',
         type: {
@@ -27882,6 +27984,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'CreateClickhouseCredentials' },
                 { ref: 'CreateAthenaCredentials' },
                 { ref: 'CreateDuckdbCredentials' },
+                { ref: 'CreateDorisCredentials' },
             ],
             validators: {},
         },
@@ -35653,7 +35756,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_':
+    'Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials-or-CreateDorisCredentials.type-or-user_':
         {
             dataType: 'refAlias',
             type: {
@@ -35666,6 +35769,7 @@ const models: TsoaRoute.Models = {
                             { ref: 'WarehouseTypes.SNOWFLAKE' },
                             { ref: 'WarehouseTypes.TRINO' },
                             { ref: 'WarehouseTypes.CLICKHOUSE' },
+                            { ref: 'WarehouseTypes.DORIS' },
                         ],
                         required: true,
                     },
@@ -35757,7 +35861,7 @@ const models: TsoaRoute.Models = {
                             ref: 'Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_',
                         },
                         {
-                            ref: 'Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_',
+                            ref: 'Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials-or-CreateDorisCredentials.type-or-user_',
                         },
                         { ref: 'Pick_CreateBigqueryCredentials.type_' },
                         { ref: 'Pick_CreateDatabricksCredentials.type_' },
@@ -35916,6 +36020,19 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 type: { ref: 'WarehouseTypes.CLICKHOUSE', required: true },
+                user: { dataType: 'string', required: true },
+                password: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateDorisCredentials.type-or-user-or-password_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'WarehouseTypes.DORIS', required: true },
                 user: { dataType: 'string', required: true },
                 password: { dataType: 'string', required: true },
             },
@@ -36082,6 +36199,9 @@ const models: TsoaRoute.Models = {
                         },
                         {
                             ref: 'Pick_CreateClickhouseCredentials.type-or-user-or-password_',
+                        },
+                        {
+                            ref: 'Pick_CreateDorisCredentials.type-or-user-or-password_',
                         },
                         {
                             ref: 'Pick_CreateBigqueryCredentials.type-or-keyfileContents-or-authenticationType_',
