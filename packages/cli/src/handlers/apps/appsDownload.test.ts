@@ -23,6 +23,7 @@ import {
     preSlugServerHint,
     preSlugUploadHint,
     resolveAppsLimit,
+    resolveUploadFilterUuids,
     selectAppsToDownload,
     shouldAutoPushApp,
     shouldFallBackToSpaceScopedListing,
@@ -844,5 +845,32 @@ describe('shouldAutoPushApp', () => {
                 force: false,
             }),
         ).toBe(true);
+    });
+});
+
+describe('resolveUploadFilterUuids', () => {
+    const appUuid = 'd3afc44c-6f0f-4d9f-a267-fb739efa31dd';
+    const otherUuid = 'a1b2c3d4-0000-4000-8000-000000000000';
+
+    it('translates uuid refs the listing knows into slugs', () => {
+        const resolved = resolveUploadFilterUuids(new Set([appUuid]), [
+            { appUuid, slug: 'my-app' },
+        ]);
+        expect(resolved).toEqual(new Set(['my-app']));
+    });
+
+    it('keeps slug refs and unknown uuids untouched', () => {
+        const resolved = resolveUploadFilterUuids(
+            new Set(['my-app', otherUuid]),
+            [{ appUuid, slug: 'my-app' }],
+        );
+        expect(resolved).toEqual(new Set(['my-app', otherUuid]));
+    });
+
+    it('leaves uuid refs alone when the listing has no slugs (pre-slug server)', () => {
+        const resolved = resolveUploadFilterUuids(new Set([appUuid]), [
+            { appUuid },
+        ]);
+        expect(resolved).toEqual(new Set([appUuid]));
     });
 });
