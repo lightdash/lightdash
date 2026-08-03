@@ -25,6 +25,7 @@ import {
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
+    getCartesianLabelLayout,
     getCategoryDateAxisConfig,
     getLongestLabelsForAxis,
     getMinAndMaxValues,
@@ -44,6 +45,58 @@ dayjs.extend(utcPlugin);
 dayjs.extend(timezonePlugin);
 
 vi.mock('./../../providers/TrackingProvider');
+
+describe('getCartesianLabelLayout', () => {
+    test('shows every top label in grouped bar charts', () => {
+        expect(
+            getCartesianLabelLayout({
+                isGroupedBarChart: true,
+                isStacked: false,
+                seriesType: CartesianSeriesType.BAR,
+                position: 'top',
+            }),
+        ).toEqual({ hideOverlap: false });
+    });
+
+    test.each([
+        {
+            isGroupedBarChart: false,
+            isStacked: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+        },
+        {
+            isGroupedBarChart: true,
+            isStacked: true,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'top' as const,
+        },
+        {
+            isGroupedBarChart: true,
+            isStacked: false,
+            seriesType: CartesianSeriesType.BAR,
+            position: 'inside' as const,
+        },
+        {
+            isGroupedBarChart: true,
+            isStacked: false,
+            seriesType: CartesianSeriesType.LINE,
+            position: 'top' as const,
+        },
+    ])(
+        'hides overlapping labels for non-affected series layouts',
+        ({ isGroupedBarChart, isStacked, seriesType, position }) => {
+            expect(
+                getCartesianLabelLayout({
+                    isGroupedBarChart,
+                    isStacked,
+                    seriesType,
+                    position,
+                }),
+            ).toEqual({ hideOverlap: true });
+        },
+    );
+});
 
 describe('resolveCartesianGranularityLabels', () => {
     test('resolves x-axis and y-axis name placeholders', () => {
