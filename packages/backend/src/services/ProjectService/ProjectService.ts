@@ -47,6 +47,7 @@ import {
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
     DashboardBasicDetails,
+    DashboardFieldTarget,
     DashboardFilters,
     DatabricksAuthenticationType,
     DatabricksTokenError,
@@ -78,10 +79,12 @@ import {
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
+    getDashboardFieldTarget,
     getDashboardFilterRulesForTables,
     getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
+    getExploreDefaultTimeDimension,
     getFieldFormatOverrideProps,
     getFields,
     getIntrinsicUserAttributes,
@@ -7944,6 +7947,7 @@ export class ProjectService extends BaseService {
             uuid: string;
             filters: CompiledDimension[];
             metricFilters: Metric[];
+            defaultTimeDimension?: DashboardFieldTarget;
         };
 
         let allFilters: ChartFilters[] = [];
@@ -8010,6 +8014,7 @@ export class ProjectService extends BaseService {
                             uuid: savedChart.uuid,
                             filters: [],
                             metricFilters: [],
+                            defaultTimeDimension: undefined,
                         };
                     }
 
@@ -8026,11 +8031,18 @@ export class ProjectService extends BaseService {
                             (field) => !field.hidden,
                         );
                     }
+                    const defaultTimeDimension =
+                        explore && !isExploreError(explore)
+                            ? getExploreDefaultTimeDimension(explore)
+                            : undefined;
 
                     return {
                         uuid: savedChart.uuid,
                         filters,
                         metricFilters,
+                        defaultTimeDimension: defaultTimeDimension
+                            ? getDashboardFieldTarget(defaultTimeDimension)
+                            : undefined,
                     };
                 });
             },
@@ -8098,11 +8110,28 @@ export class ProjectService extends BaseService {
             };
         }, {});
 
+        const defaultTimeDimensions = savedChartUuidsAndTileUuids.reduce<
+            DashboardAvailableFilters['defaultTimeDimensions']
+        >((acc, savedChartUuidAndTileUuid) => {
+            const filterResult = allFilters.find(
+                (result) =>
+                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+            );
+            return filterResult?.defaultTimeDimension
+                ? {
+                      ...acc,
+                      [savedChartUuidAndTileUuid.tileUuid]:
+                          filterResult.defaultTimeDimension,
+                  }
+                : acc;
+        }, {});
+
         return {
             savedQueryFilters,
             allFilterableFields,
             allFilterableMetrics,
             savedQueryMetricFilters,
+            defaultTimeDimensions,
         };
     }
 

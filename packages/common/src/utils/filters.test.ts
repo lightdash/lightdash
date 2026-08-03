@@ -17,6 +17,7 @@ import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
     applyDashboardFiltersForTile,
+    applyDefaultTimeDimensionTileTargets,
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
@@ -1358,6 +1359,54 @@ describe('applyDashboardFiltersForTile', () => {
         ).toEqual([]);
     });
 
+    test('maps an unmapped date filter to the explore default time dimension', () => {
+        const exploreWithDefaultTimeDimension = {
+            ...mockExplore,
+            tables: {
+                ...mockExplore.tables,
+                orders: {
+                    ...mockExplore.tables.orders,
+                    defaultTimeDimension: {
+                        field: 'order_date',
+                        interval: TimeFrames.DAY,
+                    },
+                },
+            },
+        };
+        const crossExploreDateRule: DashboardFilterRule = {
+            id: 'f-cross-explore-date',
+            target: {
+                fieldId: 'events_created_at',
+                tableName: 'events',
+                fallbackType: DimensionType.DATE,
+            },
+            operator: FilterOperator.EQUALS,
+            values: ['2026-08-01'],
+            label: 'Date',
+        };
+
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [crossExploreDateRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: exploreWithDefaultTimeDimension,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toHaveLength(1);
+        expect(appliedDashboardFilters.dimensions[0].target).toMatchObject({
+            fieldId: 'orders_order_date',
+            tableName: 'orders',
+        });
+        expect(
+            (metricQuery.filters.dimensions as AndFilterGroup).and[0],
+        ).toMatchObject({ target: { fieldId: 'orders_order_date' } });
+    });
+
     test('drops rules whose tileTargets disable them for this tile', () => {
         const disabledRule: DashboardFilterRule = {
             ...statusRule,
@@ -1404,6 +1453,129 @@ describe('applyDashboardFiltersForTile', () => {
             target: { fieldId: 'orders_status' },
             values: [true],
         });
+    });
+});
+
+describe('applyDefaultTimeDimensionTileTargets', () => {
+    const sourceDateDimension = {
+        ...mockExplore.tables.orders.dimensions.order_date,
+        name: 'created_at',
+        table: 'events',
+        tableLabel: 'Events',
+    };
+    const defaultTimeDimension =
+        mockExplore.tables.orders.dimensions.order_date;
+
+    test('maps a date filter to each tile default without overriding explicit targets', () => {
+        const filters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'date-filter',
+                    target: {
+                        fieldId: 'events_created_at',
+                        tableName: 'events',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['2026-08-01'],
+                    label: 'Date',
+                    tileTargets: {
+                        excluded: false,
+                        explicit: {
+                            fieldId: 'custom_date',
+                            tableName: 'custom',
+                            fallbackType: DimensionType.DATE,
+                        },
+                    },
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+
+        const result = applyDefaultTimeDimensionTileTargets(
+            filters,
+            {
+                source: [sourceDateDimension],
+                target: [defaultTimeDimension],
+                excluded: [defaultTimeDimension],
+                explicit: [defaultTimeDimension],
+            },
+            {
+                source: {
+                    fieldId: 'events_created_at',
+                    tableName: 'events',
+                    fallbackType: DimensionType.DATE,
+                },
+                target: {
+                    fieldId: 'orders_order_date',
+                    tableName: 'orders',
+                    fallbackType: DimensionType.DATE,
+                },
+                excluded: {
+                    fieldId: 'orders_order_date',
+                    tableName: 'orders',
+                    fallbackType: DimensionType.DATE,
+                },
+                explicit: {
+                    fieldId: 'orders_order_date',
+                    tableName: 'orders',
+                    fallbackType: DimensionType.DATE,
+                },
+            },
+        );
+
+        expect(result.dimensions[0].target.fallbackType).toBe(
+            DimensionType.DATE,
+        );
+        expect(result.dimensions[0].tileTargets).toEqual({
+            excluded: false,
+            explicit: {
+                fieldId: 'custom_date',
+                tableName: 'custom',
+                fallbackType: DimensionType.DATE,
+            },
+            target: {
+                fieldId: 'orders_order_date',
+                tableName: 'orders',
+                fallbackType: DimensionType.DATE,
+            },
+        });
+        expect(result.dimensions[0].tileTargets).not.toHaveProperty('source');
+    });
+
+    test('does not map non-date filters', () => {
+        const filters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'status-filter',
+                    target: {
+                        fieldId: 'orders_status',
+                        tableName: 'orders',
+                        fallbackType: DimensionType.STRING,
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['completed'],
+                    label: 'Status',
+                    tileTargets: {},
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+
+        expect(
+            applyDefaultTimeDimensionTileTargets(
+                filters,
+                { target: [defaultTimeDimension] },
+                {
+                    target: {
+                        fieldId: 'orders_order_date',
+                        tableName: 'orders',
+                        fallbackType: DimensionType.DATE,
+                    },
+                },
+            ),
+        ).toEqual(filters);
     });
 });
 
