@@ -14,7 +14,7 @@ import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 // eslint-disable-next-line import/extensions
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { randomUUID } from 'crypto';
-import express, { type Router } from 'express';
+import express, { type RequestHandler, type Router } from 'express';
 import { IncomingMessage } from 'http';
 import { validate as isValidUuid } from 'uuid';
 import { allowApiKeyAuthentication } from '../controllers/authentication';
@@ -199,6 +199,15 @@ const returnHeaderIfUnauthenticated = (
     }
 };
 
+// Passport 401s credential-less requests itself, hiding the WWW-Authenticate header OAuth discovery needs
+const authenticateOnlyWithCredentials: RequestHandler = (req, res, next) => {
+    if (!req.headers.authorization && !req.isAuthenticated()) {
+        next();
+        return;
+    }
+    allowApiKeyAuthentication(req, res, next);
+};
+
 // MCP endpoint - supports Streamable HTTP
 // Keep the MCP router as raw Express because:
 // - MCP protocol requirements don't align with REST/TSOA patterns
@@ -207,7 +216,7 @@ const returnHeaderIfUnauthenticated = (
 mcpRouter.all(
     ['/', '/projects/:projectUuid'],
     aliasMcpBearerPersonalAccessToken,
-    allowApiKeyAuthentication,
+    authenticateOnlyWithCredentials,
     returnHeaderIfUnauthenticated,
     async (req, res) => {
         try {
