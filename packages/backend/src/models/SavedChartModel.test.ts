@@ -716,19 +716,17 @@ describe('findChartsForValidation', () => {
 
     test('keeps validation queries within the PostgreSQL bind parameter limit', async () => {
         const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const uniqueDashboardCount = 32_768;
         const savedCharts = Array.from({ length: 65_536 }, (_, index) => {
-            const dashboardIndex = index % 32_768;
-            return {
-                uuid: `chart-${index}`,
-                dashboardUuid:
-                    index === 0
-                        ? null
-                        : `33333333-3333-4333-8333-${dashboardIndex
-                              .toString(16)
-                              .padStart(12, '0')}`,
-                customMetricsFilters: [],
-                pivotDimensions: [],
-            };
+            const dashboardIndex = index % uniqueDashboardCount;
+            return makeValidationChart(
+                `chart-${index}`,
+                index === 0
+                    ? null
+                    : `33333333-3333-4333-8333-${dashboardIndex
+                          .toString(16)
+                          .padStart(12, '0')}`,
+            );
         });
         tracker.on
             .select(({ sql }) => sql.includes('chart_last_version_cte'))
@@ -747,5 +745,16 @@ describe('findChartsForValidation', () => {
                 ),
             ),
         ).toBeLessThanOrEqual(65_535);
+
+        // the dashboard UUIDs must be bound as deduplicated arrays, not
+        // expanded IN lists — one parameter per predicate regardless of size
+        const orphanQuery = tracker.history.select.find(({ sql }) =>
+            sql.includes(DashboardTileChartTableName),
+        );
+        expect(orphanQuery?.bindings).toHaveLength(2);
+        orphanQuery?.bindings.forEach((binding) => {
+            expect(Array.isArray(binding)).toBe(true);
+            expect(binding).toHaveLength(uniqueDashboardCount);
+        });
     });
 });
