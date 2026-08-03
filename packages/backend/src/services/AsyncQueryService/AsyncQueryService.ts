@@ -867,13 +867,26 @@ export class AsyncQueryService extends ProjectService {
             return null;
         }
 
+        const valueColumnOrder = new Map(
+            pivotConfiguration.valuesColumns.map((column, index) => [
+                PivotQueryBuilder.getValueColumnFieldName(
+                    column.reference,
+                    column.aggregation,
+                ),
+                index,
+            ]),
+        );
+        const getValueColumnOrder = (column: PivotValuesColumn) =>
+            valueColumnOrder.get(
+                PivotQueryBuilder.getValueColumnFieldName(
+                    column.referenceField,
+                    column.aggregation,
+                ),
+            ) ?? Number.MAX_SAFE_INTEGER;
         const sortedValuesColumns = Object.values(pivotValuesColumns).sort(
-            (a, b) => {
-                if (a.columnIndex && b.columnIndex) {
-                    return a.columnIndex - b.columnIndex;
-                }
-                return 0;
-            },
+            (a, b) =>
+                (a.columnIndex ?? 0) - (b.columnIndex ?? 0) ||
+                getValueColumnOrder(a) - getValueColumnOrder(b),
         );
 
         return {
