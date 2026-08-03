@@ -36,6 +36,7 @@ import {
     type DbAiPrompt,
 } from '../database/entities/ai';
 import {
+    AiAgentMemoryConsolidationRunTableName,
     AiAgentMemoryTableName,
     AiAgentThreadDistillTableName,
 } from '../database/entities/aiAgentMemory';
@@ -57,6 +58,7 @@ describe('AiAgentMemoryModel integration', () => {
     const originalFlags = new Map<string, DbFeatureFlag | undefined>();
     const threadUuids = new Set<string>();
     const memoryUuids = new Set<string>();
+    const consolidationRunUuids = new Set<string>();
 
     const setFeatureFlag = async (flagId: string, enabled: boolean) => {
         await database<FeatureFlagsTable>(FeatureFlagsTableName)
@@ -123,6 +125,14 @@ describe('AiAgentMemoryModel integration', () => {
 
     afterEach(async () => {
         await setFeatureFlag(FeatureFlags.AiAgentMemory, true);
+        if (consolidationRunUuids.size > 0) {
+            await database(AiAgentMemoryConsolidationRunTableName)
+                .whereIn('ai_agent_memory_consolidation_run_uuid', [
+                    ...consolidationRunUuids,
+                ])
+                .delete();
+            consolidationRunUuids.clear();
+        }
         if (memoryUuids.size > 0) {
             await database(AiAgentMemoryTableName)
                 .whereIn('ai_agent_memory_uuid', [...memoryUuids])
@@ -269,8 +279,55 @@ describe('AiAgentMemoryModel integration', () => {
             projectModel,
             featureFlagService,
             schedulerClient,
+            consolidationDryRun: false,
             distillCall,
         });
+
+    it('finds the latest consolidation run in the requested mode', async () => {
+        const recordRun = async (dryRun: boolean, inputHash: string) => {
+            const run = await model.recordConsolidationRun({
+                organizationUuid: SEED_ORG_1.organization_uuid,
+                projectUuid: SEED_PROJECT.project_uuid,
+                ownerUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                status: 'succeeded',
+                dryRun,
+                promptHash: 'prompt-hash',
+                inputHash,
+                inputCount: 30,
+                appliedOperations: [],
+                rejectedOperations: [],
+                errorMessage: null,
+                consolidatedUpTo: new Date('2026-07-30T10:00:00Z'),
+            });
+            consolidationRunUuids.add(
+                run.ai_agent_memory_consolidation_run_uuid,
+            );
+            return run;
+        };
+        const live = await recordRun(false, 'live-hash');
+        const dry = await recordRun(true, 'dry-hash');
+
+        await expect(
+            model.findLatestConsolidationRun({
+                projectUuid: SEED_PROJECT.project_uuid,
+                ownerUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                dryRun: false,
+            }),
+        ).resolves.toMatchObject({
+            ai_agent_memory_consolidation_run_uuid:
+                live.ai_agent_memory_consolidation_run_uuid,
+        });
+        await expect(
+            model.findLatestConsolidationRun({
+                projectUuid: SEED_PROJECT.project_uuid,
+                ownerUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+                dryRun: true,
+            }),
+        ).resolves.toMatchObject({
+            ai_agent_memory_consolidation_run_uuid:
+                dry.ai_agent_memory_consolidation_run_uuid,
+        });
+    });
 
     it('replaces source-thread content while keeping slug and telemetry', async () => {
         const sourceThreadUuid = await createThread();

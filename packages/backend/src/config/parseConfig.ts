@@ -1443,6 +1443,10 @@ export type LightdashConfig = {
         copilot: AiCopilotConfigSchemaType;
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
+        agentMemory: {
+            /** Consolidation computes and records its operations, applying none. */
+            consolidationDryRun: boolean;
+        };
     };
     embedding: {
         enabled: boolean;
@@ -2974,6 +2978,11 @@ export const parseConfig = (): LightdashConfig => {
             copilot: copilotConfig,
             analyticsProjectUuid: process.env.AI_ANALYTICS_PROJECT_UUID,
             analyticsDashboardUuid: process.env.AI_ANALYTICS_DASHBOARD_UUID,
+            agentMemory: {
+                consolidationDryRun:
+                    process.env.AI_AGENT_MEMORY_CONSOLIDATION_DRY_RUN ===
+                    'true',
+            },
         },
         embedding: {
             enabled: process.env.EMBEDDING_ENABLED === 'true',

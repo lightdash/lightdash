@@ -3028,7 +3028,10 @@ export type AiAgentMemoryConsolidatedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         ownerUserId: string;
-        outcome: 'applied' | 'no_operations';
+        // `applied` is impossible on a dry run, so a query that counts curation
+        // stays correct even if it ignores `dryRun`.
+        outcome: 'applied' | 'proposed' | 'no_operations';
+        dryRun: boolean;
         inputCount: number;
         mergeCount: number;
         supersedeCount: number;
@@ -3049,6 +3052,7 @@ export type AiAgentMemoryConsolidationFailedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         ownerUserId: string;
+        dryRun: boolean;
         failureStage: 'selection' | 'consolidation' | 'persistence';
         errorType: string;
     };

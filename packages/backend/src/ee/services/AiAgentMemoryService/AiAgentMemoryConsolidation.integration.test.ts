@@ -245,7 +245,13 @@ describe('AI agent memory consolidation integration', () => {
 
     const buildService = (
         consolidateCall: AiAgentMemoryConsolidateCall,
-        schedulerClientOverride?: ReturnType<typeof stubSchedulerClient>,
+        {
+            consolidationDryRun = false,
+            schedulerClientOverride,
+        }: {
+            consolidationDryRun?: boolean;
+            schedulerClientOverride?: ReturnType<typeof stubSchedulerClient>;
+        } = {},
     ) =>
         new AiAgentMemoryService({
             analytics,
@@ -255,6 +261,7 @@ describe('AI agent memory consolidation integration', () => {
             projectModel: getTestContext().app.getModels().getProjectModel(),
             featureFlagService,
             schedulerClient: schedulerClientOverride ?? schedulerClient,
+            consolidationDryRun,
             consolidateCall,
         });
 
@@ -1022,6 +1029,137 @@ describe('AI agent memory consolidation integration', () => {
         expect(await runsForOwner(ownerUuid)).toHaveLength(1);
     });
 
+    it('records a full proposal in dry-run mode without touching a memory row', async () => {
+        const slugs = await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'dryrun',
+        });
+        const rowsBefore = await database(AiAgentMemoryTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .where('user_uuid', ownerUuid)
+            .orderBy('slug', 'asc');
+        const operations: AiAgentMemoryConsolidationOperation[] = [
+            {
+                type: 'merge',
+                source_slugs: [slugs[0]!, slugs[1]!],
+                slug: 'consolidation-dryrun-merged',
+                title: 'One convention',
+                memory: 'Revenue always means net revenue.',
+                terms: ['net revenue'],
+                objects: [],
+                reason: 'Both memories state the same convention.',
+            },
+            {
+                type: 'supersede',
+                loser_slug: slugs[2]!,
+                winner_slug: slugs[3]!,
+                reason: 'The winner is the user’s later correction.',
+            },
+            { type: 'retire', slug: slugs[4]!, reason: 'Its explore is gone.' },
+            { type: 'retire', slug: 'never-in-this-input', reason: 'Gone.' },
+        ];
+        const call = cannedCall(operations);
+
+        await buildService(call, {
+            consolidationDryRun: true,
+        }).consolidateScheduledPartition(partitionPayload(ownerUuid));
+
+        // The curator ran; the corpus is byte-for-byte what it was.
+        expect(call).toHaveBeenCalledOnce();
+        const rowsAfter = await database(AiAgentMemoryTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .where('user_uuid', ownerUuid)
+            .orderBy('slug', 'asc');
+        expect(rowsAfter).toEqual(rowsBefore);
+
+        const [run] = await runsForOwner(ownerUuid);
+        expect(run).toMatchObject({
+            status: 'succeeded',
+            dry_run: true,
+            input_count: FLOOR,
+            applied_count: 3,
+            rejected_count: 1,
+            error_message: null,
+        });
+        expect(
+            run!.applied_operations.map((operation) => operation.type),
+        ).toEqual(['merge', 'supersede', 'retire']);
+        expect(run!.rejected_operations[0]!.reason).toBe('unknown_slug');
+
+        // One dry sample per changed corpus: the hash advanced.
+        const second = cannedCall([]);
+        await buildService(second, {
+            consolidationDryRun: true,
+        }).consolidateScheduledPartition(partitionPayload(ownerUuid));
+        expect(second).not.toHaveBeenCalled();
+        expect(await runsForOwner(ownerUuid)).toHaveLength(1);
+    });
+
+    it('rejects a dry-run proposal moved by a concurrent live run', async () => {
+        const slugs = await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'dryrace',
+        });
+        const operation: AiAgentMemoryConsolidationOperation = {
+            type: 'retire',
+            slug: slugs[0]!,
+            reason: 'Its explore is gone.',
+        };
+        let releaseDryRun!: () => void;
+        const liveFinished = new Promise<void>((resolve) => {
+            releaseDryRun = resolve;
+        });
+        const dryCall = vi.fn(async () => {
+            await liveFinished;
+            return { operations: [operation] };
+        });
+        const dryRun = buildService(dryCall, {
+            consolidationDryRun: true,
+        }).consolidateScheduledPartition(partitionPayload(ownerUuid));
+        await vi.waitFor(() => expect(dryCall).toHaveBeenCalledOnce());
+
+        await buildService(
+            cannedCall([operation]),
+        ).consolidateScheduledPartition(partitionPayload(ownerUuid));
+        releaseDryRun();
+        await expect(dryRun).resolves.toBe('dry_run');
+
+        const runs = await runsForOwner(ownerUuid);
+        const preview = runs.find((run) => run.dry_run);
+        expect(preview).toMatchObject({
+            applied_count: 0,
+            rejected_count: 1,
+        });
+        expect(preview!.rejected_operations[0]!.reason).toBe('row_moved');
+    });
+
+    it('still consolidates an unchanged corpus once dry-run mode is turned off', async () => {
+        await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'dryoff',
+        });
+        const preview = cannedCall([]);
+        await buildService(preview, {
+            consolidationDryRun: true,
+        }).consolidateScheduledPartition(partitionPayload(ownerUuid));
+        expect(preview).toHaveBeenCalledOnce();
+
+        // The dry run applied nothing: the first live pass still owes this
+        // corpus its curation, even though the hash has not moved.
+        const live = cannedCall([]);
+        await buildService(live).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
+
+        expect(live).toHaveBeenCalledOnce();
+        const runs = await runsForOwner(ownerUuid);
+        expect(runs.map((run) => run.dry_run)).toEqual([true, false]);
+        expect(runs[0]!.input_hash).toBe(runs[1]!.input_hash);
+    });
+
     it('does not retry a failed partition until the corpus changes', async () => {
         await seedPartition({
             userUuid: ownerUuid,
@@ -1063,7 +1201,9 @@ describe('AI agent memory consolidation integration', () => {
         });
         const enqueue = stubSchedulerClient();
         const call = cannedCall([]);
-        const service = buildService(call, enqueue);
+        const service = buildService(call, {
+            schedulerClientOverride: enqueue,
+        });
 
         // The sweep never enqueues a below-floor partition...
         await service.sweepConsolidationPartitions();
@@ -1090,10 +1230,9 @@ describe('AI agent memory consolidation integration', () => {
         });
         const enqueue = stubSchedulerClient();
 
-        const enqueued = await buildService(
-            cannedCall([]),
-            enqueue,
-        ).sweepConsolidationPartitions();
+        const enqueued = await buildService(cannedCall([]), {
+            schedulerClientOverride: enqueue,
+        }).sweepConsolidationPartitions();
 
         expect(enqueued).toBeGreaterThanOrEqual(1);
         expect(enqueue.aiAgentMemoryConsolidatePartition).toHaveBeenCalledWith(
@@ -1214,7 +1353,9 @@ describe('AI agent memory consolidation integration', () => {
         await setFeatureFlag(FeatureFlags.AiAgentMemory, false);
         const enqueue = stubSchedulerClient();
         const call = cannedCall([]);
-        const service = buildService(call, enqueue);
+        const service = buildService(call, {
+            schedulerClientOverride: enqueue,
+        });
 
         // The sweep filters the organization out...
         await service.sweepConsolidationPartitions();

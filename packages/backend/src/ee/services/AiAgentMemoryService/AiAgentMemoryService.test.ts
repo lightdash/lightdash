@@ -145,7 +145,10 @@ describe('AiAgentMemoryService', () => {
         } as AnyType;
     };
 
-    const build = ({ enabledOrganization = 'org-enabled' } = {}) => {
+    const build = ({
+        enabledOrganization = 'org-enabled',
+        consolidationDryRun = false,
+    } = {}) => {
         const getFlag = vi.fn(async ({ user, featureFlagId }) => ({
             id: featureFlagId,
             enabled:
@@ -179,6 +182,13 @@ describe('AiAgentMemoryService', () => {
         const findConsolidationCandidates = vi.fn().mockResolvedValue([]);
         const findLatestConsolidationRun = vi.fn().mockResolvedValue(undefined);
         const recordConsolidationRun = vi.fn().mockResolvedValue({});
+        const recordDryRunConsolidation = vi.fn(
+            async ({ run, operations, rejected }) => ({
+                run: { ...run, status: 'succeeded', dry_run: true },
+                proposed: operations,
+                rejected,
+            }),
+        );
         const applyConsolidation = vi.fn().mockResolvedValue({
             run: {},
             applied: [],
@@ -235,6 +245,7 @@ describe('AiAgentMemoryService', () => {
                 findConsolidationCandidates,
                 findLatestConsolidationRun,
                 recordConsolidationRun,
+                recordDryRunConsolidation,
                 applyConsolidation,
             } as AnyType,
             aiAgentModel: { getAgent, findThreadOwnership } as AnyType,
@@ -248,6 +259,7 @@ describe('AiAgentMemoryService', () => {
                 aiAgentMemoryDistill,
                 aiAgentMemoryConsolidatePartition,
             },
+            consolidationDryRun,
             distillCall,
             consolidateCall,
         });
@@ -268,6 +280,7 @@ describe('AiAgentMemoryService', () => {
             findConsolidationCandidates,
             findLatestConsolidationRun,
             recordConsolidationRun,
+            recordDryRunConsolidation,
             applyConsolidation,
             findExploresFromCache,
             aiAgentMemoryDistill,
@@ -1124,6 +1137,17 @@ describe('AiAgentMemoryService', () => {
         ownerUserUuid: 'owner-1',
     };
 
+    /** Returns the newest eligible canned run-history row. */
+    const latestConsolidationRun =
+        (
+            runs: {
+                input_hash: string;
+                status: 'succeeded' | 'failed';
+                dry_run: boolean;
+            }[],
+        ) =>
+        async ({ dryRun }: { dryRun: boolean }) =>
+            [...runs].reverse().find((run) => run.dry_run === dryRun);
     const activeMemory = (
         overrides: Record<string, unknown> = {},
     ): Record<string, unknown> => ({
@@ -1154,7 +1178,7 @@ describe('AiAgentMemoryService', () => {
 
     // An empty catalog is treated as an unreadable one, so a partition that is
     // meant to be consolidated needs a catalog with something in it.
-    const buildConsolidation = (options?: { enabledOrganization: string }) => {
+    const buildConsolidation = (options?: Parameters<typeof build>[0]) => {
         const context = build(options);
         context.findExploresFromCache.mockResolvedValue({
             orders: { name: 'orders', tables: {}, joinedTables: [] },
@@ -1386,33 +1410,38 @@ describe('AiAgentMemoryService', () => {
         );
     });
 
-    it('skips a partition whose corpus has not changed since the last run', async () => {
-        const { service, findLatestConsolidationRun, applyConsolidation } =
-            buildConsolidation();
+    it.each(['succeeded', 'failed'] as const)(
+        'skips a partition whose corpus has not changed since a %s live run',
+        async (status) => {
+            const { service, findLatestConsolidationRun, applyConsolidation } =
+                buildConsolidation();
 
-        await expect(
-            service.consolidateScheduledPartition(partitionPayload),
-        ).resolves.toBe('consolidated');
-        const { inputHash } = applyConsolidation.mock.calls[0][0].run;
-        expect(findLatestConsolidationRun).toHaveBeenCalledWith({
-            projectUuid: 'project-enabled',
-            ownerUserUuid: 'owner-1',
-        });
+            await expect(
+                service.consolidateScheduledPartition(partitionPayload),
+            ).resolves.toBe('consolidated');
+            const { inputHash } = applyConsolidation.mock.calls[0][0].run;
+            expect(findLatestConsolidationRun).toHaveBeenCalledWith({
+                projectUuid: 'project-enabled',
+                ownerUserUuid: 'owner-1',
+                dryRun: false,
+            });
 
-        const second = buildConsolidation();
-        second.findLatestConsolidationRun.mockResolvedValue({
-            input_hash: inputHash,
-            status: 'failed',
-        });
+            const second = buildConsolidation();
+            second.findLatestConsolidationRun.mockImplementation(
+                latestConsolidationRun([
+                    { input_hash: inputHash, status, dry_run: false },
+                ]),
+            );
 
-        await expect(
-            second.service.consolidateScheduledPartition(partitionPayload),
-        ).resolves.toBe('skipped');
-        expect(second.consolidateCall).not.toHaveBeenCalled();
-        expect(second.applyConsolidation).not.toHaveBeenCalled();
-        // The catalog is read only for a partition that will be attempted.
-        expect(second.findExploresFromCache).not.toHaveBeenCalled();
-    });
+            await expect(
+                second.service.consolidateScheduledPartition(partitionPayload),
+            ).resolves.toBe('skipped');
+            expect(second.consolidateCall).not.toHaveBeenCalled();
+            expect(second.applyConsolidation).not.toHaveBeenCalled();
+            // The catalog is read only for a partition that will be attempted.
+            expect(second.findExploresFromCache).not.toHaveBeenCalled();
+        },
+    );
 
     it('records a failed run carrying the input hash when the call throws', async () => {
         const {
@@ -1452,6 +1481,283 @@ describe('AiAgentMemoryService', () => {
         });
         expect(JSON.stringify(input)).not.toContain('Summary the curator');
         expect(JSON.stringify(input)).not.toContain('uuid-');
+    });
+
+    // The applied audit the transaction returns is what the event reports, so
+    // the canned model echoes back what it was handed.
+    const echoApply = (applyConsolidation: AnyType) =>
+        applyConsolidation.mockImplementation(
+            async ({ operations, rejected }: AnyType) => ({
+                run: {},
+                applied: operations,
+                rejected,
+            }),
+        );
+
+    const mergeOperation = {
+        type: 'merge',
+        source_slugs: ['net-revenue-0', 'net-revenue-1'],
+        slug: 'net-revenue',
+        title: 'Net revenue convention',
+        memory: 'Use net revenue.',
+        terms: ['ARR'],
+        objects: [],
+        reason: 'Both say the same thing.',
+    };
+
+    const consolidationTrackCalls = (track: AnyType) =>
+        track.mock.calls
+            .map(([event]: [{ event: string }]) => event)
+            .filter((event: { event: string }) =>
+                event.event.startsWith('ai_agent_memory.consolidat'),
+            );
+
+    // One merge, one retire the input names, and one retire it does not: enough
+    // for the proposal, the rejection audit and the apply to be told apart.
+    const dryRunOperations = [
+        mergeOperation,
+        {
+            type: 'retire',
+            slug: 'net-revenue-2',
+            reason: 'Its explore no longer resolves.',
+        },
+        {
+            type: 'retire',
+            slug: 'never-seen',
+            reason: 'Its explore no longer resolves.',
+        },
+    ];
+
+    const buildDryRunPartition = (options?: Parameters<typeof build>[0]) => {
+        const context = buildConsolidation(options);
+        context.consolidateCall.mockResolvedValue({
+            operations: dryRunOperations,
+        });
+        return context;
+    };
+
+    it('proposes operations and applies none in dry-run mode', async () => {
+        const { service, applyConsolidation, recordDryRunConsolidation } =
+            buildDryRunPartition({ consolidationDryRun: true });
+
+        // A dry run curated nothing, so it is not a consolidated partition.
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('dry_run');
+
+        expect(applyConsolidation).not.toHaveBeenCalled();
+        expect(recordDryRunConsolidation).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                run: expect.objectContaining({
+                    errorMessage: null,
+                    inputCount: 30,
+                }),
+                operations: [
+                    expect.objectContaining({ type: 'merge' }),
+                    expect.objectContaining({ slug: 'net-revenue-2' }),
+                ],
+                rejected: [
+                    {
+                        operation: expect.objectContaining({
+                            slug: 'never-seen',
+                        }),
+                        reason: 'unknown_slug',
+                    },
+                ],
+            }),
+        );
+    });
+
+    it('proposes exactly what a live run over the same input applies', async () => {
+        const dry = buildDryRunPartition({ consolidationDryRun: true });
+        await dry.service.consolidateScheduledPartition(partitionPayload);
+
+        const live = buildDryRunPartition();
+        echoApply(live.applyConsolidation);
+        await live.service.consolidateScheduledPartition(partitionPayload);
+
+        const [{ run: dryRun, operations: proposed, rejected: dryRejected }] =
+            dry.recordDryRunConsolidation.mock.calls[0];
+        const [{ run: liveRun, operations, rejected }] =
+            live.applyConsolidation.mock.calls[0];
+        expect(proposed).toEqual(operations);
+        expect(dryRejected).toEqual(rejected);
+        // Selection, projection and the call itself are untouched by the mode.
+        expect(dryRun.inputHash).toBe(liveRun.inputHash);
+        expect(dryRun.promptHash).toBe(liveRun.promptHash);
+        expect(dry.consolidateCall.mock.calls[0][0].input).toEqual(
+            live.consolidateCall.mock.calls[0][0].input,
+        );
+    });
+
+    it.each(['succeeded', 'failed'] as const)(
+        'does not repeat a dry run on an unchanged corpus after a %s run',
+        async (status) => {
+            const first = buildDryRunPartition({ consolidationDryRun: true });
+            await first.service.consolidateScheduledPartition(partitionPayload);
+            const [
+                {
+                    run: { inputHash },
+                },
+            ] = first.recordDryRunConsolidation.mock.calls[0];
+
+            const second = buildDryRunPartition({ consolidationDryRun: true });
+            second.findLatestConsolidationRun.mockImplementation(
+                latestConsolidationRun([
+                    { input_hash: inputHash, status, dry_run: true },
+                ]),
+            );
+
+            await expect(
+                second.service.consolidateScheduledPartition(partitionPayload),
+            ).resolves.toBe('skipped');
+            // A dry-run pass may settle on its own dry rows...
+            expect(second.findLatestConsolidationRun).toHaveBeenCalledWith(
+                expect.objectContaining({ dryRun: true }),
+            );
+            expect(second.consolidateCall).not.toHaveBeenCalled();
+            expect(second.recordDryRunConsolidation).not.toHaveBeenCalled();
+        },
+    );
+
+    it('ignores dry-run rows once dry-run mode is turned off', async () => {
+        const first = buildDryRunPartition({ consolidationDryRun: true });
+        await first.service.consolidateScheduledPartition(partitionPayload);
+        const [
+            {
+                run: { inputHash },
+            },
+        ] = first.recordDryRunConsolidation.mock.calls[0];
+
+        // ...but a live pass must not: the corpus is still uncurated.
+        const live = buildDryRunPartition();
+        live.findLatestConsolidationRun.mockImplementation(
+            latestConsolidationRun([
+                { input_hash: inputHash, status: 'succeeded', dry_run: true },
+            ]),
+        );
+        echoApply(live.applyConsolidation);
+        await expect(
+            live.service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('consolidated');
+        expect(live.findLatestConsolidationRun).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: false }),
+        );
+    });
+
+    it('ignores live rows when dry-run mode is turned on', async () => {
+        const live = buildDryRunPartition();
+        echoApply(live.applyConsolidation);
+        await live.service.consolidateScheduledPartition(partitionPayload);
+        const [
+            {
+                run: { inputHash },
+            },
+        ] = live.applyConsolidation.mock.calls[0];
+
+        const dry = buildDryRunPartition({ consolidationDryRun: true });
+        dry.findLatestConsolidationRun.mockImplementation(
+            latestConsolidationRun([
+                { input_hash: inputHash, status: 'succeeded', dry_run: false },
+            ]),
+        );
+
+        await expect(
+            dry.service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('dry_run');
+        expect(dry.findLatestConsolidationRun).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true }),
+        );
+        expect(dry.recordDryRunConsolidation).toHaveBeenCalledOnce();
+    });
+
+    it('records a dry run that failed as a dry run', async () => {
+        const {
+            service,
+            consolidateCall,
+            recordConsolidationRun,
+            prometheusMetrics,
+            track,
+        } = buildDryRunPartition({ consolidationDryRun: true });
+        consolidateCall.mockRejectedValue(new Error('model exploded'));
+
+        await expect(
+            service.consolidateScheduledPartition(partitionPayload),
+        ).resolves.toBe('failed');
+
+        expect(recordConsolidationRun).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                status: 'failed',
+                dryRun: true,
+                errorMessage: 'model exploded',
+                inputHash: expect.any(String),
+                appliedOperations: [],
+            }),
+        );
+        expect(consolidationTrackCalls(track)).toEqual([
+            expect.objectContaining({
+                event: 'ai_agent_memory.consolidation_failed',
+                properties: expect.objectContaining({ dryRun: true }),
+            }),
+        ]);
+        expect(
+            prometheusMetrics.trackAiAgentMemoryConsolidate,
+        ).toHaveBeenCalledExactlyOnceWith('dry_run_failed', expect.any(Number));
+    });
+
+    it('never reports a dry run as curation that happened', async () => {
+        const { service, track } = buildDryRunPartition({
+            consolidationDryRun: true,
+        });
+
+        await service.consolidateScheduledPartition(partitionPayload);
+
+        expect(consolidationTrackCalls(track)).toEqual([
+            expect.objectContaining({
+                event: 'ai_agent_memory.consolidated',
+                properties: expect.objectContaining({
+                    dryRun: true,
+                    outcome: 'proposed',
+                    inputCount: 30,
+                    mergeCount: 1,
+                    retireCount: 1,
+                    rejectedCount: 1,
+                }),
+            }),
+        ]);
+    });
+
+    it('reports a dry run that proposed nothing', async () => {
+        const { service, consolidateCall, track } = buildDryRunPartition({
+            consolidationDryRun: true,
+        });
+        consolidateCall.mockResolvedValue({ operations: [] });
+
+        await service.consolidateScheduledPartition(partitionPayload);
+
+        expect(consolidationTrackCalls(track)).toEqual([
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    dryRun: true,
+                    outcome: 'no_operations',
+                }),
+            }),
+        ]);
+    });
+
+    it('keeps proposed operations out of the applied-operation metric', async () => {
+        const { service, prometheusMetrics } = buildDryRunPartition({
+            consolidationDryRun: true,
+        });
+
+        await service.consolidateScheduledPartition(partitionPayload);
+
+        expect(
+            prometheusMetrics.trackAiAgentMemoryConsolidate,
+        ).toHaveBeenCalledExactlyOnceWith('dry_run', expect.any(Number));
+        expect(
+            prometheusMetrics.trackAiAgentMemoryConsolidateOperations,
+        ).not.toHaveBeenCalled();
     });
 
     it('returns not found without reading rows when the flag is off', async () => {

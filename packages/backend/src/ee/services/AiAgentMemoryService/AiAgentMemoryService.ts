@@ -151,6 +151,8 @@ type Dependencies = {
     projectModel: Pick<ProjectModel, 'findExploresFromCache' | 'getSummary'>;
     featureFlagService: FeatureFlagService;
     schedulerClient: MemorySchedulerClient;
+    /** Runs consolidation without applying its proposed operations. */
+    consolidationDryRun: boolean;
     prometheusMetrics?: PrometheusMetrics;
     // Each LLM call is independently cannable for tests. A call that is not
     // canned needs the resolver, which is guarded where the call is made.
@@ -174,6 +176,8 @@ export class AiAgentMemoryService extends BaseService {
 
     private readonly schedulerClient: MemorySchedulerClient;
 
+    private readonly consolidationDryRun: boolean;
+
     private readonly prometheusMetrics: PrometheusMetrics | undefined;
 
     private readonly orgAiCopilotConfigResolver:
@@ -193,6 +197,7 @@ export class AiAgentMemoryService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.schedulerClient = dependencies.schedulerClient;
+        this.consolidationDryRun = dependencies.consolidationDryRun;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
@@ -216,6 +221,7 @@ export class AiAgentMemoryService extends BaseService {
     /** The pass is scheduled work, so the organization is the anonymous actor. */
     private trackConsolidationFailed(
         partition: AiAgentMemoryConsolidationPartition,
+        dryRun: boolean,
         failureStage: ConsolidationFailureStage,
         error: unknown,
     ): void {
@@ -226,6 +232,7 @@ export class AiAgentMemoryService extends BaseService {
                 organizationId: partition.organizationUuid,
                 projectId: partition.projectUuid,
                 ownerUserId: partition.ownerUserUuid,
+                dryRun,
                 failureStage,
                 // Never the message: an AI SDK error quotes the model output.
                 errorType: error instanceof Error ? error.name : 'UnknownError',
@@ -233,26 +240,27 @@ export class AiAgentMemoryService extends BaseService {
         });
     }
 
-    /**
-     * One event per run that reached the apply transaction, and the applied and
-     * rejected operation mix on the metrics. Counts and closed enumerations
-     * only: no memory text, title, term, object name, slug or operation reason.
-     * Swallows its own failures — this runs inside the attempt's try, and an
-     * instrumentation error must not turn an applied run into a failed one.
-     */
-    private recordConsolidationApplied(args: {
+    /** Records operation counts without exposing memory content. */
+    private recordConsolidationOutcome(args: {
         partition: AiAgentMemoryConsolidationPartition;
         input: AiAgentMemoryConsolidationInputEntry[];
-        applied: AiAgentMemoryConsolidationOperation[];
+        /** Applied on a live run, merely proposed on a dry one. */
+        operations: AiAgentMemoryConsolidationOperation[];
         rejected: AiAgentMemoryConsolidationRejection[];
+        dryRun: boolean;
     }): void {
         try {
-            const appliedCounts = countConsolidationOperations(args.applied);
+            const operationCounts = countConsolidationOperations(
+                args.operations,
+            );
             const rejectedCounts = countConsolidationRejections(args.rejected);
-            this.prometheusMetrics?.trackAiAgentMemoryConsolidateOperations({
-                applied: appliedCounts,
-                rejected: rejectedCounts,
-            });
+            // A dry run wrote nothing, so its proposals must never land on the
+            // metric that counts what curation did.
+            if (!args.dryRun) {
+                this.prometheusMetrics?.trackAiAgentMemoryConsolidateOperations(
+                    { applied: operationCounts, rejected: rejectedCounts },
+                );
+            }
             this.track({
                 event: 'ai_agent_memory.consolidated',
                 anonymousId: args.partition.organizationUuid,
@@ -262,16 +270,16 @@ export class AiAgentMemoryService extends BaseService {
                     ownerUserId: args.partition.ownerUserUuid,
                     // A quiet run is not a skipped partition: it read the
                     // corpus, paid for the call and found nothing to do.
-                    outcome:
-                        args.applied.length > 0 ? 'applied' : 'no_operations',
+                    outcome: AiAgentMemoryService.getConsolidationOutcome(args),
+                    dryRun: args.dryRun,
                     inputCount: args.input.length,
-                    mergeCount: appliedCounts.merge,
-                    supersedeCount: appliedCounts.supersede,
-                    retireCount: appliedCounts.retire,
+                    mergeCount: operationCounts.merge,
+                    supersedeCount: operationCounts.supersede,
+                    retireCount: operationCounts.retire,
                     rejectedCount: args.rejected.length,
                     ...countConsolidationScopes({
                         input: args.input,
-                        applied: args.applied,
+                        applied: args.operations,
                     }),
                 },
             });
@@ -281,6 +289,14 @@ export class AiAgentMemoryService extends BaseService {
                 error: getErrorMessage(error),
             });
         }
+    }
+
+    private static getConsolidationOutcome(args: {
+        operations: AiAgentMemoryConsolidationOperation[];
+        dryRun: boolean;
+    }): AiAgentMemoryConsolidatedEvent['properties']['outcome'] {
+        if (args.operations.length === 0) return 'no_operations';
+        return args.dryRun ? 'proposed' : 'applied';
     }
 
     private trackConsolidationSkipped(
@@ -723,7 +739,9 @@ export class AiAgentMemoryService extends BaseService {
             abortSignal,
         );
         this.prometheusMetrics?.trackAiAgentMemoryConsolidate(
-            outcome,
+            outcome === 'failed' && this.consolidationDryRun
+                ? 'dry_run_failed'
+                : outcome,
             Date.now() - startTime,
         );
         return outcome;
@@ -764,6 +782,7 @@ export class AiAgentMemoryService extends BaseService {
                 await this.aiAgentMemoryModel.findLatestConsolidationRun({
                     projectUuid: partition.projectUuid,
                     ownerUserUuid: partition.ownerUserUuid,
+                    dryRun: this.consolidationDryRun,
                 });
             if (latestRun?.input_hash === inputHash) {
                 this.trackConsolidationSkipped(
@@ -814,7 +833,12 @@ export class AiAgentMemoryService extends BaseService {
                 projectUuid: partition.projectUuid,
                 ownerUserUuid: partition.ownerUserUuid,
             });
-            this.trackConsolidationFailed(partition, 'selection', error);
+            this.trackConsolidationFailed(
+                partition,
+                this.consolidationDryRun,
+                'selection',
+                error,
+            );
             return 'failed';
         }
     }
@@ -918,13 +942,35 @@ export class AiAgentMemoryService extends BaseService {
             });
             rejectedOperations = rejected;
             failureStage = 'persistence';
+            const selection = memories.map((memory) => ({
+                memoryUuid: memory.ai_agent_memory_uuid,
+                slug: memory.slug,
+                generatedAt: memory.generated_at,
+            }));
+
+            // Nothing below this line touches a memory row. The hash is stored
+            // all the same, so one dry sample is taken per changed corpus.
+            if (this.consolidationDryRun) {
+                const result =
+                    await this.aiAgentMemoryModel.recordDryRunConsolidation({
+                        run,
+                        selection,
+                        operations: applied,
+                        rejected,
+                    });
+                this.recordConsolidationOutcome({
+                    partition,
+                    input,
+                    operations: result.proposed,
+                    rejected: result.rejected,
+                    dryRun: true,
+                });
+                return 'dry_run';
+            }
+
             const result = await this.aiAgentMemoryModel.applyConsolidation({
                 run,
-                selection: memories.map((memory) => ({
-                    memoryUuid: memory.ai_agent_memory_uuid,
-                    slug: memory.slug,
-                    generatedAt: memory.generated_at,
-                })),
+                selection,
                 operations: applied,
                 rejected,
                 unresolvedObjectKeys: new Set(
@@ -937,11 +983,12 @@ export class AiAgentMemoryService extends BaseService {
             });
             // The apply's own audit, not validation's: it carries the rows the
             // transaction rejected for having moved since selection.
-            this.recordConsolidationApplied({
+            this.recordConsolidationOutcome({
                 partition,
                 input,
-                applied: result.applied,
+                operations: result.applied,
                 rejected: result.rejected,
+                dryRun: false,
             });
             return 'consolidated';
         } catch (error) {
@@ -958,6 +1005,7 @@ export class AiAgentMemoryService extends BaseService {
             await this.aiAgentMemoryModel.recordConsolidationRun({
                 ...run,
                 status: 'failed',
+                dryRun: this.consolidationDryRun,
                 appliedOperations: [],
                 rejectedOperations,
                 errorMessage,
@@ -974,7 +1022,12 @@ export class AiAgentMemoryService extends BaseService {
                 projectUuid: partition.projectUuid,
                 ownerUserUuid: partition.ownerUserUuid,
             });
-            this.trackConsolidationFailed(partition, failureStage, error);
+            this.trackConsolidationFailed(
+                partition,
+                this.consolidationDryRun,
+                failureStage,
+                error,
+            );
             return 'failed';
         }
     }
