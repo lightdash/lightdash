@@ -1876,7 +1876,17 @@ export class SavedChartModel {
     private async getChartsNotInTilesUuids(
         savedCharts: Pick<SavedChartDAO, 'uuid' | 'dashboardUuid'>[],
     ): Promise<string[]> {
-        const dashboardUuids = savedCharts.map((chart) => chart.dashboardUuid);
+        const dashboardUuids = [
+            ...new Set(
+                savedCharts.flatMap(({ dashboardUuid }) =>
+                    dashboardUuid === null ? [] : [dashboardUuid],
+                ),
+            ),
+        ];
+        if (dashboardUuids.length === 0) {
+            return [];
+        }
+
         const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
             .distinct('saved_chart_id')
             .leftJoin(
@@ -1889,7 +1899,10 @@ export class SavedChartModel {
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
-            .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids)
+            .whereRaw('?? = ANY(?::uuid[])', [
+                `${DashboardsTableName}.dashboard_uuid`,
+                dashboardUuids,
+            ])
             .andWhere(
                 // filter by last version
                 `${DashboardVersionsTableName}.dashboard_version_id`,
@@ -1904,7 +1917,10 @@ export class SavedChartModel {
 
         const chartsNotInTilesUuids = await this.database(SavedChartsTableName)
             .pluck(`saved_query_uuid`)
-            .whereIn(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuids)
+            .whereRaw('?? = ANY(?::uuid[])', [
+                `${SavedChartsTableName}.dashboard_uuid`,
+                dashboardUuids,
+            ])
             .whereNotIn(`saved_query_id`, getChartsInTilesQuery)
             .whereNull(`${SavedChartsTableName}.deleted_at`);
 

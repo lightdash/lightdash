@@ -3,7 +3,10 @@ import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { DatabaseError } from 'pg';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
-import { DashboardsTableName } from '../database/entities/dashboards';
+import {
+    DashboardsTableName,
+    DashboardTileChartTableName,
+} from '../database/entities/dashboards';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { createSavedChart, SavedChartModel } from './SavedChartModel';
@@ -655,5 +658,40 @@ describe('findChartsForValidation', () => {
         expect(query.sql.match(/spaces/g)).toHaveLength(1);
         expect(query.sql.match(/dashboards/g)).toHaveLength(1);
         expect(query.sql).toContain('"sq"."project_uuid"');
+    });
+
+    test('keeps validation queries within the PostgreSQL bind parameter limit', async () => {
+        const projectUuid = '22222222-2222-4222-8222-222222222222';
+        const savedCharts = Array.from({ length: 65_536 }, (_, index) => {
+            const dashboardIndex = index % 32_768;
+            return {
+                uuid: `chart-${index}`,
+                dashboardUuid:
+                    index === 0
+                        ? null
+                        : `33333333-3333-4333-8333-${dashboardIndex
+                              .toString(16)
+                              .padStart(12, '0')}`,
+                customMetricsFilters: [],
+                pivotDimensions: [],
+            };
+        });
+        tracker.on
+            .select(({ sql }) => sql.includes('chart_last_version_cte'))
+            .responseOnce(savedCharts);
+        tracker.on
+            .select(({ sql }) => sql.includes(DashboardTileChartTableName))
+            .responseOnce([]);
+
+        await model.findChartsForValidation(projectUuid);
+
+        expect(tracker.history.select).toHaveLength(2);
+        expect(
+            Math.max(
+                ...tracker.history.select.map(
+                    ({ bindings }) => bindings.length,
+                ),
+            ),
+        ).toBeLessThanOrEqual(65_535);
     });
 });
