@@ -84,6 +84,11 @@ export type HomepageCollectionBlock = {
         verifiedOnly?: boolean;
         /** How many items to show. Absent means DEFAULT_COLLECTION_LIMIT. */
         limit?: number;
+        // Optional for back-compat: undefined renders as 'card'.
+        layout?: HomepageContentLayout;
+        /** Narrows live sources to these content types. Ignored for `manual`
+         * (hand-picking is already the filter) and when absent or empty. */
+        contentTypes?: HomepageCollectionItemRef['contentType'][];
     };
 };
 
@@ -117,10 +122,12 @@ export type HomepageResourceItem = {
     appUuid?: string;
 };
 
-/** How a resources block presents its items: media-rich cards, or a compact
- * mode whose geometry (tile columns vs single-column rows) resolves from the
- * block's width rather than being a third admin choice. */
-export type HomepageResourcesLayout = 'card' | 'list';
+/** Shared display vocabulary for content-listing blocks: media-rich cards, or
+ * a compact mode whose geometry (tile columns vs single-column rows) resolves
+ * from the block's width rather than being a third admin choice. */
+export type HomepageContentLayout = 'card' | 'list';
+
+export type HomepageResourcesLayout = HomepageContentLayout;
 
 export type HomepageResourcesBlock = {
     id: string;

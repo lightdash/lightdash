@@ -24,12 +24,14 @@ import {
     type HomepageCollectionBlock,
     type HomepageCollectionItemRef,
     type HomepageCollectionSource,
+    type HomepageContentLayout,
     type SummaryContent,
 } from '@lightdash/common';
 import {
     Box,
     Button,
     Checkbox,
+    Chip,
     Divider,
     Group,
     SegmentedControl,
@@ -70,6 +72,7 @@ import { useReportRuntimeEmpty } from '../hooks/useRuntimeEmptyBlocks';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { ContentCard } from './ContentCard';
+import { ContentLayoutControl } from './ContentLayoutControl';
 import { PageGrid, PageGridItem } from './PageGrid';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -522,6 +525,53 @@ const EMPTY_CONFIG: HomepageCollectionBlock['config'] = {
     items: [],
 };
 
+const collectionLayoutOf = (
+    config: HomepageCollectionBlock['config'],
+): HomepageContentLayout => config.layout ?? 'card';
+
+/** The one place a resolved collection turns into pixels — view, dynamic
+ * preview, and skeletons all agree on what each layout looks like. Compact
+ * mode's geometry (tile columns vs rows) resolves from the block's width. */
+const CollectionContentGrid: FC<{
+    layout: HomepageContentLayout;
+    itemSpan: number | null;
+    contents: SummaryContent[];
+    projectUuid: string;
+    starFor?: (
+        content: SummaryContent,
+    ) => { isFavorite: boolean; onToggle: () => void } | undefined;
+}> = ({ layout, itemSpan, contents, projectUuid, starFor }) => {
+    if (layout === 'list') {
+        return (
+            <div className={classes.resTileGrid}>
+                {contents.map((content) => (
+                    <ContentCard
+                        key={content.uuid}
+                        content={content}
+                        projectUuid={projectUuid}
+                        variant="compact"
+                        star={starFor?.(content)}
+                    />
+                ))}
+            </div>
+        );
+    }
+    return (
+        <PageGrid itemSpan={itemSpan} elastic>
+            {contents.map((content) => (
+                <PageGridItem key={content.uuid}>
+                    <ContentCard
+                        content={content}
+                        projectUuid={projectUuid}
+                        variant="tile"
+                        star={starFor?.(content)}
+                    />
+                </PageGridItem>
+            ))}
+        </PageGrid>
+    );
+};
+
 const SkeletonGrid: FC<{ itemSpan: number | null }> = ({ itemSpan }) => (
     <PageGrid itemSpan={itemSpan} elastic>
         {[0, 1, 2].map((i) => (
@@ -561,36 +611,25 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
             {isLoading ? (
                 <SkeletonGrid itemSpan={itemSpan ?? null} />
             ) : (
-                <PageGrid itemSpan={itemSpan ?? null} elastic>
-                    {contents.map((content) => {
+                <CollectionContentGrid
+                    layout={collectionLayoutOf(config)}
+                    itemSpan={itemSpan ?? null}
+                    contents={contents}
+                    projectUuid={projectUuid}
+                    starFor={(content) => {
                         const favoriteType = toFavoriteType(content);
-                        return (
-                            <PageGridItem key={content.uuid}>
-                                <ContentCard
-                                    content={content}
-                                    projectUuid={projectUuid}
-                                    variant="tile"
-                                    star={
-                                        favoriteType
-                                            ? {
-                                                  isFavorite: favoriteUuids.has(
-                                                      content.uuid,
-                                                  ),
-                                                  onToggle: () =>
-                                                      toggleFavorite({
-                                                          contentType:
-                                                              favoriteType,
-                                                          contentUuid:
-                                                              content.uuid,
-                                                      }),
-                                              }
-                                            : undefined
-                                    }
-                                />
-                            </PageGridItem>
-                        );
-                    })}
-                </PageGrid>
+                        return favoriteType
+                            ? {
+                                  isFavorite: favoriteUuids.has(content.uuid),
+                                  onToggle: () =>
+                                      toggleFavorite({
+                                          contentType: favoriteType,
+                                          contentUuid: content.uuid,
+                                      }),
+                              }
+                            : undefined;
+                    }}
+                />
             )}
         </Stack>
     );
@@ -601,8 +640,9 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
 const SortableTile: FC<{
     content: SummaryContent;
     projectUuid: string;
+    layout: HomepageContentLayout;
     onRemove: () => void;
-}> = ({ content, projectUuid, onRemove }) => {
+}> = ({ content, projectUuid, layout, onRemove }) => {
     const {
         attributes,
         listeners,
@@ -611,10 +651,14 @@ const SortableTile: FC<{
         transition,
         isDragging,
     } = useSortable({ id: content.uuid });
+    const wrapperClass =
+        layout === 'list'
+            ? classes.sortableTile
+            : `${classes.sortableTile} ${layoutClasses.pageGridItem}`;
     return (
         <div
             ref={setNodeRef}
-            className={`${classes.sortableTile} ${layoutClasses.pageGridItem}`}
+            className={wrapperClass}
             data-dragging={isDragging}
             style={{
                 transform: CSS.Translate.toString(transform),
@@ -626,7 +670,7 @@ const SortableTile: FC<{
             <ContentCard
                 content={content}
                 projectUuid={projectUuid}
-                variant="tile"
+                variant={layout === 'list' ? 'compact' : 'tile'}
                 onRemove={onRemove}
             />
         </div>
@@ -670,6 +714,16 @@ const SOURCE_OPTIONS: {
     },
 ];
 
+const CONTENT_TYPE_OPTIONS: {
+    value: HomepageCollectionItemRef['contentType'];
+    label: string;
+}[] = [
+    { value: 'dashboard', label: 'Dashboards' },
+    { value: 'chart', label: 'Charts' },
+    { value: 'data_app', label: 'Apps' },
+    { value: 'space', label: 'Spaces' },
+];
+
 const CollectionSourceControls: FC<{
     config: HomepageCollectionBlock['config'];
     onChange: (config: HomepageCollectionBlock['config']) => void;
@@ -678,49 +732,80 @@ const CollectionSourceControls: FC<{
     const hint = SOURCE_OPTIONS.find((o) => o.value === source)?.hint;
     return (
         <Stack gap={6}>
-            <Select
-                size="xs"
-                label="Items"
-                data={SOURCE_OPTIONS.map(({ value, label }) => ({
-                    value,
-                    label,
-                }))}
-                value={source}
-                allowDeselect={false}
-                onChange={(next) =>
-                    next &&
-                    onChange({
-                        ...config,
-                        source: next as HomepageCollectionSource,
-                    })
-                }
-            />
-            {hint && (
-                <Text size="xs" c="dimmed">
-                    {hint}
-                </Text>
-            )}
-            <Group gap="sm" align="flex-end">
+            <Group gap="xs" align="flex-end" wrap="nowrap">
+                <Select
+                    size="xs"
+                    label="Items"
+                    flex={1}
+                    data={SOURCE_OPTIONS.map(({ value, label }) => ({
+                        value,
+                        label,
+                    }))}
+                    value={source}
+                    allowDeselect={false}
+                    onChange={(next) =>
+                        next &&
+                        onChange({
+                            ...config,
+                            source: next as HomepageCollectionSource,
+                        })
+                    }
+                />
                 <NumberInput
                     size="xs"
                     label="Show at most"
-                    w={120}
+                    w={110}
                     min={1}
                     max={MAX_COLLECTION_LIMIT}
                     value={collectionLimitOf(config)}
                     onNumberChange={(limit) => onChange({ ...config, limit })}
                 />
-                <Checkbox
+            </Group>
+            {hint && (
+                <Text size="xs" c="dimmed">
+                    {hint}
+                </Text>
+            )}
+            <Group gap={6}>
+                {source !== 'manual' && (
+                    <Chip.Group
+                        multiple
+                        value={config.contentTypes ?? []}
+                        onChange={(next) =>
+                            onChange({
+                                ...config,
+                                contentTypes: next.length
+                                    ? (next as HomepageCollectionItemRef['contentType'][])
+                                    : undefined,
+                            })
+                        }
+                    >
+                        {CONTENT_TYPE_OPTIONS.map(({ value, label }) => (
+                            <Chip
+                                key={value}
+                                value={value}
+                                size="xs"
+                                variant="light"
+                            >
+                                {label}
+                            </Chip>
+                        ))}
+                    </Chip.Group>
+                )}
+                {source !== 'manual' && (
+                    <Divider orientation="vertical" mx={2} />
+                )}
+                <Chip
                     size="xs"
-                    label="Verified only"
+                    variant="light"
+                    color="green"
                     checked={config.verifiedOnly === true}
-                    onChange={(e) =>
-                        onChange({
-                            ...config,
-                            verifiedOnly: e.currentTarget.checked,
-                        })
+                    onChange={(checked) =>
+                        onChange({ ...config, verifiedOnly: checked })
                     }
-                />
+                >
+                    Verified only
+                </Chip>
             </Group>
         </Stack>
     );
@@ -750,17 +835,12 @@ const DynamicSourcePreview: FC<{
                     it does.
                 </div>
             ) : (
-                <PageGrid itemSpan={itemSpan} elastic>
-                    {items.map((content) => (
-                        <PageGridItem key={content.uuid}>
-                            <ContentCard
-                                content={content}
-                                projectUuid={projectUuid}
-                                variant="tile"
-                            />
-                        </PageGridItem>
-                    ))}
-                </PageGrid>
+                <CollectionContentGrid
+                    layout={collectionLayoutOf(config)}
+                    itemSpan={itemSpan}
+                    contents={items}
+                    projectUuid={projectUuid}
+                />
             )}
             <div className={classes.buildHint}>
                 {isPersonal
@@ -793,6 +873,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
     );
     if (block.type !== 'collection') return null;
     const source = collectionSourceOf(block.config);
+    const layout = collectionLayoutOf(block.config);
 
     const importablePins = (pinnedItems ?? []).map(
         (item): HomepageCollectionItemRef => ({
@@ -801,23 +882,44 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
         }),
     );
 
+    const removeItem = (uuid: string) =>
+        onChange({
+            ...block,
+            config: {
+                ...block.config,
+                items: block.config.items.filter((item) => item.uuid !== uuid),
+            },
+        });
+
     return (
         <Stack gap="xs">
-            <TextInput
-                label="Title"
-                size="xs"
-                fw={600}
-                value={block.config.title}
-                onChange={(e) =>
-                    onChange({
-                        ...block,
-                        config: {
-                            ...block.config,
-                            title: e.currentTarget.value,
-                        },
-                    })
-                }
-            />
+            <Group gap="xs" align="flex-end" wrap="nowrap">
+                <TextInput
+                    label="Title"
+                    size="xs"
+                    fw={600}
+                    flex={1}
+                    value={block.config.title}
+                    onChange={(e) =>
+                        onChange({
+                            ...block,
+                            config: {
+                                ...block.config,
+                                title: e.currentTarget.value,
+                            },
+                        })
+                    }
+                />
+                <ContentLayoutControl
+                    value={layout}
+                    onChange={(nextLayout) =>
+                        onChange({
+                            ...block,
+                            config: { ...block.config, layout: nextLayout },
+                        })
+                    }
+                />
+            </Group>
             <CollectionSourceControls
                 config={block.config}
                 onChange={(config) => onChange({ ...block, config })}
@@ -852,28 +954,19 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                         items={(contents ?? []).map((content) => content.uuid)}
                         strategy={rectSortingStrategy}
                     >
-                        <PageGrid itemSpan={itemSpan ?? null} elastic>
-                            {(contents ?? []).map((content) => (
-                                <SortableTile
-                                    key={content.uuid}
-                                    content={content}
-                                    projectUuid={projectUuid}
-                                    onRemove={() =>
-                                        onChange({
-                                            ...block,
-                                            config: {
-                                                ...block.config,
-                                                items: block.config.items.filter(
-                                                    (item) =>
-                                                        item.uuid !==
-                                                        content.uuid,
-                                                ),
-                                            },
-                                        })
-                                    }
-                                />
-                            ))}
-                            <PageGridItem>
+                        {layout === 'list' ? (
+                            <div className={classes.resTileGrid}>
+                                {(contents ?? []).map((content) => (
+                                    <SortableTile
+                                        key={content.uuid}
+                                        content={content}
+                                        projectUuid={projectUuid}
+                                        layout={layout}
+                                        onRemove={() =>
+                                            removeItem(content.uuid)
+                                        }
+                                    />
+                                ))}
                                 <button
                                     type="button"
                                     className={classes.addContentTile}
@@ -882,8 +975,35 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                                     <MantineIcon icon={IconPlus} size={14} />
                                     Add content
                                 </button>
-                            </PageGridItem>
-                        </PageGrid>
+                            </div>
+                        ) : (
+                            <PageGrid itemSpan={itemSpan ?? null} elastic>
+                                {(contents ?? []).map((content) => (
+                                    <SortableTile
+                                        key={content.uuid}
+                                        content={content}
+                                        projectUuid={projectUuid}
+                                        layout={layout}
+                                        onRemove={() =>
+                                            removeItem(content.uuid)
+                                        }
+                                    />
+                                ))}
+                                <PageGridItem>
+                                    <button
+                                        type="button"
+                                        className={classes.addContentTile}
+                                        onClick={() => setIsPickerOpen(true)}
+                                    >
+                                        <MantineIcon
+                                            icon={IconPlus}
+                                            size={14}
+                                        />
+                                        Add content
+                                    </button>
+                                </PageGridItem>
+                            </PageGrid>
+                        )}
                     </SortableContext>
                 </DndContext>
             )}

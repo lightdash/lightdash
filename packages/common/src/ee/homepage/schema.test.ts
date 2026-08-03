@@ -18,6 +18,8 @@ const validConfig: HomepageConfig = {
                         source: 'pinned',
                         verifiedOnly: true,
                         limit: 6,
+                        layout: 'list',
+                        contentTypes: ['dashboard', 'data_app'],
                     },
                 },
             ],
