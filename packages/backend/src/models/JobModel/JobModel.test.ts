@@ -32,6 +32,10 @@ describe('JobModel.findActiveCreateProjectJob', () => {
         job_type: JobType.CREATE_PROJECT,
         results: undefined,
     };
+    const otherUserActiveJobRow: DbJobs = {
+        ...activeJobRow,
+        user_uuid: 'other-user-uuid',
+    };
     const createJob: CreateJob = {
         jobUuid: activeJobRow.job_uuid,
         projectUuid: undefined,
@@ -59,6 +63,7 @@ describe('JobModel.findActiveCreateProjectJob', () => {
 
         const result = await model.findActiveCreateProjectJob({
             organizationUuid: 'organization-uuid',
+            userUuid: 'user-uuid',
             createdAfter,
         });
 
@@ -85,6 +90,7 @@ describe('JobModel.findActiveCreateProjectJob', () => {
         expect(query.bindings).toEqual(
             expect.arrayContaining([
                 'organization-uuid',
+                'user-uuid',
                 JobType.CREATE_PROJECT,
                 JobStatusType.STARTED,
                 JobStatusType.RUNNING,
@@ -94,15 +100,20 @@ describe('JobModel.findActiveCreateProjectJob', () => {
         );
     });
 
-    test('returns null when no recent active non-preview create job exists', async () => {
+    test("returns null when the organization's active job belongs to another user", async () => {
         tracker.on.select(JobsTableName).responseOnce(undefined);
 
         await expect(
             model.findActiveCreateProjectJob({
                 organizationUuid: 'organization-uuid',
+                userUuid: 'user-uuid',
                 createdAfter,
             }),
         ).resolves.toBeNull();
+
+        expect(tracker.history.select[0].bindings).toEqual(
+            expect.arrayContaining(['organization-uuid', 'user-uuid']),
+        );
     });
 
     test('inserts a create job and its steps inside the organization advisory lock', async () => {
@@ -146,7 +157,7 @@ describe('JobModel.findActiveCreateProjectJob', () => {
 
     test('reports the active job without inserting after taking the lock', async () => {
         tracker.on.select('pg_advisory_xact_lock').responseOnce({});
-        tracker.on.select(JobsTableName).responseOnce(activeJobRow);
+        tracker.on.select(JobsTableName).responseOnce(otherUserActiveJobRow);
         tracker.on.select(JobStepsTableName).responseOnce([]);
 
         const result = await model.createProjectJobIfNoActive({
@@ -159,6 +170,7 @@ describe('JobModel.findActiveCreateProjectJob', () => {
             isCreated: false,
             activeJob: expect.objectContaining({
                 jobUuid: activeJobRow.job_uuid,
+                userUuid: otherUserActiveJobRow.user_uuid,
             }),
         });
         expect(tracker.history.insert).toHaveLength(0);
