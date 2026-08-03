@@ -3386,6 +3386,10 @@
                         "sortType": {
                             "$ref": "#/$defs/XAxisSortType",
                             "description": "How to sort the X axis"
+                        },
+                        "treatAsCategory": {
+                            "description": "Render a numeric X axis as discrete categories instead of a continuous scale",
+                            "type": "boolean"
                         }
                     },
                     "type": "object"

@@ -710,6 +710,8 @@ export type XAxis = Axis & {
     dataZoomAnchor?: 'start' | 'end';
     /** Number of items visible at once in the data-zoom window */
     dataZoomItemCount?: number;
+    /** Render a numeric X axis as discrete categories instead of a continuous scale */
+    treatAsCategory?: boolean;
 };
 
 export enum XAxisSortType {
