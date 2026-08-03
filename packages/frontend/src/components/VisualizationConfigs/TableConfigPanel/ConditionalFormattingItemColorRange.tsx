@@ -83,8 +83,7 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
                         }}
                     />
 
-                    {/* FIXME: remove this and use NumberInput from @mantine/core once we upgrade to mantine v7 */}
-                    {/* INFO: mantine v6 NumberInput does not handle decimal values properly */}
+                    {/* FIXME: replace with the shared NumberInput component */}
                     <FilterNumberInput
                         flex="0 1 auto"
                         disabled={config.rule[minMaxName] === 'auto'}

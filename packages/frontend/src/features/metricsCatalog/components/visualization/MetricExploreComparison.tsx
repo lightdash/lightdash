@@ -218,7 +218,6 @@ export const MetricExploreComparison: FC<Props> = ({
                                                         }
                                                     />
                                                 )}
-                                                // this does not work as expected in Mantine 6
                                                 data-disabled={
                                                     !metricsWithTimeDimensionsQuery.isSuccess
                                                 }
