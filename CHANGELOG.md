@@ -1,3 +1,10 @@
+# [1.68.0](https://github.com/lightdash/lightdash/compare/1.67.0...1.68.0) (2026-08-03)
+
+
+### Features
+
+* static data-reference extractor for data apps ([#26708](https://github.com/lightdash/lightdash/issues/26708)) ([78db30f](https://github.com/lightdash/lightdash/commit/78db30fa61c42438a76b40f7e50e5e540df1068d))
+
 # [1.67.0](https://github.com/lightdash/lightdash/compare/1.66.0...1.67.0) (2026-08-03)
 
 
