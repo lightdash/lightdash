@@ -399,6 +399,20 @@ export class SavedChartService
                                   : `${savedChart.chartConfig.config?.spec?.mark}`,
                       }
                     : undefined,
+            dataAppViz:
+                savedChart.chartConfig.type === ChartType.DATA_APP_VIZ &&
+                savedChart.chartConfig.config
+                    ? {
+                          dataAppVizUuid:
+                              savedChart.chartConfig.config.dataAppVizUuid,
+                          mappedFieldCount: Object.keys(
+                              savedChart.chartConfig.config.fieldMapping || {},
+                          ).length,
+                          changedOptionCount: Object.keys(
+                              savedChart.chartConfig.config.optionValues || {},
+                          ).length,
+                      }
+                    : undefined,
             parametersCount: Object.keys(savedChart.parameters || {}).length,
             ...countCustomDimensionsInMetricQuery(savedChart.metricQuery),
             ...SavedChartService.getChartConfigEventProperties(savedChart),

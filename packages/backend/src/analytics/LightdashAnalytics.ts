@@ -806,6 +806,12 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
             size: number;
             type: string;
         };
+        // Join key linking a saved chart to its data app viz
+        dataAppViz?: {
+            dataAppVizUuid: string;
+            mappedFieldCount: number;
+            changedOptionCount: number;
+        };
         numFixedWidthBinCustomDimensions: number;
         numFixedBinsBinCustomDimensions: number;
         numCustomRangeBinCustomDimensions: number;
