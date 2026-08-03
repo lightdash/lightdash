@@ -500,6 +500,15 @@ export type AiAgentMemoryConsolidationRejection = {
 
 export type AiAgentMemoryConsolidationRunStatus = 'succeeded' | 'failed';
 
+/** Identifies the path that started a consolidation run. */
+export const AI_AGENT_MEMORY_CONSOLIDATION_TRIGGERS = [
+    'scheduled',
+    'manual',
+] as const;
+
+export type AiAgentMemoryConsolidationTrigger =
+    (typeof AI_AGENT_MEMORY_CONSOLIDATION_TRIGGERS)[number];
+
 export type ApiUpdateAiAgentMemoryStatusRequest = {
     status: AiAgentMemoryEditableStatus;
 };

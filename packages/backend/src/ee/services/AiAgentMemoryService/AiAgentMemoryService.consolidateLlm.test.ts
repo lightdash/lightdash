@@ -77,6 +77,7 @@ const build = () => {
             }),
             getSummary: vi.fn(),
         } as AnyType,
+        userModel: { findSessionUserAndOrgByUuid: vi.fn() } as AnyType,
         featureFlagService: {
             get: vi.fn(async ({ featureFlagId }) => ({
                 id: featureFlagId,

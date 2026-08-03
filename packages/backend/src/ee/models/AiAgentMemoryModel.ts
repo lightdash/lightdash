@@ -11,6 +11,7 @@ import {
     type AiAgentMemoryConsolidationOperation,
     type AiAgentMemoryConsolidationRejection,
     type AiAgentMemoryConsolidationRunStatus,
+    type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentUserMemoriesSummary,
     type AiAgentUserMemoryItem,
@@ -163,6 +164,9 @@ export type AiAgentMemoryConsolidationRunInput = {
     status: AiAgentMemoryConsolidationRunStatus;
     /** Proposals rather than curation: nothing this run named was written. */
     dryRun: boolean;
+    trigger: AiAgentMemoryConsolidationTrigger;
+    /** The operator behind a manual run; null on the daily pass. */
+    triggeredByUserUuid: UUID | null;
     promptHash: string;
     inputHash: string;
     inputCount: number;
@@ -1113,6 +1117,39 @@ export class AiAgentMemoryModel {
         }));
     }
 
+    /** Finds one active partition without the scheduled row floor. */
+    async findConsolidationPartition(args: {
+        projectUuid: UUID;
+        ownerUserUuid: UUID;
+    }): Promise<AiAgentMemoryConsolidationCandidate | undefined> {
+        const { rows } = await this.database.raw<{
+            rows: Array<{
+                organization_uuid: UUID;
+                active_count: string;
+            }>;
+        }>(
+            `
+                SELECT organization_uuid, COUNT(*) AS active_count
+                FROM ${AiAgentMemoryTableName}
+                WHERE status = 'active'
+                  AND project_uuid = ?
+                  AND user_uuid = ?
+                GROUP BY organization_uuid
+            `,
+            [args.projectUuid, args.ownerUserUuid],
+        );
+
+        const [row] = rows;
+        if (!row) return undefined;
+
+        return {
+            organizationUuid: row.organization_uuid,
+            projectUuid: args.projectUuid,
+            ownerUserUuid: args.ownerUserUuid,
+            activeCount: Number(row.active_count),
+        };
+    }
+
     async findLatestConsolidationRun(args: {
         projectUuid: UUID;
         ownerUserUuid: UUID;
@@ -1141,6 +1178,8 @@ export class AiAgentMemoryModel {
                 user_uuid: run.ownerUserUuid,
                 status: run.status,
                 dry_run: run.dryRun,
+                trigger: run.trigger,
+                triggered_by_user_uuid: run.triggeredByUserUuid,
                 prompt_hash: run.promptHash,
                 input_hash: run.inputHash,
                 input_count: run.inputCount,

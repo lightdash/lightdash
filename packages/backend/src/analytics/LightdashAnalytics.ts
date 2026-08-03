@@ -29,6 +29,7 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentReviewItemStatus,
     type AiAgentReviewItemWritebackBlockedReason,
@@ -3028,6 +3029,7 @@ export type AiAgentMemoryConsolidatedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         ownerUserId: string;
+        trigger: AiAgentMemoryConsolidationTrigger;
         // `applied` is impossible on a dry run, so a query that counts curation
         // stays correct even if it ignores `dryRun`.
         outcome: 'applied' | 'proposed' | 'no_operations';
@@ -3052,6 +3054,7 @@ export type AiAgentMemoryConsolidationFailedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         ownerUserId: string;
+        trigger: AiAgentMemoryConsolidationTrigger;
         dryRun: boolean;
         failureStage: 'selection' | 'consolidation' | 'persistence';
         errorType: string;
@@ -3066,6 +3069,7 @@ export type AiAgentMemoryConsolidationSkippedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         ownerUserId: string;
+        trigger: AiAgentMemoryConsolidationTrigger;
         reason: 'clean' | 'catalog_unavailable' | 'objects_unresolved';
         inputCount: number;
     };

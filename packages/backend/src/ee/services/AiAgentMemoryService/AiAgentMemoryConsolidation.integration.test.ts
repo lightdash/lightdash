@@ -1,3 +1,4 @@
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     CommercialFeatureFlags,
     FeatureFlags,
@@ -259,6 +260,22 @@ describe('AI agent memory consolidation integration', () => {
             aiAgentModel: getTestContext().app.getModels().getAiAgentModel(),
             groupsModel: getTestContext().app.getModels().getGroupsModel(),
             projectModel: getTestContext().app.getModels().getProjectModel(),
+            userModel: {
+                findSessionUserAndOrgByUuid: vi.fn(
+                    async (userUuid, organizationUuid) => {
+                        const { build, can } = new AbilityBuilder(Ability);
+                        can('manage', 'AiAgent', {
+                            projectUuid: SEED_PROJECT.project_uuid,
+                        });
+                        return {
+                            userUuid,
+                            organizationUuid,
+                            abilityRules: [],
+                            ability: build(),
+                        } as never;
+                    },
+                ),
+            },
             featureFlagService,
             schedulerClient: schedulerClientOverride ?? schedulerClient,
             consolidationDryRun,
@@ -970,6 +987,8 @@ describe('AI agent memory consolidation integration', () => {
                     organizationUuid: SEED_ORG_1.organization_uuid,
                     projectUuid: SEED_PROJECT.project_uuid,
                     ownerUserUuid: ownerUuid,
+                    trigger: 'scheduled',
+                    triggeredByUserUuid: null,
                     promptHash: 'prompt',
                     inputHash: 'input',
                     inputCount: rows.length,
@@ -1238,6 +1257,154 @@ describe('AI agent memory consolidation integration', () => {
         expect(enqueue.aiAgentMemoryConsolidatePartition).toHaveBeenCalledWith(
             partitionPayload(ownerUuid),
         );
+    });
+
+    /** The operator asking for the run, distinct from the partition owner. */
+    const triggerManually = (
+        service: AiAgentMemoryService,
+        { userUuid = ownerUuid, dryRun = false } = {},
+    ) =>
+        service.consolidatePartitionNow({
+            projectUuid: SEED_PROJECT.project_uuid,
+            ownerUserUuid: userUuid,
+            triggeredByUserUuid: otherOwnerUuid,
+            dryRun,
+        });
+
+    it('consolidates a partition below the row floor on demand', async () => {
+        const slugs = await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR - 1,
+            prefix: 'manual',
+        });
+        const call = cannedCall([
+            { type: 'retire', slug: slugs[0]!, reason: 'Its explore is gone.' },
+        ]);
+
+        const result = await triggerManually(buildService(call));
+
+        expect(result.outcome).toBe('consolidated');
+        expect(call).toHaveBeenCalledOnce();
+        expect(await memoryBySlug(slugs[0]!)).toMatchObject({
+            status: 'retired',
+        });
+        const [run] = await runsForOwner(ownerUuid);
+        expect(run).toMatchObject({
+            status: 'succeeded',
+            trigger: 'manual',
+            triggered_by_user_uuid: otherOwnerUuid,
+            input_count: FLOOR - 1,
+            applied_count: 1,
+        });
+        expect(result.run!.ai_agent_memory_consolidation_run_uuid).toBe(
+            run!.ai_agent_memory_consolidation_run_uuid,
+        );
+    });
+
+    it('re-runs a partition the daily pass has already settled', async () => {
+        await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'rerun',
+        });
+        await buildService(cannedCall([])).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
+        const skipped = cannedCall([]);
+        await buildService(skipped).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
+        expect(skipped).not.toHaveBeenCalled();
+
+        const manual = cannedCall([]);
+        await triggerManually(buildService(manual));
+
+        expect(manual).toHaveBeenCalledOnce();
+        const runs = await runsForOwner(ownerUuid);
+        expect(runs.map((run) => run.trigger)).toEqual(['scheduled', 'manual']);
+        // Same corpus, same hash: only the trigger tells the two runs apart.
+        expect(runs[0]!.input_hash).toBe(runs[1]!.input_hash);
+    });
+
+    it('leaves a settled partition skipped after a manual dry-run preview', async () => {
+        await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'preview',
+        });
+        await buildService(cannedCall([])).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
+
+        const preview = cannedCall([]);
+        await triggerManually(buildService(preview), { dryRun: true });
+        expect(preview).toHaveBeenCalledOnce();
+
+        // The preview is the newest run, but it applied nothing: the live run
+        // beneath it already settled this corpus, so the cron owes it no call.
+        const next = cannedCall([]);
+        await buildService(next).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
+
+        expect(next).not.toHaveBeenCalled();
+        const runs = await runsForOwner(ownerUuid);
+        expect(runs.map((run) => run.dry_run)).toEqual([false, true]);
+        expect(runs[0]!.input_hash).toBe(runs[1]!.input_hash);
+    });
+
+    it('still consolidates a moved corpus a manual dry run previewed', async () => {
+        await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'moved',
+        });
+        await buildService(cannedCall([])).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
+
+        // The corpus moves, so the partition is due again.
+        await seedPartition({
+            userUuid: ownerUuid,
+            count: 1,
+            prefix: 'moved-extra',
+        });
+        await triggerManually(buildService(cannedCall([])), { dryRun: true });
+
+        // A preview proposes; only the cron applies. Nothing an operator looks
+        // at may cancel the curation the corpus was due.
+        const next = cannedCall([]);
+        await buildService(next).consolidateScheduledPartition(
+            partitionPayload(ownerUuid),
+        );
+
+        expect(next).toHaveBeenCalledOnce();
+        const runs = await runsForOwner(ownerUuid);
+        expect(runs.map((run) => run.dry_run)).toEqual([false, true, false]);
+        expect(runs[2]!.input_hash).toBe(runs[1]!.input_hash);
+    });
+
+    it('records nothing for a manual run in a flag-off organization', async () => {
+        const slugs = await seedPartition({
+            userUuid: ownerUuid,
+            count: FLOOR,
+            prefix: 'manualflag',
+        });
+        await setFeatureFlag(FeatureFlags.AiAgentMemory, false);
+        const call = cannedCall([
+            { type: 'retire', slug: slugs[0]!, reason: 'Its explore is gone.' },
+        ]);
+
+        await expect(triggerManually(buildService(call))).resolves.toEqual({
+            outcome: 'disabled',
+            run: null,
+        });
+
+        expect(call).not.toHaveBeenCalled();
+        expect(await runsForOwner(ownerUuid)).toHaveLength(0);
+        expect(await memoryBySlug(slugs[0]!)).toMatchObject({
+            status: 'active',
+        });
     });
 
     it('never selects an owner-null row and never lets an operation cross owners', async () => {
