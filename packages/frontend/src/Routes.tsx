@@ -516,6 +516,22 @@ const LEARN_ROUTES: RouteObject[] = [
             };
         },
     },
+    {
+        path: 'learn/courses/:courseId',
+        lazy: async () => {
+            const LearnCourse = await loadLazyRouteDefault(
+                './pages/LearnCourse',
+                () => import('./pages/LearnCourse'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.LEARN_COURSE}>
+                        <LearnCourse />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
 ];
 
 const METRICS_ROUTES: RouteObject[] = [

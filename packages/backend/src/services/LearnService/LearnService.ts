@@ -3,9 +3,12 @@ import {
     FeatureFlags,
     ForbiddenError,
     LearnCatalogueSchema,
+    LearnCourseSchema,
+    NotFoundError,
     UnexpectedServerError,
     type Account,
     type LearnCatalogue,
+    type LearnCourse,
 } from '@lightdash/common';
 import type { LightdashConfig } from '../../config/parseConfig';
 import { BaseService } from '../BaseService';
@@ -89,5 +92,36 @@ export class LearnService extends BaseService {
             throw new UnexpectedServerError('Could not load Learn content');
         }
         return parsed.data;
+    }
+
+    async getCourse(account: Account, courseId: string): Promise<LearnCourse> {
+        const catalogue = await this.getCatalogue(account);
+        const entry = catalogue.courses.find((c) => c.id === courseId);
+        if (!entry) {
+            throw new NotFoundError(`Course not found: ${courseId}`);
+        }
+        const { contentBaseUrl } = this.lightdashConfig.learn;
+        const response = await this.fetchUpstream(
+            `${contentBaseUrl}/${entry.path}`,
+        );
+        if (!response.ok) {
+            this.logger.warn('Learn course payload returned an error', {
+                statusCode: response.status,
+            });
+            throw new UnexpectedServerError('Could not load Learn content');
+        }
+        const parsed = LearnCourseSchema.safeParse(
+            await LearnService.parseJson(response),
+        );
+        if (!parsed.success) {
+            this.logger.warn('Learn course failed validation', {
+                issueCount: parsed.error.issues.length,
+            });
+            throw new UnexpectedServerError('Could not load Learn content');
+        }
+        return {
+            ...parsed.data,
+            assetBaseUrl: `${contentBaseUrl}/courses/${entry.id}/${entry.contentHash}`,
+        };
     }
 }

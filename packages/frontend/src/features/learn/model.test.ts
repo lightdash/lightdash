@@ -1,4 +1,7 @@
-import { type LearnCatalogueEntry } from '@lightdash/common';
+import {
+    type LearnCatalogueEntry,
+    type LearnEventInput,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     badgeStates,
@@ -6,6 +9,7 @@ import {
     emptyRollup,
     pathProgress,
     pathsFromCatalogue,
+    rollupFromEvents,
 } from './model';
 
 const entry = (
@@ -22,6 +26,54 @@ const entry = (
     track: null,
     publishedAt: '2026-08-01T00:00:00.000Z',
     ...overrides,
+});
+
+const event = (
+    overrides: Partial<LearnEventInput> & {
+        object: LearnEventInput['object'];
+    },
+): LearnEventInput => ({
+    verb: 'started',
+    occurredAt: '2026-08-01T00:00:00.000Z',
+    ...overrides,
+});
+
+describe('rollupFromEvents', () => {
+    it('derives lessons, best score, pass and completion from events', () => {
+        const events: LearnEventInput[] = [
+            event({ object: { type: 'course', course: 'a' } }),
+            event({
+                verb: 'completed',
+                object: { type: 'lesson', course: 'a', lesson: 'l1' },
+            }),
+            event({
+                verb: 'failed',
+                object: { type: 'quiz', course: 'a' },
+                result: { score: 40 },
+            }),
+            event({
+                verb: 'passed',
+                object: { type: 'quiz', course: 'a' },
+                result: { score: 90 },
+            }),
+            // different course — must be ignored
+            event({
+                verb: 'completed',
+                object: { type: 'lesson', course: 'b', lesson: 'x' },
+            }),
+        ];
+        const rollup = rollupFromEvents(events, 'a');
+        expect(rollup.started).toBe(true);
+        expect([...rollup.lessonsCompleted]).toEqual(['l1']);
+        expect(rollup.bestScore).toBe(90);
+        expect(rollup.passed).toBe(true);
+        // quiz pass implies completion
+        expect(rollup.completed).toBe(true);
+    });
+
+    it('returns an empty rollup when no events match the course', () => {
+        expect(rollupFromEvents([], 'a')).toEqual(emptyRollup());
+    });
 });
 
 describe('cardState', () => {

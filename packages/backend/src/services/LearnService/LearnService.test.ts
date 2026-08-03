@@ -1,5 +1,6 @@
 import {
     ForbiddenError,
+    NotFoundError,
     UnexpectedServerError,
     type Account,
 } from '@lightdash/common';
@@ -59,6 +60,19 @@ const catalogueEntry = {
 const cataloguePayload = {
     generatedAt: '2026-08-01T00:00:00.000Z',
     courses: [catalogueEntry],
+};
+
+const coursePayload = {
+    id: 'viewer-fundamentals',
+    title: 'Viewer Fundamentals',
+    passingScore: 80,
+    lessons: [{ id: 'l1', title: 'Lesson One', html: '<p>hi</p>' }],
+    quiz: {
+        questions: [{ id: 'q1', prompt: 'Q?', choices: ['a', 'b'], answer: 1 }],
+    },
+    version: 1,
+    contentHash: 'abc123def456',
+    publishedAt: '2026-08-01T00:00:00.000Z',
 };
 
 const jsonResponse = (body: unknown, status = 200) =>
@@ -149,6 +163,35 @@ describe('LearnService', () => {
             fetchMock.mockResolvedValue(jsonResponse({ nope: true }));
             await expect(service.getCatalogue(buildAccount())).rejects.toThrow(
                 UnexpectedServerError,
+            );
+        });
+    });
+
+    describe('getCourse', () => {
+        it('throws NotFoundError for a course missing from the catalogue', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(jsonResponse(cataloguePayload));
+            await expect(
+                service.getCourse(buildAccount(), 'not-a-course'),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('fetches the course payload and derives assetBaseUrl', async () => {
+            const { service } = buildService();
+            fetchMock
+                .mockResolvedValueOnce(jsonResponse(cataloguePayload))
+                .mockResolvedValueOnce(jsonResponse(coursePayload));
+            const course = await service.getCourse(
+                buildAccount(),
+                'viewer-fundamentals',
+            );
+            expect(course.assetBaseUrl).toBe(
+                'https://content.test/courses/viewer-fundamentals/abc123def456',
+            );
+            expect(fetchMock).toHaveBeenNthCalledWith(
+                2,
+                `https://content.test/${catalogueEntry.path}`,
+                expect.anything(),
             );
         });
     });
