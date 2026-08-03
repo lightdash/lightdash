@@ -838,7 +838,6 @@ describe('ProjectService', () => {
             expect(jobModel.findActiveCreateProjectJob).toHaveBeenCalledWith({
                 organizationUuid,
                 userUuid: projectCreator.userUuid,
-                completedAfter: expect.any(Date),
             });
         });
 
@@ -853,7 +852,6 @@ describe('ProjectService', () => {
             expect(jobModel.findActiveCreateProjectJob).toHaveBeenCalledWith({
                 organizationUuid,
                 userUuid: projectCreator.userUuid,
-                completedAfter: expect.any(Date),
             });
         });
     });

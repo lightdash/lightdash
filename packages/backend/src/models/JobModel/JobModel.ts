@@ -30,7 +30,6 @@ type JobModelArguments = {
 type ActiveCreateProjectJobArgs = {
     organizationUuid: string;
     userUuid: string;
-    completedAfter?: Date;
 };
 
 type ActiveCreateProjectJobLookupArgs = Omit<
@@ -73,11 +72,7 @@ export class JobModel {
     }
 
     private async findActiveCreateProjectJobWithDatabase(
-        {
-            organizationUuid,
-            userUuid,
-            completedAfter,
-        }: ActiveCreateProjectJobLookupArgs,
+        { organizationUuid, userUuid }: ActiveCreateProjectJobLookupArgs,
         database: Knex,
     ): Promise<Job | null> {
         const jobQuery = database(JobsTableName)
@@ -102,29 +97,10 @@ export class JobModel {
             )
             .where(`${JobsTableName}.job_type`, JobType.CREATE_PROJECT)
             .where(`${JobsTableName}.is_preview`, false)
-            .where((statusQuery) => {
-                statusQuery.whereIn(`${JobsTableName}.job_status`, [
-                    JobStatusType.STARTED,
-                    JobStatusType.RUNNING,
-                ]);
-                if (completedAfter) {
-                    statusQuery.orWhere((completedQuery) => {
-                        completedQuery
-                            .where(
-                                `${JobsTableName}.job_status`,
-                                JobStatusType.DONE,
-                            )
-                            .where(
-                                `${JobsTableName}.updated_at`,
-                                '>=',
-                                completedAfter,
-                            )
-                            .whereRaw(`??->>'projectUuid' IS NOT NULL`, [
-                                `${JobsTableName}.results`,
-                            ]);
-                    });
-                }
-            });
+            .whereIn(`${JobsTableName}.job_status`, [
+                JobStatusType.STARTED,
+                JobStatusType.RUNNING,
+            ]);
 
         if (userUuid) {
             jobQuery.where(`${JobsTableName}.user_uuid`, userUuid);

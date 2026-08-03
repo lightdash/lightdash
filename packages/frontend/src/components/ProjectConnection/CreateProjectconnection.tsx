@@ -85,7 +85,13 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         useActiveCreateProjectJob();
 
     useEffect(() => {
-        if (!inFlightJob || createProjectJobId) {
+        if (
+            !inFlightJob ||
+            createProjectJobId ||
+            ![JobStatusType.STARTED, JobStatusType.RUNNING].includes(
+                inFlightJob.jobStatus,
+            )
+        ) {
             return;
         }
         resumeJob(inFlightJob.jobUuid);
