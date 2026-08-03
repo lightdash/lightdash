@@ -18,7 +18,7 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';

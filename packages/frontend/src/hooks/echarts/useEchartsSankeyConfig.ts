@@ -7,7 +7,7 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import { type EChartsOption, type SankeySeriesOption } from 'echarts';
 import { useCallback, useMemo } from 'react';
 import { isSankeyVisualizationConfig } from '../../components/LightdashVisualization/types';

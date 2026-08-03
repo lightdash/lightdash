@@ -1,5 +1,5 @@
 import { type ApiErrorDetail } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import { type ComponentProps, type FC } from 'react';
 import {
     ExploreEmptyQueryState,

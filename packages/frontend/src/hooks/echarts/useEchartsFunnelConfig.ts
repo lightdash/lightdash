@@ -15,7 +15,7 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import { type EChartsOption, type FunnelSeriesOption } from 'echarts';
 import round from 'lodash/round';
 import { useMemo } from 'react';

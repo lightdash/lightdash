@@ -24,8 +24,8 @@ import {
     Checkbox,
     Select,
     Tooltip,
+    type PopoverProps,
 } from '@mantine-8/core';
-import { type PopoverProps } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';

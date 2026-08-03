@@ -6,10 +6,10 @@ import {
     Button,
     ActionIcon,
     Highlight,
+    getDefaultZIndex,
     Portal,
 } from '@mantine-8/core';
 import { useClickOutside } from '@mantine-8/hooks';
-import { getDefaultZIndex } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {
     Emoji,

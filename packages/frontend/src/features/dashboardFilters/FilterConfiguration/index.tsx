@@ -29,8 +29,8 @@ import {
     Text,
     Select,
     Tooltip,
+    type PopoverProps,
 } from '@mantine-8/core';
-import { type PopoverProps } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';

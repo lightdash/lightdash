@@ -18,8 +18,8 @@ import {
     Select,
     Switch,
     Tooltip,
+    type PopoverProps,
 } from '@mantine-8/core';
-import { type PopoverProps } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';

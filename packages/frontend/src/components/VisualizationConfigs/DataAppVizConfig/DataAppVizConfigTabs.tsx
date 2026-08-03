@@ -4,7 +4,6 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import { Box } from '@mantine-8/core';
-import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizBuildStatus from '../../../features/apps/components/DataAppVizBuildStatus';
@@ -22,7 +21,6 @@ import {
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
-import { getVizConfigThemeOverride } from '../mantineTheme';
 import classes from './DataAppVizConfigTabs.module.css';
 import DataAppVizOptionTabs from './DataAppVizOptionTabs';
 import DataAppVizSettings from './DataAppVizSettings';
@@ -31,11 +29,6 @@ import DataAppVizSettings from './DataAppVizSettings';
 const NO_COLUMNS: ItemsMap = {};
 
 export const ConfigTabs: FC = memo(() => {
-    const { colorScheme } = useMantineColorScheme();
-    const themeOverride = useMemo(
-        () => getVizConfigThemeOverride(colorScheme),
-        [colorScheme],
-    );
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
@@ -144,58 +137,56 @@ export const ConfigTabs: FC = memo(() => {
     );
 
     return (
-        <MantineProvider inherit theme={themeOverride}>
-            <Box className={classes.panel}>
-                <Box className={classes.settings}>
-                    <DataAppVizOptionTabs
-                        // Remount on a viz switch so no control keeps the
-                        // previous viz's draft edit.
-                        key={`${dataAppVizUuid}:${optionContractKey}`}
-                        generalContent={settings}
-                        configOptions={configOptions}
-                        values={effectiveValues}
-                        onChange={(name, value) =>
-                            setOption(dataAppVizUuid, name, value)
-                        }
-                        colorPalette={colorPalette}
-                        paletteControl={<ColorPaletteSection />}
-                    />
-                </Box>
-
-                {canAuthor && (
-                    <DataAppVizDock
-                        projectUuid={projectUuid ?? ''}
-                        // A build claims its app before the chart points at it,
-                        // so the versions on show are that one's until it lands.
-                        dataAppVizUuid={dataAppVizUuid || build.appUuid}
-                        build={build}
-                        elapsed={elapsed}
-                        status={
-                            build.isBuilding ? (
-                                <DataAppVizBuildStatus
-                                    build={build}
-                                    elapsed={elapsed}
-                                />
-                            ) : undefined
-                        }
-                        onCancelBuild={onCancelBuild}
-                        footer={
-                            <DataAppVizComposer
-                                projectUuid={projectUuid}
-                                appUuid={dataAppVizUuid || build.draftAppUuid}
-                                placeholder={
-                                    dataAppVizUuid
-                                        ? 'Ask for a change…'
-                                        : 'Describe a new visualization…'
-                                }
-                                isBuilding={build.isBuilding}
-                                onCancel={onCancelBuild}
-                                onSubmit={build.send}
-                            />
-                        }
-                    />
-                )}
+        <Box className={classes.panel}>
+            <Box className={classes.settings}>
+                <DataAppVizOptionTabs
+                    // Remount on a viz switch so no control keeps the
+                    // previous viz's draft edit.
+                    key={`${dataAppVizUuid}:${optionContractKey}`}
+                    generalContent={settings}
+                    configOptions={configOptions}
+                    values={effectiveValues}
+                    onChange={(name, value) =>
+                        setOption(dataAppVizUuid, name, value)
+                    }
+                    colorPalette={colorPalette}
+                    paletteControl={<ColorPaletteSection />}
+                />
             </Box>
-        </MantineProvider>
+
+            {canAuthor && (
+                <DataAppVizDock
+                    projectUuid={projectUuid ?? ''}
+                    // A build claims its app before the chart points at it,
+                    // so the versions on show are that one's until it lands.
+                    dataAppVizUuid={dataAppVizUuid || build.appUuid}
+                    build={build}
+                    elapsed={elapsed}
+                    status={
+                        build.isBuilding ? (
+                            <DataAppVizBuildStatus
+                                build={build}
+                                elapsed={elapsed}
+                            />
+                        ) : undefined
+                    }
+                    onCancelBuild={onCancelBuild}
+                    footer={
+                        <DataAppVizComposer
+                            projectUuid={projectUuid}
+                            appUuid={dataAppVizUuid || build.draftAppUuid}
+                            placeholder={
+                                dataAppVizUuid
+                                    ? 'Ask for a change…'
+                                    : 'Describe a new visualization…'
+                            }
+                            isBuilding={build.isBuilding}
+                            onCancel={onCancelBuild}
+                            onSubmit={build.send}
+                        />
+                    }
+                />
+            )}
+        </Box>
     );
 });
