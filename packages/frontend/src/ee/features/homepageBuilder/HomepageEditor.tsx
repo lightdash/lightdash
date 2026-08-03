@@ -242,7 +242,7 @@ const RowGap: FC<{
     return (
         <div
             ref={setNodeRef}
-            className={classes.rowDropZone}
+            className={`${classes.rowDropZone} ${classes.dropEnvelope}`}
             data-drag-active={isDragActive}
             data-menu-open={menuOpened}
         >
@@ -289,7 +289,10 @@ const RowGap: FC<{
 const EndDropZone: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
     const { setNodeRef } = useDroppable({ id: END_ZONE_ID });
     return (
-        <div ref={setNodeRef} className={classes.endZone}>
+        <div
+            ref={setNodeRef}
+            className={`${classes.endZone} ${classes.dropEnvelope}`}
+        >
             <MantineIcon
                 icon={IconPlus}
                 size={15}
@@ -377,7 +380,7 @@ const ColIndicator: FC<{ active: boolean }> = ({ active }) => (
 // A translucent preview of the block, shown in the layout exactly where the
 // drop will land — held until release.
 const GhostBlock: FC<{ definition: BlockDefinition }> = ({ definition }) => (
-    <div className={classes.ghostBlock}>
+    <div className={`${classes.ghostBlock} ${classes.dropEnvelope}`}>
         <IconSquare icon={definition.icon} />
         <span className={classes.ghostBlockLabel}>{definition.label}</span>
     </div>
