@@ -27,6 +27,7 @@ import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import useToaster from './toaster/useToaster';
+import { getInFlightJobUuidFromError } from './useActiveCreateProjectJob';
 import useQueryError from './useQueryError';
 
 const createProject = async (data: CreateProject) =>
@@ -145,7 +146,8 @@ export const useCreateMutation = (options?: {
         (data) => createProject(data),
         {
             mutationKey: ['project_create'],
-            retry: 3,
+            retry: (failureCount, { error }) =>
+                !getInFlightJobUuidFromError(error) && failureCount < 3,
             onSuccess: (data) => {
                 if (options?.quietJobToast) {
                     setQuietActiveJobId(data.jobUuid);
@@ -154,6 +156,15 @@ export const useCreateMutation = (options?: {
                 }
             },
             onError: ({ error }, data) => {
+                const inFlightJobUuid = getInFlightJobUuidFromError(error);
+                if (inFlightJobUuid) {
+                    if (options?.quietJobToast) {
+                        setQuietActiveJobId(inFlightJobUuid);
+                    } else {
+                        setActiveJobId(inFlightJobUuid);
+                    }
+                    return;
+                }
                 track({
                     name: EventName.CREATE_PROJECT_FAILED,
                     properties: {
