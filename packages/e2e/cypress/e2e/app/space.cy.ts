@@ -127,9 +127,12 @@ describe('Space', () => {
                 ]);
 
                 cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-                // Select role
+                // Complete user onboarding
                 cy.findByPlaceholderText('Select your role').click();
                 cy.contains('Product').click();
+                cy.findByPlaceholderText(
+                    'Google, a colleague, a podcast...',
+                ).type('Cypress');
                 cy.contains('Next').click();
 
                 // Don't show private spaces in navbar
