@@ -264,14 +264,16 @@ export function extractLockfilePackages(lockfile: string): LockfilePackage[] {
 }
 
 /**
- * Returns `packageJson` with its `scripts` replaced by the trusted template
- * scripts. The build sandbox runs `pnpm build` against this file, and download
- * round-trips it to other developers' machines — in both places the script
- * commands must stay server-controlled, not uploader-controlled.
+ * Returns a minimal package.json containing only the metadata required by the
+ * build, with `scripts` and `devDependencies` replaced by trusted template
+ * values. The build sandbox runs `pnpm build` against this file, so package-
+ * manager inputs and executable dependency buckets must not remain uploader-
+ * controlled.
  */
 export function sanitizeAppPackageJsonScripts(
     packageJson: string,
     templateScripts: Record<string, string>,
+    templateDevDependencies: Record<string, string>,
 ): string {
     let parsed: Record<string, unknown>;
     try {
@@ -281,7 +283,13 @@ export function sanitizeAppPackageJsonScripts(
         return packageJson;
     }
     return JSON.stringify(
-        { ...parsed, scripts: templateScripts },
+        {
+            name: parsed.name,
+            version: parsed.version,
+            dependencies: parsed.dependencies,
+            devDependencies: templateDevDependencies,
+            scripts: templateScripts,
+        },
         null,
         4,
     ).concat('\n');

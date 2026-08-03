@@ -1,4 +1,4 @@
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import {
     FeatureFlags,
     ForbiddenError,
@@ -12,7 +12,11 @@ import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { extract as tarExtract, pack as tarPack } from 'tar-stream';
 import { AppGenerateService } from './AppGenerateService';
-import { TEMPLATE_DEPENDENCIES } from './templateDependencies';
+import {
+    TEMPLATE_DEPENDENCIES,
+    TEMPLATE_DEV_DEPENDENCIES,
+    TEMPLATE_SCRIPTS,
+} from './templateDependencies';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -86,7 +90,11 @@ const VIZ_SCHEMA = {
 
 const makeDeps = (
     customDeps: Record<string, string> = {},
-    opts: { sdkVersion?: string; lockfile?: string } = {},
+    opts: {
+        sdkVersion?: string;
+        lockfile?: string;
+        packageJsonOverrides?: Record<string, unknown>;
+    } = {},
 ): DataAppDependencies => {
     const dependencies = {
         ...TEMPLATE_DEPENDENCIES,
@@ -94,7 +102,10 @@ const makeDeps = (
         ...customDeps,
     };
     return {
-        packageJson: JSON.stringify({ dependencies }),
+        packageJson: JSON.stringify({
+            dependencies,
+            ...opts.packageJsonOverrides,
+        }),
         lockfile:
             opts.lockfile ??
             `lockfileVersion: '9.0'\n# ${Object.keys(dependencies).join(' ')}\n`,
@@ -708,6 +719,50 @@ describe('AppGenerateService.importAppCode', () => {
                 customDependencies: [{ name: 'deck.gl', version: '9.3.5' }],
                 lockfileHash: expect.any(String),
             }),
+        });
+    });
+
+    it('stores server-owned build dependencies instead of uploaded devDependencies', async () => {
+        const { service, appModel } = buildService({
+            customDependenciesOrgEnabled: true,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: {
+                ...makeCode(),
+                dependencies: makeDeps(
+                    { 'deck.gl': '9.3.5' },
+                    {
+                        packageJsonOverrides: {
+                            devDependencies: { vite: '1.0.0' },
+                            packageManager: 'npm@1.0.0',
+                        },
+                    },
+                ),
+            },
+        } as ImportAppCodeRequestBody);
+
+        const packageUpload = s3SendSpy.mock.calls
+            .map(([command]) => command)
+            .find(
+                (command) =>
+                    command instanceof PutObjectCommand &&
+                    command.input.Key?.endsWith('/deps/package.json'),
+            );
+        if (!(packageUpload instanceof PutObjectCommand)) {
+            throw new Error('Expected package.json upload');
+        }
+
+        expect(JSON.parse(String(packageUpload.input.Body))).toEqual({
+            dependencies: {
+                ...TEMPLATE_DEPENDENCIES,
+                '@lightdash/query-sdk': '0.999.0',
+                'deck.gl': '9.3.5',
+            },
+            devDependencies: TEMPLATE_DEV_DEPENDENCIES,
+            scripts: TEMPLATE_SCRIPTS,
         });
     });
 

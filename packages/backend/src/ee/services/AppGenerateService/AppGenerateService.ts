@@ -224,6 +224,7 @@ import { readDesignForDownload } from './readDesignForDownload';
 import { readS3ObjectAsBuffer } from './s3Utils';
 import {
     buildTemplateBaseline,
+    TEMPLATE_DEV_DEPENDENCIES,
     TEMPLATE_SCRIPTS,
 } from './templateDependencies';
 import { getTemplateInstructions } from './templates';
@@ -9988,6 +9989,7 @@ export class AppGenerateService extends BaseService {
                     Body: sanitizeAppPackageJsonScripts(
                         code.dependencies.packageJson,
                         TEMPLATE_SCRIPTS,
+                        TEMPLATE_DEV_DEPENDENCIES,
                     ),
                     ContentType: 'application/json',
                 }),

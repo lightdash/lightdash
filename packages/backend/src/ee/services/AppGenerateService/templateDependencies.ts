@@ -9,6 +9,24 @@ export const TEMPLATE_SCRIPTS: Record<string, string> = {
     preview: 'vite preview',
 };
 
+// Copy of the template's `devDependencies` — build tools must remain present
+// for frozen installs, but their package names and versions are server-owned.
+// A drift guard keeps this set aligned with the sandbox image.
+export const TEMPLATE_DEV_DEPENDENCIES: Record<string, string> = {
+    '@types/d3': '7.4.3',
+    '@types/d3-cloud': '1.2.9',
+    '@types/d3-sankey': '0.12.5',
+    '@types/react': '19.2.14',
+    '@types/react-dom': '19.2.3',
+    '@vitejs/plugin-react': '6.0.1',
+    autoprefixer: '10.4.20',
+    'oxc-parser': '0.128.0',
+    postcss: '8.5.18',
+    tailwindcss: '3.4.17',
+    typescript: '7.0.2',
+    vite: '8.0.16',
+};
+
 // Copy of sandboxes/data-apps/template/package.json `dependencies` — the
 // baseline against which uploaded dependency sets are diffed. The template is
 // not shipped in production backend builds, so it is checked in here;
