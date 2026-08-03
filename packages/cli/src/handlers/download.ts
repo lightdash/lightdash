@@ -167,6 +167,7 @@ export type DownloadHandlerOptions = {
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
     createNew?: boolean; // upload only: always create a new app instead of updating the manifest's app
+    allowCustomDependencies?: boolean; // upload only: approve custom-dependency uploads without prompting
     force: boolean;
     path?: string; // New optional path parameter
     project?: string;
@@ -193,7 +194,7 @@ export type DownloadHandlerOptions = {
     includeVirtualViews: boolean;
     includeExternalConnections: boolean;
     includeAll: boolean;
-    appsOnly?: boolean; // download only: implies skipCharts + skipDashboards + skipSpaces
+    appsOnly?: boolean; // download: implies skipCharts + skipDashboards + skipSpaces; upload: apps-only filtered run
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
     validate?: boolean; // Validate charts and dashboards after upload
     concurrency: number;
@@ -3539,7 +3540,23 @@ export const uploadHandler = async (
                                 GlobalState.log(line),
                             );
 
-                            if (process.stdin.isTTY && process.stdout.isTTY) {
+                            if (options.allowCustomDependencies !== true) {
+                                const canPrompt =
+                                    process.stdin.isTTY === true &&
+                                    process.stdout.isTTY === true &&
+                                    !GlobalState.isNonInteractive();
+                                if (!canPrompt) {
+                                    // Fail closed: installing packages in the
+                                    // build sandbox needs explicit approval.
+                                    GlobalState.log(
+                                        styles.error(
+                                            `Skipping "${subDir.name}": it declares custom dependencies, which need approval. Pass --allow-custom-dependencies to approve in non-interactive runs.`,
+                                        ),
+                                    );
+                                    appsFailed += 1;
+                                    // eslint-disable-next-line no-continue
+                                    continue;
+                                }
                                 // eslint-disable-next-line no-await-in-loop
                                 const { proceed } =
                                     await output.promptWhilePaused(() =>
@@ -3550,7 +3567,7 @@ export const uploadHandler = async (
                                                 type: 'confirm',
                                                 name: 'proceed',
                                                 message: `Upload "${subDir.name}" with custom dependencies?`,
-                                                default: true,
+                                                default: false,
                                             },
                                         ]),
                                     );
@@ -3563,7 +3580,6 @@ export const uploadHandler = async (
                                     continue;
                                 }
                             }
-                            // Non-TTY: proceed without prompting (upload is deliberate).
 
                             codeToUpload = attachDependenciesToCode(
                                 code,
