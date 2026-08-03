@@ -1072,6 +1072,10 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--app-space <spaceRef>',
+        'Space (slug or UUID) for data apps this upload creates. Existing apps keep their space.',
+    )
+    .option(
         '--create-new',
         'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml. The new app gets a fresh slug.',
         false,

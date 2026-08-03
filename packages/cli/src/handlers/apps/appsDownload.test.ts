@@ -23,6 +23,7 @@ import {
     preSlugServerHint,
     preSlugUploadHint,
     resolveAppsLimit,
+    resolveAppSpaceUuid,
     resolveUploadFilterUuids,
     selectAppsToDownload,
     shouldFallBackToSpaceScopedListing,
@@ -765,5 +766,29 @@ describe('resolveUploadFilterUuids', () => {
             { appUuid },
         ]);
         expect(resolved).toEqual(new Set([appUuid]));
+    });
+});
+
+describe('resolveAppSpaceUuid', () => {
+    const spaces = [
+        { uuid: 'space-1', slug: 'marketing' },
+        { uuid: 'space-2', slug: 'finance' },
+        { uuid: 'space-3', slug: 'finance' },
+    ];
+
+    it('resolves a unique slug to its uuid', () => {
+        expect(resolveAppSpaceUuid('marketing', spaces)).toBe('space-1');
+    });
+
+    it('fails loudly when no space matches the slug', () => {
+        expect(() => resolveAppSpaceUuid('missing', spaces)).toThrow(
+            /no space with slug "missing"/,
+        );
+    });
+
+    it('fails loudly when the slug is ambiguous', () => {
+        expect(() => resolveAppSpaceUuid('finance', spaces)).toThrow(
+            /multiple spaces match/,
+        );
     });
 });
