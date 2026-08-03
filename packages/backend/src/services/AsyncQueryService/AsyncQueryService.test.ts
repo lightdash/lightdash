@@ -3191,6 +3191,7 @@ describe('AsyncQueryService', () => {
                 ).toHaveBeenCalledWith(sshTunnelCredentials, {
                     enableInstanceCache: false,
                     projectUuid: 'project uuid',
+                    logger: expect.anything(),
                 });
 
                 // THEN: Query executed through tunneled connection

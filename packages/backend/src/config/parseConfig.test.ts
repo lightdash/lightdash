@@ -51,6 +51,7 @@ describe('MotherDuck instance cache config', () => {
             idleTtlMs: 600000,
             maxAgeMs: 3600000,
             maxEntries: 8,
+            maxConsecutiveFailures: 3,
         });
     });
 
@@ -61,6 +62,7 @@ describe('MotherDuck instance cache config', () => {
         process.env.MOTHERDUCK_INSTANCE_CACHE_IDLE_TTL_MS = '1000';
         process.env.MOTHERDUCK_INSTANCE_CACHE_MAX_AGE_MS = '2000';
         process.env.MOTHERDUCK_INSTANCE_CACHE_MAX_ENTRIES = '3';
+        process.env.MOTHERDUCK_INSTANCE_CACHE_MAX_CONSECUTIVE_FAILURES = '4';
 
         expect(parseConfig().motherduckInstanceCache).toEqual({
             enabled: true,
@@ -68,6 +70,7 @@ describe('MotherDuck instance cache config', () => {
             idleTtlMs: 1000,
             maxAgeMs: 2000,
             maxEntries: 3,
+            maxConsecutiveFailures: 4,
         });
     });
 

@@ -13,8 +13,11 @@ describe('classifyMotherduckError', () => {
     it.each([
         'MotherDuck Authentication failed: token rejected',
         'Invalid Input Error: MD Authentication Error: Invalid token',
-        'Your request is not authenticated. Please check your MotherDuck token and try again.',
+        'Your request is not authenticated. Please check your MotherDuck token...',
         'HTTP Error: Unauthorized',
+        "Could not connect to MotherDuck... (PERMISSION_DENIED, RPC 'CREATE_SLT')",
+        'RPC failed with PeRmIsSiOn_DeNiEd',
+        'COULD NOT CONNECT TO MOTHERDUCK',
     ])('classifies MotherDuck authentication failures: %s', (message) => {
         expect(classifyMotherduckError(new Error(message))).toBe('auth');
     });

@@ -383,6 +383,7 @@ export const lightdashConfigMock: LightdashConfig = {
         idleTtlMs: 600000,
         maxAgeMs: 3600000,
         maxEntries: 8,
+        maxConsecutiveFailures: 3,
     },
     usageEvents: {
         enabled: false,

@@ -503,6 +503,7 @@ describe('ProjectService', () => {
                 ).toHaveBeenCalledWith(expect.anything(), {
                     enableInstanceCache: expected,
                     projectUuid: targetProjectUuid,
+                    logger: expect.anything(),
                 });
             },
         );
@@ -530,6 +531,7 @@ describe('ProjectService', () => {
             ).toHaveBeenCalledWith(expect.anything(), {
                 enableInstanceCache: false,
                 projectUuid,
+                logger: expect.anything(),
             });
         });
     });

@@ -9,6 +9,7 @@ export type EvictionReason =
     | 'lru'
     | 'stale'
     | 'auth'
+    | 'failures'
     | 'shutdown';
 
 export type MotherduckCacheEvent =
@@ -39,6 +40,11 @@ type CacheOptions = {
     idleTtlMs: number;
     maxAgeMs: number;
     maxEntries: number;
+    maxConsecutiveFailures?: number;
+};
+
+type ResolvedCacheOptions = CacheOptions & {
+    maxConsecutiveFailures: number;
 };
 
 type CacheEntry = {
@@ -48,6 +54,7 @@ type CacheEntry = {
     createdAt: number;
     lastUsedAt: number;
     refCount: number;
+    consecutiveFailures: number;
     draining: boolean;
     closed: boolean;
     closePromise: Promise<void>;
@@ -68,13 +75,14 @@ const holdEntry = (entry: CacheEntry) => {
     return heldEntry;
 };
 
-const DEFAULT_OPTIONS: CacheOptions = {
+const DEFAULT_OPTIONS: ResolvedCacheOptions = {
     idleTtlMs: 10 * 60_000,
     maxAgeMs: 60 * 60_000,
     maxEntries: 8,
+    maxConsecutiveFailures: 3,
 };
 
-let options = DEFAULT_OPTIONS;
+let options: ResolvedCacheOptions = DEFAULT_OPTIONS;
 let observer: (event: MotherduckCacheEvent) => void = () => undefined;
 let sweepTimer: ReturnType<typeof setInterval> | undefined;
 const entries = new Map<string, CacheEntry>();
@@ -191,6 +199,7 @@ const createEntry = async (
         createdAt: now,
         lastUsedAt: now,
         refCount: 1,
+        consecutiveFailures: 0,
         draining: false,
         closed: false,
         closePromise,
@@ -257,7 +266,12 @@ const acquire = async (
 };
 
 export const configure = (nextOptions: CacheOptions): void => {
-    options = nextOptions;
+    options = {
+        ...nextOptions,
+        maxConsecutiveFailures:
+            nextOptions.maxConsecutiveFailures ??
+            DEFAULT_OPTIONS.maxConsecutiveFailures,
+    };
     scheduleSweep();
 };
 
@@ -294,7 +308,18 @@ export const withInstance = async <T>(
     });
 
     try {
-        return await fn(observedInstance, entry.entryId);
+        const result = await fn(observedInstance, entry.entryId);
+        entry.consecutiveFailures = 0;
+        return result;
+    } catch (error) {
+        entry.consecutiveFailures += 1;
+        if (
+            entry.consecutiveFailures >= options.maxConsecutiveFailures &&
+            !entry.draining
+        ) {
+            void unlinkEntry(cacheKeyFor(connectionString), entry, 'failures');
+        }
+        throw error;
     } finally {
         entry.refCount -= 1;
         entry.lastUsedAt = performance.now();

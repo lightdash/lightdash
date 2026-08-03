@@ -2036,7 +2036,7 @@ export class ProjectService extends BaseService {
                     emptyAllowlistEnablesAllProjects));
         const client = this.projectModel.getWarehouseClientFromCredentials(
             credentialsWithOverrides,
-            { enableInstanceCache, projectUuid },
+            { enableInstanceCache, projectUuid, logger: this.logger },
         );
         this.warehouseClients[cacheKey] = client;
         return { warehouseClient: client, sshTunnel, tunnelConnectMs };

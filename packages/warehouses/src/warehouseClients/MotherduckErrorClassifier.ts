@@ -10,6 +10,8 @@ const AUTH_ERROR_PATTERNS = [
     /not authenticated/i,
     /check your motherduck token/i,
     /unauthorized/i,
+    /permission_denied/i,
+    /could not connect to motherduck/i,
 ];
 
 const STALE_ERROR_PATTERNS = [

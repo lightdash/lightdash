@@ -215,6 +215,115 @@ describe('MotherduckInstanceCache', () => {
         expect(firstInstance.closeSync).toHaveBeenCalledOnce();
     });
 
+    it('evicts after three consecutive failures with the failures reason', async () => {
+        const events: MotherduckCacheEvent[] = [];
+        const instance = createInstance();
+        const failure = new Error('query failed');
+        setObserver((event) => events.push(event));
+        createInstanceMock.mockResolvedValue(instance);
+
+        const fail = () =>
+            withInstance(
+                'md:analytics?motherduck_token=token-a',
+                {},
+                async () => {
+                    throw failure;
+                },
+            );
+
+        await expect(fail()).rejects.toBe(failure);
+        await expect(fail()).rejects.toBe(failure);
+        expect(events).not.toContainEqual(
+            expect.objectContaining({ type: 'evict', reason: 'failures' }),
+        );
+
+        await expect(fail()).rejects.toBe(failure);
+        expect(events).toContainEqual(
+            expect.objectContaining({ type: 'evict', reason: 'failures' }),
+        );
+        expect(instance.closeSync).toHaveBeenCalledOnce();
+    });
+
+    it('resets consecutive failures after a successful callback', async () => {
+        const events: MotherduckCacheEvent[] = [];
+        const failure = new Error('query failed');
+        setObserver((event) => events.push(event));
+        createInstanceMock.mockResolvedValue(createInstance());
+        configureForTesting({ maxConsecutiveFailures: 2 });
+
+        const run = (shouldFail: boolean) =>
+            withInstance(
+                'md:analytics?motherduck_token=token-a',
+                {},
+                async () => {
+                    if (shouldFail) {
+                        throw failure;
+                    }
+                    return 'ok';
+                },
+            );
+
+        await expect(run(true)).rejects.toBe(failure);
+        await expect(run(false)).resolves.toBe('ok');
+        await expect(run(true)).rejects.toBe(failure);
+
+        expect(events).not.toContainEqual(
+            expect.objectContaining({ type: 'evict', reason: 'failures' }),
+        );
+        expect(createInstanceMock).toHaveBeenCalledOnce();
+    });
+
+    it('unlinks on failure without waiting for other in-flight references to drain', async () => {
+        const events: MotherduckCacheEvent[] = [];
+        const firstInstance = createInstance();
+        const secondInstance = createInstance();
+        const failure = new Error('query failed');
+        let blockingCallbackStarted = false;
+        let releaseBlockingCallback: () => void = () => undefined;
+        const blockingCallbackGate = new Promise<void>((resolve) => {
+            releaseBlockingCallback = resolve;
+        });
+        setObserver((event) => events.push(event));
+        createInstanceMock
+            .mockResolvedValueOnce(firstInstance)
+            .mockResolvedValueOnce(secondInstance);
+        configureForTesting({ maxConsecutiveFailures: 1 });
+
+        const blocking = withInstance(
+            'md:analytics?motherduck_token=token-a',
+            {},
+            async () => {
+                blockingCallbackStarted = true;
+                await blockingCallbackGate;
+            },
+        );
+        await vi.waitFor(() => expect(blockingCallbackStarted).toBe(true));
+
+        const failing = withInstance(
+            'md:analytics?motherduck_token=token-a',
+            {},
+            async () => {
+                throw failure;
+            },
+        );
+        await expect(failing).rejects.toBe(failure);
+        expect(firstInstance.closeSync).not.toHaveBeenCalled();
+        expect(events).toContainEqual(
+            expect.objectContaining({ type: 'evict', reason: 'failures' }),
+        );
+
+        await withInstance(
+            'md:analytics?motherduck_token=token-a',
+            {},
+            async () => undefined,
+        );
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+
+        releaseBlockingCallback();
+        await blocking;
+        expect(firstInstance.closeSync).toHaveBeenCalledOnce();
+    });
+
     it('reserves newly created entries before concurrent LRU eviction can drain them', async () => {
         const firstInstance = createInstance();
         const secondInstance = createInstance();

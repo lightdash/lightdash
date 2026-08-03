@@ -1623,6 +1623,7 @@ export type LightdashConfig = {
         idleTtlMs: number;
         maxAgeMs: number;
         maxEntries: number;
+        maxConsecutiveFailures: number;
     };
     usageEvents: {
         enabled: boolean;
@@ -2474,6 +2475,10 @@ export const parseConfig = (): LightdashConfig => {
             getIntegerFromEnvironmentVariable(
                 'MOTHERDUCK_INSTANCE_CACHE_MAX_ENTRIES',
             ) ?? 8,
+        maxConsecutiveFailures:
+            getIntegerFromEnvironmentVariable(
+                'MOTHERDUCK_INSTANCE_CACHE_MAX_CONSECUTIVE_FAILURES',
+            ) ?? 3,
     };
 
     if (
