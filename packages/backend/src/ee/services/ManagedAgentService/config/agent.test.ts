@@ -23,4 +23,17 @@ describe('renderManagedAgentConfig', () => {
             },
         ]);
     });
+
+    it('instructs the managed agent to use its pinned project', () => {
+        const config = renderManagedAgentConfig({
+            lightdashSiteUrl: LIGHTDASH_SITE_URL,
+            projectUuid: PROJECT_UUID,
+            skillIds: [],
+        });
+
+        expect(config.system).toContain(
+            'The MCP connection is already pinned to this project.',
+        );
+        expect(config.system).not.toContain('set_project');
+    });
 });
