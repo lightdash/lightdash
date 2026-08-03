@@ -54,6 +54,36 @@ describe('parseHomepageConfig', () => {
         expect(parseHomepageConfig(config)).toEqual(config);
     });
 
+    it('round-trips the resources layout and description toggle', () => {
+        const config = {
+            version: 1 as const,
+            rows: [
+                {
+                    id: 'row-1',
+                    blocks: [
+                        {
+                            id: 'b1',
+                            type: 'resources' as const,
+                            config: {
+                                title: 'Resources',
+                                layout: 'list' as const,
+                                showDescriptions: false,
+                                items: [
+                                    {
+                                        title: 'Runbook',
+                                        url: 'https://example.com',
+                                        kind: 'link' as const,
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+        expect(parseHomepageConfig(config)).toEqual(config);
+    });
+
     it('strips unknown properties instead of persisting them', () => {
         const withExtras = {
             version: 1,

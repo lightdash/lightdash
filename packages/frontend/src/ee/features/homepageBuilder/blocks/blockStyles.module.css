@@ -108,6 +108,64 @@ a .hoverCard:hover,
     overflow: hidden;
 }
 
+/* Compact mode's geometry resolves itself: as many tile columns as the
+ * block's width affords, collapsing to a single column of rows when narrow.
+ * The admin picks the density; the grid picks the arrangement. */
+.resTileGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 8px;
+}
+
+/* ---- Resources: compact tiles ----
+ * The same horizontal card language native content uses (ContentCard):
+ * glyph square + name + one supporting line. For blocks where resources are
+ * destinations to reach, not media to showcase. */
+.resTile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 56px;
+    padding: 8px 12px;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: 10px;
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    box-shadow: var(--mantine-shadow-subtle);
+    transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.resTile.clickable:hover {
+    box-shadow: var(--mantine-shadow-heavy);
+    transform: translateY(-1px);
+    text-decoration: none;
+    color: inherit;
+}
+
+.resTileBody {
+    flex: 1;
+    min-width: 0;
+}
+
+/* A small live glimpse of a data app on the trailing edge: apps get opened
+ * like dashboards, so their tile earns a preview of the real thing. Absent
+ * (no affordance lost) when there is no thumbnail to show. */
+.tilePeek {
+    width: 64px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.tilePeek img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top;
+}
+
 .listRow {
     display: flex;
     align-items: center;
