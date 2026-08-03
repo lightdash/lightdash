@@ -8,6 +8,7 @@ import {
     FilterOperator,
     TimeFrames,
     transformToPercentageStacking,
+    type CartesianChart,
     type Dimension,
     type EChartsSeries,
     type Field,
@@ -25,6 +26,7 @@ import {
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
+    getAxisType,
     getCartesianLabelLayout,
     getCategoryDateAxisConfig,
     getLongestLabelsForAxis,
@@ -771,6 +773,97 @@ describe('getPinnedDayTickFormatter', () => {
         expect(f(Date.UTC(2025, 5, 30, 22))).toBe('30');
         expect(f(Date.UTC(2025, 6, 1, 22))).toBe('{bold|Jul}');
         expect(f(Date.UTC(2025, 6, 2, 22))).toBe('2');
+    });
+});
+
+describe('getAxisType with treatAsCategory', () => {
+    const xFieldId = 'orders_year_number';
+    const yFieldId = 'orders_count';
+
+    const numericField = {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.NUMBER,
+        name: 'year_number',
+        table: 'orders',
+    } as unknown as Field;
+
+    const itemsMap = {
+        [xFieldId]: numericField,
+        [yFieldId]: numericField,
+    } as ItemsMap;
+
+    const createConfig = ({
+        treatAsCategory,
+        flipAxes,
+    }: {
+        treatAsCategory?: boolean;
+        flipAxes?: boolean;
+    }): CartesianChart => ({
+        layout: { xField: xFieldId, yField: [yFieldId], flipAxes },
+        eChartsConfig: {
+            xAxis: [{ treatAsCategory }],
+            series: [
+                {
+                    type: CartesianSeriesType.BAR,
+                    yAxisIndex: 0,
+                    encode: {
+                        xRef: { field: xFieldId },
+                        yRef: { field: yFieldId },
+                    },
+                },
+            ],
+        },
+    });
+
+    const getBottomAxisType = (config: CartesianChart) =>
+        getAxisType({
+            validCartesianConfig: config,
+            itemsMap,
+            bottomAxisXId: xFieldId,
+            leftAxisYId: yFieldId,
+        }).bottomAxisType;
+
+    test('numeric x-axis stays a value axis by default', () => {
+        expect(getBottomAxisType(createConfig({}))).toBe('value');
+        expect(
+            getBottomAxisType(createConfig({ treatAsCategory: false })),
+        ).toBe('value');
+    });
+
+    test('numeric x-axis becomes a category axis when treatAsCategory is on', () => {
+        expect(getBottomAxisType(createConfig({ treatAsCategory: true }))).toBe(
+            'category',
+        );
+    });
+
+    test('treatAsCategory is ignored when axes are flipped', () => {
+        expect(
+            getBottomAxisType(
+                createConfig({ treatAsCategory: true, flipAxes: true }),
+            ),
+        ).toBe('value');
+    });
+
+    test('treatAsCategory does not override a time axis', () => {
+        const dateFieldId = 'orders_created_at';
+        const config = createConfig({ treatAsCategory: true });
+        expect(
+            getAxisType({
+                validCartesianConfig: config,
+                itemsMap: {
+                    [dateFieldId]: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.DATE,
+                        name: 'created_at',
+                        table: 'orders',
+                        timeInterval: TimeFrames.DAY,
+                    },
+                    [yFieldId]: numericField,
+                } as unknown as ItemsMap,
+                bottomAxisXId: dateFieldId,
+                leftAxisYId: yFieldId,
+            }).bottomAxisType,
+        ).toBe('time');
     });
 });
 

@@ -238,7 +238,7 @@ type GetAxisTypeArg = {
     rightAxisYId?: string;
     leftAxisYId?: string;
 };
-const getAxisType = ({
+export const getAxisType = ({
     validCartesianConfig,
     itemsMap,
     topAxisXId,
@@ -276,11 +276,20 @@ const getAxisType = ({
         return shouldUseCategory ? 'category' : axisType;
     };
 
+    // Opt-in: render a numeric dimension axis as discrete categories so bars get
+    // band spacing instead of being centred on their value at the grid edges.
+    const treatXAxisAsCategory =
+        !validCartesianConfig.layout.flipAxes &&
+        !!validCartesianConfig.eChartsConfig.xAxis?.[0]?.treatAsCategory;
+
     const topAxisType = inferAxisType(topAxisXId, true);
+    const inferredBottomAxisType = inferAxisType(bottomAxisXId, true);
     const bottomAxisType =
         bottomAxisXId === EMPTY_X_AXIS
             ? 'category'
-            : inferAxisType(bottomAxisXId, true);
+            : treatXAxisAsCategory && inferredBottomAxisType === 'value'
+              ? 'category'
+              : inferredBottomAxisType;
 
     // horizontal bar chart needs the type 'category' in the left/right axis
     const defaultRightAxisType = inferAxisType(rightAxisYId, false);

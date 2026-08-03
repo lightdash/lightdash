@@ -702,6 +702,15 @@ const useCartesianChartConfig = ({
             };
         });
     }, []);
+    const setXAxisTreatAsCategory = useCallback((treatAsCategory: boolean) => {
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            return {
+                ...prevState,
+                xAxis: [{ ...firstAxis, treatAsCategory }, ...axes],
+            };
+        });
+    }, []);
     const setDataZoomAnchor = useCallback((dataZoomAnchor: 'start' | 'end') => {
         setDirtyEchartsConfig((prevState) => {
             const [firstAxis, ...axes] = prevState?.xAxis || [];
@@ -1537,6 +1546,7 @@ const useCartesianChartConfig = ({
         setXAxisSort,
         setXAxisLabelRotation,
         setScrollableChart,
+        setXAxisTreatAsCategory,
         setDataZoomAnchor,
         setDataZoomItemCount,
         updateSeries,

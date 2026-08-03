@@ -90,6 +90,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setXAxisSort,
         setXAxisLabelRotation,
         setScrollableChart,
+        setXAxisTreatAsCategory,
         setDataZoomAnchor,
         setDataZoomItemCount,
         dirtyChartType,
@@ -123,9 +124,18 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         [false, false],
     );
 
+    // A numeric x-axis can be rendered as discrete categories, so bars get band
+    // spacing instead of overlapping the y-axis at the ends of the range.
+    const canTreatXAxisAsCategory =
+        isNumericItem(xAxisField) && !dirtyLayout?.flipAxes;
+    const treatXAxisAsCategory =
+        canTreatXAxisAsCategory &&
+        !!dirtyEchartsConfig?.xAxis?.[0]?.treatAsCategory;
+    const isXAxisCategory =
+        getAxisTypeFromField(xAxisField) === 'category' || treatXAxisAsCategory;
+
     const canSortByBarTotals =
-        dirtyChartType === CartesianSeriesType.BAR &&
-        getAxisTypeFromField(xAxisField) === 'category';
+        dirtyChartType === CartesianSeriesType.BAR && isXAxisCategory;
 
     const xAxisSortOptions = [
         { value: XAxisSort.DEFAULT, label: 'Default', icon: IconMinus },
@@ -204,7 +214,22 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         onChange={(value) => setXAxisName(value)}
                     />
 
-                    {isNumericItem(xAxisField) && (
+                    {canTreatXAxisAsCategory && (
+                        <Switch
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
+                            label="Treat as category"
+                            description="Space values evenly instead of on a continuous scale"
+                            checked={treatXAxisAsCategory}
+                            onChange={(e) =>
+                                setXAxisTreatAsCategory(e.currentTarget.checked)
+                            }
+                        />
+                    )}
+
+                    {isNumericItem(xAxisField) && !treatXAxisAsCategory && (
                         <AxisMinMax
                             label={`Auto ${dirtyLayout?.flipAxes ? 'y' : 'x'}-axis range`}
                             min={dirtyEchartsConfig?.xAxis?.[0]?.min}
@@ -214,7 +239,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         />
                     )}
 
-                    {isNumericItem(xAxisField) && (
+                    {isNumericItem(xAxisField) && !treatXAxisAsCategory && (
                         <AxisMinInterval
                             label="Min tick interval"
                             value={dirtyEchartsConfig?.xAxis?.[0]?.minInterval}
@@ -224,7 +249,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         />
                     )}
 
-                    {isNumericItem(xAxisField) && !dirtyLayout?.flipAxes && (
+                    {canTreatXAxisAsCategory && !treatXAxisAsCategory && (
                         <>
                             <Switch
                                 size="xs"
@@ -302,7 +327,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         )}
                     </Group>
 
-                    {getAxisTypeFromField(xAxisField) === 'category' && (
+                    {isXAxisCategory && (
                         <Stack gap="xs">
                             <Checkbox
                                 size="xs"
