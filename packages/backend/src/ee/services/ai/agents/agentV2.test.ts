@@ -5,9 +5,9 @@ import {
 } from '../../../../analytics/aiUsage';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import {
+    buildAgentMessages,
     buildDeepResearchExecutionContextSnapshot,
     buildForcedFirstStep,
-    buildMessagesWithMemoryBlock,
     getAgentTools,
     getDeepResearchBudgetInstruction,
     normalizeToolOutput,
@@ -587,7 +587,7 @@ describe('getAgentTools workstream tool gate', () => {
     });
 });
 
-describe('getAgentMessages memory injection', () => {
+describe('buildAgentMessages', () => {
     const systemPrompt: ModelMessage = {
         role: 'system',
         content: 'Cached system prompt',
@@ -600,16 +600,16 @@ describe('getAgentMessages memory injection', () => {
     ];
 
     it('injects an uncached user message immediately after the system prompt', () => {
-        const withoutBlock = buildMessagesWithMemoryBlock({
+        const withoutBlock = buildAgentMessages({
             systemPrompt,
+            compactionSummary: null,
             messageHistory,
-            memoryEnabled: true,
             memoryBlock: null,
         });
-        const withBlock = buildMessagesWithMemoryBlock({
+        const withBlock = buildAgentMessages({
             systemPrompt,
+            compactionSummary: null,
             messageHistory,
-            memoryEnabled: true,
             memoryBlock: '<ld-memories></ld-memories>',
         });
 
@@ -623,21 +623,15 @@ describe('getAgentMessages memory injection', () => {
         expect(withBlock[2]).toEqual({ role: 'user', content: 'Question' });
     });
 
-    it.each([
-        { memoryEnabled: false, block: '<ld-memories></ld-memories>' },
-        { memoryEnabled: true, block: null },
-    ])(
-        'does not inject for disabled or empty memory',
-        ({ memoryEnabled, block }) => {
-            const messages = buildMessagesWithMemoryBlock({
-                systemPrompt,
-                messageHistory,
-                memoryEnabled,
-                memoryBlock: block,
-            });
+    it('does not inject memory without a block', () => {
+        const messages = buildAgentMessages({
+            systemPrompt,
+            compactionSummary: null,
+            messageHistory,
+            memoryBlock: null,
+        });
 
-            expect(messages).toHaveLength(2);
-            expect(messages[1]).toEqual({ role: 'user', content: 'Question' });
-        },
-    );
+        expect(messages).toHaveLength(2);
+        expect(messages[1]).toEqual({ role: 'user', content: 'Question' });
+    });
 });

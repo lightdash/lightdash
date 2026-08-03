@@ -28,6 +28,7 @@ import {
     getAiDeepResearchJudgeInstructions,
     getAiDeepResearchPlannerInstructions,
 } from '../../AiDeepResearchService/AiDeepResearchAgent';
+import { Compaction } from '../compaction';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
@@ -1089,21 +1090,22 @@ const getUnauthenticatedMcpServerNames = (
         .map((server) => server.serverName);
 };
 
-export const buildMessagesWithMemoryBlock = ({
+export const buildAgentMessages = ({
     systemPrompt,
+    compactionSummary,
     messageHistory,
-    memoryEnabled,
     memoryBlock,
 }: {
     systemPrompt: ModelMessage;
+    compactionSummary: string | null;
     messageHistory: ModelMessage[];
-    memoryEnabled: boolean;
     memoryBlock: string | null;
 }): ModelMessage[] => [
     systemPrompt,
-    ...(memoryEnabled && memoryBlock
-        ? [{ role: 'user' as const, content: memoryBlock }]
+    ...(compactionSummary
+        ? [Compaction.createSummaryMessage(compactionSummary)]
         : []),
+    ...(memoryBlock ? [{ role: 'user' as const, content: memoryBlock }] : []),
     ...messageHistory,
 ];
 
@@ -1202,10 +1204,10 @@ const getAgentMessages = (
             mcpToolSetup,
         ),
     });
-    const messages = buildMessagesWithMemoryBlock({
+    const messages = buildAgentMessages({
         systemPrompt,
+        compactionSummary: args.compactionSummary,
         messageHistory,
-        memoryEnabled: args.aiAgentMemoryEnabled,
         memoryBlock,
     });
 
