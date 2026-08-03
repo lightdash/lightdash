@@ -414,7 +414,7 @@ describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
 
-    describe('MotherDuck instance pool enablement', () => {
+    describe('MotherDuck instance cache enablement', () => {
         test.each([
             {
                 enabled: false,
@@ -437,12 +437,12 @@ describe('ProjectService', () => {
                 expected: false,
             },
         ])(
-            'passes enableInstancePool=$expected when enabled=$enabled and projectUuids=$projectUuids',
+            'passes enableInstanceCache=$expected when enabled=$enabled and projectUuids=$projectUuids',
             async ({ enabled, projectUuids, expected }) => {
                 const configuredService = getMockedProjectService({
                     ...lightdashConfigMock,
-                    motherduckInstancePool: {
-                        ...lightdashConfigMock.motherduckInstancePool,
+                    motherduckInstanceCache: {
+                        ...lightdashConfigMock.motherduckInstanceCache,
                         enabled,
                         projectUuids,
                     },
@@ -459,7 +459,7 @@ describe('ProjectService', () => {
                 expect(
                     vi.mocked(projectModel.getWarehouseClientFromCredentials),
                 ).toHaveBeenCalledWith(expect.anything(), {
-                    enableInstancePool: expected,
+                    enableInstanceCache: expected,
                     projectUuid,
                 });
             },

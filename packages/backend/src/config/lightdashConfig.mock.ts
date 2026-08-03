@@ -377,7 +377,7 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
-    motherduckInstancePool: {
+    motherduckInstanceCache: {
         enabled: false,
         projectUuids: [],
         idleTtlMs: 600000,

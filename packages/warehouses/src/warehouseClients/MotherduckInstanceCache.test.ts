@@ -7,8 +7,8 @@ import {
     resetForTesting,
     setObserver,
     withInstance,
-    type MotherduckPoolEvent,
-} from './MotherduckInstancePool';
+    type MotherduckCacheEvent,
+} from './MotherduckInstanceCache';
 
 const createInstanceMock = vi.fn();
 
@@ -33,7 +33,7 @@ const configureForTesting = (
         ...overrides,
     });
 
-describe('MotherduckInstancePool', () => {
+describe('MotherduckInstanceCache', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.clearAllMocks();
@@ -121,7 +121,7 @@ describe('MotherduckInstancePool', () => {
     ] as const)(
         'evicts by $bound with the matching reason',
         async ({ options, elapsedMs, reason }) => {
-            const events: MotherduckPoolEvent[] = [];
+            const events: MotherduckCacheEvent[] = [];
             setObserver((event) => events.push(event));
             createInstanceMock.mockImplementation(async () => createInstance());
             configureForTesting(options);
@@ -140,7 +140,7 @@ describe('MotherduckInstancePool', () => {
     );
 
     it('evicts the least recently used entry at the configured cap', async () => {
-        const events: MotherduckPoolEvent[] = [];
+        const events: MotherduckCacheEvent[] = [];
         setObserver((event) => events.push(event));
         createInstanceMock.mockImplementation(async () => createInstance());
         configureForTesting({ maxEntries: 2 });
@@ -260,8 +260,8 @@ describe('MotherduckInstancePool', () => {
         const digest = createHash('sha256')
             .update(JSON.stringify({ connectionString, v: 1 }))
             .digest('hex');
-        const events: MotherduckPoolEvent[] = [];
-        const observer = vi.fn((event: MotherduckPoolEvent) => {
+        const events: MotherduckCacheEvent[] = [];
+        const observer = vi.fn((event: MotherduckCacheEvent) => {
             events.push(event);
             throw new Error('observer failure');
         });

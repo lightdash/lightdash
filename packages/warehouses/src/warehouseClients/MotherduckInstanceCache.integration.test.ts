@@ -1,8 +1,8 @@
-// Run: set -a; source .motherduck.env; set +a; pnpm -F warehouses exec vitest run src/warehouseClients/MotherduckInstancePool.integration.test.ts
+// Run: set -a; source .motherduck.env; set +a; pnpm -F warehouses exec vitest run src/warehouseClients/MotherduckInstanceCache.integration.test.ts
 
 import { DuckDBInstance } from '@duckdb/node-api';
 import { randomUUID } from 'crypto';
-import * as MotherduckInstancePool from './MotherduckInstancePool';
+import * as MotherduckInstanceCache from './MotherduckInstanceCache';
 
 type DuckdbInstance = Awaited<ReturnType<typeof DuckDBInstance.create>>;
 type DuckdbConnection = Awaited<ReturnType<DuckdbInstance['connect']>>;
@@ -80,13 +80,13 @@ const median = (values: number[]) => {
 };
 
 describe.skipIf(!motherduckToken)(
-    'MotherDuck instance pool live integration',
+    'MotherDuck instance cache live integration',
     () => {
         let createdTableName: string | undefined;
 
         beforeEach(() => {
-            MotherduckInstancePool.resetForTesting();
-            MotherduckInstancePool.configure({
+            MotherduckInstanceCache.resetForTesting();
+            MotherduckInstanceCache.configure({
                 idleTtlMs: 60_000,
                 maxAgeMs: 60_000,
                 maxEntries: 1,
@@ -94,7 +94,7 @@ describe.skipIf(!motherduckToken)(
         });
 
         afterEach(async () => {
-            await MotherduckInstancePool.closeAll('shutdown');
+            await MotherduckInstanceCache.closeAll('shutdown');
             if (createdTableName) {
                 if (!ownedTablePattern.test(createdTableName)) {
                     throw new Error('Refusing to clean up an unowned table');
@@ -111,7 +111,7 @@ describe.skipIf(!motherduckToken)(
         it('keeps a held instance fresh for a table and column created after warmup', async () => {
             const tableName = `${tablePrefix}${randomUUID().replaceAll('-', '_')}`;
 
-            await MotherduckInstancePool.withInstance(
+            await MotherduckInstanceCache.withInstance(
                 getConnectionString(),
                 {},
                 async (instance) => {
@@ -161,7 +161,7 @@ describe.skipIf(!motherduckToken)(
             const freshInstanceMs: number[] = [];
             const heldInstanceMs: number[] = [];
 
-            await MotherduckInstancePool.withInstance(
+            await MotherduckInstanceCache.withInstance(
                 getConnectionString(),
                 {},
                 async (instance) => {

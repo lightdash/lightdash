@@ -3,9 +3,9 @@ import {
     configure,
     resetForTesting,
     withInstance,
-} from './MotherduckInstancePool';
+} from './MotherduckInstanceCache';
 
-describe('MotherduckInstancePool catalog freshness regression', () => {
+describe('MotherduckInstanceCache catalog freshness regression', () => {
     beforeEach(() => {
         resetForTesting();
         configure({

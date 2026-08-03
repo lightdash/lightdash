@@ -1,7 +1,7 @@
 import { DuckdbConnectionType, WarehouseTypes } from '@lightdash/common';
 import type { Mock } from 'vitest';
 import { DuckdbWarehouseClient } from './DuckdbWarehouseClient';
-import * as MotherduckInstancePool from './MotherduckInstancePool';
+import * as MotherduckInstanceCache from './MotherduckInstanceCache';
 
 const createInstanceMock = vi.fn();
 
@@ -49,20 +49,20 @@ const motherduckCredentials = (database: string, token: string) =>
         token,
     }) as const;
 
-const pooledOptions = (projectUuid: string) => ({
-    enableInstancePool: true,
+const cachedOptions = (projectUuid: string) => ({
+    enableInstanceCache: true,
     projectUuid,
 });
 
 const successStream = (marker: string) =>
     vi.fn(async () => getMockStreamResult(marker));
 
-describe('MotherDuck instance pool security boundaries', () => {
+describe('MotherDuck instance cache security boundaries', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.clearAllMocks();
-        MotherduckInstancePool.resetForTesting();
-        MotherduckInstancePool.configure({
+        MotherduckInstanceCache.resetForTesting();
+        MotherduckInstanceCache.configure({
             idleTtlMs: 60_000,
             maxAgeMs: 3_600_000,
             maxEntries: 64,
@@ -71,7 +71,7 @@ describe('MotherDuck instance pool security boundaries', () => {
     });
 
     afterEach(async () => {
-        await MotherduckInstancePool.closeAll('shutdown');
+        await MotherduckInstanceCache.closeAll('shutdown');
         vi.useRealTimers();
     });
 
@@ -87,11 +87,11 @@ describe('MotherDuck instance pool security boundaries', () => {
         );
         const clientA = new DuckdbWarehouseClient(
             motherduckCredentials('analytics', 'token-a'),
-            pooledOptions('project-a'),
+            cachedOptions('project-a'),
         );
         const clientB = new DuckdbWarehouseClient(
             motherduckCredentials('analytics', 'token-b'),
-            pooledOptions('project-b'),
+            cachedOptions('project-b'),
         );
 
         const [resultA, resultB] = await Promise.all([
@@ -116,11 +116,11 @@ describe('MotherDuck instance pool security boundaries', () => {
         );
         const firstClient = new DuckdbWarehouseClient(
             motherduckCredentials('first', 'shared-token'),
-            pooledOptions('project-a'),
+            cachedOptions('project-a'),
         );
         const secondClient = new DuckdbWarehouseClient(
             motherduckCredentials('second', 'shared-token'),
-            pooledOptions('project-b'),
+            cachedOptions('project-b'),
         );
 
         const [firstResult, secondResult] = await Promise.all([
@@ -162,7 +162,7 @@ describe('MotherDuck instance pool security boundaries', () => {
             adversarialNames.map((database, index) => {
                 const client = new DuckdbWarehouseClient(
                     motherduckCredentials(database, 'attacker-token'),
-                    pooledOptions(`attacker-project-${index}`),
+                    cachedOptions(`attacker-project-${index}`),
                 );
                 return client.runQuery('SELECT 1');
             }),
@@ -180,7 +180,7 @@ describe('MotherDuck instance pool security boundaries', () => {
 
         const victimClient = new DuckdbWarehouseClient(
             motherduckCredentials('analytics', 'victim-token'),
-            pooledOptions('victim-project'),
+            cachedOptions('victim-project'),
         );
         await victimClient.runQuery('SELECT 1');
 
@@ -190,7 +190,7 @@ describe('MotherDuck instance pool security boundaries', () => {
     });
 
     it('does not close an in-flight instance when max age evicts it', async () => {
-        MotherduckInstancePool.configure({
+        MotherduckInstanceCache.configure({
             idleTtlMs: 60_000,
             maxAgeMs: 1_000,
             maxEntries: 8,
@@ -204,7 +204,7 @@ describe('MotherDuck instance pool security boundaries', () => {
             releaseQuery = resolve;
         });
         let entryId = '';
-        const inFlight = MotherduckInstancePool.withInstance(
+        const inFlight = MotherduckInstanceCache.withInstance(
             'md:analytics?motherduck_token=token-a',
             {},
             async (_instance, acquiredEntryId) => {
@@ -215,7 +215,7 @@ describe('MotherDuck instance pool security boundaries', () => {
         await vi.waitFor(() => expect(entryId).not.toBe(''));
 
         await vi.advanceTimersByTimeAsync(1_500);
-        await MotherduckInstancePool.withInstance(
+        await MotherduckInstanceCache.withInstance(
             'md:other?motherduck_token=token-b',
             {},
             async () => undefined,

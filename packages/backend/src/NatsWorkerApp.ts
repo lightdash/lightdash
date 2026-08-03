@@ -1,5 +1,5 @@
 import { createTerminus } from '@godaddy/terminus';
-import { MotherduckInstancePool } from '@lightdash/warehouses';
+import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
@@ -182,11 +182,11 @@ export default class NatsWorkerApp {
     public async start() {
         registerOAuthRefreshStrategies();
         this.prometheusMetrics.start();
-        MotherduckInstancePool.configure(
-            this.lightdashConfig.motherduckInstancePool,
+        MotherduckInstanceCache.configure(
+            this.lightdashConfig.motherduckInstanceCache,
         );
-        MotherduckInstancePool.setObserver((event) =>
-            this.prometheusMetrics.observeMotherduckPoolEvent(event),
+        MotherduckInstanceCache.setObserver((event) =>
+            this.prometheusMetrics.observeMotherduckCacheEvent(event),
         );
         this.prometheusMetrics.monitorDatabase(this.database);
         // @ts-ignore
@@ -283,7 +283,7 @@ export default class NatsWorkerApp {
                     Logger.info('Flushing usage event stream writer');
                     await this.eventStreamWriter.close();
                 }
-                await MotherduckInstancePool.closeAll('shutdown');
+                await MotherduckInstanceCache.closeAll('shutdown');
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
                 await shutdownOtelTracing();

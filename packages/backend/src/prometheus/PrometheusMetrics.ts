@@ -10,7 +10,7 @@ import {
     type AiAgentMemoryConsolidationRejectionReason,
     type WarehousePhaseTimings,
 } from '@lightdash/common';
-import type { MotherduckPoolEvent } from '@lightdash/warehouses';
+import type { MotherduckCacheEvent } from '@lightdash/warehouses';
 import { EventEmitter } from 'events';
 import express from 'express';
 import * as fs from 'fs';
@@ -239,23 +239,23 @@ export default class PrometheusMetrics {
 
     public queryCacheHitCounter: prometheus.Counter<string> | null = null;
 
-    public motherduckPoolAcquisitionCounter: prometheus.Counter<
+    public motherduckCacheAcquisitionCounter: prometheus.Counter<
         'result' | 'project_uuid'
     > | null = null;
 
-    public motherduckPoolInstanceCreatedCounter: prometheus.Counter<'project_uuid'> | null =
+    public motherduckCacheInstanceCreatedCounter: prometheus.Counter<'project_uuid'> | null =
         null;
 
-    public motherduckPoolEvictionCounter: prometheus.Counter<
+    public motherduckCacheEvictionCounter: prometheus.Counter<
         'reason' | 'project_uuid'
     > | null = null;
 
-    public motherduckPoolSizeGauge: prometheus.Gauge | null = null;
+    public motherduckCacheSizeGauge: prometheus.Gauge | null = null;
 
-    public motherduckPoolRetryCounter: prometheus.Counter<'outcome'> | null =
+    public motherduckCacheRetryCounter: prometheus.Counter<'outcome'> | null =
         null;
 
-    public motherduckPoolAcquireDurationHistogram: prometheus.Histogram<
+    public motherduckCacheAcquireDurationHistogram: prometheus.Histogram<
         'result' | 'project_uuid'
     > | null = null;
 
@@ -1018,45 +1018,47 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
-                this.motherduckPoolAcquisitionCounter = new prometheus.Counter({
-                    name: 'lightdash_motherduck_instance_pool_acquisitions_total',
-                    help: 'Total MotherDuck instance pool acquisitions',
-                    labelNames: ['result', 'project_uuid'],
-                    ...rest,
-                });
+                this.motherduckCacheAcquisitionCounter = new prometheus.Counter(
+                    {
+                        name: 'lightdash_motherduck_instance_cache_acquisitions_total',
+                        help: 'Total MotherDuck instance cache acquisitions',
+                        labelNames: ['result', 'project_uuid'],
+                        ...rest,
+                    },
+                );
 
-                this.motherduckPoolInstanceCreatedCounter =
+                this.motherduckCacheInstanceCreatedCounter =
                     new prometheus.Counter({
-                        name: 'lightdash_motherduck_instance_pool_instances_created_total',
-                        help: 'Total MotherDuck instances created by the pool',
+                        name: 'lightdash_motherduck_instance_cache_instances_created_total',
+                        help: 'Total MotherDuck instances created by the cache',
                         labelNames: ['project_uuid'],
                         ...rest,
                     });
 
-                this.motherduckPoolEvictionCounter = new prometheus.Counter({
-                    name: 'lightdash_motherduck_instance_pool_evictions_total',
-                    help: 'Total MotherDuck instance pool evictions',
+                this.motherduckCacheEvictionCounter = new prometheus.Counter({
+                    name: 'lightdash_motherduck_instance_cache_evictions_total',
+                    help: 'Total MotherDuck instance cache evictions',
                     labelNames: ['reason', 'project_uuid'],
                     ...rest,
                 });
 
-                this.motherduckPoolSizeGauge = new prometheus.Gauge({
-                    name: 'lightdash_motherduck_instance_pool_entries',
-                    help: 'Current MotherDuck instance pool entry count',
+                this.motherduckCacheSizeGauge = new prometheus.Gauge({
+                    name: 'lightdash_motherduck_instance_cache_entries',
+                    help: 'Current MotherDuck instance cache entry count',
                     ...rest,
                 });
 
-                this.motherduckPoolRetryCounter = new prometheus.Counter({
-                    name: 'lightdash_motherduck_instance_pool_retries_total',
-                    help: 'Total MotherDuck instance pool retries',
+                this.motherduckCacheRetryCounter = new prometheus.Counter({
+                    name: 'lightdash_motherduck_instance_cache_retries_total',
+                    help: 'Total MotherDuck instance cache retries',
                     labelNames: ['outcome'],
                     ...rest,
                 });
 
-                this.motherduckPoolAcquireDurationHistogram =
+                this.motherduckCacheAcquireDurationHistogram =
                     new prometheus.Histogram({
-                        name: 'lightdash_motherduck_instance_pool_acquire_duration_seconds',
-                        help: 'MotherDuck instance pool acquisition duration',
+                        name: 'lightdash_motherduck_instance_cache_acquire_duration_seconds',
+                        help: 'MotherDuck instance cache acquisition duration',
                         labelNames: ['result', 'project_uuid'],
                         buckets: [
                             0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1,
@@ -1457,20 +1459,20 @@ export default class PrometheusMetrics {
         });
     }
 
-    public observeMotherduckPoolEvent(event: MotherduckPoolEvent) {
+    public observeMotherduckCacheEvent(event: MotherduckCacheEvent) {
         switch (event.type) {
             case 'acquire': {
                 const labels = {
                     result: event.result,
                     project_uuid: event.projectUuid ?? 'unknown',
                 };
-                this.motherduckPoolAcquisitionCounter?.inc(labels);
+                this.motherduckCacheAcquisitionCounter?.inc(labels);
                 if (event.result === 'miss') {
-                    this.motherduckPoolInstanceCreatedCounter?.inc({
+                    this.motherduckCacheInstanceCreatedCounter?.inc({
                         project_uuid: event.projectUuid ?? 'unknown',
                     });
                 }
-                this.motherduckPoolAcquireDurationHistogram?.observe(
+                this.motherduckCacheAcquireDurationHistogram?.observe(
                     labels,
                     (event.waitMs + event.instanceCreateMs + event.connectMs) /
                         1000,
@@ -1478,23 +1480,23 @@ export default class PrometheusMetrics {
                 return;
             }
             case 'evict':
-                this.motherduckPoolEvictionCounter?.inc({
+                this.motherduckCacheEvictionCounter?.inc({
                     reason: event.reason,
                     project_uuid: event.projectUuid ?? 'unknown',
                 });
                 return;
             case 'retry':
-                this.motherduckPoolRetryCounter?.inc({
+                this.motherduckCacheRetryCounter?.inc({
                     outcome: event.outcome,
                 });
                 return;
             case 'size':
-                this.motherduckPoolSizeGauge?.set(event.entries);
+                this.motherduckCacheSizeGauge?.set(event.entries);
                 return;
             default:
                 assertUnreachable(
                     event,
-                    'Unknown MotherDuck instance pool event',
+                    'Unknown MotherDuck instance cache event',
                 );
         }
     }

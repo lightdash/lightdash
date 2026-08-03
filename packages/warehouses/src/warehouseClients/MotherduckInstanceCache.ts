@@ -11,7 +11,7 @@ export type EvictionReason =
     | 'auth'
     | 'shutdown';
 
-export type MotherduckPoolEvent =
+export type MotherduckCacheEvent =
     | {
           type: 'acquire';
           result: 'hit' | 'miss';
@@ -35,13 +35,13 @@ export type MotherduckPoolEvent =
       }
     | { type: 'size'; entries: number };
 
-type PoolOptions = {
+type CacheOptions = {
     idleTtlMs: number;
     maxAgeMs: number;
     maxEntries: number;
 };
 
-type PoolEntry = {
+type CacheEntry = {
     instance: DuckdbInstance;
     entryId: string;
     projectUuid?: string;
@@ -54,36 +54,36 @@ type PoolEntry = {
     resolveClose: () => void;
 };
 
-type Acquisition = {
-    entry: PoolEntry;
+type CacheAcquisition = {
+    entry: CacheEntry;
     result: 'hit' | 'miss';
     waitMs: number;
     instanceCreateMs: number;
 };
 
-const holdEntry = (entry: PoolEntry) => {
+const holdEntry = (entry: CacheEntry) => {
     const heldEntry = entry;
     heldEntry.refCount += 1;
     heldEntry.lastUsedAt = performance.now();
     return heldEntry;
 };
 
-const DEFAULT_OPTIONS: PoolOptions = {
+const DEFAULT_OPTIONS: CacheOptions = {
     idleTtlMs: 10 * 60_000,
     maxAgeMs: 60 * 60_000,
     maxEntries: 8,
 };
 
 let options = DEFAULT_OPTIONS;
-let observer: (event: MotherduckPoolEvent) => void = () => undefined;
+let observer: (event: MotherduckCacheEvent) => void = () => undefined;
 let sweepTimer: ReturnType<typeof setInterval> | undefined;
-const entries = new Map<string, PoolEntry>();
+const entries = new Map<string, CacheEntry>();
 const pendingCreations = new Map<
     string,
-    Promise<{ entry: PoolEntry; instanceCreateMs: number }>
+    Promise<{ entry: CacheEntry; instanceCreateMs: number }>
 >();
 
-const emit = (event: MotherduckPoolEvent) => {
+const emit = (event: MotherduckCacheEvent) => {
     try {
         observer(event);
     } catch {
@@ -105,7 +105,7 @@ const closeInstance = (instance: DuckdbInstance) => {
     }
 };
 
-const closeEntry = (entry: PoolEntry) => {
+const closeEntry = (entry: CacheEntry) => {
     if (entry.closed || entry.refCount > 0) {
         return;
     }
@@ -116,7 +116,11 @@ const closeEntry = (entry: PoolEntry) => {
     closingEntry.resolveClose();
 };
 
-const unlinkEntry = (key: string, entry: PoolEntry, reason: EvictionReason) => {
+const unlinkEntry = (
+    key: string,
+    entry: CacheEntry,
+    reason: EvictionReason,
+) => {
     if (entries.get(key) !== entry) {
         return entry.closePromise;
     }
@@ -171,6 +175,8 @@ const createEntry = async (
     projectUuid?: string,
 ) => {
     const createStart = performance.now();
+    // Deliberately bypass fromCache(): mixing its unbounded singleton with this cache would create conflicting lifecycles.
+    // Revisit on @duckdb/node-api upgrades if the binding cache gains eviction bounds.
     const instance = await DuckDBInstance.create(connectionString);
     const instanceCreateMs = performance.now() - createStart;
     let resolveClose: () => void = () => undefined;
@@ -178,7 +184,7 @@ const createEntry = async (
         resolveClose = resolve;
     });
     const now = performance.now();
-    const entry: PoolEntry = {
+    const entry: CacheEntry = {
         instance,
         entryId: randomUUID(),
         projectUuid,
@@ -209,7 +215,7 @@ const createEntry = async (
 const acquire = async (
     connectionString: string,
     projectUuid?: string,
-): Promise<Acquisition> => {
+): Promise<CacheAcquisition> => {
     const waitStart = performance.now();
     sweep();
     const key = cacheKeyFor(connectionString);
@@ -250,13 +256,13 @@ const acquire = async (
     }
 };
 
-export const configure = (nextOptions: PoolOptions): void => {
+export const configure = (nextOptions: CacheOptions): void => {
     options = nextOptions;
     scheduleSweep();
 };
 
 export const setObserver = (
-    nextObserver: (event: MotherduckPoolEvent) => void,
+    nextObserver: (event: MotherduckCacheEvent) => void,
 ): void => {
     observer = nextObserver;
     emit({ type: 'size', entries: entries.size });
@@ -350,7 +356,7 @@ export const resetForTesting = (): void => {
     scheduleSweep();
 };
 
-export const MotherduckInstancePool = {
+export const MotherduckInstanceCache = {
     configure,
     setObserver,
     withInstance,

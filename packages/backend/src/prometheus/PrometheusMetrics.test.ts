@@ -95,7 +95,7 @@ describe('getHttpUriLabel', () => {
     });
 });
 
-describe('MotherDuck instance pool metrics', () => {
+describe('MotherDuck instance cache metrics', () => {
     beforeEach(() => {
         prometheus.register.clear();
     });
@@ -106,38 +106,38 @@ describe('MotherDuck instance pool metrics', () => {
 
     it('exposes enough project-scoped signals to evaluate a canary', async () => {
         const metrics = new PrometheusMetrics(lightdashConfigMock.prometheus);
-        metrics.motherduckPoolAcquisitionCounter = new prometheus.Counter({
-            name: 'test_motherduck_pool_acquisitions_total',
+        metrics.motherduckCacheAcquisitionCounter = new prometheus.Counter({
+            name: 'test_motherduck_cache_acquisitions_total',
             help: 'test',
             labelNames: ['result', 'project_uuid'],
         });
-        metrics.motherduckPoolInstanceCreatedCounter = new prometheus.Counter({
-            name: 'test_motherduck_pool_instances_created_total',
+        metrics.motherduckCacheInstanceCreatedCounter = new prometheus.Counter({
+            name: 'test_motherduck_cache_instances_created_total',
             help: 'test',
             labelNames: ['project_uuid'],
         });
-        metrics.motherduckPoolEvictionCounter = new prometheus.Counter({
-            name: 'test_motherduck_pool_evictions_total',
+        metrics.motherduckCacheEvictionCounter = new prometheus.Counter({
+            name: 'test_motherduck_cache_evictions_total',
             help: 'test',
             labelNames: ['reason', 'project_uuid'],
         });
-        metrics.motherduckPoolSizeGauge = new prometheus.Gauge({
-            name: 'test_motherduck_pool_entries',
+        metrics.motherduckCacheSizeGauge = new prometheus.Gauge({
+            name: 'test_motherduck_cache_entries',
             help: 'test',
         });
-        metrics.motherduckPoolRetryCounter = new prometheus.Counter({
-            name: 'test_motherduck_pool_retries_total',
+        metrics.motherduckCacheRetryCounter = new prometheus.Counter({
+            name: 'test_motherduck_cache_retries_total',
             help: 'test',
             labelNames: ['outcome'],
         });
-        metrics.motherduckPoolAcquireDurationHistogram =
+        metrics.motherduckCacheAcquireDurationHistogram =
             new prometheus.Histogram({
-                name: 'test_motherduck_pool_acquire_duration_seconds',
+                name: 'test_motherduck_cache_acquire_duration_seconds',
                 help: 'test',
                 labelNames: ['result', 'project_uuid'],
             });
 
-        metrics.observeMotherduckPoolEvent({
+        metrics.observeMotherduckCacheEvent({
             type: 'acquire',
             result: 'miss',
             entryId: 'entry-a',
@@ -146,7 +146,7 @@ describe('MotherDuck instance pool metrics', () => {
             instanceCreateMs: 20,
             connectMs: 30,
         });
-        metrics.observeMotherduckPoolEvent({
+        metrics.observeMotherduckCacheEvent({
             type: 'acquire',
             result: 'hit',
             entryId: 'entry-a',
@@ -155,22 +155,22 @@ describe('MotherDuck instance pool metrics', () => {
             instanceCreateMs: 0,
             connectMs: 2,
         });
-        metrics.observeMotherduckPoolEvent({
+        metrics.observeMotherduckCacheEvent({
             type: 'evict',
             entryId: 'entry-a',
             projectUuid: 'project-a',
             reason: 'idle_ttl',
             ageMs: 1000,
         });
-        metrics.observeMotherduckPoolEvent({
+        metrics.observeMotherduckCacheEvent({
             type: 'retry',
             entryId: 'entry-a',
             outcome: 'recovered',
         });
-        metrics.observeMotherduckPoolEvent({ type: 'size', entries: 2 });
+        metrics.observeMotherduckCacheEvent({ type: 'size', entries: 2 });
 
         await expect(
-            metrics.motherduckPoolAcquisitionCounter.get(),
+            metrics.motherduckCacheAcquisitionCounter.get(),
         ).resolves.toMatchObject({
             values: expect.arrayContaining([
                 expect.objectContaining({
@@ -184,7 +184,7 @@ describe('MotherDuck instance pool metrics', () => {
             ]),
         });
         await expect(
-            metrics.motherduckPoolInstanceCreatedCounter.get(),
+            metrics.motherduckCacheInstanceCreatedCounter.get(),
         ).resolves.toMatchObject({
             values: [
                 expect.objectContaining({
@@ -194,7 +194,7 @@ describe('MotherDuck instance pool metrics', () => {
             ],
         });
         await expect(
-            metrics.motherduckPoolEvictionCounter.get(),
+            metrics.motherduckCacheEvictionCounter.get(),
         ).resolves.toMatchObject({
             values: [
                 expect.objectContaining({
@@ -207,7 +207,7 @@ describe('MotherDuck instance pool metrics', () => {
             ],
         });
         await expect(
-            metrics.motherduckPoolRetryCounter.get(),
+            metrics.motherduckCacheRetryCounter.get(),
         ).resolves.toMatchObject({
             values: [
                 expect.objectContaining({
@@ -217,23 +217,23 @@ describe('MotherDuck instance pool metrics', () => {
             ],
         });
         await expect(
-            metrics.motherduckPoolSizeGauge.get(),
+            metrics.motherduckCacheSizeGauge.get(),
         ).resolves.toMatchObject({
             values: [expect.objectContaining({ value: 2 })],
         });
         await expect(
-            metrics.motherduckPoolAcquireDurationHistogram.get(),
+            metrics.motherduckCacheAcquireDurationHistogram.get(),
         ).resolves.toMatchObject({
             values: expect.arrayContaining([
                 expect.objectContaining({
                     metricName:
-                        'test_motherduck_pool_acquire_duration_seconds_sum',
+                        'test_motherduck_cache_acquire_duration_seconds_sum',
                     labels: { result: 'miss', project_uuid: 'project-a' },
                     value: 0.06,
                 }),
                 expect.objectContaining({
                     metricName:
-                        'test_motherduck_pool_acquire_duration_seconds_sum',
+                        'test_motherduck_cache_acquire_duration_seconds_sum',
                     labels: { result: 'hit', project_uuid: 'project-a' },
                     value: 0.003,
                 }),

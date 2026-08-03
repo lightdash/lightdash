@@ -15,7 +15,7 @@ import {
     mapFieldTypeFromTypeId,
     type DuckdbS3Credentials,
 } from './DuckdbWarehouseClient';
-import * as MotherduckInstancePool from './MotherduckInstancePool';
+import * as MotherduckInstanceCache from './MotherduckInstanceCache';
 
 const createInstanceMock = vi.fn();
 
@@ -206,8 +206,8 @@ describe('DuckdbWarehouseClient', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         DuckdbWarehouseClient.resetSharedDuckdbStateForTesting();
-        MotherduckInstancePool.resetForTesting();
-        MotherduckInstancePool.configure({
+        MotherduckInstanceCache.resetForTesting();
+        MotherduckInstanceCache.configure({
             idleTtlMs: 60_000,
             maxAgeMs: 60_000,
             maxEntries: 8,
@@ -372,7 +372,7 @@ describe('DuckdbWarehouseClient', () => {
         );
     });
 
-    describe('MotherDuck instance pooling', () => {
+    describe('MotherDuck instance caching', () => {
         const credentials = {
             type: WarehouseTypes.DUCKDB,
             connectionType: DuckdbConnectionType.MOTHERDUCK,
@@ -391,7 +391,7 @@ describe('DuckdbWarehouseClient', () => {
                 createMockConnection(streamMock, runMock),
             );
             const client = new DuckdbWarehouseClient(credentials, {
-                enableInstancePool: true,
+                enableInstanceCache: true,
                 projectUuid: 'project-a',
             });
 
@@ -421,7 +421,7 @@ describe('DuckdbWarehouseClient', () => {
             );
             const client = new DuckdbWarehouseClient(
                 { ...credentials, requireUserCredentials: true },
-                { enableInstancePool: true, projectUuid: 'project-a' },
+                { enableInstanceCache: true, projectUuid: 'project-a' },
             );
 
             await client.runQuery('SELECT 1 AS val');
@@ -431,8 +431,8 @@ describe('DuckdbWarehouseClient', () => {
         });
 
         it('retries one stale failure before rows are emitted and replaces only the failed entry', async () => {
-            const events: MotherduckInstancePool.MotherduckPoolEvent[] = [];
-            MotherduckInstancePool.setObserver((event) => events.push(event));
+            const events: MotherduckInstanceCache.MotherduckCacheEvent[] = [];
+            MotherduckInstanceCache.setObserver((event) => events.push(event));
             const staleError = new Error(
                 'Connection Error: Connection has already been closed',
             );
@@ -446,7 +446,7 @@ describe('DuckdbWarehouseClient', () => {
                 .mockResolvedValueOnce(firstInstance)
                 .mockResolvedValueOnce(recoveredInstance);
             const client = new DuckdbWarehouseClient(credentials, {
-                enableInstancePool: true,
+                enableInstanceCache: true,
                 projectUuid: 'project-a',
             });
 
@@ -471,8 +471,8 @@ describe('DuckdbWarehouseClient', () => {
         });
 
         it('reports a failed retry and does not loop on a second stale failure', async () => {
-            const events: MotherduckInstancePool.MotherduckPoolEvent[] = [];
-            MotherduckInstancePool.setObserver((event) => events.push(event));
+            const events: MotherduckInstanceCache.MotherduckCacheEvent[] = [];
+            MotherduckInstanceCache.setObserver((event) => events.push(event));
             const staleError = new Error(
                 'Connection Error: Connection has already been closed',
             );
@@ -486,7 +486,7 @@ describe('DuckdbWarehouseClient', () => {
                 .mockResolvedValueOnce(firstInstance)
                 .mockResolvedValueOnce(secondInstance);
             const client = new DuckdbWarehouseClient(credentials, {
-                enableInstancePool: true,
+                enableInstanceCache: true,
                 projectUuid: 'project-a',
             });
 
@@ -506,8 +506,8 @@ describe('DuckdbWarehouseClient', () => {
         });
 
         it('does not retry a stale failure after rows reached the consumer', async () => {
-            const events: MotherduckInstancePool.MotherduckPoolEvent[] = [];
-            MotherduckInstancePool.setObserver((event) => events.push(event));
+            const events: MotherduckInstanceCache.MotherduckCacheEvent[] = [];
+            MotherduckInstanceCache.setObserver((event) => events.push(event));
             const staleError = new Error(
                 'Invalid Input Error: Cannot execute statement of closed connection',
             );
@@ -538,7 +538,7 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(instance);
             const streamCallback = vi.fn();
             const client = new DuckdbWarehouseClient(credentials, {
-                enableInstancePool: true,
+                enableInstanceCache: true,
                 projectUuid: 'project-a',
             });
 
@@ -560,8 +560,8 @@ describe('DuckdbWarehouseClient', () => {
         });
 
         it('invalidates authentication failures without retrying', async () => {
-            const events: MotherduckInstancePool.MotherduckPoolEvent[] = [];
-            MotherduckInstancePool.setObserver((event) => events.push(event));
+            const events: MotherduckInstanceCache.MotherduckCacheEvent[] = [];
+            MotherduckInstanceCache.setObserver((event) => events.push(event));
             const authError = new Error(
                 'Invalid Input Error: MD Authentication Error: Invalid token',
             );
@@ -569,7 +569,7 @@ describe('DuckdbWarehouseClient', () => {
             const instance = createMockConnection(streamMock);
             createInstanceMock.mockResolvedValue(instance);
             const client = new DuckdbWarehouseClient(credentials, {
-                enableInstancePool: true,
+                enableInstanceCache: true,
                 projectUuid: 'project-a',
             });
 
@@ -589,7 +589,7 @@ describe('DuckdbWarehouseClient', () => {
             );
         });
 
-        it('never includes the cache digest in pooled log lines or metadata', async () => {
+        it('never includes the cache digest in cached-instance log lines or metadata', async () => {
             const streamMock = vi.fn(async () =>
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
             );
@@ -598,7 +598,7 @@ describe('DuckdbWarehouseClient', () => {
                 createMockConnection(streamMock),
             );
             const client = new DuckdbWarehouseClient(credentials, {
-                enableInstancePool: true,
+                enableInstanceCache: true,
                 projectUuid: 'project-a',
                 logger,
             });

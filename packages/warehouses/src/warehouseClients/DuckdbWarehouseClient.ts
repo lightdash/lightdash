@@ -34,7 +34,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { classifyMotherduckError } from './MotherduckErrorClassifier';
-import * as MotherduckInstancePool from './MotherduckInstancePool';
+import * as MotherduckInstanceCache from './MotherduckInstanceCache';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -150,7 +150,7 @@ export type DuckdbWarehouseClientOptions = {
     enableQueryProfiling?: boolean;
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
     embeddedQueryTimeoutMs?: number;
-    enableInstancePool?: boolean;
+    enableInstanceCache?: boolean;
     projectUuid?: string;
 };
 
@@ -454,7 +454,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly embeddedQueryTimeoutMs: number;
 
-    private readonly enableInstancePool: boolean;
+    private readonly enableInstanceCache: boolean;
 
     private readonly projectUuid?: string;
 
@@ -575,7 +575,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.onQueryProfile = options?.onQueryProfile;
         this.embeddedQueryTimeoutMs =
             options?.embeddedQueryTimeoutMs ?? EMBEDDED_QUERY_TIMEOUT_MS;
-        this.enableInstancePool = options?.enableInstancePool ?? false;
+        this.enableInstanceCache = options?.enableInstanceCache ?? false;
         this.projectUuid = options?.projectUuid;
     }
 
@@ -1515,10 +1515,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
         if (this.isMotherduck()) {
             if (
-                this.enableInstancePool &&
+                this.enableInstanceCache &&
                 this.credentials.requireUserCredentials !== true
             ) {
-                return this.withMotherduckPooledSession(
+                return this.withMotherduckCachedSession(
                     callback,
                     retryable,
                     onPhaseTiming,
@@ -1538,7 +1538,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return this.withEphemeralQuerySession(callback);
     }
 
-    private async withMotherduckPooledSession<T>(
+    private async withMotherduckCachedSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
         retryable: () => boolean,
         onPhaseTiming?: (
@@ -1549,7 +1549,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         let activeEntryId: string | undefined;
 
         const runAttempt = () =>
-            MotherduckInstancePool.withInstance(
+            MotherduckInstanceCache.withInstance(
                 this.databasePath,
                 { projectUuid: this.projectUuid },
                 async (instance, entryId) => {
@@ -1566,7 +1566,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                         const queryMs = performance.now() - queryStart;
                         const totalMs = performance.now() - sessionStart;
                         this.logger?.info(
-                            `MotherDuck pooled session complete: entry_id=${entryId} connect=${formatMilliseconds(connectMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
+                            `MotherDuck cached-instance session complete: entry_id=${entryId} connect=${formatMilliseconds(connectMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
                             {
                                 entryId,
                                 projectUuid: this.projectUuid,
@@ -1590,7 +1590,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             const failedEntryId = activeEntryId;
             if (errorClass === 'auth') {
                 if (failedEntryId) {
-                    await MotherduckInstancePool.invalidate(
+                    await MotherduckInstanceCache.invalidate(
                         failedEntryId,
                         'auth',
                     );
@@ -1601,7 +1601,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 throw error;
             }
 
-            await MotherduckInstancePool.invalidate(failedEntryId, 'stale');
+            await MotherduckInstanceCache.invalidate(failedEntryId, 'stale');
             if (!retryable()) {
                 throw error;
             }
@@ -1609,28 +1609,34 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             activeEntryId = undefined;
             try {
                 const result = await runAttempt();
-                MotherduckInstancePool.recordRetry(failedEntryId, 'recovered');
-                this.logger?.info('MotherDuck pooled session retry recovered', {
-                    entryId: failedEntryId,
-                    projectUuid: this.projectUuid,
-                });
+                MotherduckInstanceCache.recordRetry(failedEntryId, 'recovered');
+                this.logger?.info(
+                    'MotherDuck cached-instance session retry recovered',
+                    {
+                        entryId: failedEntryId,
+                        projectUuid: this.projectUuid,
+                    },
+                );
                 return result;
             } catch (retryError) {
-                MotherduckInstancePool.recordRetry(failedEntryId, 'failed');
+                MotherduckInstanceCache.recordRetry(failedEntryId, 'failed');
                 const retryErrorClass = classifyMotherduckError(retryError);
                 if (
                     activeEntryId &&
                     (retryErrorClass === 'stale' || retryErrorClass === 'auth')
                 ) {
-                    await MotherduckInstancePool.invalidate(
+                    await MotherduckInstanceCache.invalidate(
                         activeEntryId,
                         retryErrorClass,
                     );
                 }
-                this.logger?.info('MotherDuck pooled session retry failed', {
-                    entryId: failedEntryId,
-                    projectUuid: this.projectUuid,
-                });
+                this.logger?.info(
+                    'MotherDuck cached-instance session retry failed',
+                    {
+                        entryId: failedEntryId,
+                        projectUuid: this.projectUuid,
+                    },
+                );
                 throw retryError;
             }
         }

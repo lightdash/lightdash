@@ -39,9 +39,9 @@ beforeEach(() => {
     };
 });
 
-describe('MotherDuck instance pool config', () => {
-    it('defaults to disabled with bounded pool defaults', () => {
-        expect(parseConfig().motherduckInstancePool).toEqual({
+describe('MotherDuck instance cache config', () => {
+    it('defaults to disabled with bounded cache defaults', () => {
+        expect(parseConfig().motherduckInstanceCache).toEqual({
             enabled: false,
             projectUuids: [],
             idleTtlMs: 600000,
@@ -51,14 +51,14 @@ describe('MotherDuck instance pool config', () => {
     });
 
     it('parses enablement, project allowlist, and resource bounds', () => {
-        process.env.MOTHERDUCK_INSTANCE_POOL_ENABLED = 'true';
-        process.env.MOTHERDUCK_INSTANCE_POOL_PROJECT_UUIDS =
+        process.env.MOTHERDUCK_INSTANCE_CACHE_ENABLED = 'true';
+        process.env.MOTHERDUCK_INSTANCE_CACHE_PROJECT_UUIDS =
             'project-a, project-b';
-        process.env.MOTHERDUCK_INSTANCE_POOL_IDLE_TTL_MS = '1000';
-        process.env.MOTHERDUCK_INSTANCE_POOL_MAX_AGE_MS = '2000';
-        process.env.MOTHERDUCK_INSTANCE_POOL_MAX_ENTRIES = '3';
+        process.env.MOTHERDUCK_INSTANCE_CACHE_IDLE_TTL_MS = '1000';
+        process.env.MOTHERDUCK_INSTANCE_CACHE_MAX_AGE_MS = '2000';
+        process.env.MOTHERDUCK_INSTANCE_CACHE_MAX_ENTRIES = '3';
 
-        expect(parseConfig().motherduckInstancePool).toEqual({
+        expect(parseConfig().motherduckInstanceCache).toEqual({
             enabled: true,
             projectUuids: ['project-a', 'project-b'],
             idleTtlMs: 1000,
