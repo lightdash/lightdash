@@ -1,6 +1,7 @@
 import {
     ForbiddenError,
     NotFoundError,
+    ParameterError,
     UnexpectedServerError,
     type Account,
 } from '@lightdash/common';
@@ -78,8 +79,8 @@ const coursePayload = {
 const jsonResponse = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), { status });
 
-const buildService = ({ flagEnabled = true } = {}) => {
-    const serviceToken = 'service-token-1';
+const buildService = ({ flagEnabled = true, withToken = true } = {}) => {
+    const serviceToken = withToken ? 'service-token-1' : undefined;
     const featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: flagEnabled }),
     };
@@ -193,6 +194,90 @@ describe('LearnService', () => {
                 `https://content.test/${catalogueEntry.path}`,
                 expect.anything(),
             );
+        });
+    });
+
+    describe('getProgress', () => {
+        it('reports serverSynced: false without a service token and never calls upstream', async () => {
+            const { service } = buildService({ withToken: false });
+            const result = await service.getProgress(buildAccount());
+            expect(result).toEqual({ courses: null, serverSynced: false });
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('proxies with the server-held token and the session email', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(
+                jsonResponse({
+                    email: 'learner+test@example.com',
+                    courses: [],
+                }),
+            );
+            const result = await service.getProgress(buildAccount());
+            expect(result).toEqual({ courses: [], serverSynced: true });
+            const [url, init] = fetchMock.mock.calls[0];
+            expect(url).toBe(
+                'https://progress.test/api/v1/progress?email=learner%2Btest%40example.com',
+            );
+            expect((init.headers as Record<string, string>).authorization).toBe(
+                'Bearer service-token-1',
+            );
+        });
+    });
+
+    describe('recordEvents', () => {
+        const validEvent = {
+            verb: 'started',
+            object: { type: 'course', course: 'viewer-fundamentals' },
+            occurredAt: '2026-08-01T00:00:00.000Z',
+        };
+
+        it('rejects invalid payloads with ParameterError', async () => {
+            const { service } = buildService();
+            await expect(
+                service.recordEvents(buildAccount(), [{ nope: true }]),
+            ).rejects.toThrow(ParameterError);
+            await expect(
+                service.recordEvents(buildAccount(), []),
+            ).rejects.toThrow(ParameterError);
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('rejects batches over 100 events', async () => {
+            const { service } = buildService();
+            const events = Array.from({ length: 101 }, () => validEvent);
+            await expect(
+                service.recordEvents(buildAccount(), events),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('accepts and drops events when no service token is configured', async () => {
+            const { service } = buildService({ withToken: false });
+            const result = await service.recordEvents(buildAccount(), [
+                validEvent,
+            ]);
+            expect(result).toEqual({ accepted: 0 });
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('stamps source: learn on every event before forwarding', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(jsonResponse({ accepted: 1 }));
+            const result = await service.recordEvents(buildAccount(), [
+                validEvent,
+            ]);
+            expect(result).toEqual({ accepted: 1 });
+            const [, init] = fetchMock.mock.calls[0];
+            const body = JSON.parse(init.body as string);
+            expect(body[0].source).toBe('learn');
+        });
+
+        it('maps upstream write failures to UnexpectedServerError', async () => {
+            const { service } = buildService();
+            fetchMock.mockResolvedValue(jsonResponse({}, 500));
+            await expect(
+                service.recordEvents(buildAccount(), [validEvent]),
+            ).rejects.toThrow(UnexpectedServerError);
         });
     });
 });

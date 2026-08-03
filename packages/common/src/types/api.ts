@@ -200,6 +200,8 @@ import { type ApiImpersonationOrganizationSettingsResponse } from './impersonati
 import {
     type ApiLearnCatalogueResponse,
     type ApiLearnCourseResponse,
+    type ApiLearnEventsResponse,
+    type ApiLearnProgressResponse,
 } from './learn';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
@@ -1149,6 +1151,8 @@ type ApiResults =
     | ApiRoadmapResponse['results']
     | ApiLearnCatalogueResponse['results']
     | ApiLearnCourseResponse['results']
+    | ApiLearnProgressResponse['results']
+    | ApiLearnEventsResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

@@ -4,17 +4,24 @@ import {
     ForbiddenError,
     LearnCatalogueSchema,
     LearnCourseSchema,
+    LearnEventInputSchema,
+    LearnProgressResponseSchema,
     NotFoundError,
+    ParameterError,
     UnexpectedServerError,
     type Account,
+    type ApiLearnEventsResponse,
     type LearnCatalogue,
     type LearnCourse,
+    type LearnEventInput,
+    type LearnProgressResults,
 } from '@lightdash/common';
 import type { LightdashConfig } from '../../config/parseConfig';
 import { BaseService } from '../BaseService';
 import type { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 
 const LEARN_REQUEST_TIMEOUT_MS = 10_000;
+const MAX_EVENTS_PER_REQUEST = 100;
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
@@ -123,5 +130,87 @@ export class LearnService extends BaseService {
             ...parsed.data,
             assetBaseUrl: `${contentBaseUrl}/courses/${entry.id}/${entry.contentHash}`,
         };
+    }
+
+    private progressRequest(
+        account: Account,
+        path: string,
+        init: RequestInit = {},
+    ): Promise<Response> {
+        const { progressApiUrl, serviceToken } = this.lightdashConfig.learn;
+        if (!serviceToken) {
+            throw new UnexpectedServerError('Learn progress is not configured');
+        }
+        const email = encodeURIComponent(account.user?.email ?? '');
+        return this.fetchUpstream(`${progressApiUrl}${path}?email=${email}`, {
+            ...init,
+            headers: {
+                'content-type': 'application/json',
+                authorization: `Bearer ${serviceToken}`,
+                ...(init.headers ?? {}),
+            },
+        });
+    }
+
+    async getProgress(account: Account): Promise<LearnProgressResults> {
+        await this.assertLearnEnabled(account);
+        if (!this.lightdashConfig.learn.serviceToken) {
+            return { courses: null, serverSynced: false };
+        }
+        const response = await this.progressRequest(
+            account,
+            '/api/v1/progress',
+        );
+        if (!response.ok) {
+            this.logger.warn('Learn progress service returned an error', {
+                statusCode: response.status,
+            });
+            throw new UnexpectedServerError('Could not load Learn progress');
+        }
+        const parsed = LearnProgressResponseSchema.safeParse(
+            await LearnService.parseJson(response),
+        );
+        if (!parsed.success) {
+            this.logger.warn('Learn progress failed validation', {
+                issueCount: parsed.error.issues.length,
+            });
+            throw new UnexpectedServerError('Could not load Learn progress');
+        }
+        return { courses: parsed.data.courses, serverSynced: true };
+    }
+
+    async recordEvents(
+        account: Account,
+        events: unknown,
+    ): Promise<ApiLearnEventsResponse['results']> {
+        await this.assertLearnEnabled(account);
+        const parsed = LearnEventInputSchema.array()
+            .min(1)
+            .max(MAX_EVENTS_PER_REQUEST)
+            .safeParse(events);
+        if (!parsed.success) {
+            throw new ParameterError('Invalid Learn events payload');
+        }
+        if (!this.lightdashConfig.learn.serviceToken) {
+            // No server sync configured: accept and drop — the client also
+            // keeps local progress, so learners lose nothing they can see.
+            return { accepted: 0 };
+        }
+        const body: Array<LearnEventInput & { source: 'learn' }> =
+            parsed.data.map((event) => ({ ...event, source: 'learn' }));
+        const response = await this.progressRequest(account, '/api/v1/events', {
+            method: 'POST',
+            body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+            this.logger.warn('Learn events write failed', {
+                statusCode: response.status,
+            });
+            throw new UnexpectedServerError('Could not save Learn progress');
+        }
+        const payload = (await LearnService.parseJson(response)) as {
+            accepted?: number;
+        };
+        return { accepted: payload.accepted ?? body.length };
     }
 }

@@ -1,4 +1,8 @@
-import type { LearnCatalogueEntry, LearnEventInput } from '@lightdash/common';
+import type {
+    LearnCatalogueEntry,
+    LearnCourseProgress,
+    LearnEventInput,
+} from '@lightdash/common';
 
 // Pure derivations for the Learn section, ported from the Lightdash
 // University academy so both surfaces order, group and lay out the catalogue
@@ -59,6 +63,36 @@ export function rollupFromEvents(
     }
     if (rollup.passed) rollup.completed = true;
     return rollup;
+}
+
+export function rollupFromServer(progress: LearnCourseProgress): Rollup {
+    return {
+        started: progress.startedAt !== null,
+        lessonsCompleted: new Set(progress.lessonsCompleted),
+        bestScore: progress.quiz?.bestScore ?? null,
+        passed: progress.quiz?.passed ?? false,
+        completed:
+            progress.completedAt !== null || (progress.quiz?.passed ?? false),
+    };
+}
+
+export function mergeRollups(a: Rollup, b: Rollup): Rollup {
+    const bestScore =
+        a.bestScore === null
+            ? b.bestScore
+            : b.bestScore === null
+              ? a.bestScore
+              : Math.max(a.bestScore, b.bestScore);
+    return {
+        started: a.started || b.started,
+        lessonsCompleted: new Set([
+            ...a.lessonsCompleted,
+            ...b.lessonsCompleted,
+        ]),
+        bestScore,
+        passed: a.passed || b.passed,
+        completed: a.completed || b.completed,
+    };
 }
 
 export function cardState(rollup: Rollup | undefined): CardState {
