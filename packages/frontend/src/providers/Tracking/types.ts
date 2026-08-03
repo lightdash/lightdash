@@ -733,7 +733,7 @@ type OrganizationBrandDetectedEvent = {
 type OnboardingWarehouseSelectedEvent = {
     name: EventName.ONBOARDING_WAREHOUSE_SELECTED;
     properties: {
-        organizationId: string;
+        organizationId: string | null;
         warehouse: string;
         tier: 'popular' | 'all' | 'other';
         onboardingFlow: 'legacy' | 'new';
@@ -765,6 +765,7 @@ type SnowflakeCliSsoConnectCompletedEvent = {
 type OnboardingProjectReadyStartExploringClickedEvent = {
     name: EventName.ONBOARDING_PROJECT_READY_START_EXPLORING_CLICKED;
     properties: {
+        organizationId: string | null;
         projectId: string;
         onboardingFlow: 'legacy' | 'new';
     };
