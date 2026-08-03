@@ -8,11 +8,29 @@ import { useModelOptions } from './useModelOptions';
 // Schema-bump escape hatch: bumping the version invalidates older shapes
 // rather than requiring runtime migration.
 const STORAGE_KEY_PREFIX = 'aiAgentsModelSelection:v1';
+// Storage scope for agent-less contexts (the router page).
+const NO_AGENT_SCOPE = '_';
 
 type StoredModelSelection = {
     modelKey: string | null;
     extendedThinking: boolean | null;
 };
+
+// Storage is user-writable, so narrow each field instead of trusting the shape.
+const normalizeStoredSelection = (
+    value: StoredModelSelection | null,
+): StoredModelSelection => ({
+    modelKey: typeof value?.modelKey === 'string' ? value.modelKey : null,
+    extendedThinking:
+        typeof value?.extendedThinking === 'boolean'
+            ? value.extendedThinking
+            : null,
+});
+
+const clampExtendedThinking = (
+    supportsReasoning: boolean,
+    extendedThinking: boolean | null,
+): boolean | null => (supportsReasoning ? extendedThinking : false);
 
 export const getModelOptionByKey = (
     modelOptions: AiModelOption[] | undefined,
@@ -134,9 +152,10 @@ const modelSelectionReducer = (
         case 'setModel':
             return {
                 selectedModelKey: action.modelKey,
-                extendedThinking: action.supportsReasoning
-                    ? action.extendedThinking
-                    : false,
+                extendedThinking: clampExtendedThinking(
+                    action.supportsReasoning,
+                    action.extendedThinking,
+                ),
             };
     }
 };
@@ -168,18 +187,14 @@ export const useAiAgentModelSelection = ({
     // admin-configured default of another.
     const [storedSelection, setStoredSelection] =
         useLocalStorage<StoredModelSelection | null>({
-            key: `${STORAGE_KEY_PREFIX}:${agentUuid ?? '_'}`,
+            key: `${STORAGE_KEY_PREFIX}:${agentUuid ?? NO_AGENT_SCOPE}`,
             defaultValue: null,
             getInitialValueInEffect: false,
         });
-    const storedModelKey =
-        typeof storedSelection?.modelKey === 'string'
-            ? storedSelection.modelKey
-            : null;
-    const storedExtendedThinking =
-        typeof storedSelection?.extendedThinking === 'boolean'
-            ? storedSelection.extendedThinking
-            : null;
+    const {
+        modelKey: storedModelKey,
+        extendedThinking: storedExtendedThinking,
+    } = normalizeStoredSelection(storedSelection);
     const organizationDefaultModelConfig =
         aiOrganizationSettings?.defaultAiAgentModelConfig;
     const resolvedDefaultModelConfig =
@@ -215,7 +230,9 @@ export const useAiAgentModelSelection = ({
 
     const effectiveExtendedThinking =
         extendedThinking ??
-        (selectedModel?.supportsReasoning ? storedExtendedThinking : null) ??
+        (storedModel && selectedModel?.supportsReasoning
+            ? storedExtendedThinking
+            : null) ??
         defaultModelSelection?.extendedThinking ??
         false;
 
@@ -231,14 +248,22 @@ export const useAiAgentModelSelection = ({
                 supportsReasoning,
                 extendedThinking: effectiveExtendedThinking,
             });
+            // Persist the raw toggle (null = untouched) so a displayed default
+            // isn't captured as a user preference.
             setStoredSelection({
                 modelKey,
-                extendedThinking: supportsReasoning
-                    ? effectiveExtendedThinking
-                    : false,
+                extendedThinking: clampExtendedThinking(
+                    supportsReasoning,
+                    extendedThinking,
+                ),
             });
         },
-        [effectiveExtendedThinking, modelOptions, setStoredSelection],
+        [
+            effectiveExtendedThinking,
+            extendedThinking,
+            modelOptions,
+            setStoredSelection,
+        ],
     );
 
     const handleExtendedThinkingChange = useCallback(
@@ -247,13 +272,17 @@ export const useAiAgentModelSelection = ({
                 type: 'setExtendedThinking',
                 extendedThinking: extendedThinkingValue,
             });
-            // Keeps modelKey untouched so toggling reasoning alone doesn't pin
-            // the current default model as a user preference.
-            setStoredSelection((prev) => ({
-                modelKey:
-                    typeof prev?.modelKey === 'string' ? prev.modelKey : null,
-                extendedThinking: extendedThinkingValue,
-            }));
+            // Persist only alongside a stored model pick — a thinking-only
+            // toggle must not pin the current default model as a preference.
+            setStoredSelection((prev) => {
+                const normalized = normalizeStoredSelection(prev ?? null);
+                return normalized.modelKey === null
+                    ? normalized
+                    : {
+                          ...normalized,
+                          extendedThinking: extendedThinkingValue,
+                      };
+            });
         },
         [setStoredSelection],
     );
@@ -270,8 +299,7 @@ export const useAiAgentModelSelection = ({
         isModelSelectionExplicit:
             selectedModelKey !== null ||
             extendedThinking !== null ||
-            storedModel !== undefined ||
-            storedExtendedThinking !== null,
+            storedModel !== undefined,
         modelConfig,
         modelOptions,
         selectedModel,
