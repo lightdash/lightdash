@@ -2,6 +2,7 @@ import {
     getManagedAgentScheduleCron,
     getManagedAgentScheduleOption,
     ManagedAgentRunStatus,
+    resolveManagedAgentPolicy,
     type CreateManagedAgentAction,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
@@ -47,6 +48,7 @@ export class ManagedAgentModel {
             enabledByUserUuid: row.enabled_by_user_uuid,
             slackChannelId: row.slack_channel_id,
             toolSettings: row.tool_settings ?? {},
+            policy: resolveManagedAgentPolicy(row.policy),
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
@@ -146,6 +148,16 @@ export class ManagedAgentModel {
         userUuid: string,
         update: UpdateManagedAgentSettings,
     ): Promise<ManagedAgentSettings> {
+        // Policy is stored as sparse overrides; merge the partial update into
+        // the stored overrides so unset fields keep tracking defaults.
+        let mergedPolicy: Record<string, unknown> | undefined;
+        if (update.policy !== undefined) {
+            const existing = await this.database(ManagedAgentSettingsTableName)
+                .where({ project_uuid: projectUuid })
+                .select('policy')
+                .first();
+            mergedPolicy = { ...(existing?.policy ?? {}), ...update.policy };
+        }
         const [row] = await this.database(ManagedAgentSettingsTableName)
             .insert({
                 project_uuid: projectUuid,
@@ -154,6 +166,7 @@ export class ManagedAgentModel {
                 enabled_by_user_uuid: update.enabled ? userUuid : null,
                 slack_channel_id: update.slackChannelId ?? null,
                 tool_settings: update.toolSettings ?? {},
+                policy: mergedPolicy ?? {},
                 updated_at: new Date(),
             })
             .onConflict('project_uuid')
@@ -167,6 +180,9 @@ export class ManagedAgentModel {
                 }),
                 ...(update.toolSettings !== undefined && {
                     tool_settings: update.toolSettings,
+                }),
+                ...(mergedPolicy !== undefined && {
+                    policy: mergedPolicy,
                 }),
                 enabled_by_user_uuid: update.enabled ? userUuid : undefined,
                 updated_at: new Date(),
