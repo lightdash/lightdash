@@ -1,3 +1,17 @@
+# [1.71.0](https://github.com/lightdash/lightdash/compare/1.70.0...1.71.0) (2026-08-03)
+
+
+### Bug Fixes
+
+* **homepage:** builder drop affordances match the row width envelope ([#26736](https://github.com/lightdash/lightdash/issues/26736)) ([87d7b9f](https://github.com/lightdash/lightdash/commit/87d7b9f1b04c6aae83d8c76c6d39a44ce2a8add6)), closes [#26733](https://github.com/lightdash/lightdash/issues/26733) [#26732](https://github.com/lightdash/lightdash/issues/26732) [#26732](https://github.com/lightdash/lightdash/issues/26732)
+* **homepage:** remove hero opening swap control, compact the opening-size control ([#26737](https://github.com/lightdash/lightdash/issues/26737)) ([b741322](https://github.com/lightdash/lightdash/commit/b741322b805bb3487b90901d6da18716c764f535)), closes [#26736](https://github.com/lightdash/lightdash/issues/26736)
+
+
+### Features
+
+* **homepage:** adaptive compact resources, description toggle, data-app peeks ([#26732](https://github.com/lightdash/lightdash/issues/26732)) ([8824120](https://github.com/lightdash/lightdash/commit/8824120c6040376b7dc8abd7f2483d685a65c1fd)), closes [#26581](https://github.com/lightdash/lightdash/issues/26581)
+* **homepage:** collection layouts (cards/compact) + content-type filter ([#26733](https://github.com/lightdash/lightdash/issues/26733)) ([3c2b584](https://github.com/lightdash/lightdash/commit/3c2b584ff8a27fd9f8128dae324ccc775d2f63d9)), closes [#26732](https://github.com/lightdash/lightdash/issues/26732) [#26732](https://github.com/lightdash/lightdash/issues/26732)
+
 # [1.70.0](https://github.com/lightdash/lightdash/compare/1.69.1...1.70.0) (2026-08-03)
 
 

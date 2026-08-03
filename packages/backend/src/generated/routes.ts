@@ -9435,6 +9435,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageContentLayout: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['card'] },
+                { dataType: 'enum', enums: ['list'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageCollectionBlock: {
         dataType: 'refAlias',
         type: {
@@ -9443,6 +9455,19 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        contentTypes: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'enum', enums: ['chart'] },
+                                    { dataType: 'enum', enums: ['dashboard'] },
+                                    { dataType: 'enum', enums: ['space'] },
+                                    { dataType: 'enum', enums: ['data_app'] },
+                                ],
+                            },
+                        },
+                        layout: { ref: 'HomepageContentLayout' },
                         limit: { dataType: 'double' },
                         verifiedOnly: { dataType: 'boolean' },
                         source: { ref: 'HomepageCollectionSource' },
@@ -9503,14 +9528,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageResourcesLayout: {
         dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['card'] },
-                { dataType: 'enum', enums: ['list'] },
-            ],
-            validators: {},
-        },
+        type: { ref: 'HomepageContentLayout', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageResourcesBlock: {
@@ -9521,6 +9539,7 @@ const models: TsoaRoute.Models = {
                 config: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        showDescriptions: { dataType: 'boolean' },
                         layout: { ref: 'HomepageResourcesLayout' },
                         items: {
                             dataType: 'array',

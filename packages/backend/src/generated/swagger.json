@@ -10046,10 +10046,31 @@
                 ],
                 "description": "Where a collection block's items come from.\n\n`manual` reads the block's own `items`. Every other source is a live rule\nresolved per viewer at render time — which is the point: a snapshot of\n\"most viewed\" is stale the week after it's taken, and a frozen copy of the\npin list stops tracking pins the moment it's published.\n\n`favorites` and `recently-viewed` are per-viewer; the rest are project-wide."
             },
+            "HomepageContentLayout": {
+                "type": "string",
+                "enum": ["card", "list"],
+                "description": "Shared display vocabulary for content-listing blocks: media-rich cards, or\na compact mode whose geometry (tile columns vs single-column rows) resolves\nfrom the block's width rather than being a third admin choice."
+            },
             "HomepageCollectionBlock": {
                 "properties": {
                     "config": {
                         "properties": {
+                            "contentTypes": {
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "chart",
+                                        "dashboard",
+                                        "space",
+                                        "data_app"
+                                    ]
+                                },
+                                "type": "array",
+                                "description": "Narrows live sources to these content types. Ignored for `manual`\n(hand-picking is already the filter) and when absent or empty."
+                            },
+                            "layout": {
+                                "$ref": "#/components/schemas/HomepageContentLayout"
+                            },
                             "limit": {
                                 "type": "number",
                                 "format": "double",
@@ -10124,13 +10145,15 @@
                 "type": "object"
             },
             "HomepageResourcesLayout": {
-                "type": "string",
-                "enum": ["card", "list"]
+                "$ref": "#/components/schemas/HomepageContentLayout"
             },
             "HomepageResourcesBlock": {
                 "properties": {
                     "config": {
                         "properties": {
+                            "showDescriptions": {
+                                "type": "boolean"
+                            },
                             "layout": {
                                 "$ref": "#/components/schemas/HomepageResourcesLayout"
                             },
@@ -51803,7 +51826,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "1.70.0",
+        "version": "1.71.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
