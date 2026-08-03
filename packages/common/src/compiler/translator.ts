@@ -61,7 +61,10 @@ import {
     type ResolvedAdditionalTimeIntervals,
     type WeekDay,
 } from '../utils/timeFrames';
-import { ExploreCompiler } from './exploreCompiler';
+import {
+    ExploreCompiler,
+    showUnderlyingValuesWarning,
+} from './exploreCompiler';
 import { expandFieldsWithSetsLenient } from './fieldSetExpander';
 import {
     resolveAdditionalTimeIntervals,
@@ -982,18 +985,41 @@ export const convertTable = (
 
     // Expand set refs here so the query-time fallback (used when drilling from
     // a non-metric cell) always receives plain field refs.
-    const defaultShowUnderlyingValues = meta.default_show_underlying_values
-        ? expandFieldsWithSetsLenient(meta.default_show_underlying_values, {
-              name: model.name,
-              sets: meta.sets,
-          })
-        : undefined;
-    defaultShowUnderlyingValues?.invalidSetRefs.forEach(({ message }) =>
-        tableWarnings.push({
-            type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
-            message: `"default_show_underlying_values" in model "${model.name}": ${message} The reference will be ignored.`,
-        }),
+    const showUnderlyingValuesContext = `"default_show_underlying_values" in model "${model.name}"`;
+    const expandedDefaultShowUnderlyingValues =
+        meta.default_show_underlying_values
+            ? expandFieldsWithSetsLenient(meta.default_show_underlying_values, {
+                  name: model.name,
+                  sets: meta.sets,
+              })
+            : undefined;
+    expandedDefaultShowUnderlyingValues?.setExpansionErrors.forEach((problem) =>
+        tableWarnings.push(
+            showUnderlyingValuesWarning(showUnderlyingValuesContext, problem),
+        ),
     );
+    const defaultShowUnderlyingValues =
+        expandedDefaultShowUnderlyingValues?.fields.filter((ref) => {
+            const [tableRef, fieldRef] = ref.includes('.')
+                ? ref.split('.')
+                : [model.name, ref];
+            if (tableRef !== model.name) {
+                // Refs to other models can only resolve at explore compile time.
+                return true;
+            }
+            const isValidReference = !!(
+                dimensions[fieldRef] || allMetrics[fieldRef]
+            );
+            if (!isValidReference) {
+                tableWarnings.push(
+                    showUnderlyingValuesWarning(
+                        showUnderlyingValuesContext,
+                        `Unknown field "${ref}" in table "${model.name}".`,
+                    ),
+                );
+            }
+            return isValidReference;
+        });
 
     return {
         name: model.name,
@@ -1029,12 +1055,7 @@ export const convertTable = (
                   },
               }
             : {}),
-        ...(defaultShowUnderlyingValues
-            ? {
-                  defaultShowUnderlyingValues:
-                      defaultShowUnderlyingValues.fields,
-              }
-            : {}),
+        ...(defaultShowUnderlyingValues ? { defaultShowUnderlyingValues } : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
         ...(meta.sets ? { sets: meta.sets } : {}),

@@ -318,7 +318,7 @@ describe('expandFieldsWithSetsLenient', () => {
         );
 
         expect(result.fields).toEqual(['order_id', 'customer_id', 'total']);
-        expect(result.invalidSetRefs).toEqual([]);
+        expect(result.setExpansionErrors).toEqual([]);
     });
 
     it('should drop an unknown set ref and report it instead of throwing', () => {
@@ -332,11 +332,8 @@ describe('expandFieldsWithSetsLenient', () => {
         );
 
         expect(result.fields).toEqual(['order_id']);
-        expect(result.invalidSetRefs).toEqual([
-            {
-                ref: 'nonexistent_set*',
-                message: expect.stringContaining('nonexistent_set'),
-            },
+        expect(result.setExpansionErrors).toEqual([
+            expect.stringContaining('nonexistent_set'),
         ]);
     });
 
@@ -354,6 +351,6 @@ describe('expandFieldsWithSetsLenient', () => {
         );
 
         expect(result.fields).toEqual(['order_id', 'customer_id']);
-        expect(result.invalidSetRefs).toEqual([]);
+        expect(result.setExpansionErrors).toEqual([]);
     });
 });

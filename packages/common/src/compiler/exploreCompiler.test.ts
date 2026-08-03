@@ -2104,7 +2104,9 @@ describe('show_underlying_values validation', () => {
                 name: 'sales',
                 baseTable: 'sales',
                 joinedTables: [],
-                tables: { sales },
+                // Mirrors production: UncompiledExplore.tables is always the
+                // full project lookup, even when nothing is joined.
+                tables: { spine, sales },
             },
             joined: {
                 ...base,
@@ -2170,6 +2172,24 @@ describe('show_underlying_values validation', () => {
             {
                 type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
                 message: expect.stringContaining('spine.does_not_exist'),
+            },
+        ]);
+    });
+
+    it('warns and drops a cross-table ref whose table exists in no explore', () => {
+        const { standalone } = makeExplores([
+            'week_number',
+            'spien.farm_region',
+        ]);
+        const result = compiler.compileExplore(standalone);
+
+        const metric = result.tables.sales.metrics.total_sales;
+        expect(metric.compilationError).toBeUndefined();
+        expect(metric.showUnderlyingValues).toEqual(['week_number']);
+        expect(result.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('spien'),
             },
         ]);
     });

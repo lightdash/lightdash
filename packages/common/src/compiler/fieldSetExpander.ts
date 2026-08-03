@@ -159,6 +159,45 @@ function expandSetReferences(
     return expandedFields;
 }
 
+export type LenientSetExpansionResult = {
+    fields: string[];
+    setExpansionErrors: string[];
+};
+
+/**
+ * Like expandFieldsWithSets, but a set reference that fails to expand
+ * (missing set, circular reference, nesting limit) is dropped and reported
+ * instead of aborting the whole expansion.
+ */
+export function expandFieldsWithSetsLenient(
+    fields: string[],
+    currentTable: SetExpansionTable,
+): LenientSetExpansionResult {
+    const { inclusions, exclusions } = separateInclusionsAndExclusions(fields);
+    const setExpansionErrors: string[] = [];
+
+    const expandedFields = inclusions.flatMap((inclusion) => {
+        if (!inclusion.endsWith('*')) {
+            return [inclusion];
+        }
+        try {
+            return expandSetReferences([inclusion], currentTable);
+        } catch (e) {
+            setExpansionErrors.push(
+                e instanceof Error
+                    ? e.message
+                    : `Failed to expand set reference "${inclusion}".`,
+            );
+            return [];
+        }
+    });
+
+    return {
+        fields: applyExclusionsAndDeduplicate(expandedFields, exclusions),
+        setExpansionErrors,
+    };
+}
+
 /**
  * Expands field references that include set references (ending with *)
  * and applies exclusions (starting with -)
@@ -173,50 +212,10 @@ export function expandFieldsWithSets(
     fields: string[],
     currentTable: SetExpansionTable,
 ): string[] {
-    const { inclusions, exclusions } = separateInclusionsAndExclusions(fields);
-    const expandedFields = expandSetReferences(inclusions, currentTable);
-    const result = applyExclusionsAndDeduplicate(expandedFields, exclusions);
-
-    return result;
-}
-
-export type LenientSetExpansionResult = {
-    fields: string[];
-    invalidSetRefs: { ref: string; message: string }[];
-};
-
-/**
- * Like expandFieldsWithSets, but a set reference that fails to expand
- * (missing set, circular reference, nesting limit) is dropped and reported
- * instead of aborting the whole expansion.
- */
-export function expandFieldsWithSetsLenient(
-    fields: string[],
-    currentTable: SetExpansionTable,
-): LenientSetExpansionResult {
-    const { inclusions, exclusions } = separateInclusionsAndExclusions(fields);
-    const invalidSetRefs: LenientSetExpansionResult['invalidSetRefs'] = [];
-
-    const expandedFields = inclusions.flatMap((inclusion) => {
-        if (!inclusion.endsWith('*')) {
-            return [inclusion];
-        }
-        try {
-            return expandSetReferences([inclusion], currentTable);
-        } catch (e) {
-            invalidSetRefs.push({
-                ref: inclusion,
-                message:
-                    e instanceof Error
-                        ? e.message
-                        : `Failed to expand set reference "${inclusion}".`,
-            });
-            return [];
-        }
-    });
-
-    return {
-        fields: applyExclusionsAndDeduplicate(expandedFields, exclusions),
-        invalidSetRefs,
-    };
+    const { fields: expandedFields, setExpansionErrors } =
+        expandFieldsWithSetsLenient(fields, currentTable);
+    if (setExpansionErrors.length > 0) {
+        throw new CompileError(setExpansionErrors[0]);
+    }
+    return expandedFields;
 }

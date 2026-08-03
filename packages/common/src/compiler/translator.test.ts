@@ -1618,6 +1618,30 @@ describe('explore-scoped additional dimensions', () => {
         expect(table.warnings).toBeUndefined();
     });
 
+    it('should warn and drop an unknown field ref in default_show_underlying_values', () => {
+        const modelWithUnknownField = {
+            ...MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
+            meta: {
+                ...MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES.meta,
+                default_show_underlying_values: ['user_id', 'user_namee'],
+            },
+        };
+
+        const table = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            modelWithUnknownField,
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(table.defaultShowUnderlyingValues).toEqual(['user_id']);
+        expect(table.warnings).toEqual([
+            {
+                type: InlineErrorType.SHOW_UNDERLYING_VALUES_ERROR,
+                message: expect.stringContaining('user_namee'),
+            },
+        ]);
+    });
+
     it('should warn and drop an unknown set ref in default_show_underlying_values', () => {
         const modelWithUnknownSet = {
             ...MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
